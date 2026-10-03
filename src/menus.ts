@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { $ } from './state';
 import { SET, UPG, lv, save } from './save';
-import { auInit, setMute, sfx } from './audio';
+import { auInit, sample, setMute, sfx } from './audio';
 import { I } from './input';
 import { newGame, openShop, shopNext, startLoop } from './flow';
 
@@ -69,18 +69,23 @@ export function pauseItems() {
     }
   }];
 }
+// title screen: every cursor move is a short pfft, every selection a full fart (src/sfx/fart_nav, fart_ok)
+const menuBlip = (ok) => {
+  if ($.state === 'title' && sample(ok ? 'fart_ok' : 'fart_nav', { vol: ok ? .9 : .7, spread: .08, wet: .1 })) return;
+  sfx.menu();
+};
 export function menuNav(items) {
   if (I.up) {
     $.menuSel = ($.menuSel + items.length - 1) % items.length;
-    sfx.menu();
+    menuBlip(false);
   }
   if (I.down) {
     $.menuSel = ($.menuSel + 1) % items.length;
-    sfx.menu();
+    menuBlip(false);
   }
   if (I.ok) {
     auInit();
-    sfx.menu();
+    menuBlip(true);
     items[$.menuSel].a();
   }
 }

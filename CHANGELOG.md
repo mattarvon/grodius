@@ -4,6 +4,9 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ## 2026-10-03
 
+### Title menu farts
+- Title screen: moving the cursor plays a short pfft (`src/sfx/fart_nav/`), selecting plays a full fart (`src/sfx/fart_ok/`). Seeded with Matty's recording in 3 pitches; more takes go in those folders.
+
 ### Your voice on the hype man
 - 10-kill chain "HELL YEAH BROTHER!" now plays Matty's own recording (RecForge II, trimmed, high-passed, compressed, loudness-normalized) instead of text-to-speech; the splash holds longer to match the 4.4s line.
 - 10-chain picks randomly between "hell yeah" and "shamalama"; 20-chain surfer flyby picks between "little stinker" and "shamalama" (replacing the text-to-speech "excellent work, baby"). Splashes hold longer for the recorded lines.
