@@ -147,7 +147,8 @@ const sfx={
     nz({f:900,dur:1.4,vol:.16,ft:'bandpass',q:.7,a:.15,wet:.6});tone({type:'sine',f:60,f2:40,dur:.4,vol:.4})},
   drip(){if(thr('dr',200))return;tone({type:'sine',f:rr(1100,1500),f2:500,dur:.05,vol:.02,wet:.6})},
 };
-function say(t){if(SET.muted)return;try{const S=window.speechSynthesis;if(!S)return;const u=new SpeechSynthesisUtterance(t);u.pitch=.3;u.rate=.92;u.volume=1;S.cancel();S.speak(u)}catch(e){}}
+function say(t,o={}){if(SET.muted)return;try{const S=window.speechSynthesis;if(!S)return;const u=new SpeechSynthesisUtterance(t);u.pitch=o.pitch??.3;u.rate=o.rate??.92;u.volume=1;
+  if(o.female){const v=S.getVoices().find(v=>/female|samantha|zira|victoria|karen|moira|tessa|fiona|susan|aria|jenny/i.test(v.name));if(v)u.voice=v}S.cancel();S.speak(u)}catch(e){}}
 function setMute(m){SET.muted=m;if(AU.m)AU.m.gain.value=m?0:.55}
 
 // ---------------- input ----------------
@@ -960,11 +961,13 @@ function updateFX(){
 const CARN=[[5,'MESSY'],[10,'GRISLY'],[20,'VISCERAL'],[35,'ABATTOIR'],[50,'MEAT GRINDER'],[75,'BEYOND THE GATE'],[100,'HELL IS SHIPWIDE']];
 function updateCombo(){
   if(G.comboT>0){G.comboT--;if(G.comboT===0){G.combo=0;G.cMile=0}}
-  for(const [n,w] of CARN)if(G.combo>=n&&G.cMile<n){G.cMile=n;G.carn={w,t:90};if(n>=10)hype(n);if(n>=10)splat(rr(80,400),rr(40,200),1.5+n/40);G.red=Math.max(G.red,.35)}
+  for(const [n,w] of CARN)if(G.combo>=n&&G.cMile<n){G.cMile=n;G.carn={w,t:90};if(n===20)babe();else if(n>=10)hype(n);if(n>=10)splat(rr(80,400),rr(40,200),1.5+n/40);G.red=Math.max(G.red,.35)}
   if(G.carn&&--G.carn.t<=0)G.carn=null;
   if(G.hype&&--G.hype.t<=0)G.hype=null;
+  if(G.babe&&--G.babe.t<=0)G.babe=null;
 }
 const HYPE={10:['HELL YEAH','BROTHER!'],20:["NOW WE'RE","COOKIN' MEAT!"],35:['SPLATTER',"'EM, BROTHER!"],50:['GLORIOUS','CARNAGE!'],75:['THE GATE','FEARS YOU!'],100:['HELL IS','YOUR HOUSE!']};
+function babe(){G.babe={t:230,ml:230,y:rr(34,52)};tone({f:523,f2:1046,dur:.25,vol:.05,type:'triangle',wet:.3});tone({at:.15,f:659,f2:1318,dur:.3,vol:.05,type:'triangle',wet:.3});setTimeout(()=>say('excellent work, baby',{female:1,pitch:1.15,rate:.9}),500)}
 function hype(n){const L=HYPE[n];if(!L)return;G.hype={L,t:150,ml:150};sfx.hype();setTimeout(()=>say(L.join(' ').replace(/[!']/g,'').toLowerCase()),120)}
 function hellFlash(){if(!SET.flashes)return;makeHell();G.hell=ri(3,5);G.glitch=Math.max(G.glitch,8);sfx.whisper()}
 function updateAmbient(){
@@ -1740,6 +1743,36 @@ function drawSlab(c,jaw,t){
   c.fillStyle='#b83a3a';c.beginPath();c.ellipse(0,-69+mh*.45,4.5,mh*.35,0,0,Math.PI);c.fill();
   c.fillStyle='#2e1a10';for(let k=-3;k<=3;k++)c.fillRect(k*2.4-.5,-69+mh+1.5,1,1.2);
 }
+function drawBabe(){
+  const b=G.babe;if(!b)return;const age=b.ml-b.t,x=-40+age*(W+80)/b.ml,y=b.y+Math.sin(age*.07)*4,wave=Math.sin(age*.3);
+  ctx.save();ctx.globalAlpha=.92*Math.min(1,b.t/20,age/10);
+  // 80s neon trail
+  ctx.globalCompositeOperation='lighter';for(const[c,o]of[['255,60,170',-2],['60,220,255',1],['255,200,60',4]]){ctx.fillStyle=`rgba(${c},.55)`;ctx.fillRect(x-60,y+o,52,2)}ctx.globalCompositeOperation='source-over';
+  ctx.translate(x,y);
+  // surfboard
+  ctx.fillStyle='#ff3fa4';ctx.beginPath();ctx.ellipse(0,1,15,2.6,0,0,TAU);ctx.fill();ctx.fillStyle='#fff';ctx.fillRect(-12,.6,24,.8);ctx.fillStyle='#3cdcff';ctx.fillRect(-4,-.2,8,.6);
+  const sk='#e39a62',skD='#b46a3a';ctx.lineCap='round';
+  // legs
+  ctx.strokeStyle=skD;ctx.lineWidth=2.6;ctx.beginPath();ctx.moveTo(-1,-14);ctx.lineTo(-4,-1);ctx.moveTo(1,-14);ctx.lineTo(4,-1);ctx.stroke();
+  ctx.strokeStyle=sk;ctx.lineWidth=1.8;ctx.stroke();
+  // torso
+  ctx.fillStyle=sk;ctx.beginPath();ctx.ellipse(0,-19,3,6,0,0,TAU);ctx.fill();ctx.fillStyle=skD;ctx.fillRect(1.6,-23,1,8);
+  // bikini (full top + bottoms)
+  ctx.fillStyle='#ff2a6a';poly(ctx,[[-3,-15.5],[3,-15.5],[1.5,-13],[-1.5,-13]]);ctx.fillRect(-3,-21.5,6,2.2);ctx.fillStyle='#ff8ab8';ctx.fillRect(-2.5,-21.5,5,.6);
+  // arms: one on hip, one waving
+  ctx.strokeStyle=sk;ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(-2.5,-23);ctx.lineTo(-5,-18);ctx.lineTo(-2.6,-15.5);ctx.moveTo(2.5,-23);ctx.lineTo(6,-27);ctx.lineTo(7+wave*1.5,-32);ctx.stroke();ctx.lineCap='butt';
+  // head, shades, big blonde hair blowing back
+  ctx.fillStyle='#ffe060';poly(ctx,[[-2,-31],[-11,-27+wave*.6],[-9,-24],[-3,-25],[0,-28]]);ctx.beginPath();ctx.arc(0,-28.5,3.4,Math.PI,TAU);ctx.fill();
+  ctx.fillStyle=sk;ctx.beginPath();ctx.arc(.6,-27.5,2.6,0,TAU);ctx.fill();ctx.fillStyle='#111';ctx.fillRect(.4,-28.6,3.4,1.2);ctx.fillStyle='#d0205a';ctx.fillRect(2,-25.8,1.2,.7);
+  ctx.fillStyle='#fff3a0';ctx.fillRect(-1,-31.5,2,.8);
+  ctx.restore();
+  // speech bubble
+  if(age>20&&b.t>15){const bx=clamp(x+10,6,W-112),by=y-46;ctx.save();ctx.globalAlpha=.92;ctx.fillStyle='#fff';ctx.fillRect(bx,by,104,12);ctx.fillStyle='#ff2a6a';ctx.fillRect(bx,by,104,1);ctx.fillRect(bx,by+11,104,1);
+    poly(ctx,[[clamp(x+6,bx+4,bx+100),by+12],[clamp(x+2,bx,bx+96),by+18],[clamp(x+12,bx+8,bx+104),by+12]]);
+    txt('EXCELLENT WORK, BABY!',bx+52,by+3,'#d0205a','center',7);ctx.restore()}
+  // bullets stay on top
+  ctx.save();ctx.beginPath();ctx.rect(x-70,y-50,190,62);ctx.clip();ctx.translate(G.shx||0,G.shy||0);drawEShots();ctx.restore();
+}
 function drawHype(){
   const h=G.hype;if(!h)return;const age=h.ml-h.t,inT=sstep(0,12,age),outT=sstep(0,16,h.t),off=(1-inT)*150+(1-outT)*150;
   const px=W-70+off,py=PH,pw=128,ph=112;
@@ -1800,7 +1833,7 @@ function drawHUD(){
     if(m.bars){const n=m.bars.filter(b=>!b.dead).length;if(n)txt(n+' NAIL BARRIERS',W/2,y+5,'#8fa3b8','center',7)}}
   if(G.feed&&state!=='pause'){const f=G.feed,a=Math.min(1,f.t/25,(f.ml-f.t)/10);ctx.globalAlpha=a;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(W/2-130,PH-44,260,24);
     txt(f.s,W/2,PH-41,'#ffb070','center',8);txt(f.d.toUpperCase(),W/2,PH-31,'#cfd9e3','center',7);ctx.globalAlpha=1}
-  if(state!=='pause')drawHype();
+  if(state!=='pause'){drawHype();drawBabe()}
   if(G.banner){const b=G.banner,a=Math.min(1,b.t/30,(b.ml-b.t)/12),fl=R()<.06?.4:1;ctx.globalAlpha=a*fl;
     ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(0,PH*.36,W,b.sub?48:36);
     txt(b.text,W/2+1,PH*.36+5,'#000','center',28,FONT_D);txt(b.text,W/2,PH*.36+4,b.col,'center',28,FONT_D);
