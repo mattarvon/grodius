@@ -1744,16 +1744,18 @@ function drawHype(){
   const h=G.hype;if(!h)return;const age=h.ml-h.t,inT=sstep(0,12,age),outT=sstep(0,16,h.t),off=(1-inT)*150+(1-outT)*150;
   const px=W-70+off,py=PH,pw=128,ph=112;
   const shake=age<40?rr(-1.5,1.5):0,jaw=age<70?.6+.4*Math.abs(Math.sin(age*.35)):.2;
+  // whole splash shrunk to a small top-right corner badge so it never hides the playfield
+  const HS=.38;ctx.save();ctx.globalAlpha=.9;ctx.translate(W-2,16);ctx.scale(HS,HS);ctx.translate(-W,-(PH-ph-8));
   // panel with rays
   ctx.save();ctx.beginPath();ctx.moveTo(px-pw/2+10,py-ph);ctx.lineTo(px+pw/2,py-ph-6);ctx.lineTo(px+pw/2,py);ctx.lineTo(px-pw/2,py);ctx.closePath();ctx.clip();
   ctx.fillStyle='#4e0307';ctx.fillRect(px-pw/2,py-ph-8,pw,ph+8);
-  ctx.translate(px,py-48);ctx.rotate(T*.015);for(let k=0;k<16;k++){ctx.fillStyle=k%2?'#ffb000':'#c3121c';const a=k/16*TAU,b2=(k+1)/16*TAU;poly(ctx,[[0,0],[Math.cos(a)*150,Math.sin(a)*150],[Math.cos(b2)*150,Math.sin(b2)*150]])}
-  ctx.setTransform(1,0,0,1,0,0);ctx.translate(px+shake,py+shake*.5);drawSlab(ctx,jaw,T);ctx.restore();
+  ctx.save();ctx.translate(px,py-48);ctx.rotate(T*.015);for(let k=0;k<16;k++){ctx.fillStyle=k%2?'#ffb000':'#c3121c';const a=k/16*TAU,b2=(k+1)/16*TAU;poly(ctx,[[0,0],[Math.cos(a)*150,Math.sin(a)*150],[Math.cos(b2)*150,Math.sin(b2)*150]])}ctx.restore();
+  ctx.translate(px+shake,py+shake*.5);drawSlab(ctx,jaw,T);ctx.restore();
   ctx.strokeStyle='#000';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(px-pw/2+10,py-ph);ctx.lineTo(px+pw/2,py-ph-6);ctx.lineTo(px+pw/2,py);ctx.lineTo(px-pw/2,py);ctx.closePath();ctx.stroke();
   ctx.fillStyle='#000';ctx.fillRect(px-pw/2+8,py-12,78,10);txt('SGT. RAMROD SLAB',px-pw/2+12,py-10,'#ffd23a','left',7);
   // burst bubble
   const pop=1+(1-sstep(0,8,age))*.7,cx=px-pw/2-74+off*.3,cy=py-ph+28;
-  ctx.save();ctx.translate(cx,cy);ctx.scale(pop,pop);ctx.rotate(-.05);ctx.globalAlpha=outT;
+  ctx.save();ctx.translate(cx,cy);ctx.scale(pop,pop);ctx.rotate(-.05);ctx.globalAlpha=.9*outT;
   const pts=[];for(let k=0;k<22;k++){const a=k/22*TAU,r=k%2?1:1.22;pts.push([Math.cos(a)*76*r,Math.sin(a)*30*r])}
   ctx.fillStyle='#000';ctx.save();ctx.translate(3,3);poly(ctx,pts);ctx.restore();
   ctx.fillStyle='#fff3c4';poly(ctx,pts);ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(const q of pts)ctx.lineTo(q[0],q[1]);ctx.closePath();ctx.stroke();
@@ -1762,7 +1764,9 @@ function drawHype(){
   const s1=fit(h.L[0],20),s2=fit(h.L[1],22);
   txt(h.L[0],1,-22,'#1a0003','center',s1,FONT_D);
   txt(h.L[1],2,-1,'#000','center',s2,FONT_D);txt(h.L[1],1,-2,'#c3121c','center',s2,FONT_D);
-  ctx.restore();ctx.globalAlpha=1;
+  ctx.restore();ctx.restore();ctx.globalAlpha=1;
+  // enemy fire always wins: redraw bullets over the badge
+  ctx.save();ctx.beginPath();ctx.rect(W-130,12,130,60);ctx.clip();ctx.translate(G.shx||0,G.shy||0);drawEShots();ctx.restore();
 }
 
 // --- HUD ---
