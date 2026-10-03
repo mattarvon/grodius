@@ -1,6 +1,6 @@
 # Grodius
 
-Gradius-style horizontal shooter with an Event Horizon aesthetic. A rescue tug descends into the derelict MERIDIAN in Neptune orbit and fights its way to the gravity drive.
+Gradius-style horizontal shooter with an Event Horizon aesthetic. 
 
 Vite + TypeScript web game, wrapped as an Android app with Capacitor. The last single-file version lives on the `legacy-singlefile` branch.
 
