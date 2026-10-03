@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { gainXP, pk } from './perks';
 import { FIRE, PH, R, TAU, W, clamp, dist2, pick, ri, rr, swapRm } from './core';
 import { SET, lv } from './save';
 import { sfx } from './audio';
@@ -161,6 +162,7 @@ export function updateShots() {
           s.hit.add(e);
           const d = s.dmg * critMul(e.x, e.y);
           hurt(e, d, e.x - e.r * .5, s.y, 1);
+          onHitPerks(e);
           chainArc(e, d);
           continue;
         }
@@ -168,6 +170,7 @@ export function updateShots() {
           if (s.hit && s.hit.has(e)) continue;
           const d = s.dmg * critMul(e.x, e.y);
           hurt(e, d, s.x, s.y, s.vx < 0 ? -1 : 1);
+          onHitPerks(e);
           if (!s.spore && !s.mirror) chainArc(e, d);
           if (s.pierce > 0) {
             s.pierce--;
@@ -202,6 +205,12 @@ export function updateEShots() {
     }
     s.x += s.vx - (s.k === 'glob' ? 0 : 0);
     s.y += s.vy;
+    if (!s.grazed && pk('graze') && $.P.alive && dist2(s.x, s.y, $.P.x, $.P.y) < 14 * 14) {
+      s.grazed = 1;
+      gainXP(.6 * pk('graze'));
+      $.G.score += 40 * pk('graze');
+      spark(s.x, s.y, rr(-1, 1), rr(-1, 1), 8, '#9fd2ff');
+    }
     const wx = s.x + $.G.scroll,
       f = floorAt(wx),
       c = ceilAt(wx);
@@ -222,7 +231,7 @@ export function updateEShots() {
         dead = true;
       }
     }
-    if (!dead && $.P.alive && dist2(s.x, s.y, $.P.x, $.P.y) < (s.r + 2.6) ** 2) {
+    if (!dead && $.P.alive && dist2(s.x, s.y, $.P.x, $.P.y) < (s.r + 2.6 * (1 - .2 * pk('tiny'))) ** 2) {
       if ($.P.inv <= 0 || $.P.shield > 0) {
         playerHit();
         dead = true;
@@ -268,8 +277,18 @@ export function updateEnemies() {
       if (R() < .15) drop(e.x + rr(-e.r, e.r), e.y, rr(-.5, .5), -rr(.2, 1), 1, 5, 40);
       if (e.hp <= 0) killEnemy(e, 1);
     }
-    if (!e.dead) updEnemy(e);
-    if (!e.dead && !(e.ghost > 0) && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) < (e.r + 4) ** 2) {
+    if (!e.dead && e.acid > 0) {
+      e.acid--;
+      e.hp -= .02 * (1 + pk('corrode'));
+      if (R() < .25) drop(e.x + rr(-e.r, e.r), e.y + rr(-e.r, e.r), rr(-.3, .3), rr(0, .6), 1, 2, 40);
+      if (e.hp <= 0) killEnemy(e, 1);
+    }
+    if (e.chill > 0) {
+      e.chill--;
+      if (R() < .3) spark(e.x + rr(-e.r, e.r), e.y + rr(-e.r, e.r), 0, -.3, 10, '#cfe8ff');
+    }
+    if (!e.dead && !(e.chill > 0 && !e.mini && $.T % 2)) updEnemy(e);
+    if (!e.dead && !(e.ghost > 0) && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) < (e.r + 4 - 1.3 * pk('tiny')) ** 2) {
       if ($.P.shield > 0 && !e.big) {
         hurt(e, 8, e.x, e.y, 1);
         playerHit();
@@ -292,7 +311,7 @@ export function updateCaps() {
       c.y += (c.ty - c.y) * .1;
     } else c.x -= $.G.scrollSpeed * .8 + .25;
     c.y += Math.sin(c.t * .05) * .3;
-    const lr = lv('lure');
+    const lr = Math.max(lv('lure'), pk('magnet'));
     if (lr && $.P.alive) {
       const d = Math.sqrt(dist2(c.x, c.y, $.P.x, $.P.y)) || 1;
       if (d < 60 + lr * 50) {
@@ -370,3 +389,12 @@ export function purge() {
 }
 
 // ---------------- fx simulation ----------------
+
+/** biome perks applied on every bullet/laser hit */
+function onHitPerks(e) {
+  if (e.dead) return;
+  const fr = pk('frost'), co = pk('corrode'), ig = pk('ignite');
+  if (fr) e.chill = Math.max(e.chill || 0, 40 + 30 * fr);
+  if (co) e.acid = Math.max(e.acid || 0, 90 + 60 * co);
+  if (ig) e.burn = Math.max(e.burn || 0, 50 + 50 * ig);
+}

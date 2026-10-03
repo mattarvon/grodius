@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
+import { biomeEdge, biomeK, biomeTerrainFill, drawBiomeBG, drawBiomeDecor } from '../biomes';
 import { C, H, PH, TAU, TS, W, ctx, hash, lc, lctx, sstep } from '../core';
 import { AMT, LIGHTS, ceilAt, floorAt, splats } from '../world';
 import { DERE, STARS, fleshPat, metalPat } from '../textures';
@@ -25,8 +26,9 @@ export function drawTerrain() {
     ctx.closePath();
     ctx.fillStyle = metalPat;
     ctx.fill();
-    if (corr > 0) {
-      ctx.globalAlpha = corr * .7;
+    const bk = biomeTerrainFill(mtx);
+    if (corr > 0 && bk < 1) {
+      ctx.globalAlpha = corr * .7 * (1 - bk);
       ctx.fillStyle = fleshPat;
       ctx.fill();
       ctx.globalAlpha = 1;
@@ -46,7 +48,7 @@ export function drawTerrain() {
         y = top ? ceilAt(wx) - .5 : floorAt(wx) + .5;
       x === x0 - TS ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = corr > .5 ? '#7a3a36' : '#6d8094';
+    ctx.strokeStyle = biomeEdge() || (corr > .5 ? '#7a3a36' : '#6d8094');
     ctx.lineWidth = 1;
     ctx.stroke();
   }
@@ -84,9 +86,11 @@ export function drawTerrain() {
       }
     }
   }
-  if (corr > 0) for (let wx = Math.floor(sc / 22) * 22; wx < sc + W + 22; wx += 22) {
+  drawBiomeDecor(sc);
+  const nob = 1 - biomeK(sc + W / 2)[1];
+  if (corr > 0 && nob > .05) for (let wx = Math.floor(sc / 22) * 22; wx < sc + W + 22; wx += 22) {
     const h = hash(wx * .137);
-    if (h > corr * .75) continue;
+    if (h > corr * .75 * nob) continue;
     const x = wx - sc;
     for (const s of [1, -1]) {
       const y = s > 0 ? floorAt(wx) : ceilAt(wx);
@@ -133,8 +137,9 @@ export function drawTerrain() {
 }
 export function drawDecor() {
   const sc = $.G.scroll,
-    corr = AMT.corr(sc + W / 2),
-    hull = AMT.hull(sc + W / 2);
+    nob = 1 - biomeK(sc + W / 2)[1],
+    corr = AMT.corr(sc + W / 2) * nob,
+    hull = AMT.hull(sc + W / 2) * nob;
   if (corr > 0) for (let wx = Math.floor(sc / 46) * 46; wx < sc + W + 46; wx += 46) {
     const h = hash(wx * .53 + 3),
       x = wx - sc;
@@ -412,6 +417,7 @@ export function drawBG() {
     drawDerelict(sp * (1 - AMT.corr(sc)), sc);
     drawInterior(AMT.corr(sc) > 0 ? sstep(5000, 5400, sc) * (1 - sstep(8500, 8900, sc)) : 0, sc);
     drawCoreBG(AMT.core(sc));
+    drawBiomeBG(sc);
   }
 }
 export function drawLighting(dk) {

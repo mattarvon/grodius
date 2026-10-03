@@ -8,6 +8,8 @@ import { ALL, buildTerrain, ceilAt, eshots, floorAt } from './world';
 import { drop, flash, gore, spark, splat } from './fx/spawn';
 import { buildScript } from './enemies/spawn';
 import { startStage } from './stages';
+import { biomeReset } from './biomes';
+import { perksReset } from './perks';
 import { caps } from './world';
 
 // ---------------- game flow ----------------
@@ -47,6 +49,7 @@ export function newGame(startL = 0) {
     warn: [],
     feed: null
   };
+  perksReset();
   startLoop(startL);
 }
 export function startLoop(L) {
@@ -73,6 +76,10 @@ export function startLoop(L) {
   }
   $.G.logQ = L === 0 ? [...LOG_START] : [`THE GATE OPENED AGAIN. DESCENT ${L + 1}.`, 'IT REMEMBERS YOU.'];
   $.G.tally = null;
+  $.G.route = [null, null];
+  $.G.fork = null;
+  $.G.forkHold = false;
+  biomeReset();
   startStage(0);
   $.state = 'play';
 }

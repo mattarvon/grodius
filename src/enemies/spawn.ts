@@ -472,6 +472,8 @@ export function buildScript(L) {
   at(7320, () => maw(false));
   at(8000, () => logLine('IT IS SHOWING ME THINGS. DO NOT LOOK AT THE WALLS.'));
   at(BOSS_AT, () => startBoss());
+  // stages 1 and 2 are biome slots, scripted when you pick a gate (biomes.ts)
+  for (let i = S.length - 1; i >= 0; i--) if (S[i].x >= 2300 && S[i].x < 8200) S.splice(i, 1);
   S.sort((a, b) => a.x - b.x);
   return S;
 }

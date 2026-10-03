@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { pk } from './perks';
 import { PH, R, TAU, W, clamp, lerp, ri, rr } from './core';
 import { lv } from './save';
 import { sfx } from './audio';
@@ -106,7 +107,7 @@ export function playerHit() {
   if ($.G.st) $.G.st.hits++;
   if ($.P.shield > 0) {
     $.P.shield = Math.max(0, $.P.shield - 1);
-    $.P.inv = 18;
+    $.P.inv = Math.round(18 * (1 + .5 * pk('inv')));
     sfx.shield();
     buzz('light');
     sporeBurst();
@@ -118,7 +119,7 @@ export function playerHit() {
 }
 export function fire() {
   const cal = gmL('cal'),
-    dm = (1 + .15 * gmL('serr')) * (1 + .1 * cal),
+    dm = (1 + .15 * gmL('serr')) * (1 + .1 * cal) * (1 + .15 * pk('dmg')),
     rp = gmL('rapid'),
     org = [{
       x: $.P.x,
@@ -133,7 +134,7 @@ export function fire() {
     vy,
     dmg: dm,
     r: 2 + cal * .45,
-    pierce: gmL('pierce'),
+    pierce: gmL('pierce') + pk('pierce'),
     seek: gmL('seek'),
     rip: gmL('ripple'),
     t: 0,
@@ -182,9 +183,10 @@ export function fire() {
       }
     }
   }
+  $.P.cd = Math.max(3, Math.round($.P.cd * (1 - .12 * pk('rof'))));
   flash($.P.x + 13, $.P.y, 9, 3, '190,225,255');
   if ($.P.missile && $.P.mcd <= 0) {
-    $.P.mcd = 34;
+    $.P.mcd = Math.round(34 * (1 - .2 * pk('reload')));
     for (const o of org) {
       shots.push({
         k: 'missile',
@@ -212,7 +214,7 @@ export function fire() {
     sfx.missile();
   }
   if ($.P.pyre && $.P.pcd <= 0) {
-    $.P.pcd = $.P.pyre > 1 ? 20 : 30;
+    $.P.pcd = Math.round(($.P.pyre > 1 ? 20 : 30) * (1 - .2 * pk('reload')));
     const src = $.P.pyre > 1 ? org : [org[0]];
     for (const o of src) shots.push({
       k: 'pyre',
@@ -233,7 +235,13 @@ export function updatePlayer() {
     if ($.G.deadT <= 0) respawn();
     return;
   }
-  const sp = 1.25 + $.P.speed * .42;
+  if ($.P.slow > 0) $.P.slow--;
+  const sp = (1.25 + $.P.speed * .42) * (1 + .08 * pk('spd')) * ($.P.slow > 0 ? .45 : 1);
+  // SNOT ROCKET: periodic piercing glob
+  if (pk('snot') && $.state === 'play' && ($.G.t % (pk('snot') > 1 ? 150 : 240)) === 0) {
+    shots.push({ k: 'bolt', x: $.P.x + 10, y: $.P.y, vx: 4.2, vy: 0, dmg: 4, r: 5, pierce: 8, glob: 1, t: 0 });
+    sfx.glob();
+  }
   let dx = I.x,
     dy = I.y;
   if (dx && dy) {

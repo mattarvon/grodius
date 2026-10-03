@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
+import { pk } from '../perks';
 import { FIRE, H, R, W, dist2, pick, ri, rr, swapRm } from '../core';
 import { SET } from '../save';
 import { AU, BANK, sample, say, sfx, tone } from '../audio';
@@ -194,8 +195,9 @@ export function updateFX() {
         o.y += ($.P.y - o.y) / d * f;
       }
       if (d < 8) {
-        $.G.bio += o.v;
-        $.meta.bio += o.v;
+        const gv = o.v * (1 + .3 * pk('greed'));
+        $.G.bio += gv;
+        $.meta.bio += gv;
         sfx.squish();
         swapRm(orbs, i);
         continue;

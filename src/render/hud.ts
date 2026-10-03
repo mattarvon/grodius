@@ -1,6 +1,8 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { STAGES, stageLabel } from '../stages';
+import { drawBiomeFX } from '../biomes';
+import { pk, xpNeed, perkName, perkDesc, perkReq, PERKS } from '../perks';
+import { stageInfo, stageLabel } from '../stages';
 import { sfx } from '../audio';
 import { WARD_MAX } from '../player';
 import { BOSS_AT, C, FONT_D, FONT_H, H, PH, R, TAU, W, clamp, ctx, lerp, rr } from '../core';
@@ -79,7 +81,7 @@ export function drawHUD() {
   if (Math.abs($.G.score - $.G.dScore) < 1) $.G.dScore = $.G.score;
   txt('SCORE ' + pad($.G.dScore, 8), 6, 4, '#cfd9e3');
   txt('HI ' + pad(Math.max($.hi, $.G.score), 8), W - 6, 4, '#6d7a88', 'right');
-  txt('STAGE ' + stageLabel() + ' ' + STAGES[$.G.stage || 0].name + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#5b6573');
+  txt('STAGE ' + stageLabel() + ' ' + stageInfo().name + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#5b6573');
   if (!$.G.boss || $.G.boss.dying) {
     const bw = 110,
       bx = W / 2 - bw / 2,
@@ -137,7 +139,7 @@ export function drawHUD() {
   }
   if ($.G.mini && !$.G.mini.dead && $.G.mini.t > 30) {
     const m = $.G.mini,
-      nm = {
+      nm = m.title || {
         maw: 'THE MAW',
         crux: 'THE CRUCIFER',
         butcher: 'THE BUTCHER'
@@ -157,6 +159,8 @@ export function drawHUD() {
     }
   }
   if ($.G.tally && $.state !== 'pause') drawTally();
+  drawXP();
+  if ($.G.pick) drawPick();
   if ($.G.feed && $.state !== 'pause') {
     const f = $.G.feed,
       a = Math.min(1, f.t / 25, (f.ml - f.t) / 10);
@@ -284,6 +288,7 @@ export function drawWorld() {
   for (const e of enemies) if (e.k === 'eye') drawEnemy(e);
   drawGibs();
   drawDrops();
+  drawBiomeFX();
   for (const o of orbs) {
     const p = .6 + .4 * Math.sin($.T * .3 + o.x);
     ctx.globalCompositeOperation = 'lighter';
@@ -537,5 +542,46 @@ function drawTally() {
     txt('+' + t.bio + ' BIO', x0 + 8, y0 + 94, '#ff8aa0', 'left', 7);
     txt(t.best, x0 + w - 8, y0 + 94, t.best.startsWith('NEW') || t.best.startsWith('FIRST') ? '#ffd23a' : '#6d7a88', 'right', 7);
   }
+  ctx.globalAlpha = 1;
+}
+
+/** ship level + XP bar, under the score */
+function drawXP() {
+  const G = $.G;
+  if (G.lvl == null) return;
+  const w = 70, f = Math.min(1, G.xp / xpNeed(G.lvl)), y = 22;
+  txt('LV' + G.lvl, W / 2 - w / 2 - 22, y - 1, '#9fd2ff', 'left', 7);
+  ctx.fillStyle = '#0c141c';
+  ctx.fillRect(W / 2 - w / 2, y + 1, w, 3);
+  ctx.fillStyle = G.pickQ > 0 ? '#ffd23a' : '#4c8dff';
+  ctx.fillRect(W / 2 - w / 2, y + 1, w * f, 3);
+}
+/** level-up: three mutation cards. Up/down or left/right + fire/enter, or click/tap a card */
+function drawPick() {
+  const p = $.G.pick, n = p.opts.length, cw = 132, gap = 8, x0 = W / 2 - (n * cw + (n - 1) * gap) / 2, y0 = 70, ch = 108, a = Math.min(1, p.t / 12);
+  ctx.globalAlpha = a * .7;
+  ctx.fillStyle = '#020304';
+  ctx.fillRect(0, 0, W, PH);
+  ctx.globalAlpha = a;
+  txt('SHIP LEVEL ' + $.G.lvl + ' // THE SHIP MUTATES', W / 2, 48, '#ffd23a', 'center', 8);
+  txt('PICK ONE', W / 2, 58, '#6d7a88', 'center', 7);
+  $.pickBoxes = [];
+  p.opts.forEach((id, i) => {
+    const x = x0 + i * (cw + gap), sel = i === p.sel, l = pk(id) + 1, req = perkReq(id), mx = PERKS.find((q) => q.id === id).max;
+    ctx.fillStyle = sel ? 'rgba(60,8,12,.95)' : 'rgba(10,12,16,.92)';
+    ctx.fillRect(x, y0, cw, ch);
+    ctx.fillStyle = sel ? '#e0242c' : '#2a3038';
+    ctx.fillRect(x, y0, cw, 1); ctx.fillRect(x, y0 + ch - 1, cw, 1); ctx.fillRect(x, y0, 1, ch); ctx.fillRect(x + cw - 1, y0, 1, ch);
+    if (req) txt(req.toUpperCase() + ' MUTATION', x + 8, y0 + 8, '#a6ff2a', 'left', 7);
+    txt(perkName(id), x + 8, y0 + 20, sel ? '#ffffff' : '#cfd9e3', 'left', 8);
+    for (let k = 0; k < mx; k++) { ctx.fillStyle = k < l ? (k === l - 1 ? '#ffd23a' : '#9a7a20') : '#20262c'; ctx.fillRect(x + 8 + k * 9, y0 + 33, 7, 3); }
+    // wrap the description
+    const words = perkDesc(id, l).toUpperCase().split(' '); let line = '', ly = y0 + 44;
+    ctx.font = `7px ${FONT_H}`;
+    for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > cw - 16) { txt(line, x + 8, ly, '#8fa3b8', 'left', 7); line = w; ly += 9; } else line = t; }
+    if (line) txt(line, x + 8, ly, '#8fa3b8', 'left', 7);
+    $.pickBoxes.push({ x, y: y0, w: cw, h: ch, i });
+  });
+  if (p.t > 35) txt('UP/DOWN + FIRE  //  CLICK OR TAP A CARD', W / 2, y0 + ch + 10, '#5b6573', 'center', 7);
   ctx.globalAlpha = 1;
 }

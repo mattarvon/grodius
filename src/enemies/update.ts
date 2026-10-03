@@ -1,14 +1,15 @@
 // @ts-nocheck
 import { $ } from '../state';
+import { gainXP, pk } from '../perks';
 import { clearStage } from '../stages';
 import { PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '../core';
 import { SET, lv } from '../save';
-import { sfx } from '../audio';
-import { caps, ceilAt, eshots, floorAt, geysers, orbs } from '../world';
+import { sample, sfx } from '../audio';
+import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world';
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { aimA, banner, eshoot, every, fan, mk, onScreen, ring } from '../enemies/spawn';
 import { countKill } from '../mutations';
-import { playerHit, slotMaxed } from '../player';
+import { WARD_MAX, playerHit, slotMaxed } from '../player';
 
 // --- enemy behaviour ---
 export function updEnemy(e) {
@@ -482,6 +483,17 @@ export function killEnemy(e, dir = 1) {
   });
   const sc = Math.round(e.score * mult() * (1 + $.G.loop * .5));
   $.G.score += sc;
+  if (!e.par) gainXP(e.mini ? 30 : Math.max(1, e.score / 100));
+  const vo = pk('volatile');
+  if (vo && !e.mini && !e.par) {
+    const r = 20 + 8 * vo;
+    flash(e.x, e.y, r, 8, '255,120,60');
+    for (const o of enemies) if (o !== e && !o.dead && dist2(o.x, o.y, e.x, e.y) < r * r) hurt(o, 1.2 * vo, o.x, o.y, 1);
+  }
+  if (pk('scab') && $.P && $.P.wardLv > 0 && $.P.shield < WARD_MAX && R() < .06 * pk('scab')) {
+    $.P.shield = Math.min(WARD_MAX, Math.floor($.P.shield) + 1);
+    pop($.P.x, $.P.y - 12, 'SCAB', '#ff8aa0', 7, 30);
+  }
   pop(e.x, e.y - 8, '+' + sc, '#cfd9e3', 8, 40);
   const bio = Math.ceil(e.bio * (1 + .25 * lv('gland')));
   const n = Math.min(8, Math.max(1, Math.round(bio / 3)));
@@ -530,6 +542,7 @@ export function killEnemy(e, dir = 1) {
     for (const s of eshots) for (let k = 0; k < 2; k++) drop(s.x, s.y, rr(-1, 1), rr(-1, 1), 1.4, 0, 90);
     eshots.length = 0;
   }
+  if (e.k === 'corpse') sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true });
   if (e.k === 'maw') {
     if (e.stageBoss) {
       miniReward(e);

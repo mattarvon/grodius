@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { take } from './perks';
 import { musicSuspend } from './music';
 import { H, W, crt, cv, psBtn, pwBtn, wrap } from './core';
 import { save } from './save';
@@ -170,6 +171,11 @@ cv.addEventListener('pointerdown', e => {
   auInit();
   cv.focus();
   if ($.gate) return;
+  if ($.G && $.G.pick && $.G.pick.t > 35) {
+    const r = cv.getBoundingClientRect(), gx = (e.clientX - r.left) / r.width * W, gy = (e.clientY - r.top) / r.height * H;
+    for (const b of $.pickBoxes || []) if (gx >= b.x && gx <= b.x + b.w && gy >= b.y && gy <= b.y + b.h) take($.G.pick.opts[b.i]);
+    return;
+  }
   if ($.state === 'play') return;
   const r = cv.getBoundingClientRect();
   const gx = (e.clientX - r.left) / r.width * W,

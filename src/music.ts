@@ -18,7 +18,30 @@ export const TRACKS = {
   stage3: 'tech-rooms-amb-02', // The Gravity Drive approach
   boss3: 'eternity-01-desolation-davidkbd', // The Gravity Drive fight
 };
+/** biome remixes of the same tracks: playback rate (pitch + tempo), a filter (optionally LFO-swept) and drive */
+export const BIOME_MIX = {
+  none: { rate: 1, type: 'lowpass', f: 20000, q: .7, lfo: 0, depth: 0, drive: 0 },
+  ice: { track: 'tech-rooms-amb-01', rate: .9, type: 'highpass', f: 300, q: .9, lfo: 0, depth: 0, drive: 0 },
+  acid: { track: 'tech-rooms-action-02', rate: 1.07, type: 'bandpass', f: 1200, q: 1.3, lfo: .22, depth: 850, drive: .25 },
+  fire: { track: 'eternity-01-desolation-davidkbd', rate: 1.04, type: 'lowshelf', f: 180, q: .7, gain: 7, lfo: 0, depth: 0, drive: .6 },
+  snot: { track: 'tech-rooms-action-01', rate: .8, type: 'lowpass', f: 950, q: 7, lfo: .13, depth: 500, drive: .1 },
+};
 const FADE = 1.4, PAUSE_LVL = .35, DUCK_LVL = .3;
+let filt = null, shaper = null, lfo = null, lfoG = null, mixNow = 'none';
+const curve = (k) => { const n = 1024, c = new Float32Array(n), a = 1 + k * 30; for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(a * x) / Math.tanh(a); } return c; };
+function applyMix(name) {
+  if (!filt || mixNow === name) return;
+  mixNow = name;
+  const m = BIOME_MIX[name] || BIOME_MIX.none, t = AU.c.currentTime;
+  filt.type = m.type;
+  filt.frequency.setTargetAtTime(m.f, t, .4);
+  filt.Q.setTargetAtTime(m.q, t, .4);
+  filt.gain.setTargetAtTime(m.gain || 0, t, .4);
+  lfo.frequency.setTargetAtTime(m.lfo || .1, t, .2);
+  lfoG.gain.setTargetAtTime(m.depth, t, .4);
+  shaper.curve = m.drive ? curve(m.drive) : null;
+  for (const d of decks) { d.el.preservesPitch = false; d.el.playbackRate = m.rate; }
+}
 
 let bus = null, cur = null, curName = '', duckUntil = 0;
 const decks = [];
@@ -27,7 +50,20 @@ function ensure() {
   if (bus || !AU.c) return !!bus;
   bus = AU.c.createGain();
   bus.gain.value = 1;
-  bus.connect(AU.m);
+  filt = AU.c.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.frequency.value = 20000;
+  shaper = AU.c.createWaveShaper();
+  shaper.oversample = '2x';
+  lfo = AU.c.createOscillator();
+  lfoG = AU.c.createGain();
+  lfoG.gain.value = 0;
+  lfo.connect(lfoG);
+  lfoG.connect(filt.frequency);
+  lfo.start();
+  bus.connect(filt);
+  filt.connect(shaper);
+  shaper.connect(AU.m);
   for (let i = 0; i < 2; i++) {
     const el = new Audio();
     el.loop = true;
@@ -72,7 +108,8 @@ function wanted() {
   if (s === 'title') return TRACKS.title;
   if (s === 'shop' || s === 'over') return TRACKS.menu;
   if (!$.G) return '';
-  const st = $.G.stage || 0;
+  const st = $.G.stage || 0, b = curBiome();
+  if (b) return BIOME_MIX[b].track;
   if ($.G.bossStarted && TRACKS['boss' + st]) return TRACKS['boss' + st];
   return TRACKS['stage' + st] || '';
 }
@@ -83,6 +120,8 @@ export function musicUpdate() {
   const w = wanted();
   if (w !== curName) play(w);
   if (!bus) return;
+  applyMix(($.state === 'play' || $.state === 'pause') && curBiome() || 'none');
+  if (cur && cur.el.playbackRate !== (BIOME_MIX[mixNow] || BIOME_MIX.none).rate) cur.el.playbackRate = (BIOME_MIX[mixNow] || BIOME_MIX.none).rate;
   // a play() refused before the first click/key gets retried once audio is unlocked
   if (cur && cur.name && cur.el.paused && AU.c.state === 'running' && !document.hidden && $.T % 30 === 0) cur.el.play().catch(() => {});
   const lvl = ($.state === 'pause' ? PAUSE_LVL : 1) * (AU.c.currentTime < duckUntil ? DUCK_LVL : 1);
@@ -102,4 +141,11 @@ export function musicSuspend(hidden) {
 }
 
 /** test hook */
-export const musicNow = () => ({ want: curName, playing: cur ? !cur.el.paused : false, t: cur ? +cur.el.currentTime.toFixed(1) : 0, bus: bus ? +bus.gain.value.toFixed(2) : null });
+export const musicNow = () => ({ mix: mixNow, want: curName, playing: cur ? !cur.el.paused : false, t: cur ? +cur.el.currentTime.toFixed(1) : 0, bus: bus ? +bus.gain.value.toFixed(2) : null });
+
+/** biome the music should be in: the stage's chosen route once that stage has started */
+function curBiome() {
+  const G = $.G;
+  if (!G || !G.route || !(G.stage === 1 || G.stage === 2)) return null;
+  return G.route[G.stage - 1] || null;
+}

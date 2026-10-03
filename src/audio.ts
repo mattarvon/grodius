@@ -101,9 +101,11 @@ function loadBank(A) {
   }
 }
 /** play a random clip from a category with pitch/volume jitter. false if the category isn't loaded (caller falls back to synth) */
-export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number } = {}) {
+const SOLO: Record<string, number> = {};
+export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number; solo?: boolean } = {}) {
   const L = BANK[cat];
   if (!AU.c || !L || !L.length || SET.muted || AU.c.state !== 'running') return false;
+  if (o.solo && AU.c && AU.c.currentTime < (SOLO[cat] || 0)) return true; // previous take still talking
   if (voices > 14) return true; // swallow it: a wall of 30 splats in one frame is mud anyway
   let i = Math.floor(ar() * L.length);
   if (L.length > 1 && i === LASTS[cat]) i = (i + 1) % L.length;
@@ -118,7 +120,8 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   AU.lastCat = cat; // test hook
   s.onended = () => voices--;
   s.start(AU.c.currentTime + (o.at ?? 0));
-  if (/^(hype|babe|bossreward)/.test(cat)) duckMusic(L[i].duration + .3);
+  if (o.solo) SOLO[cat] = AU.c.currentTime + (o.at ?? 0) + L[i].duration / s.playbackRate.value;
+  if (/^(hype|babe|bossreward|corpsevoice)/.test(cat)) duckMusic(L[i].duration + .3);
   return true;
 }
 export function thr(k, ms) {

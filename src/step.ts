@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { $ } from './state';
+import { playerHit } from './player';
+import { stepBiome, hazardHit } from './biomes';
+import { stepPerks } from './perks';
 import { musicUpdate } from './music';
 import { R, clamp, swapRm } from './core';
 import { SET, save } from './save';
@@ -22,7 +25,7 @@ export function stepWorld() {
     $.G.rank = clamp(pw / 14, 0, 1);
   }
   if ($.G.mini && $.G.mini.dead) $.G.mini = null;
-  const tgt = $.G.bossStarted || $.G.mini ? 0 : 1;
+  const tgt = $.G.bossStarted || $.G.mini || $.G.forkHold ? 0 : 1;
   $.G.scrollSpeed += (tgt - $.G.scrollSpeed) * .02;
   if (tgt === 0 && $.G.scrollSpeed < .02) $.G.scrollSpeed = 0;
   $.G.scroll += $.G.scrollSpeed;
@@ -38,6 +41,8 @@ export function stepWorld() {
   updateFX();
   updateCombo();
   updateAmbient();
+  stepBiome();
+  if (hazardHit()) playerHit();
   decayFX();
   for (let i = $.G.pend.length - 1; i >= 0; i--) {
     const p = $.G.pend[i];
@@ -68,6 +73,9 @@ export function step() {
     } else if ($.G.hitstop > 0) {
       $.G.hitstop--;
       decayFX();
+    } else if (stepPerks(I)) {
+      // perk pick: the world crawls at 1/5 speed while you choose
+      if ($.T % 5 === 0) stepWorld();
     } else stepWorld();
   } else if ($.state === 'over') {
     $.G.overT++;

@@ -6,6 +6,7 @@ import { save } from './save';
 import { sample, sfx } from './audio';
 import { banner } from './enemies/spawn';
 import { buzz } from './platform';
+import { BIOMES, openFork, holdForFork } from './biomes';
 
 export const STAGES = [
   { name: 'OPEN ORBIT', sub: 'THE MERIDIAN LOOMS' },
@@ -25,11 +26,16 @@ const GRADE = {
 const ORDER = 'SABC';
 
 export const stageLabel = () => `${$.G.loop + 1}-${$.G.stage + 1}`;
+/** stages 1 and 2 are whichever biome you flew into */
+export function stageInfo(i = $.G.stage || 0) {
+  const b = (i === 1 || i === 2) && $.G.route && $.G.route[i - 1];
+  return b ? { name: BIOMES[b].name, sub: BIOMES[b].sub } : STAGES[i];
+}
 
 export function startStage(i) {
   $.G.stage = i;
   $.G.st = { kills: 0, spawned: 0, hits: 0, deaths: 0, chain: 0, t0: $.G.t };
-  const s = STAGES[i];
+  const s = stageInfo(i);
   $.G.pend.push({ t: 70, f: () => banner(`STAGE ${stageLabel()}`, s.name + ' // ' + s.sub, '#c8d4e0', 190) });
 }
 
@@ -60,7 +66,7 @@ export function clearStage(escaped = false) {
   G.cleared = (G.cleared || 0) + 1;
   const seal = SEAL_AT[G.cleared] && SEAL_AT[G.cleared] > (G.seal || 0) ? SEAL_AT[G.cleared] : 0;
   G.tally = {
-    id, name: STAGES[G.stage].name, g, col: R.col, perfect, escaped, bonus, bio: R.bio,
+    id, name: stageInfo(G.stage).name, g, col: R.col, perfect, escaped, bonus, bio: R.bio,
     kills: st.kills, pct: Math.round((st.kills / Math.max(1, st.spawned)) * 100),
     hits: st.hits, deaths: st.deaths, chain: st.chain, secs: Math.round((G.t - st.t0) / 60),
     best: newBest ? (prev ? 'NEW BEST (WAS ' + prev + ')' : 'FIRST CLEAR') : 'BEST ' + best[id],
@@ -73,7 +79,13 @@ export function clearStage(escaped = false) {
   if (seal) {
     G.pend.push({ t: 300, f: () => { G.seal = seal; banner('SEAL BROKEN', 'UNLOCKED: ' + SEAL_TXT[seal], '#ffd23a', 230); sfx.alarm(); } });
   }
-  if (G.stage < STAGES.length - 1) G.pend.push({ t: 200, f: () => startStage(G.stage + 1) });
+  if ((G.stage === 1 || G.stage === 2) && G.route[G.stage - 1]) (G.visited ||= []).includes(G.route[G.stage - 1]) || G.visited.push(G.route[G.stage - 1]);
+  if (G.stage === 0 || G.stage === 1) {
+    // branch: hold the scroll, open two gates after the tally has had its moment
+    holdForFork();
+    const seg = G.stage;
+    G.pend.push({ t: 200, f: () => openFork(seg) });
+  } else if (G.stage < STAGES.length - 1) G.pend.push({ t: 200, f: () => startStage(G.stage + 1) });
   save();
   return seal;
 }
