@@ -8,6 +8,9 @@ Vite + TypeScript web game, wrapped as an Android app with Capacitor. The last s
 - **Android (Galaxy Fold 7):** every push to `main` builds an APK and publishes it to the [latest release](https://github.com/mattarvon/grodius/releases/tag/latest). Open that page on the phone, tap `grodius.apk`, allow installs from your browser once.
 - **Browser:** https://mattarvon.github.io/grodius/ (same build, deployed on every push).
 
+## Notes
+- `CHANGELOG.md` is the running history (newest first). It and this README are mirrored into the Obsidian vault (`Projects\Grodius\Mirrors\`) after every push via `tools/vault_mirror.py` / `Sync-Vault.ps1`; local commits and pulls trigger it through a git hook.
+
 ## Develop
 ```
 npm install
