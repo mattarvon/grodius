@@ -4,6 +4,10 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ## 2026-10-03
 
+### Your voice on the hype man
+- 10-kill chain "HELL YEAH BROTHER!" now plays Matty's own recording (RecForge II, trimmed, high-passed, compressed, loudness-normalized) instead of text-to-speech; the splash holds longer to match the 4.4s line.
+- Any milestone can be voiced the same way: drop a clip in `src/sfx/hype<N>/` (hype20, hype35, hype50, hype75, hype100). Milestones without a clip keep the robot voice.
+
 ### Sound: sample banks (`842c59b`, `5d878de`)
 - Kills, explosions and deaths play from sample folders (`src/sfx/<category>/`), random pick with pitch/volume jitter, never the same clip twice in a row.
 - 78 original synthesized clips (`tools/gen_sfx.py`): wet pops, squelches, heavy bursts with drip tails, bone cracks, a comedy set (raspberries, blorps, gurgles), small and large layered explosions.

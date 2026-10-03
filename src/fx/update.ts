@@ -2,7 +2,7 @@
 import { $ } from '../state';
 import { FIRE, H, R, W, dist2, pick, ri, rr, swapRm } from '../core';
 import { SET } from '../save';
-import { AU, say, sfx, tone } from '../audio';
+import { AU, BANK, sample, say, sfx, tone } from '../audio';
 import { AMT, ceilAt, decals, drops, flashes, floorAt, geysers, gibs, grav, mists, orbs, sparks, splats, texts } from '../world';
 import { addDecal, drop, spark, splat } from '../fx/spawn';
 import { makeHell } from '../render/hell';
@@ -273,13 +273,17 @@ export function babe() {
 export function hype(n) {
   const L = HYPE[n];
   if (!L) return;
+  // recorded voice lines live in src/sfx/hype<N>/ (e.g. hype10 = 10-kill chain); otherwise text-to-speech
+  const voiced = !!BANK['hype' + n];
   $.G.hype = {
     L,
-    t: 150,
-    ml: 150
+    t: voiced ? 240 : 150,
+    ml: voiced ? 240 : 150
   };
   sfx.hype();
-  setTimeout(() => say(L.join(' ').replace(/[!']/g, '').toLowerCase()), 120);
+  setTimeout(() => {
+    if (!sample('hype' + n, { vol: 1.15, spread: .02, wet: .16 })) say(L.join(' ').replace(/[!']/g, '').toLowerCase());
+  }, 120);
 }
 export function hellFlash() {
   if (!SET.flashes) return;
