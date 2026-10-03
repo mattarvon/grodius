@@ -1,0 +1,87 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      # Optional stable signing so new builds update in place (saves survive). See README.
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.GRODIUS_KEYSTORE_B64 }}
+        if: ${{ env.KEYSTORE_B64 != '' }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/grodius.keystore"
+          echo "GRODIUS_KEYSTORE=$RUNNER_TEMP/grodius.keystore" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        working-directory: android
+        env:
+          GRODIUS_KEYSTORE_PASSWORD: ${{ secrets.GRODIUS_KEYSTORE_PASSWORD }}
+          GRODIUS_KEY_ALIAS: ${{ secrets.GRODIUS_KEY_ALIAS }}
+          GRODIUS_KEY_PASSWORD: ${{ secrets.GRODIUS_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/grodius.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grodius-apk-${{ github.run_number }}
+          path: grodius.apk
+
+      # Rolling "latest" release: open it on the phone and tap the APK to install.
+      - name: Publish latest APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest grodius.apk --prerelease \
+            --title "Latest build #${{ github.run_number }}" \
+            --notes "Sideload build from ${GITHUB_SHA::7}: ${{ github.event.head_commit.message || 'manual run' }}"
+
+  web:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deploy
+        uses: actions/deploy-pages@v4
