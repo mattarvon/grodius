@@ -85,7 +85,7 @@ export function auInit() {
 }
 // ---------------- sample bank ----------------
 // Every audio file under src/sfx/<category>/ is bundled and decoded on first input. Categories:
-// splat_s splat_m splat_l bone silly explode_s explode_l. Drop more files in a folder and they join the rotation.
+// splat_s splat_m splat_l thud bone silly explode_s explode_l. Drop more files in a folder and they join the rotation.
 const SFX_URLS = import.meta.glob('./sfx/*/*.{ogg,wav,mp3,m4a}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 export const BANK: Record<string, AudioBuffer[]> = {};
 const LASTS: Record<string, number> = {};
@@ -254,6 +254,7 @@ export const sfx = {
     if (thr('g', 45)) return;
     const cat = sz >= 2.1 ? 'splat_l' : sz >= 1.2 ? 'splat_m' : 'splat_s';
     if (sample(cat, { vol: .75 + Math.min(.45, sz * .08), wet: .22 })) {
+      if (sz >= 1.2) sample('thud', { vol: .5 + Math.min(.3, sz * .06), rate: sz >= 2.1 ? .8 : 1 }); // body impact under the splat
       if (sz >= 1.4 && ar() < .5) sample('bone', { vol: .55, at: .015 });
       if (sz >= .9 && ar() < .14) sample('silly', { vol: .6, at: .04 }); // ~1 in 7 kills gets the comedy layer
       if (sz >= 3) sample('explode_l', { vol: .9, wet: .35 });
