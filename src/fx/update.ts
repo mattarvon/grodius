@@ -242,9 +242,11 @@ export const HYPE = {
   100: ['HELL IS', 'YOUR HOUSE!']
 };
 export function babe() {
+  // 20-chain surfer flyby: recorded lines in src/sfx/babe20/ (random pick), else text-to-speech
+  const voiced = !!BANK.babe20;
   $.G.babe = {
-    t: 230,
-    ml: 230,
+    t: voiced ? 400 : 230,
+    ml: voiced ? 400 : 230,
     y: rr(34, 52)
   };
   tone({
@@ -264,11 +266,13 @@ export function babe() {
     type: 'triangle',
     wet: .3
   });
-  setTimeout(() => say('excellent work, baby', {
-    female: 1,
-    pitch: 1.15,
-    rate: .9
-  }), 500);
+  setTimeout(() => {
+    if (!sample('babe20', { vol: 1.15, spread: .02, wet: .16 })) say('excellent work, baby', {
+      female: 1,
+      pitch: 1.15,
+      rate: .9
+    });
+  }, 500);
 }
 export function hype(n) {
   const L = HYPE[n];
