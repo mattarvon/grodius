@@ -4,6 +4,9 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ## 2026-10-03
 
+### Title eyeball
+- The title emblem is no longer the Gravity Drive boss (slit-pupil eye in a spiked ring). It's a huge bloodshot eyeball: pale, lumpy sclera with cracked red veins, a round green iris, wet highlight, hanging off a swaying optic nerve that drips. Gaze wanders and darts, blinks every few seconds. Rendered at high resolution (512px sclera texture) on the smooth eye layer.
+
 ### Fix: title music and menu farts silent on desktop Chrome
 - Chrome blocks audio until a click or key. The title now opens on a blinking PRESS ANY KEY / TAP TO DESCEND gate: the first input only unlocks audio and starts the title music.
 - Mouse hover over a menu item plays the cursor fart, clicking plays the select fart (before, mouse clicks skipped the fart path entirely).

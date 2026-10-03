@@ -7,8 +7,8 @@ import { drops } from '../world';
 import { shopNext } from '../flow';
 import { GM, ROM, gmL, gunHeld, gunSlots } from '../mutations';
 import { buy, fmtBio, leaveShop, overItems, pad, pauseItems, shopItems, titleItems } from '../menus';
-import { glow, invCross, txt } from '../render/util';
-import { EYEQ, GLQ, present } from '../render/eyes';
+import { glow, invCross, light, txt } from '../render/util';
+import { EYEQ, GLQ, eye, present } from '../render/eyes';
 import { drawShip } from '../render/ship';
 import { drawBoss } from '../render/boss';
 import { drawDrops } from '../render/gore';
@@ -81,10 +81,7 @@ export function drawTitle() {
   };
   invCross(ctx, W * .73, -10, PH + 20, 16, '#0c0204');
   invCross(ctx, W * .73, -10, PH + 20, 10, '#2a0408');
-  ctx.save();
-  ctx.globalAlpha = .85;
-  drawBoss(b);
-  ctx.restore();
+  drawTitleEye();
   if (R() < .25) drops.push({
     x: rr(W * .55, W * .95),
     y: -2,
@@ -257,3 +254,37 @@ export function render() {
 }
 
 // ---------------- loop ----------------
+
+/** title hero: a huge bloodshot eyeball hanging off its optic nerve, gaze wandering, the odd blink */
+function drawTitleEye() {
+  const t = $.T, ex = W * .73 + Math.sin(t * .007) * 4, ey = PH * .5 + Math.sin(t * .011) * 5, r = 74;
+  // optic nerve: fleshy rope from behind the eye up out of frame, swaying
+  const pts = [];
+  for (let k = 0; k <= 14; k++) {
+    const f = k / 14;
+    pts.push([ex + 30 + f * 70 + Math.sin(t * .02 + f * 4) * 6 * f, ey - 20 - f * (ey + 40) + Math.cos(t * .017 + f * 3) * 3]);
+  }
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const [w, col] of [[22, '#2a0508'], [17, '#7a1e2a'], [11, '#b8485a'], [4, '#e08a96']]) {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (const [x, y] of pts) ctx.lineTo(x, y + (w === 4 ? -4 : 0));
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#5a0a14';
+  ctx.lineWidth = 1;
+  for (let v = 0; v < 3; v++) {
+    ctx.beginPath();
+    for (let k = 0; k <= 14; k++) { const [x, y] = pts[k]; const o = Math.sin(k * 1.7 + v * 2) * 5; k ? ctx.lineTo(x + o, y) : ctx.moveTo(x + o, y); }
+    ctx.stroke();
+  }
+  if (R() < .3) drops.push({ x: ex + rr(-20, 50), y: ey + rr(20, 60), px: 0, py: 0, vx: 0, vy: rr(.3, 1), s: 1, c: R() < .6 ? 0 : 1, l: 300 });
+  // gaze: slow wander, occasional darting look, blink every few seconds
+  const ang = Math.PI + Math.sin(t * .013) * .9 + (Math.sin(t * .0031) > .93 ? Math.sin(t * .2) * .6 : 0);
+  const bc = t % 340, blink = bc < 10 ? Math.sin(bc / 10 * Math.PI) : 0;
+  light(ex, ey, 140, .9);
+  eye(ctx, ex, ey, r, { hero: 1, iris: '#2fd43a', ang, m: .32 + .18 * Math.sin(t * .009), dil: 1.05 + .15 * Math.sin(t * .021), bs: 2, blink, lid: '#8a3a40', al: 1 });
+}

@@ -90,9 +90,8 @@ export function eyeSclera(bs) {
   x.fillRect(0, 0, S, S);
   return c;
 }
-export function eyeIris(col, fire) {
-  const S = 160,
-    Rr = S / 2 - 1,
+export function eyeIris(col, fire, S = 160, crypts = true) {
+  const Rr = S / 2 - 1,
     ri = Rr * .5,
     c = mkCan(S),
     x = c.getContext('2d'),
@@ -107,7 +106,7 @@ export function eyeIris(col, fire) {
     const a = Math.atan2(dy, dx),
       seg = Math.floor((a + Math.PI) / TAU * 220),
       fib = h2(seg, 3) * .55 + .45 * (.5 + .5 * Math.sin(a * 61 + h2(seg >> 2, 9) * 7 + dd * 5)),
-      crypt = h2(Math.floor((a + 4) * 9), Math.floor(dd * 7)) < .12 && dd > .45 && dd < .8 ? .55 : 1;
+      crypt = crypts && h2(Math.floor((a + 4) * 9), Math.floor(dd * 7)) < .12 && dd > .45 && dd < .8 ? .55 : 1;
     let k = (.62 + fib * .62) * crypt;
     if (dd > .4 && dd < .56) k *= 1.35;
     if (dd > .78) k *= 1 - (dd - .78) * 2.9;
@@ -158,6 +157,68 @@ export const EYE_SHADE = (() => {
   x.fillRect(0, 0, S, S);
   return c;
 })();
+/** title-screen hero eyeball: big, pale, lumpy, densely bloodshot (512px sclera, 320px iris) */
+let HERO = null;
+function heroSclera() {
+  const S = 512, Rr = S / 2 - 1, c = mkCan(S), x = c.getContext('2d'), im = x.createImageData(S, S), d = im.data;
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const dx = (i + .5 - S / 2) / Rr, dy = (j + .5 - S / 2) / Rr, d2 = dx * dx + dy * dy;
+    if (d2 > 1.01) continue;
+    const dd = Math.sqrt(d2), nz = Math.sqrt(Math.max(0, 1 - d2));
+    // lumpy surface: low-frequency bumps tilt the normal a little
+    const bump = (h2(i * .021, j * .023) - .5) * .5 + (h2(i * .06, j * .055) - .5) * .25;
+    const lam = Math.max(0, -.42 * dx - .5 * dy + .76 * nz + bump * .35);
+    const sh = .34 + .78 * lam, grain = (h2(i * .45, j * .47) - .5) * 10;
+    const edge = Math.pow(dd, 3.2);
+    const o = (j * S + i) * 4;
+    // pale grey-lavender flesh, warming to sore pink at the rim
+    d[o] = Math.min(255, (214 + grain + edge * 10) * sh);
+    d[o + 1] = Math.min(255, (204 + grain - edge * 60) * sh);
+    d[o + 2] = Math.min(255, (222 + grain - edge * 50) * sh);
+    d[o + 3] = 255 * Math.max(0, Math.min(1, (1 - dd) * Rr));
+  }
+  x.putImageData(im, 0, 0);
+  x.globalCompositeOperation = 'source-atop';
+  x.lineCap = 'round';
+  x.lineJoin = 'round';
+  let sd = 4242;
+  const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647;
+  const vein = (px, py, a, w, len, depth) => {
+    for (let k = 0; k < len; k++) {
+      const st = 3 + rnd() * 3, nx = px + Math.cos(a) * st, ny = py + Math.sin(a) * st;
+      x.strokeStyle = `rgba(${90 + rnd() * 30 | 0},0,${10 + rnd() * 10 | 0},.55)`; // dark core shadow
+      x.lineWidth = w + .9;
+      x.beginPath(); x.moveTo(px, py); x.lineTo(nx, ny); x.stroke();
+      x.strokeStyle = `rgba(${200 + rnd() * 55 | 0},${10 + rnd() * 25 | 0},${30 + rnd() * 25 | 0},.9)`;
+      x.lineWidth = w;
+      x.stroke();
+      px = nx; py = ny;
+      a += (rnd() - .5) * 1.1; // jagged, cracked-looking turns
+      w *= .955;
+      if (w < .7) return;
+      if (depth < 3 && rnd() < .16) vein(px, py, a + (rnd() < .5 ? -1 : 1) * (.7 + rnd() * .8), w * .75, (len - k) * .75 | 0, depth + 1);
+    }
+  };
+  // trunks crawl in from the rim, then a crackle network everywhere
+  for (let v = 0; v < 20; v++) {
+    const a = rnd() * TAU;
+    vein(S / 2 + Math.cos(a) * Rr, S / 2 + Math.sin(a) * Rr, a + Math.PI + (rnd() - .5) * .8, 3.6 + rnd() * 2.4, 26 + rnd() * 26 | 0, 0);
+  }
+  for (let v = 0; v < 120; v++) { // stratified so the cracks cover the whole ball, not clumps
+    const a = (v * 2.39996) % TAU, r0 = Rr * Math.sqrt((v + rnd()) / 120);
+    vein(S / 2 + Math.cos(a) * r0, S / 2 + Math.sin(a) * r0, rnd() * TAU, 1.6 + rnd() * 1.2, 5 + rnd() * 9 | 0, 2);
+  }
+  const g = x.createRadialGradient(S / 2, S / 2, Rr * .7, S / 2, S / 2, Rr);
+  g.addColorStop(0, 'rgba(120,20,40,0)');
+  g.addColorStop(.85, 'rgba(120,24,44,.22)');
+  g.addColorStop(1, 'rgba(30,4,10,.7)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, S, S);
+  return c;
+}
+export function heroSet() {
+  return HERO || (HERO = { s: heroSclera(), i: eyeIris('#2fd43a', 0, 320, false) });
+}
 export function eyeSet(iris, fire, bs) {
   const k = iris + (fire ? 'f' : '') + bs;
   return EYEC[k] || (EYEC[k] = {
@@ -189,7 +250,8 @@ export function eye(c, lx, ly, r, o = {}) {
     dil: o.dil || 1,
     slit: o.slit || 0,
     al: c.globalAlpha * (o.al ?? 1),
-    lid: o.lid || '#6e1f1c'
+    lid: o.lid || '#6e1f1c',
+    hero: o.hero ? 1 : 0
   });
 }
 export function lowEye(c, x, y, r, o) {
@@ -223,7 +285,7 @@ export function drawEyeQ() {
     const X = e.x * $.DK,
       Y = e.y * $.DK,
       r = e.r * $.DK,
-      set = eyeSet(e.iris, e.fire, e.bs);
+      set = e.hero ? heroSet() : eyeSet(e.iris, e.fire, e.bs);
     if (X < -r || X > W * $.DK + r || Y < -r || Y > H * $.DK + r) continue;
     D.globalAlpha = e.al;
     if (e.fire) {
@@ -274,8 +336,8 @@ export function drawEyeQ() {
       D.stroke();
     }
     D.restore();
-    D.strokeStyle = 'rgba(30,2,4,.7)';
-    D.lineWidth = Math.max(1, r * .07);
+    D.strokeStyle = e.hero ? 'rgba(40,4,12,.35)' : 'rgba(30,2,4,.7)';
+    D.lineWidth = Math.max(1, r * (e.hero ? .02 : .07));
     D.beginPath();
     D.arc(X, Y, r, 0, TAU);
     D.stroke();
