@@ -7,12 +7,14 @@ Single self-contained file: open `index.html` in a browser. No build step.
 ## Controls
 - Move: arrows / WASD
 - Fire: Z / Space (hold)
-- Power up: X / Shift
+- Power up: fly into a pod
 - Pause: P / Esc, Mute: M
-- Gamepad: A fire, B power, Start pause
-- Touch: drag to fly, auto-fire, tap POWER
+- Gamepad: A fire, Start pause
+- Touch: drag to fly, auto-fire
 
-## Power meter
+## Power pods
+Every pod is labeled and color-coded with the upgrade it gives. Fly into it to take it instantly, or dodge it to skip. Pods favor upgrades you are missing, and pods for something you already maxed pay out score and biomass. The bottom bar shows your level in each.
+
 THRUST, MISSILE (ground-hugging, splash), SPLIT, ARC, PYRE (exploding flaming eyeballs, sets enemies on fire), WRAITH (options), WARD (shield)
 
 ## Notes
