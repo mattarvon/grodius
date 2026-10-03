@@ -18,3 +18,8 @@ THRUST, MISSILE (ground-hugging, splash), SPLIT, ARC, PYRE (exploding flaming ey
 ## Notes
 - Meta progression (biomass and Infirmary grafts) persists in localStorage under `grodius.v1`.
 - Enemy fire is toxic green and drawn above all gore so it stays dodgeable.
+
+## Your vessel
+The ship is a living thing. Power-ups grow new parts mid-run: egg-sac missile pods, a dorsal horn cannon (SPLIT), a crackling nerve spine (ARC), burning eye stalks (PYRE), chitin plating (WARD), and longer sinew tendrils (THRUST). Permanent Infirmary grafts mutate it further: more bone spikes, extra eyes, swept horns, iris color shifts, and at full mutation it bleeds. The Infirmary shows a live preview.
+
+Eyeballs are pre-rendered textures with veins, fibrous irises and wet highlights, drawn on a high-res layer over the pixel-art world.
