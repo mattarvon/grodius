@@ -7,6 +7,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 ### Your voice on the hype man
 - 10-kill chain "HELL YEAH BROTHER!" now plays Matty's own recording (RecForge II, trimmed, high-passed, compressed, loudness-normalized) instead of text-to-speech; the splash holds longer to match the 4.4s line.
 - 10-chain picks randomly between "hell yeah" and "shamalama"; 20-chain surfer flyby picks between "little stinker" and "shamalama" (replacing the text-to-speech "excellent work, baby"). Splashes hold longer for the recorded lines.
+- Beating any stage boss (Maw, Crucifer, Butcher, Gravity Drive) plays Matty's "keyster easter" reward line (`src/sfx/bossreward/`); not when the Maw escapes.
 - Matty's fart recording joins the comedy layer in three pitches (original, deep, squeaky).
 - Any milestone can be voiced the same way: drop a clip in `src/sfx/hype<N>/` (hype35, hype50, hype75, hype100; the 20-chain surfer uses `babe20/`). Milestones without a clip keep the robot voice.
 

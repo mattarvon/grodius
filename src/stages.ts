@@ -3,7 +3,7 @@
 // pays out score + biomass by grade, records your best grade, and every 2nd clear breaks a seal.
 import { $ } from './state';
 import { save } from './save';
-import { sfx } from './audio';
+import { sample, sfx } from './audio';
 import { banner } from './enemies/spawn';
 import { buzz } from './platform';
 
@@ -68,6 +68,8 @@ export function clearStage(escaped = false) {
   };
   sfx.power();
   buzz('heavy');
+  // boss-kill reward line (src/sfx/bossreward/, random pick if there are several); waits out the death roar
+  if (!escaped) G.pend.push({ t: 50, f: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) });
   if (seal) {
     G.pend.push({ t: 300, f: () => { G.seal = seal; banner('SEAL BROKEN', 'UNLOCKED: ' + SEAL_TXT[seal], '#ffd23a', 230); sfx.alarm(); } });
   }
