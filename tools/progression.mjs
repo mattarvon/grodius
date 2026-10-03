@@ -19,7 +19,7 @@ for (let s = 10; s <= SECS; s += 10) {
   const r = await p.evaluate(() => { const { G, P, state } = __G(); if (!G) return state;
     const lv = [P.speed, P.missile, P.double, P.laser, P.pyre, P.options, P.wardLv || 0];
     const gm = Object.entries(G.gm || {}).filter(([, v]) => v > 0).map(([k, v]) => k + v).join(' ');
-    return `${state} loop${G.loop} scroll${Math.round(G.scroll)} seal${G.seal || 0} kills${G.gmk || 0} | ${lv.join(',')} | ${gm} | sh${P.shield} rank${(G.rank || 0).toFixed(2)} ${G.mini && !G.mini.dead ? 'MINI:' + G.mini.k : ''}`; });
+    return `${state} loop${G.loop} scroll${Math.round(G.scroll)} st${G.loop + 1}-${(G.stage || 0) + 1} seal${G.seal || 0} kills${G.gmk || 0}${G.tally ? " TALLY:" + G.tally.g + "/" + G.tally.pct + "%" : ""} | ${lv.join(',')} | ${gm} | sh${P.shield} rank${(G.rank || 0).toFixed(2)} ${G.mini && !G.mini.dead ? 'MINI:' + G.mini.k : ''}`; });
   console.log(`${String(s).padStart(4)}s ${r}`);
 }
 await b.close();

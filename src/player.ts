@@ -15,10 +15,12 @@ import { gmL, sporeBurst } from './mutations';
 export const SLOTS = ['THRUST', 'MISSILE', 'SPLIT', 'ARC', 'PYRE', 'WRAITH', 'WARD'];
 // progression: each level costs fragments (pods of that type); seals broken by mini-bosses raise the level ceiling
 export const SMAX = [5, 2, 1, 1, 2, 3, 3];
+/** WARD membrane soaks this many hits (was 10) */
+export const WARD_MAX = 3;
 export const NEED = [[1, 1, 2, 2, 3], [1, 2], [1], [2], [2, 3], [2, 3, 4], [1, 2, 3]];
 export const SBASE = [[2, 3, 4, 5], [1, 2, 2, 2], [1, 1, 1, 1], [0, 1, 1, 1], [0, 1, 2, 2], [1, 2, 3, 3], [1, 2, 3, 3]];
 export const slotLv = i => [$.P.speed, $.P.missile, $.P.double, $.P.laser, $.P.pyre, $.P.options, $.P.wardLv || 0][i];
-export const startLv = i => [lv('nerve'), 0, 0, 0, 0, lv('wraith'), lv('skin') ? 1 : 0][i];
+export const startLv = i => 0; // every life starts naked; power is earned in-run
 export function capLv(i) {
   return Math.max(startLv(i), SBASE[i][Math.min(3, $.G && $.G.seal || 0)]);
 }
@@ -30,13 +32,13 @@ export function slotLocked(i) {
 }
 export function slotMaxed(i) {
   const l = slotLv(i);
-  if (i === 6) return l >= capLv(6) && $.P.shield >= 10;
+  if (i === 6) return l >= capLv(6) && $.P.shield >= WARD_MAX;
   return l >= capLv(i);
 }
 export function applyPower(i, full) {
   if (i == null || i < 0 || !$.P.alive) return;
-  if (i === 6 && slotLv(6) >= capLv(6) && $.P.shield < 10) {
-    $.P.shield = 10;
+  if (i === 6 && slotLv(6) >= capLv(6) && $.P.shield < WARD_MAX) {
+    $.P.shield = WARD_MAX;
     if ($.P.wardLv >= 3) $.P.aegis = 12;
     sfx.shield();
     buzz('light');
@@ -77,7 +79,7 @@ export function applyPower(i, full) {
     $.P.missile = 0;
   } else if (i === 5) $.P.options++;else {
     $.P.wardLv = Math.min(3, ($.P.wardLv || 0) + 1);
-    $.P.shield = 10;
+    $.P.shield = WARD_MAX;
     if ($.P.wardLv >= 3) $.P.aegis = 12;
   }
   $.G.slotF = $.G.slotF || [];
@@ -101,6 +103,7 @@ export function optPos(i) {
 }
 export function playerHit() {
   if (!$.P.alive || $.P.inv > 0) return false;
+  if ($.G.st) $.G.st.hits++;
   if ($.P.shield > 0) {
     $.P.shield = Math.max(0, $.P.shield - 1);
     $.P.inv = 18;
@@ -115,7 +118,7 @@ export function playerHit() {
 }
 export function fire() {
   const cal = gmL('cal'),
-    dm = (1 + .1 * lv('hollow')) * (1 + .15 * gmL('serr')) * (1 + .1 * cal),
+    dm = (1 + .15 * gmL('serr')) * (1 + .1 * cal),
     rp = gmL('rapid'),
     org = [{
       x: $.P.x,
@@ -258,15 +261,15 @@ export function updatePlayer() {
   {
     const L = gmL('regrow');
     if (L) {
-      const cap = [0, 3, 6][L],
-        per = [0, 600, 420][L];
+      const cap = [0, 1, 2][L],
+        per = [0, 1200, 720][L]; // REGROWTH: 1 hit back every 20s (lvl 1), up to 2 every 12s (lvl 2)
       if ($.P.shield < cap && $.G.t % per === 0) {
         $.P.shield = Math.min(cap, Math.floor($.P.shield) + 1);
         for (let k = 0; k < 8; k++) spark($.P.x + rr(-8, 8), $.P.y + rr(-8, 8), 0, -.5, 14, '#ff8aa0');
       }
     }
   }
-  if ($.P.wardLv >= 3 && $.P.aegis < 12 && $.G.t % 200 === 0) $.P.aegis++;
+  if ($.P.wardLv >= 3 && $.P.aegis < 12 && $.G.t % 400 === 0) $.P.aegis++;
   $.P.cd--;
   $.P.mcd--;
   $.P.pcd--;

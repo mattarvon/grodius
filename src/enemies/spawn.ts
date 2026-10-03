@@ -153,8 +153,10 @@ export function mk(k, x, y, o = {}) {
     ...b,
     ...o
   };
-  e.hp = b.hp * hm * (o.hpm || 1);
+  // power rank (0..1) thickens everything: +80% HP for fodder, +40% for minis
+  e.hp = b.hp * hm * (o.hpm || 1) * (1 + ($.G.rank || 0) * (b.mini ? .4 : .8));
   e.max = e.hp;
+  if (!b.mini && !o.par && $.G.st) $.G.st.spawned++;
   if (e.cap && !e.mini && R() < .65) e.cap = false;
   enemies.push(e);
   return e;
@@ -197,6 +199,7 @@ export function behindWave(y, n = 5) {
   rearWarn(y, () => formation('behind', rearLane(y), n));
 }
 export function formation(pat, y, n = 5, o = {}) {
+  n += Math.round(($.G.rank || 0) * 3); // denser waves as you power up
   const g = {
     n,
     killed: 0
@@ -279,8 +282,9 @@ export function womb() {
     cool: ri(60, 100)
   });
 }
-export function maw() {
+export function maw(stageBoss = false) {
   $.G.mini = mk('maw', W + 40, PH / 2, {
+    stageBoss,
     jaw: 0,
     eyesP: Array.from({
       length: 9
@@ -425,7 +429,7 @@ export function buildScript(L) {
     banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
     sfx.alarm();
   });
-  at(2120, () => maw());
+  at(2120, () => maw(true));
   at(2350, () => logLine('HULL CONTACT. SOMETHING IS GROWING ON THE PLATING.'));
   // PHASE 2: along the hull
   for (let x = 2500; x < 5100; x += 150) {
@@ -465,7 +469,7 @@ export function buildScript(L) {
     banner('IT GREW ANOTHER ONE', '', undefined, 120);
     sfx.alarm();
   });
-  at(7320, () => maw());
+  at(7320, () => maw(false));
   at(8000, () => logLine('IT IS SHOWING ME THINGS. DO NOT LOOK AT THE WALLS.'));
   at(BOSS_AT, () => startBoss());
   S.sort((a, b) => a.x - b.x);

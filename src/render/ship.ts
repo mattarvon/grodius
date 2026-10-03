@@ -23,12 +23,12 @@ export function shipLoad() {
     game: 1
   };
   return {
-    spd: lv('nerve'),
+    spd: 0,
     mis: 0,
     dbl: 0,
     las: 0,
     pyre: 0,
-    shd: lv('skin') > 0,
+    shd: false,
     tier,
     game: 0
   };

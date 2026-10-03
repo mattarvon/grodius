@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { $ } from '../state';
+import { STAGES, stageLabel } from '../stages';
+import { sfx } from '../audio';
+import { WARD_MAX } from '../player';
 import { BOSS_AT, C, FONT_D, FONT_H, H, PH, R, TAU, W, clamp, ctx, lerp, rr } from '../core';
 import { AMT, LIGHTS, arcs, caps, enemies, eshots, flashes, orbs, shots, sparks, texts } from '../world';
 import { POD, mult } from '../enemies/update';
@@ -76,7 +79,7 @@ export function drawHUD() {
   if (Math.abs($.G.score - $.G.dScore) < 1) $.G.dScore = $.G.score;
   txt('SCORE ' + pad($.G.dScore, 8), 6, 4, '#cfd9e3');
   txt('HI ' + pad(Math.max($.hi, $.G.score), 8), W - 6, 4, '#6d7a88', 'right');
-  txt('DESCENT ' + ($.G.loop + 1) + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#5b6573');
+  txt('STAGE ' + stageLabel() + ' ' + STAGES[$.G.stage || 0].name + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#5b6573');
   if (!$.G.boss || $.G.boss.dying) {
     const bw = 110,
       bx = W / 2 - bw / 2,
@@ -153,6 +156,7 @@ export function drawHUD() {
       if (n) txt(n + ' NAIL BARRIERS', W / 2, y + 5, '#8fa3b8', 'center', 7);
     }
   }
+  if ($.G.tally && $.state !== 'pause') drawTally();
   if ($.G.feed && $.state !== 'pause') {
     const f = $.G.feed,
       a = Math.min(1, f.t / 25, (f.ml - f.t) / 10);
@@ -194,7 +198,7 @@ export function drawHUD() {
     ctx.fillStyle = '#14191f';
     ctx.fillRect($.P.x - 8, $.P.y + 11, 16, 1);
     ctx.fillStyle = '#9fd2ff';
-    ctx.fillRect($.P.x - 8, $.P.y + 11, 16 * $.P.shield / 10, 1);
+    ctx.fillRect($.P.x - 8, $.P.y + 11, 16 * $.P.shield / WARD_MAX, 1);
   }
 }
 export function drawEShots() {
@@ -453,7 +457,7 @@ export function drawWorld() {
       ctx.lineCap = 'butt';
     }
     if ($.P.shield > 0) {
-      const k = Math.min(1, $.P.shield / 10);
+      const k = Math.min(1, $.P.shield / WARD_MAX);
       if ($.P.wardLv >= 2) {
         ctx.globalCompositeOperation = 'lighter';
         ctx.strokeStyle = `rgba(220,230,255,${.25 + .15 * Math.sin($.T * .3)})`;
@@ -500,3 +504,38 @@ export function drawWorld() {
 }
 
 // --- screens ---
+
+/** stage clear card: slides in, counts up, stamps the grade */
+function drawTally() {
+  const t = $.G.tally, age = t.ml - t.t;
+  if (--t.t <= 0) { $.G.tally = null; return; }
+  const a = Math.min(1, age / 15, t.t / 30), x0 = W / 2 - 110, y0 = 52, w = 220, h = 116;
+  ctx.globalAlpha = a;
+  ctx.fillStyle = 'rgba(4,5,7,.82)';
+  ctx.fillRect(x0, y0, w, h);
+  ctx.fillStyle = t.col;
+  ctx.fillRect(x0, y0, w, 1);
+  ctx.fillRect(x0, y0 + h - 1, w, 1);
+  txt(t.escaped ? 'STAGE ' + t.id + ' ENDED' : 'STAGE ' + t.id + ' CLEAR', x0 + 8, y0 + 6, '#e8f1ff', 'left', 8);
+  txt(t.name, x0 + 8, y0 + 16, '#6d7a88', 'left', 7);
+  const rows = [['KILLS', t.kills + '  (' + t.pct + '%)'], ['HITS TAKEN', t.hits + (t.deaths ? '  +' + t.deaths + ' DEATH' + (t.deaths > 1 ? 'S' : '') : '')], ['BEST CHAIN', t.chain], ['TIME', Math.floor(t.secs / 60) + ':' + String(t.secs % 60).padStart(2, '0')]];
+  rows.forEach(([k, v], i) => {
+    if (age < 20 + i * 12) return;
+    txt(k, x0 + 8, y0 + 32 + i * 11, '#8fa3b8', 'left', 7);
+    txt(String(v), x0 + 128, y0 + 32 + i * 11, '#cfd9e3', 'right', 7);
+  });
+  if (age > 80) {
+    const k = Math.max(0, 1 - (age - 80) / 10), sz = 44 + k * 40;
+    ctx.globalAlpha = a * (1 - k * .6);
+    txt(t.g, x0 + 178 + 1, y0 + 30 - k * 20 + 1, '#000', 'center', sz, FONT_D);
+    txt(t.g, x0 + 178, y0 + 30 - k * 20, t.col, 'center', sz, FONT_D);
+    ctx.globalAlpha = a;
+    if (age === 81) { sfx.bomb(); $.G.shake = Math.max($.G.shake, 6); }
+  }
+  if (age > 100) {
+    txt('+' + t.bonus.toLocaleString('en-US') + (t.perfect ? '  PERFECT' : ''), x0 + 8, y0 + 82, t.perfect ? '#ffd23a' : '#ffb070', 'left', 8);
+    txt('+' + t.bio + ' BIO', x0 + 8, y0 + 94, '#ff8aa0', 'left', 7);
+    txt(t.best, x0 + w - 8, y0 + 94, t.best.startsWith('NEW') || t.best.startsWith('FIRST') ? '#ffd23a' : '#6d7a88', 'right', 7);
+  }
+  ctx.globalAlpha = 1;
+}

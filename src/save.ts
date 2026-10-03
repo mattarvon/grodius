@@ -9,7 +9,9 @@ export const SET = {
 $.hi = 0;
 $.meta = {
   bio: 0,
-  lv: {}
+  lv: {},
+  best: {},
+  v: 2
 };
 try {
   const d = JSON.parse(localStorage.getItem('grodius.v1') || 'null');
@@ -20,6 +22,22 @@ try {
         ...(d.meta && d.meta.lv || {})
       }
     };
+    $.meta.best = d.meta && d.meta.best || {};
+    $.meta.v = d.meta && d.meta.v || 1;
+    if ($.meta.v < 2) {
+      // v2 removed raw-power upgrades; give the biomass back
+      const OLD = { nerve: [90, 260], hollow: [100, 240, 480, 900], skin: [420], wraith: [380, 950], hull: [150, 380, 800] };
+      let refund = 0;
+      for (const [id, cost] of Object.entries(OLD)) {
+        const keep = id === 'hull' ? Math.min(2, $.meta.lv[id] || 0) : 0;
+        for (let i = keep; i < ($.meta.lv[id] || 0); i++) refund += cost[i];
+        if (id === 'hull') $.meta.lv.hull = keep; else delete $.meta.lv[id];
+      }
+      if (($.meta.lv.salvage || 0) > 0) refund += 300; // Black Box got cheaper (800 -> 500)
+      $.meta.bio += refund;
+      $.meta.refund = refund;
+      $.meta.v = 2;
+    }
     $.hi = +d.hi || 0;
     SET.flashes = d.flashes !== false;
     SET.muted = !!d.muted;
@@ -36,24 +54,13 @@ export function save() {
   } catch (e) {}
 }
 export const lv = id => $.meta.lv[id] || 0;
+// The Infirmary buys options and comfort, not raw power: in-run power has to be earned in-run.
 export const UPG = [{
   id: 'hull',
   name: 'REINFORCED HULL',
   desc: 'One more ship per run.',
-  max: 3,
-  cost: [150, 380, 800]
-}, {
-  id: 'nerve',
-  name: 'NERVE GRAFT',
-  desc: 'Start every life with THRUST already stacked.',
   max: 2,
-  cost: [90, 260]
-}, {
-  id: 'hollow',
-  name: 'HOLLOW-POINT RIVETS',
-  desc: '+10% damage on every gun, wraiths included.',
-  max: 4,
-  cost: [100, 240, 480, 900]
+  cost: [150, 500]
 }, {
   id: 'gland',
   name: 'HARVEST GLAND',
@@ -67,23 +74,23 @@ export const UPG = [{
   max: 2,
   cost: [120, 300]
 }, {
-  id: 'skin',
-  name: 'SECOND SKIN',
-  desc: 'Every life starts with a WARD field.',
-  max: 1,
-  cost: [420]
-}, {
-  id: 'wraith',
-  name: 'BOUND WRAITH',
-  desc: 'Every life starts with a WRAITH in tow.',
-  max: 2,
-  cost: [380, 950]
-}, {
   id: 'salvage',
   name: 'BLACK BOX',
-  desc: 'Keep MISSILE, SPLIT, ARC and PYRE when you die.',
+  desc: 'When you die your guns burst out as pods. Fly through them to take them back.',
   max: 1,
-  cost: [800]
+  cost: [500]
+}, {
+  id: 'deep',
+  name: 'DESCEND DEEPER',
+  desc: 'Unlocks starting a run at Descent 2. Tougher, and every stage pays double.',
+  max: 1,
+  cost: [600]
+}, {
+  id: 'sculpt',
+  name: 'FLESH SCULPT',
+  desc: 'Cosmetic. The ship grows more of itself: spikes, eyes, horns.',
+  max: 3,
+  cost: [60, 160, 320]
 }];
 
 // ---------------- audio ----------------

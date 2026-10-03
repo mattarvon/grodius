@@ -7,10 +7,12 @@ import { buzz } from './platform';
 import { ALL, buildTerrain, ceilAt, eshots, floorAt } from './world';
 import { drop, flash, gore, spark, splat } from './fx/spawn';
 import { buildScript } from './enemies/spawn';
+import { startStage } from './stages';
+import { caps } from './world';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
-export function newGame() {
+export function newGame(startL = 0) {
   $.P = null;
   $.G = {
     score: 0,
@@ -45,7 +47,7 @@ export function newGame() {
     warn: [],
     feed: null
   };
-  startLoop(0);
+  startLoop(startL);
 }
 export function startLoop(L) {
   $.G.loop = L;
@@ -70,6 +72,8 @@ export function startLoop(L) {
     $.P.alive = true;
   }
   $.G.logQ = L === 0 ? [...LOG_START] : [`THE GATE OPENED AGAIN. DESCENT ${L + 1}.`, 'IT REMEMBERS YOU.'];
+  $.G.tally = null;
+  startStage(0);
   $.state = 'play';
 }
 export function resetPlayer(keepGuns) {
@@ -77,16 +81,17 @@ export function resetPlayer(keepGuns) {
   $.P = {
     x: 50,
     y: PH / 2,
-    speed: lv('nerve'),
+    // death keeps half your THRUST (rounded down); everything else is gone
+    speed: keepGuns && old ? Math.floor(old.speed / 2) : 0,
     missile: 0,
     double: 0,
     laser: 0,
     pyre: 0,
     pcd: 0,
     frag: [],
-    options: lv('wraith'),
-    shield: lv('skin') ? 8 : 0,
-    wardLv: lv('skin') ? 1 : 0,
+    options: 0,
+    shield: 0,
+    wardLv: 0,
     aegis: 0,
     inv: 160,
     cd: 0,
@@ -95,18 +100,25 @@ export function resetPlayer(keepGuns) {
     alive: true,
     bank: 0
   };
-  if (keepGuns && old && lv('salvage')) {
-    $.P.missile = old.missile;
-    $.P.double = old.double;
-    $.P.laser = old.laser;
-    $.P.pyre = old.pyre || 0;
-  }
+}
+/** BLACK BOX: on death your guns burst out as pods (full level each); fly through them to take them back */
+function blackBox() {
+  if (!lv('salvage')) return;
+  const P = $.P, ty = [];
+  if (P.double) ty.push(2);
+  if (P.laser) ty.push(3);
+  for (let i = 0; i < P.missile; i++) ty.push(1);
+  for (let i = 0; i < (P.pyre || 0); i++) ty.push(4);
+  for (let i = 0; i < Math.min(2, P.options); i++) ty.push(5);
+  ty.forEach((t, k) => caps.push({ x: clamp(P.x + 40 + k * 22, 30, 430), y: clamp(P.y + (k % 2 ? 18 : -18), 30, PH - 30), t: k * 10, blue: false, ty: t, full: 1, salv: 1 }));
 }
 export function killPlayer() {
   if (!$.P.alive) return;
   $.P.alive = false;
   $.G.deadT = 150;
   buzz('death');
+  if ($.G.st) $.G.st.deaths++;
+  blackBox();
   gore($.P.x, $.P.y, 1.8, {
     metal: 9,
     rope: 2,

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
+import { clearStage } from '../stages';
 import { PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '../core';
 import { SET, lv } from '../save';
 import { sfx } from '../audio';
@@ -370,7 +371,13 @@ export function updEnemy(e) {
           e.x = lerp(e.x, tx, .025);
         } else {
           e.x += 1.6;
-          if (e.x > W + 60) e.dead = true;
+          if (e.x > W + 60) {
+            e.dead = true;
+            if (e.stageBoss) {
+              clearStage(true);
+              banner('IT GOT AWAY', 'NO REWARD', '#8a5a5a', 150);
+            }
+          }
         }
         e.y = PH / 2 + Math.sin(e.t * .017) * (PH * .28);
         const cyc = e.t % 130;
@@ -492,6 +499,10 @@ export function killEnemy(e, dir = 1) {
   $.G.comboT = 120;
   $.G.kills++;
   if ($.G.combo > $.G.maxCombo) $.G.maxCombo = $.G.combo;
+  if ($.G.st) {
+    if (!e.mini && !e.par) $.G.st.kills++;
+    $.G.st.chain = Math.max($.G.st.chain, $.G.combo);
+  }
   if (e.cap) dropCap(e.x, e.y);
   if (e.group) {
     e.group.killed++;
@@ -500,6 +511,7 @@ export function killEnemy(e, dir = 1) {
   if (e.k === 'crux' || e.k === 'butcher') {
     for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);
     miniReward(e);
+    clearStage();
     for (let i = 0; i < 4; i++) splat(rr(80, 400), rr(30, 210), rr(3, 4.5));
     gore(e.x, e.y - 20, 4, {
       chain: 6,
@@ -519,7 +531,13 @@ export function killEnemy(e, dir = 1) {
     eshots.length = 0;
   }
   if (e.k === 'maw') {
-    miniReward(e);
+    if (e.stageBoss) {
+      miniReward(e);
+      clearStage();
+    } else {
+      dropCap(e.x - 20, e.y - 16);
+      dropCap(e.x - 20, e.y + 16);
+    }
     splat(rr(150, 330), rr(60, 160), 4);
     splat(rr(150, 330), rr(60, 160), 3);
     banner('TORN APART', '', undefined, 90);
@@ -597,11 +615,6 @@ export function podType() {
   return ok[ok.length - 1][0];
 }
 export function miniReward(e) {
-  $.G.seal = Math.min(3, ($.G.seal || 0) + 1);
-  const sub = ['', 'MISSILE II, ARC, PYRE, WRAITH II, MIRROR, 2 GRAFTS', 'PYRE II, WRAITH III, AEGIS, 3 GRAFTS', 'EVERYTHING UNSEALED'][$.G.seal];
-  setTimeout(() => {
-    if ($.G) banner('SEAL BROKEN', 'UNLOCKED: ' + sub, '#ffd23a', 220);
-  }, 700);
   const pool = [];
   for (let i = 0; i < 7; i++) if ($.P && !slotMaxed(i)) pool.push(i);
   while (pool.length < 3) pool.push(ri(0, 6));

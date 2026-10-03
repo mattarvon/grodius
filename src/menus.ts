@@ -12,7 +12,11 @@ export function titleItems() {
     a: () => {
       newGame();
     }
-  }, {
+  }, ...(lv('deep') ? [{
+    l: 'DESCEND DEEPER',
+    r: 'DESCENT 2',
+    a: () => newGame(1)
+  }] : []), {
     l: 'INFIRMARY',
     r: fmtBio($.meta.bio),
     a: () => openShop('title')

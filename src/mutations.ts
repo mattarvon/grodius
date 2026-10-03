@@ -12,7 +12,7 @@ export const GM = [{
   c: 'CAD',
   k: 'drone',
   w: 'DRONES',
-  n: [12, 50],
+  n: [36, 150],
   name: 'SWARM CADENCE',
   d: 'faster fire'
 }, {
@@ -20,7 +20,7 @@ export const GM = [{
   c: 'NDL',
   k: 'corpse',
   w: 'CORPSES',
-  n: [5, 16],
+  n: [15, 48],
   name: 'BONE NEEDLES',
   d: 'shots pierce'
 }, {
@@ -28,7 +28,7 @@ export const GM = [{
   c: 'LCK',
   k: 'eye',
   w: 'EYES',
-  n: [6, 20],
+  n: [18, 60],
   name: 'OPTIC LOCK',
   d: 'shots home in'
 }, {
@@ -36,7 +36,7 @@ export const GM = [{
   c: 'MDB',
   k: 'crawler',
   w: 'CRAWLERS',
-  n: [5, 18],
+  n: [15, 54],
   name: 'REAR MANDIBLE',
   d: 'tail guns'
 }, {
@@ -44,7 +44,7 @@ export const GM = [{
   c: 'RPL',
   k: 'cross',
   w: 'CROSSES',
-  n: [4, 14],
+  n: [12, 42],
   name: 'HALO RIPPLE',
   d: 'shots widen into rings'
 }, {
@@ -52,7 +52,7 @@ export const GM = [{
   c: 'ARC',
   k: 'hook',
   w: 'HOOKS',
-  n: [3, 9],
+  n: [9, 27],
   name: 'MEATHOOK ARC',
   d: 'hits arc to more targets'
 }, {
@@ -60,7 +60,7 @@ export const GM = [{
   c: 'EDG',
   k: 'flayer',
   w: 'FLAYERS',
-  n: [3, 10],
+  n: [9, 30],
   name: 'FLAYED EDGE',
   d: '+30% damage'
 }, {
@@ -68,7 +68,7 @@ export const GM = [{
   c: 'GLT',
   k: 'maw',
   w: 'MAWS',
-  n: [1, 2],
+  n: [2, 4],
   name: 'GLUTTONY',
   d: 'critical hits'
 }, {
@@ -76,7 +76,7 @@ export const GM = [{
   c: 'CAL',
   k: '*',
   w: 'KILLS',
-  n: [40, 140, 280],
+  n: [120, 400, 800],
   name: 'CALIBER',
   d: 'bigger, harder rounds'
 }, {
@@ -84,7 +84,7 @@ export const GM = [{
   c: 'RGR',
   k: 'womb',
   w: 'WOMBS',
-  n: [3, 9],
+  n: [8, 24],
   name: 'REGROWTH',
   d: 'membrane regrows',
   sh: 1
@@ -93,7 +93,7 @@ export const GM = [{
   c: 'SPR',
   k: 'hatch',
   w: 'HATCHLINGS',
-  n: [8, 24],
+  n: [20, 60],
   name: 'SPORE COAT',
   d: 'shield hits burst back',
   sh: 1

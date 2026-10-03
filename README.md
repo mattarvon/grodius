@@ -53,11 +53,11 @@ The ship is a living thing. Power-ups grow new parts mid-run: egg-sac missile po
 Eyeballs are pre-rendered textures with veins, fibrous irises and wet highlights, drawn on a high-res layer over the pixel-art world.
 
 ## Mutations: you become what you kill
-Every kill feeds a mutation tied to that enemy type. Hit a threshold and a graft pod (a fleshy sac with an eye) grows where the enemy died: grab it to take the mutation. You can carry 3 gun grafts; a 4th sheds your oldest (the pod tells you which). Each mutation has 2 levels (CALIBER 3). Dying withers every graft one level. Progress shows on the pause screen.
+Every kill feeds a mutation tied to that enemy type. Hit a threshold and a graft pod (a fleshy sac with an eye) grows where the enemy died: grab it to take the mutation. You can carry 3 gun grafts; a 4th sheds your oldest (the pod tells you which). Each mutation has 2 levels (CALIBER 3). Thresholds are steep (e.g. BONE NEEDLES at 15 / 48 corpses, CALIBER at 120 / 400 / 800 kills): a graft is a trophy. Dying withers every graft one level. Progress shows on the pause screen.
 
 | Kill | Mutation | Effect |
 |---|---|---|
-| Drones | SWARM CADENCE | faster fire |
+| Drones (36 / 150) | SWARM CADENCE | faster fire |
 | Corpses | BONE NEEDLES | shots pierce |
 | Eye turrets | OPTIC LOCK | shots home in |
 | Crawlers | REAR MANDIBLE | tail guns |
@@ -75,7 +75,7 @@ Enemies that come from behind are telegraphed with a BEHIND warning, enter in th
 
 ## Balance (Gradius rules)
 - Main gun is exclusive: SPLIT or ARC. Sub-weapon is exclusive: MISSILE or PYRE.
-- WRAITH caps at 3. Damage stacking is deliberately small (Infirmary +10%/level, FLAYED EDGE +15%, CALIBER +10%).
+- WRAITH caps at 3. Damage stacking is deliberately small (FLAYED EDGE +15%, CALIBER +10%).
 - Rank: the more powered up you are, the faster enemy bullets fly and the more often mini-bosses fire.
 
 ## Mini-bosses
@@ -85,7 +85,14 @@ The scroll stops until they die.
 - THE BUTCHER: inside, before the gate. Hangs on chains; telegraphed cleaver sweep (red wedge), thrown meathook (dashed line), gib spit. Below half HP it snaps a chain and swings, adding ring bursts.
 
 ## Progression: earn your guns
-- **Fragments:** a pod is one fragment of its upgrade. Higher levels cost more fragments (THRUST 1,1,2,2,3; MISSILE 1,2; ARC 2; PYRE 2,3; WRAITH 2,3,4; WARD 1,2,3). Pod labels and the bottom bar show progress (e.g. `WRAITH 1/2`).
-- **Seals:** each upgrade has a ceiling that rises only when you kill a mini-boss. Seal 0 allows THRUST 2, MISSILE I, SPLIT, WRAITH I, WARD Membrane; ARC and PYRE start sealed. Each mini-boss breaks a seal and unlocks the next tier, plus another gun graft slot (1, 2, 3). Locked slots show a padlock.
-- **Mini-boss reward:** breaking a seal spawns 3 gold-ringed pods. Each is a full level, take one and the others burst.
-- Pods are scarcer (about 28 per loop, down from 48) and only about a third of glowing carriers drop one.
+- **Stages.** Each descent is 4 stages: OPEN ORBIT (ends on THE MAW), THE HULL (THE CRUCIFER), THE CORRIDORS (THE BUTCHER; a second Maw mid-stage only coughs up pods), THE GRAVITY DRIVE. Each opens with a stage card.
+- **Stage clear tally:** kills (% of everything that spawned), hits taken, deaths, best chain, time, and a grade S/A/B/C. S needs no hits. The grade pays score (x descent) and biomass; no-hit adds PERFECT. Your best grade per stage is saved. If the Maw escapes, the stage ends on a C with no reward.
+- **Seals** break on the 2nd, 4th and 6th stage cleared in a run: end of the Hull, end of Descent 1, Descent 2 Hull. Full power is a Descent 2 thing.
+- **Stage-boss reward:** 3 gold-ringed pods, each a full level, take one and the others burst.
+- **Fragments:** a pod is one fragment of its upgrade; higher levels cost more (THRUST 1,1,2,2,3; MISSILE 1,2; ARC 2; PYRE 2,3; WRAITH 2,3,4; WARD 1,2,3).
+- **Death:** you keep half your THRUST. Guns, wraiths, WARD and fragment progress are gone, and every graft withers a level.
+- **WARD** soaks 3 hits. REGROWTH graft: 1 hit back every 20s at level 1, up to 2 every 12s at level 2.
+- **Rank:** the more powered up you are, the faster enemy bullets fly, the more HP enemies have (up to +80%, minis +40%) and the bigger the formations (up to +3).
+
+## Infirmary (between runs)
+Buys options and comfort, never raw power: REINFORCED HULL (+1 ship, max 2), HARVEST GLAND (+25% biomass), AMPOULE LURE (pods drift to you), BLACK BOX (your guns burst out as pods when you die), DESCEND DEEPER (start at Descent 2), FLESH SCULPT (cosmetic mutation). Saves from before this change get their biomass refunded for the removed upgrades.

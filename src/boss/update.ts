@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
+import { clearStage } from '../stages';
 import { PH, R, TAU, W, clamp, dist2, lerp, pick, rr } from '../core';
 import { SET } from '../save';
 import { sfx } from '../audio';
@@ -104,7 +105,8 @@ export function updateBoss() {
       for (let i = 0; i < 6; i++) splat(rr(40, 440), rr(20, 230), rr(3, 5));
       $.G.white = SET.flashes ? 1 : .4;
       $.G.boss = null;
-      $.G.clearT = 330;
+      $.G.clearT = 480;
+      clearStage();
       if ($.P.alive) $.P.inv = 9999;
       banner('GATE SEALED', `DESCENT ${$.G.loop + 1} SURVIVED`, '#e8f1ff', 300);
       for (const e of eshots) for (let k = 0; k < 3; k++) drop(e.x, e.y, rr(-1, 1), rr(-1, 1), 1.4, 0, 90);

@@ -263,7 +263,7 @@ export function updateEnemies() {
     const e = enemies[i];
     if (!e.dead && e.burn > 0) {
       e.burn--;
-      e.hp -= .05 * (1 + .25 * lv('hollow'));
+      e.hp -= .05;
       if (R() < .7) spark(e.x + rr(-e.r, e.r), e.y + rr(-e.r, e.r * .5), rr(-.4, .4), -rr(.5, 1.6), ri(8, 16), pick(FIRE));
       if (R() < .15) drop(e.x + rr(-e.r, e.r), e.y, rr(-.5, .5), -rr(.2, 1), 1, 5, 40);
       if (e.hp <= 0) killEnemy(e, 1);
@@ -309,7 +309,7 @@ export function updateCaps() {
         }
       } else if (c.blue) purge();else {
         if (c.ty < 0 || c.ty == null) c.ty = podType();
-        applyPower(c.ty, !!c.choice);
+        applyPower(c.ty, !!c.choice || !!c.full);
         if (c.choice) {
           for (let j = caps.length - 1; j >= 0; j--) if (j !== i && caps[j].choice === c.choice) {
             gore(caps[j].x, caps[j].y, .5, {});
