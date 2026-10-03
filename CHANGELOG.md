@@ -4,6 +4,12 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ## 2026-10-03
 
+### Fix: title music and menu farts silent on desktop Chrome
+- Chrome blocks audio until a click or key. The title now opens on a blinking PRESS ANY KEY / TAP TO DESCEND gate: the first input only unlocks audio and starts the title music.
+- Mouse hover over a menu item plays the cursor fart, clicking plays the select fart (before, mouse clicks skipped the fart path entirely).
+- Sound banks now load at startup, so the very first menu move farts instead of beeping. Audio unlocks on the events Chrome actually accepts (click, pointer up, touch end, key).
+- Android: the WebView no longer requires a tap before media plays, so title music starts on launch.
+
 ### Music
 - Title: Bleak Terminal (Ruskerdax). Stage 1: Tech Rooms action 01, Stage 2: action 02 (Kenten Fina). Stage 3: Eternity 01 "The Desolation of a Civilization" (David KBD). Stage 4 approach: Tech Rooms ambient 02, the Gravity Drive fight: Eternity 01. Infirmary / game over: Tech Rooms ambient 03.
 - Crossfades between tracks, drops to 35% on pause, ducks under the hype man and boss-kill voice lines, pauses when the app is backgrounded. MUSIC on/off in the title and pause menus (saved).

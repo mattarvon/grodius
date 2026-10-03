@@ -118,7 +118,10 @@ export function drawTitle() {
     }
   }
   txt('DERELICT MERIDIAN // NEPTUNE ORBIT', 28, 96, '#6d8094');
-  drawMenu(titleItems(), 40, 124, 150);
+  if ($.gate) {
+    $.menuBoxes = [];
+    if (($.T >> 5) % 2 === 0) txt(touch.used || matchMedia('(pointer: coarse)').matches ? 'TAP TO DESCEND' : 'PRESS ANY KEY', 40, 140, '#e0242c', 'left', 10);
+  } else drawMenu(titleItems(), 40, 124, 150);
   txt('ARROWS/WASD MOVE   Z/SPACE FIRE', 28, 196, '#5b6573');
   txt('FLY INTO A POD TO TAKE IT   P PAUSE   M MUTE', 28, 206, '#5b6573');
   txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' : 'GAMEPAD: A FIRE, START PAUSE', 28, 216, '#3f4955');

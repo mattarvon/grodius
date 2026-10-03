@@ -83,6 +83,8 @@ export function musicUpdate() {
   const w = wanted();
   if (w !== curName) play(w);
   if (!bus) return;
+  // a play() refused before the first click/key gets retried once audio is unlocked
+  if (cur && cur.name && cur.el.paused && AU.c.state === 'running' && !document.hidden && $.T % 30 === 0) cur.el.play().catch(() => {});
   const lvl = ($.state === 'pause' ? PAUSE_LVL : 1) * (AU.c.currentTime < duckUntil ? DUCK_LVL : 1);
   if (Math.abs(bus.gain.value - lvl) > .01) bus.gain.setTargetAtTime(lvl, AU.c.currentTime, .12);
 }

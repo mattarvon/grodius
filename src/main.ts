@@ -64,6 +64,8 @@ import { enemies, gibs, drops, caps } from './world';
 import { BANK } from './audio';
 import { musicNow } from './music';
 (window as any).__music = musicNow;
+import { AU as __AU } from './audio';
+(window as any).__au = () => ({ state: __AU.c && __AU.c.state, last: __AU.lastCat, gate: $.gate });
 (window as any).__sfx = () => Object.fromEntries(Object.entries(BANK).map(([k, v]) => [k, v.length]));
 
 // ---------------- android lifecycle ----------------
@@ -90,6 +92,14 @@ window.visualViewport?.addEventListener('resize', fit);
 screen.orientation?.addEventListener?.('change', fit);
 
 // canvas text needs the bundled fonts before the first frame
+import { auInit, audioRunning } from './audio';
+auInit();
+$.gate = !audioRunning();
+if ($.gate) AU_watch();
+function AU_watch() {
+  // if something else unlocks audio first (e.g. Android allows autoplay), drop the gate
+  const iv = setInterval(() => { if (audioRunning() && $.state === 'title') { $.gate = false; clearInterval(iv); } }, 250);
+}
 Promise.all(['8px Silkscreen', '28px "Grenze Gotisch"'].map((f) => document.fonts.load(f)))
   .catch(() => {})
   .then(() => {

@@ -76,7 +76,7 @@ export function step() {
   } else if ($.state === 'pause') {
     menuNav(pauseItems());
     if (I.pause && $.state === 'pause') $.state = 'play';
-  } else if ($.state === 'title') menuNav(titleItems());else if ($.state === 'shop') stepShop();
+  } else if ($.state === 'title') { if (!$.gate) menuNav(titleItems()); }else if ($.state === 'shop') stepShop();
   if ($.G) {
     const k = Math.min(9, $.G.shake);
     $.G.shx = k > .3 ? Math.round((R() * 2 - 1) * k) : 0;

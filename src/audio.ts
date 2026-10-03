@@ -9,6 +9,7 @@ export const AU = {
   c: null,
   last: {}
 };
+export const audioRunning = () => !!AU.c && AU.c.state === 'running';
 export function auInit() {
   if (AU.c) {
     if (AU.c.state === 'suspended') AU.c.resume();
@@ -102,7 +103,7 @@ function loadBank(A) {
 /** play a random clip from a category with pitch/volume jitter. false if the category isn't loaded (caller falls back to synth) */
 export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number } = {}) {
   const L = BANK[cat];
-  if (!AU.c || !L || !L.length || SET.muted) return false;
+  if (!AU.c || !L || !L.length || SET.muted || AU.c.state !== 'running') return false;
   if (voices > 14) return true; // swallow it: a wall of 30 splats in one frame is mud anyway
   let i = Math.floor(ar() * L.length);
   if (L.length > 1 && i === LASTS[cat]) i = (i + 1) % L.length;
@@ -114,6 +115,7 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   s.connect(g);
   route(g, o.wet ?? .2);
   voices++;
+  AU.lastCat = cat; // test hook
   s.onended = () => voices--;
   s.start(AU.c.currentTime + (o.at ?? 0));
   if (/^(hype|babe|bossreward)/.test(cat)) duckMusic(L[i].duration + .3);
@@ -140,7 +142,7 @@ export function env(g, t, a, d, v) {
   g.gain.exponentialRampToValueAtTime(.0001, t + a + d);
 }
 export function tone(o) {
-  if (!AU.c || SET.muted) return;
+  if (!AU.c || SET.muted || AU.c.state !== 'running') return;
   const A = AU.c,
     t = A.currentTime + (o.at || 0),
     dur = o.dur || .1,
@@ -166,7 +168,7 @@ export function tone(o) {
   os.stop(t + a + dur + .05);
 }
 export function nz(o) {
-  if (!AU.c || SET.muted) return;
+  if (!AU.c || SET.muted || AU.c.state !== 'running') return;
   const A = AU.c,
     t = A.currentTime + (o.at || 0),
     dur = o.dur || .1,

@@ -84,7 +84,7 @@ export function pauseItems() {
   }];
 }
 // title screen: every cursor move is a short pfft, every selection a full fart (src/sfx/fart_nav, fart_ok)
-const menuBlip = (ok) => {
+export const menuBlip = (ok) => {
   if ($.state === 'title' && sample(ok ? 'fart_ok' : 'fart_nav', { vol: ok ? .9 : .7, spread: .08, wet: .1 })) return;
   sfx.menu();
 };
@@ -159,6 +159,7 @@ export function menuPointer(x, y) {
   for (const b of $.menuBoxes) if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
     if ($.menuSel === b.i || $.state === 'title' || $.state === 'pause' || $.state === 'over') {
       $.menuSel = b.i;
+      menuBlip(true);
       b.a();
     } else {
       $.menuSel = b.i;

@@ -18,6 +18,8 @@ public class MainActivity extends BridgeActivity {
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
         immersive();
+        // let music and sound start on the title screen without a tap first
+        getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
     }
 
     @Override

@@ -5,7 +5,7 @@ import { H, W, crt, cv, psBtn, pwBtn, wrap } from './core';
 import { save } from './save';
 import { AU, auInit } from './audio';
 import { openPause } from './flow';
-import { menuPointer } from './menus';
+import { menuBlip, menuPointer } from './menus';
 import { TOUCH } from './platform';
 
 // ---------------- input ----------------
@@ -13,6 +13,11 @@ export const K = {},
   PR = new Set();
 addEventListener('keydown', e => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+  if ($.gate) { // title "press any key": first press only unlocks audio
+    $.gate = false;
+    auInit();
+    return;
+  }
   if (!K[e.code]) PR.add(e.code);
   K[e.code] = true;
   auInit();
@@ -145,9 +150,26 @@ pwBtn.addEventListener('click', () => {
 psBtn.addEventListener('click', () => {
   if ($.state === 'play') openPause();else if ($.state === 'pause') $.state = 'play';
 });
+// Chrome only unlocks audio on these (not touchstart / touch pointerdown)
+for (const ev of ['pointerup', 'touchend', 'click', 'keyup']) addEventListener(ev, () => auInit(), { capture: true });
+cv.addEventListener('pointermove', e => {
+  if (e.pointerType !== 'mouse' || $.gate || $.state === 'play') return;
+  const r = cv.getBoundingClientRect(), gx = (e.clientX - r.left) / r.width * W, gy = (e.clientY - r.top) / r.height * H;
+  for (const b of $.menuBoxes || []) if (gx >= b.x && gx <= b.x + b.w && gy >= b.y && gy <= b.y + b.h) {
+    if (b.i !== $.menuSel) {
+      $.menuSel = b.i;
+      menuBlip(false);
+    }
+    return;
+  }
+});
+addEventListener('pointerup', () => {
+  if ($.gate) setTimeout(() => ($.gate = false), 0); // tap/click anywhere opens the title gate
+}, { capture: true });
 cv.addEventListener('pointerdown', e => {
   auInit();
   cv.focus();
+  if ($.gate) return;
   if ($.state === 'play') return;
   const r = cv.getBoundingClientRect();
   const gx = (e.clientX - r.left) / r.width * W,
