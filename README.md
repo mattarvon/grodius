@@ -57,3 +57,9 @@ The scroll stops until they die.
 - THE MAW: ends the open-orbit section (and returns inside).
 - THE CRUCIFER: end of the hull. A flayed body crucified upside down; its heart sits behind 4 nail barriers you have to shoot through (Big Core homage). Spike fans, hand rings; below half HP a blood spiral and glob rain.
 - THE BUTCHER: inside, before the gate. Hangs on chains; telegraphed cleaver sweep (red wedge), thrown meathook (dashed line), gib spit. Below half HP it snaps a chain and swings, adding ring bursts.
+
+## Progression: earn your guns
+- **Fragments:** a pod is one fragment of its upgrade. Higher levels cost more fragments (THRUST 1,1,2,2,3; MISSILE 1,2; ARC 2; PYRE 2,3; WRAITH 2,3,4; WARD 1,2,3). Pod labels and the bottom bar show progress (e.g. `WRAITH 1/2`).
+- **Seals:** each upgrade has a ceiling that rises only when you kill a mini-boss. Seal 0 allows THRUST 2, MISSILE I, SPLIT, WRAITH I, WARD Membrane; ARC and PYRE start sealed. Each mini-boss breaks a seal and unlocks the next tier, plus another gun graft slot (1, 2, 3). Locked slots show a padlock.
+- **Mini-boss reward:** breaking a seal spawns 3 gold-ringed pods. Each is a full level, take one and the others burst.
+- Pods are scarcer (about 28 per loop, down from 48) and only about a third of glowing carriers drop one.
