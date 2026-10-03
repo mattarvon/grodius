@@ -2,7 +2,7 @@
 
 Gradius-style horizontal shooter with an Event Horizon aesthetic. A rescue tug descends into the derelict MERIDIAN in Neptune orbit and fights its way to the gravity drive.
 
-Vite + TypeScript web game, wrapped as an Android app with Capacitor. The last single-file version is tagged `v0-singlefile`.
+Vite + TypeScript web game, wrapped as an Android app with Capacitor. The last single-file version lives on the `legacy-singlefile` branch.
 
 ## Play it
 - **Android (Galaxy Fold 7):** every push to `main` builds an APK and publishes it to the [latest release](https://github.com/mattarvon/grodius/releases/tag/latest). Open that page on the phone, tap `grodius.apk`, allow installs from your browser once.
