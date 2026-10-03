@@ -9,6 +9,7 @@ Vite + TypeScript web game, wrapped as an Android app with Capacitor. The last s
 - **Browser:** https://mattarvon.github.io/grodius/ (same build, deployed on every push).
 
 ## Notes
+- `assets-raw/` (git-ignored) holds raw downloads by source (`music/<pack>/`, `sfx/kenney/`, `voice/`). Game-ready, processed files go in `src/music/` and `src/sfx/`; every third-party file is listed in `CREDITS.md`.
 - `CHANGELOG.md` is the running history (newest first). It and this README are mirrored into the Obsidian vault (`Projects\Grodius\Mirrors\`) after every push via `tools/vault_mirror.py` / `Sync-Vault.ps1`; local commits and pulls trigger it through a git hook.
 
 ## Develop
@@ -99,6 +100,9 @@ The scroll stops until they die.
 
 ## Infirmary (between runs)
 Buys options and comfort, never raw power: REINFORCED HULL (+1 ship, max 2), HARVEST GLAND (+25% biomass), AMPOULE LURE (pods drift to you), BLACK BOX (your guns burst out as pods when you die), DESCEND DEEPER (start at Descent 2), FLESH SCULPT (cosmetic mutation). Saves from before this change get their biomass refunded for the removed upgrades.
+
+## Music
+- One looping track per slot (title, each stage, Gravity Drive fight, Infirmary/game over), mapped in `src/music.ts` `TRACKS`. Crossfades on change, drops under the pause menu and under voice lines, MUSIC on/off in title and pause menus. Files in `src/music/`, loudness-matched to -16 LUFS.
 
 ## Sound
 - Kill sounds, explosions and death come from sample folders under `src/sfx/<category>/`: `splat_s` (drones, hatchlings), `splat_m`, `splat_l` (heavies, minis), `thud` (body-impact layer under medium and big splats), `bone` (layered on half of the bigger kills), `silly` (comedy layer on ~1 in 7 kills), `explode_s` (missiles), `explode_l` (mini-boss/boss deaths, your death). Every play picks a random clip (never the same twice in a row) with pitch and volume jitter.

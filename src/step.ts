@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { musicUpdate } from './music';
 import { R, clamp, swapRm } from './core';
 import { SET, save } from './save';
 import { setMute } from './audio';
@@ -58,6 +59,7 @@ export function stepWorld() {
 }
 export function step() {
   $.T++;
+  musicUpdate();
   pollInput();
   if (PR.has('KeyM')) setMute(!SET.muted);
   if ($.state === 'play') {

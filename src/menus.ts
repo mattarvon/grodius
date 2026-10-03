@@ -31,6 +31,13 @@ export function titleItems() {
     l: 'SOUND',
     r: SET.muted ? 'OFF' : 'ON',
     a: () => setMute(!SET.muted)
+  }, {
+    l: 'MUSIC',
+    r: SET.music ? 'ON' : 'OFF',
+    a: () => {
+      SET.music = !SET.music;
+      save();
+    }
   }];
 }
 export function overItems() {
@@ -59,6 +66,13 @@ export function pauseItems() {
     l: 'SOUND',
     r: SET.muted ? 'OFF' : 'ON',
     a: () => setMute(!SET.muted)
+  }, {
+    l: 'MUSIC',
+    r: SET.music ? 'ON' : 'OFF',
+    a: () => {
+      SET.music = !SET.music;
+      save();
+    }
   }, {
     l: 'ABANDON SHIP',
     a: () => {

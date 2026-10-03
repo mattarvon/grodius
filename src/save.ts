@@ -4,7 +4,8 @@ import { $ } from './state';
 // ---------------- persistence ----------------
 export const SET = {
   flashes: true,
-  muted: false
+  muted: false,
+  music: true
 };
 $.hi = 0;
 $.meta = {
@@ -41,6 +42,7 @@ try {
     $.hi = +d.hi || 0;
     SET.flashes = d.flashes !== false;
     SET.muted = !!d.muted;
+    SET.music = d.music !== false;
   }
 } catch (e) {}
 export function save() {
@@ -49,7 +51,8 @@ export function save() {
       meta: $.meta,
       hi: $.hi,
       flashes: SET.flashes,
-      muted: SET.muted
+      muted: SET.muted,
+      music: SET.music
     }));
   } catch (e) {}
 }

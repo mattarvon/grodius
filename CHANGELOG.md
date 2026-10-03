@@ -4,6 +4,12 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ## 2026-10-03
 
+### Music
+- Title: Bleak Terminal (Ruskerdax). Stage 1: Tech Rooms action 01, Stage 2: action 02 (Kenten Fina). Stage 3: Eternity 01 "The Desolation of a Civilization" (David KBD). Stage 4 approach: Tech Rooms ambient 02, the Gravity Drive fight: Eternity 01. Infirmary / game over: Tech Rooms ambient 03.
+- Crossfades between tracks, drops to 35% on pause, ducks under the hype man and boss-kill voice lines, pauses when the app is backgrounded. MUSIC on/off in the title and pause menus (saved).
+- All tracks gain-matched to -16 LUFS (flat gain, loops stay seamless). Credits in `CREDITS.md` and on the title screen.
+- Raw downloads reorganized into `assets-raw/` (git-ignored) by source.
+
 ### Title menu farts
 - Title screen: moving the cursor plays a short pfft (`src/sfx/fart_nav/`), selecting plays a full fart (`src/sfx/fart_ok/`). Seeded with Matty's recording in 3 pitches; more takes go in those folders.
 

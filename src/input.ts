@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { musicSuspend } from './music';
 import { H, W, crt, cv, psBtn, pwBtn, wrap } from './core';
 import { save } from './save';
 import { AU, auInit } from './audio';
@@ -21,6 +22,7 @@ addEventListener('keyup', e => {
 });
 addEventListener('pagehide', () => save());
 document.addEventListener('visibilitychange', () => {
+  musicSuspend(document.hidden);
   if (document.hidden) {
     if ($.state === 'play') openPause();
     if (AU.c) AU.c.suspend();

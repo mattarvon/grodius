@@ -2,6 +2,7 @@
 import { R, rr } from './core';
 import { SET } from './save';
 import { nativeSay } from './platform';
+import { duckMusic } from './music';
 
 // ---------------- audio ----------------
 export const AU = {
@@ -115,6 +116,7 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   voices++;
   s.onended = () => voices--;
   s.start(AU.c.currentTime + (o.at ?? 0));
+  if (/^(hype|babe|bossreward)/.test(cat)) duckMusic(L[i].duration + .3);
   return true;
 }
 export function thr(k, ms) {

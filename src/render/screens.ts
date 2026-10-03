@@ -124,6 +124,7 @@ export function drawTitle() {
   txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' : 'GAMEPAD: A FIRE, START PAUSE', 28, 216, '#3f4955');
   txt('HI ' + pad($.hi, 8), 28, 236, '#8fa3b8');
   txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#5a2a2c', 'right');
+  txt('MUSIC: DAVID KBD, KENTEN FINA (CC BY), RUSKERDAX  SFX: KENNEY', W - 8, H - 22, '#3a4048', 'right', 7);
 }
 export function drawOverlay(title, sub, col) {
   ctx.fillStyle = 'rgba(8,0,1,.72)';
