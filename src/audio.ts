@@ -24,6 +24,7 @@ export function auInit() {
   AU.m = A.createGain();
   AU.m.gain.value = SET.muted ? 0 : .55;
   AU.m.connect(comp);
+  loadBank(A);
   const len = A.sampleRate * 2,
     b = A.createBuffer(1, len, A.sampleRate),
     d = b.getChannelData(0);
@@ -81,6 +82,40 @@ export function auInit() {
   lp.connect(g);
   g.connect(AU.m);
   AU.lp = lp;
+}
+// ---------------- sample bank ----------------
+// Every audio file under src/sfx/<category>/ is bundled and decoded on first input. Categories:
+// splat_s splat_m splat_l bone silly explode_s explode_l. Drop more files in a folder and they join the rotation.
+const SFX_URLS = import.meta.glob('./sfx/*/*.{ogg,wav,mp3,m4a}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+export const BANK: Record<string, AudioBuffer[]> = {};
+const LASTS: Record<string, number> = {};
+let arng = 0x2545f491; // audio has its own RNG so sound choices never perturb gameplay randomness
+const ar = () => ((arng ^= arng << 13), (arng ^= arng >>> 17), (arng ^= arng << 5), (arng >>> 0) / 4294967296);
+let voices = 0;
+function loadBank(A) {
+  for (const [p, u] of Object.entries(SFX_URLS)) {
+    const cat = p.split('/')[2];
+    fetch(u).then((r) => r.arrayBuffer()).then((b) => A.decodeAudioData(b)).then((buf) => (BANK[cat] ||= []).push(buf)).catch(() => {});
+  }
+}
+/** play a random clip from a category with pitch/volume jitter. false if the category isn't loaded (caller falls back to synth) */
+export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number } = {}) {
+  const L = BANK[cat];
+  if (!AU.c || !L || !L.length || SET.muted) return false;
+  if (voices > 14) return true; // swallow it: a wall of 30 splats in one frame is mud anyway
+  let i = Math.floor(ar() * L.length);
+  if (L.length > 1 && i === LASTS[cat]) i = (i + 1) % L.length;
+  LASTS[cat] = i;
+  const s = AU.c.createBufferSource(), g = AU.c.createGain();
+  s.buffer = L[i];
+  s.playbackRate.value = (o.rate ?? 1) * (1 + (ar() * 2 - 1) * (o.spread ?? .14));
+  g.gain.value = (o.vol ?? 1) * (.8 + ar() * .3);
+  s.connect(g);
+  route(g, o.wet ?? .2);
+  voices++;
+  s.onended = () => voices--;
+  s.start(AU.c.currentTime + (o.at ?? 0));
+  return true;
 }
 export function thr(k, ms) {
   const n = performance.now();
@@ -217,6 +252,13 @@ export const sfx = {
   },
   gore(sz) {
     if (thr('g', 45)) return;
+    const cat = sz >= 2.1 ? 'splat_l' : sz >= 1.2 ? 'splat_m' : 'splat_s';
+    if (sample(cat, { vol: .75 + Math.min(.45, sz * .08), wet: .22 })) {
+      if (sz >= 1.4 && ar() < .5) sample('bone', { vol: .55, at: .015 });
+      if (sz >= .9 && ar() < .14) sample('silly', { vol: .6, at: .04 }); // ~1 in 7 kills gets the comedy layer
+      if (sz >= 3) sample('explode_l', { vol: .9, wet: .35 });
+      return;
+    }
     const v = Math.min(1, .3 + sz * .14);
     nz({
       f: 2600,
@@ -269,6 +311,8 @@ export const sfx = {
     });
   },
   die() {
+    sample('explode_l', { vol: 1, wet: .4 });
+    sample('splat_l', { vol: .9, at: .05 });
     nz({
       f: 4200,
       f2: 50,
@@ -546,6 +590,7 @@ export const sfx = {
   },
   bomb() {
     if (thr('bm', 80)) return;
+    if (sample('explode_s', { vol: .7, wet: .3 })) return;
     nz({
       f: 1300,
       f2: 60,

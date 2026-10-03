@@ -96,3 +96,8 @@ The scroll stops until they die.
 
 ## Infirmary (between runs)
 Buys options and comfort, never raw power: REINFORCED HULL (+1 ship, max 2), HARVEST GLAND (+25% biomass), AMPOULE LURE (pods drift to you), BLACK BOX (your guns burst out as pods when you die), DESCEND DEEPER (start at Descent 2), FLESH SCULPT (cosmetic mutation). Saves from before this change get their biomass refunded for the removed upgrades.
+
+## Sound
+- Kill sounds, explosions and death come from sample folders under `src/sfx/<category>/`: `splat_s` (drones, hatchlings), `splat_m`, `splat_l` (heavies, minis), `bone` (layered on half of the bigger kills), `silly` (comedy layer on ~1 in 7 kills), `explode_s` (missiles), `explode_l` (mini-boss/boss deaths, your death). Every play picks a random clip (never the same twice in a row) with pitch and volume jitter.
+- The `gen-*.ogg` files are synthesized by `python3 tools/gen_sfx.py` (original, no license strings). Drop any `.ogg/.wav/.mp3` into a folder and it joins the rotation on the next build. Use CC0/public-domain files only while the repo is public.
+- Anything not covered by a sample (shots, pickups, alarms, UI) is still synthesized live in `src/audio.ts`.

@@ -61,6 +61,8 @@ export function start(data) {
 import { enemies, gibs, drops, caps } from './world';
 // test hook for tools/harness.mjs
 (window as any).__G = () => ({ G: $.G, P: $.P, state: $.state, enemies, gibs, drops, caps });
+import { BANK } from './audio';
+(window as any).__sfx = () => Object.fromEntries(Object.entries(BANK).map(([k, v]) => [k, v.length]));
 
 // ---------------- android lifecycle ----------------
 import { App } from '@capacitor/app';
