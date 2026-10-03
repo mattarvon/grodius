@@ -27,7 +27,7 @@ The ship is a living thing. Power-ups grow new parts mid-run: egg-sac missile po
 Eyeballs are pre-rendered textures with veins, fibrous irises and wet highlights, drawn on a high-res layer over the pixel-art world.
 
 ## Mutations: you become what you kill
-Every kill feeds a mutation tied to that enemy type. Thresholds and progress show on the pause screen; active mutations show top-left.
+Every kill feeds a mutation tied to that enemy type. Hit a threshold and a graft pod (a fleshy sac with an eye) grows where the enemy died: grab it to take the mutation. You can carry 3 gun grafts; a 4th sheds your oldest (the pod tells you which). Each mutation has 2 levels (CALIBER 3). Dying withers every graft one level. Progress shows on the pause screen.
 
 | Kill | Mutation | Effect |
 |---|---|---|
@@ -46,3 +46,14 @@ Every kill feeds a mutation tied to that enemy type. Thresholds and progress sho
 WARD stacks: MEMBRANE (absorbs hits), MIRROR (absorbed bullets fire back), BONE AEGIS (front plate that eats frontal fire and regrows).
 
 Enemies that come from behind are telegraphed with a BEHIND warning, enter in the lane away from you, and are harmless until fully materialized.
+
+## Balance (Gradius rules)
+- Main gun is exclusive: SPLIT or ARC. Sub-weapon is exclusive: MISSILE or PYRE.
+- WRAITH caps at 3. Damage stacking is deliberately small (Infirmary +10%/level, FLAYED EDGE +15%, CALIBER +10%).
+- Rank: the more powered up you are, the faster enemy bullets fly and the more often mini-bosses fire.
+
+## Mini-bosses
+The scroll stops until they die.
+- THE MAW: ends the open-orbit section (and returns inside).
+- THE CRUCIFER: end of the hull. A flayed body crucified upside down; its heart sits behind 4 nail barriers you have to shoot through (Big Core homage). Spike fans, hand rings; below half HP a blood spiral and glob rain.
+- THE BUTCHER: inside, before the gate. Hangs on chains; telegraphed cleaver sweep (red wedge), thrown meathook (dashed line), gib spit. Below half HP it snaps a chain and swings, adding ring bursts.
