@@ -2,7 +2,7 @@
 import { $ } from './state';
 import { playerHit } from './player';
 import { stepBiome, hazardHit } from './biomes';
-import { stepPerks } from './perks';
+import { perkPower, stepPerks } from './perks';
 import { musicUpdate } from './music';
 import { R, clamp, swapRm } from './core';
 import { SET, save } from './save';
@@ -22,7 +22,7 @@ export function stepWorld() {
   $.G.t++;
   {
     const pw = $.P ? $.P.speed * .5 + ($.P.double || $.P.laser ? 1 : 0) + $.P.missile + $.P.pyre + $.P.options + ($.P.wardLv || 0) + Object.values($.G.gm || {}).reduce((a, b) => a + b, 0) * .7 : 0;
-    $.G.rank = clamp(pw / 14, 0, 1);
+    $.G.rank = clamp((pw + perkPower()) / 14, 0, 1);
   }
   if ($.G.mini && $.G.mini.dead) $.G.mini = null;
   const tgt = $.G.bossStarted || $.G.mini || $.G.forkHold ? 0 : 1;
