@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
-import { pk } from './perks';
+import { pk, perkTick, lastGasp, ribShards } from './perks';
 import { PH, R, TAU, W, clamp, lerp, ri, rr } from './core';
 import { lv } from './save';
 import { sfx } from './audio';
@@ -9,7 +9,7 @@ import { I, touch } from './input';
 import { ceilAt, floorAt, shots } from './world';
 import { flash, pop, spark } from './fx/spawn';
 import { killPlayer, respawn } from './flow';
-import { POD } from './enemies/update';
+import { POD, hurt } from './enemies/update';
 import { gmL, sporeBurst } from './mutations';
 
 // ---------------- player ----------------
@@ -108,18 +108,23 @@ export function playerHit() {
   if ($.P.shield > 0) {
     $.P.shield = Math.max(0, $.P.shield - 1);
     $.P.inv = Math.round(18 * (1 + .5 * pk('inv')));
+    ribShards(shots, dmMul());
     sfx.shield();
     buzz('light');
     sporeBurst();
     for (let i = 0; i < 10; i++) spark($.P.x, $.P.y, rr(-3, 3), rr(-3, 3), 12, '#9fd2ff');
     return false;
   }
+  if (lastGasp()) return false;
   killPlayer();
   return true;
 }
+/** perk-side damage multiplier (SERRATED MARROW, GLASS JAW) */
+export const dmMul = () => (1 + .1 * pk('dmg')) * (pk('glass') ? 1.35 : 1);
 export function fire() {
   const cal = gmL('cal'),
-    dm = (1 + .15 * gmL('serr')) * (1 + .1 * cal) * (1 + .15 * pk('dmg')),
+    dm = (1 + .15 * gmL('serr')) * (1 + .1 * cal) * dmMul(),
+    rem = Math.max(-1, Math.min(0, $.P.cd)),
     rp = gmL('rapid'),
     org = [{
       x: $.P.x,
@@ -183,7 +188,8 @@ export function fire() {
       }
     }
   }
-  $.P.cd = Math.max(3, Math.round($.P.cd * (1 - .12 * pk('rof'))));
+  // TWITCH GLAND: fractional cooldown (the remainder carries) so every level counts; hard floor so it can't hose
+  if (pk('rof')) $.P.cd = Math.max($.P.laser ? 6 : 4, $.P.cd / (1 + [0, .08, .15, .21][pk('rof')])) + rem;
   flash($.P.x + 13, $.P.y, 9, 3, '190,225,255');
   if ($.P.missile && $.P.mcd <= 0) {
     $.P.mcd = Math.round(34 * (1 - .2 * pk('reload')));
@@ -236,6 +242,8 @@ export function updatePlayer() {
     return;
   }
   if ($.P.slow > 0) $.P.slow--;
+  if (pk('glass') && $.P.shield > 1) $.P.shield = 1;
+  perkTick(hurt);
   const sp = (1.25 + $.P.speed * .42) * (1 + .08 * pk('spd')) * ($.P.slow > 0 ? .45 : 1);
   // SNOT ROCKET: periodic piercing glob
   if (pk('snot') && $.state === 'play' && ($.G.t % (pk('snot') > 1 ? 150 : 240)) === 0) {
@@ -287,6 +295,7 @@ export function updatePlayer() {
     const wx = $.P.x + ox + $.G.scroll,
       y = $.P.y + oy;
     if (y >= floorAt(wx) || y <= ceilAt(wx)) {
+      if (lastGasp()) return;
       killPlayer();
       return;
     }

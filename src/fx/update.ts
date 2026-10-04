@@ -189,8 +189,8 @@ export function updateFX() {
     o.y += o.vy;
     if ($.P && $.P.alive && o.t > 14) {
       const d = Math.sqrt(dist2(o.x, o.y, $.P.x, $.P.y)) || 1;
-      if (d < 90) {
-        const f = d < 40 ? 2.6 : 1.1;
+      if (d < 90 + 50 * pk('magnet')) { // AMPOULE MAGNET widens the biomass pull
+        const f = d < 40 ? 2.6 : 1.1 + .4 * pk('magnet');
         o.x += ($.P.x - o.x) / d * f;
         o.y += ($.P.y - o.y) / d * f;
       }

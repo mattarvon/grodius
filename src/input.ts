@@ -154,6 +154,12 @@ psBtn.addEventListener('click', () => {
 // Chrome only unlocks audio on these (not touchstart / touch pointerdown)
 for (const ev of ['pointerup', 'touchend', 'click', 'keyup']) addEventListener(ev, () => auInit(), { capture: true });
 cv.addEventListener('pointermove', e => {
+  // perk cards: mouse hover selects (and resets the hold meter)
+  if (e.pointerType === 'mouse' && $.G && $.G.pick && $.state === 'play') {
+    const r = cv.getBoundingClientRect(), gx = (e.clientX - r.left) / r.width * W, gy = (e.clientY - r.top) / r.height * H, p = $.G.pick;
+    for (const b of $.pickBoxes || []) if (gx >= b.x && gx <= b.x + b.w && gy >= b.y && gy <= b.y + b.h && p.sel !== b.i) { p.sel = b.i; p.hold = 0; if (p.t > 30) menuBlip(false); }
+    return;
+  }
   if (e.pointerType !== 'mouse' || $.gate || $.state === 'play') return;
   const r = cv.getBoundingClientRect(), gx = (e.clientX - r.left) / r.width * W, gy = (e.clientY - r.top) / r.height * H;
   for (const b of $.menuBoxes || []) if (gx >= b.x && gx <= b.x + b.w && gy >= b.y && gy <= b.y + b.h) {
@@ -171,9 +177,11 @@ cv.addEventListener('pointerdown', e => {
   auInit();
   cv.focus();
   if ($.gate) return;
-  if ($.G && $.G.pick && $.G.pick.t > 35) {
+  if ($.G && $.G.pick && $.state === 'play') {
+    // click / tap a card grafts it (after the open lockout, so a tap already in flight can't)
+    if ($.G.pick.t <= 30) return;
     const r = cv.getBoundingClientRect(), gx = (e.clientX - r.left) / r.width * W, gy = (e.clientY - r.top) / r.height * H;
-    for (const b of $.pickBoxes || []) if (gx >= b.x && gx <= b.x + b.w && gy >= b.y && gy <= b.y + b.h) take($.G.pick.opts[b.i]);
+    for (const b of $.pickBoxes || []) if (gx >= b.x && gx <= b.x + b.w && gy >= b.y && gy <= b.y + b.h) return take($.G.pick.opts[b.i]);
     return;
   }
   if ($.state === 'play') return;

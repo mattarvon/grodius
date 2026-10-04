@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { gainXP, pk } from '../perks';
+import { gainXP, pk, spillSlick } from '../perks';
+const VOL = { on: 0 };
 import { clearStage } from '../stages';
 import { PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '../core';
 import { SET, lv } from '../save';
@@ -485,11 +486,16 @@ export function killEnemy(e, dir = 1) {
   $.G.score += sc;
   if (!e.par) gainXP(e.mini ? 30 : Math.max(1, e.score / 100));
   const vo = pk('volatile');
-  if (vo && !e.mini && !e.par) {
-    const r = 20 + 8 * vo;
+  // VOLATILE MEAT: one burst per kill, and meat killed BY a burst doesn't burst again (no screen-wide chains)
+  if (vo && !e.mini && !e.par && !VOL.on) {
+    const r = 18 + 8 * vo;
     flash(e.x, e.y, r, 8, '255,120,60');
-    for (const o of enemies) if (o !== e && !o.dead && dist2(o.x, o.y, e.x, e.y) < r * r) hurt(o, 1.2 * vo, o.x, o.y, 1);
+    VOL.on = 1;
+    let n = 0;
+    for (const o of enemies) if (o !== e && !o.dead && n < 6 && dist2(o.x, o.y, e.x, e.y) < r * r) { n++; hurt(o, .6 + .6 * vo, o.x, o.y, 1); }
+    VOL.on = 0;
   }
+  if (!e.par) spillSlick(e.x, e.y);
   if (pk('scab') && $.P && $.P.wardLv > 0 && $.P.shield < WARD_MAX && R() < .06 * pk('scab')) {
     $.P.shield = Math.min(WARD_MAX, Math.floor($.P.shield) + 1);
     pop($.P.x, $.P.y - 12, 'SCAB', '#ff8aa0', 7, 30);

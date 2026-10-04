@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
 import { drawBiomeFX } from '../biomes';
-import { pk, xpNeed, perkName, perkDesc, perkReq, PERKS } from '../perks';
+import { pk, xpNeed, perkName, perkDesc, perkReq, perkCost, perkMax, perkFX, perkFlavor } from '../perks';
 import { stageInfo, stageLabel } from '../stages';
 import { sfx } from '../audio';
 import { WARD_MAX } from '../player';
@@ -161,7 +161,7 @@ export function drawHUD() {
   if ($.G.tally && $.state !== 'pause') drawTally();
   drawXP();
   if ($.G.pick) drawPick();
-  if ($.G.feed && $.state !== 'pause') {
+  if ($.G.feed && $.state !== 'pause' && !$.G.pick) {
     const f = $.G.feed,
       a = Math.min(1, f.t / 25, (f.ml - f.t) / 10);
     ctx.globalAlpha = a;
@@ -207,6 +207,7 @@ export function drawHUD() {
 }
 export function drawEShots() {
   // enemy fire: its own colour family (toxic green), outlined, drawn above gore, darkness and lens splats
+  drawPerkFX();
   const pul = .75 + .25 * Math.sin($.T * .5);
   ctx.lineCap = 'round';
   for (const s of eshots) {
@@ -545,43 +546,186 @@ function drawTally() {
   ctx.globalAlpha = 1;
 }
 
-/** ship level + XP bar, under the score */
+/** ship level + XP bar, under the depth gauge */
 function drawXP() {
   const G = $.G;
   if (G.lvl == null) return;
-  const w = 70, f = Math.min(1, G.xp / xpNeed(G.lvl)), y = 22;
-  txt('LV' + G.lvl, W / 2 - w / 2 - 22, y - 1, '#9fd2ff', 'left', 7);
-  ctx.fillStyle = '#0c141c';
-  ctx.fillRect(W / 2 - w / 2, y + 1, w, 3);
-  ctx.fillStyle = G.pickQ > 0 ? '#ffd23a' : '#4c8dff';
-  ctx.fillRect(W / 2 - w / 2, y + 1, w * f, 3);
+  const w = 84, x = W / 2 - w / 2 + 8, y = 22, f = Math.min(1, G.xp / xpNeed(G.lvl)), q = G.pickQ > 0 || !!G.pick, fl = (G.lvT || 0) / 40;
+  // level badge
+  ctx.fillStyle = q ? '#3a2a06' : '#0c1620';
+  ctx.fillRect(x - 25, y - 2, 21, 9);
+  ctx.fillStyle = q ? '#ffd23a' : '#2c4c6c';
+  ctx.fillRect(x - 25, y - 2, 21, 1);
+  txt('LV' + G.lvl, x - 14.5, y - 1, q ? '#ffd23a' : '#9fd2ff', 'center', 7);
+  // segmented bar: 10 cells
+  ctx.fillStyle = '#05080c';
+  ctx.fillRect(x - 1, y, w + 2, 6);
+  const n = 10, cw = w / n;
+  for (let k = 0; k < n; k++) {
+    const c0 = k / n, fill = clamp((f - c0) * n, 0, 1);
+    ctx.fillStyle = '#101a24';
+    ctx.fillRect(x + k * cw + .5, y + 1, cw - 1, 4);
+    if (fill > 0) {
+      ctx.fillStyle = q ? `rgba(255,${190 + 40 * Math.sin($.T * .3)},60,1)` : '#3f7fe8';
+      ctx.fillRect(x + k * cw + .5, y + 1, (cw - 1) * fill, 4);
+      ctx.fillStyle = q ? '#fff2b0' : '#9fd2ff';
+      ctx.fillRect(x + k * cw + .5, y + 1, (cw - 1) * fill, 1);
+    }
+  }
+  if (fl > 0) {
+    ctx.globalAlpha = fl;
+    ctx.fillStyle = '#fff6c8';
+    ctx.fillRect(x - 1, y, w + 2, 6);
+    ctx.globalAlpha = 1;
+  }
+  if (G.xpPop && !G.pick) {
+    ctx.globalAlpha = Math.min(1, G.xpPop.t / 30);
+    txt('+' + G.xpPop.n + ' XP', x - 29, y - 1, '#ffd23a', 'right', 7);
+    ctx.globalAlpha = 1;
+  }
+  if (q && !G.pick) txt(G.pickQ > 1 ? 'MUTATION x' + G.pickQ : 'MUTATION READY', x + w + 4, y - 1, $.T % 30 < 20 ? '#ffd23a' : '#9a7a20', 'left', 7);
 }
-/** level-up: three mutation cards. Up/down or left/right + fire/enter, or click/tap a card */
+const BIOME_COL = { ice: ['#9fe0ff', '10,40,64', '120,210,255'], acid: ['#a6ff2a', '20,46,6', '166,255,42'], fire: ['#ff8a3a', '60,18,4', '255,120,40'], snot: ['#d8e86a', '40,44,8', '210,230,90'] };
+/** wrap s into lines no wider than w at 7px */
+function wrap(s, w) {
+  ctx.font = `7px ${FONT_H}`;
+  const out = [];
+  let line = '';
+  for (const wd of s.split(' ')) {
+    const t = line ? line + ' ' + wd : wd;
+    if (line && ctx.measureText(t).width > w) { out.push(line); line = wd; } else line = t;
+  }
+  if (line) out.push(line);
+  return out;
+}
+/** level-up: three mutation cards. Left/right (or up/down) + HOLD fire / Enter, or click/tap a card */
 function drawPick() {
-  const p = $.G.pick, n = p.opts.length, cw = 132, gap = 8, x0 = W / 2 - (n * cw + (n - 1) * gap) / 2, y0 = 70, ch = 108, a = Math.min(1, p.t / 12);
-  ctx.globalAlpha = a * .7;
-  ctx.fillStyle = '#020304';
+  const G = $.G, p = G.pick, n = p.opts.length, cw = 142, gap = 9, ch = 112, x0 = Math.round(W / 2 - (n * cw + (n - 1) * gap) / 2), y0 = 66,
+    a = Math.min(1, p.t / 10), live = p.t > 30;
+  // the world behind goes dark and red
+  ctx.globalAlpha = a * .78;
+  ctx.fillStyle = '#030204';
+  ctx.fillRect(0, 0, W, PH);
+  ctx.globalAlpha = a * .25;
+  const vg = ctx.createRadialGradient(W / 2, PH / 2, 40, W / 2, PH / 2, 280);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(120,0,8,1)');
+  ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, PH);
   ctx.globalAlpha = a;
-  txt('SHIP LEVEL ' + $.G.lvl + ' // THE SHIP MUTATES', W / 2, 48, '#ffd23a', 'center', 8);
-  txt('PICK ONE', W / 2, 58, '#6d7a88', 'center', 7);
+  // title
+  const ty = 22 + (1 - a) * -8;
+  txt('SHIP LEVEL ' + G.lvl, W / 2 + 1, ty + 1, '#2a0003', 'center', 22, FONT_D);
+  txt('SHIP LEVEL ' + G.lvl, W / 2, ty, '#e0242c', 'center', 22, FONT_D);
+  txt('THE SHIP MUTATES  //  GRAFT ONE', W / 2, ty + 25, '#8a7a5a', 'center', 7);
   $.pickBoxes = [];
   p.opts.forEach((id, i) => {
-    const x = x0 + i * (cw + gap), sel = i === p.sel, l = pk(id) + 1, req = perkReq(id), mx = PERKS.find((q) => q.id === id).max;
-    ctx.fillStyle = sel ? 'rgba(60,8,12,.95)' : 'rgba(10,12,16,.92)';
-    ctx.fillRect(x, y0, cw, ch);
-    ctx.fillStyle = sel ? '#e0242c' : '#2a3038';
-    ctx.fillRect(x, y0, cw, 1); ctx.fillRect(x, y0 + ch - 1, cw, 1); ctx.fillRect(x, y0, 1, ch); ctx.fillRect(x + cw - 1, y0, 1, ch);
-    if (req) txt(req.toUpperCase() + ' MUTATION', x + 8, y0 + 8, '#a6ff2a', 'left', 7);
-    txt(perkName(id), x + 8, y0 + 20, sel ? '#ffffff' : '#cfd9e3', 'left', 8);
-    for (let k = 0; k < mx; k++) { ctx.fillStyle = k < l ? (k === l - 1 ? '#ffd23a' : '#9a7a20') : '#20262c'; ctx.fillRect(x + 8 + k * 9, y0 + 33, 7, 3); }
-    // wrap the description
-    const words = perkDesc(id, l).toUpperCase().split(' '); let line = '', ly = y0 + 44;
-    ctx.font = `7px ${FONT_H}`;
-    for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > cw - 16) { txt(line, x + 8, ly, '#8fa3b8', 'left', 7); line = w; ly += 9; } else line = t; }
-    if (line) txt(line, x + 8, ly, '#8fa3b8', 'left', 7);
-    $.pickBoxes.push({ x, y: y0, w: cw, h: ch, i });
+    const sel = i === p.sel, l = pk(id) + 1, mx = perkMax(id), req = perkReq(id), cost = perkCost(id), bc = req && BIOME_COL[req],
+      lift = sel ? 3 : 0, x = x0 + i * (cw + gap), y = y0 - lift + (1 - a) * 14 * (i + 1);
+    // card body
+    const gr = ctx.createLinearGradient(0, y, 0, y + ch);
+    gr.addColorStop(0, bc ? `rgba(${bc[1]},.97)` : sel ? 'rgba(52,6,10,.97)' : 'rgba(16,14,18,.95)');
+    gr.addColorStop(1, sel ? 'rgba(14,2,4,.97)' : 'rgba(6,6,8,.95)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(x, y, cw, ch);
+    // border: selected pulses blood red (biome cards in their colour)
+    const pul = .6 + .4 * Math.sin($.T * .18);
+    ctx.fillStyle = sel ? (bc ? bc[0] : `rgba(255,${40 + 30 * pul},50,1)`) : bc ? `rgba(${bc[2]},.45)` : '#2a2f36';
+    const bw = sel ? 2 : 1;
+    ctx.fillRect(x, y, cw, bw); ctx.fillRect(x, y + ch - bw, cw, bw); ctx.fillRect(x, y, bw, ch); ctx.fillRect(x + cw - bw, y, bw, ch);
+    if (sel) {
+      ctx.globalAlpha = a * .25 * pul;
+      ctx.fillStyle = bc ? bc[0] : '#ff2030';
+      ctx.fillRect(x - 3, y - 3, cw + 6, 2); ctx.fillRect(x - 3, y + ch + 1, cw + 6, 2); ctx.fillRect(x - 3, y - 3, 2, ch + 6); ctx.fillRect(x + cw + 1, y - 3, 2, ch + 6);
+      ctx.globalAlpha = a;
+    }
+    // header tag
+    const tag = req ? req.toUpperCase() + ' MUTATION' : cost ? 'BLOOD PACT' : l > 1 ? 'DEEPER' : 'MUTATION';
+    const tagc = req ? bc[0] : cost ? '#ff5050' : l > 1 ? '#ffb070' : '#6d7a88';
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    ctx.fillRect(x + bw, y + bw, cw - 2 * bw, 11);
+    txt(tag, x + 7, y + 3, tagc, 'left', 7);
+    // level pips (right of the tag): owned = dim gold, the one you'd take = bright & blinking
+    for (let k = 0; k < mx; k++) {
+      const px = x + cw - 8 - (mx - k) * 8;
+      ctx.fillStyle = k < l - 1 ? '#9a7a20' : k === l - 1 ? ($.T % 24 < 16 || !sel ? '#ffd23a' : '#fff6c8') : '#262c33';
+      ctx.fillRect(px, y + 4, 6, 4);
+    }
+    // name (shrinks if it doesn't fit)
+    const nm = perkName(id);
+    ctx.font = `8px ${FONT_H}`;
+    const ns = ctx.measureText(nm).width > cw - 14 ? 7 : 8;
+    txt(nm, x + 7, y + 17, sel ? '#ffffff' : '#d8dee6', 'left', ns);
+    txt(l > 1 ? 'RANK ' + ['', 'I', 'II', 'III'][l] + ' OF ' + ['', 'I', 'II', 'III'][mx] : mx > 1 ? 'NEW  //  ' + mx + ' RANKS' : 'NEW  //  ONE TIME', x + 7, y + 28, sel ? '#c0a060' : '#6a6050', 'left', 7);
+    ctx.fillStyle = sel ? 'rgba(224,36,44,.5)' : '#22262c';
+    ctx.fillRect(x + 7, y + 38, cw - 14, 1);
+    // description, wrapped
+    let ly = y + 43;
+    for (const ln of wrap(perkDesc(id, l).toUpperCase(), cw - 14)) { txt(ln, x + 7, ly, sel ? '#cfd9e3' : '#8fa0b2', 'left', 7); ly += 9; }
+    if (cost) {
+      ly += 3;
+      for (const ln of wrap('COST: ' + cost.toUpperCase(), cw - 14)) { txt(ln, x + 7, ly, '#ff4a4a', 'left', 7); ly += 9; }
+    }
+    // flavour, in the gothic hand
+    const fv = perkFlavor(id);
+    if (fv) txt(fv, x + cw / 2, y + ch - 27, sel ? '#b0485a' : '#5a3a42', 'center', 10, FONT_D);
+    // hold-to-graft meter on the selected card
+    if (sel && live) {
+      const hf = Math.min(1, p.hold / 26);
+      ctx.fillStyle = '#14080a';
+      ctx.fillRect(x + 7, y + ch - 8, cw - 14, 3);
+      ctx.fillStyle = bc ? bc[0] : '#ff3040';
+      ctx.fillRect(x + 7, y + ch - 8, (cw - 14) * hf, 3);
+      if (hf > 0) { ctx.fillStyle = '#fff'; ctx.fillRect(x + 7 + (cw - 14) * hf - 1, y + ch - 9, 2, 5); }
+    }
+    $.pickBoxes.push({ x, y, w: cw, h: ch, i });
   });
-  if (p.t > 35) txt('UP/DOWN + FIRE  //  CLICK OR TAP A CARD', W / 2, y0 + ch + 10, '#5b6573', 'center', 7);
+  // what you already carry
+  const own = Object.entries(G.pk || {}).filter(([, v]) => v > 0).map(([k, v]) => perkName(k).split(' ').pop() + (v > 1 ? ' ' + ['', 'I', 'II', 'III'][v] : ''));
+  txt(live ? '< >  CHOOSE     HOLD FIRE  /  ENTER  /  CLICK   TO GRAFT' : '. . .', W / 2, y0 + ch + 7, live ? ($.T % 40 < 30 ? '#c8b080' : '#8a7a5a') : '#3a3a3a', 'center', 7);
+  if (own.length) {
+    const ln = wrap('GRAFTED: ' + own.join(' · '), W - 40);
+    ln.slice(0, 2).forEach((s, k) => txt(s, W / 2, y0 + ch + 19 + k * 9, '#5b6573', 'center', 7));
+  }
   ctx.globalAlpha = 1;
+}
+/** perk effects in world space (drawn with the enemy-shot layer): BLOOD TRAIL slicks, ORBITING TEETH */
+export function drawPerkFX() {
+  for (const s of perkFX.slicks) {
+    const k = Math.min(1, s.t / 30, (s.ml - s.t) / 8 + .2);
+    ctx.globalAlpha = .55 * k;
+    ctx.fillStyle = '#3a0006';
+    ctx.beginPath();
+    ctx.ellipse(s.x, s.y, s.r, s.r * .62, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#8a0a14';
+    ctx.beginPath();
+    ctx.ellipse(s.x + Math.sin(s.seed) * 2, s.y - 1, s.r * .6, s.r * .35, 0, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = .5 * k;
+    ctx.fillStyle = '#ff5060';
+    ctx.fillRect(s.x - s.r * .3 + Math.sin($.T * .1 + s.seed) * 2, s.y - s.r * .3, 2, 1);
+  }
+  ctx.globalAlpha = 1;
+  for (const t of perkFX.teeth) {
+    const tr = 5;
+    ctx.save();
+    ctx.translate(t.x, t.y);
+    ctx.rotate(t.a + Math.PI / 2);
+    ctx.fillStyle = 'rgba(80,0,0,.6)';
+    ctx.fillRect(-1, 3, 2, 6);
+    ctx.fillStyle = '#efe3c2';
+    ctx.beginPath();
+    ctx.moveTo(-3, -tr);
+    ctx.lineTo(3, -tr);
+    ctx.lineTo(2.2, 1);
+    ctx.lineTo(.6, tr);
+    ctx.lineTo(-.6, tr - 2);
+    ctx.lineTo(-2.2, 1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#8a1018';
+    ctx.fillRect(-3, -tr, 6, 1.5);
+    ctx.restore();
+  }
 }

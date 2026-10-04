@@ -174,7 +174,7 @@ export function graftTake(id) {
   flash($.P.x, $.P.y, 46, 12, m.sh ? '120,180,255' : '255,150,60');
 }
 export function critMul(x, y) {
-  const o = gmL('over'), pc = [0, .1, .18][o] + .08 * pk('crit');
+  const o = gmL('over'), pc = Math.min(.35, [0, .1, .18][o] + .07 * pk('crit')); // OVERCLOCK graft + HOLLOW HEART, capped
   if (pc && R() < pc) {
     pop(x, y - 6, 'CRIT', '#ffd23a', 8, 24);
     for (let k = 0; k < 6; k++) spark(x, y, rr(-2, 2), rr(-2, 2), 8, '#ffd23a');
