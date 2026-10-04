@@ -15,7 +15,7 @@ await p.addInitScript(() => { let now = 0; const q = []; performance.now = () =>
       q.splice(0).forEach((f) => f(now)); } }; });
 await p.goto(url); await p.waitForFunction(() => window.__started);
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
-await key('keydown', 'KeyA'); await p.evaluate('__tick(5)');
+await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
 const shot = (n) => p.screenshot({ path: `${out}/${n}.png` });
 let forks = 0, pickShot = false, seen = {}, f = 0;

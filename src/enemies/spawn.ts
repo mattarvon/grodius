@@ -430,50 +430,8 @@ export function buildScript(L) {
     sfx.alarm();
   });
   at(2120, () => maw(true));
-  at(2350, () => logLine('HULL CONTACT. SOMETHING IS GROWING ON THE PLATING.'));
-  // PHASE 2: along the hull
-  for (let x = 2500; x < 5100; x += 150) {
-    const k = (x - 2500) / 150 | 0;
-    if (k % 2 === 0) at(x, () => eyeT(1));
-    if (x > 3900 && k % 2 === 1) at(x + 40, () => eyeT(-1));
-    if (k % 3 === 0) at(x + 70, () => formation(pick(['sine', 'dive', 'zig']), rr(50, PH - 90)));
-    if (x > 3100 && k % 3 === 1) at(x + 20, () => crawler(1));
-    if (x > 4100 && k % 4 === 2) at(x + 90, () => crawler(-1));
-    if (k % 5 === 4) at(x + 110, () => corpse(rr(50, PH - 80)));
-    if (k % 3 === 2) at(x + 100, () => crossT(1));
-    if (x > 3900 && k % 4 === 1) at(x + 125, () => crossT(-1));
-    if (x > 3300 && k % 5 === 2) at(x + 35, () => flayer(rr(60, PH - 60)));
-    if (x > 3700 && k % 4 === 3) at(x + 60, () => hookE());
-  }
-  at(3500, () => hatch(7, true));
-  at(4300, () => behindWave(90));
-  at(4950, () => miniWarn('THE CRUCIFER', crux));
-  at(4200, () => logLine('THE CEILING IS BLEEDING. THAT IS NOT CONDENSATION.'));
-  // PHASE 3: inside
-  at(5150, () => logLine('INSIDE. THE CORRIDORS ARE BREATHING.'));
-  for (let x = 5300; x < 8200; x += 140) {
-    const k = (x - 5300) / 140 | 0;
-    if (k % 3 === 0) at(x, () => womb());
-    if (k % 2 === 1) at(x + 30, () => crawler(R() < .6 ? 1 : -1));
-    if (k % 3 === 2) at(x + 60, () => eyeT(R() < .5 ? 1 : -1));
-    if (k % 4 === 1) at(x + 90, () => formation(pick(['sine', 'dive', 'wall', 'zig']), rr(80, PH - 90)));
-    if (k % 5 === 3) at(x + 50, () => corpse(rr(80, PH - 90)));
-    if (hard && k % 6 === 5) at(x + 70, () => hatch(5, R() < .5));
-    if (k % 2 === 0) at(x + 110, () => hookE());
-    if (k % 3 === 1) at(x + 20, () => crossT(R() < .6 ? 1 : -1));
-    if (k % 4 === 2) at(x + 75, () => flayer(rr(80, PH - 80)));
-  }
-  at(6600, () => logLine('MANIFEST SAYS 18 CREW. I HAVE COUNTED 40 BODIES.'));
-  at(8020, () => miniWarn('THE BUTCHER', butcher));
-  at(7200, () => {
-    banner('IT GREW ANOTHER ONE', '', undefined, 120);
-    sfx.alarm();
-  });
-  at(7320, () => maw(false));
-  at(8000, () => logLine('IT IS SHOWING ME THINGS. DO NOT LOOK AT THE WALLS.'));
   at(BOSS_AT, () => startBoss());
-  // stages 1 and 2 are biome slots, scripted when you pick a gate (biomes.ts)
-  for (let i = S.length - 1; i >= 0; i--) if (S[i].x >= 2300 && S[i].x < 8200) S.splice(i, 1);
+  // stages 1 and 2 (world x 2300..8200) are biome slots, scripted when you pick a gate (biomes.ts insertScript)
   S.sort((a, b) => a.x - b.x);
   return S;
 }

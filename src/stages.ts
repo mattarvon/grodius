@@ -6,15 +6,15 @@ import { save } from './save';
 import { sample, sfx } from './audio';
 import { banner } from './enemies/spawn';
 import { buzz } from './platform';
-import { BIOMES, openFork, holdForFork } from './biomes';
+import { BIOMES, openFork, holdForFork, biomeExit } from './biomes';
 
 export const STAGES = [
   { name: 'OPEN ORBIT', sub: 'THE MERIDIAN LOOMS' },
-  { name: 'THE HULL', sub: 'SOMETHING GROWS ON THE PLATING' },
-  { name: 'THE CORRIDORS', sub: 'THE WALLS ARE BREATHING' },
+  { name: 'THE SPLIT', sub: 'CHOOSE A WOUND' }, // stages 1 and 2 are named by the biome you fly into
+  { name: 'THE SPLIT', sub: 'CHOOSE A WOUND' },
   { name: 'THE GRAVITY DRIVE', sub: 'IT IS STILL RUNNING' },
 ];
-/** seals break on the 2nd, 4th and 6th stage cleared in a run (end of Hull, end of Descent 1, Descent 2 Hull) */
+/** seals break on the 2nd, 4th and 6th stage cleared in a run (end of the first biome, end of Descent 1, Descent 2's first biome) */
 const SEAL_AT = { 2: 1, 4: 2, 6: 3 };
 export const SEAL_TXT = ['', 'MISSILE II, ARC, PYRE, WRAITH II, MIRROR, 2 GRAFTS', 'PYRE II, WRAITH III, AEGIS, 3 GRAFTS', 'EVERYTHING UNSEALED'];
 const GRADE = {
@@ -35,8 +35,10 @@ export function stageInfo(i = $.G.stage || 0) {
 export function startStage(i) {
   $.G.stage = i;
   $.G.st = { kills: 0, spawned: 0, hits: 0, deaths: 0, chain: 0, t0: $.G.t };
+  if ($.G.tally) $.G.tally.t = Math.min($.G.tally.t, 30); // last stage's card makes way for this stage's banner
   const s = stageInfo(i);
   $.G.pend.push({ t: 70, f: () => banner(`STAGE ${stageLabel()}`, s.name + ' // ' + s.sub, '#c8d4e0', 190) });
+  if ($.G.sealQ) { const f = $.G.sealQ; $.G.sealQ = null; $.G.pend.push({ t: 270, f }); }
 }
 
 function grade(st, escaped) {
@@ -76,16 +78,21 @@ export function clearStage(escaped = false) {
   buzz('heavy');
   // boss-kill reward line (src/sfx/bossreward/, random pick if there are several); waits out the death roar
   if (!escaped) G.pend.push({ t: 50, f: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) });
-  if (seal) {
-    G.pend.push({ t: 300, f: () => { G.seal = seal; banner('SEAL BROKEN', 'UNLOCKED: ' + SEAL_TXT[seal], '#ffd23a', 230); sfx.alarm(); } });
-  }
+  const breakSeal = () => { if (seal > (G.seal || 0)) { G.seal = seal; banner('SEAL BROKEN', 'UNLOCKED: ' + SEAL_TXT[seal], '#ffd23a', 230); sfx.alarm(); } };
+  // at a fork the seal waits until you're through the gate (its banner would bury the gate prompt), see startStage
+  if (seal && (G.stage === 0 || G.stage === 1)) G.sealQ = breakSeal;
+  else if (seal) G.pend.push({ t: 300, f: breakSeal });
   if ((G.stage === 1 || G.stage === 2) && G.route[G.stage - 1]) (G.visited ||= []).includes(G.route[G.stage - 1]) || G.visited.push(G.route[G.stage - 1]);
   if (G.stage === 0 || G.stage === 1) {
     // branch: hold the scroll, open two gates after the tally has had its moment
     holdForFork();
     const seg = G.stage;
     G.pend.push({ t: 200, f: () => openFork(seg) });
-  } else if (G.stage < STAGES.length - 1) G.pend.push({ t: 200, f: () => startStage(G.stage + 1) });
+  } else if (G.stage < STAGES.length - 1) {
+    if (G.stage === 2) biomeExit(); // the second biome hands the rest of the level back to the Gravity Drive
+    const nx = G.stage + 1;
+    G.pend.push({ t: 200, f: () => G.stage === nx - 1 && startStage(nx) });
+  }
   save();
   return seal;
 }

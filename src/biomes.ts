@@ -25,48 +25,61 @@ export const BIOMES = {
     name: 'THE CRYOVAULT', tag: 'FROZEN // CRUCIFER', sub: 'THE CREW IS STILL IN HERE. FROZEN MID-SCREAM', col: '#9fd8ff', rgb: '160,215,255',
     bg: ['#04101c', '#163552'], edge: '#e8f6ff', fog: '120,180,230',
     gore: ['#8e1a2a', '#3e0a14', '#cfe8ff', '#0c0809', '#7fb8e8', '#ffffff'], blood: ['#8e1a2a', '#3e0a14', '#d4485a'],
-    boss: 'crux', bossName: 'THE FROZEN CRUCIFER', haz: 'icicle', hazEvery: 95,
-    mix: [['corpse', 4], ['wall', 2], ['sine', 2], ['cross', 2], ['eye', 2], ['flayer', 2], ['hook', 1]],
+    boss: 'crux', bossName: 'THE FROZEN CRUCIFER', haz: 'icicle', hazEvery: 110,
+    // slow and heavy: fewer, tougher things drifting out of the cold
+    gap: 115, dbl: .5, set: 'morgue',
+    mix: [['corpse', 3], ['cross', 3], ['flayer', 2], ['eye', 2], ['hook', 2], ['wall', 2], ['sine', 2]],
     logs: ['TEMPERATURE: -140C. THE BODIES ARE STANDING UP.', 'THE ICE IS FULL OF FACES.'],
   },
   acid: {
     name: 'THE DIGESTION TANKS', tag: 'DISSOLVING // MAW', sub: 'EVERYTHING DOWN HERE IS BEING EATEN', col: '#a6ff2a', rgb: '160,255,40',
     bg: ['#030a03', '#16300a'], edge: '#d8ff6a', fog: '120,220,40',
     gore: ['#6faf12', '#2a4806', '#d8ff4a', '#0c0809', '#e8e05a', '#aaff00'], blood: ['#6faf12', '#2a4806', '#c8ff3a'],
-    boss: 'maw', bossName: 'THE DISSOLVED MAW', haz: 'geyser', hazEvery: 120,
-    mix: [['womb', 3], ['hatch', 2], ['crawler', 3], ['eye', 2], ['dive', 2], ['corpse', 1]],
+    boss: 'maw', bossName: 'THE DISSOLVED MAW', haz: 'geyser', hazEvery: 135,
+    // wall swarms over a floor full of crawlers and wombs
+    gap: 125, dbl: .5, set: 'walls',
+    mix: [['wall', 4], ['crawler', 3], ['womb', 2], ['eye', 2], ['dive', 1], ['hatch', 1]],
     logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'MY HULL PLATING IS SIZZLING.'],
   },
   fire: {
     name: 'THE FURNACE', tag: 'BURNING // BUTCHER', sub: 'THEY BURNED THE BODIES. THE BODIES KEPT MOVING', col: '#ff7a1a', rgb: '255,120,30',
     bg: ['#120302', '#4a0c02'], edge: '#ffb347', fog: '255,90,20',
     gore: ['#5a0806', '#1c0303', '#ff6a1a', '#0c0809', '#ffb347', '#ff3a10'], blood: ['#6a0a08', '#240303', '#ff4a1a'],
-    boss: 'butcher', bossName: 'THE BURNING BUTCHER', haz: 'jet', hazEvery: 105,
-    mix: [['flayer', 3], ['hook', 3], ['zig', 2], ['dive', 2], ['crawler', 2], ['behind', 1]],
+    boss: 'butcher', bossName: 'THE BURNING BUTCHER', haz: 'jet', hazEvery: 125,
+    // aggressive: tight spacing, divers and flayers, things coming from behind
+    gap: 100, dbl: .6, set: 'pincer',
+    mix: [['flayer', 3], ['dive', 3], ['hook', 2], ['zig', 2], ['crawler', 2], ['behind', 1]],
     logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.'],
   },
   snot: {
     name: 'THE SINUS', tag: 'MUCUS // MAW', sub: 'THE SHIP HAS A COLD', col: '#d8e04a', rgb: '210,220,70',
     bg: ['#0c0e04', '#2e3208'], edge: '#f0f08a', fog: '200,210,60',
     gore: ['#c8c03a', '#6a7a18', '#f0e88a', '#3a4010', '#e8f0a0', '#a0c040'], blood: ['#b8b030', '#5a6a14', '#e8e070'],
-    boss: 'maw', bossName: 'THE MUCUS MAW', haz: 'strand', hazEvery: 130,
-    mix: [['womb', 3], ['hatch', 3], ['corpse', 2], ['sine', 2], ['crawler', 2], ['eye', 1]],
+    boss: 'maw', bossName: 'THE MUCUS MAW', haz: 'strand', hazEvery: 150,
+    // hatchling floods out of wombs and the walls
+    gap: 125, dbl: .45, set: 'flood',
+    mix: [['hatch', 4], ['womb', 3], ['corpse', 2], ['sine', 2], ['crawler', 1], ['eye', 1]],
     logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.'],
   },
 };
 export const BIOME_KEYS = Object.keys(BIOMES);
 
 // ---------------- where are we ----------------
+// G.bx[s] = world x where biome s starts (just off the right edge when its gate was taken); G.bx[2] = where the
+// second biome hands back to the ship (just off the right edge when stage 2 clears). A biome holds through its
+// boss and the fork that follows, and crossfades into the next one over ~320px.
+const fadeIn = (x, wx) => sstep(x - 280, x + 40, wx);
 export function biomeK(wx) {
   const G = $.G;
-  if (!G || !G.route) return [null, 0];
+  if (!G || !G.route || !G.bx) return [null, 0];
+  let best = null, bk = 0;
   for (let s = 0; s < SEG.length; s++) {
-    const b = G.route[s];
-    if (!b) continue;
-    const g = SEG[s], k = sstep(g.x0 + 150, g.x0 + 450, wx) * (1 - sstep(g.x1 - 100, g.x1 + 200, wx));
-    if (k > 0) return [b, k];
+    const b = G.route[s], x0 = G.bx[s];
+    if (!b || x0 == null) continue;
+    const x1 = G.bx[s + 1], k = fadeIn(x0, wx) * (x1 == null ? 1 : 1 - fadeIn(x1, wx));
+    if (k > bk) { best = b; bk = k; }
   }
-  return [null, 0];
+  return [best, bk];
 }
 
 // ---------------- gore palette ----------------
@@ -103,15 +116,25 @@ function shape(b, x, o) {
   if (fl - ce < 108) { const m = (fl + ce) / 2; fl = m + 54; ce = m - 54; }
   return [ce, fl];
 }
+/** the biome terrain hands back to the level's own terrain here: the Gravity Drive chamber opens up from 8300 */
+const T_END0 = 8300, T_END1 = 8600;
+/** blend the terrain from world x `from` onward (over 300px, all of it off-screen) into biome b; it stays that
+ *  biome until the next rewrite, and always fades back to the untouched level over T_END0..T_END1. The biome shape
+ *  and the base level both keep a >=104px gap, and a lerp of two such gaps can't be narrower. */
 function rewriteTerrain(seg, b, from) {
-  const g = SEG[seg], o = ($.G.loop + 1) * 37.1 + seg * 11;
-  const i0 = Math.max(0, Math.floor(from / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil((g.x1 + 260) / TS));
+  const o = ($.G.loop + 1) * 37.1 + seg * 11;
+  const i0 = Math.max(0, Math.floor(from / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil(T_END1 / TS));
   for (let i = i0; i <= i1; i++) {
-    const x = i * TS, [ce, fl] = shape(b, x, o);
-    const w = sstep(from, from + 260, x) * (1 - sstep(g.x1 - 60, g.x1 + 260, x));
+    const x = i * TS, [ce, fl] = shape(b, x, o), w = sstep(from, from + 300, x) * (1 - sstep(T_END0, T_END1, x));
     FLOOR[i] = lerp(FLOOR[i], fl, w);
     CEIL[i] = lerp(CEIL[i], ce, w);
   }
+}
+/** stage 2 cleared: the biome's look and hazards hand back to the Gravity Drive approach from just off-screen */
+export function biomeExit() {
+  const G = $.G;
+  if (!G || !G.bx || G.bx[2] != null || !G.route[1]) return;
+  G.bx[2] = G.scroll + W + 10;
 }
 
 // ---------------- enemy script for a biome slot ----------------
@@ -125,18 +148,26 @@ function insertScript(entries) {
   const G = $.G, rest = G.script.slice(G.si).concat(entries).sort((a, b) => a.x - b.x);
   G.script = G.script.slice(0, G.si).concat(rest);
 }
+// one signature set piece per biome, dropped in twice per slot
+const SET = {
+  morgue: () => { corpse(PH * .25); corpse(PH * .5, { drift: .2 }); corpse(PH * .75); }, // a frozen crew drifting in a line
+  walls: () => { formation('wall', PH * .33, 4); formation('wall', PH * .67, 4); }, // a double wall, gap in the middle
+  pincer: () => { formation('dive', 55); formation('dive', PH - 75); behindWave(PH / 2, 4); },
+  flood: () => { hatch(ri(9, 12), false); hatch(ri(5, 7), true); },
+};
 function biomeScript(seg, b, from) {
   const B = BIOMES[b], g = SEG[seg], S = [], at = (x, f) => S.push({ x, f }), hard = $.G.loop > 0;
   const tot = B.mix.reduce((s, m) => s + m[1], 0), roll = () => { let r = R() * tot, k = 0; while ((r -= B.mix[k][1]) > 0) k++; return B.mix[k][0]; };
-  const a = Math.max(g.x0 + 220, from + 40), z = g.bossX - 160;
-  at(a - 20, () => logLine(B.logs[0]));
-  at((a + z) / 2, () => logLine(B.logs[1]));
-  for (let x = a; x < z; x += 118) {
+  const a = Math.max(g.x0 + 220, from + 60), z = g.bossX - 160, mid = Math.round((a + z) / 2);
+  at(a - 40, () => logLine(B.logs[0]));
+  at(mid, () => logLine(B.logs[1]));
+  for (let x = a; x < z; x += B.gap) {
+    if (Math.abs(x - (a + (z - a) * .3)) <= B.gap / 2 || Math.abs(x - (a + (z - a) * .75)) <= B.gap / 2) { at(x, SET[B.set]); continue; }
     at(x, SPAWN[roll()]);
-    if (R() < .55) at(x + 55, SPAWN[roll()]);
-    if (hard && R() < .35) at(x + 85, SPAWN[roll()]);
+    if (R() < B.dbl) at(x + Math.round(B.gap * .45), SPAWN[roll()]);
+    if (hard && R() < .35) at(x + Math.round(B.gap * .72), SPAWN[roll()]);
   }
-  if (seg === 1) at(Math.round((a + z) / 2) + 200, () => maw(false)); // a mid-stage gut-check in the second biome
+  if (seg === 1) at(mid + 200, () => maw(false)); // a mid-stage gut-check in the second biome
   const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
   at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }));
   return S;
@@ -149,7 +180,10 @@ export function openFork(seg) {
   let pool = fresh.length >= 2 ? fresh : BIOME_KEYS.filter((k) => !G.route.includes(k));
   pool = pool.sort(() => R() - .5).slice(0, 2);
   G.fork = { seg, opts: pool, t: 0 };
+  G.fork.gy = gateYs();
   G.forkHold = true;
+  haz.length = 0; // anything left over (a strand parked off-screen) doesn't follow you through the gate
+  if (G.tally) G.tally.t = Math.min(G.tally.t, 30); // the stage card fades out as the gates open (it covers their labels)
   banner('THE SHIP SPLITS', 'FLY INTO A GATE', '#e8f1ff', 160);
   sfx.alarm();
 }
@@ -159,6 +193,7 @@ function choose(b) {
   G.fork = null;
   G.forkHold = false;
   const from = Math.max(SEG[seg].x0, G.scroll + W + 10);
+  (G.bx ||= [null, null, null])[seg] = from;
   rewriteTerrain(seg, b, from);
   insertScript(biomeScript(seg, b, from));
   G.pend.push({ t: 40, f: () => startStage(seg + 1) });
@@ -166,21 +201,36 @@ function choose(b) {
   sfx.power();
   buzz('heavy');
 }
-const gatePos = (i) => ({ x: W * .74, y: i ? PH * .72 : PH * .28 });
+const gatePos = (i) => ({ x: W * .74, y: ($.G.fork && $.G.fork.gy) ? $.G.fork.gy[i] : i ? PH * .72 : PH * .28 });
+/** gate heights for the terrain that's actually on screen: a fire spire or ice shelf must never bury a gate */
+function gateYs() {
+  const wx = $.G.scroll + W * .74;
+  let lo = -1e9, hi = 1e9;
+  for (let x = wx - 30; x <= wx + 30; x += 6) { lo = Math.max(lo, ceilAt(x)); hi = Math.min(hi, floorAt(x)); }
+  lo = Math.max(lo, 0) + 28; hi = Math.min(hi, PH) - 28;
+  let a = clamp(PH * .28, lo, hi), b = clamp(PH * .72, lo, hi);
+  if (b - a < 56) { const m = (lo + hi) / 2; a = Math.max(lo, m - 28); b = Math.min(hi, m + 28); }
+  return [a, b];
+}
 
 // ---------------- hazards + ambience ----------------
 const haz = [], amb = [];
 export function biomeReset() {
   haz.length = amb.length = 0;
   applyPalette(null);
+  if ($.G) { $.G.bx = [null, null, null]; $.G.hazT = 90; $.G.hazHit = 0; }
 }
 
 function spawnHazard(b) {
-  const G = $.G, x = rr(W * .45, W * .9), wx = x + G.scroll, c = ceilAt(wx), f = floorAt(wx);
+  const G = $.G, P = $.P;
+  let x = rr(W * .45, W * .9);
+  for (let k = 0; k < 8 && P && Math.abs(x - P.x) < 46; k++) x = rr(W * .45, W * .9); // never drop it on the ship
+  if (P && Math.abs(x - P.x) < 46) return;
+  const wx = x + G.scroll, c = ceilAt(wx), f = floorAt(wx);
   if (b === 'icicle' && c > 4) haz.push({ k: b, x, y: c + 2, t: 0, vy: 0, len: rr(10, 18) });
   else if (b === 'geyser' && f < PH - 2) haz.push({ k: b, x, y: f, t: 0, top: c });
   else if (b === 'jet') { const up = R() < .5 && c > 4; haz.push({ k: b, x, y: up ? c : f, dir: up ? 1 : -1, t: 0, span: f - c }); }
-  else if (b === 'strand') haz.push({ k: b, x: W + 10, t: 0, hp: 3, ph: R() * TAU });
+  else if (b === 'strand' && G.scrollSpeed > .5) haz.push({ k: b, x: W + 10, t: 0, hp: 3, ph: R() * TAU });
 }
 
 export function stepBiome() {
@@ -192,7 +242,10 @@ export function stepBiome() {
   if (G.fork) {
     const f = G.fork;
     f.t++;
-    if ($.P && $.P.alive && f.t > 40) for (let i = 0; i < 2; i++) { const p = gatePos(i); if (dist2($.P.x, $.P.y, p.x, p.y) < 24 * 24) { choose(f.opts[i]); break; } }
+    if ($.P && $.P.alive && f.t > 40) {
+      const d = [0, 1].map((i) => { const p = gatePos(i); return dist2($.P.x, $.P.y, p.x, p.y); }), i = d[1] < d[0] ? 1 : 0;
+      if (d[i] < 24 * 24) choose(f.opts[i]);
+    }
     if (G.fork && f.t > 900) choose(pick(f.opts)); // nobody chose: the ship drifts into one
   }
   const B = b && BIOMES[b], ss = G.scrollSpeed;
@@ -214,7 +267,9 @@ export function stepBiome() {
     if (--p.l <= 0 || p.y < -8 || p.y > PH + 8 || p.x < -10) amb.splice(i, 1);
   }
   // hazards
-  if (B && k > .9 && $.state === 'play' && !G.fork) {
+  // hazards: only while actually flying a biome (never during a fork / tally / death / pick / boss intro)
+  const P0 = $.P;
+  if (B && k > .9 && $.state === 'play' && !G.fork && !G.forkHold && !G.tally && !G.pick && !G.clearT && P0 && P0.alive && P0.inv < 60) {
     G.hazT = (G.hazT || 60) - 1;
     if (G.hazT <= 0) { spawnHazard(B.haz); G.hazT = B.hazEvery * (G.mini ? 1.6 : 1) * rr(.7, 1.3) / (1 + .3 * G.loop); }
   }
@@ -251,12 +306,12 @@ export function stepBiome() {
         for (let q = 0; q < 14; q++) drop(h.x, P.y + rr(-8, 8), rr(-2, 2), rr(-2, 1), rr(1.2, 2), 0, 80);
         pop(P.x, P.y - 12, 'SNOTTED', BIOMES.snot.col, 7, 40);
       }
-      for (const s of shots) if (s.k === 'bolt' && Math.abs(s.x - h.x) < 5 && s.y > c && s.y < f && !(s.hit && s.hit.has(h))) {
+      for (const s of shots) if (Math.abs(s.x - h.x) < Math.max(5, Math.abs(s.vx || 0) * .6 + 1) && s.y > c && s.y < f && !(s.hit && s.hit.has(h))) {
         (s.hit || (s.hit = new Set())).add(h);
         if (--h.hp <= 0) { dead = true; for (let q = 0; q < 10; q++) drop(h.x, s.y + rr(-10, 10), rr(-1, 1), rr(-1, 1), 1.4, 0, 70); sfx.squish(); }
       }
     }
-    if (h.k === 'icicle') for (const s of shots) if (!dead && dist2(s.x, s.y, h.x, h.y + h.len / 2) < 64) { dead = true; for (let q = 0; q < 8; q++) spark(h.x, h.y + h.len / 2, rr(-2, 2), rr(-2, 2), 12, '#e8f6ff'); sfx.tink(); }
+    if (h.k === 'icicle') for (const s of shots) if (!dead && Math.abs(s.x - h.x) < Math.max(6, Math.abs(s.vx || 0) * .6 + 1) && s.y > h.y - 4 && s.y < h.y + h.len + 4) { dead = true; for (let q = 0; q < 8; q++) spark(h.x, h.y + h.len / 2, rr(-2, 2), rr(-2, 2), 12, '#e8f6ff'); sfx.tink(); }
     if (dead) haz.splice(i, 1);
   }
 }
@@ -416,3 +471,5 @@ export function drawBiomeFX() {
 }
 /** consume a hazard hit this frame (applied by the caller so playerHit stays in one place) */
 export function hazardHit() { const h = $.G && $.G.hazHit; if (h) $.G.hazHit = 0; return !!h; }
+/** test hook (tools/route-probe.mjs): live terrain + hazards */
+(globalThis as any).__biome = () => ({ F: FLOOR, C: CEIL, TS, haz, k: $.G ? biomeK($.G.scroll + W / 2) : null });

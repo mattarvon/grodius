@@ -13,22 +13,27 @@ export const TRACKS = {
   title: 'bleak-terminal-ruskerdax',
   menu: 'tech-rooms-amb-03', // Infirmary + game over
   stage0: 'tech-rooms-action-01', // Open Orbit
-  stage1: 'tech-rooms-action-02', // The Hull
-  stage2: 'eternity-01-desolation-davidkbd', // The Corridors
+  stage1: 'tech-rooms-action-02', // fallback only: stages 1-2 play their biome's remix (BIOME_MIX)
+  stage2: 'eternity-01-desolation-davidkbd',
   stage3: 'tech-rooms-amb-02', // The Gravity Drive approach
   boss3: 'eternity-01-desolation-davidkbd', // The Gravity Drive fight
 };
 /** biome remixes of the same tracks: playback rate (pitch + tempo), a filter (optionally LFO-swept) and drive */
 export const BIOME_MIX = {
   none: { rate: 1, type: 'lowpass', f: 20000, q: .7, lfo: 0, depth: 0, drive: 0 },
-  ice: { track: 'tech-rooms-amb-01', rate: .9, type: 'highpass', f: 300, q: .9, lfo: 0, depth: 0, drive: 0 },
-  acid: { track: 'tech-rooms-action-02', rate: 1.07, type: 'bandpass', f: 1200, q: 1.3, lfo: .22, depth: 850, drive: .25 },
-  fire: { track: 'eternity-01-desolation-davidkbd', rate: 1.04, type: 'lowshelf', f: 180, q: .7, gain: 7, lfo: 0, depth: 0, drive: .6 },
-  snot: { track: 'tech-rooms-action-01', rate: .8, type: 'lowpass', f: 950, q: 7, lfo: .13, depth: 500, drive: .1 },
+  // ice: slowed and thinned, the low end frozen out
+  ice: { track: 'tech-rooms-amb-01', rate: .9, type: 'highpass', f: 240, q: .8, lfo: 0, depth: 0, drive: 0 },
+  // acid: a slow wah (bandpass swept 600..2000Hz, wide enough to keep the groove) with a little grit
+  acid: { track: 'tech-rooms-action-02', rate: 1.06, type: 'bandpass', f: 1300, q: .8, lfo: .2, depth: 700, drive: .3 },
+  // fire: bass shelf up and overdriven
+  fire: { track: 'eternity-01-desolation-davidkbd', rate: 1.04, type: 'lowshelf', f: 180, q: .7, gain: 6, lfo: 0, depth: 0, drive: .6 },
+  // snot: pitched down and smothered, a gently resonant lowpass breathing between ~650 and ~1450Hz
+  snot: { track: 'tech-rooms-action-01', rate: .82, type: 'lowpass', f: 1050, q: 2.2, lfo: .13, depth: 400, drive: .1 },
 };
 const FADE = 1.4, PAUSE_LVL = .35, DUCK_LVL = .3;
 let filt = null, shaper = null, lfo = null, lfoG = null, mixNow = 'none';
-const curve = (k) => { const n = 1024, c = new Float32Array(n), a = 1 + k * 30; for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(a * x) / Math.tanh(a); } return c; };
+// soft clip; drive 0..1 maps to tanh gain 1..6 (k*30 turned a mastered track into a square wave), normalised to unity peak
+const curve = (k) => { const n = 2048, c = new Float32Array(n), a = 1 + k * 5; for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(a * x) / Math.tanh(a); } return c; };
 function applyMix(name) {
   if (!filt || mixNow === name) return;
   mixNow = name;

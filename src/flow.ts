@@ -79,6 +79,7 @@ export function startLoop(L) {
   $.G.route = [null, null];
   $.G.fork = null;
   $.G.forkHold = false;
+  if ($.G.sealQ) { $.G.sealQ(); $.G.sealQ = null; } // a seal earned right before a fork is never lost
   biomeReset();
   startStage(0);
   $.state = 'play';
