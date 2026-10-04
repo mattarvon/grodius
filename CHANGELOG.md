@@ -4,6 +4,9 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ## 2026-10-03
 
+### 20-chain voice swap
+- The 20-chain surfer flyby now picks between "sfriend" and "shamalama" (Matty's recordings); "little stinker" is retired. sfriend was trimmed, de-clicked and lightly de-noised (the take has a steady background bed).
+
 ### Biomes, branching route, ship XP + perks
 - **Branching route.** Each descent: OPEN ORBIT, then a fork (two gates, fly into one, 15s auto-pick), a biome stage, another fork, a second biome, then THE GRAVITY DRIVE. Forks prefer biomes you haven't visited.
 - **Four biomes**, each with its own terrain shape, palette, gore colours, background, ambient particles, hazard, enemy mix, set pieces and boss:
