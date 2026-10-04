@@ -6,6 +6,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ### 20-chain voice swap
 - The 20-chain surfer flyby now picks between "sfriend" and "shamalama" (Matty's recordings); "little stinker" is retired. sfriend was trimmed, de-clicked and lightly de-noised (the take has a steady background bed).
+- **Fix: voice lines were clipping.** Every recorded line (hell yeah, shamalama, keyster easter, stop killing me) peaked at 127% with hundreds of clipped samples: the loudness step ran at 192 kHz and the downsample after the limiter brought the overs back. All re-processed from the original recordings with the limiter after the resample; peaks now ~0.87, zero clipped. Fart clips re-encoded at 44.1 kHz (were 192 kHz, 4x the size).
 
 ### Biomes, branching route, ship XP + perks
 - **Branching route.** Each descent: OPEN ORBIT, then a fork (two gates, fly into one, 15s auto-pick), a biome stage, another fork, a second biome, then THE GRAVITY DRIVE. Forks prefer biomes you haven't visited.
