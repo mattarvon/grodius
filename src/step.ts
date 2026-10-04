@@ -42,6 +42,7 @@ export function stepWorld() {
   updateCombo();
   updateAmbient();
   stepBiome();
+  if ($.G.tally && --$.G.tally.t <= 0) $.G.tally = null; // tally card lifetime counts game steps, not rendered frames
   if (hazardHit()) playerHit();
   decayFX();
   for (let i = $.G.pend.length - 1; i >= 0; i--) {

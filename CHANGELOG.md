@@ -4,6 +4,18 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ## 2026-10-03
 
+### Biomes, branching route, ship XP + perks
+- **Branching route.** Each descent: OPEN ORBIT, then a fork (two gates, fly into one, 15s auto-pick), a biome stage, another fork, a second biome, then THE GRAVITY DRIVE. Forks prefer biomes you haven't visited.
+- **Four biomes**, each with its own terrain shape, palette, gore colours, background, ambient particles, hazard, enemy mix, set pieces and boss:
+  - THE CRYOVAULT (ice): aurora, glacier ridge of frozen crew, crew frozen mid-scream in ice blocks, falling icicles (shake + drop-line warning, shootable). Boss: THE FROZEN CRUCIFER.
+  - THE DIGESTION TANKS (acid, teal + sulfur so enemy bullets stay readable): vats of dissolving skeletons, half-eaten hanged crew, acid geysers. Boss: THE DISSOLVED MAW.
+  - THE FURNACE (fire): incinerator mouths full of the standing dead, charred bodies swinging on chains, heat shimmer, flame jets from floor and ceiling. Boss: THE BURNING BUTCHER.
+  - THE SINUS (snot/pus): veined sinus lining, swelling pus blisters that burst, crew cocooned in snot, snot strands that slow you (shootable). Boss: THE MUCUS MAW.
+- **Ship XP + perks.** Kills (and stage clears) give XP; every level the world slows and you pick 1 of 3 mutations. 26 perks incl. trade-offs (GLASS JAW, TAPEWORM) and biome perks unlocked by clearing that biome (FROSTBITE, CORROSIVE SPIT, IMMOLATION, SNOT ROCKET). Perks last the whole run, through deaths. ~LV3 after stage 1, ~LV10-11 by the end of descent 1. Perk power raises enemy difficulty.
+- **Biome music remixes** of existing tracks: Cryovault (Tech Rooms amb 01, slowed, high-passed), Digestion Tanks (sped up, swept band-pass wah), Furnace (Eternity, driven + bass shelf), Sinus (slowed, swept low-pass, gloopy).
+- Corpses say "stop killing me" (Matty's recording) when killed, one at a time.
+- Built with three parallel agents (art, route/hazards/music, XP/perks); verified with new probes in `tools/` (route-probe, hazard-probe, perk-verify, perk-pace, biome-tour).
+
 ### Title eyeball
 - The title emblem is no longer the Gravity Drive boss (slit-pupil eye in a spiked ring). It's a huge bloodshot eyeball: pale, lumpy sclera with cracked red veins, a round green iris, wet highlight, hanging off a swaying optic nerve that drips. Gaze wanders and darts, blinks every few seconds. Rendered at high resolution (512px sclera texture) on the smooth eye layer.
 

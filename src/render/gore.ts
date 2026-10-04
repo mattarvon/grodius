@@ -5,6 +5,7 @@ import { decals, drops, gibs, mists } from '../world';
 import { drawSkull, poly } from '../render/util';
 import { eye } from '../render/eyes';
 import { DRAW } from '../render/enemies';
+import { biomeMist, splatCols } from '../biomes';
 
 // --- gibs & gore ---
 export function drawGibs() {
@@ -179,16 +180,17 @@ export function drawDrops() {
   }
 }
 export function drawMists() {
+  const mc = biomeMist() || '95,4,9';
   for (const m of mists) {
-    ctx.fillStyle = `rgba(95,4,9,${.45 * m.l / m.ml})`;
+    ctx.fillStyle = `rgba(${mc},${.45 * m.l / m.ml})`;
     ctx.beginPath();
     ctx.arc(m.x, m.y, m.r, 0, TAU);
     ctx.fill();
   }
 }
 export function drawDecals() {
-  const sc = $.G.scroll;
-  ctx.fillStyle = '#3a0306';
+  const sc = $.G.scroll, sp = splatCols();
+  ctx.fillStyle = sp ? sp[0] : '#3a0306';
   ctx.beginPath();
   for (const d of decals) {
     const x = d.wx - sc;
@@ -197,7 +199,7 @@ export function drawDecals() {
     ctx.ellipse(x, d.y, d.r * 1.8, d.r * .6, 0, 0, TAU);
   }
   ctx.fill();
-  ctx.fillStyle = '#7d0a10';
+  ctx.fillStyle = sp ? sp[1] : '#7d0a10';
   ctx.beginPath();
   for (const d of decals) {
     const x = d.wx - sc;
@@ -206,7 +208,7 @@ export function drawDecals() {
     ctx.ellipse(x - .4, d.y - d.side * .3, d.r * 1.05, d.r * .3, 0, 0, TAU);
   }
   ctx.fill();
-  ctx.fillStyle = '#6a0509';
+  ctx.fillStyle = sp ? sp[2] : '#6a0509';
   for (const d of decals) {
     if (d.side > 0 || d.r < 1.6) continue;
     const x = d.wx - sc;

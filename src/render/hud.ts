@@ -514,7 +514,7 @@ export function drawWorld() {
 /** stage clear card: slides in, counts up, stamps the grade */
 function drawTally() {
   const t = $.G.tally, age = t.ml - t.t;
-  if (--t.t <= 0) { $.G.tally = null; return; }
+  if (t.t <= 0) return;
   const a = Math.min(1, age / 15, t.t / 30), x0 = W / 2 - 110, y0 = 52, w = 220, h = 116;
   ctx.globalAlpha = a;
   ctx.fillStyle = 'rgba(4,5,7,.82)';

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { biomeEdge, biomeK, biomeTerrainFill, drawBiomeBG, drawBiomeDecor } from '../biomes';
+import { biomeEdge, biomeK, biomeTerrainFill, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark } from '../biomes';
 import { C, H, PH, TAU, TS, W, ctx, hash, lc, lctx, sstep } from '../core';
 import { AMT, LIGHTS, ceilAt, floorAt, splats } from '../world';
 import { DERE, STARS, fleshPat, metalPat } from '../textures';
@@ -52,7 +52,7 @@ export function drawTerrain() {
     ctx.lineWidth = 1;
     ctx.stroke();
   }
-  for (let wx = Math.floor(sc / 32) * 32; wx < sc + W + 32; wx += 32) {
+  if (biomeK(sc + W / 2)[1] < .5) for (let wx = Math.floor(sc / 32) * 32; wx < sc + W + 32; wx += 32) {
     const x = wx - sc,
       f = floorAt(wx),
       c = ceilAt(wx);
@@ -421,6 +421,7 @@ export function drawBG() {
   }
 }
 export function drawLighting(dk) {
+  dk *= biomeDark();
   if (dk <= .02) {
     LIGHTS.length = 0;
     return;
@@ -440,23 +441,24 @@ export function drawLighting(dk) {
   LIGHTS.length = 0;
 }
 export function drawSplats() {
+  const sp = splatCols();
   for (const s of splats) {
     const a = Math.min(1, s.l / 100) * .88;
     ctx.globalAlpha = a;
-    ctx.fillStyle = '#3d0206';
+    ctx.fillStyle = sp ? sp[0] : '#3d0206';
     for (const b of s.b) {
       ctx.beginPath();
       ctx.arc(s.x + b.dx, s.y + b.dy, b.r + .8, 0, TAU);
       ctx.fill();
     }
-    ctx.fillStyle = '#8a0610';
+    ctx.fillStyle = sp ? sp[1] : '#8a0610';
     for (const b of s.b) {
       ctx.beginPath();
       ctx.arc(s.x + b.dx - .4, s.y + b.dy - .4, b.r, 0, TAU);
       ctx.fill();
     }
     for (const d of s.dr) {
-      ctx.fillStyle = '#6a040b';
+      ctx.fillStyle = sp ? sp[2] : '#6a040b';
       ctx.fillRect(s.x + d.dx - d.w / 2, s.y + d.dy, d.w, d.len);
       ctx.beginPath();
       ctx.arc(s.x + d.dx, s.y + d.dy + d.len, d.w * .75, 0, TAU);
