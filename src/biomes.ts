@@ -13,6 +13,8 @@ import { spark, drop, flash, gore, pop, mist } from './fx/spawn';
 import { banner, behindWave, butcher, corpse, crawler, crossT, eyeT, flayer, formation, hatch, hookE, logLine, maw, miniWarn, womb, crux } from './enemies/spawn';
 import { glow, light } from './render/util';
 import { startStage } from './stages';
+import { drawFX } from './render/biomeart';
+export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 /** the two biome slots in the level (world x). Stage 1 = slot 0, stage 2 = slot 1. */
 export const SEG = [
@@ -23,32 +25,32 @@ export const SEG = [
 export const BIOMES = {
   ice: {
     name: 'THE CRYOVAULT', tag: 'FROZEN // CRUCIFER', sub: 'THE CREW IS STILL IN HERE. FROZEN MID-SCREAM', col: '#9fd8ff', rgb: '160,215,255',
-    bg: ['#04101c', '#163552'], edge: '#e8f6ff', fog: '120,180,230',
-    gore: ['#8e1a2a', '#3e0a14', '#cfe8ff', '#0c0809', '#7fb8e8', '#ffffff'], blood: ['#8e1a2a', '#3e0a14', '#d4485a'],
+    dark: .55, mist: '90,10,26', bg: ['#02060e', '#0e2840'], edge: '#f2fbff', fog: '120,180,230',
+    gore: ['#7a1222', '#300610', '#d8efff', '#0c0809', '#8cc4ee', '#ffffff'], blood: ['#7a1222', '#300610', '#c8506a'],
     boss: 'crux', bossName: 'THE FROZEN CRUCIFER', haz: 'icicle', hazEvery: 95,
     mix: [['corpse', 4], ['wall', 2], ['sine', 2], ['cross', 2], ['eye', 2], ['flayer', 2], ['hook', 1]],
     logs: ['TEMPERATURE: -140C. THE BODIES ARE STANDING UP.', 'THE ICE IS FULL OF FACES.'],
   },
   acid: {
-    name: 'THE DIGESTION TANKS', tag: 'DISSOLVING // MAW', sub: 'EVERYTHING DOWN HERE IS BEING EATEN', col: '#a6ff2a', rgb: '160,255,40',
-    bg: ['#030a03', '#16300a'], edge: '#d8ff6a', fog: '120,220,40',
-    gore: ['#6faf12', '#2a4806', '#d8ff4a', '#0c0809', '#e8e05a', '#aaff00'], blood: ['#6faf12', '#2a4806', '#c8ff3a'],
+    name: 'THE DIGESTION TANKS', tag: 'DISSOLVING // MAW', sub: 'EVERYTHING DOWN HERE IS BEING EATEN', col: '#3fe8c8', rgb: '60,230,195',
+    dark: .6, mist: '18,120,100', bg: ['#010605', '#081a15'], edge: '#7ff0d8', fog: '40,200,170',
+    gore: ['#8a4630', '#2e140c', '#46e0c0', '#0c0809', '#ddd27a', '#c8f4e8'], blood: ['#1c9a80', '#0a3a32', '#6ff0d4'],
     boss: 'maw', bossName: 'THE DISSOLVED MAW', haz: 'geyser', hazEvery: 120,
     mix: [['womb', 3], ['hatch', 2], ['crawler', 3], ['eye', 2], ['dive', 2], ['corpse', 1]],
     logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'MY HULL PLATING IS SIZZLING.'],
   },
   fire: {
     name: 'THE FURNACE', tag: 'BURNING // BUTCHER', sub: 'THEY BURNED THE BODIES. THE BODIES KEPT MOVING', col: '#ff7a1a', rgb: '255,120,30',
-    bg: ['#120302', '#4a0c02'], edge: '#ffb347', fog: '255,90,20',
-    gore: ['#5a0806', '#1c0303', '#ff6a1a', '#0c0809', '#ffb347', '#ff3a10'], blood: ['#6a0a08', '#240303', '#ff4a1a'],
+    dark: .6, mist: '50,12,6', bg: ['#040000', '#300702'], edge: '#ffb347', fog: '255,90,20',
+    gore: ['#4a0a06', '#120202', '#ff6a1a', '#050303', '#ffb347', '#ff3a10'], blood: ['#6a0a08', '#240303', '#ff4a1a'],
     boss: 'butcher', bossName: 'THE BURNING BUTCHER', haz: 'jet', hazEvery: 105,
     mix: [['flayer', 3], ['hook', 3], ['zig', 2], ['dive', 2], ['crawler', 2], ['behind', 1]],
     logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.'],
   },
   snot: {
-    name: 'THE SINUS', tag: 'MUCUS // MAW', sub: 'THE SHIP HAS A COLD', col: '#d8e04a', rgb: '210,220,70',
-    bg: ['#0c0e04', '#2e3208'], edge: '#f0f08a', fog: '200,210,60',
-    gore: ['#c8c03a', '#6a7a18', '#f0e88a', '#3a4010', '#e8f0a0', '#a0c040'], blood: ['#b8b030', '#5a6a14', '#e8e070'],
+    name: 'THE SINUS', tag: 'MUCUS // MAW', sub: 'THE SHIP HAS A COLD', col: '#ecd25a', rgb: '236,210,90',
+    dark: .4, mist: '160,140,40', bg: ['#0a0503', '#2a1c08'], edge: '#f4e49a', fog: '200,180,70',
+    gore: ['#d0b840', '#7a4a18', '#f4e6a0', '#3a1a0a', '#fff4c8', '#a83a24'], blood: ['#c8ac3a', '#6a4a14', '#f2e08a'],
     boss: 'maw', bossName: 'THE MUCUS MAW', haz: 'strand', hazEvery: 130,
     mix: [['womb', 3], ['hatch', 3], ['corpse', 2], ['sine', 2], ['crawler', 2], ['eye', 1]],
     logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.'],
@@ -261,158 +263,7 @@ export function stepBiome() {
   }
 }
 
-// ---------------- drawing ----------------
-const PAT = {};
-function biomePat(b) {
-  if (PAT[b]) return PAT[b];
-  return (PAT[b] = mkTex((x) => {
-    let s = b.length * 97 + 13;
-    const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-    if (b === 'ice') {
-      x.fillStyle = '#5f8cb4'; x.fillRect(0, 0, 64, 64);
-      for (let i = 0; i < 14; i++) { x.fillStyle = r() < .5 ? 'rgba(220,240,255,.35)' : 'rgba(30,70,110,.35)'; x.beginPath(); x.moveTo(r() * 64, r() * 64); x.lineTo(r() * 64, r() * 64); x.lineTo(r() * 64, r() * 64); x.fill(); }
-      x.strokeStyle = 'rgba(240,250,255,.6)'; x.lineWidth = .6; for (let i = 0; i < 6; i++) { x.beginPath(); let px = r() * 64, py = r() * 64; x.moveTo(px, py); for (let k = 0; k < 4; k++) { px += r() * 16 - 8; py += r() * 16 - 8; x.lineTo(px, py); } x.stroke(); }
-    } else if (b === 'acid') {
-      x.fillStyle = '#1a240c'; x.fillRect(0, 0, 64, 64);
-      for (let i = 0; i < 30; i++) { x.fillStyle = `rgba(${90 + r() * 80 | 0},${160 + r() * 90 | 0},20,${.15 + r() * .3})`; x.beginPath(); x.arc(r() * 64, r() * 64, 1 + r() * 4, 0, TAU); x.fill(); }
-      for (let i = 0; i < 5; i++) { x.fillStyle = 'rgba(170,255,40,.4)'; const px = r() * 64; x.fillRect(px, r() * 30, 1, 10 + r() * 24); }
-    } else if (b === 'fire') {
-      x.fillStyle = '#1c0e0a'; x.fillRect(0, 0, 64, 64);
-      for (let i = 0; i < 18; i++) { x.fillStyle = `rgba(${40 + r() * 30 | 0},${20 + r() * 14 | 0},${16 + r() * 10 | 0},.8)`; x.fillRect(r() * 64, r() * 64, 4 + r() * 10, 3 + r() * 6); }
-      x.strokeStyle = '#ff6a1a'; x.lineWidth = 1; for (let i = 0; i < 4; i++) { x.beginPath(); let px = r() * 64, py = r() * 64; x.moveTo(px, py); for (let k = 0; k < 5; k++) { px += r() * 14 - 7; py += r() * 14 - 7; x.lineTo(px, py); } x.stroke(); }
-    } else {
-      x.fillStyle = '#7a8420'; x.fillRect(0, 0, 64, 64);
-      for (let i = 0; i < 20; i++) { x.fillStyle = r() < .5 ? 'rgba(220,220,90,.35)' : 'rgba(60,70,10,.4)'; x.beginPath(); x.ellipse(r() * 64, r() * 64, 2 + r() * 7, 1 + r() * 4, r() * 3, 0, TAU); x.fill(); }
-      for (let i = 0; i < 6; i++) { x.fillStyle = '#e8e07a'; const px = r() * 64, py = r() * 64; x.beginPath(); x.arc(px, py, 1.5 + r() * 1.5, 0, TAU); x.fill(); x.fillStyle = 'rgba(255,255,220,.8)'; x.fillRect(px - .5, py - 1, 1, 1); }
-    }
-  }));
-}
-/** terrain fill overlay: call with the terrain path still set */
-export function biomeTerrainFill(mtx) {
-  const [b, k] = biomeK($.G.scroll + W / 2);
-  if (!b) return 0;
-  const p = biomePat(b);
-  p.setTransform(mtx);
-  ctx.globalAlpha = k;
-  ctx.fillStyle = p;
-  ctx.fill();
-  ctx.globalAlpha = 1;
-  return k;
-}
-export const biomeEdge = () => { const [b, k] = biomeK($.G.scroll + W / 2); return b && k > .5 ? BIOMES[b].edge : null; };
-
-export function drawBiomeBG(sc) {
-  const [b, k] = biomeK(sc + W / 2);
-  if (!b) return;
-  const B = BIOMES[b], t = $.T;
-  ctx.globalAlpha = k;
-  const g = ctx.createLinearGradient(0, 0, 0, PH);
-  g.addColorStop(0, B.bg[0]); g.addColorStop(1, B.bg[1]);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, PH);
-  if (b === 'ice') {
-    for (let i = 0; i < 3; i++) { ctx.fillStyle = `rgba(120,255,200,${.05 + .03 * Math.sin(t * .01 + i)})`; ctx.beginPath(); for (let x = 0; x <= W; x += 12) ctx.lineTo(x, 30 + i * 18 + Math.sin(x * .02 + t * .008 + i * 2) * 10); ctx.lineTo(W, 0); ctx.lineTo(0, 0); ctx.fill(); }
-    // frozen wall with bodies stuck in it
-    const off = (sc * .3) % 90;
-    for (let x = -off; x < W + 90; x += 90) {
-      const id = Math.floor((x + sc * .3) / 90), h = hash(id * 1.3);
-      ctx.fillStyle = 'rgba(150,200,240,.16)'; ctx.fillRect(x, PH * .25 + h * 30, 70, PH);
-      ctx.fillStyle = 'rgba(20,40,70,.55)'; const bx = x + 20 + h * 30, by = PH * .45 + h * 40;
-      ctx.beginPath(); ctx.arc(bx, by, 5, 0, TAU); ctx.fill(); ctx.fillRect(bx - 4, by + 4, 8, 18); ctx.fillRect(bx - 11 + h * 4, by + 6 - h * 8, 6, 3); ctx.fillRect(bx + 5, by + 2 + h * 6, 7, 3);
-    }
-  } else if (b === 'acid') {
-    const off = (sc * .25) % 120;
-    for (let x = -off; x < W + 120; x += 120) {
-      const h = hash(Math.floor((x + sc * .25) / 120) * 2.1);
-      ctx.fillStyle = 'rgba(10,20,6,.8)'; ctx.fillRect(x + 10, PH * .35 + h * 30, 60, PH);
-      ctx.fillStyle = `rgba(160,255,40,${.25 + .1 * Math.sin(t * .05 + h * 9)})`; ctx.fillRect(x + 14, PH * .35 + h * 30 + 14, 52, 4);
-      ctx.globalCompositeOperation = 'lighter'; glow(x + 40, PH * .35 + h * 30 + 16, 30, '120,255,40', .25 * k); ctx.globalCompositeOperation = 'source-over';
-    }
-  } else if (b === 'fire') {
-    for (let x = 0; x < W; x += 6) { const h = 30 + 40 * vnoise((x + sc * .2) / 40 + t * .02) + 20 * Math.sin(t * .1 + x); ctx.fillStyle = `rgba(255,${80 + h | 0},20,.12)`; ctx.fillRect(x, PH - h, 6, h); }
-    ctx.globalCompositeOperation = 'lighter'; glow(W * .5, PH + 20, 260, '255,80,10', .35 * k); ctx.globalCompositeOperation = 'source-over';
-  } else {
-    const off = (sc * .35) % 40;
-    ctx.strokeStyle = 'rgba(200,210,60,.22)'; ctx.lineWidth = 2;
-    for (let x = -off; x < W + 40; x += 40) { const h = hash(Math.floor((x + sc * .35) / 40)); ctx.beginPath(); ctx.moveTo(x, 0); ctx.quadraticCurveTo(x + Math.sin(t * .02 + h * 6) * 10, PH * (.3 + h * .3), x + 4, PH * (.45 + h * .4)); ctx.stroke(); ctx.fillStyle = 'rgba(220,220,80,.3)'; ctx.beginPath(); ctx.arc(x + 4, PH * (.45 + h * .4) + 3, 3, 0, TAU); ctx.fill(); }
-    for (let i = 0; i < 3; i++) { const x = ((i * 180 - sc * .15) % (W + 120) + W + 120) % (W + 120) - 60, r = 34 + 6 * Math.sin(t * .04 + i); ctx.fillStyle = 'rgba(150,160,40,.18)'; ctx.beginPath(); ctx.ellipse(x, PH * .5 + i * 20 - 20, r, r * .8, 0, 0, TAU); ctx.fill(); }
-  }
-  ctx.globalAlpha = 1;
-}
-
-export function drawBiomeDecor(sc) {
-  const [b, k] = biomeK(sc + W / 2);
-  if (!b || k < .05) return;
-  ctx.globalAlpha = k;
-  for (let wx = Math.floor(sc / 14) * 14; wx < sc + W + 14; wx += 14) {
-    const x = wx - sc, c = ceilAt(wx), f = floorAt(wx), h = hash(wx * .37);
-    if (b === 'ice' && c > -2 && h < .7) {
-      const len = 4 + h * 14; ctx.fillStyle = '#cfe8ff'; ctx.beginPath(); ctx.moveTo(x - 2.5, c); ctx.lineTo(x + 2.5, c); ctx.lineTo(x, c + len); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillRect(x - 1, c, 1, len * .6);
-    } else if (b === 'acid') {
-      if (f < PH && h < .5) { ctx.globalCompositeOperation = 'lighter'; glow(x, f, 10, '140,255,40', .3 * k); ctx.globalCompositeOperation = 'source-over'; }
-      if (c > -2 && h > .75) { const d = (($.T + h * 200) % 90) / 90; ctx.fillStyle = '#a6ff2a'; ctx.fillRect(x, c + d * 30, 1.5, 3); }
-    } else if (b === 'fire') {
-      if (f < PH + 2) { ctx.globalCompositeOperation = 'lighter'; const fl = .5 + .5 * Math.sin($.T * .2 + wx); glow(x, f + 2, 12 + fl * 6, '255,100,20', .35 * k); ctx.globalCompositeOperation = 'source-over'; if (h < .15) light(x, f, 40, .8); }
-    } else if (b === 'snot') {
-      if (c > -2 && h < .45) { const len = 6 + h * 26 + Math.sin($.T * .03 + wx) * 3; ctx.strokeStyle = 'rgba(220,220,90,.8)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x, c); ctx.lineTo(x + Math.sin($.T * .02 + wx) * 2, c + len); ctx.stroke(); ctx.fillStyle = '#e8e07a'; ctx.beginPath(); ctx.arc(x + Math.sin($.T * .02 + wx) * 2, c + len + 1.5, 2, 0, TAU); ctx.fill(); }
-      if (f < PH && h > .8) { const r = 3 + (h - .8) * 30; ctx.fillStyle = '#b8b030'; ctx.beginPath(); ctx.arc(x, f - r * .5, r, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#f0f0a0'; ctx.beginPath(); ctx.arc(x, f - r * .8, r * .4, 0, TAU); ctx.fill(); }
-    }
-  }
-  ctx.globalAlpha = 1;
-}
-
-export function drawBiomeFX() {
-  for (const p of amb) {
-    if (p.em) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, 1, 1); glow(p.x, p.y, 3, '255,120,30', .3); ctx.globalCompositeOperation = 'source-over'; }
-    else if (p.bub) { ctx.strokeStyle = 'rgba(170,255,60,.6)'; ctx.lineWidth = .7; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, TAU); ctx.stroke(); }
-    else if (p.glob) { ctx.fillStyle = p.c; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.s * .7, p.s, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(220,220,90,.35)'; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - 8); ctx.stroke(); }
-    else { ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, p.s, p.s); }
-  }
-  const sc = $.G ? $.G.scroll : 0;
-  for (const h of haz) {
-    if (h.k === 'icicle') {
-      const sh = h.t < 50 ? Math.sin(h.t * 1.7) * 1.2 : 0;
-      ctx.fillStyle = '#cfe8ff'; ctx.beginPath(); ctx.moveTo(h.x - 4 + sh, h.y); ctx.lineTo(h.x + 4 + sh, h.y); ctx.lineTo(h.x + sh, h.y + h.len); ctx.fill();
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(h.x - 1.5 + sh, h.y, 1, h.len * .7);
-      if (h.t < 50 && (h.t >> 2) % 2) { ctx.fillStyle = 'rgba(255,60,60,.8)'; ctx.fillRect(h.x - 1, h.y + h.len + 3, 2, 2); }
-    } else if (h.k === 'geyser' || h.k === 'jet') {
-      const geo = h.k === 'geyser', col = geo ? '160,255,40' : '255,110,20';
-      if (!h.reach) { ctx.fillStyle = `rgba(${col},${.3 + .3 * Math.sin(h.t * .5)})`; ctx.fillRect(h.x - 5, geo ? h.y - 3 : h.dir > 0 ? h.y : h.y - 3, 10, 3); continue; }
-      const y0 = geo ? h.y - h.reach : h.dir > 0 ? h.y : h.y - h.reach;
-      ctx.globalCompositeOperation = 'lighter';
-      for (let q = 0; q < 3; q++) { ctx.fillStyle = `rgba(${col},${.35 - q * .1})`; ctx.fillRect(h.x - 3 - q * 2 + Math.sin($.T * .7 + q) * 1.5, y0, 6 + q * 4, h.reach); }
-      glow(h.x, y0 + h.reach / 2, 30, col, .5);
-      ctx.globalCompositeOperation = 'source-over';
-    } else if (h.k === 'strand') {
-      const wx = h.x + sc, c = ceilAt(wx), f = floorAt(wx), sw = Math.sin($.T * .05 + h.ph) * 5;
-      ctx.strokeStyle = 'rgba(200,200,60,.85)'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(h.x, c); ctx.quadraticCurveTo(h.x + sw, (c + f) / 2, h.x, f); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,200,.5)'; ctx.lineWidth = .8; ctx.stroke();
-      ctx.fillStyle = '#e8e07a'; ctx.beginPath(); ctx.arc(h.x + sw * .5, (c + f) / 2, 3, 0, TAU); ctx.fill();
-    }
-  }
-  // fork gates
-  const G = $.G;
-  if (G && G.fork) {
-    const f = G.fork;
-    for (let i = 0; i < 2; i++) {
-      const p = gatePos(i), B = BIOMES[f.opts[i]], open = Math.min(1, f.t / 40), r = 22 * open;
-      ctx.globalCompositeOperation = 'lighter';
-      glow(p.x, p.y, r * 2.4, B.rgb, .45);
-      ctx.globalCompositeOperation = 'source-over';
-      for (let q = 0; q < 3; q++) { ctx.strokeStyle = B.col; ctx.globalAlpha = .9 - q * .25; ctx.lineWidth = 2.2 - q * .5; ctx.beginPath(); ctx.ellipse(p.x, p.y, Math.max(.5, r - q * 4), Math.max(.5, r - q * 4) * 1.15, $.T * (.03 + q * .02) * (i ? -1 : 1), 0, TAU * .82); ctx.stroke(); }
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, Math.max(.5, r * .55), Math.max(.5, r * .65), 0, 0, TAU); ctx.fill();
-      light(p.x, p.y, 60, .9);
-      if (open > .9) {
-        const tw = 104;
-        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(p.x - tw - 30, p.y - 9, tw, 18);
-        ctx.font = `8px ${'Silkscreen, monospace'}`; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillStyle = B.col; ctx.fillText(B.name, p.x - 34, p.y - 7);
-        ctx.font = `7px ${'Silkscreen, monospace'}`; ctx.fillStyle = '#8fa3b8'; ctx.fillText(B.tag, p.x - 34, p.y + 2);
-      }
-    }
-    const left = Math.max(0, Math.ceil((900 - f.t) / 60));
-    ctx.font = `7px ${'Silkscreen, monospace'}`; ctx.textAlign = 'center'; ctx.fillStyle = '#cfd9e3'; ctx.fillText('FLY INTO A GATE  ' + left, W * .74, PH * .5 - 3);
-    ctx.textAlign = 'left';
-  }
-}
+// ---------------- drawing (art lives in render/biomeart.ts) ----------------
+export function drawBiomeFX() { drawFX(haz, amb, gatePos); }
 /** consume a hazard hit this frame (applied by the caller so playerHit stays in one place) */
 export function hazardHit() { const h = $.G && $.G.hazHit; if (h) $.G.hazHit = 0; return !!h; }
