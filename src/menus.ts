@@ -85,6 +85,8 @@ export function pauseItems() {
 }
 // title screen: every cursor move is a short pfft, every selection a full fart (src/sfx/fart_nav, fart_ok)
 export const menuBlip = (ok) => {
+  // starting a run (DESCEND / DESCEND DEEPER) gets Lesley's "yeah baby" instead of the select fart
+  if ($.state === 'title' && ok && /^DESCEND/.test((titleItems()[$.menuSel] || {}).l || '') && sample('startgame', { vol: 1.15, spread: .02, wet: .14 })) return;
   if ($.state === 'title' && sample(ok ? 'fart_ok' : 'fart_nav', { vol: ok ? .9 : .7, spread: .08, wet: .1 })) return;
   sfx.menu();
 };

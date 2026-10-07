@@ -2,6 +2,11 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-07
+
+### Start sound
+- Hitting DESCEND (or DESCEND DEEPER) on the title plays Lesley's "yeah baby" (recorded on RecForge II) instead of the select fart; the music ducks under it as the stage track fades in. Other title items still fart. Clip in `src/sfx/startgame/`; more takes there rotate at random.
+
 ## 2026-10-03
 
 ### 20-chain voice swap
