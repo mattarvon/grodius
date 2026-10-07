@@ -12,6 +12,7 @@ import { biomeReset } from './biomes';
 import { perksReset } from './perks';
 import { caps } from './world';
 import { resetContraptions, rigFresh } from './contraptions';
+import { shipShed } from './shipform';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
@@ -130,6 +131,7 @@ export function killPlayer() {
   buzz('death');
   if ($.G.st) $.G.st.deaths++;
   blackBox();
+  shipShed($.P.x, $.P.y);
   gore($.P.x, $.P.y, 1.8, {
     metal: 9,
     rope: 2,
