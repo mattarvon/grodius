@@ -5,41 +5,101 @@ import { lv } from '../save';
 import { enemies } from '../world';
 import { spark } from '../fx/spawn';
 import { gmL } from '../mutations';
-import { glow, light, poly } from '../render/util';
+import { pk } from '../perks';
+import { rigged } from '../contraptions';
+import { ANCH, growF, growK, trackForm } from '../shipform';
+import { glow, glowSpr, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
+import {
+  boneNeedles, caliberBore, droneWings, eggSacs, flayedEdge, glassJaw, gluttonyMaw, haloRipple, hornBarrels, meathooks, nerveSpine,
+  opticStalks, perkTells, pyreStalks, rearMandible, rigChoir, rigFurnace, rigGut, rigHook, rigLeech, rigSaw, rigSpine, sculptParts,
+  sporePods, tapeworm, thrustParts, tierBack, tierFront, umbilicals, wardParts, wombSac
+} from '../render/shipparts';
 
 // --- player ship & helpers ---
+const GIDS = ['rapid', 'pierce', 'seek', 'tail', 'ripple', 'chain', 'serr', 'over', 'cal', 'regrow', 'spore'];
+/** perks that leave a visible tell on the hull (teeth / trail are drawn as world fx elsewhere) */
+const PIDS = ['dmg', 'rof', 'spd', 'pierce', 'crit', 'volatile', 'scab', 'inv', 'graze', 'reload', 'magnet', 'frost', 'corrode', 'ignite', 'snot', 'tape', 'glass'];
+/** everything the ship's shape reads from; also the source of the frame-to-frame form diff */
 export function shipLoad() {
   let tier = 0;
   for (const k in $.meta.lv) tier += $.meta.lv[k] || 0;
-  if ($.P && $.P.missile != null && ($.state === 'play' || $.state === 'pause' || $.state === 'over')) return {
-    spd: $.P.speed,
-    mis: $.P.missile,
-    dbl: $.P.double,
-    las: $.P.laser,
-    pyre: $.P.pyre,
-    shd: $.P.shield > 0,
+  const rig = {};
+  for (const r of rigged()) rig[r.id] = r.lvl;
+  const game = !!($.P && $.P.missile != null && ($.state === 'play' || $.state === 'pause' || $.state === 'over')), P = game ? $.P : {};
+  const gm = {}, pkk = {};
+  if (game) {
+    for (const k of GIDS) if (gmL(k)) gm[k] = gmL(k);
+    for (const k of PIDS) if (pk(k)) pkk[k] = pk(k);
+  }
+  const ld = {
+    spd: P.speed || 0,
+    mis: P.missile || 0,
+    dbl: P.double || 0,
+    las: P.laser || 0,
+    pyre: P.pyre || 0,
+    opt: P.options || 0,
+    ward: P.wardLv || 0,
+    shd: P.shield > 0,
+    aegis: P.aegis || 0,
     tier,
-    game: 1
+    game: game ? 1 : 0,
+    gm,
+    pk: pkk,
+    rig,
+    sculpt: lv('sculpt')
   };
-  return {
-    spd: 0,
-    mis: 0,
-    dbl: 0,
-    las: 0,
-    pyre: 0,
-    shd: false,
-    tier,
-    game: 0
-  };
+  let pw = ld.spd + ld.mis * 1.5 + (ld.dbl + ld.las) * 2 + ld.pyre * 1.5 + ld.opt * 1.5 + ld.ward * 1.5;
+  for (const k in gm) pw += gm[k] * 1.5;
+  for (const k in pkk) pw += pkk[k] * .5;
+  for (const k in rig) pw += rig[k] * 1.5;
+  ld.power = pw;
+  ld.ftier = pw >= 24 ? 3 : pw >= 13 ? 2 : pw >= 5 ? 1 : 0;
+  return ld;
+}
+/** flat part-key -> level map (diffed frame to frame for sprout / wither moments) */
+export function shipForm(ld) {
+  const f = { thr: ld.spd, mis: ld.mis, dbl: ld.dbl, las: ld.las, pyre: ld.pyre, opt: ld.opt, ward: ld.ward, tier: ld.ftier };
+  for (const k in ld.gm) f['g:' + k] = ld.gm[k];
+  for (const k in ld.pk) f['p:' + k] = ld.pk[k];
+  for (const k in ld.rig) f['r:' + k] = ld.rig[k];
+  return f;
+}
+/** draw a part through its sprout animation: scales from 0 with overshoot about its anchor, flashes white-hot */
+function part(c, key, fn) {
+  const k = growK(key);
+  if (k <= .02) return;
+  const a = ANCH[key] || [0, 0];
+  if (k !== 1) {
+    c.save();
+    c.translate(a[0], a[1]);
+    c.scale(k, k);
+    c.translate(-a[0], -a[1]);
+    fn();
+    c.restore();
+  } else fn();
+  const f = growF(key);
+  if (f > 0) {
+    c.globalCompositeOperation = 'lighter';
+    c.globalAlpha = f * f * .8;
+    const r = key[0] === 'r' ? 11 : key === 'tier' ? 6 : 7;
+    c.drawImage(glowSpr('255,170,120'), a[0] - r, a[1] - r, r * 2, r * 2);
+    c.globalAlpha = 1;
+    c.globalCompositeOperation = 'source-over';
+  }
 }
 export const IRIS_T = ['#c0141c', '#e05a10', '#e8b818', '#b23cff'];
 export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
   ld = ld || shipLoad();
   const tier = ld.tier,
     mini = s < .6,
+    ft = mini ? 0 : ld.ftier,
+    G = ld.gm,
+    PK = ld.pk,
+    RG = ld.rig,
     beat = Math.pow(Math.max(0, Math.sin($.T * .16)), 6),
     fire = ld.game && $.P && $.P.cd > 3;
+  if (ld.game && !mini && $.P) trackForm(shipForm(ld), x, y, s);
   let look = Math.sin($.T * .021) * .5;
   if (ld.game && !mini) {
     let bd = 1e9;
@@ -52,10 +112,17 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
       }
     }
   }
-  const irisC = IRIS_T[Math.min(3, tier / 5 | 0)];
+  const irisC = IRIS_T[Math.min(3, Math.max(tier / 5 | 0, ft))];
   c.save();
   c.translate(x, y);
+  if (PK.rof && !mini && $.T % 7 < 2) c.translate((Math.random() - .5) * .45 * PK.rof, (Math.random() - .5) * .45 * PK.rof);
   c.scale(s, s * (1 - Math.abs(bank) * .07));
+  // ---- contraptions that sit behind the hull
+  if (!mini && RG.furnace) part(c, 'r:furnace', () => rigFurnace(c, RG.furnace, mini));
+  // ---- the hull itself swells with the build (hitbox does not)
+  const hs = 1 + ft * .1;
+  c.save();
+  c.scale(hs, hs);
   // bile engine + sinew tendrils
   if (eng) {
     const f = .75 + Math.random() * .4,
@@ -95,6 +162,20 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
     }
     c.lineCap = 'butt';
   }
+
+  if (!mini) {
+    part(c, 'tier', () => tierBack(c, ft, beat));
+    if (G.ripple) part(c, 'g:ripple', () => haloRipple(c, G.ripple));
+    if (G.rapid) part(c, 'g:rapid', () => droneWings(c, G.rapid));
+    if (ld.opt) part(c, 'opt', () => umbilicals(c, ld.opt));
+    if (PK.tape) part(c, 'p:tape', () => tapeworm(c));
+    if (G.tail) part(c, 'g:tail', () => rearMandible(c, G.tail, fire));
+    if (G.pierce) part(c, 'g:pierce', () => boneNeedles(c, G.pierce));
+    if (G.serr) part(c, 'g:serr', () => flayedEdge(c, G.serr));
+    if (G.chain) part(c, 'g:chain', () => meathooks(c, G.chain));
+  }
+  if (ld.pyre) part(c, 'pyre', () => pyreStalks(c, ld.pyre, look, mini));
+  if (ld.spd) part(c, 'thr', () => thrustParts(c, ld.spd, eng, mini));
   // ventral + dorsal bone spikes (grow with permanent grafts)
   const ty = x0 => -5.6 + Math.pow((x0 + 3) / 9, 2) * 2;
   const nsp = 2 + Math.min(7, tier * .42 | 0);
@@ -126,31 +207,8 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
     }
     c.lineCap = 'butt';
   }
-  // missile egg-sacs
-  for (let m = 0; m < ld.mis; m++) {
-    const mx = -2 - m * 5.5,
-      my = 5.4 + m * .4;
-    c.strokeStyle = '#3a1012';
-    c.lineWidth = .8;
-    c.beginPath();
-    c.moveTo(mx, 3.5);
-    c.lineTo(mx, my);
-    c.stroke();
-    c.fillStyle = '#4e1416';
-    c.beginPath();
-    c.ellipse(mx, my + 1.6, 3.2, 1.9, 0, 0, TAU);
-    c.fill();
-    c.fillStyle = '#8a2a24';
-    c.beginPath();
-    c.ellipse(mx - .4, my + 1.1, 2.2, .9, 0, 0, TAU);
-    c.fill();
-    c.globalCompositeOperation = 'lighter';
-    c.fillStyle = `rgba(255,170,60,${.5 + .5 * Math.sin($.T * .2 + m)})`;
-    c.beginPath();
-    c.arc(mx + 2.6, my + 1.6, .9, 0, TAU);
-    c.fill();
-    c.globalCompositeOperation = 'source-over';
-  }
+
+  if (ld.mis) part(c, 'mis', () => eggSacs(c, ld.mis, !mini && PK.reload));
   // carapace hull
   c.fillStyle = '#0a0404';
   c.beginPath();
@@ -224,15 +282,14 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
   c.quadraticCurveTo(-4, -7, 4, -5.5);
   c.quadraticCurveTo(9, -4.2, 13, -1.6);
   c.stroke();
-  // WARD: chitin armour plates
-  if (ld.shd) {
-    c.fillStyle = 'rgba(200,190,160,.85)';
-    for (let i = 0; i < 3; i++) {
-      const px = -7 + i * 5;
-      c.beginPath();
-      c.ellipse(px, ty(px) + 1.4, 2.8, 1.3, -.25, Math.PI, TAU);
-      c.fill();
-    }
+
+  if (!mini) {
+    part(c, 'tier', () => tierFront(c, ft));
+    perkTells(c, PK, beat);
+    if (G.regrow) part(c, 'g:regrow', () => wombSac(c, G.regrow));
+    if (G.spore) part(c, 'g:spore', () => sporePods(c, G.spore));
+    if (ld.ward) part(c, 'ward', () => wardParts(c, ld.ward, ld.shd, ld.aegis));
+    if (G.cal) part(c, 'g:cal', () => caliberBore(c, G.cal, fire));
   }
   // mandibles
   const op = fire ? 1.3 : .35 + .25 * Math.sin($.T * .09);
@@ -246,60 +303,19 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
     c.fillRect(13.5 + k * 1.6, -.6, .6, .7);
     c.fillRect(14.2 + k * 1.6, 0, .6, .6);
   }
-  // SPLIT: dorsal horn cannon
-  if (ld.dbl) {
-    c.strokeStyle = '#cbb995';
-    c.lineWidth = 1.6;
-    c.lineCap = 'round';
-    c.beginPath();
-    c.moveTo(3, -5.4);
-    c.quadraticCurveTo(7, -7, 10.5, -10);
-    c.stroke();
-    c.lineCap = 'butt';
-    c.globalCompositeOperation = 'lighter';
-    c.fillStyle = 'rgba(255,120,80,.9)';
-    c.beginPath();
-    c.arc(10.8, -10.2, 1.1 + (fire ? .8 : 0), 0, TAU);
-    c.fill();
-    c.globalCompositeOperation = 'source-over';
-  }
-  // ARC: crackling nerve spine
-  if (ld.las) {
-    c.fillStyle = '#cbb995';
-    poly(c, [[15, -.7], [24, 0], [15, .7]]);
-    c.globalCompositeOperation = 'lighter';
-    c.strokeStyle = 'rgba(140,200,255,.9)';
-    c.lineWidth = .5;
-    c.beginPath();
-    c.moveTo(15, 0);
-    for (let k = 1; k <= 5; k++) c.lineTo(15 + k * 1.8, (Math.random() - .5) * 2.2);
-    c.stroke();
-    c.globalCompositeOperation = 'source-over';
-  }
-  // PYRE: burning eyes on tail stalks
-  for (let p = 0; p < ld.pyre; p++) {
-    const sg = p ? 1 : -1,
-      ex = -9,
-      ey = sg * 7.4;
-    c.strokeStyle = '#4a1416';
-    c.lineWidth = 1.2;
-    c.beginPath();
-    c.moveTo(-7, sg * 3.4);
-    c.quadraticCurveTo(-7, sg * 6, ex, ey);
-    c.stroke();
-    if (!mini) for (let k = 0; k < 2; k++) {
-      c.fillStyle = 'rgba(255,120,30,.8)';
-      const fy = ey + (Math.random() - .5) * 2;
-      poly(c, [[ex - 1, fy - 1], [ex - 5 - Math.random() * 4, fy], [ex - 1, fy + 1]]);
+
+  if (!mini) {
+    if (PK.glass) glassJaw(c);
+    if (PK.pierce) {
+      c.fillStyle = '#f0e6d0';
+      poly(c, [[18.5, -1.9], [21 + PK.pierce * 1.5, -2.4], [19, -1.1]]);
+      poly(c, [[18, 1.7], [20.5 + PK.pierce * 1.5, 2.2], [18.5, .9]]);
     }
-    eye(c, ex, ey, 1.9, {
-      ang: look,
-      iris: '#ff3a10',
-      fire: 1,
-      bs: 2,
-      dil: .7
-    });
+    if (G.over) part(c, 'g:over', () => gluttonyMaw(c, G.over));
+    if (ld.sculpt) sculptParts(c, ld.sculpt);
   }
+  if (ld.dbl) part(c, 'dbl', () => hornBarrels(c, fire));
+  if (ld.las) part(c, 'las', () => nerveSpine(c));
   // clustered extra eyes (one per two permanent grafts)
   const EP = [[-1, -3.8, 1.25], [-6.5, -3, 1.1], [3, -4, 1.05], [-4, 3.6, 1], [-9.5, -1.4, .95], [1.5, 3.8, 1], [-8, 2.4, .9], [5.6, 2.6, .9], [-3, -5.6, .85]];
   const ne = Math.min(EP.length, tier / 2 | 0);
@@ -314,6 +330,8 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
       lid: '#4a1818'
     });
   }
+
+  if (!mini && G.seek) part(c, 'g:seek', () => opticStalks(c, G.seek, look));
   // the main eye
   const blM = ($.T + 31) % 220 < 6 ? 1 : 0;
   eye(c, 7, -1.8, 2.9, {
@@ -345,6 +363,16 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
       c.arc(dx + .4, 4.8 + dd, .6, 0, TAU);
       c.fill();
     }
+  }
+  c.restore();
+  // ---- contraptions bolted over the hull (unscaled anchors: logic and art line up)
+  if (!mini) {
+    if (RG.choir) part(c, 'r:choir', () => rigChoir(c, RG.choir));
+    if (RG.hook) part(c, 'r:hook', () => rigHook(c, RG.hook, x, y, s));
+    if (RG.gut) part(c, 'r:gut', () => rigGut(c, RG.gut));
+    if (RG.spine) part(c, 'r:spine', () => rigSpine(c, RG.spine));
+    if (RG.leech) part(c, 'r:leech', () => rigLeech(c, RG.leech));
+    if (RG.saw) part(c, 'r:saw', () => rigSaw(c, RG.saw, mini));
   }
   c.restore();
 }
@@ -383,23 +411,41 @@ export function drawBolt(s) {
   ctx.restore();
   if (s.seek && s.t % 2 === 0) spark(s.x - s.vx, s.y - s.vy, 0, 0, 8, '#a080ff');
 }
+/** WRAITH follower: a burning foetal skull trailing an umbilical of fire */
 export function drawWraith(x, y, i) {
   ctx.globalCompositeOperation = 'lighter';
-  glow(x, y, 11, '255,110,40', .55);
-  glow(x, y, 5, '255,210,150', .9);
-  ctx.globalCompositeOperation = 'source-over';
+  glow(x, y, 12, '255,110,40', .55);
+  glow(x, y, 5, '255,210,150', .8);
   const h = $.P.hist[Math.min((i + 1) * 13 + 5, $.P.hist.length - 1)];
   if (h) {
-    ctx.fillStyle = 'rgba(255,120,60,.25)';
+    ctx.strokeStyle = 'rgba(255,120,50,.45)';
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.arc(h.x, h.y, 3, 0, TAU);
-    ctx.fill();
+    ctx.moveTo(x - 3, y);
+    ctx.quadraticCurveTo((x + h.x) / 2, (y + h.y) / 2 + Math.sin($.T * .2 + i) * 3, h.x, h.y);
+    ctx.stroke();
   }
+  for (let k = 0; k < 3; k++) {
+    ctx.fillStyle = k ? 'rgba(255,170,60,.7)' : 'rgba(255,80,20,.7)';
+    const fy = y + (Math.random() - .5) * 3;
+    poly(ctx, [[x - 2, fy - 1.6], [x - 7 - Math.random() * 5, fy], [x - 2, fy + 1.6]]);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  // skull
+  ctx.fillStyle = '#e8d8b4';
+  ctx.beginPath();
+  ctx.ellipse(x, y - .6, 3.4, 3, 0, 0, TAU);
+  ctx.fill();
+  ctx.fillRect(x - .6, y + 1, 3, 2);
   ctx.fillStyle = '#2b0d05';
-  ctx.fillRect(x - 2, y - 1.5, 1.4, 1.6);
-  ctx.fillRect(x + .8, y - 1.5, 1.4, 1.6);
-  ctx.fillRect(x - .6, y + 1.2, 1.4, 1.4);
+  ctx.fillRect(x - .2, y - 1.8, 1.4, 1.6);
+  ctx.fillRect(x + 1.8, y - 1.8, 1.2, 1.6);
+  ctx.fillRect(x + 1, y + .6, .8, .8);
+  ctx.fillStyle = '#ff7a20';
+  ctx.fillRect(x + .3, y - 1.2, .5, .5);
+  ctx.fillRect(x + 2.2, y - 1.2, .5, .5);
+  ctx.fillStyle = '#2b0d05';
+  for (let k = 0; k < 3; k++) ctx.fillRect(x - .2 + k, y + 2.4, .4, .6);
   light(x, y, 30, .6);
 }
-
 // --- enemies ---
