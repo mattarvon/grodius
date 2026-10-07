@@ -14,6 +14,7 @@ import { pad } from '../menus';
 import { glow, light, poly, txt } from '../render/util';
 import { eye, flushLo } from '../render/eyes';
 import { drawBolt, drawShip, drawWraith } from '../render/ship';
+import { drawContraptionFX } from '../contraptions';
 import { drawEnemy } from '../render/enemies';
 import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
@@ -429,6 +430,7 @@ export function drawWorld() {
     });
     ctx.restore();
   }
+  drawContraptionFX();
   for (const s of shots) if (s.k === 'missile') {
     ctx.save();
     ctx.translate(s.x, s.y);

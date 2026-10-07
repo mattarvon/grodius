@@ -11,6 +11,7 @@ import { startStage } from './stages';
 import { biomeReset } from './biomes';
 import { perksReset } from './perks';
 import { caps } from './world';
+import { resetContraptions, rigFresh } from './contraptions';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
@@ -66,6 +67,7 @@ export function startLoop(L) {
   $.G.t = 0;
   buildTerrain(L);
   for (const a of ALL) a.length = 0;
+  resetContraptions();
   if (!$.P) resetPlayer(false);else {
     if (!$.P.alive) resetPlayer(true);
     $.P.x = 50;
@@ -106,7 +108,8 @@ export function resetPlayer(keepGuns) {
     mcd: 0,
     hist: [],
     alive: true,
-    bank: 0
+    bank: 0,
+    rig: rigFresh()
   };
 }
 /** BLACK BOX: on death your guns burst out as pods (full level each); fly through them to take them back */

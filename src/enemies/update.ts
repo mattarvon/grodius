@@ -11,6 +11,7 @@ import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { aimA, banner, eshoot, every, fan, mk, onScreen, ring } from '../enemies/spawn';
 import { countKill } from '../mutations';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
+import { onKillContraptions } from '../contraptions';
 
 // --- enemy behaviour ---
 export function updEnemy(e) {
@@ -513,6 +514,7 @@ export function killEnemy(e, dir = 1) {
     t: 0
   });
   countKill(e);
+  onKillContraptions(e);
   $.G.combo++;
   $.G.comboT = 120;
   $.G.kills++;
