@@ -798,7 +798,7 @@ export function sculptParts(c, sc) {
 }
 
 // ============================== CONTRAPTIONS ==============================
-const R0 = { saw: { spin: .25 }, gut: { charge: 0 }, leech: { fill: .5 }, spine: { cd: 0 }, hook: { phase: 0 }, furnace: { heat: .5 }, choir: { chg: .3 } };
+const R0 = { saw: { spin: .25 }, gut: { charge: 0 }, leech: { fill: .5 }, spine: { cd: 1 }, hook: { phase: 0 }, furnace: { heat: .5 }, choir: { chg: .3 } };
 const rs = (id) => ($.P && $.P.rig && $.P.rig[id]) || R0[id];
 let sawA = 0, sawT = 0, gutPrev = 0, gutRecT = -99;
 
@@ -1103,6 +1103,7 @@ export function rigHook(c, l, x, y, s) {
   c.fillStyle = BONE;
   ell(c, ax, ay, .9, .9);
   let hx = ax + 1 + Math.sin($.T * .05) * .6, hy = ay + 4;
+  if (h.st) return; // harpoon out in-game: contraptions.ts draws the live chain + hook to the target
   if (ph > 0 && h.tx != null) {
     const k = Math.sin(ph * Math.PI), lx = (h.tx - x) / s, ly = (h.ty - y) / s;
     hx = hx + (lx - hx) * k;
@@ -1144,9 +1145,9 @@ export function rigHook(c, l, x, y, s) {
   ell(c, 2.4, 4.6, .7, 1);
   c.restore();
 }
-/** SPINE LAUNCHER: dorsal rack of quills that re-grow as spine.cd (cooldown remaining) falls to 0 */
+/** SPINE LAUNCHER: dorsal rack of quills that re-grow as spine.cd (reload progress, 0 just fired .. 1 ready) rises */
 export function rigSpine(c, l) {
-  const cd = Math.max(0, Math.min(1, rs('spine').cd || 0)), n = 3 + l * 2, ext = 1 - cd;
+  const cd = Math.max(0, Math.min(1, rs('spine').cd ?? 1)), n = 3 + l * 2, ext = cd;
   c.fillStyle = '#2a2018';
   poly(c, [[-11, -6], [-1, -7.6], [-1, -6.2], [-11, -4.4]]);
   c.fillStyle = BONEM;

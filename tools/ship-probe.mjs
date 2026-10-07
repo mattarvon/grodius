@@ -26,7 +26,7 @@ await p.addInitScript(() => {
         g.P.x = window.__hold.x;
         g.P.y = window.__hold.y;
         g.P.inv = window.__hold.inv;
-        if (window.__hold.rig) g.P.rig = window.__hold.rig;
+        if (window.__hold.rig && g.P.rig) for (const k in window.__hold.rig) Object.assign(g.P.rig[k] ||= {}, window.__hold.rig[k]);
         g.G.pick = null;
       }
       q.splice(0).forEach((f) => f(now));
@@ -56,7 +56,6 @@ async function setup(cfg) {
     S.meta.lv.socket = 2;
     S.meta.lv.sculpt = cfg.sculpt || 0;
     window.__hold.rig = cfg.prig || null;
-    if (!cfg.prig) delete g.P.rig;
   }, cfg);
   await p.evaluate(() => { __tick(3); const g = __G(); g.gibs.length = 0; g.drops.length = 0; });
 }

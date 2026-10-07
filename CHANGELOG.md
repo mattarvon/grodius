@@ -4,6 +4,20 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ## 2026-10-07
 
+### The ship mutates, upgrades hit hard, contraptions
+- **Your ship grows with your build.** Every pod level, graft, contraption and most perks sprout their own part on the hull (bone nozzles, egg-sac missile clusters, twin horn barrels, eye stalks that track enemies, meat hooks, sawtooth fins, a lamprey maw, veins, pustules, a tapeworm...). Parts pop in with a flash, gore spray and a little shake. Overall power grows the hull itself through 4 tiers: TUG, ARMORED, BLOATED, ABOMINATION (about 3x the size at the top; hitbox unchanged), announced as "THE HULL MUTATES". When you die, the grown parts tear off as gibs.
+- **Upgrades actually matter now.** An audit found duds: SPLIT added +14%, grafts +10-15% per level (FLAYED EDGE gave half what it said), MISSILE II +14%. Now:
+  - SPLIT is a 3-way fan (2.4x base against crowds). MISSILE II fires a twin salvo, reloads faster and blasts wider.
+  - Grafts compound per level: CALIBER x1.22 and a bigger round, FLAYED EDGE x1.25, SWARM CADENCE x1.25 fire rate. GLUTTONY crits hit x3.
+  - WRAITH gunners deal half damage so the top end doesn't run away. Max loadout against crowds: 22x base before, 46x now.
+- **You can see and hear it.** Rounds turn gold then crimson and get longer and heavier as damage rises; muzzle flash, recoil and the shot sound grow with your power tier (bass thump, crack, sub). ARC is a forking beam with exit sparks, missiles are finned rockets with smoke trails and shockwave blasts. Heavy hits knock back and blow blood out the far side; crits pop "CRIT x3". Each pickup calls out what it did ("SPLIT: 3-WAY FAN").
+- **Contraptions.** The Infirmary now sells 7 bolt-on machines, each upgradable to level 3, each with real gameplay and visible on the hull:
+  - BONE SAW shreds small enemies you ram. GUT CANNON fires a piercing slug every few seconds. LEECH PUMP turns kills into WARD hits. SPINE LAUNCHER fires homing spine volleys. MEAT WINCH harpoons an enemy, rips it open and reels in pods. FURNACE BELLY: more speed and a burning slag trail. CHOIR OF MOUTHS screams at kill chains and wipes nearby enemy bullets.
+  - The first contraption is free and bolts on by itself. You start with 1 socket; buy a 2nd (400 bio) and 3rd (900).
+- **The Infirmary is rebuilt** as a shop with CONTRAPTIONS / SOCKETS / GRAFTS, a live preview of your ship with the parts animating, a socket diagram, and per-level effects. Works with keys, gamepad, mouse and touch. Old saves load fine.
+- HOLLOW HEART's text now mentions GLUTTONY's x3 crits.
+- Built with three parallel agents (ship form, weapon impact, contraptions + Infirmary); new probes in `tools/` (ship-probe, dps-probe, gun-shots, rig-probe, rig-fx, shop-probe).
+
 ### Start sound
 - Hitting DESCEND (or DESCEND DEEPER) on the title plays Lesley's "yeah baby" (recorded on RecForge II) instead of the select fart; the music ducks under it as the stage track fades in. Other title items still fart. Clip in `src/sfx/startgame/`; more takes there rotate at random.
 
