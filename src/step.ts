@@ -15,6 +15,7 @@ import { updateBoss } from './boss/update';
 import { updatePlayer } from './player';
 import { updateCaps, updateEShots, updateEnemies, updateShots } from './shots';
 import { decayFX, updateAmbient, updateCombo, updateFX } from './fx/update';
+import { stepContraptions } from './contraptions';
 import { menuNav, overItems, pauseItems, stepShop, titleItems } from './menus';
 
 // ---------------- main step ----------------
@@ -32,6 +33,7 @@ export function stepWorld() {
   if ($.state === 'play') {
     runScript();
     updatePlayer();
+    stepContraptions();
   }
   updateShots();
   updateEnemies();

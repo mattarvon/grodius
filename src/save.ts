@@ -12,6 +12,9 @@ $.meta = {
   bio: 0,
   lv: {},
   best: {},
+  rig: [],
+  own: [],
+  cl: {},
   v: 2
 };
 try {
@@ -24,6 +27,15 @@ try {
       }
     };
     $.meta.best = d.meta && d.meta.best || {};
+    // contraptions (added after v2): absent on old saves -> empty rig, nothing owned
+    {
+      const m = d.meta || {}, own = Array.isArray(m.own) ? m.own.filter(x => typeof x === 'string') : [];
+      $.meta.own = [...new Set(own)];
+      $.meta.rig = (Array.isArray(m.rig) ? [...new Set(m.rig)] : []).filter(x => own.includes(x));
+      $.meta.cl = {};
+      for (const id of own) $.meta.cl[id] = Math.max(1, Math.min(3, Math.floor(+(m.cl && m.cl[id]) || 1)));
+      if ($.meta.lv.socket) $.meta.lv.socket = Math.max(0, Math.min(2, $.meta.lv.socket | 0));
+    }
     $.meta.v = d.meta && d.meta.v || 1;
     if ($.meta.v < 2) {
       // v2 removed raw-power upgrades; give the biomass back

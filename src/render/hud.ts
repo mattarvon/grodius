@@ -15,6 +15,7 @@ import { glow, light, poly, txt } from '../render/util';
 import { eye, flushLo } from '../render/eyes';
 import { drawShip, drawWraith } from '../render/ship';
 import { drawShots } from '../render/bullets';
+import { drawContraptionFX } from '../contraptions';
 import { drawEnemy } from '../render/enemies';
 import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
@@ -378,6 +379,7 @@ export function drawWorld() {
     light(s.x, s.y, 16, .6);
   }
   drawShots();
+  drawContraptionFX();
   if ($.P && $.P.alive) {
     for (let i = 0; i < $.P.options; i++) {
       const o = optPos(i);
