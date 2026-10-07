@@ -13,7 +13,8 @@ import { SLOTS, needOf, optPos, slotLocked, slotMaxed } from '../player';
 import { pad } from '../menus';
 import { glow, light, poly, txt } from '../render/util';
 import { eye, flushLo } from '../render/eyes';
-import { drawBolt, drawShip, drawWraith } from '../render/ship';
+import { drawShip, drawWraith } from '../render/ship';
+import { drawShots } from '../render/bullets';
 import { drawEnemy } from '../render/enemies';
 import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
@@ -376,75 +377,13 @@ export function drawWorld() {
     if (LIGHTS.length >= 50) break;
     light(s.x, s.y, 16, .6);
   }
-  ctx.globalCompositeOperation = 'lighter';
-  for (const s of shots) {
-    if (s.k === 'laser') {
-      ctx.fillStyle = 'rgba(80,170,255,.45)';
-      ctx.fillRect(s.x, s.y - 2, s.len, 4);
-      ctx.fillStyle = '#e6f6ff';
-      ctx.fillRect(s.x, s.y - .5, s.len, 1.2);
-      if (LIGHTS.length < 50) light(s.x + s.len / 2, s.y, 26, .5);
-    } else if (s.k === 'missile') {
-      ctx.fillStyle = '#ffb347';
-      ctx.fillRect(s.x - 5, s.y - .5, 2, 1);
-    } else if (s.k === 'pyre') {
-      glow(s.x - 3, s.y, 15, '255,90,20', .55);
-      glow(s.x, s.y, 9, '255,200,120', .7);
-      light(s.x, s.y, 34, .9);
-    } else drawBolt(s);
-  }
-  for (const a of arcs) {
-    const k = a.l / 9;
-    ctx.strokeStyle = `rgba(255,90,70,${k})`;
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(a.x1, a.y1);
-    for (let j = 1; j < 6; j++) {
-      const f = j / 6;
-      ctx.lineTo(lerp(a.x1, a.x2, f) + rr(-3, 3), lerp(a.y1, a.y2, f) + rr(-3, 3));
-    }
-    ctx.lineTo(a.x2, a.y2);
-    ctx.stroke();
-    ctx.strokeStyle = `rgba(255,230,220,${k})`;
-    ctx.lineWidth = .5;
-    ctx.stroke();
-    light(a.x2, a.y2, 20, .6 * k);
-  }
-  ctx.globalCompositeOperation = 'source-over';
-  for (const s of shots) if (s.k === 'pyre') {
-    ctx.save();
-    ctx.translate(s.x, s.y);
-    ctx.fillStyle = 'rgba(255,120,30,.85)';
-    for (let k = 0; k < 3; k++) {
-      const fy = rr(-2.5, 2.5);
-      poly(ctx, [[-2, fy - 1.6], [-9 - rr(0, 5), fy], [-2, fy + 1.6]]);
-    }
-    eye(ctx, 0, 0, 3.6, {
-      ang: s.rot,
-      m: .9,
-      iris: '#ff3a10',
-      fire: 1,
-      bs: 2.4,
-      dil: .7
-    });
-    ctx.restore();
-  }
-  for (const s of shots) if (s.k === 'missile') {
-    ctx.save();
-    ctx.translate(s.x, s.y);
-    ctx.rotate(s.g ? 0 : Math.atan2(s.vy, s.vx));
-    ctx.fillStyle = '#8a96a3';
-    ctx.fillRect(-3, -1, 6, 2);
-    ctx.fillStyle = '#c0121b';
-    ctx.fillRect(2, -1, 1, 2);
-    ctx.restore();
-  }
+  drawShots();
   if ($.P && $.P.alive) {
     for (let i = 0; i < $.P.options; i++) {
       const o = optPos(i);
       drawWraith(o.x, o.y, i);
     }
-    if (!($.P.inv > 0 && ($.T >> 2) % 2)) drawShip(ctx, $.P.x, $.P.y, $.P.bank, 1, 1);
+    if (!($.P.inv > 0 && ($.T >> 2) % 2)) drawShip(ctx, $.P.x - ($.P.kick || 0), $.P.y, $.P.bank, 1, 1); // kick: gun recoil
     if ($.P.aegis > 0) {
       const k = $.P.aegis / 12;
       ctx.lineCap = 'round';

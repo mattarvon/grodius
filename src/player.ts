@@ -11,6 +11,7 @@ import { flash, pop, spark } from './fx/spawn';
 import { killPlayer, respawn } from './flow';
 import { POD, hurt } from './enemies/update';
 import { gmL, sporeBurst } from './mutations';
+import { gunTier, smoke } from './fx/gunfx';
 
 // ---------------- player ----------------
 export const SLOTS = ['THRUST', 'MISSILE', 'SPLIT', 'ARC', 'PYRE', 'WRAITH', 'WARD'];
@@ -86,11 +87,29 @@ export function applyPower(i, full) {
   $.G.slotF = $.G.slotF || [];
   $.G.slotF[i] = 40;
   sfx.power();
-  pop($.P.x, $.P.y - 14, i === 6 ? ['', 'MEMBRANE', 'MIRROR', 'BONE AEGIS'][$.P.wardLv] : SLOTS[i] + (i === 4 && $.P.pyre > 1 ? ' II' : ''), POD[i].h, 8, 50);
+  {
+    // POWER readout: say what just changed, in plain terms
+    const [s, d, short] = powerText(i);
+    pop($.P.x, $.P.y - 16, short, POD[i].h, 9, 60);
+    $.G.feed = { s, d, t: 150, ml: 150 };
+  }
   flash($.P.x, $.P.y, 40, 10, POD[i].c);
   for (let k = 0; k < 10; k++) {
     const a = k / 10 * TAU;
     spark($.P.x, $.P.y, Math.cos(a) * 2.4, Math.sin(a) * 2.4, 14, POD[i].h);
+  }
+}
+/** [feed title, feed detail, pop over the ship] for a pod level-up */
+export function powerText(i) {
+  const P = $.P;
+  switch (i) {
+    case 0: return ['THRUST ' + P.speed, `ship speed +${Math.round(P.speed * .42 / 1.25 * 100)}%`, 'THRUST ' + P.speed + ': FASTER'];
+    case 1: return P.missile > 1 ? ['MISSILE II // TWIN SALVO', 'up + down rockets, 40% faster reload, +20% blast', 'MISSILE II: TWIN SALVO'] : ['MISSILE // GROUND ROCKETS', 'splash rockets ride the floor', 'MISSILE: ROCKETS'];
+    case 2: return ['SPLIT // 3-WAY FAN', 'three rounds per shot, fanned wide', 'SPLIT: 3-WAY FAN'];
+    case 3: return ['ARC // PIERCING BEAM', 'x1.7 damage, burns through every body in line', 'ARC: PIERCING BEAM'];
+    case 4: return P.pyre > 1 ? ['PYRE II // EYE STORM', 'every gunner lobs, 50% faster', 'PYRE II: EYE STORM'] : ['PYRE // FLAMING EYES', 'lobbed eyes burst and set meat burning', 'PYRE: FIRE EYES'];
+    case 5: return ['WRAITH ' + P.options + ' // +1 GUNNER', `${P.options + 1} guns firing, +${50 * P.options}% damage`, `WRAITH: ${P.options + 1} GUNS`];
+    default: { const n = ['', 'MEMBRANE', 'MIRROR', 'BONE AEGIS'][P.wardLv]; return ['WARD // ' + n, ['', 'soaks 3 hits', 'soaks 3 hits, reflects bullets', 'soaks 3, reflects, bone shield ahead'][P.wardLv], n]; }
   }
 }
 export function optPos(i) {
@@ -121,11 +140,19 @@ export function playerHit() {
 }
 /** perk-side damage multiplier (SERRATED MARROW, GLASS JAW) */
 export const dmMul = () => (1 + .1 * pk('dmg')) * (pk('glass') ? 1.35 : 1);
+// ---- weapon numbers (tuned with tools/dps-probe.mjs: every pickup is a felt jump, not a rounding error) ----
+/** SPLIT fan: [angle (rad), damage share]. 3-way spread: the core plus two flankers that sweep the screen */
+const FAN = [[0, 1], [-.2, .8], [.2, .8]];
+/** WRAITH gunners hit at half weight: +50% / +33% / +25% per wraith instead of x2/x3/x4 (keeps the top end sane) */
+const WR = .5;
 export function fire() {
   const cal = gmL('cal'),
-    dm = (1 + .15 * gmL('serr')) * (1 + .1 * cal) * dmMul(),
-    rem = Math.max(-1, Math.min(0, $.P.cd)),
+    serr = gmL('serr'),
+    dm = 1.25 ** serr * 1.22 ** cal * dmMul(), // geometric: every graft level is a +22-25% step, not a shrinking one
+    rem = Math.max(-1, Math.min(0, $.P.cd || 0)),
     rp = gmL('rapid'),
+    tier = gunTier(),
+    rate = 1.25 ** rp * (1 + [0, .08, .15, .21][pk('rof')]),
     org = [{
       x: $.P.x,
       y: $.P.y
@@ -138,7 +165,9 @@ export function fire() {
     vx,
     vy,
     dmg: dm,
-    r: 2 + cal * .45,
+    r: 2 + cal * .8,
+    cal,
+    serr,
     pierce: gmL('pierce') + pk('pierce'),
     seek: gmL('seek'),
     rip: gmL('ripple'),
@@ -146,28 +175,35 @@ export function fire() {
     ...o
   });
   if ($.P.laser) {
-    $.P.cd = Math.max(7, 9 - rp);
-    for (const o of org) shots.push({
-      k: 'laser',
-      x: o.x + 8,
-      y: o.y,
-      vx: 8.5,
-      vy: 0,
-      len: 4,
-      dmg: 1.7 * dm,
-      hit: new Set(),
-      r: 2
-    });
-    sfx.laser();
-  } else {
-    $.P.cd = Math.max(5, 7 - rp);
-    for (const o of org) {
-      B(o.x + 10, o.y, 7.5, 0);
-      if ($.P.double) B(o.x + 6, o.y - 2, 5.3, -5.3, {
-        diag: 1
+    // ARC: fractional cooldown (remainder carries) so every rate step counts; hard floor so it can't hose
+    $.P.cd = Math.max(5, 9 / rate) + rem;
+    for (let j = 0; j < org.length; j++) {
+      const o = org[j];
+      shots.push({
+        k: 'laser',
+        x: o.x + 8,
+        y: o.y,
+        vx: 9,
+        vy: 0,
+        len: 6,
+        dmg: 1.7 * dm * (j ? WR : 1),
+        hit: new Set(),
+        r: 2,
+        w: 1 + Math.min(1.6, (dm - 1) * .8),
+        seed: R() * 99,
+        wr: j > 0
       });
     }
-    sfx.shot();
+    sfx.laser(tier);
+  } else {
+    $.P.cd = Math.max(3.5, 7 / rate) + rem;
+    for (let j = 0; j < org.length; j++) {
+      const o = org[j];
+      if ($.P.double) {
+        for (const [a, f] of FAN) B(o.x + 10, o.y, Math.cos(a) * 7.5, Math.sin(a) * 7.5, { dmg: dm * f * (j ? WR : 1), fan: 1, wr: j > 0 });
+      } else B(o.x + 10, o.y, 7.5, 0, { dmg: dm * (j ? WR : 1), wr: j > 0 });
+    }
+    sfx.shot(tier);
   }
   {
     const tl = gmL('tail');
@@ -188,51 +224,66 @@ export function fire() {
       }
     }
   }
-  // TWITCH GLAND: fractional cooldown (the remainder carries) so every level counts; hard floor so it can't hose
-  if (pk('rof')) $.P.cd = Math.max($.P.laser ? 6 : 4, $.P.cd / (1 + [0, .08, .15, .21][pk('rof')])) + rem;
-  flash($.P.x + 13, $.P.y, 9, 3, '190,225,255');
+  // muzzle: flash + recoil grow with how much gun you carry
+  {
+    const mz = 8 + tier * 3 + ($.P.laser ? 3 : 0),
+      mc = $.P.laser ? '140,200,255' : dm >= 1.8 ? '255,120,90' : dm >= 1.2 ? '255,210,140' : '190,225,255';
+    flash($.P.x + 13, $.P.y, mz, 3 + (tier > 2 ? 1 : 0), mc);
+    for (let j = 1; j < org.length; j++) flash(org[j].x + 6, org[j].y, mz * .6, 3, '255,150,90');
+    if ($.P.double) for (const [a] of FAN) if (a) spark($.P.x + 12, $.P.y, Math.cos(a) * 3.2, Math.sin(a) * 3.2, 4, '#ffd8ff');
+    $.P.kick = Math.min(3.2, ($.P.kick || 0) + .5 + tier * .3);
+  }
   if ($.P.missile && $.P.mcd <= 0) {
-    $.P.mcd = Math.round(34 * (1 - .2 * pk('reload')));
-    for (const o of org) {
+    const m2 = $.P.missile > 1;
+    $.P.mcd = Math.round((m2 ? 24 : 34) * (1 - .2 * pk('reload')));
+    for (let j = 0; j < org.length; j++) {
+      const o = org[j], w = j ? WR : 1;
       shots.push({
         k: 'missile',
         x: o.x,
         y: o.y + 3,
-        vx: 1.5,
-        vy: 2.2,
-        dmg: 3 * dm,
-        r: 3,
+        vx: 2.4,
+        vy: 2.4,
+        dmg: (m2 ? 3.6 : 3) * dm * w,
+        r: 3.5,
         dir: 1,
-        g: 0
+        g: 0,
+        lv: $.P.missile
       });
-      if ($.P.missile > 1) shots.push({
+      if (m2) shots.push({
         k: 'missile',
         x: o.x,
         y: o.y - 3,
-        vx: 1.5,
-        vy: -2.2,
-        dmg: 3 * dm,
-        r: 3,
+        vx: 2.4,
+        vy: -2.4,
+        dmg: 3.6 * dm * w,
+        r: 3.5,
         dir: -1,
-        g: 0
+        g: 0,
+        lv: 2
       });
+      smoke(o.x - 2, o.y + 3, 2.5, 22, -.8, .3);
     }
-    sfx.missile();
+    sfx.missile($.P.missile);
+    $.G.shake = Math.min(6, $.G.shake + .5);
   }
   if ($.P.pyre && $.P.pcd <= 0) {
-    $.P.pcd = Math.round(($.P.pyre > 1 ? 20 : 30) * (1 - .2 * pk('reload')));
-    const src = $.P.pyre > 1 ? org : [org[0]];
-    for (const o of src) shots.push({
+    const p2 = $.P.pyre > 1;
+    $.P.pcd = Math.round((p2 ? 20 : 30) * (1 - .2 * pk('reload')));
+    const src = p2 ? org : [org[0]];
+    for (let j = 0; j < src.length; j++) shots.push({
       k: 'pyre',
-      x: o.x + 8,
-      y: o.y,
+      x: src[j].x + 8,
+      y: src[j].y,
       vx: 4.4,
       vy: -1.1,
-      dmg: 5 * dm,
-      r: 4,
+      dmg: 5 * dm * (j ? WR : 1),
+      r: p2 ? 5 : 4,
+      lv: $.P.pyre,
       rot: R() * TAU
     });
-    sfx.fireball();
+    flash($.P.x + 12, $.P.y, 22, 6, '255,140,40');
+    sfx.fireball($.P.pyre);
   }
 }
 export function updatePlayer() {

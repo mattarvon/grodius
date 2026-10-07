@@ -12,6 +12,7 @@ import { bossHitByShot } from './boss/update';
 import { chainArc, critMul, gmL, graftTake } from './mutations';
 import { applyPower, playerHit, slotMaxed } from './player';
 import { light } from './render/util';
+import { impact, ring, smoke, stepGunFX } from './fx/gunfx';
 
 // ---------------- shots / collisions ----------------
 export function hitShot(s, cx, cy, r) {
@@ -22,22 +23,34 @@ export function hitShot(s, cx, cy, r) {
   }
   return dist2(s.x, s.y, cx, cy) < (r + s.r) * (r + s.r);
 }
-export function boom(x, y, d = 0) {
+/** missile blast. rad grows with MISSILE II; big blasts ring out and smoke */
+export function boom(x, y, d = 0, rad = 24) {
   if (d) for (const e of enemies) {
     if (e.dead) continue;
     const ey = e.k === 'eye' ? e.y - e.o * 9 : e.k === 'cross' ? e.y + e.o * 12 : e.y;
-    if (dist2(x, y, e.x, ey) < (24 + e.r) ** 2) hurt(e, d, e.x, ey, 1);
+    if (dist2(x, y, e.x, ey) < (rad + e.r) ** 2) {
+      hurt(e, d, e.x, ey, 1);
+      if (!e.dead && !e.big && !e.mini) { const a = Math.atan2(ey - y, e.x - x); e.x += Math.cos(a) * 3; e.y += Math.sin(a) * 3; }
+    }
   }
-  flash(x, y, 30, 9, '255,150,60');
-  for (let i = 0; i < 18; i++) spark(x, y, rr(-2.5, 2.5), rr(-2.5, 1), ri(8, 20), pick(FIRE));
-  for (let i = 0; i < 10; i++) drop(x, y, rr(-2, 2), rr(-2.5, .5), 1, 5, 40);
-  if ($.G) $.G.shake += 1.2;
+  const k = rad / 24;
+  flash(x, y, 34 * k, 9, '255,150,60');
+  flash(x, y, 14 * k, 5, '255,245,220');
+  ring(x, y, 4, rad + 10, 12, '255,170,90', 2.5 * k);
+  for (let i = 0; i < 22 * k; i++) { const a = R() * TAU, sp = rr(.6, 3.2) * k; spark(x, y, Math.cos(a) * sp, Math.sin(a) * sp - .6, ri(8, 22), pick(FIRE)); }
+  for (let i = 0; i < 16 * k; i++) drop(x, y, rr(-2.4, 2.4), rr(-3, .3), rr(1, 1.6), R() < .5 ? 5 : 0, ri(40, 80));
+  for (let i = 0; i < 3 + 2 * k; i++) smoke(x + rr(-6, 6), y + rr(-6, 4), rr(3, 5) * k, ri(30, 50), rr(-.6, .2), rr(-.5, -.1), 1);
+  light(x, y, 60 * k, .9);
+  if ($.G) $.G.shake = Math.min(10, $.G.shake + 1.2 * k);
   sfx.bomb();
 }
-export function pyreBoom(x, y, d) {
+export function pyreBoom(x, y, d, lv = 1) {
+  const R0 = lv > 1 ? 38 : 30;
+  ring(x, y, 6, R0 + 14, 14, '255,120,40', 3);
+  for (let i = 0; i < 4; i++) smoke(x + rr(-8, 8), y + rr(-8, 4), rr(4, 7), ri(36, 60), rr(-.5, .2), rr(-.6, -.2), 1);
   if (d) for (const e of enemies) {
     if (e.dead) continue;
-    const r = 30 + e.r,
+    const r = R0 + e.r,
       dd = dist2(x, y, e.x, e.y);
     if (dd < r * r) {
       hurt(e, d * (dd < (12 + e.r) ** 2 ? 1 : .6), e.x, e.y, 1);
@@ -69,6 +82,7 @@ export function pyreBoom(x, y, d) {
   sfx.pyre();
 }
 export function updateShots() {
+  stepGunFX();
   for (let i = shots.length - 1; i >= 0; i--) {
     const s = shots[i];
     let dead = false;
@@ -90,14 +104,16 @@ export function updateShots() {
         const nx = s.x + 3.2,
           ns = s.dir > 0 ? floorAt(nx + $.G.scroll) : ceilAt(nx + $.G.scroll);
         if (Math.abs(ns - (s.y + s.dir * 3)) > 7) {
-          boom(s.x, s.y);
+          boom(s.x, s.y, 0, s.lv > 1 ? 30 : 24);
           dead = true;
         } else {
           s.x = nx;
           s.y = ns - s.dir * 3;
         }
       }
-      if ($.G.t % 2 === 0) spark(s.x - 3, s.y, -.5, rr(-.2, .2), 10, '#6b7480');
+      // fat smoke trail + exhaust sparks
+      if ($.G.t % 2 === 0) smoke(s.x - 5, s.y + rr(-.6, .6), s.lv > 1 ? 2.2 : 1.7, ri(18, 30), rr(-.5, -.1), rr(-.15, .1));
+      spark(s.x - 5, s.y, -rr(.6, 1.6), rr(-.3, .3), ri(3, 6), R() < .5 ? '#ffe2a0' : '#ff6a1a');
     } else if (s.k === 'pyre') {
       s.vy += .035;
       s.x += s.vx;
@@ -140,8 +156,8 @@ export function updateShots() {
         wx = tx + $.G.scroll;
       if (s.y >= floorAt(wx) || s.y <= ceilAt(wx)) {
         for (let k = 0; k < 4; k++) spark(tx, s.y, rr(-2, 0), rr(-1.5, 1.5), ri(5, 10), '#cfe6ff');
-        if (s.k === 'missile') boom(s.x, s.y, s.dmg * .8);
-        if (s.k === 'pyre') pyreBoom(s.x, s.y, s.dmg);
+        if (s.k === 'missile') boom(s.x, s.y, s.dmg * .8, s.lv > 1 ? 30 : 24);
+        if (s.k === 'pyre') pyreBoom(s.x, s.y, s.dmg, s.lv);
         dead = true;
       }
     }
@@ -153,23 +169,27 @@ export function updateShots() {
         if (!hit && e.k === 'cross') hit = hitShot(s, e.x, e.y + e.o * 14, 9);
         if (!hit) continue;
         if (s.k === 'pyre') {
-          pyreBoom(s.x, s.y, s.dmg);
+          pyreBoom(s.x, s.y, s.dmg, s.lv);
           dead = true;
           break;
         }
         if (s.k === 'laser') {
           if (s.hit.has(e)) continue;
           s.hit.add(e);
-          const d = s.dmg * critMul(e.x, e.y);
+          const cm = critMul(e.x, e.y), d = s.dmg * cm;
           hurt(e, d, e.x - e.r * .5, s.y, 1);
+          impact(e, d, e.x - e.r * .5, s.y, 1, cm, '140,200,255');
+          // the beam visibly exits the far side
+          for (let k = 0; k < 4; k++) spark(e.x + e.r, s.y + rr(-1.5, 1.5), rr(2, 4.5), rr(-.8, .8), ri(5, 9), k & 1 ? '#e6f6ff' : '#7fc4ff');
           onHitPerks(e);
           chainArc(e, d);
           continue;
         }
         if (s.k === 'bolt') {
           if (s.hit && s.hit.has(e)) continue;
-          const d = s.dmg * critMul(e.x, e.y);
-          hurt(e, d, s.x, s.y, s.vx < 0 ? -1 : 1);
+          const cm = s.spore || s.mirror || s.rib ? 1 : critMul(e.x, e.y), d = s.dmg * cm, dr = s.vx < 0 ? -1 : 1;
+          hurt(e, d, s.x, s.y, dr);
+          impact(e, d, s.x, s.y, dr, cm, s.serr ? '255,90,80' : s.dmg >= 1.8 ? '255,120,90' : s.dmg >= 1.2 ? '255,210,140' : '170,215,255');
           onHitPerks(e);
           if (!s.spore && !s.mirror) chainArc(e, d);
           if (s.pierce > 0) {
@@ -182,12 +202,13 @@ export function updateShots() {
           break;
         }
         hurt(e, s.dmg, s.x, s.y, 1);
-        if (s.k === 'missile') boom(s.x, s.y, s.dmg * .8);
+        impact(e, s.dmg, s.x, s.y, 1, 1, '255,170,90');
+        if (s.k === 'missile') boom(s.x, s.y, s.dmg * .8, s.lv > 1 ? 30 : 24);
         dead = true;
         break;
       }
       if (!dead && $.G.boss && bossHitByShot(s) && s.k !== 'laser') {
-        if (s.k === 'pyre') pyreBoom(s.x, s.y, 0);else if (s.k === 'missile') boom(s.x, s.y, 0);
+        if (s.k === 'pyre') pyreBoom(s.x, s.y, 0, s.lv);else if (s.k === 'missile') boom(s.x, s.y, 0, s.lv > 1 ? 30 : 24);
         dead = true;
       }
     }

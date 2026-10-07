@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
+import { boltDraw } from './bullets';
 import { TAU, ctx, dist2 } from '../core';
 import { lv } from '../save';
 import { enemies } from '../world';
@@ -348,40 +349,9 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
   }
   c.restore();
 }
+/** player round: drawing lives in render/bullets.ts (scales with damage/caliber/graft) */
 export function drawBolt(s) {
-  const cal = gmL('cal'),
-    L = 8 + cal * 2.5,
-    th = 3 + cal * .7,
-    a = Math.atan2(s.vy, s.vx);
-  if (s.rip) {
-    ctx.save();
-    ctx.translate(s.x, s.y);
-    ctx.rotate(a);
-    ctx.strokeStyle = 'rgba(255,140,170,.85)';
-    ctx.lineWidth = 1.3;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, Math.max(1, s.r * .35), s.r, 0, 0, TAU);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,240,245,.9)';
-    ctx.lineWidth = .5;
-    ctx.stroke();
-    ctx.restore();
-    return;
-  }
-  const col = s.mirror ? '200,215,235' : s.spore ? '255,170,200' : gmL('serr') ? '255,90,90' : s.seek ? '190,130,255' : s.pierce ? '240,226,192' : '120,190,255';
-  ctx.save();
-  ctx.translate(s.x, s.y);
-  ctx.rotate(a);
-  ctx.fillStyle = `rgba(${col},.6)`;
-  ctx.fillRect(-L / 2, -th / 2, L, th);
-  ctx.fillStyle = '#fff6f0';
-  ctx.fillRect(-L / 2 + 1, -.5, L - 2, 1);
-  if (s.pierce) {
-    ctx.fillStyle = '#f0e2c0';
-    poly(ctx, [[L / 2, -th / 2], [L / 2 + 3, 0], [L / 2, th / 2]]);
-  }
-  ctx.restore();
-  if (s.seek && s.t % 2 === 0) spark(s.x - s.vx, s.y - s.vy, 0, 0, 8, '#a080ff');
+  boltDraw(s);
 }
 export function drawWraith(x, y, i) {
   ctx.globalCompositeOperation = 'lighter';

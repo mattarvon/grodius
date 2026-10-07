@@ -193,37 +193,40 @@ export function nz(o) {
   s.stop(t + a + dur + .05);
 }
 export const sfx = {
-  shot() {
+  /** player gun. t = power tier 0..4: each tier drops the pitch and stacks a heavier layer (body, thump, crack, sub) */
+  shot(t = 0) {
     if (thr('s', 55)) return;
-    tone({
-      f: 1250,
-      f2: 420,
-      dur: .05,
-      vol: .03,
-      wet: .04
-    });
+    const p = [1, .8, .64, .52, .44][t];
+    tone({ f: 1250 * p, f2: 420 * p, dur: .05 + t * .006, vol: .03 + t * .004, wet: .04 });
+    if (t >= 1) tone({ type: 'triangle', f: 420 * p, f2: 140 * p, dur: .06, vol: .035 });
+    if (t >= 2) tone({ type: 'sine', f: 150, f2: 46, dur: .07, vol: .07 + t * .01, wet: 0 });
+    if (t >= 3) nz({ f: 2600, f2: 700, dur: .04, vol: .05, ft: 'bandpass', q: 2, wet: .05 });
+    if (t >= 4) tone({ type: 'sawtooth', f: 95, f2: 34, dur: .09, vol: .06, lp: 420, wet: 0 });
   },
-  laser() {
+  laser(t = 0) {
     if (thr('l', 75)) return;
     tone({
       type: 'sawtooth',
-      f: 2300,
-      f2: 240,
+      f: 2300 - t * 250,
+      f2: 240 - t * 30,
       dur: .15,
       vol: .04,
       lp: 5200
     });
+    nz({ f: 5200, f2: 2400, dur: .07, vol: .035 + t * .006, ft: 'highpass', q: 1, wet: .05 }); // crackle
+    if (t >= 2) tone({ type: 'sine', f: 130, f2: 48, dur: .08, vol: .06 + t * .01, wet: 0 });
   },
-  missile() {
+  missile(lv = 1) {
     if (thr('m', 120)) return;
     nz({
       f: 1500,
       f2: 300,
-      dur: .2,
-      vol: .06,
+      dur: .2 + lv * .04,
+      vol: .06 + lv * .02,
       ft: 'bandpass',
       q: 2
     });
+    tone({ type: 'sine', f: 120, f2: 38, dur: .12, vol: .09 + lv * .03, wet: 0 }); // launch thump
   },
   hit() {
     if (thr('h', 38)) return;
@@ -523,6 +526,17 @@ export const sfx = {
       wet: .9
     });
   },
+  /** extra weight on top of hit() for big rounds (own throttle so it never gets swallowed by the light hit) */
+  hitHeavy(d) {
+    if (thr('hh', 70)) return;
+    tone({ type: 'sine', f: 120, f2: 34, dur: .1 + Math.min(.1, d * .01), vol: Math.min(.2, .07 + d * .015), wet: .1 });
+    if (d >= 5 && !thr('hhs', 140)) sample('thud', { vol: Math.min(.8, .3 + d * .04), rate: .8, wet: .15 });
+  },
+  crit() {
+    if (thr('cr', 90)) return;
+    tone({ type: 'square', f: 2600, f2: 1300, dur: .05, vol: .05, wet: .2 });
+    if (!sample('bone', { vol: .55, rate: 1.1, wet: .2 })) nz({ f: 3000, f2: 500, dur: .08, vol: .14, ft: 'bandpass', q: 3 });
+  },
   pyre() {
     if (thr('py', 50)) return;
     nz({
@@ -557,16 +571,17 @@ export const sfx = {
       q: 3
     });
   },
-  fireball() {
+  fireball(lv = 1) {
     if (thr('fb', 110)) return;
     nz({
       f: 600,
       f2: 2400,
       dur: .2,
-      vol: .08,
+      vol: .08 + lv * .02,
       ft: 'bandpass',
       q: 2
     });
+    tone({ type: 'sine', f: 90, f2: 40, dur: .14, vol: .07 + lv * .03, wet: .1 }); // throat-gulp
   },
   lash() {
     nz({

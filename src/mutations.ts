@@ -15,7 +15,8 @@ export const GM = [{
   w: 'DRONES',
   n: [36, 150],
   name: 'SWARM CADENCE',
-  d: 'faster fire'
+  d: 'faster fire',
+  dl: l => `+${[0, 25, 56][l]}% fire rate`
 }, {
   id: 'pierce',
   c: 'NDL',
@@ -23,7 +24,8 @@ export const GM = [{
   w: 'CORPSES',
   n: [15, 48],
   name: 'BONE NEEDLES',
-  d: 'shots pierce'
+  d: 'shots pierce',
+  dl: l => `rounds punch through ${l} more`
 }, {
   id: 'seek',
   c: 'LCK',
@@ -31,7 +33,8 @@ export const GM = [{
   w: 'EYES',
   n: [18, 60],
   name: 'OPTIC LOCK',
-  d: 'shots home in'
+  d: 'shots home in',
+  dl: l => l > 1 ? 'rounds hunt hard' : 'rounds bend toward meat'
 }, {
   id: 'tail',
   c: 'MDB',
@@ -39,7 +42,8 @@ export const GM = [{
   w: 'CRAWLERS',
   n: [15, 54],
   name: 'REAR MANDIBLE',
-  d: 'tail guns'
+  d: 'tail guns',
+  dl: l => l > 1 ? '3 rear guns' : '1 rear gun'
 }, {
   id: 'ripple',
   c: 'RPL',
@@ -47,7 +51,8 @@ export const GM = [{
   w: 'CROSSES',
   n: [12, 42],
   name: 'HALO RIPPLE',
-  d: 'shots widen into rings'
+  d: 'shots widen into rings',
+  dl: l => `rounds swell to ${l > 1 ? 'huge' : 'wide'} rings`
 }, {
   id: 'chain',
   c: 'ARC',
@@ -55,7 +60,8 @@ export const GM = [{
   w: 'HOOKS',
   n: [9, 27],
   name: 'MEATHOOK ARC',
-  d: 'hits arc to more targets'
+  d: 'hits arc to more targets',
+  dl: l => `hits jump to ${l} more`
 }, {
   id: 'serr',
   c: 'EDG',
@@ -63,7 +69,8 @@ export const GM = [{
   w: 'FLAYERS',
   n: [9, 30],
   name: 'FLAYED EDGE',
-  d: '+30% damage'
+  d: '+25% damage',
+  dl: l => `+${[0, 25, 56][l]}% damage, barbed rounds`
 }, {
   id: 'over',
   c: 'GLT',
@@ -71,7 +78,8 @@ export const GM = [{
   w: 'MAWS',
   n: [2, 4],
   name: 'GLUTTONY',
-  d: 'critical hits'
+  d: 'crits hit x3',
+  dl: l => `${[0, 15, 30][l]}% crits for x3`
 }, {
   id: 'cal',
   c: 'CAL',
@@ -79,7 +87,8 @@ export const GM = [{
   w: 'KILLS',
   n: [120, 400, 800],
   name: 'CALIBER',
-  d: 'bigger, harder rounds'
+  d: 'bigger, harder rounds',
+  dl: l => `+${[0, 22, 49, 82][l]}% damage, fatter rounds`
 }, {
   id: 'regrow',
   c: 'RGR',
@@ -164,22 +173,20 @@ export function graftTake(id) {
   $.G.gorder.push(id);
   $.G.feed = {
     s: (m.sh ? 'SHIELD' : 'GUN') + ' GRAFT // ' + m.name + ' ' + ROM[l + 1],
-    d: m.d,
+    d: m.dl ? m.dl(l + 1) : m.d,
     t: 170,
     ml: 170
   };
   sfx.power();
   setTimeout(() => sfx.pick(), 120);
   pop($.P.x, $.P.y - 18, m.name + ' ' + ROM[l + 1], m.sh ? '#9fd2ff' : '#ffb070', 8, 70);
+  if (m.dl) pop($.P.x, $.P.y - 8, m.dl(l + 1).split(',')[0].toUpperCase(), '#ffe6c8', 7, 70);
   flash($.P.x, $.P.y, 46, 12, m.sh ? '120,180,255' : '255,150,60');
 }
 export function critMul(x, y) {
-  const o = gmL('over'), pc = Math.min(.35, [0, .1, .18][o] + .07 * pk('crit')); // OVERCLOCK graft + HOLLOW HEART, capped
-  if (pc && R() < pc) {
-    pop(x, y - 6, 'CRIT', '#ffd23a', 8, 24);
-    for (let k = 0; k < 6; k++) spark(x, y, rr(-2, 2), rr(-2, 2), 8, '#ffd23a');
-    return 2;
-  }
+  // GLUTTONY graft + HOLLOW HEART, capped. GLUTTONY crits hit x3 (perk-only crits x2). Pops/gore: fx/gunfx impact()
+  const o = gmL('over'), pc = Math.min(.42, [0, .15, .3][o] + .07 * pk('crit'));
+  if (pc && R() < pc) return o ? 3 : 2;
   return 1;
 }
 export function chainArc(e, d) {
