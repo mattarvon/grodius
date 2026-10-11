@@ -616,6 +616,8 @@ export const POD = [{
   h: '#d8e4f0',
   w: .9
 }];
+/** pod type id for a generic POWER capsule (meter mode): moves the cursor instead of naming an upgrade */
+export const METER_CAP = -3;
 export function podType() {
   if (!$.P) return ri(0, 6);
   const ok = [];
@@ -662,7 +664,7 @@ export function dropCap(x, y) {
     y,
     t: R() * 100,
     blue,
-    ty: blue ? -1 : podType()
+    ty: blue ? -1 : SET.meter ? METER_CAP : podType()
   });
 }
 

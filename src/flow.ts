@@ -161,6 +161,7 @@ export function killPlayer() {
   $.G.comboT = 0;
   $.G.cMile = 0;
   $.G.meter = -1;
+  $.G.cur = -1; // classic: the power cursor resets when you die
   {
     let w = 0;
     for (const k in $.G.gm) if ($.G.gm[k] > 0) {

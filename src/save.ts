@@ -5,7 +5,8 @@ import { $ } from './state';
 export const SET = {
   flashes: true,
   muted: false,
-  music: true
+  music: true,
+  meter: false // POWER: false = typed pods (grab to pick), true = classic Gradius meter (capsules move a cursor, POWER buys)
 };
 $.hi = 0;
 $.meta = {
@@ -55,6 +56,7 @@ try {
     SET.flashes = d.flashes !== false;
     SET.muted = !!d.muted;
     SET.music = d.music !== false;
+    SET.meter = !!d.meter;
   }
 } catch (e) {}
 export function save() {
@@ -64,7 +66,8 @@ export function save() {
       hi: $.hi,
       flashes: SET.flashes,
       muted: SET.muted,
-      music: SET.music
+      music: SET.music,
+      meter: SET.meter
     }));
   } catch (e) {}
 }

@@ -5,9 +5,11 @@ import { pk, xpNeed, perkName, perkDesc, perkReq, perkCost, perkMax, perkFX, per
 import { stageInfo, stageLabel } from '../stages';
 import { sfx } from '../audio';
 import { WARD_MAX } from '../player';
-import { BOSS_AT, C, FONT_D, FONT_H, H, PH, R, TAU, W, clamp, ctx, lerp, rr } from '../core';
+import { BOSS_AT, C, FONT_D, FONT_H, H, PH, R, TAU, W, clamp, ctx, lerp, pwBtn, rr } from '../core';
+import { SET } from '../save';
+import { touch } from '../input';
 import { AMT, LIGHTS, arcs, caps, enemies, eshots, flashes, orbs, shots, sparks, texts } from '../world';
-import { POD, mult } from '../enemies/update';
+import { METER_CAP, POD, mult } from '../enemies/update';
 import { GM, ROM, gmL, graftSwap } from '../mutations';
 import { SLOTS, needOf, optPos, slotLocked, slotMaxed } from '../player';
 import { pad } from '../menus';
@@ -22,12 +24,15 @@ import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
 import { drawBG, drawDecor, drawLighting, drawTerrain } from '../render/terrain';
 import { drawBabe, drawHype } from '../render/hype';
 
+/** generic POWER capsule (meter mode): classic Gradius orange */
+const GEN_CAP = { c: '255,110,30', h: '#ff7a1a' };
 // --- HUD ---
 export function drawHUD() {
   ctx.fillStyle = '#050608';
   ctx.fillRect(0, PH, W, H - PH);
   ctx.fillStyle = '#262e37';
   ctx.fillRect(0, PH, W, 1);
+  { const hide = !(SET.meter && touch.used && $.state === 'play'); if (pwBtn.hidden !== hide) pwBtn.hidden = hide; } // touch POWER button, meter mode only
   for (let i = 0; i < 7; i++) {
     const x = 4 + i * 46,
       y = PH + 3,
@@ -36,11 +41,18 @@ export function drawHUD() {
       f = $.G.slotF && $.G.slotF[i] > 0 ? $.G.slotF[i]-- : 0;
     const lvN = $.P ? [$.P.speed, $.P.missile, $.P.double, $.P.laser, $.P.pyre, $.P.options, $.P.wardLv || 0][i] : 0,
       mxN = [5, 2, 1, 1, 2, 3, 3][i];
+    const cur = SET.meter && $.G.cur === i;
+    // power meter cursor: the lit slot is what POWER buys (classic Gradius orange; grey if that slot is maxed/sealed)
+    if (cur) {
+      const mx = $.P && slotMaxed(i), pul = .75 + .25 * Math.sin($.T * .25);
+      ctx.fillStyle = mx ? 'rgba(90,100,112,.7)' : `rgba(255,110,30,${pul})`;
+      ctx.fillRect(x, y, w, h);
+    }
     if (f) {
       ctx.fillStyle = `rgba(${POD[i].c},${f / 60})`;
       ctx.fillRect(x, y, w, h);
     }
-    if ($.P && !slotMaxed(i)) {
+    if ($.P && !slotMaxed(i) && !SET.meter) {
       const fr = $.P.frag && $.P.frag[i] || 0,
         nd = needOf(i);
       if (fr) {
@@ -57,10 +69,10 @@ export function drawHUD() {
       ctx.arc(x + w - 4.5, y + 3, 1.6, Math.PI, TAU);
       ctx.stroke();
     }
-    ctx.strokeStyle = lvN ? POD[i].h : '#2a323b';
+    ctx.strokeStyle = cur ? '#ffe2a0' : lvN ? POD[i].h : '#2a323b';
     ctx.lineWidth = 1;
     ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
-    txt(SLOTS[i], x + w / 2, y + 1, f ? '#fff' : lvN ? POD[i].h : '#4b5663', 'center', 7);
+    txt(SLOTS[i], x + w / 2, y + 1, f || cur ? '#fff' : lvN ? POD[i].h : '#4b5663', 'center', 7);
     for (let k = 0; k < mxN; k++) {
       ctx.fillStyle = k < lvN ? POD[i].h : '#1c232a';
       ctx.fillRect(x + w / 2 - mxN * 2.5 + k * 5 + 1, y + h - 2.5, 3, 1.5);
@@ -341,7 +353,8 @@ export function drawWorld() {
     const bl = c.blue,
       x = c.x,
       y = c.y,
-      pd = bl ? null : POD[c.ty] || POD[0],
+      gen = c.ty === METER_CAP,
+      pd = bl ? null : gen ? GEN_CAP : POD[c.ty] || POD[0],
       col = bl ? '60,140,255' : pd.c,
       hx = bl ? '#2a6cff' : pd.h,
       pul = .5 + .5 * Math.sin(c.t * .2);
@@ -365,7 +378,7 @@ export function drawWorld() {
     ctx.fillStyle = '#fff';
     ctx.fillRect(x - 3, y - 2, 2, 1);
     {
-      let lb = bl ? 'PURGE' : SLOTS[c.ty] || '?';
+      let lb = bl ? 'PURGE' : gen ? 'POWER' : SLOTS[c.ty] || '?';
       if (!bl && !c.choice && $.P && c.ty >= 0 && !slotMaxed(c.ty)) {
         const nd = needOf(c.ty);
         if (nd > 1) lb += ' ' + ($.P.frag && $.P.frag[c.ty] || 0) + '/' + nd;

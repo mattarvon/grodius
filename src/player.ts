@@ -2,7 +2,7 @@
 import { $ } from './state';
 import { pk, perkTick, lastGasp, ribShards } from './perks';
 import { PH, R, TAU, W, clamp, lerp, ri, rr } from './core';
-import { lv } from './save';
+import { SET, lv } from './save';
 import { sfx } from './audio';
 import { buzz } from './platform';
 import { I, touch } from './input';
@@ -98,6 +98,27 @@ export function applyPower(i, full) {
     const a = k / 10 * TAU;
     spark($.P.x, $.P.y, Math.cos(a) * 2.4, Math.sin(a) * 2.4, 14, POD[i].h);
   }
+}
+// ---- classic Gradius meter (SET.meter): each POWER capsule moves the cursor one slot, POWER buys a full level ----
+export function meterAdvance() {
+  const G = $.G;
+  G.cur = ((G.cur ?? -1) + 1) % SLOTS.length;
+  G.slotF = G.slotF || [];
+  G.slotF[G.cur] = 14;
+  sfx.pick();
+  const i = G.cur;
+  pop($.P.x, $.P.y - 14, slotMaxed(i) ? SLOTS[i] + (slotLocked(i) ? ' SEALED' : ' MAX') : '> ' + SLOTS[i], slotMaxed(i) ? '#6d7a88' : POD[i].h, 8, 36);
+}
+export function meterBuy() {
+  const G = $.G, i = G.cur;
+  if (i == null || i < 0) return;
+  if (slotMaxed(i)) {
+    sfx.deny();
+    pop($.P.x, $.P.y - 14, slotLocked(i) ? 'SEALED' : 'MAXED', '#8a5a5a', 8, 36);
+    return;
+  }
+  G.cur = -1;
+  applyPower(i, true);
 }
 /** [feed title, feed detail, pop over the ship] for a pod level-up */
 export function powerText(i) {
@@ -341,6 +362,7 @@ export function updatePlayer() {
   $.P.mcd--;
   $.P.pcd--;
   if (I.fire && $.P.cd <= 0) fire();
+  if (SET.meter && I.power) meterBuy();
   spark($.P.x - 13, $.P.y + rr(-1, 1), -rr(1, 2.6), rr(-.2, .2), ri(6, 12), R() < .5 ? '#ffd0a0' : '#ff5a20');
   if ($.P.inv <= 0) for (const [ox, oy] of [[12, 0], [-9, -4], [-9, 4], [0, -4], [0, 4]]) {
     const wx = $.P.x + ox + $.G.scroll,

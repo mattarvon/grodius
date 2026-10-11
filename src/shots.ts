@@ -7,10 +7,10 @@ import { sfx } from './audio';
 import { caps, ceilAt, enemies, eshots, floorAt, shots } from './world';
 import { addDecal, drop, flash, gib, gore, mist, pop, spark, splat } from './fx/spawn';
 import { banner, wrapA } from './enemies/spawn';
-import { hurt, killEnemy, podType, updEnemy } from './enemies/update';
+import { METER_CAP, hurt, killEnemy, podType, updEnemy } from './enemies/update';
 import { bossHitByShot } from './boss/update';
 import { chainArc, critMul, gmL, graftTake } from './mutations';
-import { applyPower, playerHit, slotMaxed } from './player';
+import { applyPower, meterAdvance, playerHit, slotMaxed } from './player';
 import { light } from './render/util';
 import { impact, ring, smoke, stepGunFX } from './fx/gunfx';
 
@@ -347,7 +347,7 @@ export function updateCaps() {
           $.G.score += 1000;
           sfx.pick();
         }
-      } else if (c.blue) purge();else {
+      } else if (c.blue) purge();else if (c.ty === METER_CAP) meterAdvance();else {
         if (c.ty < 0 || c.ty == null) c.ty = podType();
         applyPower(c.ty, !!c.choice || !!c.full);
         if (c.choice) {

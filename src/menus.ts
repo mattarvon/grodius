@@ -22,6 +22,13 @@ export function titleItems() {
     r: fmtBio($.meta.bio),
     a: () => openShop('title')
   }, {
+    l: 'POWER',
+    r: SET.meter ? 'METER' : 'PODS',
+    a: () => {
+      SET.meter = !SET.meter;
+      save();
+    }
+  }, {
     l: 'HELL FLASHES',
     r: SET.flashes ? 'ON' : 'OFF',
     a: () => {
@@ -62,6 +69,13 @@ export function pauseItems() {
     l: 'RESUME',
     a: () => {
       $.state = 'play';
+    }
+  }, {
+    l: 'POWER',
+    r: SET.meter ? 'METER' : 'PODS',
+    a: () => {
+      SET.meter = !SET.meter;
+      save();
     }
   }, {
     l: 'SOUND',
