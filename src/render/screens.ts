@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
 import { C, FONT_D, FONT_H, H, PH, R, TAU, W, ctx, hash, ri, rr, swapRm } from '../core';
-import { lv } from '../save';
+import { SET, lv } from '../save';
 import { touch } from '../input';
 import { drops } from '../world';
 import { shopNext } from '../flow';
@@ -119,11 +119,11 @@ export function drawTitle() {
   if ($.gate) {
     $.menuBoxes = [];
     if (($.T >> 5) % 2 === 0) txt(touch.used || matchMedia('(pointer: coarse)').matches ? 'TAP TO DESCEND' : 'PRESS ANY KEY', 40, 140, '#e0242c', 'left', 10);
-  } else drawMenu(titleItems(), 40, 124, 150);
-  txt('ARROWS/WASD MOVE   Z/SPACE FIRE', 28, 196, '#5b6573');
-  txt('FLY INTO A POD TO TAKE IT   P PAUSE   M MUTE', 28, 206, '#5b6573');
-  txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' : 'GAMEPAD: A FIRE, START PAUSE', 28, 216, '#3f4955');
-  txt('HI ' + pad($.hi, 8), 28, 236, '#8fa3b8');
+  } else drawMenu(titleItems(), 40, 110, 150); // up to 7 rows (14px) must clear the help text at y 208
+  txt('ARROWS/WASD MOVE   Z/SPACE FIRE', 28, 208, '#5b6573');
+  txt((SET.meter ? 'CAPSULES MOVE THE METER, X POWERS UP' : 'FLY INTO A POD TO TAKE IT') + '   P PAUSE   M MUTE', 28, 217, '#5b6573');
+  txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', 28, 226, '#3f4955');
+  txt('HI ' + pad($.hi, 8), 28, 240, '#8fa3b8');
   txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#5a2a2c', 'right');
   txt('MUSIC: DAVID KBD, KENTEN FINA (CC BY), RUSKERDAX  SFX: KENNEY', W - 8, H - 22, '#3a4048', 'right', 7);
 }
@@ -383,14 +383,15 @@ export function render() {
 
 // ---------------- loop ----------------
 
+let JIG = 0; // eased jiggle amount for the title eye
 /** title hero: a huge bloodshot eyeball hanging off its optic nerve, gaze wandering, the odd blink */
 function drawTitleEye() {
-  const t = $.T, ex = W * .73 + Math.sin(t * .007) * 4, ey = PH * .5 + Math.sin(t * .011) * 5, r = 74;
+  const t = $.T, ex = W * .74 + Math.sin(t * .007) * 4, ey = PH * .5 + Math.sin(t * .011) * 5, r = 100;
   // optic nerve: fleshy rope from behind the eye up out of frame, swaying
   const pts = [];
   for (let k = 0; k <= 14; k++) {
     const f = k / 14;
-    pts.push([ex + 30 + f * 70 + Math.sin(t * .02 + f * 4) * 6 * f, ey - 20 - f * (ey + 40) + Math.cos(t * .017 + f * 3) * 3]);
+    pts.push([ex + r * .4 + f * 70 + Math.sin(t * .02 + f * 4) * 6 * f, ey - r * .27 - f * (ey + 40) + Math.cos(t * .017 + f * 3) * 3]);
   }
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -409,10 +410,11 @@ function drawTitleEye() {
     for (let k = 0; k <= 14; k++) { const [x, y] = pts[k]; const o = Math.sin(k * 1.7 + v * 2) * 5; k ? ctx.lineTo(x + o, y) : ctx.moveTo(x + o, y); }
     ctx.stroke();
   }
-  if (R() < .3) drops.push({ x: ex + rr(-20, 50), y: ey + rr(20, 60), px: 0, py: 0, vx: 0, vy: rr(.3, 1), s: 1, c: R() < .6 ? 0 : 1, l: 300 });
-  // gaze: slow wander, occasional darting look, blink every few seconds
-  const ang = Math.PI + Math.sin(t * .013) * .9 + (Math.sin(t * .0031) > .93 ? Math.sin(t * .2) * .6 : 0);
+  if (R() < .3) drops.push({ x: ex + rr(-r * .4, r * .6), y: ey + rr(r * .3, r * .8), px: 0, py: 0, vx: 0, vy: rr(.3, 1), s: 1, c: R() < .6 ? 0 : 1, l: 300 });
+  // gaze: slow wander, occasional darting look (the ball jiggles when it darts), blink every few seconds
+  const dart = Math.sin(t * .0031) > .93, ang = Math.PI + Math.sin(t * .013) * .9 + (dart ? Math.sin(t * .2) * .6 : 0);
   const bc = t % 340, blink = bc < 10 ? Math.sin(bc / 10 * Math.PI) : 0;
   light(ex, ey, 140, .9);
-  eye(ctx, ex, ey, r, { hero: 1, iris: '#2fd43a', ang, m: .32 + .18 * Math.sin(t * .009), dil: 1.05 + .15 * Math.sin(t * .021), bs: 2, blink, lid: '#8a3a40', al: 1 });
+  JIG += ((dart ? 1 : 0) - JIG) * .08;
+  eye(ctx, ex, ey, r, { hero: 1, jig: JIG, iris: '#9fd23a', ang, m: .32 + .18 * Math.sin(t * .009), dil: 1.05 + .15 * Math.sin(t * .021), bs: 2, blink, lid: '#8a3a40', al: 1 });
 }
