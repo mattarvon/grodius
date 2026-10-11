@@ -77,7 +77,7 @@ export function clearStage(escaped = false) {
   sfx.power();
   buzz('heavy');
   // boss-kill reward line (src/sfx/bossreward/, random pick if there are several); waits out the death roar
-  if (!escaped) G.pend.push({ t: 50, f: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) });
+  if (!escaped && import.meta.env.MODE !== 'share') G.pend.push({ t: 50, f: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) });
   const breakSeal = () => { if (seal > (G.seal || 0)) { G.seal = seal; banner('SEAL BROKEN', 'UNLOCKED: ' + SEAL_TXT[seal], '#ffd23a', 230); sfx.alarm(); } };
   // at a fork the seal waits until you're through the gate (its banner would bury the gate prompt), see startStage
   if (seal && (G.stage === 0 || G.stage === 1)) G.sealQ = breakSeal;
