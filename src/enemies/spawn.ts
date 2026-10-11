@@ -88,7 +88,7 @@ export const ET = {
     eyes: 2
   },
   maw: {
-    hp: 95,
+    hp: 120,
     r: 24,
     gsz: 4,
     score: 6000,
@@ -100,7 +100,7 @@ export const ET = {
     mini: 1
   },
   crux: {
-    hp: 170,
+    hp: 145,
     r: 20,
     gsz: 5,
     score: 15000,
@@ -124,7 +124,7 @@ export const ET = {
     limbs: 0
   },
   butcher: {
-    hp: 250,
+    hp: 300,
     r: 20,
     gsz: 5,
     score: 18000,
@@ -153,8 +153,8 @@ export function mk(k, x, y, o = {}) {
     ...b,
     ...o
   };
-  // power rank (0..1) thickens everything: +80% HP for fodder, +40% for minis
-  e.hp = b.hp * hm * (o.hpm || 1) * (1 + ($.G.rank || 0) * (b.mini ? .4 : .8));
+  // power rank (0..1) thickens everything: +80% HP for fodder, +100% for bosses (a maxed build still gets a fight)
+  e.hp = b.hp * hm * (o.hpm || 1) * (1 + ($.G.rank || 0) * (b.mini ? 1 : .8));
   e.max = e.hp;
   if (!b.mini && !o.par && $.G.st) $.G.st.spawned++;
   if (e.cap && !e.mini && R() < .65) e.cap = false;

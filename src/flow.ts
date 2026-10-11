@@ -124,6 +124,18 @@ function blackBox() {
   for (let i = 0; i < Math.min(2, P.options); i++) ty.push(5);
   ty.forEach((t, k) => caps.push({ x: clamp(P.x + 40 + k * 22, 30, 430), y: clamp(P.y + (k % 2 ? 18 : -18), 30, PH - 30), t: k * 10, blue: false, ty: t, full: 1, salv: 1 }));
 }
+/** dying in a boss fight leaves you a lifeline: your main gun, MISSILE/PYRE and one WRAITH come back as FULL pods
+  on respawn (Gradius-style recovery; nothing else drops mid-fight). BLACK BOX already returns everything, so it skips this. */
+function bossRecoveryNote() {
+  const G = $.G, P = $.P;
+  if (lv('salvage') || !(G.bossStarted || G.mini)) return;
+  const ty = [];
+  if (P.laser) ty.push(3); else if (P.double) ty.push(2);
+  if (P.missile) ty.push(1); else if (P.pyre) ty.push(4);
+  if (P.options) ty.push(5);
+  if (P.wardLv) ty.push(6);
+  G.recover = ty.slice(0, 3);
+}
 export function killPlayer() {
   if (!$.P.alive) return;
   $.P.alive = false;
@@ -131,6 +143,7 @@ export function killPlayer() {
   buzz('death');
   if ($.G.st) $.G.st.deaths++;
   blackBox();
+  bossRecoveryNote();
   shipShed($.P.x, $.P.y);
   gore($.P.x, $.P.y, 1.8, {
     metal: 9,
@@ -182,6 +195,11 @@ export function respawn() {
   }
   flash($.P.x, $.P.y, 50, 16, '255,60,40');
   sfx.shield();
+  if ($.G.recover && $.G.recover.length && ($.G.bossStarted || $.G.mini)) {
+    $.G.recover.forEach((t, k) => caps.push({ x: $.P.x + 60 + k * 26, y: clamp($.P.y + (k - 1) * 22, 24, PH - 24), t: k * 8, blue: false, ty: t, full: 1, salv: 1 }));
+    $.G.feed = { s: 'SALVAGE', d: 'your guns came back as FULL pods: fly through them', t: 170, ml: 170 };
+  }
+  $.G.recover = null;
 }
 export function gameOver() {
   $.state = 'over';

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
 import { clearStage } from '../stages';
-import { PH, R, TAU, W, clamp, dist2, lerp, pick, rr } from '../core';
+import { FIRE, PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr } from '../core';
 import { SET } from '../save';
 import { sfx } from '../audio';
 import { enemies, eshots } from '../world';
@@ -11,11 +11,14 @@ import { killEnemy } from '../enemies/update';
 import { playerHit } from '../player';
 import { hitShot } from '../shots';
 import { hellFlash } from '../fx/update';
+import { critMul } from '../mutations';
+import { perkFX, pk } from '../perks';
 
 // ---------------- boss: the gravity drive ----------------
 export function startBoss() {
   $.G.bossStarted = true;
-  const m = 1 + .4 * $.G.loop;
+  // HP tracks loop AND power rank (biome bosses already do via mk()): a stacked build still gets a real fight
+  const m = (1 + .4 * $.G.loop) * (1 + .6 * ($.G.rank || 0));
   $.G.boss = {
     x: W + 150,
     y: PH / 2,
@@ -72,6 +75,7 @@ export function updateBoss() {
   if (!b) return;
   b.t++;
   if (b.fl > 0) b.fl--;
+  bossDots(b);
   for (const p of b.plates) if (p.f > 0) p.f--;
   if (b.dying) {
     b.dying--;
@@ -146,10 +150,13 @@ export function updateBoss() {
       for (let k = -2; k <= 2; k++) eshoot(ex - 40, ey, a + k * .18, 1.5, 'glob');
     }
   } else {
-    if (!b.laser && b.t % (b.phase === 2 ? 150 : 190) === 0) {
+    if (!b.laser && b.t % (b.phase === 2 ? 200 : 250) === 0) {
+      // Big Core rule: it aims while it charges, then the beam is a straight line you dodge. One hit per sweep max.
       b.laser = {
-        tel: 60,
+        tel: 75,
+        ml: 75,
         beam: 0,
+        hit: false,
         ang: aimA(ex, ey)
       };
       sfx.tele();
@@ -158,24 +165,27 @@ export function updateBoss() {
       const L = b.laser;
       if (L.tel > 0) {
         L.tel--;
-        L.ang += wrapA(aimA(ex, ey) - L.ang) * .04;
+        // tracks you for most of the charge, then locks for the last 20 frames so the dodge is readable
+        if (L.tel > 20) L.ang += wrapA(aimA(ex, ey) - L.ang) * .04;
         if (L.tel === 0) {
-          L.beam = 50;
+          L.beam = 40;
           sfx.beam();
           $.G.shake += 4;
         }
       } else {
         L.beam--;
-        L.ang += clamp(wrapA(aimA(ex, ey) - L.ang), -.011, .011);
         $.G.shake = Math.max($.G.shake, 2);
-        if ($.P.alive && $.P.inv <= 0) {
+        if ($.P.alive && $.P.inv <= 0 && !L.hit) {
           const dx = $.P.x - ex,
             dy = $.P.y - ey,
             ca = Math.cos(L.ang),
             sa = Math.sin(L.ang),
             along = dx * ca + dy * sa,
             perp = Math.abs(-dx * sa + dy * ca);
-          if (along > 0 && perp < 6) playerHit();
+          if (along > 0 && perp < 6) {
+            L.hit = true;
+            playerHit();
+          }
         }
         if (L.beam <= 0) b.laser = null;
       }
@@ -239,7 +249,7 @@ export function bossHitByShot(s) {
         if (s.hit.has(p)) continue;
         s.hit.add(p);
       }
-      p.hp -= s.dmg;
+      p.hp -= s.dmg * shotCrit(s);
       p.f = 3;
       for (let k = 0; k < 4; k++) drop(s.x, s.y, rr(-2.5, -.3), rr(-1.4, 1.4), 1.5, R() < .3 ? 2 : 0, 90);
       sfx.hit();
@@ -267,11 +277,44 @@ export function bossHitByShot(s) {
       if (s.hit.has(b)) return false;
       s.hit.add(b);
     }
-    b.hp -= s.dmg;
+    b.hp -= s.dmg * shotCrit(s);
     b.fl = 3;
+    if (s.k !== 'rig') { if (pk('ignite')) b.burn = Math.max(b.burn || 0, 90 * pk('ignite')); if (pk('corrode')) b.acid = Math.max(b.acid || 0, 160 * pk('corrode')); }
     for (let k = 0; k < 3; k++) drop(s.x, s.y, rr(-2.5, -.3), rr(-1.4, 1.4), 1.5, R() < .6 ? 3 : 0, 90);
     sfx.hit();
-    if (b.hp <= 0) {
+    if (b.hp <= 0) bossDies(b);
+    return true;
+  }
+  return false;
+}
+/** crit roll for boss hits: bolts and ARC only (perk spores/mirrors/ribs never crit, same as on meat) */
+function shotCrit(s) {
+  return (s.k === 'bolt' && !s.spore && !s.mirror && !s.rib) || s.k === 'laser' ? critMul(s.x, s.y) : 1;
+}
+/** IMMOLATION / CORROSIVE SPIT on the exposed core: same per-frame rates as on meat. ORBITING TEETH chew plates then core */
+function bossDots(b) {
+  if (b.dying || b.enter) return;
+  const platesUp = b.plates.some(p => p.hp > 0);
+  if (!platesUp) {
+    if (b.burn > 0) { b.burn--; b.hp -= .05; if (R() < .5) spark(b.x + rr(-20, 20), b.y + rr(-20, 10), rr(-.4, .4), -rr(.5, 1.6), ri(8, 16), pick(FIRE)); }
+    if (b.acid > 0) { b.acid--; b.hp -= .02 * (1 + pk('corrode')); }
+  }
+  if ($.P.alive && pk('teeth') && b.t % 15 === 0) {
+    const d = .5 * (1 + .1 * pk('dmg'));
+    for (const t of perkFX.teeth || []) {
+      const pl = b.plates.find(p => p.hp > 0 && dist2(t.x, t.y, b.x + Math.cos(p.a) * 42, b.y + Math.sin(p.a) * 42) < 17 * 17);
+      if (pl) { pl.hp -= d; pl.f = 3; }
+      else if (!platesUp && dist2(t.x, t.y, b.x, b.y) < 30 * 30) { b.hp -= d; b.fl = 3; }
+      else continue;
+      spark(t.x, t.y, rr(-2, 2), rr(-2, 2), 8, '#f0e2c0');
+    }
+  }
+  if (b.hp <= 0) bossDies(b);
+}
+function bossDies(b) {
+  if (b.dying) return;
+  {
+    {
       b.dying = 220;
       $.G.hitstop = 24;
       $.G.score += 30000 * ($.G.loop + 1);
@@ -279,9 +322,7 @@ export function bossHitByShot(s) {
       sfx.roar();
       for (const e of enemies) if (!e.dead) killEnemy(e, -1);
     }
-    return true;
   }
-  return false;
 }
 
 // ---------------- mutations: you become what you kill ----------------

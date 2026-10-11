@@ -226,11 +226,16 @@ export function drawBoss(b) {
       ex = b.x + ca * 600,
       ey = b.y + sa * 600;
     if (L.tel > 0) {
-      ctx.strokeStyle = `rgba(255,40,40,${.3 + .5 * (($.T >> 1) % 2)})`;
-      ctx.lineWidth = 1;
+      // charge: a widening red band (the beam's real width at the end), white and blinking once the aim locks
+      const k = 1 - L.tel / (L.ml || 60), locked = L.tel <= 20;
+      ctx.strokeStyle = locked ? `rgba(255,235,225,${.35 + .45 * (($.T >> 1) % 2)})` : `rgba(255,40,40,${.12 + .2 * k})`;
+      ctx.lineWidth = 1 + 11 * k;
       ctx.beginPath();
       ctx.moveTo(b.x, b.y);
       ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,40,40,${.5 + .4 * (($.T >> 1) % 2)})`;
+      ctx.lineWidth = 1;
       ctx.stroke();
     } else {
       ctx.globalCompositeOperation = 'lighter';
