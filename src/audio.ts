@@ -88,10 +88,7 @@ export function auInit() {
 // ---------------- sample bank ----------------
 // Every audio file under src/sfx/<category>/ is bundled and decoded on first input. Categories:
 // splat_s splat_m splat_l thud bone silly explode_s explode_l. Drop more files in a folder and they join the rotation.
-// coworker-safe build (vite --mode share) leaves out the boss-kill "keyster easter" line; the dead branch is dropped at build time
-const SFX_URLS = (import.meta.env.MODE === 'share'
-  ? import.meta.glob(['./sfx/*/*.{ogg,wav,mp3,m4a}', '!./sfx/bossreward/*'], { eager: true, query: '?url', import: 'default' })
-  : import.meta.glob('./sfx/*/*.{ogg,wav,mp3,m4a}', { eager: true, query: '?url', import: 'default' })) as Record<string, string>;
+const SFX_URLS = import.meta.glob('./sfx/*/*.{ogg,wav,mp3,m4a}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 export const BANK: Record<string, AudioBuffer[]> = {};
 const LASTS: Record<string, number> = {};
 let arng = 0x2545f491; // audio has its own RNG so sound choices never perturb gameplay randomness

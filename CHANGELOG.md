@@ -2,11 +2,6 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
-## 2026-10-11
-
-### Share edition
-- https://mattarvon.github.io/grodius/share/ is the full current game minus the boss-kill "keyster easter" line, built from the same source on every push (`npm run build:share`, Vite `--mode share`). The clip isn't in that build at all. Main build unchanged.
-
 ## 2026-10-07
 
 ### The ship mutates, upgrades hit hard, contraptions
