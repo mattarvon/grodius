@@ -2,6 +2,24 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-11 (branch `balance-overhaul`)
+
+### The Gravity Drive fights fair
+- **Eye laser:** aims while it charges (a widening band that turns white and blinks when the aim locks), then fires in a straight line. It can hit you **once per sweep** (it used to hit every frame, eating a full WARD in one pass and killing on the next). Fires less often (every ~4.2s, ~3.3s angry).
+- **Its HP scales with your power rank** (x1 to x1.6), like the biome bosses, so a stacked build still gets a fight.
+- **Crits, ORBITING TEETH, IMMOLATION and CORROSIVE SPIT now hurt it** (before, only direct shots and contraptions did).
+- **Boss-fight recovery:** die during any boss and you respawn with FULL pods of your main gun, MISSILE/PYRE and a WRAITH in front of you. BLACK BOX still returns everything.
+- Biome bosses: power-rank HP scaling +40% -> +100% (strong builds were deleting them in 2-5s). Maw 95 -> 120 HP, Crucifer 170 -> 145, Butcher 250 -> 300.
+- Measured with the new `tools/boss-probe.mjs` (ideal bot; real fights run ~2x): end-of-descent-1 kit kills the Gravity Drive in ~32s, a strong kit in ~15s.
+
+### Classic power meter (optional)
+- Title / pause menu: **POWER: PODS / METER**. PODS (default) is unchanged.
+- METER: drops become orange POWER capsules; each moves the cursor one slot along the bottom bar, POWER buys a full level of the lit slot (X / Shift / K, pad B, on-screen POWER button on touch). Cursor resets on death. Boss choice, salvage, graft and PURGE pods are unchanged. `tools/meter-probe.mjs` compares both modes over stage 1 (comparable power).
+
+### Title eyeball
+- Bigger (radius 74 -> 100) and sloppier: lavender/blue sclera under a dense crimson vein crackle, lime iris with a dark rim, cyan glint, wobbling silhouette that jiggles when it darts its gaze, wet sheen, slime strands that stretch and snap (`src/render/heroeye.ts`).
+- Fix: the title menu no longer overlaps the help text.
+
 ## 2026-10-07
 
 ### The ship mutates, upgrades hit hard, contraptions
