@@ -144,6 +144,8 @@ Rank is currently `(gear power + perkPower)/14` (`step.ts:357-360`). Add a small
 The effect: dominating players see bigger formations sooner, and struggling players get a short break. Keep it small. The player should feel it, not notice it.
 
 ### 3.6 Bosses: phases with timers, patterns that scale with rank
+> **Timers done (`pacing-pass`):** `phaseClock()` in `src/enemies/update.ts`. The Crucifer and the Butcher get 25 s per half. When the first half runs out the boss is forced into its second half; when the second runs out it retreats (grade C, no reward). A fuse in the HUD shows the time left. The Maw keeps its own 28 s escape rule. Rank-shaped patterns are still to do.
+
 - Biome bosses have one HP pool and a phase change at 50%. Borrow Taisei's **list of attacks, each with a timer**: if a phase isn't broken in about 20 s, the boss moves on to the next one anyway. Long fights stop dragging, and every player sees the whole boss.
 - Use rank to change **pattern shape** the way rRootage does (more arms in the spiral, shorter waits), instead of only HP ×(1+rank). At the moment `every()` scales the gaps between attacks, and only Crux and Butcher use it; extend that to the Maw and the Gravity Drive.
 

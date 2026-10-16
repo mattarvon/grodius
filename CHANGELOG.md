@@ -14,6 +14,18 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 - New `tools/density-probe.mjs` prints spawn rates per beat for every biome, stage and descent.
 - New `tools/pod-probe.mjs`: a seeded bot that plays a whole descent, getting through pick screens, forks and the shop. It reports first-pod time, pods per minute per stage, level and biomass. The older probes stall partway through a descent. Measured over 5 seeds: biome pods per minute 7.7 → 8.5, biomass per descent 1109 → 1122, level at the end of Descent 1 unchanged at 10.2.
 
+### Biome bosses are on the clock
+- The Crucifer and the Butcher no longer drag. Each half of the fight (split at 50% HP) gets **25 s** once the boss has settled in. A thin fuse above the boss HP bar counts it down and blinks red for the last 5 s.
+- **First half runs out:** the boss lurches into its second half. HP drops to 50%, and the Crucifer's nail barriers shatter ("IT LURCHES ONWARD").
+- **Second half runs out:** it retreats like the Maw, so the stage is graded C with no reward ("IT RETREATS").
+- The clock pauses while you're dead.
+- Strong builds never see a timeout. `boss-probe` kill times with the stage-1, end-of-descent-1 and strong kits are unchanged. With no kit, the Crucifer now falls in 45 s instead of 50 s, and the Butcher retreats instead of taking 67 s.
+
+### Sounds repeat less
+- **Shuffle bag:** each sound folder plays every one of its clips once before any of them repeats, and a new round never opens with the clip that just played. Before, picks were plain random with only an immediate repeat blocked.
+- **Fresh order every session:** the sound RNG used a fixed seed, so every session opened with the same order of clips. It's now seeded per boot. It's still separate from gameplay randomness, so runs aren't affected.
+- To add variety, drop more clips into any `src/sfx/<category>/` folder; they're picked up automatically.
+
 ### DESCEND DEEPER pays what it says
 - It promised "every stage pays double", but nothing doubled. Now, from Descent 2 on, stage grade biomass and the +30 boss-choice biomass are doubled, and the tally card shows **DEEP x2**.
 

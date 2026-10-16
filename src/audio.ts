@@ -91,7 +91,9 @@ export function auInit() {
 const SFX_URLS = import.meta.glob('./sfx/*/*.{ogg,wav,mp3,m4a}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 export const BANK: Record<string, AudioBuffer[]> = {};
 const LASTS: Record<string, number> = {};
-let arng = 0x2545f491; // audio has its own RNG so sound choices never perturb gameplay randomness
+// audio has its own RNG so sound choices never perturb gameplay randomness; seeded per boot so every session
+// doesn't open with the same run of clips
+let arng = ((globalThis.crypto?.getRandomValues?.(new Uint32Array(1))[0] ?? Date.now()) | 1) >>> 0;
 const ar = () => ((arng ^= arng << 13), (arng ^= arng >>> 17), (arng ^= arng << 5), (arng >>> 0) / 4294967296);
 let voices = 0;
 function loadBank(A) {
@@ -100,6 +102,19 @@ function loadBank(A) {
     fetch(u).then((r) => r.arrayBuffer()).then((b) => A.decodeAudioData(b)).then((buf) => (BANK[cat] ||= []).push(buf)).catch(() => {});
   }
 }
+// shuffle bag per category: every clip plays once before any repeats, and a new bag never opens with the clip
+// that just played. Rebuilt when the bank grows (clips decode asynchronously after boot).
+const BAGS: Record<string, { n: number; q: number[] }> = {};
+function nextClip(cat, n) {
+  let b = BAGS[cat];
+  if (!b || b.n !== n || !b.q.length) {
+    const q = [...Array(n).keys()];
+    for (let k = n - 1; k > 0; k--) { const j = Math.floor(ar() * (k + 1)); [q[k], q[j]] = [q[j], q[k]]; }
+    if (n > 1 && q[n - 1] === LASTS[cat]) [q[0], q[n - 1]] = [q[n - 1], q[0]];
+    b = BAGS[cat] = { n, q };
+  }
+  return (LASTS[cat] = b.q.pop());
+}
 /** play a random clip from a category with pitch/volume jitter. false if the category isn't loaded (caller falls back to synth) */
 const SOLO: Record<string, number> = {};
 export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number; solo?: boolean } = {}) {
@@ -107,9 +122,7 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   if (!AU.c || !L || !L.length || SET.muted || AU.c.state !== 'running') return false;
   if (o.solo && AU.c && AU.c.currentTime < (SOLO[cat] || 0)) return true; // previous take still talking
   if (voices > 14) return true; // swallow it: a wall of 30 splats in one frame is mud anyway
-  let i = Math.floor(ar() * L.length);
-  if (L.length > 1 && i === LASTS[cat]) i = (i + 1) % L.length;
-  LASTS[cat] = i;
+  const i = nextClip(cat, L.length);
   const s = AU.c.createBufferSource(), g = AU.c.createGain();
   s.buffer = L[i];
   s.playbackRate.value = (o.rate ?? 1) * (1 + (ar() * 2 - 1) * (o.spread ?? .14));

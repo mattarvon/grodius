@@ -167,6 +167,13 @@ export function drawHUD() {
     ctx.fillRect(bx - 1, y - 1, bw + 2, 5);
     ctx.fillStyle = m.shielded ? '#5d6b7a' : C.bloodL;
     ctx.fillRect(bx, y, bw * k, 3);
+    if (m.pl && !m.gone) { // phase timer: thin fuse above the HP bar, blinks in the last 5 s
+      const left = 1 - (m.pt || 0) / m.pl;
+      if (left > 5 * 60 / m.pl || ($.T >> 3) & 1) {
+        ctx.fillStyle = left > 5 * 60 / m.pl ? '#ffb070' : '#ff3a2a';
+        ctx.fillRect(bx, y - 3, bw * left, 1);
+      }
+    }
     if (m.bars) {
       const n = m.bars.filter(b => !b.dead).length;
       if (n) txt(n + ' NAIL BARRIERS', W / 2, y + 5, '#8fa3b8', 'center', 7);

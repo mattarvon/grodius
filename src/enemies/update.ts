@@ -238,6 +238,7 @@ export function updEnemy(e) {
       }
     case 'crux':
       {
+        if (phaseClock(e)) break;
         if (e.t < 220) e.x = lerp(e.x, e.tx, .03);
         const ph2 = e.hp < e.max * .5;
         e.y = PH / 2 + Math.sin(e.t * .012) * (PH * .22) * (ph2 ? 1.25 : 1);
@@ -267,6 +268,7 @@ export function updEnemy(e) {
       }
     case 'butcher':
       {
+        if (phaseClock(e)) break;
         if (e.t < 240) e.x = lerp(e.x, e.tx, .025);
         const ph2 = e.hp < e.max * .5;
         if (ph2 && !e.cut) {
@@ -450,6 +452,43 @@ export function whipPts(e) {
     });
   }
   return pts;
+}
+// Timed halves for the biome bosses (Taisei-style attack timers, see docs/pacing.md 3.6). Each half of the fight,
+// split at 50% HP, gets PHASE_F frames once the boss has settled in. Run out the first half and it lurches into the
+// second (HP to 50%, Crucifer's barriers shatter); run out the second and it retreats like the Maw: grade C, no reward.
+const PHASE_F = 1500;
+function phaseClock(e) {
+  if (e.gone) {
+    e.x += 1.8;
+    e.y = lerp(e.y, PH / 2, .02);
+    if (R() < .3) drop(e.x + rr(-10, 10), e.y + rr(0, 20), rr(-.3, .3), rr(.2, .8), 1.4, 0, 90);
+    if (e.x > W + 80) {
+      e.dead = true;
+      clearStage(true);
+      banner('IT GOT AWAY', 'NO REWARD', '#8a5a5a', 150);
+    }
+    return true;
+  }
+  if (e.t < 160 || !$.P.alive) return false; // clock waits out the entrance and pauses while you're dead
+  const half2 = e.hp < e.max * .5;
+  if (half2 !== !!e.half2) { e.half2 = half2; e.pt = 0; }
+  e.pl = PHASE_F;
+  e.pt = (e.pt || 0) + 1;
+  if (e.pt < PHASE_F) return false;
+  e.pt = 0;
+  for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);
+  if (!half2) {
+    e.hp = Math.min(e.hp, e.max * .5 - .01);
+    banner('IT LURCHES ONWARD', 'OUT OF TIME', '#ff8a3a', 110);
+    sfx.roar();
+    $.G.shake = Math.max($.G.shake, 5);
+    return false;
+  }
+  e.gone = 1;
+  e.hk = null;
+  banner('IT RETREATS', 'OUT OF TIME', '#8a5a5a', 110);
+  sfx.roar();
+  return true;
 }
 export function hurt(e, d, hx, hy, dir) {
   if (e.dead) return;
