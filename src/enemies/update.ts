@@ -2,7 +2,7 @@
 import { $ } from '../state';
 import { gainXP, pk, spillSlick } from '../perks';
 const VOL = { on: 0 };
-import { clearStage } from '../stages';
+import { clearStage, deepPay } from '../stages';
 import { PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '../core';
 import { SET, lv } from '../save';
 import { sample, sfx } from '../audio';
@@ -654,8 +654,8 @@ export function miniReward(e) {
     ty: pool[k],
     choice: gid
   });
-  $.G.bio += 30;
-  $.meta.bio += 30;
+  $.G.bio += 30 * deepPay();
+  $.meta.bio += 30 * deepPay();
 }
 export function dropCap(x, y) {
   const blue = R() < .07;

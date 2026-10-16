@@ -2,6 +2,24 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-15 (branch `pacing-pass`)
+
+### Biome stages have a shape
+- Biome stages used to spawn at one flat density from start to finish. Now they have beats, based on Taisei's stage timelines (see `docs/pacing.md`):
+  - **Intro:** sparse, and the biome's signature enemy (corpse / wall / flayer / hatchling) arrives alone first.
+  - **Build:** as before.
+  - **Breath:** about 10% of the stage with no spawns. In the first biome it holds one small formation that drops a pod. In the second biome the mid-stage Maw is its centerpiece.
+  - **Peak:** tighter spacing and more doubles.
+- About the same number of enemies per stage (−2% to −4%), just bunched up: intro ~0.5 spawns/s, peak 1.0–1.7/s.
+- New `tools/density-probe.mjs` prints spawn rates per beat for every biome, stage and descent.
+- New `tools/pod-probe.mjs`: a seeded bot that plays a whole descent, getting through pick screens, forks and the shop. It reports first-pod time, pods per minute per stage, level and biomass. The older probes stall partway through a descent. Measured over 5 seeds: biome pods per minute 7.7 → 8.5, biomass per descent 1109 → 1122, level at the end of Descent 1 unchanged at 10.2.
+
+### DESCEND DEEPER pays what it says
+- It promised "every stage pays double", but nothing doubled. Now, from Descent 2 on, stage grade biomass and the +30 boss-choice biomass are doubled, and the tally card shows **DEEP x2**.
+
+### Pacing bible
+- New `docs/pacing.md`: how Grodius paces itself against Taisei, Gradius, Zanac and Tyrian, with target numbers and the probes that measure them.
+
 ## 2026-10-11 (branch `balance-overhaul`)
 
 ### The Gravity Drive fights fair

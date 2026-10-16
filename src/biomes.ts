@@ -29,7 +29,7 @@ export const BIOMES = {
     gore: ['#7a1222', '#300610', '#d8efff', '#0c0809', '#8cc4ee', '#ffffff'], blood: ['#7a1222', '#300610', '#c8506a'],
     boss: 'crux', bossName: 'THE FROZEN CRUCIFER', haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
-    gap: 115, dbl: .5, set: 'morgue',
+    gap: 115, dbl: .5, set: 'morgue', sig: 'corpse',
     mix: [['corpse', 3], ['cross', 3], ['flayer', 2], ['eye', 2], ['hook', 2], ['wall', 2], ['sine', 2]],
     logs: ['TEMPERATURE: -140C. THE BODIES ARE STANDING UP.', 'THE ICE IS FULL OF FACES.'],
   },
@@ -39,7 +39,7 @@ export const BIOMES = {
     gore: ['#8a4630', '#2e140c', '#46e0c0', '#0c0809', '#ddd27a', '#c8f4e8'], blood: ['#1c9a80', '#0a3a32', '#6ff0d4'],
     boss: 'maw', bossName: 'THE DISSOLVED MAW', haz: 'geyser', hazEvery: 135,
     // wall swarms over a floor full of crawlers and wombs
-    gap: 125, dbl: .5, set: 'walls',
+    gap: 125, dbl: .5, set: 'walls', sig: 'wall',
     mix: [['wall', 4], ['crawler', 3], ['womb', 2], ['eye', 2], ['dive', 1], ['hatch', 1]],
     logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'MY HULL PLATING IS SIZZLING.'],
   },
@@ -49,7 +49,7 @@ export const BIOMES = {
     gore: ['#4a0a06', '#120202', '#ff6a1a', '#050303', '#ffb347', '#ff3a10'], blood: ['#6a0a08', '#240303', '#ff4a1a'],
     boss: 'butcher', bossName: 'THE BURNING BUTCHER', haz: 'jet', hazEvery: 125,
     // aggressive: tight spacing, divers and flayers, things coming from behind
-    gap: 100, dbl: .6, set: 'pincer',
+    gap: 100, dbl: .6, set: 'pincer', sig: 'flayer',
     mix: [['flayer', 3], ['dive', 3], ['hook', 2], ['zig', 2], ['crawler', 2], ['behind', 1]],
     logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.'],
   },
@@ -59,7 +59,7 @@ export const BIOMES = {
     gore: ['#d0b840', '#7a4a18', '#f4e6a0', '#3a1a0a', '#fff4c8', '#a83a24'], blood: ['#c8ac3a', '#6a4a14', '#f2e08a'],
     boss: 'maw', bossName: 'THE MUCUS MAW', haz: 'strand', hazEvery: 150,
     // hatchling floods out of wombs and the walls
-    gap: 125, dbl: .45, set: 'flood',
+    gap: 125, dbl: .45, set: 'flood', sig: 'hatch',
     mix: [['hatch', 4], ['womb', 3], ['corpse', 2], ['sine', 2], ['crawler', 1], ['eye', 1]],
     logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.'],
   },
@@ -157,19 +157,27 @@ const SET = {
   pincer: () => { formation('dive', 55); formation('dive', PH - 75); behindWave(PH / 2, 4); },
   flood: () => { hatch(ri(9, 12), false); hatch(ri(5, 7), true); },
 };
-function biomeScript(seg, b, from) {
+export function biomeScript(seg, b, from) {
   const B = BIOMES[b], g = SEG[seg], S = [], at = (x, f) => S.push({ x, f }), hard = $.G.loop > 0;
   const tot = B.mix.reduce((s, m) => s + m[1], 0), roll = () => { let r = R() * tot, k = 0; while ((r -= B.mix[k][1]) > 0) k++; return B.mix[k][0]; };
   const a = Math.max(g.x0 + 220, from + 60), z = g.bossX - 160, mid = Math.round((a + z) / 2);
   at(a - 40, () => logLine(B.logs[0]));
   at(mid, () => logLine(B.logs[1]));
-  for (let x = a; x < z; x += B.gap) {
-    if (Math.abs(x - (a + (z - a) * .3)) <= B.gap / 2 || Math.abs(x - (a + (z - a) * .75)) <= B.gap / 2) { at(x, SET[B.set]); continue; }
-    at(x, SPAWN[roll()]);
-    if (R() < B.dbl) at(x + Math.round(B.gap * .45), SPAWN[roll()]);
-    if (hard && R() < .35) at(x + Math.round(B.gap * .72), SPAWN[roll()]);
+  // pacing beats by p = (x-a)/(z-a): intro <.2 (sparse, signature first) / build / breath .45-.55 (empty) / peak .55-.9 (dense) / tail
+  const P = (q) => a + (z - a) * q, sig = () => (R() < .6 ? B.sig : roll()), sets = [P(.3), P(.75)];
+  const bZ = seg === 1 ? Math.max(P(.55), mid + 260) : P(.55), bA = bZ - (z - a) * .1; // stage 2: the breath leads into the Maw and ends just past it (scroll coasts ~50px)
+  for (let x = a, n = 0; x < z; n++) {
+    const q = (x - a) / (z - a), intro = q < .2, peak = x >= bZ && q < .9, st = Math.round(B.gap * (intro ? 1.4 : peak ? .75 : 1)), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
+    if (x >= bA && x < bZ) { x = bZ; continue; }
+    if (sets.length && x + st / 2 > sets[0]) { sets.shift(); at(x, SET[B.set]); x += st; continue; }
+    const pk = intro ? sig : roll, dbl = intro ? .2 : peak ? Math.min(.85, B.dbl + .15) : B.dbl;
+    at(x, SPAWN[n ? pk() : B.sig]); // the very first slot is the signature enemy, alone
+    if (n && R() < dbl && !(y2 >= bA && y2 < bZ)) at(y2, SPAWN[pk()]); // extras never spill into the breath
+    if (n && hard && R() < .35 && !(y3 >= bA && y3 < bZ)) at(y3, SPAWN[pk()]);
+    x += st;
   }
-  if (seg === 1) at(mid + 200, () => maw(false)); // a mid-stage gut-check in the second biome
+  if (seg === 1) at(mid + 200, () => maw(false)); // a mid-stage gut-check in the second biome: the breath's centerpiece
+  else at(Math.round(bA + 40), () => formation('sine', PH / 2, 3)); // the breath: one small formation, kill it all for a pod
   const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
   at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }));
   return S;

@@ -1,0 +1,190 @@
+# Grodius pacing bible
+
+How fast things should happen, compared with games that get it right. Numbers are at 60 steps/s and 1 px of scroll per frame at full speed, so **60 px ≈ 1 s**.
+
+The open-source references are cloned outside the repo, in `E:\projects\grodius-refs\`. They are third-party code (MIT / GPL-2 / BSD), and this public repo must never contain them; read them there.
+
+| Ref | License | Read this |
+|---|---|---|
+| Taisei | MIT (+ CC-BY/CC0 assets) | `taisei/src/stages/stage*/timeline.c`, frame-timed stage scripts |
+| OpenTyrian | GPL-2 | `opentyrian/src/mainint.c` `weapon_upgrade_cost`, the shop economy |
+| rRootage | BSD | `rrootage/{normal,morph,...}/*.xml`, 68 BulletML boss patterns with `$rank` |
+| bulletml.js | no license file | reference only, do not copy |
+
+Gradius and Zanac notes come from general knowledge of the games, not from source code. Treat them as design intent, not exact numbers.
+
+---
+
+## 1. What the references do
+
+### Taisei (Touhou-style, vertical): one stage ≈ 2.5 min
+Stage 1 timeline (`stage1/timeline.c:699-800`), in frames:
+
+| t (f) | t (s) | Beat |
+|---|---|---|
+| 100–660 | 1.7–11 | Five small waves, each a different enemy behavior, introduced one at a time |
+| 900–2200 | 15–37 | Mixed waves, density rising |
+| 2500 | 42 | Bookmark *pre-midboss*: a short breath |
+| **2700** | **45** | **Midboss** |
+| after midboss | +36 | **Filler shortened by the midboss fight time** (`time_ofs = -midboss_time`) |
+| ... | ... | Three more filler sections, each adding one new idea |
+| +2560 | ~43 | **Boss**, with several attacks of ~20 s and ~26k–30k HP each |
+
+Stages 2–5 use the same skeleton: midboss at 2700–3200 f (45–53 s), boss about 2.5 min in.
+
+What to take from it:
+1. **Introduce one enemy idea per wave**, and mix only after each idea has been seen alone.
+2. **Midboss at ~45 s, boss at ~2.5 min.** The midboss splits the stage into two halves of about one minute each.
+3. **The time after the midboss is fixed.** A fast midboss kill doesn't make the stage longer or shorter.
+4. **Every drop is placed by hand.** `ITEMS(.power = 2, .points = 4)` sits on specific enemies, with no random roll. Power arrives on a schedule the designer chose.
+5. **Boss = a list of attacks, each with its own HP bar and timer.** The timer ends a phase even if you don't break it.
+
+### Gradius (side-scroller): the capsule economy
+- **Capsules are predictable.** Red enemies and **whole formations** always drop one. Players learn where power comes from, and full-formation kills reward accuracy.
+- **A rising power meter** (SPEED, MISSILE, DOUBLE, LASER, OPTION, ?). The player decides when to cash in, so power is a decision, not luck.
+- **Stage shape:** intro wave, terrain gimmick (volcanoes, Moai, cells), a dense gauntlet, then a Core boss. Typically the boss's barrier walls must be broken before its core can be hit, and **the boss leaves if you take too long**.
+- **Death costs everything,** with a checkpoint restart. Grodius uses in-place respawn plus salvage instead, which is gentler and suits a run-based game.
+
+### Zanac (vertical): adaptive difficulty, "ALC"
+- The game watches **your firepower and how well you're doing** (accuracy, how fast things die, survival) and raises or lowers enemy aggression to match. Strong players get swarmed; struggling players get room to breathe.
+- **Timed fortress sections** in the middle of an area: destroy the core before the timer runs out.
+- Takeaway: the difficulty curve is a dial that reacts to the player, not a fixed script.
+
+### OpenTyrian: shop prices
+`weapon_upgrade_cost(base, power) = base × (1, 3, 6, 10, 15, 21, …)` (triangular numbers, up to level 11). Early levels are cheap, so a new weapon is fun right away. Later levels cost a lot, so you save up and choose.
+
+### rRootage / BulletML: boss patterns that scale
+Patterns are XML, and difficulty lives inside the pattern: `<times>1+$rank*1.5</times>`, `<wait>50-$rank*10</wait>`. Grodius already has a rank value (§3.5); BulletML shows how to let rank change a pattern's **shape** (more arms, shorter waits), not just its HP.
+
+---
+
+## 2. Grodius today
+
+One descent = 9400 px = 4 stages. Spawns are keyed to scroll position, and the scroll holds during boss, midboss and fork.
+
+| Stage | Span | Scroll time | Boss |
+|---|---|---|---|
+| 0 OPEN ORBIT | 0 → 2120 px | **~35 s** | Maw, 120 HP, leaves after 28 s |
+| fork | — | up to 15 s | — |
+| 1 biome | ~2720 → 4790 | **~35 s** | Biome boss (Crux 145 / Butcher 300 / Maw 120), 2.5 s WARNING |
+| fork | — | up to 15 s | — |
+| 2 biome | ~5700 → 7860 | **~36 s** | **Mid-stage Maw**, then the biome boss |
+| 3 GRAVITY DRIVE | ~8200 → 8700 | **~8 s** | Gravity Drive, 560 + 3×48 HP × m |
+
+A full descent runs roughly 4–6 minutes, including fights, tally cards and forks.
+
+### Side by side
+
+| | Taisei stage | Gradius stage | Grodius stage |
+|---|---|---|---|
+| Time before boss | ~2.5 min | ~2–3 min | **~35 s** |
+| Midboss | every stage, ~45 s in | some stages | **stage 2 only** |
+| Density shape within a stage | ramps up, with breaths | intro → gimmick → gauntlet | **flat** (biome spawner rolls the same odds for the whole span) |
+| Calm stretches | bookmarked before midboss and boss | after the gimmick | **none inside biome stages** |
+| Power source | placed by hand | placed by hand (red / formation) | **mostly random** (per-enemy chance × 35%) plus formation pods |
+| Run-up to the final boss | full stage | full stage | **~8 s** |
+
+Grodius stages are shorter and hit harder than either reference. That suits a run-based game on a phone: descents are meant to be repeated. The problems are not the length but the **shape**: a stage has no rise and fall, there's only one midboss, and the final boss arrives almost immediately.
+
+---
+
+## 3. Recommendations
+Ordered by how much they help for the effort. Each lists the code to touch and how to measure it.
+
+### 3.1 Give biome stages a shape (highest impact)
+`src/biomes.ts:160-176` spreads slots evenly with the same `gap` and `dbl`. Make both depend on how far through the span you are, `p = (x - a) / (z - a)`:
+
+| p | Beat | gap × | dbl | Notes |
+|---|---|---|---|---|
+| 0–0.20 | **Intro** | 1.4 | 0.2 | Weight the mix toward the biome's signature enemy, introduced alone |
+| 0.20–0.45 | **Build** | 1.0 | base | Normal mix; set piece at 0.30 (already there) |
+| 0.45–0.55 | **Breath** | no spawns | — | Show off a terrain or hazard; one guaranteed pod formation |
+| 0.55–0.90 | **Peak** | 0.8 | base + 0.15 | Set piece at 0.75 (already there); more enemies from behind |
+| 0.90–1.0 | Pre-boss | — | — | Already empty (spawns stop at bossX − 160) |
+
+The total spawn count stays about the same; it just bunches up. Measure with `route-probe.mjs`, which needs no new checks, and add a spawns-per-second histogram per stage to `progression.mjs`.
+
+**Done (branch `pacing-pass`).** What shipped differs from the table above in three ways:
+- **Peak gap is ×0.75, not ×0.8.** At 0.8 the slow intro cost more spawns than the peak gave back.
+- **The intro rolls the signature enemy 60% of the time,** and the very first slot is always the signature enemy, alone.
+- **Stage 2's breath is a 10% window ending just past the mid-stage Maw.** The real start point after the fork puts the Maw at p ≈ 0.59, not 0.5.
+
+Results from `node tools/density-probe.mjs <url>`, averaged over 400 rolls:
+- **Intro:** about 0.5 spawns/s (was 0.8–1.0).
+- **Breath:** 0 in stage 2, one pod formation in stage 1.
+- **Peak:** 1.0–1.7 spawns/s (was 0.6–1.1).
+- **Total per biome:** −2% to −4%.
+- `route-probe` passed on all 4 gate routes.
+
+### 3.2 A midboss in every biome stage
+At the moment only stage 2 gets the mid-stage Maw (`src/biomes.ts:172`). Give each biome its own **cheaper version of its boss**, for example an ice "Nail Choir" (2 nailbars and an eye) or fire "Butcher's Apprentice" (cleaver only), at **p = 0.5**, where the breath beat from §3.1 lands. Keep the Maw's escape rule (a time limit of about 20–28 s, and escaping costs nothing) so a weak build isn't stuck.
+
+Because Grodius spawns are keyed to scroll position and the scroll holds during `G.mini`, stage length in pixels is already fixed. The Taisei trick of shortening the filler only matters if you later add time-based events.
+
+### 3.3 Lengthen the Gravity Drive run-up
+Stage 3 is about 500 px, roughly 8 s. That's too short to feel like arriving at the last boss. Options:
+- **A (cheap):** script a 300 px gauntlet before 8300, with the WARNING banner over it and the music change starting early. Total length stays the same.
+- **B:** raise `LEVEL` to 10000 and `BOSS_AT` to 9300 (`src/core.ts:533-538`) to make a 15–20 s approach. This touches the biome terrain handoff (`biomes.ts:122`), so re-run `route-probe.mjs` afterwards.
+
+### 3.4 Power you can predict
+> **Baseline update (2026-10-15):** pods are *not* scarce. The first pod lands at 5.7 s and the rate is about 2× the targets below (§5), so **skip the guaranteed drops and the pity timer**. If anything, the open question is whether biome stages, at 7.7/min with a range of 2.8–12, are too swingy. The real problem in the baseline is **biome bosses running long with a stage-1 kit** (Crucifer 36 s, Butcher 30 s, bot time; real fights take about twice as long), so §3.6's timed phases matter more.
+
+Typed pods come from `cap` flags that are kept only 35% of the time (`spawn.ts:160`). Effective drop rates are 5–12% per tough enemy, so pod timing is mostly luck.
+- Add Taisei-style **guaranteed drops** on a few scripted enemies in stage 0 (for example, the formations at 200, 700 and 1380 px always drop a pod), so **the first pod lands within about 10 s** and the second by about 25 s.
+- Keep the random drops in biomes, but add a **pity timer**: if no pod has dropped in the last N seconds (start with 20 s), the next `cap` roll always succeeds.
+- **Tension to resolve:** formation size grows by `round(3·rank)` drones (`spawn.ts:202`), so strong builds need more kills to get a pod. That's Zanac-like, and probably intended. Check with `meter-probe.mjs` that METER mode doesn't stall at high rank.
+- Target, measured with `progression.mjs`: ~LV3 after stage 1 and ~LV10–11 at the end of descent 1. These are already written down in `perks.ts:45`; record the measured values in this doc.
+
+### 3.5 Make rank react to how the player is doing, not just their gear (Zanac ALC)
+Rank is currently `(gear power + perkPower)/14` (`step.ts:357-360`). Add a small term for how the player is doing:
+- `perf` = an exponential moving average over about 20 s of (kills per second, normalized) minus (hits taken × k), clamped to ±0.15.
+- `rank = clamp(gearRank + perf, 0, 1)`.
+- After a death, `perf` is set to −0.15 for 10 s; your guns are gone, so give some breathing room on top of the rank drop you already get.
+
+The effect: dominating players see bigger formations sooner, and struggling players get a short break. Keep it small. The player should feel it, not notice it.
+
+### 3.6 Bosses: phases with timers, patterns that scale with rank
+- Biome bosses have one HP pool and a phase change at 50%. Borrow Taisei's **list of attacks, each with a timer**: if a phase isn't broken in about 20 s, the boss moves on to the next one anyway. Long fights stop dragging, and every player sees the whole boss.
+- Use rank to change **pattern shape** the way rRootage does (more arms in the spiral, shorter waits), instead of only HP ×(1+rank). At the moment `every()` scales the gaps between attacks, and only Crux and Butcher use it; extend that to the Maw and the Gravity Drive.
+
+### 3.7 Shop prices
+Current Infirmary prices already sit near Tyrian's triangular curve. For example, gland 80/200/400/750 is ≈ 80 × (1, 2.5, 5, 9.4), against Tyrian's (1, 3, 6, 10). Contraption level-ups go up linearly (+80, +160 over the buy price). That's fine, because there are only 3 levels.
+
+Bio income is about 270 per full-kill stage 0 and about 900–1200 per descent. That means the first purchase comes after 1 run, and BLACK BOX or DESCEND DEEPER take 1–3 runs. That's healthy, but see bug 1 below.
+
+---
+
+## 4. Bugs and inconsistencies found while mapping
+1. ~~**DESCEND DEEPER promises "every stage pays double"** but no code doubled bio.~~ **Fixed (`pacing-pass`):** from Descent 2 on, stage grade bio and the +30 boss choice bio are ×2 (`deepPay()` in `src/stages.ts`), and the tally card shows `DEEP x2`. Kill-orb bio is unchanged.
+2. **Hatchlings that come out of wombs count toward `spawned`** (`spawn.ts:159`). That lowers kill% and the stage grade in womb-heavy biomes (acid, snot) for enemies the player never saw arrive. Only count enemies spawned by the script.
+3. **Stage 0 is the same in every descent.** `const hard = L > 0` in `spawn.ts:400` is computed and never used. Use it: for example, add a rear wave at 900 and a flayer pair at 1550 in descent 2 and later.
+4. **Perk count:** `perks.ts` defines 24 perks; CHANGELOG says 26.
+5. Escaping the stage 0 Maw grades the stage C and pays no reward, but the mid-stage Maw's escape costs nothing. Probably intended (the first boss teaches you to kill fast); note it in the help text.
+
+---
+
+## 5. Measuring
+Every recommendation above should be checked with a probe, not by feel. The probes print to stdout and nothing is saved, so record the results here after each balance pass:
+
+| Metric | Probe | Target | Measured |
+|---|---|---|---|
+| First pod time (stage 0) | `pod-probe.mjs` | ≤ 10 s | **5.7 s** (seeds 1–5); pods 2 and 3 at ~9 s and ~12–15 s |
+| Pods per minute, stage 0 / biome | `pod-probe.mjs` | 4–6 / 3–4 | **10.3** (7.6–12.3) / **7.7** (2.8–12.0), about 2× target |
+| Ship level after stage 1 / end of descent 1 | `perk-pace.mjs`, `pod-probe.mjs` | 3 / 10–11 | **LV3** / **LV10.2** (10–11), on target |
+| Gravity Drive time-to-kill, end of descent 1 kit (bot; real ≈ 2×) | `boss-probe.mjs` | 25–35 s | **32.2 s** (32.1–32.3) |
+| Biome boss time-to-kill, stage 1 kit | `boss-probe.mjs` | 15–25 s | **Crucifer 36.0 s, Butcher 29.7 s**, over target (Maw 12.9 s) |
+| Spawns per second by beat | `density-probe.mjs` | intro < build < peak, breath = 0 | after 3.1: intro ~0.5, peak 1.0–1.7, breath 0 (or 1 formation) |
+| Bio per descent, harvest bot | `pod-probe.mjs` | 900–1200 | **1109** (867–1283) |
+
+Baseline is commit `5e76336`, measured 2026-10-15; the spawn row is from `pacing-pass`.
+
+**After the 3.1 density shape** (`pacing-pass`, `pod-probe.mjs` seeds 1–5):
+- **First pod:** 5.7 s, unchanged (stage 0 is untouched).
+- **Biome pods/min:** 8.5 (2.9–15.8), was 7.7.
+- **Level at end of descent 1:** 10.2, unchanged.
+- **Bio per descent:** 1122 (977–1331), was 1109.
+- **Page errors:** none.
+
+The shape changed and the economy didn't, which was the intent. The harvest bot plays a full descent in about 4.3–5.1 min of game time: stages 1-1 ≈ 57 s, 1-2 ≈ 69 s, 1-3 ≈ 86 s, 1-4 ≈ 62 s, including fights, tally and forks.
+
+**Probe caveats:** `progression.mjs`, `perk-pace.mjs` and `rig-probe.mjs` can't handle pick screens or forks, or they idle when the boss is off to the right, so they stall partway through a descent. `pod-probe.mjs` is the seeded version that handles both. The probes need `playwright`, which isn't in `package.json`; install it with `npm i --no-save playwright`.

@@ -494,7 +494,7 @@ function drawTally() {
   }
   if (age > 100) {
     txt('+' + t.bonus.toLocaleString('en-US') + (t.perfect ? '  PERFECT' : ''), x0 + 8, y0 + 82, t.perfect ? '#ffd23a' : '#ffb070', 'left', 8);
-    txt('+' + t.bio + ' BIO', x0 + 8, y0 + 94, '#ff8aa0', 'left', 7);
+    txt('+' + t.bio + ' BIO' + (t.deep ? '  DEEP x2' : ''), x0 + 8, y0 + 94, '#ff8aa0', 'left', 7);
     txt(t.best, x0 + w - 8, y0 + 94, t.best.startsWith('NEW') || t.best.startsWith('FIRST') ? '#ffd23a' : '#6d7a88', 'right', 7);
   }
   ctx.globalAlpha = 1;

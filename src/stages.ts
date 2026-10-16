@@ -24,6 +24,8 @@ const GRADE = {
   C: { score: 2000, bio: 5, col: '#7a8694' },
 };
 const ORDER = 'SABC';
+/** stage payouts from Descent 2 on are doubled (DESCEND DEEPER's "every stage pays double") */
+export const deepPay = () => ($.G.loop > 0 ? 2 : 1);
 
 export const stageLabel = () => `${$.G.loop + 1}-${$.G.stage + 1}`;
 /** stages 1 and 2 are whichever biome you flew into */
@@ -58,9 +60,10 @@ export function clearStage(escaped = false) {
   st.done = true;
   const g = grade(st, escaped), R = GRADE[g], perfect = !st.hits && !st.deaths && !escaped;
   const bonus = R.score * (G.loop + 1) + (perfect ? 10000 * (G.loop + 1) : 0);
+  const bio = R.bio * deepPay(); // Descent 2+ stages pay double (the DESCEND DEEPER promise)
   G.score += bonus;
-  G.bio += R.bio;
-  $.meta.bio += R.bio;
+  G.bio += bio;
+  $.meta.bio += bio;
   const id = stageLabel(), best = ($.meta.best ||= {});
   const newBest = !best[id] || ORDER.indexOf(g) < ORDER.indexOf(best[id]);
   const prev = best[id];
@@ -68,7 +71,7 @@ export function clearStage(escaped = false) {
   G.cleared = (G.cleared || 0) + 1;
   const seal = SEAL_AT[G.cleared] && SEAL_AT[G.cleared] > (G.seal || 0) ? SEAL_AT[G.cleared] : 0;
   G.tally = {
-    id, name: stageInfo(G.stage).name, g, col: R.col, perfect, escaped, bonus, bio: R.bio,
+    id, name: stageInfo(G.stage).name, g, col: R.col, perfect, escaped, bonus, bio, deep: deepPay() > 1,
     kills: st.kills, pct: Math.round((st.kills / Math.max(1, st.spawned)) * 100),
     hits: st.hits, deaths: st.deaths, chain: st.chain, secs: Math.round((G.t - st.t0) / 60),
     best: newBest ? (prev ? 'NEW BEST (WAS ' + prev + ')' : 'FIRST CLEAR') : 'BEST ' + best[id],
