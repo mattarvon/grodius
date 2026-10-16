@@ -3,12 +3,12 @@ import { $ } from '../state';
 import { gainXP, pk, spillSlick } from '../perks';
 const VOL = { on: 0 };
 import { clearStage, deepPay } from '../stages';
-import { PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '../core';
+import { FIRE, PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '../core';
 import { SET, lv } from '../save';
 import { sample, sfx } from '../audio';
 import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world';
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
-import { aimA, banner, eshoot, every, fan, mk, onScreen, ring } from '../enemies/spawn';
+import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
@@ -369,6 +369,134 @@ export function updEnemy(e) {
         if (R() < .35) drop(e.x + rr(-14, 14), e.y + rr(0, 24), rr(-.3, .3), rr(.2, .8), 1.4, R() < .5 ? 0 : 1, 90);
         break;
       }
+    case 'choir':
+      {
+        // THE NAIL CHOIR: a frozen eye in two orbiting nailbars. Glares 40f down a fan line, then a spike fan; the nails "sing" (glint 36f) and spit spikes at you
+        const go = midLeave(e), ph2 = e.hp < e.max * .5, live = e.bars.filter(b => !b.dead);
+        e.y = PH / 2 + Math.sin(e.t * .014) * (PH * .16);
+        e.spin = (e.spin || 0) + (live.length < 2 ? .034 : .022);
+        for (const b of e.bars) { const a = e.spin + b.i * Math.PI; b.ox = Math.cos(a) * 31; b.oy = Math.sin(a) * 31; }
+        if (!go && e.t > 120 && $.P.alive) {
+          e.wt++;
+          if (e.st === 'idle' && e.wt >= e.cool) { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 10, e.y); sfx.tele(); }
+          else if (e.st === 'tel') {
+            e.ha += wrapA(aimA(e.x - 10, e.y) - e.ha) * .04;
+            if (e.wt >= 40) {
+              fan(e.x - 10, e.y, e.ha, live.length ? 5 : 7, .16, 1.8, 'spike');
+              flash(e.x - 10, e.y, 16, 6, '200,235,255');
+              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)));
+            }
+          }
+          if (every(e, ph2 ? 110 : 150)) for (const b of live) b.sing = 36;
+          for (const b of live) if (b.sing > 0 && --b.sing === 0) { fan(b.x, b.y, aimA(b.x, b.y), 3, .22, 1.35, 'spike'); sfx.tink(); }
+          if (ph2 && every(e, 130)) ring(e.x, e.y, 10, e.t * .05, 1.05);
+        }
+        if (R() < .25) spark(e.x + rr(-12, 12), e.y + rr(-10, 12), rr(-.3, .3), rr(.2, .6), 14, R() < .5 ? '#d8efff' : '#8cc4ee');
+        if (R() < .15) drop(e.x + rr(-6, 6), e.y + 10, 0, .4, 1.2, 0, 80);
+        break;
+      }
+    case 'cyst':
+      {
+        // THE DISSOLVING WOMB: a melting sac on the lake. Bubbles 45f, then geysers a rain of globs lobbed onto you; or bloats 30f and bursts a ring
+        const go = midLeave(e), ph2 = e.hp < e.max * .5;
+        e.y = PH * .6 + Math.sin(e.t * .016) * (PH * .13);
+        if (!go && e.t > 120 && $.P.alive) {
+          e.wt++;
+          if (e.st === 'idle') {
+            e.sw = Math.max(0, (e.sw || 0) - 1.5);
+            if (e.wt >= e.cool) { e.att++; e.st = e.att % 3 ? 'tel' : 'swell'; e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.squish(); }
+          } else if (e.st === 'tel') {
+            if (R() < .6) spark(e.x + rr(-6, 6), e.y - 18, rr(-.3, .3), -rr(.8, 2), 14, '#7ff0d8');
+            if (e.wt >= 45) { e.st = 'spray'; e.wt = 0; geysers.push({ wx: 0, y: 0, att: e, ox: -2, oy: -19, a: -Math.PI / 2, l: ph2 ? 44 : 32, rate: 4, c: 2 }); }
+          } else if (e.st === 'spray') {
+            if (e.wt % 5 === 0) lob(e.x - 2, e.y - 20, $.P.x + rr(-36, 36), $.P.y + rr(-20, 20), rr(1.3, 1.8));
+            if (e.wt >= (ph2 ? 40 : 28)) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 55 : 80) * (1 - .3 * ($.G.rank || 0))); }
+          } else if (e.st === 'swell') {
+            e.sw = e.wt;
+            if (e.wt >= 30) {
+              ring(e.x, e.y, ph2 ? 14 : 10, e.t * .07, 1.05);
+              for (let k = 0; k < 20; k++) drop(e.x, e.y, rr(-2, 2), rr(-2, 2), 1.5, 2, 70);
+              sfx.glob();
+              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 55 : 80) * (1 - .3 * ($.G.rank || 0)));
+            }
+          }
+        }
+        if (R() < .35) drop(e.x + rr(-14, 14), e.y + rr(8, 20), rr(-.2, .2), rr(.3, .9), 1.3, R() < .6 ? 2 : 4, 80);
+        if (R() < .08) spark(e.x + rr(-16, 16), e.y - rr(0, 14), 0, -rr(.3, .8), 20, '#a6ff2a');
+        break;
+      }
+    case 'prentice':
+      {
+        // THE BUTCHER'S APPRENTICE: a small carcass on one chain with a cleaver. Lunges in behind a red sweep cone (50f to get out), or spits ember fans
+        const go = midLeave(e, e.st === 'tel' ? .06 : .03), ph2 = e.hp < e.max * .5;
+        e.sw = (e.sw || 0) + (ph2 ? .028 : .018);
+        if (e.st === 'tel' && e.wt < 25) e.y = lerp(e.y, clamp($.P.y + 6, 50, PH - 40), .06);
+        else if (e.st !== 'tel' && e.st !== 'cut') e.y = lerp(e.y, PH * .42 + Math.sin(e.sw) * 34, .05);
+        const sx = e.x - 8, sy = e.y - 6;
+        if (!go && e.t > 120 && $.P.alive) {
+          e.wt++;
+          if (e.st === 'idle') {
+            e.ba = lerp(e.ba, -2.3, .1);
+            e.tx = W - 92;
+            if (e.wt >= e.cool) { e.att++; e.st = e.att % 3 && $.P.x < W - 160 ? 'tel' : 'spit'; e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.chain(); }
+          } else if (e.st === 'tel') {
+            e.tx = clamp($.P.x + 64, 130, W - 70);
+            e.ba = lerp(e.ba, -2.4, .2);
+            if (e.wt >= 50) { e.st = 'cut'; e.wt = 0; sfx.lash(); }
+          } else if (e.st === 'cut') {
+            const p = Math.min(1, e.wt / 12);
+            e.ba = -2.3 - p * (TAU - 4.6);
+            if (e.wt === 6) {
+              $.G.shake += 3;
+              for (let k = 0; k < 24; k++) spark(sx - 50, sy + rr(-30, 30), rr(-3, 0), rr(-2, 2), ri(8, 16), pick(FIRE));
+              fan(sx, sy, aimA(sx, sy), 3, .3, 1.5);
+            }
+            if ($.P.alive && e.wt <= 12) {
+              const d = Math.sqrt(dist2($.P.x, $.P.y, sx, sy));
+              let pa = Math.atan2($.P.y - sy, $.P.x - sx), cur = e.ba;
+              if (pa < 0) pa += TAU;
+              if (cur < 0) cur += TAU;
+              if (d > 14 && d < 84 && pa <= 3.99 && pa >= cur) playerHit();
+            }
+            if (e.wt >= 30) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0))); }
+          } else if (e.st === 'spit') {
+            if (e.wt === 24 || e.wt === 38) fan(e.x - 4, e.y - 24, aimA(e.x - 4, e.y - 24), ph2 ? 7 : 5, .19, 1.7);
+            if (e.wt >= 50) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0))); }
+          }
+          if (ph2 && every(e, 120)) ring(e.x, e.y, 10, e.t * .06, 1.05);
+        }
+        if (R() < .5) spark(e.x + rr(-12, 12), e.y + rr(-10, 24), rr(-.4, .3), -rr(.4, 1.4), ri(8, 16), pick(FIRE));
+        if (R() < .25) drop(e.x + rr(-10, 10), e.y + rr(0, 20), rr(-.3, .3), rr(.2, .8), 1.3, R() < .5 ? 0 : 1, 90);
+        break;
+      }
+    case 'brood':
+      {
+        // THE BROOD MOTHER: a swollen mucus sac. Heaves 44f, then births a litter of hatchlings; or flares 26f and sneezes snot globs
+        const go = midLeave(e), ph2 = e.hp < e.max * .5;
+        e.y = PH / 2 + Math.sin(e.t * .013) * (PH * .2);
+        if (!go && e.t > 120 && $.P.alive) {
+          e.wt++;
+          if (e.st === 'idle') {
+            e.bul = Math.max(0, (e.bul || 0) - .05);
+            if (e.wt >= e.cool) { e.att++; e.st = e.att % 2 ? 'birth' : 'sneeze'; e.wt = 0; sfx.squish(); }
+          } else if (e.st === 'birth') {
+            e.bul = e.wt / 44;
+            if (R() < .3) drop(e.x - 8 + rr(-4, 4), e.y + 14, rr(-.5, .5), rr(.3, 1), 1.2, 4, 60);
+            if (e.wt >= 44) {
+              const kids = enemies.filter(q => q.kid && !q.dead).length, n = Math.min(10 - kids, 3 + Math.round(($.G.rank || 0) * 2) + (ph2 ? 2 : 0));
+              for (let i = 0; i < n; i++) mk('hatch', e.x - 16 - i * 7, e.y + 6 + rr(-8, 8), { kid: 1, ph: R() * TAU, vy: rr(-1.4, 1.4) });
+              for (let k = 0; k < 18; k++) drop(e.x - 14, e.y + 6, rr(-2.5, 0), rr(-1.5, 1.5), 1.5, R() < .5 ? 4 : 0, 80);
+              sfx.squish();
+              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)));
+            }
+          } else if (e.st === 'sneeze') {
+            if (e.wt >= 26 && e.wt <= 38 && e.wt % 6 === 2) fan(e.x - 18, e.y - 4, aimA(e.x - 18, e.y - 4), ph2 ? 5 : 3, .22, 1.8, 'glob');
+            if (e.wt >= 50) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0))); }
+          }
+        }
+        if (R() < .3) drop(e.x + rr(-16, 16), e.y + rr(10, 20), rr(-.2, .2), rr(.2, .6), 1.4, R() < .5 ? 0 : 4, 90);
+        break;
+      }
     case 'maw':
       {
         const tx = W - 82;
@@ -452,6 +580,21 @@ export function whipPts(e) {
     });
   }
   return pts;
+}
+// biome midbosses: settle at e.tx, and once e.t passes e.leave slide off right (escape costs nothing). The HUD fuse shows the time left.
+function midLeave(e, k = .03) {
+  e.pl = e.leave;
+  e.pt = Math.min(e.t, e.leave);
+  if (e.t < e.leave) { e.x = lerp(e.x, e.tx, k); return false; }
+  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); }
+  e.x += 1.6;
+  if (e.x > W + 60) e.dead = true;
+  return true;
+}
+/** a lobbed glob (falls .025/f) that comes down through (tx, ty) */
+function lob(x, y, tx, ty, vy) {
+  const bs = BS(), u = vy * bs, t = (u + Math.sqrt(Math.max(0, u * u + .05 * (ty - y)))) / .025, vx = (tx - x) / (bs * t);
+  eshoot(x, y, Math.atan2(-vy, vx), Math.hypot(vx, vy), 'glob');
 }
 // Timed halves for the biome bosses (Taisei-style attack timers, see docs/pacing.md 3.6). Each half of the fight,
 // split at 50% HP, gets PHASE_F frames once the boss has settled in. Run out the first half and it lurches into the
@@ -559,7 +702,7 @@ export function killEnemy(e, dir = 1) {
   $.G.kills++;
   if ($.G.combo > $.G.maxCombo) $.G.maxCombo = $.G.combo;
   if ($.G.st) {
-    if (!e.mini && !e.par) $.G.st.kills++;
+    if (!e.mini && !e.par && !e.kid) $.G.st.kills++;
     $.G.st.chain = Math.max($.G.st.chain, $.G.combo);
   }
   if (e.cap) dropCap(e.x, e.y);
@@ -588,6 +731,16 @@ export function killEnemy(e, dir = 1) {
     sfx.roar();
     for (const s of eshots) for (let k = 0; k < 2; k++) drop(s.x, s.y, rr(-1, 1), rr(-1, 1), 1.4, 0, 90);
     eshots.length = 0;
+  }
+  if (e.mid) { // biome midboss: two pods, the stage goes on
+    for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);
+    dropCap(e.x - 20, e.y - 16);
+    dropCap(e.x - 20, e.y + 16);
+    splat(rr(150, 330), rr(60, 160), 4);
+    splat(rr(150, 330), rr(60, 160), 3);
+    banner({ choir: 'SILENCED', cyst: 'BURST', prentice: 'CLEAVED', brood: 'STILLBORN' }[e.k], '', undefined, 90);
+    $.G.hitstop = Math.max($.G.hitstop || 0, 10);
+    sfx.roar();
   }
   if (e.k === 'corpse') sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true });
   if (e.k === 'maw') {

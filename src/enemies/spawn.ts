@@ -135,7 +135,12 @@ export const ET = {
     teeth: 10,
     big: 1,
     mini: 1
-  }
+  },
+  // biome midbosses (docs/pacing.md 3.2): Maw-sized pools, hold the scroll, leave after ~23 s
+  choir: { hp: 80, r: 13, gsz: 4, score: 6000, bio: 60, skull: 1, eyes: 5, teeth: 4, big: 1, mini: 1, mid: 1 },
+  cyst: { hp: 135, r: 21, gsz: 4, score: 6000, bio: 70, half: 1, amnio: 1, eyes: 2, teeth: 6, big: 1, mini: 1, mid: 1 },
+  prentice: { hp: 150, r: 15, gsz: 4, score: 6000, bio: 70, skull: 1, limbs: 3, eyes: 3, teeth: 6, big: 1, mini: 1, mid: 1 },
+  brood: { hp: 105, r: 20, gsz: 4, score: 6000, bio: 70, half: 1, amnio: 1, eyes: 3, teeth: 8, big: 1, mini: 1, mid: 1 }
 };
 export function mk(k, x, y, o = {}) {
   const b = ET[k],
@@ -156,7 +161,7 @@ export function mk(k, x, y, o = {}) {
   // power rank (0..1) thickens everything: +80% HP for fodder, +100% for bosses (a maxed build still gets a fight)
   e.hp = b.hp * hm * (o.hpm || 1) * (1 + ($.G.rank || 0) * (b.mini ? 1 : .8));
   e.max = e.hp;
-  if (!b.mini && !o.par && $.G.st) $.G.st.spawned++;
+  if (!b.mini && !o.par && !o.kid && $.G.st) $.G.st.spawned++; // kid: born from a midboss, not scripted
   if (e.cap && !e.mini && R() < .65) e.cap = false;
   enemies.push(e);
   return e;
@@ -297,6 +302,12 @@ export function maw(stageBoss = false) {
     cap: 1,
     leave: 1700
   });
+}
+/** a biome's midboss (k = choir / cyst / prentice / brood), in from the right edge */
+export function midboss(k, title) {
+  const e = mk(k, W + 50, k === 'prentice' ? PH * .42 : PH / 2, { title, tx: W - 92, st: 'idle', wt: 0, cool: 110, att: 0, ba: -2.3, leave: 1400 });
+  if (k === 'choir') e.bars = [0, 1].map(i => mk('nailbar', e.x, e.y, { par: e, ox: 0, oy: 0, i, hpm: 1.6 }));
+  $.G.mini = e;
 }
 export function crossT(side) {
   const wx = $.G.scroll + W + 16,

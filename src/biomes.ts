@@ -10,7 +10,7 @@ import { mkTex } from './textures';
 import { sfx, sample } from './audio';
 import { buzz } from './platform';
 import { spark, drop, flash, gore, pop, mist } from './fx/spawn';
-import { banner, behindWave, butcher, corpse, crawler, crossT, eyeT, flayer, formation, hatch, hookE, logLine, maw, miniWarn, womb, crux } from './enemies/spawn';
+import { banner, behindWave, butcher, corpse, crawler, crossT, eyeT, flayer, formation, hatch, hookE, logLine, maw, midboss, miniWarn, womb, crux } from './enemies/spawn';
 import { glow, light } from './render/util';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
@@ -27,7 +27,7 @@ export const BIOMES = {
     name: 'THE CRYOVAULT', tag: 'FROZEN // CRUCIFER', sub: 'THE CREW IS STILL IN HERE. FROZEN MID-SCREAM', col: '#9fd8ff', rgb: '160,215,255',
     dark: .55, mist: '90,10,26', bg: ['#02060e', '#0e2840'], edge: '#f2fbff', fog: '120,180,230',
     gore: ['#7a1222', '#300610', '#d8efff', '#0c0809', '#8cc4ee', '#ffffff'], blood: ['#7a1222', '#300610', '#c8506a'],
-    boss: 'crux', bossName: 'THE FROZEN CRUCIFER', haz: 'icicle', hazEvery: 110,
+    boss: 'crux', bossName: 'THE FROZEN CRUCIFER', mid: 'choir', midName: 'THE NAIL CHOIR', haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
     gap: 115, dbl: .5, set: 'morgue', sig: 'corpse',
     mix: [['corpse', 3], ['cross', 3], ['flayer', 2], ['eye', 2], ['hook', 2], ['wall', 2], ['sine', 2]],
@@ -37,7 +37,7 @@ export const BIOMES = {
     name: 'THE DIGESTION TANKS', tag: 'DISSOLVING // MAW', sub: 'EVERYTHING DOWN HERE IS BEING EATEN', col: '#3fe8c8', rgb: '60,230,195',
     dark: .6, mist: '18,120,100', bg: ['#010605', '#081a15'], edge: '#7ff0d8', fog: '40,200,170',
     gore: ['#8a4630', '#2e140c', '#46e0c0', '#0c0809', '#ddd27a', '#c8f4e8'], blood: ['#1c9a80', '#0a3a32', '#6ff0d4'],
-    boss: 'maw', bossName: 'THE DISSOLVED MAW', haz: 'geyser', hazEvery: 135,
+    boss: 'maw', bossName: 'THE DISSOLVED MAW', mid: 'cyst', midName: 'THE DISSOLVING WOMB', haz: 'geyser', hazEvery: 135,
     // wall swarms over a floor full of crawlers and wombs
     gap: 125, dbl: .5, set: 'walls', sig: 'wall',
     mix: [['wall', 4], ['crawler', 3], ['womb', 2], ['eye', 2], ['dive', 1], ['hatch', 1]],
@@ -47,7 +47,7 @@ export const BIOMES = {
     name: 'THE FURNACE', tag: 'BURNING // BUTCHER', sub: 'THEY BURNED THE BODIES. THE BODIES KEPT MOVING', col: '#ff7a1a', rgb: '255,120,30',
     dark: .6, mist: '50,12,6', bg: ['#040000', '#300702'], edge: '#ffb347', fog: '255,90,20',
     gore: ['#4a0a06', '#120202', '#ff6a1a', '#050303', '#ffb347', '#ff3a10'], blood: ['#6a0a08', '#240303', '#ff4a1a'],
-    boss: 'butcher', bossName: 'THE BURNING BUTCHER', haz: 'jet', hazEvery: 125,
+    boss: 'butcher', bossName: 'THE BURNING BUTCHER', mid: 'prentice', midName: "THE BUTCHER'S APPRENTICE", haz: 'jet', hazEvery: 125,
     // aggressive: tight spacing, divers and flayers, things coming from behind
     gap: 100, dbl: .6, set: 'pincer', sig: 'flayer',
     mix: [['flayer', 3], ['dive', 3], ['hook', 2], ['zig', 2], ['crawler', 2], ['behind', 1]],
@@ -57,7 +57,7 @@ export const BIOMES = {
     name: 'THE SINUS', tag: 'MUCUS // MAW', sub: 'THE SHIP HAS A COLD', col: '#ecd25a', rgb: '236,210,90',
     dark: .4, mist: '160,140,40', bg: ['#0a0503', '#2a1c08'], edge: '#f4e49a', fog: '200,180,70',
     gore: ['#d0b840', '#7a4a18', '#f4e6a0', '#3a1a0a', '#fff4c8', '#a83a24'], blood: ['#c8ac3a', '#6a4a14', '#f2e08a'],
-    boss: 'maw', bossName: 'THE MUCUS MAW', haz: 'strand', hazEvery: 150,
+    boss: 'maw', bossName: 'THE MUCUS MAW', mid: 'brood', midName: 'THE BROOD MOTHER', haz: 'strand', hazEvery: 150,
     // hatchling floods out of wombs and the walls
     gap: 125, dbl: .45, set: 'flood', sig: 'hatch',
     mix: [['hatch', 4], ['womb', 3], ['corpse', 2], ['sine', 2], ['crawler', 1], ['eye', 1]],
@@ -165,7 +165,7 @@ export function biomeScript(seg, b, from) {
   at(mid, () => logLine(B.logs[1]));
   // pacing beats by p = (x-a)/(z-a): intro <.2 (sparse, signature first) / build / breath .45-.55 (empty) / peak .55-.9 (dense) / tail
   const P = (q) => a + (z - a) * q, sig = () => (R() < .6 ? B.sig : roll()), sets = [P(.3), P(.75)];
-  const bZ = seg === 1 ? Math.max(P(.55), mid + 260) : P(.55), bA = bZ - (z - a) * .1; // stage 2: the breath leads into the Maw and ends just past it (scroll coasts ~50px)
+  const bZ = seg === 1 ? Math.max(P(.55), mid + 260) : P(.55), bA = bZ - (z - a) * .1; // stage 2: the breath is shifted to end just past mid+260 (the midboss), as it was for the old mid-stage Maw
   for (let x = a, n = 0; x < z; n++) {
     const q = (x - a) / (z - a), intro = q < .2, peak = x >= bZ && q < .9, st = Math.round(B.gap * (intro ? 1.4 : peak ? .75 : 1)), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
     if (x >= bA && x < bZ) { x = bZ; continue; }
@@ -176,8 +176,8 @@ export function biomeScript(seg, b, from) {
     if (n && hard && R() < .35 && !(y3 >= bA && y3 < bZ)) at(y3, SPAWN[pk()]);
     x += st;
   }
-  if (seg === 1) at(mid + 200, () => maw(false)); // a mid-stage gut-check in the second biome: the breath's centerpiece
-  else at(Math.round(bA + 40), () => formation('sine', PH / 2, 3)); // the breath: one small formation, kill it all for a pod
+  // the breath's centerpiece: the biome's own midboss. WARNING 150f (~150px) ahead so it lands ~60px before bZ and the scroll coasts to a stop inside the breath
+  at(Math.round(bZ - 210), () => miniWarn(B.midName, () => midboss(B.mid, B.midName)));
   const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
   at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }));
   return S;

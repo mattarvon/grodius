@@ -66,9 +66,9 @@ One descent = 9400 px = 4 stages. Spawns are keyed to scroll position, and the s
 |---|---|---|---|
 | 0 OPEN ORBIT | 0 → 2120 px | **~35 s** | Maw, 120 HP, leaves after 28 s |
 | fork | — | up to 15 s | — |
-| 1 biome | ~2720 → 4790 | **~35 s** | Biome boss (Crux 145 / Butcher 300 / Maw 120), 2.5 s WARNING |
+| 1 biome | ~2720 → 4790 | **~35 s** | Biome midboss (§3.2), then biome boss (Crux 145 / Butcher 300 / Maw 120), 2.5 s WARNING |
 | fork | — | up to 15 s | — |
-| 2 biome | ~5700 → 7860 | **~36 s** | **Mid-stage Maw**, then the biome boss |
+| 2 biome | ~5700 → 7860 | **~36 s** | Biome midboss (§3.2), then the biome boss |
 | 3 GRAVITY DRIVE | ~8200 → 8700 | **~8 s** | Gravity Drive, 560 + 3×48 HP × m |
 
 A full descent runs roughly 4–6 minutes, including fights, tally cards and forks.
@@ -116,10 +116,33 @@ Results from `node tools/density-probe.mjs <url>`, averaged over 400 rolls:
 - **Total per biome:** −2% to −4%.
 - `route-probe` passed on all 4 gate routes.
 
-### 3.2 A midboss in every biome stage
+### 3.2 A midboss in every biome stage (done)
 At the moment only stage 2 gets the mid-stage Maw (`src/biomes.ts:172`). Give each biome its own **cheaper version of its boss**, for example an ice "Nail Choir" (2 nailbars and an eye) or fire "Butcher's Apprentice" (cleaver only), at **p = 0.5**, where the breath beat from §3.1 lands. Keep the Maw's escape rule (a time limit of about 20–28 s, and escaping costs nothing) so a weak build isn't stuck.
 
 Because Grodius spawns are keyed to scroll position and the scroll holds during `G.mini`, stage length in pixels is already fixed. The Taisei trick of shortening the filler only matters if you later add time-based events.
+
+**Done (branch `biome-midbosses`).** Each biome has its own midboss (`midboss()` in `src/enemies/spawn.ts`, `case 'choir'/'cyst'/'prentice'/'brood'` in `src/enemies/update.ts`). It appears in **both** biome stages and replaces the stage-1 breath formation and the stage-2 generic Maw:
+
+| Biome | Midboss | HP (×mk) | Attacks (each telegraphed) |
+|---|---|---|---|
+| ice | THE NAIL CHOIR | 80 + 2 nailbars × 26 | Glare 40f → spike fan of 5 (7 once both nails are gone); nails glint 36f → 3-spike fan each; ring under 50% |
+| acid | THE DISSOLVING WOMB | 135 | Crown bubbles 45f → geyser of globs lobbed onto the ship; bloats 30f → ring; longer sprays under 50% |
+| fire | THE BUTCHER'S APPRENTICE | 150 | Lunges behind the Butcher's sweep cone (50f, r 84) → cleaver; mouth glows 24f → 2 ember fans; ring under 50%. No hook |
+| snot | THE BROOD MOTHER | 105 | Heaves 44f → litter of 3–5 hatchlings (+2 under 50%, max 10 alive); nostrils flare 26f → 3 volleys of snot globs |
+
+- The WARNING goes out 210 px before the breath ends, so the midboss lands about 60 px before the breath ends and the scroll coasts to a stop inside it. That's at p ≈ 0.52 in stage 1 and p ≈ 0.59 in stage 2, where the shifted breath window is unchanged.
+- **Escape:** it leaves at t = 1400f (about 23 s, entrance included) at no cost. The phase fuse in the HUD shows the time left. A kill drops 2 pods. (The generic `maw(false)` actually dropped 3: its `cap` flag plus 2.)
+- The Brood Mother's litter is tagged `kid`. It doesn't count toward `spawned` or stage kills, so the grade isn't affected, and it doesn't feed graft counters. Midboss kills count as Maw kills for GLUTTONY.
+- Measured with `tools/midboss-probe.mjs` (bot time, each fight in its real biome), TTK in seconds, esc = left first:
+
+| Loadout | Maw (mid) | Nail Choir | Diss. Womb | Apprentice | Brood Mother |
+|---|---|---|---|---|---|
+| Naked | esc | 20.7 | 15.9 | 22.2 | 19.2 |
+| Stage 1 kit | 13.1 | 15.8 | 12.6 | 10.4 | 14.2 |
+| End descent 1 | 7.7 | 9.6 | 8.2 | 6.4 | 6.2 |
+| Strong D1 | 4.9 | 2.4 | 3.3 | 4.3 | 2.9 |
+
+- The stage bosses are unchanged (`boss-probe`: Maw 12.9, Crucifer 36.0, Butcher 29.7 s with a stage-1 kit). `route-probe` passed on all 4 gate routes over 2 descents, plus a forced fire → snot run: every biome's midboss spawned in both stages, with no errors, no slams and no bad hazards. `density-probe` shows breath = 0 everywhere now.
 
 ### 3.3 Lengthen the Gravity Drive run-up
 Stage 3 is about 500 px, roughly 8 s. That's too short to feel like arriving at the last boss. Options:
@@ -175,6 +198,7 @@ Every recommendation above should be checked with a probe, not by feel. The prob
 | Ship level after stage 1 / end of descent 1 | `perk-pace.mjs`, `pod-probe.mjs` | 3 / 10–11 | **LV3** / **LV10.2** (10–11), on target |
 | Gravity Drive time-to-kill, end of descent 1 kit (bot; real ≈ 2×) | `boss-probe.mjs` | 25–35 s | **32.2 s** (32.1–32.3) |
 | Biome boss time-to-kill, stage 1 kit | `boss-probe.mjs` | 15–25 s | **Crucifer 36.0 s, Butcher 29.7 s**, over target (Maw 12.9 s) |
+| Biome midboss time-to-kill, stage 1 kit | `midboss-probe.mjs` | ~13 s (the Maw's) | Choir 15.8, Womb 12.6, Apprentice 10.4, Brood 14.2 s (`biome-midbosses`) |
 | Spawns per second by beat | `density-probe.mjs` | intro < build < peak, breath = 0 | after 3.1: intro ~0.5, peak 1.0–1.7, breath 0 (or 1 formation) |
 | Bio per descent, harvest bot | `pod-probe.mjs` | 900–1200 | **1109** (867–1283) |
 

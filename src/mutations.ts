@@ -75,7 +75,7 @@ export const GM = [{
   id: 'over',
   c: 'GLT',
   k: 'maw',
-  w: 'MAWS',
+  w: 'MAWS+MIDS',
   n: [2, 4],
   name: 'GLUTTONY',
   d: 'crits hit x3',
@@ -112,8 +112,8 @@ export const ROM = ['', 'I', 'II', 'III', 'IV'];
 export const gmL = id => $.G && $.G.gm ? $.G.gm[id] || 0 : 0;
 export const gunSlots = () => Math.min(3, 1 + ($.G && $.G.seal || 0));
 export function countKill(e) {
-  if (!$.G || !$.G.gm) return;
-  const k = e.k;
+  if (!$.G || !$.G.gm || e.kid) return; // a midboss's litter doesn't feed grafts
+  const k = e.mid ? 'maw' : e.k; // biome midbosses feed GLUTTONY like the Maws they replace
   $.G.kk[k] = ($.G.kk[k] || 0) + 1;
   $.G.gmk++;
   $.G.gpend = $.G.gpend || {};
