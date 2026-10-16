@@ -10,25 +10,26 @@ const URLS = import.meta.glob('./music/*.ogg', { eager: true, query: '?url', imp
 
 /** slot -> file stem in src/music/. Change a mapping to retheme a stage. */
 export const TRACKS = {
-  title: 'bleak-terminal-ruskerdax',
-  menu: 'tech-rooms-amb-03', // Infirmary + game over
-  stage0: 'tech-rooms-action-01', // Open Orbit
-  stage1: 'tech-rooms-action-02', // fallback only: stages 1-2 play their biome's remix (BIOME_MIX)
-  stage2: 'eternity-01-desolation-davidkbd',
-  stage3: 'tech-rooms-amb-02', // The Gravity Drive approach
-  boss3: 'eternity-01-desolation-davidkbd', // The Gravity Drive fight
+  title: 'void-10-title-music',
+  menu: 'void-07-heist', // Infirmary + game over
+  stage0: 'void-05-cyber-side-scroller', // Open Orbit
+  stage1: 'void-02-institutional-values', // fallback only: stages 1-2 play their biome's track (BIOME_MIX)
+  stage2: 'void-11-corporate-identity',
+  stage3: 'void-12-not-done-here-yet', // The Gravity Drive approach
+  boss3: 'void-13-finale', // The Gravity Drive fight
 };
-/** biome remixes of the same tracks: playback rate (pitch + tempo), a filter (optionally LFO-swept) and drive */
+/** each biome has its own track, coloured by a light filter (optionally LFO-swept) and drive. rate stays 1: these
+ *  are distinct songs now, so there's no reuse to disguise by pitching them */
 export const BIOME_MIX = {
   none: { rate: 1, type: 'lowpass', f: 20000, q: .7, lfo: 0, depth: 0, drive: 0 },
-  // ice: slowed and thinned, the low end frozen out
-  ice: { track: 'tech-rooms-amb-01', rate: .9, type: 'highpass', f: 240, q: .8, lfo: 0, depth: 0, drive: 0 },
-  // acid: a slow wah (bandpass swept 600..2000Hz, wide enough to keep the groove) with a little grit
-  acid: { track: 'tech-rooms-action-02', rate: 1.06, type: 'bandpass', f: 1300, q: .8, lfo: .2, depth: 700, drive: .3 },
-  // fire: bass shelf up and overdriven
-  fire: { track: 'eternity-01-desolation-davidkbd', rate: 1.04, type: 'lowshelf', f: 180, q: .7, gain: 6, lfo: 0, depth: 0, drive: .6 },
-  // snot: pitched down and smothered, a gently resonant lowpass breathing between ~650 and ~1450Hz
-  snot: { track: 'tech-rooms-action-01', rate: .82, type: 'lowpass', f: 1050, q: 2.2, lfo: .13, depth: 400, drive: .1 },
+  // ice: a little thinner, the sub frozen out
+  ice: { track: 'void-08-caves', rate: 1, type: 'highpass', f: 110, q: .7, lfo: 0, depth: 0, drive: 0 },
+  // acid: a slow, shallow wah with a little grit
+  acid: { track: 'void-02-institutional-values', rate: 1, type: 'bandpass', f: 1600, q: .5, lfo: .2, depth: 500, drive: .2 },
+  // fire: bass shelf up and lightly driven
+  fire: { track: 'void-11-corporate-identity', rate: 1, type: 'lowshelf', f: 160, q: .7, gain: 4, lfo: 0, depth: 0, drive: .35 },
+  // snot: muffled, a soft lowpass breathing between ~1800 and ~3000Hz
+  snot: { track: 'void-09-pods', rate: 1, type: 'lowpass', f: 2400, q: 1, lfo: .13, depth: 600, drive: .05 },
 };
 const FADE = 1.4, PAUSE_LVL = .35, DUCK_LVL = .3;
 let filt = null, shaper = null, lfo = null, lfoG = null, mixNow = 'none';

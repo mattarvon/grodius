@@ -7,11 +7,23 @@ Raw downloads live in `assets-raw/` (git-ignored, on Matty's machine only).
 ## Music (`src/music/`)
 | File | Track | Artist | License | Source |
 |---|---|---|---|---|
-| `eternity-01-desolation-davidkbd.ogg` | The Desolation of a Civilization (loop), Eternity Pack | David KBD | CC BY 4.0 | https://davidkbd.itch.io/eternity-metal-scfi-music-pack |
-| `tech-rooms-action-01.ogg`, `tech-rooms-action-02.ogg`, `tech-rooms-amb-02.ogg`, `tech-rooms-amb-03.ogg` | Horror Soundtrack (8 Tracks): Tech Rooms | Kenten Fina | CC BY 3.0 | https://opengameart.org/content/horror-soundtrack-8-tracks-tech-rooms |
-| `bleak-terminal-ruskerdax.ogg` | Bleak Terminal | Ruskerdax | CC0 | https://opengameart.org/content/bleak-terminal |
+| `void-02-institutional-values.ogg` | Institutional Values | dancramp | CC BY 4.0 | https://dancramp.itch.io/void-music-pack |
+| `void-05-cyber-side-scroller.ogg` | Cyber Side Scroller | dancramp | CC BY 4.0 | same |
+| `void-07-heist.ogg` | Heist | dancramp | CC BY 4.0 | same |
+| `void-08-caves.ogg` | Caves | dancramp | CC BY 4.0 | same |
+| `void-09-pods.ogg` | Pods | dancramp | CC BY 4.0 | same |
+| `void-10-title-music.ogg` | Title Music for an Imaginary Sci-Fi Platformer | dancramp | CC BY 4.0 | same |
+| `void-11-corporate-identity.ogg` | Corporate Identity | dancramp | CC BY 4.0 | same |
+| `void-12-not-done-here-yet.ogg` | We're Not Done Here Yet | dancramp | CC BY 4.0 | same |
+| `void-13-finale.ogg` | Finale | dancramp | CC BY 4.0 | same |
 
-All music re-encoded (Ogg Vorbis q3) and gain-matched to -16 LUFS; otherwise unmodified.
+All tracks are from the album *Void* by dancramp (https://dancramp.itch.io/void-music-pack), licensed CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/). Changes: the closing fade-out is trimmed and replaced with a 2 s fade
+so the track can loop; re-encoded as Ogg Vorbis q3; gain-matched to -16 LUFS. The full WAVs are in
+`assets-raw/music/void-dancramp/`.
+
+Earlier soundtrack (no longer bundled; still in git history and `assets-raw/`): David KBD "Eternity" (CC BY 4.0),
+Kenten Fina "Tech Rooms" (CC BY 3.0), Ruskerdax "Bleak Terminal" (CC0).
 
 ## Sound effects (`src/sfx/`)
 | Files | Source | License |

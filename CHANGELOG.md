@@ -2,6 +2,28 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-16 (branch `void-soundtrack`)
+
+### New soundtrack: dancramp's *Void*
+- All music is now from **Void** by dancramp, 80s-influenced synthwave and cyberpunk, CC BY 4.0. Each slot has its own song:
+
+  | Where | Track |
+  |---|---|
+  | Title | Title Music for an Imaginary Sci-Fi Platformer |
+  | Infirmary / game over | Heist |
+  | Open Orbit | Cyber Side Scroller |
+  | Ice | Caves |
+  | Acid | Institutional Values |
+  | Fire | Corporate Identity |
+  | Snot | Pods |
+  | Gravity Drive approach | We're Not Done Here Yet |
+  | Gravity Drive fight | Finale |
+
+- The biomes used to be pitch/filter remixes of the same few tracks. Now they're distinct songs, so the remixing is gentler: no pitch shift, just a light filter and drive per biome.
+- Each song's closing fade-out is trimmed and replaced with a 2 s fade so it loops cleanly. All tracks are matched to -16 LUFS.
+- The old horror/metal tracks (David KBD, Kenten Fina, Ruskerdax) are no longer bundled. They're still in git history and `assets-raw/`. Music size went from about 10 MB to about 28 MB.
+- `route-probe` confirms the right track plays in every slot. Credits are in `CREDITS.md` and on the title screen.
+
 ## 2026-10-15 (branch `pacing-pass`)
 
 ### Biome stages have a shape
