@@ -400,7 +400,7 @@ export function buildScript(L) {
     hard = L > 0;
   // PHASE 1: open orbit, the derelict looming
   at(200, () => formation('sine', 80));
-  at(420, () => formation('sine', 175));
+  at(420, () => formation(hard ? 'zig' : 'sine', 175)); // Descent 2+ upgrades a few waves (Descent 1 is untouched)
   at(560, () => {
     corpse(60);
     corpse(200);
@@ -410,7 +410,7 @@ export function buildScript(L) {
   at(980, () => formation('wall', PH / 2));
   at(1100, () => hatch(6, true));
   at(1220, () => {
-    formation('sine', 60);
+    formation(hard ? 'zig' : 'sine', 60);
     corpse(150);
   });
   at(1320, () => flayer(PH * .3));
@@ -430,6 +430,23 @@ export function buildScript(L) {
     sfx.alarm();
   });
   at(2120, () => maw(true));
+  if (hard) {
+    at(900, () => behindWave(PH * .3, 4)); // a rear wave between the dives and the wall
+    at(1550, () => { flayer(PH * .25); flayer(PH * .75); }); // a flayer pair as the behind wave clears
+  }
+  // PHASE 4: the Gravity Drive approach (stage 3 starts ~8370): corridor gauntlet, rising pressure, WARNING, a breath
+  at(8430, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
+  at(8450, () => formation('sine', PH * .3));
+  at(8530, () => { corpse(70); corpse(PH - 70); });
+  at(8600, () => formation('dive', 60));
+  at(8670, () => formation('dive', PH - 80));
+  at(8730, () => { eyeT(1); eyeT(-1); });
+  at(8790, () => behindWave(PH / 2));
+  at(8850, () => { formation('zig', PH * .35); flayer(PH * .75); });
+  at(8920, () => { formation('wall', PH / 2); if (hard) hatch(6, true); });
+  at(8990, () => { flayer(PH * .25); flayer(PH * .7); if (hard) formation('dive', 120); });
+  at(9060, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.alarm(); $.G.glitch = 14; });
+  at(9150, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
   at(BOSS_AT, () => startBoss());
   // stages 1 and 2 (world x 2300..8200) are biome slots, scripted when you pick a gate (biomes.ts insertScript)
   S.sort((a, b) => a.x - b.x);

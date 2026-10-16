@@ -2,6 +2,18 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-16 (branch `stage-scripts`)
+
+### A real run-up to the Gravity Drive
+- The approach to the final boss used to last about 6 s, so the approach music barely started before the fight track took over. It now lasts about **17 s** (16.5–17.6 s over 5 seeds).
+- The level is 600 px longer: the boss now sits at 9300 instead of 8700. After the second biome, the derelict's own corridor comes back, and the Gravity Drive chamber opens up just before the fight.
+- The approach is a short scripted gauntlet that gets harder as it goes: a sine wave and drifting crew, then two divers from opposite sides, wall eyes, a wave from behind, zig drones with a flayer, a wall formation and a flayer pair. Then a red **WARNING: GRAVITY WELL CRITICAL**, and a few seconds of calm before the drive arrives. From Descent 2 on, hatchlings and an extra diver join the late waves.
+- The Gravity Drive fight is unchanged: 32.0 s for the bot with an end-of-Descent-1 kit (was 32.2 s).
+
+### Open Orbit gets meaner in Descent 2+
+- Stage 0 used to play exactly the same every descent. From Descent 2 on, two of its sine waves become zig waves, a wave comes in from behind between the dives and the wall, and a flayer pair joins the behind wave halfway through.
+- Descent 1 is unchanged: same first pod at 5.7 s, and the same seeded runs through stage 1-2.
+
 ## 2026-10-16 (branch `void-soundtrack`)
 
 ### New soundtrack: dancramp's *Void*

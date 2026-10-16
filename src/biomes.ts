@@ -118,7 +118,7 @@ function shape(b, x, o) {
   if (fl - ce < 108) { const m = (fl + ce) / 2; fl = m + 54; ce = m - 54; }
   return [ce, fl];
 }
-/** the biome terrain hands back to the level's own terrain here: the Gravity Drive chamber opens up from 8300 */
+/** the biome terrain hands back to the level's own corridor here (the Gravity Drive approach); the chamber opens from 8900 (world.ts) */
 const T_END0 = 8300, T_END1 = 8600;
 /** blend the terrain from world x `from` onward (over 300px, all of it off-screen) into biome b; it stays that
  *  biome until the next rewrite, and always fades back to the untouched level over T_END0..T_END1. The biome shape

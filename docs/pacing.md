@@ -60,7 +60,7 @@ Patterns are XML, and difficulty lives inside the pattern: `<times>1+$rank*1.5</
 
 ## 2. Grodius today
 
-One descent = 9400 px = 4 stages. Spawns are keyed to scroll position, and the scroll holds during boss, midboss and fork.
+One descent = 10000 px = 4 stages (9400 before §3.3). Spawns are keyed to scroll position, and the scroll holds during boss, midboss and fork.
 
 | Stage | Span | Scroll time | Boss |
 |---|---|---|---|
@@ -69,7 +69,7 @@ One descent = 9400 px = 4 stages. Spawns are keyed to scroll position, and the s
 | 1 biome | ~2720 → 4790 | **~35 s** | Biome boss (Crux 145 / Butcher 300 / Maw 120), 2.5 s WARNING |
 | fork | — | up to 15 s | — |
 | 2 biome | ~5700 → 7860 | **~36 s** | **Mid-stage Maw**, then the biome boss |
-| 3 GRAVITY DRIVE | ~8200 → 8700 | **~8 s** | Gravity Drive, 560 + 3×48 HP × m |
+| 3 GRAVITY DRIVE | ~8370 → 9300 | **~17 s** (was ~6 s, 8370 → 8700) | Gravity Drive, 560 + 3×48 HP × m |
 
 A full descent runs roughly 4–6 minutes, including fights, tally cards and forks.
 
@@ -82,7 +82,7 @@ A full descent runs roughly 4–6 minutes, including fights, tally cards and for
 | Density shape within a stage | ramps up, with breaths | intro → gimmick → gauntlet | **flat** (biome spawner rolls the same odds for the whole span) |
 | Calm stretches | bookmarked before midboss and boss | after the gimmick | **none inside biome stages** |
 | Power source | placed by hand | placed by hand (red / formation) | **mostly random** (per-enemy chance × 35%) plus formation pods |
-| Run-up to the final boss | full stage | full stage | **~8 s** |
+| Run-up to the final boss | full stage | full stage | **~17 s** (was ~6 s, §3.3) |
 
 Grodius stages are shorter and hit harder than either reference. That suits a run-based game on a phone: descents are meant to be repeated. The problems are not the length but the **shape**: a stage has no rise and fall, there's only one midboss, and the final boss arrives almost immediately.
 
@@ -126,6 +126,12 @@ Stage 3 is about 500 px, roughly 8 s. That's too short to feel like arriving at 
 - **A (cheap):** script a 300 px gauntlet before 8300, with the WARNING banner over it and the music change starting early. Total length stays the same.
 - **B:** raise `LEVEL` to 10000 and `BOSS_AT` to 9300 (`src/core.ts:533-538`) to make a 15–20 s approach. This touches the biome terrain handoff (`biomes.ts:122`), so re-run `route-probe.mjs` afterwards.
 
+**Done (branch `stage-scripts`), option B.** Measured, stage 3 really started at ~8370, not 8200: the stage 2 boss's WARNING lets the scroll coast to ~8170, and the next stage starts 200 steps after the kill. So the old approach was **6.0–6.6 s**.
+- `LEVEL` 10000, `BOSS_AT` 9300. Everything keyed to the chamber moved +600 px in `world.ts` (`AMT.corr`/`core`, the `fT`/`cT`/`kT` fade-outs, `zT`) and in `render/terrain.ts` (`drawInterior`). The biome handoff `T_END0/1` stays at 8300–8600, so the biome hands back to the MERIDIAN corridor, which then opens into the chamber over 8900–9300.
+- `buildScript` PHASE 4 (8430–9150): sine + crew, two divers from opposite sides, wall eyes, a behind wave, zig + flayer, a wall, a flayer pair (Descent 2+: hatchlings and an extra diver), then **WARNING: GRAVITY WELL CRITICAL** at 9060 and a ~4 s breath of drifting corpses before the boss.
+- **Approach (stage 3 start → boss): 16.5–17.6 s, mean 17.0** (`pod-probe` seeds 1–5). The "approach" track now plays for that long before the `boss3` track.
+- Stage 1-4 is 67.9 s on average (53.5–82.4), up from 58.0 s. Gravity Drive TTK with an end-of-Descent-1 kit is 32.0 s (was 32.2). `route-probe` passes on all 4 gate routes over 2 descents: minGap 114.7–138.1, 0 slams, hazards bad=[], errors none. One run in six logged a single `state:icicle`, a hazard spawned in the same frame a stage 2 tally began. It didn't repeat in two reruns of that route, and it's in biome code this change doesn't touch.
+
 ### 3.4 Power you can predict
 > **Baseline update (2026-10-15):** pods are *not* scarce. The first pod lands at 5.7 s and the rate is about 2× the targets below (§5), so **skip the guaranteed drops and the pity timer**. If anything, the open question is whether biome stages, at 7.7/min with a range of 2.8–12, are too swingy. The real problem in the baseline is **biome bosses running long with a stage-1 kit** (Crucifer 36 s, Butcher 30 s, bot time; real fights take about twice as long), so §3.6's timed phases matter more.
 
@@ -159,7 +165,7 @@ Bio income is about 270 per full-kill stage 0 and about 900–1200 per descent. 
 ## 4. Bugs and inconsistencies found while mapping
 1. ~~**DESCEND DEEPER promises "every stage pays double"** but no code doubled bio.~~ **Fixed (`pacing-pass`):** from Descent 2 on, stage grade bio and the +30 boss choice bio are ×2 (`deepPay()` in `src/stages.ts`), and the tally card shows `DEEP x2`. Kill-orb bio is unchanged.
 2. **Hatchlings that come out of wombs count toward `spawned`** (`spawn.ts:159`). That lowers kill% and the stage grade in womb-heavy biomes (acid, snot) for enemies the player never saw arrive. Only count enemies spawned by the script.
-3. **Stage 0 is the same in every descent.** `const hard = L > 0` in `spawn.ts:400` is computed and never used. Use it: for example, add a rear wave at 900 and a flayer pair at 1550 in descent 2 and later.
+3. ~~**Stage 0 is the same in every descent.** `const hard = L > 0` in `spawn.ts:400` is computed and never used.~~ **Fixed (`stage-scripts`):** from Descent 2 on, the sine waves at 420 and 1220 become zig waves, a 4-drone rear wave comes in at 900, and a flayer pair arrives at 1550. Descent 1 is unchanged: seeded `pod-probe` runs match the pre-change code exactly through stage 1-2 (same pod times, first pod 5.7 s). Stage 2-1 averages 48.1 s (45.1–51.6), against 49.4 s before; the stage length is scroll-fixed, so the extra waves show up as kills, not time. `route-probe` 2-1 kills: 99–104 out of 100–104 spawned.
 4. **Perk count:** `perks.ts` defines 24 perks; CHANGELOG says 26.
 5. Escaping the stage 0 Maw grades the stage C and pays no reward, but the mid-stage Maw's escape costs nothing. Probably intended (the first boss teaches you to kill fast); note it in the help text.
 
@@ -189,4 +195,12 @@ Baseline is commit `5e76336`, measured 2026-10-15; the spawn row is from `pacing
 
 The shape changed and the economy didn't, which was the intent. The harvest bot plays a full descent in about 4.3–5.1 min of game time: stages 1-1 ≈ 57 s, 1-2 ≈ 69 s, 1-3 ≈ 86 s, 1-4 ≈ 62 s, including fights, tally and forks.
 
-**Probe caveats:** `progression.mjs`, `perk-pace.mjs` and `rig-probe.mjs` can't handle pick screens or forks, or they idle when the boss is off to the right, so they stall partway through a descent. `pod-probe.mjs` is the seeded version that handles both. The probes need `playwright`, which isn't in `package.json`; install it with `npm i --no-save playwright`.
+**After §3.3 + bug 3** (`stage-scripts`, `pod-probe.mjs` seeds 1–5 to the end of Descent 2, with the before numbers re-measured on `8f47163` against a fresh Vite):
+- **First pod:** 5.7 s, unchanged.
+- **Gravity Drive approach:** 6.0–6.6 s → **16.5–17.6 s**. Stage 1-4: 58.0 s → 67.9 s.
+- **Stage 2-1:** 49.4 s → 48.1 s.
+- **Level at end of Descent 1:** 12.0 → 12.0 (11–14). On current `main` this was already 12.0, above the 10.2 measured at `5e76336`.
+- **Bio at end of Descent 1:** 1304 → 1432 (+10%), from the stage 3 gauntlet's kills and pods.
+- **Page errors:** none.
+
+**Probe caveats:** `progression.mjs`, `perk-pace.mjs` and `rig-probe.mjs` can't handle pick screens or forks, or they idle when the boss is off to the right, so they stall partway through a descent. `pod-probe.mjs` is the seeded version that handles both. The probes need `playwright`, which isn't in `package.json`; install it with `npm i --no-save playwright`. Seeded `pod-probe` runs are only comparable against the same fresh Vite session: the first runs on a cold server (while deps are being optimized) came out differently for the same seed and code.

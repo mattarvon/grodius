@@ -415,7 +415,7 @@ export function drawBG() {
   if ($.G) {
     drawNeptune(sp, sc);
     drawDerelict(sp * (1 - AMT.corr(sc)), sc);
-    drawInterior(AMT.corr(sc) > 0 ? sstep(5000, 5400, sc) * (1 - sstep(8500, 8900, sc)) : 0, sc);
+    drawInterior(AMT.corr(sc) > 0 ? sstep(5000, 5400, sc) * (1 - sstep(9100, 9500, sc)) : 0, sc);
     drawCoreBG(AMT.core(sc));
     drawBiomeBG(sc);
   }

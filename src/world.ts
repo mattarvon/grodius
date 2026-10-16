@@ -44,8 +44,8 @@ export const ceilAt = wx => {
 };
 export const AMT = {
   hull: s => sstep(2200, 2700, s),
-  corr: s => sstep(5000, 5500, s) * (1 - sstep(8300, 8700, s)),
-  core: s => sstep(8300, 8750, s),
+  corr: s => sstep(5000, 5500, s) * (1 - sstep(8900, 9300, s)),
+  core: s => sstep(8900, 9350, s),
   space: s => 1 - sstep(4800, 5400, s)
 };
 export const grav = () => {
@@ -60,10 +60,10 @@ export function buildTerrain(L) {
   const o = L * 91.7;
   for (let i = 0; i < n; i++) {
     const x = i * TS;
-    const fT = sstep(2250, 2700, x) * (1 - sstep(8250, 8600, x)),
-      cT = sstep(3500, 3950, x) * (1 - sstep(8250, 8600, x));
-    const kT = sstep(5050, 5500, x) * (1 - sstep(8150, 8500, x)),
-      zT = sstep(8300, 8700, x);
+    const fT = sstep(2250, 2700, x) * (1 - sstep(8850, 9200, x)),
+      cT = sstep(3500, 3950, x) * (1 - sstep(8850, 9200, x));
+    const kT = sstep(5050, 5500, x) * (1 - sstep(8750, 9100, x)),
+      zT = sstep(8900, 9300, x);
     const a = vnoise(x / 210 + o) * 2 - 1,
       b = vnoise(x / 61 + o + 5) * 2 - 1,
       c = vnoise(x / 19 + o + 9) * 2 - 1;
