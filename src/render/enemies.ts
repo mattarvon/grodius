@@ -615,7 +615,11 @@ export const DRAW = {
   crawler: drawCrawler,
   hatch: drawHatch,
   womb: drawWomb,
-  maw: drawMaw
+  maw: drawMaw,
+  choir: drawChoir,
+  cyst: drawCyst,
+  prentice: drawPrentice,
+  brood: drawBrood
 };
 export function drawEnemy(e) {
   if (e.k === 'hook') {
@@ -625,6 +629,53 @@ export function drawEnemy(e) {
     drawHookTip(ctx, fx, fy - 3, -e.rot + Math.PI, 1.1);
   }
   if (e.k === 'flayer') drawWhip(e);
+  if (e.k === 'choir' && e.st === 'tel') { // the fan it's about to throw, as frost lines
+    const k = e.wt / 40, n = e.bars.some(b => !b.dead) ? 5 : 7;
+    ctx.save();
+    ctx.setLineDash([2, 4]);
+    ctx.lineDashOffset = -$.T;
+    ctx.strokeStyle = `rgba(170,220,255,${.15 + .45 * k})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) { const a = e.ha + (i - (n - 1) / 2) * .16; ctx.moveTo(e.x - 10, e.y); ctx.lineTo(e.x - 10 + Math.cos(a) * 150, e.y + Math.sin(a) * 150); }
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (e.k === 'nailbar' && e.sing > 0) {
+    ctx.globalCompositeOperation = 'lighter';
+    glow(e.x, e.y, 10 + (36 - e.sing) * .4, '170,220,255', .2 + .6 * (1 - e.sing / 36) * (($.T >> 2) % 2 ? 1 : .6));
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  if (e.k === 'prentice') {
+    drawChain(ctx, e.x, e.y - 20, e.x + 4, Math.max(-8, ceilAt(e.x + $.G.scroll)), 1.4);
+    const sx = e.x - 8, sy = e.y - 6;
+    if (e.st === 'tel') { // same sweep cone as the Butcher's, shorter
+      const k = e.wt / 50;
+      ctx.fillStyle = `rgba(255,60,20,${.08 + .22 * k * (($.T >> 2) % 2 ? 1 : .6)})`;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.arc(sx, sy, 84, 2.3, 3.99);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255,120,60,${.4 + .5 * k})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 84, 2.3, 3.99);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (e.st === 'cut' && e.wt <= 12) {
+      let cur = e.ba;
+      if (cur < 0) cur += TAU;
+      ctx.fillStyle = 'rgba(255,220,180,.35)';
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.arc(sx, sy, 84, cur, 3.99);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
   if (e.k === 'butcher') {
     const cy = Math.max(-8, ceilAt(e.x + $.G.scroll));
     drawChain(ctx, e.x - 14, e.y - 30, e.x - 14 - (e.cut ? 0 : 6), cy, 1.6);
@@ -702,7 +753,7 @@ export function drawEnemy(e) {
     light(e.x, e.y, 80, .9);
   } else if (e.k === 'butcher') {
     light(e.x, e.y - 10, 80, .9);
-  }
+  } else if (e.mid) light(e.x, e.y, 60, .8);
   if (e.big && !e.mini && e.hp < e.max) {
     ctx.fillStyle = '#2a0507';
     ctx.fillRect(e.x - 20, e.y - 34, 40, 2);
@@ -956,5 +1007,286 @@ export function drawButcher(c, e) {
   c.arc(L - 4, -5, 1.6, 0, TAU);
   c.fill();
   c.restore();
+}
+// --- biome midbosses ---
+const blob = (c, n, r0, f) => { c.beginPath(); for (let i = 0; i <= n; i++) { const a = i / n * TAU, r = f(a, i % n) * r0; i ? c.lineTo(Math.cos(a) * r, Math.sin(a) * r) : c.moveTo(Math.cos(a) * r, Math.sin(a) * r); } c.closePath(); };
+export function drawChoir(c, e) {
+  // THE NAIL CHOIR: a frozen-open eye in a crust of ice and screaming mouths
+  const t = e.t, tel = e.st === 'tel' ? e.wt / 40 : 0, rim = (a, i) => (i % 2 ? 15 : 21) + hash(i + 3) * 4;
+  c.fillStyle = '#081420';
+  blob(c, 16, 1, rim);
+  c.fill();
+  c.fillStyle = 'rgba(150,205,245,.6)';
+  blob(c, 16, .86, rim);
+  c.fill();
+  c.strokeStyle = '#f2fbff';
+  c.lineWidth = .7;
+  c.beginPath();
+  for (let i = 0; i < 16; i += 2) { const a = i / 16 * TAU, r = rim(a, i) * .86; c.moveTo(Math.cos(a) * 9, Math.sin(a) * 9); c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+  c.stroke();
+  const g = c.createRadialGradient(-3, -4, 1, 0, 0, 13);
+  g.addColorStop(0, '#d88a7a');
+  g.addColorStop(.6, '#7a3a3a');
+  g.addColorStop(1, '#2a0f14');
+  c.fillStyle = g;
+  c.beginPath();
+  c.arc(0, 0, 13, 0, TAU);
+  c.fill();
+  // the choir: three frozen mouths on the rim, still singing
+  for (const [k, a] of [[0, -2.1], [1, 2.2], [2, .1]]) {
+    const o = .6 + .5 * Math.max(0, Math.sin(t * .09 + k * 2)), mx = Math.cos(a) * 11, my = Math.sin(a) * 11;
+    c.fillStyle = '#5a1a18';
+    c.beginPath();
+    c.ellipse(mx, my, 3, 3.6, a, 0, TAU);
+    c.fill();
+    c.fillStyle = '#100204';
+    c.beginPath();
+    c.ellipse(mx, my, 1.4, 2.4 * o, a, 0, TAU);
+    c.fill();
+    c.fillStyle = C.bone;
+    c.fillRect(mx - 1, my - 2.4 * o, 2, .8);
+  }
+  eye(c, -2, 0, 7.5, { ang: e.st === 'tel' ? e.ha : Math.atan2($.P.y - e.y, $.P.x - e.x), iris: '#9fd8ff', bs: 2, blink: !tel && t % 170 < 5 ? 1 : 0, lid: '#6e2b26' });
+  // nails driven through the lids
+  c.fillStyle = '#b8c4d0';
+  for (const [x, y, a] of [[-2, -9, 1.7], [-2, 9, -1.7], [6, -5, 2.6]]) {
+    c.save();
+    c.translate(x, y);
+    c.rotate(a);
+    c.fillRect(-1, -6, 2, 9);
+    c.fillRect(-2.2, -6, 4.4, 1.3);
+    c.restore();
+  }
+  c.fillStyle = C.blood;
+  c.fillRect(-2.6, 8, 1.2, 6 + Math.sin(t * .05) * 2);
+  c.fillRect(5, -1, 1, 4);
+  // icicles under the crust
+  c.fillStyle = '#d8efff';
+  for (let k = -2; k <= 2; k++) poly(c, [[k * 5 - 1.6, 16], [k * 5 + 1.6, 16], [k * 5, 22 + hash(k + 9) * 6]]);
+  if (tel) {
+    c.globalCompositeOperation = 'lighter';
+    glow(-2, 0, 10 + tel * 14, '160,215,255', .25 + .55 * tel);
+    c.globalCompositeOperation = 'source-over';
+  }
+}
+export function drawCyst(c, e) {
+  // THE DISSOLVING WOMB: a womb melting in the lake, its child half eaten inside it
+  const t = e.t, sw = (e.sw || 0) / 30, s = 1 + sw * .22 + Math.sin(t * .07) * .03, tel = e.st === 'tel' ? e.wt / 45 : 0, rim = (a, i) => 22 + Math.sin(a * 4 + t * .06) * 1.6 + hash(i) * 2;
+  c.strokeStyle = '#1c5a4a';
+  c.lineWidth = 2;
+  for (let k = -1; k <= 1; k++) {
+    c.beginPath();
+    c.moveTo(k * 8, 18);
+    c.quadraticCurveTo(k * 12 + Math.sin(t * .05 + k) * 4, 30, k * 9 + Math.sin(t * .04 + k) * 6, 42);
+    c.stroke();
+  }
+  c.save();
+  c.scale(s, s * (1 - sw * .08));
+  c.fillStyle = 'rgba(14,58,48,.92)';
+  blob(c, 22, 1, rim);
+  c.fill();
+  c.fillStyle = 'rgba(90,190,160,.45)';
+  blob(c, 22, .9, rim);
+  c.fill();
+  // the child: curled, skin going, skull showing
+  const k = Math.sin(t * .04);
+  c.fillStyle = 'rgba(140,60,48,.9)';
+  c.beginPath();
+  c.ellipse(2 + k, 4, 8, 10, .6 + k * .15, 0, TAU);
+  c.fill();
+  c.fillStyle = 'rgba(221,210,122,.7)';
+  c.beginPath();
+  c.ellipse(4 + k, 6, 4, 6, .6, 0, TAU);
+  c.fill();
+  drawSkull(c, -4 + k, -7, 5, 1);
+  c.strokeStyle = C.bone;
+  c.lineWidth = 1;
+  c.beginPath();
+  for (let q = 0; q < 4; q++) { c.moveTo(-1 + q * 2.5, 0); c.quadraticCurveTo(3 + q * 2.5, 4, 1 + q * 2.5, 9); }
+  c.stroke();
+  // holes eaten through the membrane
+  for (const [x, y, r] of [[-12, 8, 4], [13, -6, 3.2], [6, 15, 2.6], [-8, -15, 2.2]]) {
+    c.fillStyle = '#04110e';
+    c.beginPath();
+    c.ellipse(x, y, r, r * .8, 0, 0, TAU);
+    c.fill();
+    c.strokeStyle = '#7ff0d8';
+    c.lineWidth = .7;
+    c.stroke();
+  }
+  c.fillStyle = 'rgba(200,244,232,.55)';
+  c.beginPath();
+  c.ellipse(-8, -12, 4, 1.8, -.6, 0, TAU);
+  c.fill();
+  // the crown it spouts from
+  c.fillStyle = '#0a2a24';
+  c.beginPath();
+  c.ellipse(-2, -20, 5, 3 + tel * 2, 0, 0, TAU);
+  c.fill();
+  c.fillStyle = tel ? '#a6ff2a' : '#46e0c0';
+  c.beginPath();
+  c.ellipse(-2, -20, 2.6, 1.4 + tel * 1.6, 0, 0, TAU);
+  c.fill();
+  c.restore();
+  if (tel || sw) {
+    c.globalCompositeOperation = 'lighter';
+    glow(-2, tel ? -20 : 0, tel ? 8 + tel * 12 : 16 + sw * 18, '60,230,195', .2 + .5 * Math.max(tel, sw));
+    c.globalCompositeOperation = 'source-over';
+  }
+}
+export function drawPrentice(c, e) {
+  // THE BUTCHER'S APPRENTICE: a scorched little carcass on one chain, cleaver too big for it
+  const t = e.t;
+  c.fillStyle = '#1a0503';
+  c.beginPath();
+  c.ellipse(1, 3, 15, 21, 0, 0, TAU);
+  c.fill();
+  c.fillStyle = '#7a2e22';
+  c.beginPath();
+  c.ellipse(0, 2, 13.5, 19.5, 0, 0, TAU);
+  c.fill();
+  c.fillStyle = '#2a0a06';
+  for (const [x, y, rx, ry] of [[6, -8, 4, 3], [-7, 10, 3, 4], [8, 12, 2.4, 2]]) {
+    c.beginPath();
+    c.ellipse(x, y, rx, ry, 0, 0, TAU);
+    c.fill();
+  }
+  c.strokeStyle = C.bone;
+  c.lineWidth = 1.3;
+  for (let k = 0; k < 3; k++) {
+    c.beginPath();
+    c.moveTo(2, -10 + k * 5);
+    c.quadraticCurveTo(9, -9 + k * 5, 11, -4 + k * 5);
+    c.stroke();
+  }
+  // apron, burnt through
+  c.fillStyle = '#1e140c';
+  poly(c, [[-11, 4], [11, 4], [12, 22], [4, 19], [-2, 23], [-12, 21]]);
+  c.fillStyle = 'rgba(255,90,20,.7)';
+  c.fillRect(-6, 19, 3, 1);
+  c.fillRect(5, 17, 2, 1);
+  c.fillStyle = 'rgba(161,13,20,.85)';
+  c.beginPath();
+  c.ellipse(-3, 12, 4, 6, .3, 0, TAU);
+  c.fill();
+  drawHookTip(c, 0, -21, Math.PI, 1);
+  // sack hood, three eyes, a mouth that glows before it spits
+  c.fillStyle = '#3a2a1a';
+  c.beginPath();
+  c.ellipse(-4, -24, 8.5, 8, 0, 0, TAU);
+  c.fill();
+  c.fillStyle = '#5a4630';
+  c.beginPath();
+  c.ellipse(-4, -25, 7.5, 7, 0, 0, TAU);
+  c.fill();
+  const la = Math.atan2($.P.y - e.y + 24, $.P.x - e.x + 4), spit = e.st === 'spit' && e.wt < 40, sk = Math.min(1, e.wt / 24);
+  for (const [ex, ey, er] of [[-7, -27, 1.9], [-2, -28, 1.5], [-5, -22, 1.2]]) eye(c, ex, ey, er, { ang: la, iris: '#ffb347', bs: 2, blink: (t + ex * 9) % 140 < 5 ? 1 : 0, lid: '#3a2a1a' });
+  c.fillStyle = spit ? '#ff6a1a' : '#160203';
+  c.beginPath();
+  c.ellipse(-8, -19, 2.4, spit ? 2 + sk * 1.6 : 1, 0, 0, TAU);
+  c.fill();
+  if (spit) {
+    c.globalCompositeOperation = 'lighter';
+    glow(-8, -19, 6 + sk * 8, '255,120,30', .7);
+    c.globalCompositeOperation = 'source-over';
+  }
+  // cleaver arm
+  const ba = e.ba, ax = -8, ay = -6, L = 28;
+  c.lineCap = 'round';
+  c.strokeStyle = C.fleshD;
+  c.lineWidth = 5;
+  c.beginPath();
+  c.moveTo(ax, ay);
+  c.lineTo(ax + Math.cos(ba) * 13, ay + Math.sin(ba) * 13);
+  c.stroke();
+  c.strokeStyle = C.flesh;
+  c.lineWidth = 3;
+  c.stroke();
+  c.lineCap = 'butt';
+  c.save();
+  c.translate(ax + Math.cos(ba) * 13, ay + Math.sin(ba) * 13);
+  c.rotate(ba);
+  c.fillStyle = '#2a1f12';
+  c.fillRect(-2, -1.5, 6, 3);
+  c.fillStyle = '#4a4f56';
+  c.fillRect(4, -8, L - 6, 11);
+  c.fillStyle = e.st === 'tel' && ($.T >> 2) % 2 ? '#ffd0b0' : '#a8b0b8';
+  c.fillRect(4, -8, L - 6, 2);
+  c.fillStyle = '#1a0806';
+  c.fillRect(L - 9, -8, 3, 11);
+  c.fillStyle = C.blood;
+  c.fillRect(10, -8, 2, 5);
+  c.restore();
+}
+export function drawBrood(c, e) {
+  // THE BROOD MOTHER: a swollen snot sac, the litter squirming against its skin
+  const t = e.t, bul = Math.min(1, e.bul || 0), sn = e.st === 'sneeze' && e.wt < 26 ? e.wt / 26 : 0, s = 1 + Math.sin(t * .08) * .04 + bul * .1, rim = (a, i) => 21 + Math.sin(a * 3 + t * .05) * 1.4 + hash(i + 5) * 1.6;
+  c.strokeStyle = 'rgba(232,224,122,.7)';
+  c.lineWidth = 1.2;
+  for (let k = 0; k < 4; k++) {
+    const x = -10 + k * 7;
+    c.beginPath();
+    c.moveTo(x, 16);
+    c.quadraticCurveTo(x + Math.sin(t * .04 + k) * 3, 24, x + 1, 30 + hash(k) * 10 + Math.sin(t * .05 + k) * 3);
+    c.stroke();
+  }
+  c.save();
+  c.scale(s, s);
+  c.fillStyle = '#6a4a14';
+  blob(c, 20, 1, rim);
+  c.fill();
+  c.fillStyle = 'rgba(176,150,46,.78)';
+  blob(c, 20, .9, rim);
+  c.fill();
+  // the litter, curled under the skin
+  for (let k = 0; k < 6; k++) {
+    const a = k * 1.05 + t * .012 * (k % 2 ? 1 : -1), r = 7 + (k % 3) * 3.5, x = Math.cos(a) * r + 2, y = Math.sin(a) * r * .8;
+    c.fillStyle = 'rgba(168,58,36,.55)';
+    c.beginPath();
+    c.arc(x, y, 3.4, 0, TAU);
+    c.fill();
+    c.fillStyle = 'rgba(12,4,5,.8)';
+    c.fillRect(x - 1.5, y - 1, 1, 1);
+    c.fillRect(x + .5, y - 1.2, 1, 1);
+  }
+  c.strokeStyle = 'rgba(122,74,24,.7)';
+  c.lineWidth = .7;
+  c.beginPath();
+  for (let k = 0; k < 7; k++) { const a = k / 7 * TAU; c.moveTo(Math.cos(a) * 19, Math.sin(a) * 18); c.quadraticCurveTo(Math.cos(a + .5) * 12, Math.sin(a + .5) * 11, Math.cos(a + .8) * 6, Math.sin(a + .8) * 6); }
+  c.stroke();
+  c.fillStyle = 'rgba(255,244,200,.5)';
+  c.beginPath();
+  c.ellipse(-6, -12, 5, 2, -.5, 0, TAU);
+  c.fill();
+  c.restore();
+  // birth canal, dilating as it heaves
+  c.fillStyle = '#3a1a0a';
+  c.beginPath();
+  c.ellipse(-17, 6, 3 + bul * 2, 3 + bul * 5, 0, 0, TAU);
+  c.fill();
+  c.fillStyle = '#a83a24';
+  c.beginPath();
+  c.ellipse(-17, 6, 1.4 + bul * 1.6, 1.6 + bul * 4, 0, 0, TAU);
+  c.fill();
+  if (bul > .5) {
+    c.fillStyle = '#d8a59a';
+    c.beginPath();
+    c.arc(-17, 6, 2.2 * bul, 0, TAU);
+    c.fill();
+  }
+  // face: nostrils that flare before it sneezes, a lidded eye cluster
+  for (const y of [-8, -2]) {
+    c.fillStyle = '#2a1206';
+    c.beginPath();
+    c.ellipse(-19, y, 1.6 + sn * 1.6, 1.2 + sn * 1.2, 0, 0, TAU);
+    c.fill();
+  }
+  const la = Math.atan2($.P.y - e.y + 10, $.P.x - e.x + 8);
+  for (const [ex, ey, er] of [[-8, -14, 2.4], [-2, -16, 1.8], [-11, -9, 1.5]]) eye(c, ex, ey, er, { ang: la, iris: '#c8ac3a', bs: 2, blink: (t + ex * 5) % 160 < 6 ? 1 : 0, lid: '#7a4a18' });
+  if (sn) {
+    c.globalCompositeOperation = 'lighter';
+    glow(-19, -5, 6 + sn * 10, '236,210,90', .3 + .5 * sn);
+    c.globalCompositeOperation = 'source-over';
+  }
 }
 // --- boss ---

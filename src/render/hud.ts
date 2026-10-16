@@ -156,7 +156,11 @@ export function drawHUD() {
       nm = m.title || {
         maw: 'THE MAW',
         crux: 'THE CRUCIFER',
-        butcher: 'THE BUTCHER'
+        butcher: 'THE BUTCHER',
+        choir: 'THE NAIL CHOIR',
+        cyst: 'THE DISSOLVING WOMB',
+        prentice: "THE BUTCHER'S APPRENTICE",
+        brood: 'THE BROOD MOTHER'
       }[m.k] || '',
       bw = 180,
       bx = W / 2 - bw / 2,

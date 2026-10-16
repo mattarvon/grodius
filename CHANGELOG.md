@@ -14,6 +14,19 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 - Stage 0 used to play exactly the same every descent. From Descent 2 on, two of its sine waves become zig waves, a wave comes in from behind between the dives and the wall, and a flayer pair joins the behind wave halfway through.
 - Descent 1 is unchanged: same first pod at 5.7 s, and the same seeded runs through stage 1-2.
 
+## 2026-10-16 (branch `biome-midbosses`)
+
+### Every biome has its own midboss
+- Halfway through each biome stage, in the quiet "breath" beat, a **WARNING** sounds and the biome's own midboss arrives. It holds the scroll like the Maw. This happens in both biome stages of a descent, so you meet one midboss per biome stage instead of a single generic Maw in the second.
+  - **Ice: THE NAIL CHOIR.** A frozen eye in a crust of ice and singing mouths, with two nail barriers circling it that soak up your shots. It glares down frost lines before it throws a spike fan, and the nails glint before each one spits spikes at you. Break both nails and its fans get wider.
+  - **Acid: THE DISSOLVING WOMB.** A womb melting in the lake, its child half eaten inside. Its crown bubbles before it geysers a rain of acid globs lobbed onto where you are, and it bloats before it bursts a ring.
+  - **Fire: THE BUTCHER'S APPRENTICE.** A scorched little carcass on one chain with a cleaver too big for it. It lunges in behind a red sweep cone, the Butcher's own warning, and you get almost a second to get out of it. Otherwise its mouth glows and it spits ember fans. No hook.
+  - **Snot: THE BROOD MOTHER.** A swollen snot sac full of young. It heaves before it births a litter of hatchlings, and its nostrils flare before it sneezes snot globs.
+- Each one gets meaner below half health. If you can't kill it, it leaves after about **23 s** at no cost. A fuse above its HP bar shows how long you have. Killing it drops **2 pods**.
+- Midbosses count toward GLUTTONY, like the Maws they replace. The Brood Mother's litter doesn't count toward grafts or your stage kill %.
+- The small pod formation that used to sit in the first biome's breath is gone, since the midboss takes its place.
+- Time to kill with a stage-1 kit is close to the Maw's 13 s: Nail Choir 15.8 s, Dissolving Womb 12.6 s, Apprentice 10.4 s, Brood Mother 14.2 s. New `tools/midboss-probe.mjs` measures this and can screenshot each fight.
+
 ## 2026-10-16 (branch `void-soundtrack`)
 
 ### New soundtrack: dancramp's *Void*
