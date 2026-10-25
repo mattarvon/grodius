@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grodius music preview</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px; background: #0c0809; color: #e6dcdc; font: 15px/1.4 system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; color: #ff4a5a; }
+  h2 { font-size: 14px; margin: 24px 0 8px; color: #8a98a8; text-transform: uppercase; letter-spacing: .08em; }
+  p { margin: 0 0 12px; color: #8a98a8; font-size: 13px; }
+  .row { background: #160d0f; border: 1px solid #2a1a1d; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .slot { font-weight: 600; }
+  .name { color: #b8a8aa; font-size: 13px; }
+  .row button { float: right; background: #2a1a1d; color: #e6dcdc; border: 1px solid #4a2a2f; border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: 12px; }
+  audio { width: 100%; margin-top: 6px; }
+</style>
+</head>
+<body>
+<h1>Grodius music preview</h1>
+<p>dancramp – <i>Void</i> (CC BY 4.0). In-game tracks are the trimmed, loudness-matched OGGs; the game adds a light biome filter on top. "Jump to loop" plays the last 6 s and wraps to the start, so you hear the loop seam.</p>
+<h2>In the game</h2>
+<div id="game"></div>
+<h2>Unused (raw WAV, not trimmed)</h2>
+<div id="spare"></div>
+<script>
+  const game = [
+    ['Title', 'Title Music for an Imaginary Sci-Fi Platformer', '/src/music/void-10-title-music.ogg'],
+    ['Infirmary / game over', 'Heist', '/src/music/void-07-heist.ogg'],
+    ['Open Orbit (stage 0)', 'Cyber Side Scroller', '/src/music/void-05-cyber-side-scroller.ogg'],
+    ['Ice', 'Caves', '/src/music/void-08-caves.ogg'],
+    ['Acid', 'Institutional Values', '/src/music/void-02-institutional-values.ogg'],
+    ['Fire', 'Corporate Identity', '/src/music/void-11-corporate-identity.ogg'],
+    ['Snot', 'Pods', '/src/music/void-09-pods.ogg'],
+    ['Gravity Drive approach', "We're Not Done Here Yet", '/src/music/void-12-not-done-here-yet.ogg'],
+    ['Gravity Drive fight', 'Finale', '/src/music/void-13-finale.ogg'],
+  ];
+  const raw = (n) => '/assets-raw/music/void-dancramp/' + encodeURIComponent('dancramp - Void - ' + n + '.wav');
+  const spare = [['01', 'It Is What It Is'], ['03', 'Maps'], ['04', 'Facilitated Conversation'], ['06', 'Beatster']]
+    .map(([n, t]) => ['Unused #' + n, t, raw(n + ' ' + t)]);
+  const players = [];
+  function add(el, [slot, name, src], loopBtn) {
+    const d = document.createElement('div'); d.className = 'row';
+    d.innerHTML = `<span class="slot"></span> <span class="name"></span>`;
+    d.querySelector('.slot').textContent = slot;
+    d.querySelector('.name').textContent = '— ' + name;
+    const a = document.createElement('audio'); a.controls = true; a.preload = 'none'; a.src = src; a.loop = true;
+    a.addEventListener('play', () => players.forEach((p) => p !== a && p.pause()));
+    players.push(a);
+    if (loopBtn) {
+      const b = document.createElement('button'); b.textContent = 'Jump to loop';
+      b.onclick = async () => { if (!a.duration) { a.preload = 'auto'; await new Promise((r) => a.addEventListener('loadedmetadata', r, { once: true })); } a.currentTime = Math.max(0, a.duration - 6); a.play(); };
+      d.prepend(b);
+    }
+    d.append(a); el.append(d);
+  }
+  game.forEach((g) => add(document.getElementById('game'), g, true));
+  spare.forEach((s) => add(document.getElementById('spare'), s, false));
+</script>
+</body>
+</html>
