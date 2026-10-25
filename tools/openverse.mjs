@@ -121,20 +121,33 @@ document.getElementById('save').onclick = () => {
 async function fetchPicks(file) {
   const picks = JSON.parse(fs.readFileSync(file, 'utf8'));
   const rows = [];
-  for (const h of picks) {
+  // 4 at a time with a 90 s timeout per file: the Freesound CDN can trickle or stall a single request
+  const one = async (h) => {
     const ext = (h.filetype || path.extname(new URL(h.url).pathname).slice(1) || (h.kind === 'image' ? 'jpg' : 'mp3')).toLowerCase();
-    const slug = `${h.title}`.toLowerCase().replace(/\.(wav|mp3|ogg|flac|aiff?)$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+    const slug = `${h.title}`.toLowerCase().replace(/\.(wav|mp3|ogg|opus|flac|aiff?)$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
     const dir = path.join(OUT, h.kind, h.tag);
     fs.mkdirSync(dir, { recursive: true });
     const dest = path.join(dir, `ov-${slug}-${h.id.slice(0, 6)}.${ext}`);
     if (!fs.existsSync(dest)) {
-      const res = await fetch(h.url, { headers: UA });
-      if (!res.ok) { console.log(`skip ${h.title}: ${res.status}`); continue; }
-      fs.writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
+      for (let tries = 0; ; tries++) {
+        try {
+          const res = await fetch(h.url, { headers: UA, signal: AbortSignal.timeout(90000) });
+          if (!res.ok) throw new Error(res.status);
+          fs.writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
+          break;
+        } catch (e) {
+          if (tries < 2) continue;
+          console.log(`skip ${h.title}: ${e.message}`);
+          return;
+        }
+      }
     }
     console.log(`got  ${path.relative(OUT, dest)}`);
-    rows.push(`| \`${path.basename(dest)}\` | ${h.title} | ${h.creator} | ${h.license} | ${h.page} |`);
-  }
+    rows[picks.indexOf(h)] = `| \`${path.basename(dest)}\` | ${h.title} | ${h.creator} | ${h.license} | ${h.page} |`;
+  };
+  const queue = [...picks];
+  await Promise.all(Array.from({ length: 4 }, async () => { while (queue.length) await one(queue.shift()); }));
+  rows.splice(0, rows.length, ...rows.filter(Boolean));
   fs.writeFileSync(path.join(OUT, 'credits-rows.md'), rows.join('\n') + '\n');
   console.log(`\nCREDITS.md rows (also in assets-raw/openverse/credits-rows.md):\n| File | Title | Creator | License | Source |\n|---|---|---|---|---|\n${rows.join('\n')}`);
 }
