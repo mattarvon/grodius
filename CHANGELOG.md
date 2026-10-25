@@ -5,6 +5,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 ## 2026-10-25 (voices, no crosses)
 
 ### Less hype, rarer pleading
+- **The boss-kill line is just "the keister for Easter, baby" now** (2.25 s). The "touch me where it smells funny" tail and the laugh after it are cut, located with a Whisper transcription. The full original is kept in `assets-raw/voice/` (not in the repo).
 - **Hype voices have a 20 s cooldown.** With a strong build the chain milestones fire constantly, and SGT. SLAB plus the surfer flyby saturated the mix. The chain word (MESSY, GRISLY, VISCERAL...) and its splat still show on every milestone; only the voiced call waits (`HYPE_CD` in `src/fx/update.ts`).
 - **"Stop killing me" plays on every 5th crew corpse** you shoot instead of every one.
 
