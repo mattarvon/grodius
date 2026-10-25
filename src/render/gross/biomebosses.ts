@@ -404,26 +404,38 @@ const skin = (x, cx, cy, rad, rnd) => {
 function buildCrux() {
   return layer(124, 160, 62, 74, (x) => {
     const r = seeded(11);
-    // ---- frozen cross ----
+    // ---- frozen rack: a post that stops at the bar, braced like a gallows stand (it used to be an inverted cross;
+    // reworked so nothing reads as a religious symbol) ----
+    x.lineCap = 'butt';
+    for (const [w, col] of [[9, '#0a0807'], [6.5, '#463326']]) { // diagonal braces from the bar ends up to the post
+      x.strokeStyle = col;
+      x.lineWidth = w;
+      x.beginPath();
+      x.moveTo(-36, 25);
+      x.lineTo(-5, -14);
+      x.moveTo(36, 25);
+      x.lineTo(5, -14);
+      x.stroke();
+    }
     x.fillStyle = '#0a0807';
-    x.fillRect(-7, -64, 14, 124);
+    x.fillRect(-7, -64, 14, 99);
     x.fillRect(-46, 22, 92, 13);
     x.fillStyle = '#463326';
-    x.fillRect(-6, -63, 12, 122);
+    x.fillRect(-6, -63, 12, 97);
     x.fillRect(-45, 23, 90, 11);
     x.fillStyle = '#6a5242';
-    x.fillRect(-6, -63, 2, 122);
+    x.fillRect(-6, -63, 2, 97);
     x.fillRect(-45, 23, 90, 2);
     x.fillStyle = '#2b1e16';
-    for (let k = 0; k < 8; k++) x.fillRect(-6, -60 + k * 15, 12, 1);
+    for (let k = 0; k < 6; k++) x.fillRect(-6, -60 + k * 15, 12, 1);
     for (let k = 0; k < 6; k++) x.fillRect(-44 + k * 16, 27 + (k % 2) * 3, 10, 1);
     x.fillStyle = 'rgba(80,4,8,.6)'; // decades of blood soaked into the grain
-    x.fillRect(-4, 35, 5, 24);
+    x.fillRect(-4, 2, 5, 20);
     x.fillRect(-40, 31, 6, 3);
     x.fillRect(33, 31, 7, 3);
     x.fillStyle = 'rgba(214,236,250,.8)'; // rime
     for (let i = -45; i < 45; i += 2) if (r() < .7) x.fillRect(i, 23, 1 + (r() * 2 | 0), 1);
-    for (let y = -63; y < 59; y += 3) if (r() < .55) x.fillRect(-6, y, 1, 1 + (r() * 2 | 0));
+    for (let y = -63; y < 34; y += 3) if (r() < .55) x.fillRect(-6, y, 1, 1 + (r() * 2 | 0));
     // icicles off the crossbar: clear ice, yellow bile, black blood
     for (let i = 0; i < 16; i++) {
       const ix = -44 + i * 5.8 + r() * 2;

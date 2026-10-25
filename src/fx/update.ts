@@ -212,6 +212,9 @@ export function updateFX() {
     if (t.l <= 0) swapRm(texts, i);
   }
 }
+/** frames between voiced hype calls (SGT. SLAB + the surfer): chains hit 10 / 20 constantly with a strong build and
+ *  the voices saturated. The chain word (MESSY, GRISLY...) still shows on every milestone. */
+export const HYPE_CD = 1200;
 export const CARN = [[5, 'MESSY'], [10, 'GRISLY'], [20, 'VISCERAL'], [35, 'ABATTOIR'], [50, 'MEAT GRINDER'], [75, 'BEYOND THE GATE'], [100, 'HELL IS SHIPWIDE']];
 export function updateCombo() {
   if ($.G.comboT > 0) {
@@ -227,10 +230,14 @@ export function updateCombo() {
       w,
       t: 90
     };
-    if (n === 20) babe();else if (n >= 10) hype(n);
+    if (n >= 10 && !($.G.hypeCD > 0)) {
+      $.G.hypeCD = HYPE_CD;
+      if (n === 20) babe();else hype(n);
+    }
     if (n >= 10) splat(rr(80, 400), rr(40, 200), 1.5 + n / 40);
     $.G.red = Math.max($.G.red, .35);
   }
+  if ($.G.hypeCD > 0) $.G.hypeCD--;
   if ($.G.carn && --$.G.carn.t <= 0) $.G.carn = null;
   if ($.G.hype && --$.G.hype.t <= 0) $.G.hype = null;
   if ($.G.babe && --$.G.babe.t <= 0) $.G.babe = null;

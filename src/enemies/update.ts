@@ -742,7 +742,8 @@ export function killEnemy(e, dir = 1) {
     $.G.hitstop = Math.max($.G.hitstop || 0, 10);
     sfx.roar();
   }
-  if (e.k === 'corpse') sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true });
+  // every 5th crew corpse you shoot pleads (it was every one, and wore thin)
+  if (e.k === 'corpse' && ($.G.corpseN = ($.G.corpseN || 0) + 1) % 5 === 0) sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true });
   if (e.k === 'maw') {
     if (e.stageBoss) {
       miniReward(e);

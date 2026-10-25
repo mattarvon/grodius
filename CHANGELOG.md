@@ -2,6 +2,19 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-25 (voices, no crosses)
+
+### Less hype, rarer pleading
+- **Hype voices have a 20 s cooldown.** With a strong build the chain milestones fire constantly, and SGT. SLAB plus the surfer flyby saturated the mix. The chain word (MESSY, GRISLY, VISCERAL...) and its splat still show on every milestone; only the voiced call waits (`HYPE_CD` in `src/fx/update.ts`).
+- **"Stop killing me" plays on every 5th crew corpse** you shoot instead of every one.
+
+### No upside-down crosses
+They looked cool but read as a religious symbol. Everything that was one is now meat-locker or bone imagery:
+- **The crucified-crew enemy** is a carcass on a butcher's gambrel: a side post with a bar across the top, hung by the ankles on meat hooks, arms dangling and dripping. Same hitbox.
+- **The Frozen Crucifer** hangs on a braced frozen rack (the post stops at the bar, with gallows-style diagonal braces) instead of an inverted cross.
+- **Decor:** the inverted-cross silhouettes (title, Gravity Drive chamber, derelict skyline, terrain markers) are hanging spinal columns (`hangSpine` in `src/render/util.ts`). The corridor's cross-shaped lights are round portholes, and the figures hung in the corridor have their arms hanging down instead of spread on a bar.
+- Gameplay unchanged (`harness` identical).
+
 ## 2026-10-25 (performance)
 
 ### Smooth again on big monitors and weak GPUs

@@ -390,22 +390,24 @@ export function drawMaw(c, e) {
   }
 }
 export function drawCross(c, e) {
-  // local: center of body at 0,0; cross bottom (screen) at +22, top at -22. Always inverted in screen space.
+  // a carcass on a meat-locker gambrel: a side post with a bar across the top, hung by the feet, arms dangling.
+  // (it used to be an inverted cross; reworked so nothing reads as a religious symbol.) local: body centre at 0,0,
+  // post from -22 to +22 (the end touching the terrain), gambrel bar at the top.
   const yB = 22,
     yT = -22,
     fl = e.o > 0;
   c.fillStyle = '#0b0d10';
-  c.fillRect(-2.5, yT, 5, 44);
-  c.fillRect(-13, 6, 26, 5);
+  c.fillRect(-12.5, yT, 5, 44);
+  c.fillRect(-12.5, yT, 20, 4.5);
   c.fillStyle = '#1f262e';
-  c.fillRect(-1.8, yT, 3.6, 44);
-  c.fillRect(-12.2, 6.7, 24.4, 3.6);
+  c.fillRect(-11.8, yT, 3.6, 44);
+  c.fillRect(-11.8, yT + .7, 18.6, 3);
   c.fillStyle = '#56616d';
-  c.fillRect(-1.8, yT, 1, 44);
-  c.fillRect(-12.2, 6.7, 24.4, 1);
+  c.fillRect(-11.8, yT, 1, 44);
+  c.fillRect(-11.8, yT + .7, 18.6, 1);
   c.fillStyle = '#4e0307';
-  for (let k = 0; k < 5; k++) c.fillRect(-1 + k % 2, yT + 4 + k * 8, 1, 4 + hash(k + e.x * .01) * 4);
-  // body: upside down, feet nailed at top, hands on crossbar, head hanging below
+  for (let k = 0; k < 5; k++) c.fillRect(-11 + k % 2, yT + 6 + k * 8, 1, 4 + hash(k + e.x * .01) * 4);
+  // body: upside down, ankles hooked to the bar, arms hanging past the head
   c.lineCap = 'round';
   c.lineWidth = 2.6;
   c.strokeStyle = C.suit;
@@ -429,11 +431,12 @@ export function drawCross(c, e) {
   }
   c.strokeStyle = C.skin;
   c.lineWidth = 2;
+  const sw = Math.sin(e.t * .05) * .8; // dead weight sways a little
   c.beginPath();
   c.moveTo(-3, 7);
-  c.lineTo(-10.5, 8.5);
+  c.lineTo(-5.5 + sw, 17);
   c.moveTo(3, 7);
-  c.lineTo(10.5, 8.5);
+  c.lineTo(5.5 + sw, 17);
   c.stroke();
   c.lineCap = 'butt';
   c.fillStyle = C.suit;
@@ -452,15 +455,19 @@ export function drawCross(c, e) {
     c.fillRect(-3.2, -2.6 + k * 2.2, 1.6, .6);
     c.fillRect(1.6, -2.6 + k * 2.2, 1.6, .6);
   }
-  // nails
-  c.fillStyle = '#c9d3dc';
-  c.fillRect(-2.2, -20 + tw, 1.4, 1.4);
-  c.fillRect(.9, -20, 1.4, 1.4);
-  c.fillRect(-10.8, 7.8, 1.4, 1.4);
-  c.fillRect(9.4, 7.8, 1.4, 1.4);
+  // meat hooks through the ankles, up into the bar
+  c.strokeStyle = '#c9d3dc';
+  c.lineWidth = .9;
+  c.beginPath();
+  c.moveTo(-1.5, yT + 4.5);
+  c.lineTo(-1.6, -20 + tw);
+  c.moveTo(1.5, yT + 4.5);
+  c.lineTo(1.6, -20);
+  c.stroke();
+  // blood off the fingertips
   c.fillStyle = C.blood;
-  c.fillRect(-10.4, 9, 1, 2.5 + e.t * .03 % 4);
-  c.fillRect(9.8, 9, 1, 3 + e.t * .025 % 4);
+  c.fillRect(-6 + sw, 18, 1, 2.5 + e.t * .03 % 4);
+  c.fillRect(5 + sw, 18, 1, 3 + e.t * .025 % 4);
   // head hanging below the bar
   c.fillStyle = C.skin;
   c.beginPath();

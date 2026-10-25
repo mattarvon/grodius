@@ -63,10 +63,18 @@ export function drawSkull(c, x, y, s, red) {
     c.fillRect(x + s * .38 - .5, y - s * .12 - .5, 1, 1);
   }
 }
-export function invCross(c, x, yT, h, w, col) {
+/** a hanging spinal column (silhouette decor): a stalk of vertebrae from yT down h px, w wide. Replaced the old
+ *  inverted-cross decor; layer two calls (dark outline, lighter inner) like before. */
+export function hangSpine(c, x, yT, h, w, col) {
   c.fillStyle = col;
-  c.fillRect(x - w / 2, yT, w, h);
-  c.fillRect(x - h * .3, yT + h * .7 - w / 2, h * .6, w);
+  c.fillRect(x - w * .22, yT, w * .44, h);
+  const step = Math.max(3, w * 1.15), n = Math.floor(h / step);
+  for (let i = 0; i < n; i++) {
+    const y = yT + i * step + step * .3, k = .75 + .25 * Math.sin(i * 1.7); // vertebrae, slightly uneven
+    c.fillRect(x - w * .5 * k, y, w * k, step * .42);
+    c.fillRect(x - w * .8 * k, y + step * .1, w * .3 * k, step * .18); // transverse processes
+    c.fillRect(x + w * .5 * k, y + step * .1, w * .3 * k, step * .18);
+  }
 }
 export function drawChain(c, x1, y1, x2, y2, lw = 1.4) {
   const dx = x2 - x1,

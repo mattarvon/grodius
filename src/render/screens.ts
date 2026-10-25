@@ -8,7 +8,7 @@ import { shopNext } from '../flow';
 import { GM, ROM, gmL, gunHeld, gunSlots } from '../mutations';
 import { buy, buySocket, fmtBio, overItems, pad, pauseItems, rigAct, rigBolted, rigCost, rigFree, rigOwned, rigUp, rigUpCost, shopAct, shopItems, shopSec, sockCost, titleItems } from '../menus';
 import { RIG_LV, SOCKET_COST, SOCKET_MAX, rigFresh, rigInit, rigged, sockets } from '../contraptions';
-import { glow, invCross, light, txt } from '../render/util';
+import { glow, hangSpine, light, txt } from '../render/util';
 import { EYEQ, GLQ, eye, present } from '../render/eyes';
 import { drawShip } from '../render/ship';
 import { PIC, ready } from '../textures';
@@ -82,8 +82,8 @@ export function drawTitle() {
     y: PH / 2,
     hist: []
   };
-  invCross(ctx, W * .73, -10, PH + 20, 16, '#0c0204');
-  invCross(ctx, W * .73, -10, PH + 20, 10, '#2a0408');
+  hangSpine(ctx, W * .73, -10, PH + 20, 16, '#0c0204');
+  hangSpine(ctx, W * .73, -10, PH + 20, 10, '#2a0408');
   drawTitleEye();
   if (R() < .25) drops.push({
     x: rr(W * .55, W * .95),

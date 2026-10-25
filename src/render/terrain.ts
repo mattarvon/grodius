@@ -4,7 +4,7 @@ import { biomeEdge, biomeK, biomeTerrainFill, drawBiomeBG, drawBiomeDecor, splat
 import { C, H, PH, TAU, TS, W, ctx, hash, lc, lctx, sstep } from '../core';
 import { AMT, LIGHTS, ceilAt, floorAt, splats } from '../world';
 import { DERE, GROSS, PIC, STARS, fleshPat, metalPat, ready, texPat } from '../textures';
-import { drawChain, drawHookTip, drawSkull, glow, glowSpr, invCross, light, poly } from '../render/util';
+import { drawChain, drawHookTip, drawSkull, glow, glowSpr, hangSpine, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
 
 // --- terrain & backgrounds ---
@@ -197,8 +197,8 @@ export function drawDecor() {
       f = floorAt(wx);
     if (f > PH) continue;
     ctx.globalAlpha = hull;
-    invCross(ctx, x, f - 24, 24, 3, '#0b0e12');
-    invCross(ctx, x - .5, f - 24, 24, 2, '#2a323c');
+    hangSpine(ctx, x, f - 24, 24, 3, '#0b0e12');
+    hangSpine(ctx, x - .5, f - 24, 24, 2, '#2a323c');
     drawSkull(ctx, x + 5, f - 2.4, 2.4, 0);
     ctx.globalAlpha = 1;
   }
@@ -316,9 +316,14 @@ export function drawInterior(a, sc) {
     ctx.globalCompositeOperation = 'lighter';
     glow(cx, cy, 46, '150,190,230', .12 * fl);
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = `rgba(190,220,250,${.55 * fl})`;
-    ctx.fillRect(cx - 2, cy - 18, 4, 36);
-    ctx.fillRect(cx - 10, cy + 5, 20, 4);
+    // flickering porthole (these were inverted-cross lights; round now so nothing reads as a religious symbol)
+    ctx.strokeStyle = `rgba(190,220,250,${.55 * fl})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 11, 0, TAU);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(190,220,250,${.16 * fl})`;
+    ctx.fill();
     ctx.fillStyle = '#0c1015';
     ctx.fillRect(x, 0, 24, PH);
     ctx.fillStyle = '#1a2129';
@@ -339,15 +344,16 @@ export function drawInterior(a, sc) {
     const cx = x + 120,
       h = PH * .62,
       yT = PH * .12;
-    invCross(ctx, cx, yT, h, 9, '#0a0c0f');
-    invCross(ctx, cx - 1, yT, h, 6, '#141920');
+    hangSpine(ctx, cx, yT, h, 9, '#0a0c0f');
+    hangSpine(ctx, cx - 1, yT, h, 6, '#141920');
     ctx.save();
     ctx.translate(cx, yT + h * .48);
     ctx.fillStyle = '#120909';
     ctx.fillRect(-5, -18, 10, 28);
     ctx.fillRect(-4, -36, 3, 18);
     ctx.fillRect(1, -36, 3, 18);
-    ctx.fillRect(-20, 8, 40, 3);
+    ctx.fillRect(-9, 6, 3, 17); // arms hanging past the head
+    ctx.fillRect(6, 6, 3, 17);
     ctx.beginPath();
     ctx.arc(0, 16, 5, 0, TAU);
     ctx.fill();
@@ -395,8 +401,8 @@ export function drawCoreBG(a) {
   const cx = W - 110,
     cy = PH / 2,
     t = $.T * .004;
-  invCross(ctx, cx, cy - 150, 320, 22, 'rgba(14,0,2,.85)');
-  invCross(ctx, cx, cy - 150, 320, 14, 'rgba(70,4,10,.35)');
+  hangSpine(ctx, cx, cy - 150, 320, 22, 'rgba(14,0,2,.85)');
+  hangSpine(ctx, cx, cy - 150, 320, 14, 'rgba(70,4,10,.35)');
   ctx.globalCompositeOperation = 'lighter';
   glow(cx, cy, 260, '110,0,10', .35 + .1 * Math.sin($.T * .05));
   if (ready('perseus-skull')) {
