@@ -86,13 +86,22 @@ trimmed, faded and level-matched (files `src/sfx/<bank>/ov-*.ogg`); music is sil
 | X-ray skull | erix! | CC BY 2.0 | https://www.flickr.com/photos/68387408@N00/267167699 | `xray-skull.png` Infirmary lightbox |
 | The Perseus Cluster's X-Ray Skull | NASA Universe | CC BY 2.0 | https://www.flickr.com/photos/50306086@N07/5127020922 | `perseus-skull.png` behind the Gravity Drive |
 | Dental X-ray | icethim | CC BY 2.0 | https://www.flickr.com/photos/15977536@N06/5443947055 | `xray-teeth.png` Infirmary lightbox |
-| Dust and Gas in the Milky Way Center | geckzilla | CC BY 2.0 | https://www.flickr.com/photos/54209675@N00/30386605114 | `milkyway.png` Open Orbit sky, Descent 2+ |
 
 ### JWST deep field (`src/img/deepfield.png`)
 JADES GOODS-S NIRCam mosaics v2.0 (F444W/F200W/F090W as R/G/B), the JWST Advanced Deep Extragalactic Survey,
 NASA/ESA/CSA/STScI, via MAST HLSP (https://archive.stsci.edu/hlsp/jades), CC BY 4.0. Found through the Registry of
 Open Data on AWS (`mast-jades`); a 2400x636 px cutout read with S3 range requests by `tools/jades_backdrop.py`,
 asinh-stretched and downsampled. Open Orbit sky, Descent 1.
+
+### JWST nebula skies (`src/img/sky-*.png`, built by `tools/roda_sky.py`)
+From RODA dataset `mast-jwst` (MAST public JWST products, bucket `stpubdata`): public domain ("Attribution required
+for refereed scientific papers"). Credit: NASA, ESA, CSA, STScI. Cutouts read with S3 range requests and colour-graded.
+
+| Image | Program / files | Used as |
+|---|---|---|
+| Cosmic Cliffs, NGC 3324 (NIRCam F444W/F335M/F187N) | ERO 2731, `jwst/public/jw02731/L3/t/o001/` | `sky-carina.png` Open Orbit sky, Descent 2 + title backdrop |
+| Tarantula Nebula, 30 Doradus (NIRCam F444W/F335M/F187N) | ERO 2729, `jwst/public/jw02729/L3/t/o001/` | `sky-tarantula.png` Open Orbit sky, Descent 3 |
+| Cassiopeia A (MIRI F2550W/F1800W/F1130W) | program 1947, `jwst/public/jw01947/L3/t/o001/` | `sky-casa.png` breathing "wound" layer in Open Orbit |
 
 ## Fonts
 Silkscreen and Grenze Gotisch via @fontsource (SIL Open Font License 1.1).

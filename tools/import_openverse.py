@@ -205,12 +205,12 @@ def do_img():
     cx, cy, half = (x0 + x1) // 2, (y0 + y1) // 2, int((x1 - x0) * .62)
     ring = panel.crop((cx - half, cy - int(half * .62), cx + half, cy + int(half * .62)))
     ring = ImageOps.autocontrast(ring, cutoff=.5).resize((176, 109), Image.LANCZOS)
+    # Webb's infrared disc is near-white; pull it down to an icy blue-grey so it sits behind the nebula skies
+    a = np.asarray(ring, np.float32) / 255
+    a = (a ** 1.6) * np.array([.62, .74, .86])
+    ring = Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8))
     save(lum_alpha(ring, 10, 60), 'neptune-webb.png')
-    # Milky Way centre (Descent 2+ backdrop): a 960x254 band through the core
-    m = img('ov-dust-and-gas-in-the-milky-way-center')
-    w, h = m.size
-    band = m.crop((0, int(h * .5) - int(w * 254 / 960 / 2), w, int(h * .5) + int(w * 254 / 960 / 2)))
-    save(band.resize((960, 254), Image.LANCZOS), 'milkyway.png')
+    # (the Milky Way core backdrop was replaced by RODA JWST skies: tools/roda_sky.py)
     # Perseus cluster "x-ray skull" (behind the Gravity Drive): a 200 px ghost, alpha from brightness
     p = img('ov-the-perseus-cluster-s-x-ray-skull').resize((200, 195), Image.LANCZOS)
     save(lum_alpha(p, 30, 200), 'perseus-skull.png')
