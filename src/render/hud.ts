@@ -308,7 +308,7 @@ export function drawWorld() {
   }
   drawMists();
   for (const e of enemies) if (e.k !== 'eye') drawEnemy(e);
-  if ($.G.boss) drawBoss($.G.boss);
+  drawBoss($.G.boss); // null = the Gravity Drive's aftermath (bile rain, carcass) if it just burst
   drawMawFx(); // src/render/gross/maw.ts: the Maw's pus / vomit / gas / death rupture (render-only particles)
   drawTerrain();
   drawDecor();
