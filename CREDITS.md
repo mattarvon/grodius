@@ -103,5 +103,18 @@ for refereed scientific papers"). Credit: NASA, ESA, CSA, STScI. Cutouts read wi
 | Tarantula Nebula, 30 Doradus (NIRCam F444W/F335M/F187N) | ERO 2729, `jwst/public/jw02729/L3/t/o001/` | `sky-tarantula.png` Open Orbit sky, Descent 3 |
 | Cassiopeia A (MIRI F2550W/F1800W/F1130W) | program 1947, `jwst/public/jw01947/L3/t/o001/` | `sky-casa.png` breathing "wound" layer in Open Orbit |
 
+### Diseased-tissue terrain textures (`src/img/tex-*.png`, built by `tools/roda_textures.py`)
+All CC0, read from public buckets in the Registry of Open Data on AWS. Blended, tiled and colour-graded per biome.
+
+| Source | Creator | License | Used in |
+|---|---|---|---|
+| CAMELYON16 H&E sentinel lymph node slide `tumor_001` (s3://camelyon-dataset/CAMELYON16/images/tumor_001.tif), RODA `camelyon` | Radboud University Medical Center; Litjens et al., GigaScience 7(6) 2018 | CC0 | tex-flesh, tex-ice, tex-acid, tex-fire |
+| *Fuligo septica* (grey foam), iNaturalist obs 383324913, photo 701579492, RODA `inaturalist-open-data` | jasonwebb | CC0 | tex-acid |
+| *Fuligo septica* (yellow), iNaturalist obs 173293091, photo 300927385 | cam_boucher | CC0 | tex-snot |
+| *Leocarpus fragilis*, iNaturalist obs 77441896, photo 126652158 | kent_ozment | CC0 | tex-snot |
+| *Exidia glandulosa*, iNaturalist obs 80102771, photo 131259259 | dimitribrosens | CC0 | tex-fire |
+| *Ascocoryne sarcoides*, iNaturalist obs 256815760, photo 460544380 | quillipede | CC0 | tex-flesh |
+| *Didymium spongiosum*, iNaturalist obs 330256534, photo 598824077 | pilmar | CC0 | tex-ice |
+
 ## Fonts
 Silkscreen and Grenze Gotisch via @fontsource (SIL Open Font License 1.1).
