@@ -2,6 +2,21 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-25
+
+### Real sounds, more music, real space
+- **Openverse scout** (`tools/openverse.mjs`): searches the Openverse API for CC0 / CC BY / public-domain sounds, music and images, builds a picker page, downloads the picks and writes their credit rows. `tools/import_openverse.py` turns them into game assets.
+- **Sound effects:** 79 one-shots cut from Freesound recordings at their transients and level-matched to each bank: wet meat and squelching flesh in the splat banks, frozen-tissue cracks in `bone`, real explosions in `explode_l`. New banks:
+  - `monster`: real growls and shrieks under every roar (boss arrivals, big kills, the Choir of Mouths)
+  - `snot`: Sinus kills squish
+  - `warning`: recorded sirens under every WARNING banner (midbosses, biome bosses, the Gravity Drive, GRAVITY WELL CRITICAL)
+  - `stinger`: scary strings when a midboss or the Maw is coming
+  - `forkopen`: a glitchy loading blip when the ship splits
+- **Music per descent:** Descent 1 is unchanged. From Descent 2, Open Orbit plays Circuit Synthwave, then Doctor Dreamchip, then Synthwave Electropop; the Gravity Drive approach rotates Circuit Synthwave Alt and Space Wind. New slots: THE MAW fight (Cyberpunk Beat / Cyberpunk Snippet, through the stage card), the fork (a dark drone loop), game over (Horror Ambience 16), and the Infirmary alternates Heist with DX7 SynthWave Chords. Music went from about 28 MB to 38 MB.
+- **Real space:** Open Orbit's sky in Descent 1 is a real **JWST deep field**: a cutout of the JADES GOODS-S NIRCam mosaics (F444W/F200W/F090W), found through the Registry of Open Data on AWS and read straight out of the 11 GB FITS files with S3 range requests (`tools/jades_backdrop.py`). Descent 2+ get the Milky Way's core. Neptune is Voyager 2's photo in Descent 1 and Webb's ringed infrared Neptune deeper down. The Perseus cluster's "x-ray skull" (NASA Chandra) breathes in the Gravity Drive's well; x-ray films hang in the Infirmary.
+- Title credits updated; every CC BY source is in CREDITS.md.
+- Checked: `harness` gameplay state identical to before (only frame hashes changed); `route-probe` over two descents plays every music slot as mapped, no errors.
+
 ## 2026-10-16 (branch `stage-scripts`)
 
 ### A real run-up to the Gravity Drive
