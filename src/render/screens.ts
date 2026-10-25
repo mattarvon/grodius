@@ -11,6 +11,7 @@ import { RIG_LV, SOCKET_COST, SOCKET_MAX, rigFresh, rigInit, rigged, sockets } f
 import { glow, invCross, light, txt } from '../render/util';
 import { EYEQ, GLQ, eye, present } from '../render/eyes';
 import { drawShip } from '../render/ship';
+import { PIC, ready } from '../textures';
 import { drawBoss } from '../render/boss';
 import { drawDrops } from '../render/gore';
 import { drawBG, drawSplats } from '../render/terrain';
@@ -125,7 +126,8 @@ export function drawTitle() {
   txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', 28, 226, '#3f4955');
   txt('HI ' + pad($.hi, 8), 28, 240, '#8fa3b8');
   txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#5a2a2c', 'right');
-  txt('MUSIC: DANCRAMP - VOID (CC BY 4.0)  SFX: KENNEY', W - 8, H - 22, '#3a4048', 'right', 7);
+  txt('MUSIC: DANCRAMP - VOID, FREESOUND ARTISTS   SFX: KENNEY, FREESOUND', W - 8, H - 30, '#3a4048', 'right', 7);
+  txt('IMAGES: NASA/ESA/CSA JWST, VOYAGER 2, CHANDRA, FLICKR   SEE CREDITS.MD', W - 8, H - 21, '#3a4048', 'right', 7);
 }
 export function drawOverlay(title, sub, col) {
   ctx.fillStyle = 'rgba(8,0,1,.72)';
@@ -190,6 +192,18 @@ export function drawShop() {
     ctx.arc(i + 1, len, 1.6, 0, TAU);
     ctx.fill();
   }
+  // x-ray films pinned up behind everything, lit from a cold lightbox
+  ctx.globalCompositeOperation = 'lighter';
+  if (ready('xray-teeth')) {
+    ctx.globalAlpha = .13;
+    ctx.drawImage(PIC['xray-teeth'], 140, H - 96);
+  }
+  if (ready('xray-skull')) {
+    ctx.globalAlpha = .2 + .03 * Math.sin($.T * .03);
+    ctx.drawImage(PIC['xray-skull'], 330, 36);
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
   txt('THE INFIRMARY', 14, 10, '#b3121a', 'left', 26, FONT_D);
   txt('BUILD YOUR WAR MACHINE. GRAFTS ARE PERMANENT.', 16, 36, '#6d8094', 'left', 7);
   // biomass purse

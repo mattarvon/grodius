@@ -3,7 +3,7 @@ import { $ } from '../state';
 import { biomeEdge, biomeK, biomeTerrainFill, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark } from '../biomes';
 import { C, H, PH, TAU, TS, W, ctx, hash, lc, lctx, sstep } from '../core';
 import { AMT, LIGHTS, ceilAt, floorAt, splats } from '../world';
-import { DERE, STARS, fleshPat, metalPat } from '../textures';
+import { DERE, PIC, STARS, fleshPat, metalPat, ready } from '../textures';
 import { drawChain, drawHookTip, drawSkull, glow, glowSpr, invCross, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
 
@@ -201,6 +201,21 @@ export function drawNeptune(a, sc) {
   const x = W * .8 - sc * .02,
     y = 62,
     r = 48;
+  // the real thing: Voyager 2's Neptune in Descent 1, Webb's ringed infrared Neptune from Descent 2 on
+  const deep = ($.G && $.G.loop) > 0, k = deep ? 'neptune-webb' : 'neptune-voyager';
+  if (ready(k)) {
+    const im = PIC[k];
+    ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(y - im.height / 2));
+    if (!deep) {
+      ctx.strokeStyle = 'rgba(160,200,240,.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(x, y, r * 1.6, r * .22, -.18, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
   ctx.save();
   ctx.beginPath();
   ctx.arc(x, y, r, 0, TAU);
@@ -376,6 +391,13 @@ export function drawCoreBG(a) {
   invCross(ctx, cx, cy - 150, 320, 14, 'rgba(70,4,10,.35)');
   ctx.globalCompositeOperation = 'lighter';
   glow(cx, cy, 260, '110,0,10', .35 + .1 * Math.sin($.T * .05));
+  if (ready('perseus-skull')) {
+    // the Perseus cluster's "x-ray skull" (NASA Chandra) breathing in the well's glow
+    const im = PIC['perseus-skull'], s = 1 + .03 * Math.sin($.T * .02);
+    ctx.globalAlpha = a * (.32 + .1 * Math.sin($.T * .05));
+    ctx.drawImage(im, cx - im.width * s / 2, cy - im.height * s / 2, im.width * s, im.height * s);
+    ctx.globalAlpha = a;
+  }
   ctx.globalCompositeOperation = 'source-over';
   ctx.strokeStyle = 'rgba(150,40,40,.22)';
   ctx.lineWidth = 1;
@@ -401,6 +423,15 @@ export function drawBG() {
   bg.addColorStop(1, '#070b14');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, PH);
+  // real sky behind the dot stars: a JWST deep field (JADES GOODS-S) in Descent 1, the Milky Way's core deeper down
+  const deep = ($.G && $.G.loop) > 0, sky = deep ? 'milkyway' : 'deepfield';
+  if (sp > 0 && ready(sky)) {
+    const im = PIC[sky], ox = -((sc * .03) % im.width);
+    ctx.globalAlpha = sp * (deep ? .38 : .7);
+    ctx.drawImage(im, Math.round(ox), 0);
+    if (ox + im.width < W) ctx.drawImage(im, Math.round(ox + im.width), 0);
+    ctx.globalAlpha = 1;
+  }
   if (sp > 0) {
     STARS.forEach((L, l) => {
       const s = [.05, .15, .4][l];

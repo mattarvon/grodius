@@ -361,7 +361,7 @@ export const ring = (x, y, n, a0, sp, k) => {
 export const every = (e, n) => e.t % Math.max(18, Math.round(n * (1 - .3 * ($.G.rank || 0)))) === 0;
 export function miniWarn(name, f) {
   banner('WARNING', name, '#ff2a2a', 170);
-  sfx.alarm();
+  sfx.dread();
   $.G.glitch = 10;
   $.G.pend.push({
     t: 150,
@@ -438,7 +438,7 @@ export function buildScript(L) {
   at(1880, () => hatch(8, false));
   at(2000, () => {
     banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
-    sfx.alarm();
+    sfx.dread();
   });
   at(2120, () => maw(true));
   if (hard) {
@@ -456,7 +456,7 @@ export function buildScript(L) {
   at(8850, () => { formation('zig', PH * .35); flayer(PH * .75); });
   at(8920, () => { formation('wall', PH / 2); if (hard) hatch(6, true); });
   at(8990, () => { flayer(PH * .25); flayer(PH * .7); if (hard) formation('dive', 120); });
-  at(9060, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.alarm(); $.G.glitch = 14; });
+  at(9060, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
   at(9150, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
   at(BOSS_AT, () => startBoss());
   // stages 1 and 2 (world x 2300..8200) are biome slots, scripted when you pick a gate (biomes.ts insertScript)

@@ -2,7 +2,7 @@
 import { R, rr } from './core';
 import { SET } from './save';
 import { nativeSay } from './platform';
-import { duckMusic } from './music';
+import { duckMusic, curBiome } from './music';
 
 // ---------------- audio ----------------
 export const AU = {
@@ -87,7 +87,10 @@ export function auInit() {
 }
 // ---------------- sample bank ----------------
 // Every audio file under src/sfx/<category>/ is bundled and decoded on first input. Categories:
-// splat_s splat_m splat_l thud bone silly explode_s explode_l. Drop more files in a folder and they join the rotation.
+// splat_s splat_m splat_l thud bone silly explode_s explode_l, plus monster (under roar), snot (Sinus kills),
+// warning (sirens under WARNING banners), stinger (midboss warning), forkopen (gates open) and the voice lines.
+// Drop more files in a folder and they join the rotation. ov-* clips are cut from Openverse picks by
+// tools/import_openverse.py.
 const SFX_URLS = import.meta.glob('./sfx/*/*.{ogg,wav,mp3,m4a}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 export const BANK: Record<string, AudioBuffer[]> = {};
 const LASTS: Record<string, number> = {};
@@ -281,6 +284,7 @@ export const sfx = {
       if (sz >= 1.4 && ar() < .5) sample('bone', { vol: .55, at: .015 });
       if (sz >= .9 && ar() < .14) sample('silly', { vol: .6, at: .04 }); // ~1 in 7 kills gets the comedy layer
       if (sz >= 3) sample('explode_l', { vol: .9, wet: .35 });
+      if (curBiome() === 'snot' && ar() < .6) sample('snot', { vol: .55 + Math.min(.3, sz * .06), at: .02 }); // the Sinus: everything dies wet
       return;
     }
     const v = Math.min(1, .3 + sz * .14);
@@ -403,6 +407,7 @@ export const sfx = {
     });
   },
   roar() {
+    sample('monster', { vol: .85, wet: .45, spread: .1 }); // a real throat over the synth rumble
     tone({
       type: 'sawtooth',
       f: 72,
@@ -430,6 +435,18 @@ export const sfx = {
       a: .3,
       wet: .5
     });
+  },
+  /** WARNING banners: a recorded siren, the synth alarm if the bank isn't loaded */
+  siren() {
+    if (!sample('warning', { vol: .5, wet: .35, spread: .04 })) sfx.alarm();
+  },
+  /** a midboss is coming: siren plus the string stinger */
+  dread() {
+    sfx.siren();
+    sample('stinger', { vol: .7, wet: .4, spread: 0 });
+  },
+  forkOpen() {
+    if (!sample('forkopen', { vol: .8, wet: .3, spread: 0 })) sfx.alarm();
   },
   alarm() {
     for (let i = 0; i < 6; i++) tone({

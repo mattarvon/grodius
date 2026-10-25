@@ -195,7 +195,7 @@ export function openFork(seg) {
   haz.length = 0; // anything left over (a strand parked off-screen) doesn't follow you through the gate
   if (G.tally) G.tally.t = Math.min(G.tally.t, 30); // the stage card fades out as the gates open (it covers their labels)
   banner('THE SHIP SPLITS', 'FLY INTO A GATE', '#e8f1ff', 160);
-  sfx.alarm();
+  sfx.forkOpen();
 }
 function choose(b) {
   const G = $.G, f = G.fork, seg = f.seg;

@@ -49,7 +49,7 @@ export function startBoss() {
     fl: 0
   };
   banner('THE GRAVITY DRIVE', 'IT WANTS TO TAKE YOU BACK WITH IT', undefined, 260);
-  sfx.alarm();
+  sfx.siren();
   setTimeout(() => sfx.roar(), 900);
   $.G.glitch = 20;
 }

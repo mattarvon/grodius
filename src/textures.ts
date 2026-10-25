@@ -1,6 +1,18 @@
 // @ts-nocheck
 import { PH, R, TAU, W, ctx, pick, ri, rr } from './core';
 
+// ---------------- photos ----------------
+// src/img/*.png: real images (JWST deep field, Voyager/Webb Neptune, x-rays), made by tools/jades_backdrop.py and
+// tools/import_openverse.py, credited in CREDITS.md. Load in the background; draw code checks ready() and falls back.
+const IMG_URLS = import.meta.glob('./img/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+export const PIC: Record<string, HTMLImageElement> = {};
+for (const [p, u] of Object.entries(IMG_URLS)) {
+  const i = new Image();
+  i.src = u;
+  PIC[p.slice(6, -4)] = i;
+}
+export const ready = (k) => PIC[k] && PIC[k].complete && PIC[k].naturalWidth > 0;
+
 // ---------------- textures ----------------
 export function mkTex(fn) {
   const c = document.createElement('canvas');
