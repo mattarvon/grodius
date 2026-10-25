@@ -85,11 +85,11 @@ Enemies that come from behind are telegraphed with a BEHIND warning, enter in th
 ## Mini-bosses
 The scroll stops until they die.
 - THE MAW: ends the open-orbit section (and returns inside).
-- THE CRUCIFER: end of the hull. A flayed body crucified upside down; its heart sits behind 4 nail barriers you have to shoot through (Big Core homage). Spike fans, hand rings; below half HP a blood spiral and glob rain.
+- THE BLOATED BITCH (was THE CRUCIFER): end of the hull. A flayed, frostbitten body hung upside down on a frozen rack; its heart sits behind 4 nail barriers you have to shoot through (Big Core homage). Spike fans, hand rings; below half HP a blood spiral and glob rain.
 - THE BUTCHER: inside, before the gate. Hangs on chains; telegraphed cleaver sweep (red wedge), thrown meathook (dashed line), gib spit. Below half HP it snaps a chain and swings, adding ring bursts.
 
 ## Progression: earn your guns
-- **Stages.** Each descent is 4 stages: OPEN ORBIT (ends on THE MAW), THE HULL (THE CRUCIFER), THE CORRIDORS (THE BUTCHER; a second Maw mid-stage only coughs up pods), THE GRAVITY DRIVE. Each opens with a stage card.
+- **Stages.** Each descent is 4 stages: OPEN ORBIT (ends on THE MAW), THE HULL (THE BLOATED BITCH), THE CORRIDORS (THE BUTCHER; a second Maw mid-stage only coughs up pods), THE GRAVITY DRIVE. Each opens with a stage card.
 - **Stage clear tally:** kills (% of everything that spawned), hits taken, deaths, best chain, time, and a grade S/A/B/C. S needs no hits. The grade pays score (x descent) and biomass; no-hit adds PERFECT. Your best grade per stage is saved. If the Maw escapes, the stage ends on a C with no reward.
 - **Seals** break on the 2nd, 4th and 6th stage cleared in a run: end of the Hull, end of Descent 1, Descent 2 Hull. Full power is a Descent 2 thing.
 - **Stage-boss reward:** 3 gold-ringed pods, each a full level, take one and the others burst.

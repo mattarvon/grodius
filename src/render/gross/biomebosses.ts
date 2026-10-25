@@ -1,6 +1,6 @@
 // @ts-nocheck
 // =====================================================================
-//  GROSS BIOME BOSSES: THE FROZEN CRUCIFER + THE BURNING BUTCHER
+//  GROSS BIOME BOSSES: THE BLOATED BITCH (was THE FROZEN CRUCIFER; kind 'crux') + THE BURNING BUTCHER
 //  Render-only. Nothing in here touches gameplay state or the gameplay RNG (core R/rr/ri/pick, fx/spawn).
 //  Static art is pre-rendered to offscreen canvases once; the live layer animates on top; a capped render-side
 //  particle list (drips, chunks, shards, steam, flies, maggots, sausage links...) runs from drawBiomeBossFX().
@@ -346,7 +346,7 @@ function sausages(c, x, y, n, a0, sw, burnt, out) {
 }
 
 // =====================================================================
-//  THE FROZEN CRUCIFER
+//  THE BLOATED BITCH (kind 'crux')
 // =====================================================================
 let CRUX = null;
 const CRUX_IRIS = '#9fb7c4', CRUX_BS = 3;

@@ -792,7 +792,7 @@ export function drawNailbar(c, e) {
 }
 import { drawButcherGross, drawCruxGross } from './gross/biomebosses';
 export function drawCrux(c, e) {
-  drawCruxGross(c, e); // THE FROZEN CRUCIFER: src/render/gross/biomebosses.ts
+  drawCruxGross(c, e); // THE BLOATED BITCH (ice biome boss, kind 'crux'): src/render/gross/biomebosses.ts
 }
 export function drawButcher(c, e) {
   drawButcherGross(c, e); // THE BURNING BUTCHER: src/render/gross/biomebosses.ts

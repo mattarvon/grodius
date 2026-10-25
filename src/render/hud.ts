@@ -157,7 +157,7 @@ export function drawHUD() {
     const m = $.G.mini,
       nm = m.title || {
         maw: 'THE MAW',
-        crux: 'THE CRUCIFER',
+        crux: 'THE BLOATED BITCH',
         butcher: 'THE BUTCHER',
         choir: 'THE NAIL CHOIR',
         cyst: 'THE DISSOLVING WOMB',

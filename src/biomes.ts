@@ -24,10 +24,10 @@ export const SEG = [
 
 export const BIOMES = {
   ice: {
-    name: 'THE CRYOVAULT', tag: 'FROZEN // CRUCIFER', sub: 'THE CREW IS STILL IN HERE. FROZEN MID-SCREAM', col: '#9fd8ff', rgb: '160,215,255',
+    name: 'THE CRYOVAULT', tag: 'FROZEN // BLOATED BITCH', sub: 'THE CREW IS STILL IN HERE. FROZEN MID-SCREAM', col: '#9fd8ff', rgb: '160,215,255',
     dark: .55, mist: '90,10,26', bg: ['#02060e', '#0e2840'], edge: '#f2fbff', fog: '120,180,230',
     gore: ['#7a1222', '#300610', '#d8efff', '#0c0809', '#8cc4ee', '#ffffff'], blood: ['#7a1222', '#300610', '#c8506a'],
-    boss: 'crux', bossName: 'THE FROZEN CRUCIFER', mid: 'choir', midName: 'THE NAIL CHOIR', haz: 'icicle', hazEvery: 110,
+    boss: 'crux', bossName: 'THE BLOATED BITCH', mid: 'choir', midName: 'THE NAIL CHOIR', haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
     gap: 115, dbl: .5, set: 'morgue', sig: 'corpse',
     mix: [['corpse', 3], ['cross', 3], ['flayer', 2], ['eye', 2], ['hook', 2], ['wall', 2], ['sine', 2]],
