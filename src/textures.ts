@@ -13,6 +13,20 @@ for (const [p, u] of Object.entries(IMG_URLS)) {
 }
 export const ready = (k) => PIC[k] && PIC[k].complete && PIC[k].naturalWidth > 0;
 
+// ---------------- real-tissue terrain textures ----------------
+// src/img/tex-*.png (128px seamless tiles) made by tools/roda_textures.py from RODA open data: CAMELYON16 H&E
+// lymph-node metastasis slides + CC0 iNaturalist slime moulds / jelly fungi (see that script and CREDITS.md).
+/** GROSS: 0..1, how much of the real-tissue textures is laid over the old procedural terrain patterns.
+ *  1 = full diseased tissue, 0 = the original hand-drawn look. Dial back here. */
+export const GROSS = 1;
+const TEXP = {};
+/** cached repeat pattern for src/img/tex-<k>.png, or null until the image has loaded (callers fall back) */
+export function texPat(k) {
+  if (TEXP[k]) return TEXP[k];
+  if (!ready('tex-' + k)) return null;
+  return (TEXP[k] = ctx.createPattern(PIC['tex-' + k], 'repeat'));
+}
+
 // ---------------- textures ----------------
 export function mkTex(fn) {
   const c = document.createElement('canvas');
