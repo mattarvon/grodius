@@ -7,7 +7,7 @@
 import { $ } from '../state';
 import { FIRE, PH, TAU, W, ctx, hash } from '../core';
 import { ceilAt, floorAt } from '../world';
-import { mkTex } from '../textures';
+import { GROSS, mkTex, texPat } from '../textures';
 import { glow, light } from './util';
 import { BIOMES, biomeK } from '../biomes';
 
@@ -92,6 +92,14 @@ export function biomeTerrainFill(mtx) {
   ctx.globalAlpha = k;
   ctx.fillStyle = p;
   ctx.fill();
+  // real diseased tissue over the procedural pattern (tools/roda_textures.py); GROSS dials it back to the original
+  const t = GROSS > 0 ? texPat(b) : null;
+  if (t) {
+    t.setTransform(mtx);
+    ctx.globalAlpha = k * GROSS;
+    ctx.fillStyle = t;
+    ctx.fill();
+  }
   ctx.globalAlpha = 1;
   return k;
 }

@@ -3,7 +3,7 @@ import { $ } from '../state';
 import { biomeEdge, biomeK, biomeTerrainFill, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark } from '../biomes';
 import { C, H, PH, TAU, TS, W, ctx, hash, lc, lctx, sstep } from '../core';
 import { AMT, LIGHTS, ceilAt, floorAt, splats } from '../world';
-import { DERE, PIC, STARS, fleshPat, metalPat, ready } from '../textures';
+import { DERE, GROSS, PIC, STARS, fleshPat, metalPat, ready, texPat } from '../textures';
 import { drawChain, drawHookTip, drawSkull, glow, glowSpr, invCross, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
 
@@ -15,6 +15,9 @@ export function drawTerrain() {
   const mtx = new DOMMatrix().translate(-sc, 0);
   metalPat.setTransform(mtx);
   fleshPat.setTransform(mtx);
+  // the derelict's walls: real metastatic tissue (tex-flesh) creeping over the hull plate, thickest in the corridors
+  const fp = GROSS > 0 ? texPat('flesh') : null;
+  if (fp) fp.setTransform(mtx);
   for (const top of [true, false]) {
     ctx.beginPath();
     ctx.moveTo(-4, top ? -4 : PH + 4);
@@ -27,7 +30,12 @@ export function drawTerrain() {
     ctx.fillStyle = metalPat;
     ctx.fill();
     const bk = biomeTerrainFill(mtx);
-    if (corr > 0 && bk < 1) {
+    if (fp && bk < 1) {
+      ctx.globalAlpha = (1 - bk) * (corr * .7 * (1 - GROSS) + GROSS * (.45 + .55 * corr));
+      ctx.fillStyle = fp;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (corr > 0 && bk < 1) {
       ctx.globalAlpha = corr * .7 * (1 - bk);
       ctx.fillStyle = fleshPat;
       ctx.fill();
