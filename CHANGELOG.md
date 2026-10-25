@@ -2,6 +2,30 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-25 (gross-out pass: six parallel branches)
+
+Grodius is Gross Gradius. Every boss got a gross-out pass, and the sky and terrain are now real science imagery. All of it is visual and audio only: hitboxes, HP, attacks and timing are unchanged (`harness` state identical, `boss-probe` / `midboss-probe` kill times unchanged within run-to-run noise). Each new file has a `GROSS` knob at the top (1 = full, 0 = off or close to the original) so any of it can be dialed back. All new randomness is render-only, so seeded runs don't shift.
+
+### Bosses
+- **The Maw family** (`src/render/gross/maw.ts`): rotting gangrenous bodies, boils that swell, burst into pus and grow back, a split stomach seam with bile sloshing around a skull, 13 rotten teeth, a drooling ulcerous tongue, a retch-then-vomit-jet telegraph, a farting back sphincter, wounds that open and fill with maggots, a rotten gash with an exposed rib at half HP, and a sludge-wave death after which the skin deflates with a fart. The Dissolved Maw shows skull and ribs and a glowing acid stomach; the Mucus Maw is snot-glazed with popping nostril bubbles.
+- **The Frozen Crucifer** (`gross/biomebosses.ts`): a flayed, frostbitten carcass with gangrene fingers, bile icicles, frozen vomit and a snot runner. Its own skin is nailed to the nail bars and snaps when they break. The frosted heart leaks blood slush and bursts out of the chest when the last bar goes; it shatters into ice and meat on death.
+- **The Burning Butcher**: an obese roasting carcass with bubbling fat, man-boobs and triple chins, an offal apron, sizzling sausage-link guts, a cleaver caked in rotten meat with flies, and projectile-vomited burnt chunks. When the chain snaps at half HP the belly bursts open.
+- **The midbosses** (`gross/midbosses.ts`):
+  - Nail Choir: gargling, drooling frostbitten mouths, pus icicles, and a severed tongue nailed to each nail.
+  - Dissolving Womb: veined membrane, bile digesting a twitching fetus, popping acid blisters.
+  - Butcher's Apprentice: popping fat blisters, maggots, an offal loincloth, and it cries with a snot bubble.
+  - Brood Mother: visible larvae, booger-crusted nostrils, giant pre-sneeze snot bubbles, and a gushing birth.
+- **The Gravity Drive** (`gross/drive.ts`): a giant diseased heart-organ beating faster each phase, with bile pumping through pipe-arteries, five crew faces stretched over the plating that scream, haemorrhoid-ringed vents that fart, exhaust ports that vomit, and intestine tentacles with sucker-mouths. Phase 0 plates are pus pressure gauges whose glass cracks; the eye is sewn shut. In phase 1 it opens into a jaundiced, cataracted eye that weeps pus. It rots more as HP drops. On death the eye bursts, then the whole thing ruptures into a rain of bile, meat and eyeballs and the carcass deflates.
+- **New sounds** (all synthesized, `tools/gen_gross_sfx.py`, `gen_bossgross_sfx.py`, `gen_drive_sfx.py`): gross_pop, gross_gargle, gross_slosh, gross_gush, gsizzle, gicecrack, drivegut, driveretch, driveburst. Matty's farts now come out of the Maw and the Gravity Drive.
+
+### Real imagery from the Registry of Open Data on AWS
+- **Skies** (`tools/roda_sky.py`, public-domain JWST data from `mast-jwst`): Descent 2 is Carina's Cosmic Cliffs graded bruise and blood (also the title backdrop), Descent 3 is the Tarantula Nebula graded flesh-pink, and Descent 4+ cycle. Cassiopeia A, graded raw meat and bile, breathes in Open Orbit as a "wound". The Flickr Milky Way is gone. Webb's Neptune is toned down so it doesn't blow out.
+- **Tissue terrain** (`tools/roda_textures.py`, all CC0): a CAMELYON16 cancer-pathology slide and iNaturalist slime moulds and jelly fungi become 128 px tiles. The derelict's walls are meat, ice is frozen fat cells, acid is dog-vomit slime mould, fire is charred witches' butter with embers, and snot is pus beads in yellow mucus.
+
+### Tools
+- Screenshot look-books: `tools/maw-shots.mjs`, `biomeboss-shots.mjs`, `drive-shots.mjs`.
+- Probe gotcha: restart vite before trusting `boss-probe` / `midboss-probe` numbers. After hot reloads the probe imports different module copies than the game, and every fight reads "esc".
+
 ## 2026-10-25
 
 ### Real sounds, more music, real space
