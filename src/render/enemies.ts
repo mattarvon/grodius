@@ -294,7 +294,9 @@ export function drawWomb(c, e) {
   c.fill();
   c.restore();
 }
+import { GROSS as GROSS_MAW, drawGrossMaw } from './gross/maw'; // THE MAW / DISSOLVED / MUCUS, gross edition
 export function drawMaw(c, e) {
+  if (GROSS_MAW > 0) return drawGrossMaw(c, e); // GROSS = 0 in gross/maw.ts falls through to the original below
   const t = e.t;
   c.strokeStyle = '#2a2f36';
   c.lineWidth = 3;

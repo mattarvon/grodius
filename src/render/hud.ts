@@ -19,6 +19,7 @@ import { drawShip, drawWraith } from '../render/ship';
 import { drawShots } from '../render/bullets';
 import { drawContraptionFX } from '../contraptions';
 import { drawEnemy } from '../render/enemies';
+import { drawMawFx } from './gross/maw';
 import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
 import { drawBG, drawDecor, drawLighting, drawTerrain } from '../render/terrain';
@@ -308,6 +309,7 @@ export function drawWorld() {
   drawMists();
   for (const e of enemies) if (e.k !== 'eye') drawEnemy(e);
   if ($.G.boss) drawBoss($.G.boss);
+  drawMawFx(); // src/render/gross/maw.ts: the Maw's pus / vomit / gas / death rupture (render-only particles)
   drawTerrain();
   drawDecor();
   drawDecals();
