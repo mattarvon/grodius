@@ -19,6 +19,7 @@ import { drawShip, drawWraith } from '../render/ship';
 import { drawShots } from '../render/bullets';
 import { drawContraptionFX } from '../contraptions';
 import { drawEnemy } from '../render/enemies';
+import { drawBiomeBossFX } from '../render/gross/biomebosses';
 import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
 import { drawBG, drawDecor, drawLighting, drawTerrain } from '../render/terrain';
@@ -314,6 +315,7 @@ export function drawWorld() {
   for (const e of enemies) if (e.k === 'eye') drawEnemy(e);
   drawGibs();
   drawDrops();
+  drawBiomeBossFX(); // render-only gore of the Crucifer / Butcher (gross/biomebosses.ts)
   drawBiomeFX();
   for (const o of orbs) {
     const p = .6 + .4 * Math.sin($.T * .3 + o.x);
