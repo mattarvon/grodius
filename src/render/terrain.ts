@@ -415,6 +415,30 @@ export function drawCoreBG(a) {
   }
   ctx.globalAlpha = 1;
 }
+const SKY = ['deepfield', 'sky-carina', 'sky-tarantula'],
+  SKY_A = { deepfield: .7, 'sky-carina': .5, 'sky-tarantula': .55 };
+/** Cassiopeia A (JWST MIRI, graded to raw meat and bile) hung in Open Orbit like a flayed wound: slow parallax,
+ *  a cheap breath (scale + alpha of one pre-baked sprite, no per-pixel work) and a fainter out-of-phase echo */
+function drawWound(a, sc, L) {
+  if (!ready('sky-casa')) return;
+  const im = PIC['sky-casa'],
+    k = L % 3,
+    x = W * [.5, .62, .4][k] - sc * .045,
+    y = PH * [.66, .6, .7][k],
+    br = Math.sin($.T * .021 + L),
+    s = [.62, .78, .7][k] * (1 + .035 * br),
+    w = im.width * s;
+  if (x + w < 0) return;
+  ctx.globalCompositeOperation = 'lighter';
+  a *= k ? .7 : 1; // dimmer over the nebula skies of Descent 2 and 3
+  ctx.globalAlpha = a * (.4 + .1 * br);
+  ctx.drawImage(im, x - w / 2, y - w / 2, w, w);
+  const s2 = s * (1.08 - .03 * br), w2 = im.width * s2;
+  ctx.globalAlpha = a * .12 * (1 - br) * .5;
+  ctx.drawImage(im, x - w2 / 2, y - w2 / 2, w2, w2);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+}
 export function drawBG() {
   const sc = $.G ? $.G.scroll : $.T * .6;
   const sp = $.G ? AMT.space(sc) : 1;
@@ -423,15 +447,19 @@ export function drawBG() {
   bg.addColorStop(1, '#070b14');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, PH);
-  // real sky behind the dot stars: a JWST deep field (JADES GOODS-S) in Descent 1, the Milky Way's core deeper down
-  const deep = ($.G && $.G.loop) > 0, sky = deep ? 'milkyway' : 'deepfield';
+  // real sky behind the dot stars, all JWST via RODA (tools/jades_backdrop.py, tools/roda_sky.py): the JADES deep
+  // field in Descent 1, Carina's "Cosmic Cliffs" (NGC 3324) in Descent 2, the Tarantula (30 Doradus) in Descent 3, then
+  // round again; the title screen hangs over the cliffs
+  const title = $.state === 'title', L = $.G && !title ? $.G.loop | 0 : 0;
+  const sky = title ? 'sky-carina' : SKY[L % SKY.length];
   if (sp > 0 && ready(sky)) {
     const im = PIC[sky], ox = -((sc * .03) % im.width);
-    ctx.globalAlpha = sp * (deep ? .38 : .7);
+    ctx.globalAlpha = sp * (title ? .42 : SKY_A[sky]);
     ctx.drawImage(im, Math.round(ox), 0);
     if (ox + im.width < W) ctx.drawImage(im, Math.round(ox + im.width), 0);
     ctx.globalAlpha = 1;
   }
+  if (sp > 0 && !title) drawWound(sp, sc, L);
   if (sp > 0) {
     STARS.forEach((L, l) => {
       const s = [.05, .15, .4][l];
