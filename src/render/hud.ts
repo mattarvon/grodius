@@ -307,7 +307,7 @@ export function drawWorld() {
   }
   drawMists();
   for (const e of enemies) if (e.k !== 'eye') drawEnemy(e);
-  if ($.G.boss) drawBoss($.G.boss);
+  drawBoss($.G.boss); // null = the Gravity Drive's aftermath (bile rain, carcass) if it just burst
   drawTerrain();
   drawDecor();
   drawDecals();

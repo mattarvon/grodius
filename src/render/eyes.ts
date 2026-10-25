@@ -227,6 +227,7 @@ export function drawEyeQ() {
       r = e.r * $.DK;
     if (X < -r || X > W * $.DK + r || Y < -r || Y > H * $.DK + r) continue;
     D.globalAlpha = e.al;
+    if (e.draw) { e.draw(D, X, Y, r, e); continue; } // custom hi-res eyeball (the Gravity Drive's infected eye: render/gross/drive.ts)
     if (e.hero) { drawHeroEye(D, e, X, Y, r); continue; } // title hero: its own wet, wobbling renderer (heroeye.ts)
     const set = eyeSet(e.iris, e.fire, e.bs);
     if (e.fire) {
