@@ -1109,3 +1109,11 @@ function drawRupture(c, r) {
 
 /** for debugging / probes */
 (globalThis as any).__mawFx = () => ({ pt: PT.length, rup: RUP.length, live: live.size });
+
+/** pre-build the three Maw body textures (idle time after boot); false when done */
+export function warmMaw() {
+  const v = ['orbit', 'acid', 'snot'].find((k) => !TEX[k]);
+  if (!v) return false;
+  bodyTex(v);
+  return true;
+}

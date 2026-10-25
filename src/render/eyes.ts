@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { drawPerf } from '../perf';
 import { $ } from '../state';
 import { H, TAU, W, ctx, cv, dctx, lo } from '../core';
 import { drawHeroEye } from './heroeye';
@@ -317,6 +318,7 @@ export function present() {
   }
   GLQ.length = 0;
   $.FLUSHED = 0;
+  drawPerf(dctx, $.DK);
 }
 
 // --- player ship & helpers ---

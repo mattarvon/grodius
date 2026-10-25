@@ -477,11 +477,22 @@ function buildEyeTex() {
   sx.fillRect(0, 0, 128, 128);
   return { scl: c, iris: ic, cat: cc, shade: sc };
 }
+// pieces are built lazily and can be pre-built one per idle slot (warmDrive) so the fight never opens on a ~200 ms
+// hitch (buildMass's per-pixel mottling is the big one)
+const PART = {};
+const PARTS = { mass: buildMass, ringA: buildRingA, ringB: buildRingB, face: buildFace, eye: buildEyeTex };
 function art() {
   if (ART) return ART;
-  const m = buildMass();
-  ART = { ...m, ringA: buildRingA(), ringB: buildRingB(), face: buildFace(), eye: buildEyeTex() };
+  for (const k in PARTS) PART[k] ||= PARTS[k]();
+  ART = { ...PART.mass, ringA: PART.ringA, ringB: PART.ringB, face: PART.face, eye: PART.eye };
   return ART;
+}
+/** pre-build one more piece of the drive's art; false when everything is built */
+export function warmDrive() {
+  const k = Object.keys(PARTS).find((q) => !PART[q]);
+  if (!k) return false;
+  PART[k] = PARTS[k]();
+  return true;
 }
 
 // ---------------- per-fight state ----------------

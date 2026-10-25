@@ -9,7 +9,7 @@ html,body{height:100%}
 body{background:var(--void);color:var(--steel);overflow:hidden;display:grid;place-items:center;padding-inline:16px;box-sizing:border-box;font-family:var(--f-hud);touch-action:none;-webkit-user-select:none;user-select:none}
 #wrap{position:relative;box-shadow:0 0 0 1px #11161c,0 0 60px rgba(161,13,20,.18)}
 canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;outline:none}
-#crt{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply}
+#crt{position:absolute;inset:0;pointer-events:none}
 #vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
 @media (prefers-reduced-motion:no-preference){#vig{animation:fl 6s steps(60) infinite}}
 @keyframes fl{0%,100%{opacity:1}50%{opacity:.92}}

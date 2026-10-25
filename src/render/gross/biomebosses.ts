@@ -1182,3 +1182,10 @@ export function drawBiomeBossFX() {
   drawPS();
   drawLens();
 }
+
+/** pre-build the Crucifer's and Butcher's static art (idle time after boot); false when done */
+export function warmBiomeBosses() {
+  if (!CRUX) { CRUX = buildCrux(); return true; }
+  if (!BUT) { BUT = buildButcher(); BUTC = buildButcherCracks(); return true; }
+  return false;
+}

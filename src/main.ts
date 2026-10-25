@@ -46,12 +46,36 @@ export function frame(now) {
   let n = 0;
   while (acc >= 1000 / 60 && n < 5) {
     acc -= 1000 / 60;
+    pIn();
     step();
+    pOut('step');
     n++;
   }
-  if (n) render();
+  if (n) {
+    render();
+    pFrame();
+    autoQuality(now);
+  }
+}
+// auto quality: if frames average slower than ~52 fps over 2 s of play, drop the display canvas one resolution notch
+let qN = 0, qSum = 0, qLast = 0, qHold = 0;
+function autoQuality(now) {
+  const d = now - qLast;
+  qLast = now;
+  if (document.hidden || d > 100 || $.state !== 'play' || now < 4000 || now < qHold) return;
+  qSum += d;
+  if (++qN < 120) return;
+  if (qSum / qN > 19.2 && lowerDK()) qHold = now + 3000; // let the new size settle before judging again
+  qN = qSum = 0;
+}
+// pre-build the bosses' static art one piece per idle slot after boot, so no fight opens on a build hitch
+const WARM = [warmMaw, warmMidbosses, warmBiomeBosses, warmDrive];
+function warmUp() {
+  while (WARM.length && !WARM[0]()) WARM.shift();
+  if (WARM.length) (window.requestIdleCallback || ((f) => setTimeout(f, 50)))(warmUp, { timeout: 1000 });
 }
 export function start(data) {
+  setTimeout(warmUp, 1500);
   if (data && data.meta && data.meta.lv) {
     $.meta = data.meta;
     $.hi = Math.max($.hi, data.hi || 0);
@@ -76,7 +100,7 @@ import { App } from '@capacitor/app';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { NATIVE } from './platform';
 import { save } from './save';
-import { PR, fit } from './input';
+import { PR, fit, lowerDK } from './input';
 import { openPause } from './flow';
 if (NATIVE) {
   KeepAwake.keepAwake().catch(() => {});
@@ -96,6 +120,11 @@ screen.orientation?.addEventListener?.('change', fit);
 
 // canvas text needs the bundled fonts before the first frame
 import { auInit, audioRunning } from './audio';
+import { warmMaw } from './render/gross/maw';
+import { warmMidbosses } from './render/gross/midbosses';
+import { warmBiomeBosses } from './render/gross/biomebosses';
+import { warmDrive } from './render/gross/drive';
+import { pFrame, pIn, pOut } from './perf';
 auInit();
 $.gate = !audioRunning();
 if ($.gate) AU_watch();

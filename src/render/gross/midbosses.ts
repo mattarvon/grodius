@@ -891,3 +891,11 @@ export function grossBrood(c, e) {
     c.globalCompositeOperation = 'source-over';
   }
 }
+
+/** pre-build the midbosses' static layers (idle time after boot); false when done */
+export function warmMidbosses() {
+  const k = [['choir', choirCrust], ['wveins', wombVeins], ['burn', burnTex], ['mucus', mucusTex]].find(([q]) => !lay[q]);
+  if (!k) return false;
+  k[1]();
+  return true;
+}

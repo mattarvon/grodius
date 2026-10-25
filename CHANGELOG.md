@@ -2,6 +2,17 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-25 (performance)
+
+### Smooth again on big monitors and weak GPUs
+- **Where the time went.** Measured in Chrome on the rig: the game's own code costs about 1.5 ms per frame even in the busiest boss fights. The slowdowns were all GPU and compositor work: a 2400x1350 display canvas on big monitors, a full-screen CRT scanline layer using `mix-blend-mode: multiply`, and one-off art builds when a boss arrives (the Gravity Drive froze for about 213 ms, the Crucifer for 12 ms).
+- **Display canvas capped at 4x** (it was up to 5x). The playfield is still drawn at 480x270; only eyes and close-ups use the extra resolution, and they look the same. **Auto quality:** if frames average slower than about 52 fps for 2 s of play, the display canvas drops one notch (down to 2x). `?dk=N` pins it for testing.
+- **CRT scanlines without blend mode:** black stripes look the same with normal blending and cost much less to composite.
+- **No more boss-arrival hitches:** the Maw, midboss, Crucifer/Butcher and Gravity Drive art is pre-built one piece at a time in idle slots after boot.
+- Result on the rig's integrated GPU (the one Chrome was using): every boss fight and the title hold the display's 165 Hz (6.1 ms frames). Before, they ran 10–12 ms with 18–42 ms spikes.
+- **Perf meter:** add `?perf` to the URL for a readout of FPS, slow-frame share and per-phase ms (step / world / fx / hud / present); `window.__perf()` returns the numbers. `tools/perf-probe.mjs` measures the same scenes headless with CPU throttling (`prof` adds a profiler breakdown).
+- Checked: `harness` state identical (twice), route-probe clean.
+
 ## 2026-10-25 (gross-out pass: six parallel branches)
 
 Grodius is Gross Gradius. Every boss got a gross-out pass, and the sky and terrain are now real science imagery. All of it is visual and audio only: hitboxes, HP, attacks and timing are unchanged (`harness` state identical, `boss-probe` / `midboss-probe` kill times unchanged within run-to-run noise). Each new file has a `GROSS` knob at the top (1 = full, 0 = off or close to the original) so any of it can be dialed back. All new randomness is render-only, so seeded runs don't shift.

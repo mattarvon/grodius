@@ -12,6 +12,7 @@ import { glow, invCross, light, txt } from '../render/util';
 import { EYEQ, GLQ, eye, present } from '../render/eyes';
 import { drawShip } from '../render/ship';
 import { PIC, ready } from '../textures';
+import { pIn, pOut } from '../perf';
 import { drawBoss } from '../render/boss';
 import { drawDrops } from '../render/gore';
 import { drawBG, drawSplats } from '../render/terrain';
@@ -373,17 +374,23 @@ export function render() {
   } else {
     const shx = $.G.shx || 0,
       shy = $.G.shy || 0;
+    pIn();
     ctx.save();
     ctx.translate(shx, shy);
     drawWorld();
     ctx.restore();
+    pOut('world');
+    pIn();
     drawSplats();
     ctx.save();
     ctx.translate(shx, shy);
     drawEShots();
     ctx.restore();
     postFX();
+    pOut('fx');
+    pIn();
     drawHUD();
+    pOut('hud');
     if ($.state === 'over') drawOver();
     if ($.state === 'pause') {
       drawOverlay('PAUSED', 'THE SHIP IS STILL LISTENING', '#9fb0c2');
@@ -392,7 +399,9 @@ export function render() {
     }
   }
   ctx.restore();
+  pIn();
   present();
+  pOut('present');
 }
 
 // ---------------- loop ----------------

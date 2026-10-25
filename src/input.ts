@@ -190,6 +190,18 @@ cv.addEventListener('pointerdown', e => {
     gy = (e.clientY - r.top) / r.height * H;
   menuPointer(gx, gy);
 });
+// display-canvas resolution cap (the game draws at 480x270; the display canvas is k times that so eyeballs and
+// gross close-ups render smooth). Big monitors and weak GPUs pay per pixel: start at 4, and lowerDK() steps it down
+// when frames run slow. ?dk=N pins it.
+const DKQ = +(new URLSearchParams(location.search).get('dk') || 0);
+export let DKCAP = DKQ || 4;
+/** one notch less display resolution (auto quality); false if already at the floor or pinned */
+export function lowerDK() {
+  if (DKQ || $.DK <= 2) return false;
+  DKCAP = $.DK - 1;
+  fit();
+  return true;
+}
 export function fit() {
   const pad = TOUCH ? 0 : 32,
     aw = innerWidth - pad,
@@ -202,7 +214,7 @@ export function fit() {
   SCALE = s;
   wrap.style.width = W * s + 'px';
   wrap.style.height = H * s + 'px';
-  const k = Math.max(2, Math.min(5, Math.ceil(s * (window.devicePixelRatio || 1))));
+  const k = Math.max(2, Math.min(DKCAP, Math.ceil(s * (window.devicePixelRatio || 1))));
   if (cv.width !== W * k) {
     $.DK = k;
     cv.width = W * k;
