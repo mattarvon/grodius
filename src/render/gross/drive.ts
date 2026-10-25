@@ -902,7 +902,7 @@ function drawMass(b, rot) {
     ctx.fillStyle = '#060806';
     for (let j = 0; j < 3; j++) {
       const sx = x + ca * (j - 1) * len * .4, sy = y + sa * (j - 1) * len * .4 + 1, dl = (3 + op * 12) * (.6 + .4 * Math.sin(j * 2.1 + x)) + Math.sin(t * .05 + j + x) * 1.5;
-      for (let q = 0; q < dl; q += 1) ctx.fillRect(sx + Math.sin(q * .5 + j) * .6 - .7, sy + q, 1.4, 1);
+      for (let q = 0; q < dl; q += 2) ctx.fillRect(sx + Math.sin(q * .5 + j) * .6 - .7, sy + q, 1.4, 2);
       ctx.beginPath();
       ctx.arc(sx, sy + dl, 1.1, 0, TAU);
       ctx.fill();
@@ -1663,9 +1663,9 @@ function drawAfter() {
     ctx.globalAlpha = 1 - f;
     for (let j = 0; j < 40; j++) {
       const a = j / 40 * TAU + h2(j, 3) * .2, d = rr2 * (.85 + .25 * h2(j, 7));
-      ctx.fillStyle = j % 4 ? '#060806' : '#d8c868';
+      ctx.fillStyle = j % 3 === 0 ? '#e0cc60' : j % 3 === 1 ? '#0a0e08' : '#5a7a20';
       ctx.beginPath();
-      ctx.arc(A.x + Math.cos(a) * d, A.y + Math.sin(a) * d, (1 - f) * 6 + 1.5, 0, TAU);
+      ctx.arc(A.x + Math.cos(a) * d, A.y + Math.sin(a) * d, (1 - f) * 8 + 1.5, 0, TAU);
       ctx.fill();
     }
     ctx.globalAlpha = 1;

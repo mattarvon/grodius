@@ -44,7 +44,7 @@ await p.evaluate(() => window.__d.run(420, false, false));
 await p.evaluate(() => window.__d.run(90, false));
 await shot('drive-1-full');
 // 2) ~50%: plates broken, eye open; catch a locked laser telegraph
-await p.evaluate(() => { const B = window.__d.boss(); B.plates.forEach((q) => (q.hp = 0)); B.hp = B.max * .6; window.__d.run(140, false); B.hp = Math.max(B.hp, B.max * .5); });
+await p.evaluate(() => { const B = window.__d.boss(); B.plates.forEach((q) => (q.hp = 0)); B.hp = B.max * .6; window.__d.run(140, false); B.hp = B.max * .5; });
 for (let i = 0; i < 400; i++) { const t = await p.evaluate(() => { window.__d.run(1, false); const L = window.__d.boss().laser; return L ? L.tel : -1; }); if (t > 0 && t <= 18) break; }
 await shot('drive-2-half-telegraph');
 await p.evaluate(() => window.__d.run(60, false));
@@ -54,7 +54,7 @@ await p.evaluate(async () => { window.__DS = (await import('/src/render/gross/dr
 for (let i = 0; i < 900; i++) if (await p.evaluate(() => { window.__d.run(1, false); const S = window.__DS(); return S && S.vents.some((v) => v.open > 0 && v.open < 12) && S.ports.some((q) => q.retch > 4 && q.retch < 18); })) break;
 await shot('drive-2-half-fart-retch');
 // 3) ~15%: angry
-await p.evaluate(() => { const B = window.__d.boss(); B.hp = B.max * .2; window.__d.run(200, false); B.hp = Math.max(B.hp, B.max * .15); });
+await p.evaluate(() => { const B = window.__d.boss(); B.hp = B.max * .2; window.__d.run(200, false); B.hp = B.max * .15; });
 for (let i = 0; i < 400; i++) { const t = await p.evaluate(() => { window.__d.run(1, false); const L = window.__d.boss().laser; return L ? L.tel : -1; }); if (t === 0) break; }
 await p.evaluate(() => window.__d.run(6, false));
 await shot('drive-3-low-beam');
