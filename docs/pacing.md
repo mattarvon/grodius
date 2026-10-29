@@ -144,6 +144,13 @@ Because Grodius spawns are keyed to scroll position and the scroll holds during 
 
 - The stage bosses are unchanged (`boss-probe`: Maw 12.9, Crucifer 36.0, Butcher 29.7 s with a stage-1 kit). `route-probe` passed on all 4 gate routes over 2 descents, plus a forced fire → snot run: every biome's midboss spawned in both stages, with no errors, no slams and no bad hazards. `density-probe` shows breath = 0 everywhere now.
 
+#### Open Orbit midboss: THE SQUIDFUCKED SAUCER (branch `up-midboss`)
+A wrecked saucer gone to meat (`src/enemies/ufo.ts`, art `src/render/gross/ufo.ts`). WARNING at Open Orbit x 800, lands ~950 (about 45% in). Unlike the biome midbosses it **does not hold the scroll**: from its WARNING until it dies or leaves, the Open Orbit script's filler is skipped (`$.G.eat`, in `runScript`), and it is forced out by x 1840, so the last filler (1880, 1900) and the Maw's run-up always come. That's the Taisei trick ("filler shortened by the midboss time") done in scroll space: the stage stays the same length. The cost is the eaten filler's kills and pods, so it pays out as it breaks up: a pod at 66% and 33% HP, a pod for killing a whole litter, 2 on the kill.
+
+- 80 HP (×mk; 90 was unkillable naked, Matt picked 80 on 2026-10-28). Attacks: LASH (42f, a dashed line tracks you then locks; a tentacle whips ~220 px along it), VOLLEY (tumours swell 36f, then aimed 3-fans of globs), BROOD (belly hatch dilates 40f, a litter of 3+ hatchlings). Under 50%: second lash, second volley, a ring every ~2.3 s.
+- `midboss-probe` TTK (s): naked esc, stage-1 kit 9.3, end D1 5.3, strong 2.3 (others in the table above).
+- `pod-probe` seeds 1-3, Descent 1 (before → after): 1-1 53.6/54.1/54.1 → 55.6/62.1/71.0 s; whole descent 278.6/281.8/295.2 → 282.4/291.1/292.6 s (mean +3.5 s, ~1%); level at end of D1 11/14/12 → 11/11/11. Open Orbit runs longer when a weak kit makes the Maw slower; the descent barely moves.
+
 ### 3.3 Lengthen the Gravity Drive run-up
 Stage 3 is about 500 px, roughly 8 s. That's too short to feel like arriving at the last boss. Options:
 - **A (cheap):** script a 300 px gauntlet before 8300, with the WARNING banner over it and the music change starting early. Total length stays the same.

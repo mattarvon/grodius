@@ -8,6 +8,7 @@ import { eye } from '../render/eyes';
 import { spr, sprAt, sprN, sprReady } from '../sprites';
 import { grossBrood, grossChoir, grossCyst, grossPrentice } from './gross/midbosses';
 import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'; // flyers: wasp / eyeball / corpse
+import { drawUfoGross } from './gross/ufo';
 
 // --- enemies ---
 export function drawDrone(c, e) {
@@ -916,6 +917,7 @@ export const DRAW = {
   hatch: drawHatch,
   womb: drawWomb,
   maw: drawMaw,
+  ufo: drawUfoGross, // THE SQUIDFUCKED SAUCER, the Open Orbit midboss: src/render/gross/ufo.ts
   choir: drawChoir,
   cyst: drawCyst,
   prentice: drawPrentice,

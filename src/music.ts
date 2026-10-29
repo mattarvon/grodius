@@ -37,6 +37,8 @@ export const BIOME_MIX = {
   fire: { track: 'void-11-corporate-identity', rate: 1, type: 'lowshelf', f: 160, q: .7, gain: 4, lfo: 0, depth: 0, drive: .35 },
   // snot: muffled, a soft lowpass breathing between ~1800 and ~3000Hz
   snot: { track: 'void-09-pods', rate: 1, type: 'lowpass', f: 2400, q: 1, lfo: .13, depth: 600, drive: .05 },
+  // not a biome: while THE SQUIDFUCKED SAUCER (Open Orbit midboss) is up, Open Orbit's own track goes wet and wobbly, a slow wah
+  ufo: { rate: 1, type: 'bandpass', f: 1100, q: .6, lfo: .35, depth: 650, drive: .25 },
 };
 const FADE = 1.4, PAUSE_LVL = .35, DUCK_LVL = .3;
 let filt = null, shaper = null, lfo = null, lfoG = null, mixNow = 'none';
@@ -139,7 +141,7 @@ export function musicUpdate() {
   const w = wanted();
   if (w !== curName) play(w);
   if (!bus) return;
-  applyMix(($.state === 'play' || $.state === 'pause') && curBiome() || 'none');
+  applyMix(($.state === 'play' || $.state === 'pause') && (curBiome() || ufoMix()) || 'none');
   if (cur && cur.el.playbackRate !== (BIOME_MIX[mixNow] || BIOME_MIX.none).rate) cur.el.playbackRate = (BIOME_MIX[mixNow] || BIOME_MIX.none).rate;
   // a play() refused before the first click/key gets retried once audio is unlocked
   if (cur && cur.name && cur.el.paused && AU.c.state === 'running' && !document.hidden && $.T % 30 === 0) cur.el.play().catch(() => {});
@@ -161,6 +163,9 @@ export function musicSuspend(hidden) {
 
 /** test hook */
 export const musicNow = () => ({ mix: mixNow, want: curName, playing: cur ? !cur.el.paused : false, t: cur ? +cur.el.currentTime.toFixed(1) : 0, bus: bus ? +bus.gain.value.toFixed(2) : null });
+
+/** the Open Orbit midboss keeps the stage's track (it's a drive-by, not a boss track) but filters it while it's up */
+const ufoMix = () => ($.G && $.G.mini && $.G.mini.k === 'ufo' && !$.G.mini.dead && !$.G.mini.gone ? 'ufo' : null);
 
 /** biome the music should be in: the stage's chosen route once that stage has started */
 export function curBiome() {

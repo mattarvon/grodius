@@ -7,7 +7,7 @@
 // Needs the VITE DEV server (imports live modules). Restart vite after edits before trusting numbers.
 import { chromium } from 'playwright';
 const [url, THR = '4', SC = 'all', PROF = ''] = process.argv.slice(2);
-const SCENES = ['orbit', 'maw', 'choir', 'cyst', 'prentice', 'brood', 'crux', 'butcher', 'gravity'];
+const SCENES = ['orbit', 'maw', 'ufo', 'choir', 'cyst', 'prentice', 'brood', 'crux', 'butcher', 'gravity'];
 const want = SC === 'all' ? SCENES : SC.split(',');
 const b = await chromium.launch({ args: ['--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=d3d11', '--enable-gpu-rasterization'] });
 const p = await b.newPage({ viewport: { width: 960, height: 540 } });
@@ -20,7 +20,7 @@ await cdp.send('Emulation.setCPUThrottlingRate', { rate: +THR });
 if (PROF) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 200 }); }
 
 const STRONG = [{ speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }];
-const BIOME = { choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot', crux: 'ice', butcher: 'fire', maw: null, orbit: null, gravity: null };
+const BIOME = { choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot', crux: 'ice', butcher: 'fire', maw: null, ufo: null, orbit: null, gravity: null };
 
 async function scene(k) {
   return p.evaluate(async ([k, biome, kit]) => {
@@ -45,6 +45,7 @@ async function scene(k) {
       $.G.si = $.G.script.length; W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
       if (k === 'gravity') { $.G.scroll = C.BOSS_AT; BU.startBoss(); }
       else if (k === 'maw') SP.maw(true);
+      else if (k === 'ufo') { const UF = await import('/src/enemies/ufo.ts'); $.G.scroll = UF.UFO_AT + 150; $.G.eat = UF.UFO_GAP_END; UF.spawnUfo(); } // Open Orbit midboss
       else if (k === 'crux' || k === 'butcher') { SP[k](); if ($.G.mini) $.G.mini.biome = biome; }
       else SP.midboss(k, BI.BIOMES[biome].midName);
     }

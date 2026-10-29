@@ -167,6 +167,7 @@ export function updateShots() {
         const ey = e.k === 'eye' ? e.y - e.o * 9 : e.y;
         let hit = hitShot(s, e.x, ey, e.r);
         if (!hit && e.k === 'cross') hit = hitShot(s, e.x, e.y + e.o * 14, 9);
+        if (!hit && e.hb) for (const h of e.hb) if ((hit = hitShot(s, e.x + h[0], e.y + h[1], h[2]))) break; // extra hitboxes (the Open Orbit midboss's saucer wings)
         if (!hit) continue;
         if (s.k === 'pyre') {
           pyreBoom(s.x, s.y, s.dmg, s.lv);
