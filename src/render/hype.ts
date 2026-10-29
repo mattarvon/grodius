@@ -1,8 +1,10 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, FONT_D, PH, TAU, W, clamp, ctx, rr, sstep } from '../core';
+import { C, FONT_D, FONT_H, TAU, W, clamp, ctx, sstep } from '../core';
 import { drawChain, poly, txt } from '../render/util';
 import { drawEShots } from '../render/hud';
+import { SPR, srnd } from '../sprites';
+import { AU } from '../audio';
 
 // --- hype man: SGT. RAMROD SLAB ---
 export function drawSlab(c, jaw, t) {
@@ -268,115 +270,150 @@ export function drawBabe() {
   drawEShots();
   ctx.restore();
 }
+
+// --- hype voices: the comms window ---
+// Every voice line (src/sfx/hype*, babe20, corpsevoice, bossreward, startgame) gets a face: a Reticulan from
+// src/sprites/hface@18.png (tools/prep_screens.py, 3 jaw frames per face) that pops into the top-right corner like an
+// incoming transmission, flaps its jaw while the clip plays (audio.ts voiceOn() stamps clip name + start/end on the
+// audio clock) and glitches out after. Without recorded audio (muted, TTS fallback) it follows $.G.hype / $.G.babe.
+// Render-only: all flicker comes from srnd() / $.T, never the gameplay RNG.
+const VOICE = {
+  'hell-yeah': [0, 'SGT. RAMROD SLAB'],
+  shamalama: [1, 'BROTHER SHAMALAMA'],
+  sfriend: [2, 'SURF CONTROL'],
+  'stop-killing-me': [3, 'CREWMAN #5 // DECEASED', ['STOP KILLING ME', 'WITH YOUR SPACESHIP, SIR']],
+  'keyster-easter': [4, 'THE KEYSTER'],
+  'lesley-yeah-baby': [5, 'LESLEY, MISSION CONTROL']
+};
+const BY_CAT = { hype: 'hell-yeah', babe: 'sfriend', corpsevoice: 'stop-killing-me', bossreward: 'keyster-easter', startgame: 'lesley-yeah-baby' };
+const voiceOf = (clip = '') => {
+  // clip = file stem, e.g. 'hell-yeah-matty-1': match on the line, not the take
+  for (const k in VOICE) if (clip === k || clip.startsWith(k + '-')) return VOICE[k];
+  let h = 0; // a clip nobody mapped yet still gets the same face every time
+  for (const ch of clip) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return [h % 6, 'UNKNOWN CALLER'];
+};
+const FW = 48, FH = 52, OPEN = 7, STATIC = 12, CLOSE = 16;
+let cur = null; // { clip, v (linked AU.voice), t ($.T opened), out ($.T closing), L }
+const vLive = (v, now) => v && now > v.t0 - .3 && now < v.t1 + .25;
+function hypeSource(now) {
+  const v = AU.voice;
+  if (vLive(v, now)) return { v, clip: v.clip, L: /^hype/.test(v.cat) && $.G.hype ? $.G.hype.L : null };
+  if ($.G.hype) return { clip: BY_CAT.hype, L: $.G.hype.L };
+  if ($.G.babe) return { clip: BY_CAT.babe };
+  return null;
+}
 export function drawHype() {
-  const h = $.G.hype;
-  if (!h) return;
-  const age = h.ml - h.t,
-    inT = sstep(0, 12, age),
-    outT = sstep(0, 16, h.t),
-    off = (1 - inT) * 150 + (1 - outT) * 150;
-  const px = W - 70 + off,
-    py = PH,
-    pw = 128,
-    ph = 112;
-  const shake = age < 40 ? rr(-1.5, 1.5) : 0,
-    jaw = age < 70 ? .6 + .4 * Math.abs(Math.sin(age * .35)) : .2;
-  // whole splash shrunk to a small top-right corner badge so it never hides the playfield
-  const HS = .38;
+  const T = $.T, now = AU.c ? AU.c.currentTime : 0, s = hypeSource(now);
+  if (s) {
+    if (!cur || cur.out) cur = { clip: s.clip, v: s.v, t: T, out: 0, L: s.L };
+    else if (s.v && s.v !== cur.v) {
+      // the recorded clip lands a few frames after the hype/babe trigger: swap the face under the static; a new line
+      // long after opens a fresh call
+      if (T - cur.t < 40 || !cur.v) Object.assign(cur, { clip: s.clip, v: s.v });
+      else cur = { clip: s.clip, v: s.v, t: T, out: 0 };
+    }
+    if (s.L) cur.L = s.L;
+    // a linked clip that has finished hangs up even if the hype timer still runs
+    if (cur.v && !vLive(cur.v, now) && !cur.out) cur.out = T;
+  } else if (cur && !cur.out) cur.out = T;
+  if (!cur) return;
+  if (cur.out && T - cur.out > CLOSE) return void (cur = null);
+  const [face, tag, cap] = voiceOf(cur.clip), L = cap || cur.L;
+  const age = T - cur.t, out = cur.out ? (T - cur.out) / CLOSE : 0;
+  const talking = !out && (cur.v ? now >= cur.v.t0 && now < cur.v.t1 : age > STATIC && age < 90);
+  // syllables: two beating sines, quantised to shut / half / wide
+  const syl = Math.abs(Math.sin(T * .43)) * (.55 + .45 * Math.sin(T * .117 + 1.3));
+  const jaw = talking ? (syl > .5 ? 2 : syl > .2 ? 1 : 0) : 0;
+  const wx = W - FW - 6, wy = 16;
+  // open: a CRT line that unrolls; close: the picture tears and collapses back into the line
+  const open = sstep(0, OPEN, age) * (1 - sstep(.5, 1, out)), hh = Math.max(1, Math.round((FH + 2) * open));
+  const top = Math.round(wy + (FH + 2) / 2 - hh / 2), fade = out > .85 ? (1 - out) / .15 : 1;
   ctx.save();
-  ctx.globalAlpha = .9;
-  ctx.translate(W - 2, 16);
-  ctx.scale(HS, HS);
-  ctx.translate(-W, -(PH - ph - 8));
-  // panel with rays
-  ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = 'rgba(3,6,5,.86)';
+  ctx.fillRect(wx - 1, top, FW + 2, hh);
   ctx.beginPath();
-  ctx.moveTo(px - pw / 2 + 10, py - ph);
-  ctx.lineTo(px + pw / 2, py - ph - 6);
-  ctx.lineTo(px + pw / 2, py);
-  ctx.lineTo(px - pw / 2, py);
-  ctx.closePath();
+  ctx.rect(wx, top + 1, FW, Math.max(0, hh - 2));
   ctx.clip();
-  ctx.fillStyle = '#4e0307';
-  ctx.fillRect(px - pw / 2, py - ph - 8, pw, ph + 8);
-  ctx.save();
-  ctx.translate(px, py - 48);
-  ctx.rotate($.T * .015);
-  for (let k = 0; k < 16; k++) {
-    ctx.fillStyle = k % 2 ? '#ffb000' : '#c3121c';
-    const a = k / 16 * TAU,
-      b2 = (k + 1) / 16 * TAU;
-    poly(ctx, [[0, 0], [Math.cos(a) * 150, Math.sin(a) * 150], [Math.cos(b2) * 150, Math.sin(b2) * 150]]);
+  const S = SPR.hface;
+  if (S && S.fw && age >= 3) {
+    const fx = (face * 3 + jaw) * S.fw;
+    // the picture in 4 px bands that slip sideways on a bad signal (locking on, hanging up, the odd hiccup)
+    const hic = (T * 7 + face * 13) % 97 < 3, tear = age < STATIC ? 1 - age / STATIC : out ? Math.min(1, out * 1.6) : hic ? .35 : 0;
+    ctx.imageSmoothingEnabled = false;
+    for (let y = 0; y < FH; y += 4) {
+      const o = tear && srnd() < .5 ? Math.round((srnd() - .5) * 18 * tear) : 0;
+      ctx.drawImage(S.img, fx, y, S.fw, 4, wx + o, wy + 1 + y, S.fw, 4);
+    }
+    if (tear > .2) {
+      // chroma tear: a red and a sick-green bar riding the worst slices
+      ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < 3; k++) {
+        ctx.fillStyle = k % 2 ? 'rgba(80,255,120,.25)' : 'rgba(255,40,40,.3)';
+        ctx.fillRect(wx, wy + 1 + Math.floor(srnd() * FH), FW, 1 + Math.floor(srnd() * 3));
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    }
   }
-  ctx.restore();
-  ctx.translate(px + shake, py + shake * .5);
-  drawSlab(ctx, jaw, $.T);
-  ctx.restore();
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(px - pw / 2 + 10, py - ph);
-  ctx.lineTo(px + pw / 2, py - ph - 6);
-  ctx.lineTo(px + pw / 2, py);
-  ctx.lineTo(px - pw / 2, py);
-  ctx.closePath();
-  ctx.stroke();
-  ctx.fillStyle = '#000';
-  ctx.fillRect(px - pw / 2 + 8, py - 12, 78, 10);
-  txt('SGT. RAMROD SLAB', px - pw / 2 + 12, py - 10, '#ffd23a', 'left', 7);
-  // burst bubble
-  const pop = 1 + (1 - sstep(0, 8, age)) * .7,
-    cx = px - pw / 2 - 74 + off * .3,
-    cy = py - ph + 28;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.scale(pop, pop);
-  ctx.rotate(-.05);
-  ctx.globalAlpha = .9 * outT;
-  const pts = [];
-  for (let k = 0; k < 22; k++) {
-    const a = k / 22 * TAU,
-      r = k % 2 ? 1 : 1.22;
-    pts.push([Math.cos(a) * 76 * r, Math.sin(a) * 30 * r]);
+  // static snow while the link locks on
+  if (age < STATIC + 4) {
+    const k = 1 - sstep(STATIC - 4, STATIC + 4, age);
+    for (let i = 0; i < 70; i++) {
+      const g = (40 + srnd() * 200) | 0;
+      ctx.fillStyle = `rgba(${g},${g},${g},${.85 * k})`;
+      ctx.fillRect((wx + srnd() * FW) | 0, (wy + srnd() * (FH + 2)) | 0, 1 + ((srnd() * 3) | 0), 1);
+    }
   }
-  ctx.fillStyle = '#000';
+  // scanlines + a slow rolling bar
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  for (let y = wy + 1; y < wy + FH + 1; y += 2) ctx.fillRect(wx, y, FW, 1);
+  ctx.fillStyle = 'rgba(160,255,170,.06)';
+  ctx.fillRect(wx, wy + 1 + ((T * .6) % (FH + 10)) - 8, FW, 6);
+  ctx.restore();
+  // bezel: crusted frame, corner brackets, REC light, drips
+  if (hh > 3) {
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.strokeStyle = '#4a0a0e';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(wx - .5, top + .5, FW + 1, hh - 1);
+    ctx.fillStyle = '#c3121c';
+    const b = top + hh;
+    for (const [x, y, w, h] of [[wx - 1, top, 5, 1], [wx - 1, top, 1, 5], [wx + FW - 4, top, 5, 1], [wx + FW, top, 1, 5], [wx - 1, b - 1, 5, 1], [wx - 1, b - 5, 1, 5], [wx + FW - 4, b - 1, 5, 1], [wx + FW, b - 5, 1, 5]]) ctx.fillRect(x, y, w, h);
+    if (hh > 12 && (T >> 4) % 2) {
+      ctx.fillStyle = '#ff2a2a';
+      ctx.fillRect(wx + 3, top + 3, 2, 2);
+    }
+    ctx.fillStyle = '#6a0a10';
+    for (const [dx, sp] of [[9, .05], [31, .033], [40, .071]]) ctx.fillRect(wx + dx, b, 1, 1 + ((age * sp) % 5 | 0));
+    ctx.restore();
+  }
+  // caller tag + the line, left of the window
+  if (age > STATIC && !out) {
+    ctx.save();
+    ctx.globalAlpha = sstep(STATIC, STATIC + 8, age) * .88;
+    const tx = wx - 5;
+    ctx.font = `7px ${FONT_H}`;
+    const tw = ctx.measureText(tag).width;
+    ctx.fillStyle = 'rgba(0,0,0,.6)';
+    ctx.fillRect(tx - tw - 3, wy, tw + 6, 9);
+    txt(tag, tx, wy + 1, '#ffd23a', 'right', 7);
+    if (L) {
+      L.forEach((l, i) => {
+        ctx.font = `11px ${FONT_D}`;
+        const w = ctx.measureText(l).width, z = w > 118 ? (11 * 118) / w : 11, y = wy + 11 + i * 12;
+        const j = talking && i === (T >> 3) % L.length ? 1 : 0;
+        txt(l, tx + 1, y + 1, '#000', 'right', z, FONT_D);
+        txt(l, tx, y - j, i ? '#e0242c' : '#fff3c4', 'right', z, FONT_D);
+      });
+    }
+    ctx.restore();
+  }
+  // enemy fire always wins: redraw bullets over the window
   ctx.save();
-  ctx.translate(3, 3);
-  poly(ctx, pts);
-  ctx.restore();
-  ctx.fillStyle = '#fff3c4';
-  poly(ctx, pts);
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(pts[0][0], pts[0][1]);
-  for (const q of pts) ctx.lineTo(q[0], q[1]);
-  ctx.closePath();
-  ctx.stroke();
-  ctx.fillStyle = '#fff3c4';
-  poly(ctx, [[52, 14], [86, 30], [58, 4]]);
-  ctx.beginPath();
-  ctx.moveTo(52, 14);
-  ctx.lineTo(86, 30);
-  ctx.lineTo(58, 4);
-  ctx.stroke();
-  const fit = (str, sz) => {
-    ctx.font = `${sz}px ${FONT_D}`;
-    const w = ctx.measureText(str).width;
-    return w > 132 ? sz * 132 / w : sz;
-  };
-  const s1 = fit(h.L[0], 20),
-    s2 = fit(h.L[1], 22);
-  txt(h.L[0], 1, -22, '#1a0003', 'center', s1, FONT_D);
-  txt(h.L[1], 2, -1, '#000', 'center', s2, FONT_D);
-  txt(h.L[1], 1, -2, '#c3121c', 'center', s2, FONT_D);
-  ctx.restore();
-  ctx.restore();
-  ctx.globalAlpha = 1;
-  // enemy fire always wins: redraw bullets over the badge
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(W - 130, 12, 130, 60);
+  ctx.rect(wx - 130, wy - 2, 130 + FW + 6, FH + 6);
   ctx.clip();
   ctx.translate($.G.shx || 0, $.G.shy || 0);
   drawEShots();
