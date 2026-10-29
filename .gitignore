@@ -5,3 +5,4 @@ dist/
 *.zip
 assets-raw/
 .claude/
+__pycache__/
