@@ -157,6 +157,16 @@ document.getElementById('save').onclick = () => {
 </script></body></html>`;
 }
 
+// unzip next to the archive with Windows' own bsdtar: Git Bash's GNU tar can't read zips (and takes "E:" for a host)
+function unzip(zip) {
+  const to = zip.replace(/\.(zip|7z)$/i, '');
+  if (fs.existsSync(to) && fs.readdirSync(to).length) return;
+  fs.mkdirSync(to, { recursive: true });
+  const tar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
+  try { execFileSync(tar, ['-xf', path.basename(zip), '-C', path.basename(to)], { cwd: path.dirname(zip) }); }
+  catch (e) { console.log(`could not unzip ${path.basename(zip)}: ${e.message.split('\n')[0]}`); }
+}
+
 // the block of one Drupal field on an item page, up to the next field
 function field(html, name) {
   let i = html.indexOf(`field-name-${name} `);
@@ -190,14 +200,11 @@ async function fetchPicks(file) {
         if (!res.ok) { console.log(`skip ${name}: ${res.status}`); continue; }
         fs.writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
       }
-      if (/\.zip$/i.test(name) && !fs.existsSync(dest.replace(/\.zip$/i, ''))) {
-        try { fs.mkdirSync(dest.replace(/\.zip$/i, '')); execFileSync('tar', ['-xf', dest, '-C', dest.replace(/\.zip$/i, '')]); }
-        catch (e) { console.log(`could not unzip ${name}: ${e.message}`); }
-      }
+      if (/\.(zip|7z)$/i.test(name)) unzip(dest);
       console.log(`got  ${path.relative(OUT, dest)}`);
     }
     fs.writeFileSync(path.join(dir, 'SOURCE.txt'), `${h.title}\n${h.page}\nAuthor: ${author}\nLicense: ${license} (listed: ${lics.join(', ')})\nNotice: ${notice || '-'}\n`);
-    rows.push(`| \`${h.tag}/${slug}\` | ${h.title} | ${notice || author} | ${license} | ${h.page} |`);
+    rows.push(`| \`${h.tag}/${slug}\` | ${h.title} | ${author}${notice && notice !== author ? ` (notice: ${notice})` : ''} | ${license} | ${h.page} |`);
   }
   fs.writeFileSync(path.join(OUT, 'credits-rows.md'), rows.join('\n') + '\n');
   console.log(`\nCREDITS.md rows (also in assets-raw/sprites/credits-rows.md):\n| Source | Title | Author | License | Page |\n|---|---|---|---|---|\n${rows.join('\n')}`);
