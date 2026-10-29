@@ -3,6 +3,7 @@ import { $ } from '../state';
 import { C, PH, R, TAU, W, pick, ri, rr } from '../core';
 import { sfx } from '../audio';
 import { buzz } from '../platform';
+import { boom } from './fxsprites';
 import { decals, drops, flashes, gibs, mists, sparks, splats, texts } from '../world';
 
 // ---------------- helpers: particles ----------------
@@ -143,7 +144,8 @@ export function gib(x, y, vx, vy, k, s, o = {}) {
   gibs.push(g);
   return g;
 }
-export function mist(x, y, r, l) {
+/** ov = 1: drawn over the death explosion (render/gore.ts drawGibs) instead of under the enemies */
+export function mist(x, y, r, l, ov = 0) {
   if (mists.length > 340) return;
   mists.push({
     x,
@@ -151,7 +153,8 @@ export function mist(x, y, r, l) {
     r,
     vr: rr(.15, .45),
     l,
-    ml: l
+    ml: l,
+    ov
   });
 }
 export function splat(x, y, sz) {
@@ -196,7 +199,9 @@ export function gore(x, y, sz, o = {}) {
     const c = o.fire && R() < .4 ? 5 : o.black && R() < .55 ? 3 : o.amnio && R() < .35 ? 4 : R() < .22 ? 2 : R() < .3 ? 1 : 0;
     drop(x + rr(-3, 3) * sz, y + rr(-3, 3) * sz, Math.cos(a) * sp + dir * rr(0, 2.4), Math.sin(a) * sp - .6, rr(1, 1.7 + sz * .5), c, ri(45, 120));
   }
-  for (let k = 0; k < 2 + sz * 2.5; k++) mist(x + rr(-5, 5) * sz, y + rr(-5, 5) * sz, rr(3, 7) * (.6 + sz * .4), ri(30, 70));
+  boom(x, y, sz); // sprite fireball under the gibs (render-only: srnd, no R)
+  const ov = sz >= .55 ? 1 : 0;
+  for (let k = 0; k < 2 + sz * 2.5; k++) mist(x + rr(-5, 5) * sz, y + rr(-5, 5) * sz, rr(3, 7) * (.6 + sz * .4), ri(30, 70), ov);
   const gv = () => [rr(-2.6, 2.6) * Math.sqrt(sz) + dir * rr(.5, 2.2), rr(-2.9, 1.6) * Math.sqrt(sz)];
   for (let k = 0; k < 3 + sz * 3.6; k++) {
     const [vx, vy] = gv();

@@ -6,9 +6,14 @@ import { drawSkull, poly } from '../render/util';
 import { eye } from '../render/eyes';
 import { DRAW } from '../render/enemies';
 import { biomeMist, splatCols } from '../biomes';
+import { drawBooms } from '../fx/fxsprites';
 
 // --- gibs & gore ---
 export function drawGibs() {
+  // death explosions go under the gore, then the death mist over them (drawMists leaves the ov ones for here)
+  drawBooms(0);
+  mistPass(1);
+  drawBooms(1);
   for (const q of gibs) {
     const age = (q.ml || q.l) - q.l,
       a = Math.min(1, q.l / 50) * (q.stuck ? 1 : Math.max(.45, 1 - Math.max(0, age - 45) / 160));
@@ -180,8 +185,12 @@ export function drawDrops() {
   }
 }
 export function drawMists() {
+  mistPass(0);
+}
+function mistPass(ov) {
   const mc = biomeMist() || '95,4,9';
   for (const m of mists) {
+    if ((m.ov || 0) !== ov) continue;
     ctx.fillStyle = `rgba(${mc},${.45 * m.l / m.ml})`;
     ctx.beginPath();
     ctx.arc(m.x, m.y, m.r, 0, TAU);

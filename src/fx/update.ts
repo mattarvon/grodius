@@ -6,6 +6,7 @@ import { SET } from '../save';
 import { AU, BANK, sample, say, sfx, tone } from '../audio';
 import { AMT, ceilAt, decals, drops, flashes, floorAt, geysers, gibs, grav, mists, orbs, sparks, splats, texts } from '../world';
 import { addDecal, drop, spark, splat } from '../fx/spawn';
+import { stepBooms } from './fxsprites';
 import { makeHell } from '../render/hell';
 
 // ---------------- fx simulation ----------------
@@ -132,6 +133,7 @@ export function updateFX() {
     }
     if (q.l <= 0 || q.x < -40 || q.x > W + 40 || q.y > H + 40) swapRm(gibs, i);
   }
+  stepBooms();
   for (let i = mists.length - 1; i >= 0; i--) {
     const m = mists[i];
     m.l--;

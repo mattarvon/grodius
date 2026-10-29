@@ -7,6 +7,7 @@ import { gmL } from '../mutations';
 import { R, TAU, clamp, rr, ri } from '../core';
 import { sfx } from '../audio';
 import { drop, gore, mist, pop, spark } from './spawn';
+import { hitBurst, stepHits } from './fxsprites';
 
 /** 0..~9: how much killing power the ship carries. Muzzle flash, recoil and shot sound key off this. */
 export function gunPow() {
@@ -37,6 +38,7 @@ export function stepGunFX() {
     s.r += s.vr;
     if (--s.l <= 0) { SMOKE[i] = SMOKE[SMOKE.length - 1]; SMOKE.pop(); }
   }
+  stepHits();
   for (let i = RINGS.length - 1; i >= 0; i--) if (--RINGS[i].l <= 0) { RINGS[i] = RINGS[RINGS.length - 1]; RINGS.pop(); }
   const P = $.P;
   if (P && P.kick) P.kick = P.kick < .1 ? 0 : P.kick * .72;
@@ -48,6 +50,7 @@ export function impact(e, d, x, y, dir, crit = 1, col = '255,230,200') {
   const G = $.G;
   // sparks scale with damage (bounded)
   const n = Math.min(10, 1 + Math.round(d * 1.6));
+  hitBurst(x, y, dir, d, crit, e.burn > 0); // sprite spray (render-only, srnd)
   for (let k = 0; k < n; k++) spark(x, y, -dir * rr(.4, 2.6) + rr(-.6, .6), rr(-1.8, 1.8), ri(5, 11), k & 1 ? '#fff4e0' : `rgb(${col})`);
   // heavy rounds blow a cone of blood out the far side
   if (d >= 2.2) {
