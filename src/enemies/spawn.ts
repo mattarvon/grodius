@@ -445,6 +445,10 @@ export function buildScript(L) {
     at(900, () => behindWave(PH * .3, 4)); // a rear wave between the dives and the wall
     at(1550, () => { flayer(PH * .25); flayer(PH * .75); }); // a flayer pair as the behind wave clears
   }
+  // the MERIDIAN's security drones: one alone first, then a pair, then one more inside the drive corridor
+  at(640, () => sentry(PH * .32));
+  at(1040, () => { sentry(PH * .22, W * .8); sentry(PH * .74, W * .66); });
+  at(8760, () => { sentry(PH * .45, W * .72); if (hard) sentry(PH * .7, W * .6); });
   // PHASE 4: the Gravity Drive approach (stage 3 starts ~8370): corridor gauntlet, rising pressure, WARNING, a breath
   at(8430, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
   at(8450, () => formation('sine', PH * .3));
@@ -468,3 +472,28 @@ export function runScript() {
 }
 
 // --- enemy behaviour ---
+
+// ---------------- new enemies: the Sinus snot slime, the hulking mutant, the MERIDIAN security drone ----------------
+// (behaviour: updNew() in update.ts; kill FX: killNew(); art: drawSlime / drawMutant / drawSentry in render/enemies.ts)
+Object.assign(ET, {
+  // a mucus slime oozing along the Sinus floor or ceiling: rears up and lobs snot, or lunges when you pass over it
+  slime: { hp: 7, r: 9, gsz: 1.7, score: 450, bio: 6, amnio: 1, eyes: 0, teeth: 0, skull: 0, limbs: 0 },
+  // a crewman the drive turned into a hulk, stalking the Cryovault and Furnace floors: slow, tough, hurls meat
+  mutant: { hp: 26, r: 13, gsz: 3, score: 1600, bio: 16, big: 1, half: 1, skull: 1, limbs: 3, eyes: 2, teeth: 6 },
+  // the derelict's own defence pods, still on patrol in Open Orbit: a brain in a can, bleeds blood-oil
+  sentry: { hp: 6, r: 8, gsz: .8, score: 500, bio: 6, eyes: 1, teeth: 0, skull: 0, limbs: 0 },
+});
+export function slime(side = 1) {
+  const wx = $.G.scroll + W + 16, y = side > 0 ? floorAt(wx) : ceilAt(wx);
+  if (y > PH + 4 || y < -4) return;
+  mk('slime', W + 16, y - side * 6, { o: side, spd: rr(.2, .45), cool: ri(90, 130), st: 'ooze', wt: 0, ph: R() * TAU, cap: R() < .2 });
+}
+export function mutant() {
+  const wx = $.G.scroll + W + 24, f = floorAt(wx);
+  if (f > PH + 4 || f - ceilAt(wx) < 70) return;
+  mk('mutant', W + 24, f - 18, { fy: f, st: 'walk', wt: 0, cool: ri(110, 150), spd: rr(.22, .36), cap: R() < .5 });
+}
+/** a security pod in from the right that parks at tx, fires two telegraphed bursts, then moves on */
+export function sentry(y, tx) {
+  mk('sentry', W + 14, y, { y0: y, tx: tx ?? rr(W * .6, W * .82), st: 'hover', wt: 0, cool: ri(50, 80), shots: 0, ph: R() * TAU, cap: R() < .3 });
+}

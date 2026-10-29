@@ -12,6 +12,7 @@ import { buzz } from './platform';
 import { spark, drop, flash, gore, pop, mist } from './fx/spawn';
 import { banner, behindWave, butcher, corpse, crawler, crossT, eyeT, flayer, formation, hatch, hookE, logLine, maw, midboss, miniWarn, womb, crux } from './enemies/spawn';
 import { glow, light } from './render/util';
+import { mutant, slime } from './enemies/spawn';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
@@ -30,7 +31,7 @@ export const BIOMES = {
     boss: 'crux', bossName: 'THE BLOATED BITCH', mid: 'choir', midName: 'THE NAIL CHOIR', haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
     gap: 115, dbl: .5, set: 'morgue', sig: 'corpse',
-    mix: [['corpse', 3], ['cross', 3], ['flayer', 2], ['eye', 2], ['hook', 2], ['wall', 2], ['sine', 2]],
+    mix: [['corpse', 3], ['cross', 3], ['flayer', 2], ['eye', 2], ['hook', 2], ['wall', 2], ['sine', 2], ['mutant', 1]],
     logs: ['TEMPERATURE: -140C. THE BODIES ARE STANDING UP.', 'THE ICE IS FULL OF FACES.'],
   },
   acid: {
@@ -50,7 +51,7 @@ export const BIOMES = {
     boss: 'butcher', bossName: 'THE BURNING BUTCHER', mid: 'prentice', midName: "THE BUTCHER'S APPRENTICE", haz: 'jet', hazEvery: 125,
     // aggressive: tight spacing, divers and flayers, things coming from behind
     gap: 100, dbl: .6, set: 'pincer', sig: 'flayer',
-    mix: [['flayer', 3], ['dive', 3], ['hook', 2], ['zig', 2], ['crawler', 2], ['behind', 1]],
+    mix: [['flayer', 3], ['dive', 3], ['hook', 2], ['zig', 2], ['crawler', 2], ['behind', 1], ['mutant', 1]],
     logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.'],
   },
   snot: {
@@ -60,7 +61,7 @@ export const BIOMES = {
     boss: 'maw', bossName: 'THE MUCUS MAW', mid: 'brood', midName: 'THE BROOD MOTHER', haz: 'strand', hazEvery: 150,
     // hatchling floods out of wombs and the walls
     gap: 125, dbl: .45, set: 'flood', sig: 'hatch',
-    mix: [['hatch', 4], ['womb', 3], ['corpse', 2], ['sine', 2], ['crawler', 1], ['eye', 1]],
+    mix: [['hatch', 4], ['womb', 3], ['corpse', 2], ['sine', 2], ['crawler', 1], ['eye', 1], ['slime', 3]],
     logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.'],
   },
 };
@@ -146,6 +147,7 @@ const SPAWN = {
   eye: () => eyeT(R() < .55 ? 1 : -1), flayer: () => flayer(rr(60, PH - 60)), hook: () => hookE(), womb: () => womb(),
   hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70)),
 };
+Object.assign(SPAWN, { slime: () => slime(R() < .65 ? 1 : -1), mutant: () => mutant() }); // new enemies: snot slime (floor or ceiling), hulking mutant (floor)
 function insertScript(entries) {
   const G = $.G, rest = G.script.slice(G.si).concat(entries).sort((a, b) => a.x - b.x);
   G.script = G.script.slice(0, G.si).concat(rest);
