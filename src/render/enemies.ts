@@ -6,9 +6,34 @@ import { whipPts } from '../enemies/update';
 import { drawChain, drawHookTip, drawSkull, glow, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
 import { grossBrood, grossChoir, grossCyst, grossPrentice } from './gross/midbosses';
+import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'; // flyers: wasp / eyeball / corpse
 
 // --- enemies ---
 export function drawDrone(c, e) {
+  // the wasp (Tiamalt, CC-BY 3.0): sick yellow-green, faint wingbeat; rear waves fly right so they're mirrored
+  const d = e.pat === 'behind' ? -1 : 1, ph = (e.i || 0) * 7;
+  if (sprF(c, 'wasp', sprAtF(e.t + ph, 50), 0, -4.5, { sx: d })) {
+    c.save();
+    c.scale(d, 1);
+    if (e.cap) { // a swollen red egg sac on the abdomen, pulsing
+      c.fillStyle = (($.T + ph) >> 3) % 2 ? '#e01a24' : '#a10d14';
+      c.fillRect(1, 0, 4, 3);
+      c.fillStyle = '#ffb0b0';
+      c.fillRect(2, 0, 1, 1);
+    }
+    // a bloodshot red eye with a wet glint
+    c.fillStyle = '#9a1016';
+    c.fillRect(-5, -6, 2, 2);
+    c.fillStyle = 'rgba(255,220,200,.9)';
+    c.fillRect(-5, -6, 1, 1);
+    // venom / pus beading at the sting, stretching and letting go
+    const q = (e.t + ph * 3) % 46, L = q < 34 ? q / 34 * 3 : 0;
+    c.fillStyle = '#b8c840';
+    c.fillRect(5.5, 8, 1, 1 + L);
+    if (q >= 34 && q < 42) c.fillRect(5.5, 10 + (q - 34) * .9, 1, 1);
+    c.restore();
+    return;
+  }
   const t = e.t * .2;
   c.lineWidth = 1;
   c.strokeStyle = C.fleshD;
@@ -55,6 +80,47 @@ export function drawDrone(c, e) {
 }
 export function drawCorpse(c, e) {
   const tw = e.twitch > 0 ? Math.sin(e.twitch * 2) * 2 : 0;
+  // frozen crew from the Zombie Character Pack (Soluna Software, CC0): 4 variants (civilian woman, civilian man,
+  // zombie cop, zombie male) x 2 frames (still, twitch), picked from the spawn-time ph so it never changes mid-flight.
+  // Only real corpses: hooks and the drive's baked-in bodies keep the code-drawn crewman below.
+  if (e.k === 'corpse' && sprReadyF('corpse')) {
+    const v = Math.min(3, Math.floor((e.ph || 0) / TAU * 4)), f = v * 2 + (tw ? 1 : 0);
+    c.save();
+    if (e.noLeg) { // the leg's gone: clip it off below the hip on the right and leave a frozen stump
+      c.beginPath();
+      c.rect(-14, -16, 28, 32);
+      c.rect(1, 5, 12, 11);
+      c.clip('evenodd');
+    }
+    sprF(c, 'corpse', f, tw * .4, 0);
+    c.restore();
+    if (e.noLeg) {
+      c.fillStyle = C.bloodD;
+      c.fillRect(.5, 4, 3, 2);
+      c.fillStyle = C.blood;
+      c.fillRect(1, 4.5, 2, 1.5);
+      c.fillStyle = C.bone;
+      c.fillRect(1.5, 5.5, 1, 1.5);
+    }
+    if (e.noArm) { // torn shoulder, frozen meat
+      c.fillStyle = C.blood;
+      c.fillRect(2.5, -6, 2, 2);
+      c.fillStyle = '#5a050a';
+      c.fillRect(3, -5, 1, 1);
+    }
+    if (e.cap) {
+      c.fillStyle = ($.T >> 3) % 2 ? '#e01a24' : '#a10d14';
+      c.fillRect(-1.5, -1, 3, 2);
+      c.fillStyle = '#ffb0b0';
+      c.fillRect(-1, -1, 1, 1);
+    }
+    // a frozen string of blood from the mouth, and frost catching the light on the skull
+    c.fillStyle = '#7a0b10';
+    c.fillRect(-.5, -7.5, 1, 2 + ((e.t + v * 17) % 90 < 45 ? 1 : 0));
+    c.fillStyle = 'rgba(210,235,255,.8)';
+    c.fillRect(-2, -12, 1, 1);
+    return;
+  }
   c.lineCap = 'round';
   c.lineWidth = 3;
   c.strokeStyle = '#2c3743';
@@ -219,6 +285,20 @@ export function drawCrawler(c, e) {
   c.fillRect(-11, 1.5 + j, 1, 2);
 }
 export function drawHatch(c, e) {
+  // the floating eyeball (OwlishMedia, CC0): the strip looks left with the nerve trailing right; fromLeft mirrors it
+  const d = e.fromLeft ? -1 : 1, ph = e.ph || 0;
+  if (sprF(c, 'eyeball', sprAtF(e.t + ph * 9, 9), -d, 0, { sx: d, ax: 5.5 / 17 })) {
+    c.save();
+    c.scale(d, 1);
+    c.fillStyle = 'rgba(255,245,225,.9)'; // wet glint on the cornea
+    c.fillRect(-3, -2.5, 1, 1);
+    // blood beading off the torn nerve end
+    const q = (e.t + ph * 20) % 30;
+    c.fillStyle = '#8a0f12';
+    c.fillRect(9 + q * .25, .5 + Math.sin(e.t * .3 + ph), 1, 1);
+    c.restore();
+    return;
+  }
   const w = Math.sin(e.t * .4 + (e.ph || 0));
   c.strokeStyle = '#c98e86';
   c.lineWidth = 2;
