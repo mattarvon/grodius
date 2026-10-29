@@ -5,6 +5,8 @@
 // (wobbling silhouette, squash, wet sheen, drool strands) are drawn live on the hi-res layer every frame.
 import { $ } from '../state';
 import { TAU } from '../core';
+import { SPR, sprReady, srnd } from '../sprites';
+import { irisFromPhoto } from './eyes';
 
 const can = (S) => { const c = document.createElement('canvas'); c.width = c.height = S; return c; };
 const hash = (x, y) => { const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return v - Math.floor(v); };
@@ -109,8 +111,29 @@ function iris() {
   return c;
 }
 
-let SET0 = null;
-export const heroTex = () => SET0 || (SET0 = { s: sclera(), i: iris() });
+/** the real iris (sunburn's Eyeballs photo, src/sprites/iris_grey.png) graded lime with a dark green limbal ring */
+const HERO_RAMP = [[0, 8, 20, 3], [.22, 22, 52, 8], [.4, 70, 120, 16], [.55, 140, 200, 42], [.7, 186, 234, 70], [.85, 214, 246, 112], [1, 240, 255, 180]];
+function realIris() {
+  const c = irisFromPhoto(512, null, HERO_RAMP), x = c.getContext('2d'), S = 512, ri = (S / 2 - 1) * .5;
+  // upper-left a touch brighter, like the painted one
+  x.globalCompositeOperation = 'source-atop';
+  const g = x.createLinearGradient(S / 2 - ri, S / 2 - ri, S / 2 + ri, S / 2 + ri);
+  g.addColorStop(0, 'rgba(230,255,170,.14)');
+  g.addColorStop(.5, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(0,20,0,.22)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, S, S);
+  return c;
+}
+let SCL0 = null, SET0 = null, SETP = null;
+export const heroTex = () => {
+  if (SET0) return SET0;
+  SCL0 = SCL0 || sclera();
+  if (sprReady('iris_grey')) return (SET0 = { s: SCL0, i: realIris() });
+  return SETP || (SETP = { s: SCL0, i: iris() }); // painted fallback until the photo loads
+};
+// the pupil can come back from a blink as something else: mostly round, sometimes a cat slit, frog bar or fish crescent
+let heroPV = 0, shut = 0;
 
 /** blob silhouette: a ball that won't hold its shape (slow wobble + jiggle when the gaze darts) */
 function blob(D, r, t, jig) {
@@ -193,15 +216,23 @@ export function drawHeroEye(D, e, X, Y, r) {
   D.fillStyle = sg;
   D.fillRect(-r * .7, -r * .7, r * 1.4, r * 1.4);
   D.drawImage(T.i, -r, -r, r * 2, r * 2);
-  const pr = r * .5 * .36 * e.dil;
-  const pg = D.createRadialGradient(0, 0, pr * .6, 0, 0, pr * 1.18);
-  pg.addColorStop(0, 'rgba(6,2,0,1)');
-  pg.addColorStop(.75, 'rgba(14,8,2,.96)');
-  pg.addColorStop(1, 'rgba(30,40,6,0)');
-  D.fillStyle = pg;
-  D.beginPath();
-  D.arc(0, 0, pr * 1.18, 0, TAU);
-  D.fill();
+  const pr = r * .5 * .36 * e.dil, PU = SPR.pupil;
+  if (e.bl > .85 && !shut) { shut = 1; const u = srnd(); heroPV = u < .55 ? 0 : u < .73 ? 1 : u < .88 ? 2 : 3; } // render-only RNG
+  else if (e.bl < .3) shut = 0;
+  if (SET0 && PU && PU.fw) {
+    const k = pr / 41.5 * 1.12 * (heroPV === 1 ? 1.2 : 1);
+    D.rotate(-e.ang); // keep slits upright as the gaze wanders
+    D.drawImage(PU.img, heroPV * PU.fw, 0, PU.fw, PU.fh, -PU.fw * k / 2, -PU.fh * k / 2, PU.fw * k, PU.fh * k);
+  } else {
+    const pg = D.createRadialGradient(0, 0, pr * .6, 0, 0, pr * 1.18);
+    pg.addColorStop(0, 'rgba(6,2,0,1)');
+    pg.addColorStop(.75, 'rgba(14,8,2,.96)');
+    pg.addColorStop(1, 'rgba(30,40,6,0)');
+    D.fillStyle = pg;
+    D.beginPath();
+    D.arc(0, 0, pr * 1.18, 0, TAU);
+    D.fill();
+  }
   D.restore();
   // cyan glint on the upper right of the iris (fixed to the light, not the gaze)
   {

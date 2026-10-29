@@ -3,6 +3,7 @@ import { drawPerf } from '../perf';
 import { $ } from '../state';
 import { H, TAU, W, ctx, cv, dctx, lo } from '../core';
 import { drawHeroEye } from './heroeye';
+import { SPR, sprReady } from '../sprites';
 
 // ---------------- realistic eyeballs (pre-rendered, drawn on the hi-res layer) ----------------
 export const EYEQ = [],
@@ -159,12 +160,86 @@ export const EYE_SHADE = (() => {
   x.fillRect(0, 0, S, S);
   return c;
 })();
-export function eyeSet(iris, fire, bs) {
-  const k = iris + (fire ? 'f' : '') + bs;
-  return EYEC[k] || (EYEC[k] = {
-    s: eyeSclera(bs),
-    i: eyeIris(iris, fire)
-  });
+// ---- real irises (sunburn's Eyeballs, CC-BY 3.0: src/sprites/iris_grey.png + pupil@4.png, cut by tools/prep_fx.py) ----
+// One grey iris photo, tinted per colour once and cached. Each eye gets a stable variant v (from its colour, bloodshot
+// level and size: no RNG, so the same eye looks the same every frame): a small shift of the colour, and now and then
+// a cat slit, a frog bar or a fish crescent instead of a round pupil.
+const IRIS_R = 121, PUPIL_R = 41.5; // source px: iris disc radius and round-pupil radius in the 272 px frames
+/** pupil frame: 0 round, 1 cat (beast), 2 frog (amphibian), 3 fish */
+export const pupilOf = (v) => { const u = h2(v * .0137, 5.3); return u < .7 ? 0 : u < .82 ? 1 : u < .92 ? 2 : 3; };
+const HV = new Map();
+/** stable 0..65535 hash of an iris colour string */
+function colHash(col) {
+  let h = HV.get(col);
+  if (h == null) {
+    h = 7;
+    for (let i = 0; i < col.length; i++) h = (h * 31 + col.charCodeAt(i)) & 65535;
+    HV.set(col, h);
+  }
+  return h;
+}
+/** paint the grey iris photo, recoloured, onto a ball-sized canvas (iris radius = half the ball, like eyeIris).
+ *  stops: a luminance ramp [[t, r, g, b], ...] (hero) or null to tint toward rgb (jittered by v) */
+export function irisFromPhoto(S, rgb, stops, fire = 0) {
+  const c = mkCan(S), x = c.getContext('2d'), Rr = S / 2 - 1, ri = Rr * .5, k = ri / IRIS_R * 1.03, I = SPR.iris_grey;
+  x.imageSmoothingEnabled = true;
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(I.img, 0, 0, I.fw, I.fh, S / 2 - I.fw * k / 2, S / 2 - I.fh * k / 2, I.fw * k, I.fh * k);
+  const im = x.getImageData(0, 0, S, S), d = im.data;
+  for (let o = 0; o < d.length; o += 4) {
+    if (!d[o + 3]) continue;
+    const L = d[o] / 255;
+    let r, g, b;
+    if (stops) {
+      let j = 0;
+      while (j < stops.length - 2 && stops[j + 1][0] < L) j++;
+      const A = stops[j], B = stops[j + 1], t = Math.max(0, Math.min(1, (L - A[0]) / (B[0] - A[0])));
+      r = A[1] + (B[1] - A[1]) * t; g = A[2] + (B[2] - A[2]) * t; b = A[3] + (B[3] - A[3]) * t;
+    } else {
+      const m = Math.pow(L, 1.15) * 1.75, hi = Math.max(0, L - .6) * 260;
+      r = rgb[0] * m + hi; g = rgb[1] * m + hi * .9; b = rgb[2] * m + hi * .8;
+    }
+    d[o] = Math.min(255, r); d[o + 1] = Math.min(255, g); d[o + 2] = Math.min(255, b);
+  }
+  x.putImageData(im, 0, 0);
+  if (fire) { // a hot core burning out of the pupil, as the painted version had
+    x.globalCompositeOperation = 'lighter';
+    const gr = x.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, ri * .62);
+    gr.addColorStop(0, 'rgba(255,210,90,.9)');
+    gr.addColorStop(1, 'rgba(255,90,20,0)');
+    x.fillStyle = gr;
+    x.fillRect(0, 0, S, S);
+  }
+  return c;
+}
+/** pupils pre-shrunk to 64 px frames: a 272 px frame squeezed to a few device px per eye per frame is a slow draw */
+let PUP = null;
+function pupils() {
+  if (PUP) return PUP;
+  const P = SPR.pupil;
+  if (!P || !P.fw) return null;
+  const c = document.createElement('canvas'), x = c.getContext('2d');
+  c.width = 64 * P.n; c.height = 64;
+  x.imageSmoothingEnabled = true;
+  x.imageSmoothingQuality = 'high';
+  for (let i = 0; i < P.n; i++) x.drawImage(P.img, i * P.fw, 0, P.fw, P.fh, i * 64, 0, 64, 64);
+  return (PUP = { img: c, fw: 64, k: 64 / P.fw });
+}
+const SCL = {};
+export function eyeSet(iris, fire, bs, v = -1) {
+  const k0 = iris + (fire ? 'f' : '') + bs, s0 = EYEC[k0];
+  if (s0 && !s0.own) return s0; // a custom set someone painted into the cache (the Bloated Bitch's frozen eyes)
+  const real = v >= 0 && sprReady('iris_grey');
+  const k = real ? k0 + ':' + v : k0;
+  let s = EYEC[k];
+  if (s) return s;
+  const sk = bs + '';
+  const scl = SCL[sk] || (SCL[sk] = eyeSclera(bs));
+  if (real) {
+    const [r, g, b] = hexRGB(iris), j = (n) => 1 + (h2(v * .021, n) - .5) * .4; // up to +-20% per channel
+    s = { s: scl, i: irisFromPhoto(160, [r * j(1), g * j(2), b * j(3)], null, fire), own: 1 };
+  } else s = { s: scl, i: eyeIris(iris, fire), own: 1 };
+  return (EYEC[k] = s);
 }
 // queue an eyeball at local (lx,ly) radius r on the current ctx transform
 export function eye(c, lx, ly, r, o = {}) {
@@ -192,7 +267,9 @@ export function eye(c, lx, ly, r, o = {}) {
     al: c.globalAlpha * (o.al ?? 1),
     lid: o.lid || '#6e1f1c',
     hero: o.hero ? 1 : 0,
-    jig: o.jig || 0
+    jig: o.jig || 0,
+    // stable look variant: colour + bloodshot level + size (no RNG; the same eye keeps its iris and pupil)
+    v: (colHash(o.iris || '#b01018') * 7 + Math.round((o.bs ?? 1) * 8) * 131 + Math.round(r * 4) * 17) & 4095
   });
 }
 export function lowEye(c, x, y, r, o) {
@@ -230,7 +307,7 @@ export function drawEyeQ() {
     D.globalAlpha = e.al;
     if (e.draw) { e.draw(D, X, Y, r, e); continue; } // custom hi-res eyeball (the Gravity Drive's infected eye: render/gross/drive.ts)
     if (e.hero) { drawHeroEye(D, e, X, Y, r); continue; } // title hero: its own wet, wobbling renderer (heroeye.ts)
-    const set = eyeSet(e.iris, e.fire, e.bs);
+    const set = eyeSet(e.iris, e.fire, e.bs, e.v);
     if (e.fire) {
       D.globalCompositeOperation = 'lighter';
       const g = D.createRadialGradient(X, Y, r * .6, X, Y, r * 2.6);
@@ -253,11 +330,17 @@ export function drawEyeQ() {
     D.rotate(e.ang);
     D.scale(1 - .28 * e.m, 1);
     D.drawImage(set.i, -r, -r, r * 2, r * 2);
-    const pr = r * .5 * .38 * e.dil;
-    D.fillStyle = '#030000';
-    D.beginPath();
-    if (e.slit) D.ellipse(0, 0, pr * .32, pr * 1.9, -e.ang, 0, TAU);else D.arc(0, 0, pr, 0, TAU);
-    D.fill();
+    const pr = r * .5 * .38 * e.dil, PU = SPR.iris_grey.fw ? pupils() : null;
+    if (PU) { // photo pupil, kept upright (slits stay vertical however the eye rolls)
+      const f = e.slit ? 1 : pupilOf(e.v), k = pr / (PUPIL_R * PU.k) * (f === 1 ? 1.15 : 1), w = PU.fw * k;
+      D.rotate(-e.ang);
+      D.drawImage(PU.img, f * PU.fw, 0, PU.fw, PU.fw, -w / 2, -w / 2, w, w);
+    } else {
+      D.fillStyle = '#030000';
+      D.beginPath();
+      if (e.slit) D.ellipse(0, 0, pr * .32, pr * 1.9, -e.ang, 0, TAU);else D.arc(0, 0, pr, 0, TAU);
+      D.fill();
+    }
     D.restore();
     D.drawImage(EYE_SHADE, -r, -r, r * 2, r * 2);
     if (e.bl > .02) {

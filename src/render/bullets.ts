@@ -6,6 +6,7 @@ import { $ } from '../state';
 import { TAU, clamp, ctx, lerp, rr } from '../core';
 import { LIGHTS, arcs, shots } from '../world';
 import { SMOKE, RINGS } from '../fx/gunfx';
+import { drawHits } from '../fx/fxsprites';
 import { glow, light, poly } from './util';
 import { eye } from './eyes';
 
@@ -219,4 +220,5 @@ export function drawShots() {
     ctx.fillRect(3, -.6, 1.4, 1.2);
     ctx.restore();
   }
+  drawHits(); // sprite hit sprays on top of the rounds (fx/fxsprites.ts)
 }
