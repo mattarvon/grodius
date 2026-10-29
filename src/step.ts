@@ -26,7 +26,7 @@ export function stepWorld() {
     $.G.rank = clamp((pw + perkPower()) / 14, 0, 1);
   }
   if ($.G.mini && $.G.mini.dead) $.G.mini = null;
-  const tgt = $.G.bossStarted || $.G.mini || $.G.forkHold ? 0 : 1;
+  const tgt = $.G.bossStarted || ($.G.mini && !$.G.mini.drift) || $.G.forkHold ? 0 : 1; // drift: the Open Orbit midboss doesn't hold the scroll
   $.G.scrollSpeed += (tgt - $.G.scrollSpeed) * .02;
   if (tgt === 0 && $.G.scrollSpeed < .02) $.G.scrollSpeed = 0;
   $.G.scroll += $.G.scrollSpeed;

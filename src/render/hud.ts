@@ -20,6 +20,7 @@ import { drawShots } from '../render/bullets';
 import { drawContraptionFX } from '../contraptions';
 import { drawEnemy } from '../render/enemies';
 import { drawMawFx } from './gross/maw';
+import { drawUfoFx } from './gross/ufo';
 import { drawBiomeBossFX } from '../render/gross/biomebosses';
 import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
@@ -162,7 +163,8 @@ export function drawHUD() {
         choir: 'THE NAIL CHOIR',
         cyst: 'THE DISSOLVING WOMB',
         prentice: "THE BUTCHER'S APPRENTICE",
-        brood: 'THE BROOD MOTHER'
+        brood: 'THE BROOD MOTHER',
+        ufo: 'THE ANAL PROBE'
       }[m.k] || '',
       bw = 180,
       bx = W / 2 - bw / 2,
@@ -311,6 +313,7 @@ export function drawWorld() {
   for (const e of enemies) if (e.k !== 'eye') drawEnemy(e);
   drawBoss($.G.boss); // null = the Gravity Drive's aftermath (bile rain, carcass) if it just burst
   drawMawFx(); // src/render/gross/maw.ts: the Maw's pus / vomit / gas / death rupture (render-only particles)
+  drawUfoFx(); // src/render/gross/ufo.ts: the Open Orbit midboss's particles and its death (hull burst, tentacle flood)
   drawTerrain();
   drawDecor();
   drawDecals();

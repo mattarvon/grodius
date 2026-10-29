@@ -6,6 +6,7 @@ import { whipPts } from '../enemies/update';
 import { drawChain, drawHookTip, drawSkull, glow, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
 import { grossBrood, grossChoir, grossCyst, grossPrentice } from './gross/midbosses';
+import { drawUfoGross } from './gross/ufo';
 
 // --- enemies ---
 export function drawDrone(c, e) {
@@ -626,6 +627,7 @@ export const DRAW = {
   hatch: drawHatch,
   womb: drawWomb,
   maw: drawMaw,
+  ufo: drawUfoGross, // THE ANAL PROBE, the Open Orbit midboss: src/render/gross/ufo.ts
   choir: drawChoir,
   cyst: drawCyst,
   prentice: drawPrentice,
