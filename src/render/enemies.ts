@@ -1108,7 +1108,6 @@ export function drawBrood(c, e) {
 // ---------------- new enemies: snot slime, hulking mutant, MERIDIAN security drone ----------------
 // Sprite strips from tools/prep_newenemies.py; each has a code-drawn fallback until its strip loads. Render-only:
 // no gameplay RNG here (deterministic wobble from e.t / e.ph / $.T).
-import { spr, sprAt } from '../sprites';
 const SNOT = 'rgba(190,240,110,', SNOTD = 'rgba(70,110,20,';
 export function drawSlime(c, e) {
   if (e.o < 0) c.scale(1, -1); // ceiling slimes hang upside down: local +y is always "into the surface"
