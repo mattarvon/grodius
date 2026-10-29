@@ -41,6 +41,16 @@ export function drawTerrain() {
       ctx.fill();
       ctx.globalAlpha = 1;
     }
+    // the MERIDIAN's own corridor plating (CC0 sci-fi wall tiles, tools/prep_world.py): panels, pipes and vent hatches
+    // with the flesh already growing over them, so the corridors read as a ship being eaten, not a cave
+    const dp = corr > 0 && bk < 1 ? texPat('derelict') : null;
+    if (dp) {
+      dp.setTransform(mtx);
+      ctx.globalAlpha = corr * (1 - bk);
+      ctx.fillStyle = dp;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     ctx.beginPath();
     for (let x = x0 - TS; x <= W + TS; x += TS) {
       const wx = x + sc,
@@ -254,6 +264,18 @@ export function drawNeptune(a, sc) {
   ctx.beginPath();
   ctx.ellipse(x, y, r * 1.6, r * .22, -.18, 0, TAU);
   ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+/** Triton, Neptune's big retrograde moon (CC0 "Planet T", cut out and graded to nitrogen frost by tools/prep_world.py):
+ *  a small eclipsed disc with its rim lit, below-right of Neptune and on a slightly nearer parallax so the two drift apart */
+export function drawTriton(a, sc) {
+  if (a <= 0 || !ready('triton')) return;
+  const im = PIC.triton,
+    x = W * .9 - sc * .028,
+    y = 132;
+  if (x < -im.width) return;
+  ctx.globalAlpha = a * .8;
+  ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(y - im.height / 2));
   ctx.globalAlpha = 1;
 }
 export function drawDerelict(a, sc) {
@@ -487,6 +509,7 @@ export function drawBG() {
   }
   if ($.G) {
     drawNeptune(sp, sc);
+    drawTriton(sp, sc);
     drawDerelict(sp * (1 - AMT.corr(sc)), sc);
     drawInterior(AMT.corr(sc) > 0 ? sstep(5000, 5400, sc) * (1 - sstep(9100, 9500, sc)) : 0, sc);
     drawCoreBG(AMT.core(sc));

@@ -9,6 +9,7 @@ import { FIRE, PH, TAU, W, ctx, hash } from '../core';
 import { ceilAt, floorAt } from '../world';
 import { GROSS, mkTex, texPat } from '../textures';
 import { glow, light } from './util';
+import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
 
 const FONT = 'Silkscreen, monospace';
@@ -463,6 +464,19 @@ export function drawBiomeDecor(sc) {
   const t = $.T;
   ctx.globalAlpha = k;
   if (b === 'ice') {
+    // crystal formations (CC0 "Magic Fence" pillars graded to ice, a frozen-blood vein through each; tools/prep_world.py)
+    // grown out of floor and roof in leaning clusters; placed by hashing the slot, so they come back identical every run
+    slots(sc, 58, (n, hs) => {
+      if (hs > .5) return;
+      const floor = hash(n * 4.13) < .58, cnt = 1 + (hash(n * 1.71) * 3.2 | 0);
+      for (let i = 0; i < cnt; i++) {
+        const q = hash(n * 9.7 + i * 3.3), wx = n * 58 + 6 + hs * 30 + i * (5 + q * 5), x = wx - sc;
+        if (x < -40 || x > W + 40) continue;
+        const key = i === 1 || q > .78 ? 'crystal-l' : q > .4 ? 'crystal-m' : 'crystal-s', fr = (q * 97) | 0, rot = (q - .5) * .7 + (i - (cnt - 1) / 2) * .22;
+        if (floor) { const f = floorAt(wx); if (f < PH + 4) sprite(ctx, key, fr, x, f + 4, { ay: 1, rot }); }
+        else { const c = ceilAt(wx); if (c > -4) sprite(ctx, key, fr, x, c - 4, { ay: 1, sy: -1, rot: -rot }); }
+      }
+    });
     // signature: crew frozen into blocks of ice, rooted in floor or roof
     slots(sc, 230, (n, hs) => {
       if (hs > .55) return;
