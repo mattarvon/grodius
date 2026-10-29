@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, FONT_D, FONT_H, H, PH, R, TAU, W, ctx, hash, ri, rr, swapRm } from '../core';
+import { C, FONT_D, FONT_H, H, PH, R, TAU, W, ctx, hash, ri, rr, sstep, swapRm } from '../core';
 import { SET, lv } from '../save';
 import { touch } from '../input';
 import { drops } from '../world';
@@ -18,6 +18,7 @@ import { drawDrops } from '../render/gore';
 import { drawBG, drawSplats } from '../render/terrain';
 import { postFX } from '../render/hell';
 import { drawEShots, drawHUD, drawWorld } from '../render/hud';
+import { SPR, spr, sprAt } from '../sprites';
 
 // --- screens ---
 export function drawMutList() {
@@ -141,6 +142,7 @@ export function drawOver() {
   const a = Math.min(1, $.G.overT / 60);
   ctx.globalAlpha = a;
   drawOverlay('SIGNAL LOST', 'THE MERIDIAN KEEPS WHAT IT CATCHES', '#c3121c');
+  drawOverCreep(a);
   const rows = [['SCORE', pad($.G.score, 8)], ['KILLS', $.G.kills], ['WORST CARNAGE', $.G.maxCombo + ' CHAIN'], ['BIOMASS HARVESTED', Math.floor($.G.bio)], ['DEEPEST', `DESCENT ${$.G.loop + 1}`]];
   rows.forEach((r, i) => {
     txt(r[0], W / 2 - 90, 116 + i * 11, '#6d7a88');
@@ -149,6 +151,47 @@ export function drawOver() {
   if ($.G.newHi && ($.T >> 4) % 2) txt('NEW RECORD', W / 2, 100, '#ffd23a', 'center', 14, FONT_D);
   drawMenu(overItems(), W / 2 - 80, 180, 160);
   ctx.globalAlpha = 1;
+}
+/** game over: the horned skull-thing (src/sprites/creep@16.png) rises at the left of the tally and chews on your score,
+ *  eyes flaring molten on the GIF's glow cycle, bloody drool stringing off its jaw. Render-only clocks ($.T). */
+const CREEP_EYE = [0, .25, .55, .85, 1, .85, .55, .25];
+function drawOverCreep(a) {
+  if (!SPR.creep || !SPR.creep.fw) return;
+  const T = $.T, f = sprAt(T, 8), rise = 1 - sstep(15, 75, $.G.overT), x = 58, y = 132 + rise * 36 + Math.sin(T * .021) * 1.5;
+  ctx.save();
+  ctx.globalAlpha = a * (1 - rise * .7);
+  // a blood-red halo so it reads off the dark overlay
+  ctx.globalCompositeOperation = 'lighter';
+  glow(x, y + 4, 72, '140,0,8', .4);
+  ctx.globalCompositeOperation = 'source-over';
+  spr(ctx, 'creep', f, x, y);
+  // eye flare on the glow cycle; the hot core sits on the sprite's own glowing pupils
+  const e = CREEP_EYE[f % 8];
+  if (e > .1) {
+    ctx.globalCompositeOperation = 'lighter';
+    for (const ex of [x - 13, x + 9]) glow(ex, y + 9, 8 + 7 * e, '255,110,20', .5 * e);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  // drool: three strings off the lower jaw that stretch, snap and fall
+  const jo = [0, 0, 1, 2, 3, 3, 2, 1][f % 8], jy = y + 44 + jo;
+  for (const [dx, sp, ph] of [[-11, 1, 0], [-3, .8, 37], [9, 1.2, 71]]) {
+    const c = ((T * sp + ph) % 90) / 90, len = Math.min(1, c * 1.6) * 14, fall = c < .62 ? 0 : (c - .62) * 140;
+    ctx.fillStyle = '#b0101c';
+    ctx.fillRect(x + dx, jy + fall, 1, c < .62 ? len : 3);
+    ctx.fillStyle = '#ff3a3a';
+    ctx.fillRect(x + dx, jy + fall + (c < .62 ? len : 3) - 1, 1, 1);
+  }
+  // every chomp spits a little of your score back across the table (the GIF cycle is 8 frames at 8 fps = 60 ticks)
+  const ph = (T % 60) / 60;
+  for (let k = 0; k < 4; k++) {
+    const t = ph - .3 - k * .035;
+    if (t <= 0 || t > .4) continue;
+    const u = t / .4;
+    ctx.fillStyle = k % 2 ? '#c3121c' : '#7a0a10';
+    ctx.globalAlpha = a * (1 - u * .6);
+    ctx.fillRect(x + 16 + u * (66 + k * 14), y + 24 + jo - Math.sin(u * Math.PI) * (10 + k * 3) + u * 8, k > 1 ? 1 : 2, k > 1 ? 1 : 2);
+  }
+  ctx.restore();
 }
 function wrapTxt(s, x, y, w, col, size = 7, lh = 9, max = 4) {
   ctx.font = `${size}px ${FONT_H}`;
@@ -175,6 +218,46 @@ function shopBtn(x, y, w, label, state, i, a) {
   ctx.strokeRect(x + .5, y - 1.5, w - 1, 8);
   txt(label, x + w / 2, y, state === 'go' ? '#ffd0d0' : state === 'on' ? '#e8d8a0' : '#4b5663', 'center', 7);
   $.menuBoxes.push({ x, y: y - 2, w, h: 9, i, a, now: 1 });
+}
+/** Infirmary wall decor: the Zombie Take Away poster (src/sprites/poster@6.png, rain animates) pasted up in the gap
+ *  between the graft names and their BUY buttons, under the list so rows and highlights draw over it. The neon spills
+ *  onto the wall and stutters on a fixed pattern (render-only). (x, y) = top-left. */
+function drawShopPoster(x, y) {
+  const S = SPR.poster;
+  if (!S || !S.fw) return;
+  const T = $.T, w = S.fw, h = S.fh;
+  // neon stutter: mostly on, a double blink every few seconds, the odd brown-out
+  const ph = T % 211, buzz = ph < 4 || (ph > 9 && ph < 12) ? .15 : ph > 120 && ph < 126 ? .55 : 1;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,.55)';
+  ctx.fillRect(x + 2, y + 2, w, h);
+  ctx.globalAlpha = .88;
+  spr(ctx, 'poster', sprAt(T, 8), x, y, { ax: 0, ay: 0 });
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'lighter';
+  glow(x + 77, y + 34, 26, '255,60,170', .16 * buzz); // EAT HERE
+  glow(x + 34, y + 8, 30, '40,230,220', .11 * (buzz < 1 ? 1.4 - buzz : 1)); // HUMANFLESH (blinks out of step)
+  ctx.globalCompositeOperation = 'source-over';
+  if (buzz < 1) {
+    ctx.fillStyle = `rgba(0,0,0,${.45 * (1 - buzz)})`;
+    ctx.fillRect(x + 68, y + 3, 16, 66);
+  }
+  // grime: damp creep up from the bottom, a drip line, rusty tacks
+  const g = ctx.createLinearGradient(0, y + h - 30, 0, y + h);
+  g.addColorStop(0, 'rgba(30,14,6,0)');
+  g.addColorStop(1, 'rgba(30,14,6,.5)');
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y + h - 30, w, 30);
+  ctx.fillStyle = 'rgba(70,6,10,.7)';
+  ctx.fillRect(x + 21, y, 1, 9 + ((T >> 6) % 3));
+  ctx.fillRect(x + 22, y, 1, 4);
+  for (const [tx, ty] of [[x + 2, y + 2], [x + w - 4, y + 2], [x + 2, y + h - 5]]) {
+    ctx.fillStyle = '#3a2a1a';
+    ctx.fillRect(tx, ty, 2, 2);
+    ctx.fillStyle = '#8a6a3a';
+    ctx.fillRect(tx, ty, 1, 1);
+  }
+  ctx.restore();
 }
 const RIG_ANCHOR = { saw: [14, 0], gut: [6, 7], leech: [-2, -8], spine: [-6, -7], hook: [2, 8], furnace: [-14, 4], choir: [0, -12] };
 const RIG_SHORT = { saw: 'SAW', gut: 'GUT', leech: 'LEECH', spine: 'SPINE', hook: 'WINCH', furnace: 'FURNACE', choir: 'CHOIR' };
@@ -205,6 +288,7 @@ export function drawShop() {
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
+  drawShopPoster(146, 158);
   txt('THE INFIRMARY', 14, 10, '#b3121a', 'left', 26, FONT_D);
   txt('BUILD YOUR WAR MACHINE. GRAFTS ARE PERMANENT.', 16, 36, '#6d8094', 'left', 7);
   // biomass purse

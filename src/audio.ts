@@ -102,7 +102,7 @@ let voices = 0;
 function loadBank(A) {
   for (const [p, u] of Object.entries(SFX_URLS)) {
     const cat = p.split('/')[2];
-    fetch(u).then((r) => r.arrayBuffer()).then((b) => A.decodeAudioData(b)).then((buf) => (BANK[cat] ||= []).push(buf)).catch(() => {});
+    fetch(u).then((r) => r.arrayBuffer()).then((b) => A.decodeAudioData(b)).then((buf) => (BANK[cat] ||= []).push(Object.assign(buf, { clip: p.split('/')[3].replace(/\.\w+$/, '') }))).catch(() => {});
   }
 }
 // shuffle bag per category: every clip plays once before any repeats, and a new bag never opens with the clip
@@ -137,8 +137,13 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   s.onended = () => voices--;
   s.start(AU.c.currentTime + (o.at ?? 0));
   if (o.solo) SOLO[cat] = AU.c.currentTime + (o.at ?? 0) + L[i].duration / s.playbackRate.value;
-  if (/^(hype|babe|bossreward|corpsevoice|startgame)/.test(cat)) duckMusic(L[i].duration + .3);
+  if (/^(hype|babe|bossreward|corpsevoice|startgame)/.test(cat)) duckMusic(L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, o.at ?? 0);
   return true;
+}
+/** the voice line now talking: render/hype.ts puts a comms-window face to it (clip = file stem, t0/t1 = AU.c clock) */
+export function voiceOn(cat, buf, rate = 1, at = 0) {
+  const t0 = (AU.c ? AU.c.currentTime : 0) + at;
+  AU.voice = { cat, clip: buf.clip || cat, t0, t1: t0 + buf.duration / rate };
 }
 export function thr(k, ms) {
   const n = performance.now();
