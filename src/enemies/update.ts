@@ -21,6 +21,7 @@ export function updEnemy(e) {
   if (e.ghost > 0) e.ghost--;
   const ss = $.G.scrollSpeed;
   switch (e.k) {
+    case 'slime': case 'mutant': case 'sentry': updNew(e, ss); break; // new enemies, at the end of this file
     case 'drone':
       {
         if (e.pat === 'sine') {
@@ -783,6 +784,7 @@ export function killEnemy(e, dir = 1) {
       c: 4
     });
   }
+  if (e.k === 'slime' || e.k === 'mutant' || e.k === 'sentry') killNew(e);
   if ($.G.loop > 0 && e.k !== 'hatch' && !($.G.boss && $.G.boss.dying) && e.x < W - 10 && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) > 70 * 70) eshoot(e.x, e.y, aimA(e.x, e.y), 1.3);
 }
 export const POD = [{
@@ -867,3 +869,141 @@ export function dropCap(x, y) {
 }
 
 // ---------------- boss: the gravity drive ----------------
+
+// ---------------- new enemies: snot slime / hulking mutant / MERIDIAN security drone (spawn.ts: slime(), mutant(), sentry()) ----------------
+/** lob a glob from (x, y) that comes down through (tx, ty), with enough rise to reach targets above */
+function lobAt(x, y, tx, ty, lo = 1, hi = 2.6) {
+  lob(x, y, tx, ty, clamp(Math.sqrt(Math.max(0, .05 * (y - ty) / BS())) + .45, lo, hi));
+}
+function updNew(e, ss) {
+  const P = $.P, sc = $.G.scroll;
+  if (e.k === 'slime') {
+    // oozes inchworm-style along its surface; rears up 32f (the sprite swells), then lobs snot at you. Pass over it and it lunges
+    const wx = e.x + sc, surf = e.o > 0 ? floorAt(wx) : ceilAt(wx);
+    if (!e.air) {
+      e.wt++;
+      e.x -= ss + (e.st === 'ooze' ? e.spd * (.5 + .5 * Math.sin(e.t * .1 + e.ph)) : 0);
+      e.y = surf - e.o * 6;
+      if (e.st === 'ooze') {
+        e.cool--;
+        if (e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 24 && e.x > 40 && P.x < e.x - 24) { e.st = 'tel'; e.wt = 0; sample('snot', { vol: .45, rate: 1.3 }) || sfx.squish(); }
+        else if (P.alive && e.t > 40 && Math.abs(P.x - e.x) < 30 && (e.o > 0 ? P.y < e.y : P.y > e.y) && Math.abs(P.y - e.y) < 120 && R() < .04) {
+          e.air = 1; e.vy = -e.o * rr(2.6, 3.3); e.vx = (P.x - e.x) * .02; sfx.squish();
+          for (let k = 0; k < 8; k++) drop(e.x, e.y + e.o * 5, rr(-1, 1), -e.o * rr(.2, 1.5), 1.3, R() < .5 ? 4 : 0, 70);
+        }
+      } else if (e.st === 'tel') {
+        if (R() < .3) drop(e.x + rr(-5, 5), e.y - e.o * 4, rr(-.3, .3), e.o * rr(0, .5), 1, 4, 50);
+        if (e.wt >= 32) {
+          e.st = 'spit'; e.wt = 0;
+          const sx = e.x - 3, sy = e.y - e.o * 9;
+          if (P.alive) {
+            if (e.o > 0) lobAt(sx, sy, P.x, P.y); else lob(sx, sy, P.x, P.y, .2); // a ceiling slime drips it down onto you
+            if ($.G.loop > 0) { if (e.o > 0) lobAt(sx, sy, P.x + 28, P.y); else lob(sx, sy, P.x + 28, P.y, .2); }
+          }
+          for (let k = 0; k < 12; k++) drop(sx, sy, rr(-2, .3), rr(-1.5, 1.5) - e.o * .6, rr(1, 1.6), R() < .5 ? 4 : 0, 70);
+          sample('snot', { vol: .6 }) || sfx.glob();
+        }
+      } else if (e.wt >= 22) { e.st = 'ooze'; e.wt = 0; e.cool = Math.max(100, 170 - $.G.loop * 20) + ri(0, 50); }
+      if (e.o > 0 && surf > PH + 10 || e.o < 0 && surf < -10) { e.air = 1; e.vy = 0; e.vx = 0; }
+      if (R() < .12) drop(e.x + rr(-6, 6), e.y + e.o * 5, rr(-.2, .2), e.o > 0 ? 0 : rr(.3, .8), 1, R() < .5 ? 4 : 0, 60); // the slick it leaves, or drips off the ceiling
+    } else {
+      e.st = 'ooze';
+      e.vy += e.o * .12;
+      e.y += e.vy;
+      e.x += (e.vx || 0) - ss;
+      if (R() < .3) drop(e.x, e.y, rr(-.3, .3), rr(-.3, .3), 1.2, 4, 50);
+      const s2 = e.o > 0 ? floorAt(e.x + sc) : ceilAt(e.x + sc);
+      if (e.o > 0 ? e.y >= s2 - 6 && e.vy > 0 : e.y <= s2 + 6 && e.vy < 0) {
+        e.air = 0; e.vx = 0; e.cool = Math.max(e.cool, 50);
+        for (let k = 0; k < 10; k++) drop(e.x, s2, rr(-1.8, 1.8), -e.o * rr(.3, 1.8), 1.4, R() < .5 ? 4 : 0, 70);
+        sfx.squish();
+      }
+      if (e.y > PH + 30 || e.y < -30) e.dead = true;
+    }
+  } else if (e.k === 'mutant') {
+    // lumbers along the floor; rears up 44f with a groan, then tears off meat and hurls 3 lobbed chunks at you (5 from
+    // Descent 2). Big and slow: easy to read, hard to ignore. It stands on the highest ground across its whole body and
+    // the reach of its lunge (terrain draws over enemies, and a Furnace spire would swallow it otherwise)
+    const wx = e.x + sc;
+    let f = 1e9;
+    for (let dx = -24; dx <= 14; dx += 6) f = Math.min(f, floorAt(wx + dx));
+    e.fy = lerp(e.fy, f, f < e.fy ? .3 : .15);
+    e.y = e.fy - 18;
+    e.wt++;
+    const hx = e.x - 6, hy = e.y - 14;
+    if (e.st === 'walk') {
+      e.x -= ss + e.spd;
+      if (--e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 30 && e.x > 50 && P.x < e.x - 30) { e.st = 'tel'; e.wt = 0; sfx.groan(); }
+    } else if (e.st === 'tel') {
+      e.x -= ss;
+      if (R() < .4) drop(hx + rr(-4, 4), hy + rr(-4, 4), rr(-.3, .3), rr(0, .6), 1.2, R() < .6 ? 0 : 1, 60);
+      if (e.wt >= 44) { e.st = 'hurl'; e.wt = 0; sfx.lash(); }
+    } else {
+      e.x -= ss + (e.wt < 10 ? 1 : 0); // lunges a step into the throw
+      if (e.wt === 6 && P.alive) {
+        const n = $.G.loop > 0 ? 5 : 3;
+        for (let i = 0; i < n; i++) lobAt(hx, hy, P.x + (i - (n - 1) / 2) * 26, P.y, 1.2, 2.8);
+        gib(hx, hy, rr(-2, -.5), rr(-2, -.5), 'chunk', 3);
+        for (let k = 0; k < 18; k++) drop(hx, hy, rr(-3, .5), rr(-2, 1), rr(1.2, 1.9), R() < .3 ? 1 : 0, 80);
+        $.G.shake += 2;
+        sample('splat_m', { vol: .6, rate: .8 }) || sfx.squish();
+      }
+      if (e.wt >= 34) { e.st = 'walk'; e.wt = 0; e.cool = Math.max(120, 190 - $.G.loop * 25) + ri(0, 50); }
+    }
+    if (R() < .25) drop(e.x + rr(-6, 6), e.y + rr(-12, 10), rr(-.2, .2), rr(.1, .6), 1.2, R() < .5 ? 0 : 1, 90);
+    if (e.fy > PH + 30) e.dead = true;
+  } else {
+    // sentry: parks at tx and bobs, spinning. Telegraph 52f: stops spinning, eye on you, an aim line that tracks for 34f
+    // and then LOCKS for 18f (step out of it), then a 3-round burst down that line (4 from Descent 2). Two bursts, then it moves on
+    const wx = e.x + sc, lo = Math.max(14, ceilAt(wx) + 14), hi = Math.min(PH - 14, floorAt(wx) - 14);
+    e.wt++;
+    if (e.st !== 'leave') e.x = lerp(e.x, e.tx, .04);
+    e.y = lerp(e.y, clamp(e.y0 + Math.sin(e.t * .03 + e.ph) * 14, lo, Math.max(lo, hi)), .08);
+    if (e.st === 'hover') {
+      e.cool--;
+      if (e.t > 700 || e.shots >= 2) e.st = 'leave';
+      else if (e.cool <= 0 && P.alive && e.x < W - 24 && P.x < e.x - 20) { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 5, e.y); sfx.tele(); }
+    } else if (e.st === 'tel') {
+      if (e.wt < 34) e.ha += wrapA(aimA(e.x - 5, e.y) - e.ha) * .2;
+      if (e.wt >= 52) { e.st = 'fire'; e.wt = 0; }
+    } else if (e.st === 'fire') {
+      const n = $.G.loop > 0 ? 4 : 3;
+      if (e.wt % 7 === 1 && e.wt < n * 7) {
+        eshoot(e.x - 6, e.y, e.ha, 1.9);
+        flash(e.x - 7, e.y, 9, 4, '255,70,50');
+        e.x += 1.5;
+      }
+      if (e.wt >= n * 7 + 14) { e.shots++; e.st = 'hover'; e.wt = 0; e.cool = Math.max(80, 130 - $.G.loop * 20) + ri(0, 30); }
+    } else {
+      e.x -= 1.3 + ss * .3;
+      e.y0 += e.y0 < PH / 2 ? -.2 : .2;
+    }
+    if (R() < .05) drop(e.x + rr(2, 7), e.y + rr(-2, 3), rr(.2, .6), rr(0, .4), 1, R() < .6 ? 3 : 0, 50); // leaking blood-oil
+  }
+}
+/** the new enemies' extra death payoff, on top of the generic gore */
+function killNew(e) {
+  const sc = $.G.scroll;
+  if (e.k === 'slime') { // bursts like a popped sinus: a snot fountain where it sat, mucus everywhere
+    for (let k = 0; k < 34; k++) { const a = R() * TAU, sp = rr(.5, 3.4); drop(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp - e.o * 1.2, rr(1.3, 2.3), R() < .6 ? 4 : 0, ri(70, 130)); }
+    for (let i = 0; i < 2; i++) gib(e.x, e.y, rr(-1.5, 1.5), -e.o * rr(.5, 2), 'skin', rr(2.5, 4));
+    if (!e.air) geysers.push({ wx: e.x + sc, y: e.y + e.o * 5, a: e.o > 0 ? -Math.PI / 2 : Math.PI / 2, l: 90, rate: 3, c: 4 });
+    mist(e.x, e.y, 7, 40);
+    sample('snot', { vol: .9 }) || sfx.squish();
+  } else if (e.k === 'mutant') { // torn in two (the halves play its stagger), a second spray of meat and an arterial fountain
+    e.dT = $.T;
+    gore(e.x, e.y - 8, 2, { limbs: 1, skull: 0, rope: 3, dir: -1 });
+    geysers.push({ wx: e.x + sc, y: e.y, a: -Math.PI / 2 - .35, l: 170, rate: 2 });
+    for (let k = 0; k < 4; k++) gib(e.x, e.y - 6, rr(-2.5, 2.5), rr(-3, -.5), 'chunk', rr(3, 4.5));
+    $.G.shake = Math.max($.G.shake, 5);
+    $.G.hitstop = Math.max($.G.hitstop || 0, 4);
+    sample('thud', { vol: .9, rate: .7 });
+    sfx.groan();
+  } else { // a security drone: shrapnel, sparks and a spray of the black blood-oil it runs on
+    for (let k = 0; k < 6; k++) gib(e.x, e.y, rr(-2.5, 2.5), rr(-2.5, 1.5), 'metal', rr(1.5, 3.5));
+    for (let k = 0; k < 40; k++) { const a = R() * TAU, sp = rr(.6, 3.6); drop(e.x, e.y, Math.cos(a) * sp, Math.sin(a) * sp - .5, rr(1.1, 2), R() < .35 ? 3 : R() < .5 ? 1 : 0, ri(60, 120)); } // black oil through clotted blood (pure black vanishes against space)
+    for (let k = 0; k < 14; k++) spark(e.x, e.y, rr(-3, 3), rr(-3, 3), ri(8, 18), k % 3 ? '#ffd27a' : '#cfe6ff');
+    flash(e.x, e.y, 24, 6, '255,170,80');
+    sample('explode_s', { vol: .7 }) || sfx.bomb();
+  }
+}

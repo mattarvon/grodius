@@ -1104,3 +1104,114 @@ export function drawBrood(c, e) {
   grossBrood(c, e); // src/render/gross/midbosses.ts
 }
 // --- boss ---
+
+// ---------------- new enemies: snot slime, hulking mutant, MERIDIAN security drone ----------------
+// Sprite strips from tools/prep_newenemies.py; each has a code-drawn fallback until its strip loads. Render-only:
+// no gameplay RNG here (deterministic wobble from e.t / e.ph / $.T).
+import { spr, sprAt } from '../sprites';
+const SNOT = 'rgba(190,240,110,', SNOTD = 'rgba(70,110,20,';
+export function drawSlime(c, e) {
+  if (e.o < 0) c.scale(1, -1); // ceiling slimes hang upside down: local +y is always "into the surface"
+  const t = e.t + (e.ph || 0) * 20, ooze = !e.air && e.st !== 'tel' && e.st !== 'spit';
+  // the wet slick it drags behind it, hugging the surface
+  c.fillStyle = SNOTD + '.55)';
+  c.beginPath();
+  c.ellipse(5, 6.2, 11 + Math.sin(t * .1), 1.4, 0, 0, TAU);
+  c.fill();
+  let k = 'slime-idle', f = sprAt(t, 8), ay = 1, y = 8, sq = 1 + Math.sin(t * .14) * .07;
+  if (e.air) { k = 'slime-move'; f = e.vy * -e.o > 0 ? 3 : 5; ay = .5; y = 0; sq = 1; }
+  else if (e.st === 'tel') { k = 'slime-spit'; f = Math.min(5, e.wt * 6 / 32 | 0); sq = 1 + Math.sin(e.wt * .9) * .08 * e.wt / 32; }
+  else if (e.st === 'spit') { k = 'slime-spit'; f = 6 + Math.min(3, e.wt / 6 | 0); }
+  if (!spr(c, k, f, 0, y, { ay, sx: sq, sy: 2 - sq })) {
+    // fallback: a mucus mound with two clot eyes
+    const h = e.st === 'tel' ? 8 + e.wt * .15 : 6;
+    c.fillStyle = '#5a5c16';
+    c.beginPath(); c.ellipse(0, 6, 11 * sq, h + 1, 0, Math.PI, TAU); c.fill();
+    c.fillStyle = '#a3a832';
+    c.beginPath(); c.ellipse(0, 6, 10 * sq, h, 0, Math.PI, TAU); c.fill();
+    c.fillStyle = '#28120a';
+    c.fillRect(-3, 6 - h * .55, 1.5, 1.5); c.fillRect(1, 6 - h * .55, 1.5, 1.5);
+  }
+  if (ooze) {
+    // wet gleam on the dome, and a bubble rising through the snot
+    c.fillStyle = 'rgba(255,255,235,.85)';
+    c.fillRect(-6, -3, 2, 1); c.fillRect(-4, -5, 2, 1); c.fillRect(3, -2, 1, 1);
+    const b = (t * .06) % 1;
+    c.fillStyle = SNOT + (.7 * (1 - b)) + ')';
+    c.fillRect(1 + Math.sin(t * .2), 3 - b * 9, 1, 1);
+  }
+  // a ceiling slime sags a mucus strand with a drop swelling on the end; a floor slime drools a string off its lip
+  const L = e.o < 0 ? (t * .22) % 16 : 2 + (t * .08) % 5, sx = e.o < 0 ? -1 + Math.sin(t * .05) * 2 : -8;
+  c.strokeStyle = SNOT + '.75)';
+  c.lineWidth = 1;
+  const sy = e.o < 0 ? -6 : 0, dy = e.o < 0 ? -L : L * .9;
+  c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx + Math.sin(t * .07), sy + dy); c.stroke();
+  c.fillStyle = SNOT + '.9)';
+  c.beginPath(); c.arc(sx + Math.sin(t * .07), sy + dy, .8 + L * .06, 0, TAU); c.fill();
+  if (e.st === 'tel' && !e.dead) { // the swelling throat glows sick yellow
+    c.globalCompositeOperation = 'lighter';
+    glow(-1, -4, 6 + e.wt * .2, '220,230,90', .15 + .35 * e.wt / 32 * ((($.T >> 2) & 1) ? 1 : .6));
+    c.globalCompositeOperation = 'source-over';
+  }
+}
+export function drawMutant(c, e) {
+  let k = 'mutant-walk', f = sprAt(e.t, 9);
+  if (e.dead) { k = 'mutant-die'; f = Math.min(7, ($.T - (e.dT || $.T)) / 6 | 0); } // the torn halves stagger as they fly
+  else if (e.st === 'tel') { k = 'mutant-hurl'; f = Math.min(4, e.wt * 5 / 44 | 0); }
+  else if (e.st === 'hurl') { k = 'mutant-hurl'; f = 5 + Math.min(4, e.wt / 6 | 0); }
+  if (!spr(c, k, f, 0, 18, { ax: .64, ay: .98 })) {
+    // fallback: a hunched slab of meat on two legs
+    const s = Math.sin(e.t * .12) * 2;
+    c.fillStyle = '#3a1614';
+    c.fillRect(-5 + s, 4, 4, 14); c.fillRect(2 - s, 4, 4, 14);
+    c.fillStyle = '#8e4a3e';
+    c.beginPath(); c.ellipse(0, -6, 11, 13, -.3, 0, TAU); c.fill();
+    c.fillStyle = '#b5604f';
+    c.beginPath(); c.arc(-7, -16, 5, 0, TAU); c.fill();
+    c.fillStyle = '#e8e0cc';
+    c.fillRect(-11, -14, 4, 1);
+    c.fillStyle = '#8e4a3e';
+    c.fillRect(-14, -8 + (e.st === 'tel' ? -8 : 0), 6, 3);
+  }
+  if (e.dead) return;
+  // blood running down its front, a dribble from the jaw
+  const d = (e.t * .4) % 10;
+  c.fillStyle = 'rgba(150,12,18,.85)';
+  c.fillRect(-9, -13 + d, 1, 2);
+  if (e.st === 'tel' || e.st === 'hurl') { // eyes and the tearing hand flare red
+    const p = e.st === 'tel' ? e.wt / 44 : 1 - e.wt / 34;
+    c.globalCompositeOperation = 'lighter';
+    glow(-8, -18, 4 + 3 * p, '255,40,30', .5 + .4 * p * ((($.T >> 2) & 1) ? 1 : .5));
+    glow(-12, -24 + (e.st === 'tel' ? -4 * p : 6), 6 + 6 * p, '255,60,40', .25 + .4 * p);
+    c.globalCompositeOperation = 'source-over';
+    light(e.x - 8, e.y - 18, 26, .6);
+  }
+}
+export function drawSentry(c, e) {
+  const aim = e.st === 'tel' || e.st === 'fire';
+  if (e.st === 'tel') { // the aim line: a dashed track while it hunts you, solid and blinking once it locks (18f to get out)
+    const lock = e.wt >= 34, k = Math.min(1, e.wt / 34), ca = Math.cos(e.ha), sa = Math.sin(e.ha);
+    c.save();
+    if (!lock) { c.setLineDash([3, 3]); c.lineDashOffset = -$.T * .5; }
+    c.strokeStyle = `rgba(255,40,30,${lock ? (($.T >> 1) & 1 ? .85 : .45) : .15 + .35 * k})`;
+    c.lineWidth = lock ? 1.2 : 1;
+    c.beginPath(); c.moveTo(ca * 8, sa * 8); c.lineTo(ca * 200, sa * 200); c.stroke();
+    c.restore();
+  }
+  const f = aim ? 0 : sprAt(e.t, 10), rot = aim ? e.ha - Math.PI : Math.sin(e.t * .05) * .15;
+  if (!spr(c, 'sentry', f, 0, 0, { rot })) {
+    c.save(); c.rotate(rot);
+    c.fillStyle = '#2a3038'; c.beginPath(); c.ellipse(1, 0, 9, 8, 0, 0, TAU); c.fill();
+    c.fillStyle = '#56616d'; c.beginPath(); c.ellipse(0, -1, 8, 6.5, 0, 0, TAU); c.fill();
+    c.fillStyle = '#3a434d'; c.fillRect(5, -9, 3, 18);
+    c.fillStyle = '#a10d14'; c.beginPath(); c.arc(-3, 0, 3, 0, TAU); c.fill();
+    c.restore();
+  }
+  // the red eye: a faint ember on patrol, a hot glare while it aims and fires
+  const ex = aim ? Math.cos(e.ha) * 4 : -4, ey = aim ? Math.sin(e.ha) * 4 : 0, p = e.st === 'tel' ? e.wt / 52 : e.st === 'fire' ? 1 : .15;
+  c.globalCompositeOperation = 'lighter';
+  glow(ex, ey, 4 + 6 * p, '255,40,30', .35 + .55 * p);
+  c.globalCompositeOperation = 'source-over';
+  if (p > .2) light(e.x + ex, e.y + ey, 20 + 14 * p, .4 + .4 * p);
+}
+Object.assign(DRAW, { slime: drawSlime, mutant: drawMutant, sentry: drawSentry });
