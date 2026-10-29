@@ -69,7 +69,7 @@ function autoQuality(now) {
   qN = qSum = 0;
 }
 // pre-build the bosses' static art one piece per idle slot after boot, so no fight opens on a build hitch
-const WARM = [warmMaw, warmMidbosses, warmBiomeBosses, warmDrive];
+const WARM = [warmHeroEye, warmEyes, warmMaw, warmMidbosses, warmBiomeBosses, warmDrive];
 function warmUp() {
   while (WARM.length && !WARM[0]()) WARM.shift();
   if (WARM.length) (window.requestIdleCallback || ((f) => setTimeout(f, 50)))(warmUp, { timeout: 1000 });
@@ -124,6 +124,8 @@ import { warmMaw } from './render/gross/maw';
 import { warmMidbosses } from './render/gross/midbosses';
 import { warmBiomeBosses } from './render/gross/biomebosses';
 import { warmDrive } from './render/gross/drive';
+import { warmEyes } from './render/eyes';
+import { warmHeroEye } from './render/heroeye';
 import { pFrame, pIn, pOut } from './perf';
 auInit();
 $.gate = !audioRunning();

@@ -10,6 +10,12 @@ const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
 await p.waitForTimeout(1500);
+// the game warms eye textures in idle slots after boot (main.ts warmUp, which needs setTimeout): do it here
+await p.evaluate(async () => {
+  const E = await import('/src/render/eyes.ts'), HE = await import('/src/render/heroeye.ts');
+  HE.warmHeroEye();
+  for (let i = 0; i < 500 && E.warmEyes(); i++);
+});
 await p.evaluate(async () => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts'), RS = await import('/src/render/screens.ts');

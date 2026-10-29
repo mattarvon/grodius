@@ -6,7 +6,7 @@
 import { $ } from '../state';
 import { TAU } from '../core';
 import { SPR, sprReady, srnd } from '../sprites';
-import { irisFromPhoto } from './eyes';
+import { queueRampIris } from './eyes';
 
 const can = (S) => { const c = document.createElement('canvas'); c.width = c.height = S; return c; };
 const hash = (x, y) => { const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return v - Math.floor(v); };
@@ -113,24 +113,33 @@ function iris() {
 
 /** the real iris (sunburn's Eyeballs photo, src/sprites/iris_grey.png) graded lime with a dark green limbal ring */
 const HERO_RAMP = [[0, 8, 20, 3], [.22, 22, 52, 8], [.4, 70, 120, 16], [.55, 140, 200, 42], [.7, 186, 234, 70], [.85, 214, 246, 112], [1, 240, 255, 180]];
+let REAL = null, asked = 0;
+/** queued once (built a few rows per idle slice by eyes.ts); until it lands the painted iris stands in */
 function realIris() {
-  const c = irisFromPhoto(512, null, HERO_RAMP), x = c.getContext('2d'), S = 512, ri = (S / 2 - 1) * .5;
-  // upper-left a touch brighter, like the painted one
-  x.globalCompositeOperation = 'source-atop';
-  const g = x.createLinearGradient(S / 2 - ri, S / 2 - ri, S / 2 + ri, S / 2 + ri);
-  g.addColorStop(0, 'rgba(230,255,170,.14)');
-  g.addColorStop(.5, 'rgba(0,0,0,0)');
-  g.addColorStop(1, 'rgba(0,20,0,.22)');
-  x.fillStyle = g;
-  x.fillRect(0, 0, S, S);
-  return c;
+  if (REAL || asked || !sprReady('iris_grey')) return REAL;
+  asked = 1;
+  queueRampIris(512, HERO_RAMP, (c) => {
+    const x = c.getContext('2d'), S = 512, ri = (S / 2 - 1) * .5;
+    // upper-left a touch brighter, like the painted one
+    x.globalCompositeOperation = 'source-atop';
+    const g = x.createLinearGradient(S / 2 - ri, S / 2 - ri, S / 2 + ri, S / 2 + ri);
+    g.addColorStop(0, 'rgba(230,255,170,.14)');
+    g.addColorStop(.5, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,20,0,.22)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, S, S);
+    REAL = c;
+  });
+  return null;
 }
+/** main.ts warmUp: ask for the title eye's photo iris early */
+export function warmHeroEye() { realIris(); return false; }
 let SCL0 = null, SET0 = null, SETP = null;
 export const heroTex = () => {
   if (SET0) return SET0;
   SCL0 = SCL0 || sclera();
-  if (sprReady('iris_grey')) return (SET0 = { s: SCL0, i: realIris() });
-  return SETP || (SETP = { s: SCL0, i: iris() }); // painted fallback until the photo loads
+  if (realIris()) return (SET0 = { s: SCL0, i: REAL });
+  return SETP || (SETP = { s: SCL0, i: iris() }); // painted iris until the photo one is built
 };
 // the pupil can come back from a blink as something else: mostly round, sometimes a cat slit, frog bar or fish crescent
 let heroPV = 0, shut = 0;

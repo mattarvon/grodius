@@ -178,39 +178,144 @@ function colHash(col) {
   }
   return h;
 }
-/** paint the grey iris photo, recoloured, onto a ball-sized canvas (iris radius = half the ball, like eyeIris).
- *  stops: a luminance ramp [[t, r, g, b], ...] (hero) or null to tint toward rgb (jittered by v) */
-export function irisFromPhoto(S, rgb, stops, fire = 0) {
-  const c = mkCan(S), x = c.getContext('2d'), Rr = S / 2 - 1, ri = Rr * .5, k = ri / IRIS_R * 1.03, I = SPR.iris_grey;
+// Textures are built OFF the frame: a small, known set (iris colour x 3 colour shifts, + fire) is queued at boot and
+// built in idle slices of <= ~8 ms (warmEyes, run by main.ts warmUp). An eye whose texture isn't ready yet draws a
+// plain tinted iris for those frames and queues its build; nothing per-pixel ever runs inside a game frame.
+const IS = 128; // iris texture: ball-sized canvas, iris radius = a quarter of it (like eyeIris), scaled on draw
+/** every iris colour the game passes to eye() (render/*, gore gib eyes, ship tiers, graft caps) */
+export const IRIS_COLS = ['#b01018', '#8a0f12', '#8a9a22', '#9fd8ff', '#9a5aff', '#9fd23a', '#c8a020', '#c8ac3a', '#e8b818',
+  '#ff3a10', '#ffb347', '#9bb030', '#3b6fd0', '#6a3b1c', '#c0141c', '#e05a10', '#b23cff', '#9fb7c4'];
+/** colour shift per variant: none, warmer, colder */
+const JIT = [[1, 1, 1], [1.16, .92, .86], [.86, 1.04, 1.16]];
+const BASES = {};
+/** the grey photo at size S, as luminance + alpha arrays (one drawImage + one getImageData, cached) */
+function irisBase(S) {
+  if (BASES[S]) return BASES[S];
+  const I = SPR.iris_grey, c = mkCan(S), x = c.getContext('2d', { willReadFrequently: true }), ri = (S / 2 - 1) * .5, k = ri / IRIS_R * 1.03;
   x.imageSmoothingEnabled = true;
   x.imageSmoothingQuality = 'high';
   x.drawImage(I.img, 0, 0, I.fw, I.fh, S / 2 - I.fw * k / 2, S / 2 - I.fh * k / 2, I.fw * k, I.fh * k);
-  const im = x.getImageData(0, 0, S, S), d = im.data;
-  for (let o = 0; o < d.length; o += 4) {
-    if (!d[o + 3]) continue;
-    const L = d[o] / 255;
-    let r, g, b;
-    if (stops) {
-      let j = 0;
-      while (j < stops.length - 2 && stops[j + 1][0] < L) j++;
-      const A = stops[j], B = stops[j + 1], t = Math.max(0, Math.min(1, (L - A[0]) / (B[0] - A[0])));
-      r = A[1] + (B[1] - A[1]) * t; g = A[2] + (B[2] - A[2]) * t; b = A[3] + (B[3] - A[3]) * t;
-    } else {
-      const m = Math.pow(L, 1.15) * 1.75, hi = Math.max(0, L - .6) * 260;
-      r = rgb[0] * m + hi; g = rgb[1] * m + hi * .9; b = rgb[2] * m + hi * .8;
-    }
-    d[o] = Math.min(255, r); d[o + 1] = Math.min(255, g); d[o + 2] = Math.min(255, b);
+  const d = x.getImageData(0, 0, S, S).data, n = S * S, L = new Uint8Array(n), A = new Uint8Array(n);
+  for (let i = 0, o = 0; i < n; i++, o += 4) { L[i] = d[o]; A[i] = d[o + 3]; }
+  return (BASES[S] = { L, A });
+}
+/** tint lookup: luminance byte -> channel multiplier and highlight, so the pixel loop is three table reads */
+const TM = new Float32Array(256), TH = new Float32Array(256);
+for (let i = 0; i < 256; i++) { const L = i / 255; TM[i] = Math.pow(L, 1.15) * 1.75; TH[i] = Math.max(0, L - .6) * 260; }
+function fireCore(x, S) { // a hot core burning out of the pupil, as the painted version had
+  const ri = (S / 2 - 1) * .5, gr = x.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, ri * .62);
+  gr.addColorStop(0, 'rgba(255,210,90,.9)');
+  gr.addColorStop(1, 'rgba(255,90,20,0)');
+  x.globalCompositeOperation = 'lighter';
+  x.fillStyle = gr;
+  x.fillRect(0, 0, S, S);
+  x.globalCompositeOperation = 'source-over';
+}
+function tintIris(col, j, fire) {
+  const B = irisBase(IS), c = mkCan(IS), x = c.getContext('2d'), im = x.createImageData(IS, IS), d = im.data;
+  const [r0, g0, b0] = hexRGB(col), J = JIT[j], R = r0 * J[0], G = g0 * J[1], Bl = b0 * J[2], { L, A } = B;
+  for (let i = 0, o = 0; i < L.length; i++, o += 4) {
+    const a = A[i];
+    if (!a) continue;
+    const l = L[i], m = TM[l], h = TH[l];
+    d[o] = R * m + h; d[o + 1] = G * m + h * .9; d[o + 2] = Bl * m + h * .8; d[o + 3] = a; // Uint8Clamped clamps
   }
   x.putImageData(im, 0, 0);
-  if (fire) { // a hot core burning out of the pupil, as the painted version had
-    x.globalCompositeOperation = 'lighter';
-    const gr = x.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, ri * .62);
-    gr.addColorStop(0, 'rgba(255,210,90,.9)');
-    gr.addColorStop(1, 'rgba(255,90,20,0)');
-    x.fillStyle = gr;
-    x.fillRect(0, 0, S, S);
-  }
+  if (fire) fireCore(x, IS);
   return c;
+}
+// ---- the idle build queue ----
+const TEX = {}; // colour -> [6]: index fire * 3 + j; undefined = not asked, 0 = queued, canvas = ready
+const SCL = {}; // bloodshot bucket -> sclera canvas (0 = queued)
+const JOBS = [];
+let pumpOn = 0, seeded = 0;
+const idle = (f) => (window.requestIdleCallback || ((g) => setTimeout(g, 50)))(f, { timeout: 1000 });
+/** run queued builds for up to ~ms; returns true while work remains */
+/** build log for tools: [ms, $.state] per job (window.__irisLog) */
+const LOG = (globalThis as any).__irisLog = [];
+function slice(ms) {
+  if (!sprReady('iris_grey')) return true; // photo not loaded yet: try again next idle slot
+  const t0 = performance.now();
+  while (JOBS.length) {
+    const jb = JOBS[0];
+    const j0 = performance.now();
+    if (jb.run()) JOBS.shift();
+    if (LOG.length < 400) LOG.push([+(performance.now() - j0).toFixed(2), $.state]);
+    if (performance.now() - t0 > ms) break;
+  }
+  return JOBS.length > 0;
+}
+function pump() {
+  if (pumpOn) return;
+  pumpOn = 1;
+  idle(function go() { if (slice(6)) idle(go); else pumpOn = 0; });
+}
+function queueIris(col, fire, j) {
+  const a = TEX[col] || (TEX[col] = []), i = fire * 3 + j;
+  if (a[i] !== undefined) return;
+  a[i] = 0;
+  JOBS.push({ run: () => ((a[i] = tintIris(col, j, fire)), true) });
+}
+/** bloodshot level bucket: half steps 1..3.5 (a continuous bs, like a hurt Maw's, can't spawn new scleras) */
+const sclB = (bs) => Math.max(1, Math.min(3.5, Math.round(bs * 2) / 2));
+function queueScl(b) {
+  if (SCL[b] !== undefined) return;
+  SCL[b] = 0;
+  JOBS.push({ run: () => ((SCL[b] = eyeSclera(b)), true) });
+}
+/** a luminance-ramped photo iris at size S built a few rows per slice (the 512 px title eye); calls done(canvas) */
+export function queueRampIris(S, stops, done) {
+  let st = null;
+  JOBS.unshift({ run: () => {
+    if (!st) {
+      const c = mkCan(S), x = c.getContext('2d');
+      st = { c, x, im: x.createImageData(S, S), B: irisBase(S), y: 0 };
+      return false;
+    }
+    const { im, B, x, c } = st, d = im.data, y1 = Math.min(S, st.y + 48);
+    for (let i = st.y * S, o = i * 4; i < y1 * S; i++, o += 4) {
+      const a = B.A[i];
+      if (!a) continue;
+      const Lv = B.L[i] / 255;
+      let k = 0;
+      while (k < stops.length - 2 && stops[k + 1][0] < Lv) k++;
+      const P = stops[k], Q = stops[k + 1], t = Math.max(0, Math.min(1, (Lv - P[0]) / (Q[0] - P[0])));
+      d[o] = P[1] + (Q[1] - P[1]) * t; d[o + 1] = P[2] + (Q[2] - P[2]) * t; d[o + 2] = P[3] + (Q[3] - P[3]) * t; d[o + 3] = a;
+    }
+    st.y = y1;
+    if (y1 < S) return false;
+    x.putImageData(im, 0, 0);
+    done(c);
+    return true;
+  } });
+  pump();
+}
+/** main.ts warmUp: queue every known iris + sclera bucket once, then build in idle slices (true = more to do) */
+let tries = 0;
+export function warmEyes() {
+  if (!seeded && !sprReady('iris_grey')) return ++tries < 60; // photo never loaded: don't hold up the bosses' warm-up
+  if (!seeded) {
+    seeded = 1;
+    for (let b = 1; b <= 3.5; b += .5) queueScl(b);
+    for (const col of IRIS_COLS) { for (let j = 0; j < 3; j++) queueIris(col, 0, j); queueIris(col, 1, 0); }
+    pupils();
+  }
+  return slice(8);
+}
+const SET = { s: null, i: null };
+/** sclera + iris for an eye; either can be null while its build waits for an idle slot (callers draw a plain stand-in) */
+export function eyeSet(iris, fire, bs, v = -1) {
+  const k0 = iris + (fire ? 'f' : '') + bs, s0 = EYEC[k0];
+  if (s0) return s0; // a custom set painted into the cache (the Bloated Bitch's frozen eyes)
+  const b = sclB(bs);
+  let s = SCL[b];
+  if (!s) { queueScl(b); for (const k in SCL) if (SCL[k]) { s = SCL[k]; break; } pump(); }
+  SET.s = s || null;
+  if (!sprReady('iris_grey')) { SET.i = null; return SET; }
+  const f = fire ? 1 : 0, j = f ? 0 : (v < 0 ? 0 : v % 3), a = TEX[iris], t = a && a[f * 3 + j];
+  if (t) SET.i = t;
+  else { queueIris(iris, f, j); pump(); SET.i = null; }
+  return SET;
 }
 /** pupils pre-shrunk to 64 px frames: a 272 px frame squeezed to a few device px per eye per frame is a slow draw */
 let PUP = null;
@@ -224,22 +329,6 @@ function pupils() {
   x.imageSmoothingQuality = 'high';
   for (let i = 0; i < P.n; i++) x.drawImage(P.img, i * P.fw, 0, P.fw, P.fh, i * 64, 0, 64, 64);
   return (PUP = { img: c, fw: 64, k: 64 / P.fw });
-}
-const SCL = {};
-export function eyeSet(iris, fire, bs, v = -1) {
-  const k0 = iris + (fire ? 'f' : '') + bs, s0 = EYEC[k0];
-  if (s0 && !s0.own) return s0; // a custom set someone painted into the cache (the Bloated Bitch's frozen eyes)
-  const real = v >= 0 && sprReady('iris_grey');
-  const k = real ? k0 + ':' + v : k0;
-  let s = EYEC[k];
-  if (s) return s;
-  const sk = bs + '';
-  const scl = SCL[sk] || (SCL[sk] = eyeSclera(bs));
-  if (real) {
-    const [r, g, b] = hexRGB(iris), j = (n) => 1 + (h2(v * .021, n) - .5) * .4; // up to +-20% per channel
-    s = { s: scl, i: irisFromPhoto(160, [r * j(1), g * j(2), b * j(3)], null, fire), own: 1 };
-  } else s = { s: scl, i: eyeIris(iris, fire), own: 1 };
-  return (EYEC[k] = s);
 }
 // queue an eyeball at local (lx,ly) radius r on the current ctx transform
 export function eye(c, lx, ly, r, o = {}) {
@@ -322,15 +411,25 @@ export function drawEyeQ() {
     D.beginPath();
     D.arc(0, 0, r, 0, TAU);
     D.clip();
-    D.drawImage(set.s, -r, -r, r * 2, r * 2);
+    if (set.s) D.drawImage(set.s, -r, -r, r * 2, r * 2);
+    else { D.fillStyle = '#e6d8c4'; D.fillRect(-r, -r, r * 2, r * 2); } // sclera still waiting for an idle slot
     const lx = Math.cos(e.ang) * e.m,
       ly = Math.sin(e.ang) * e.m;
     D.save();
     D.translate(lx * r * .42, ly * r * .42);
     D.rotate(e.ang);
     D.scale(1 - .28 * e.m, 1);
-    D.drawImage(set.i, -r, -r, r * 2, r * 2);
-    const pr = r * .5 * .38 * e.dil, PU = SPR.iris_grey.fw ? pupils() : null;
+    if (set.i) D.drawImage(set.i, -r, -r, r * 2, r * 2);
+    else { // plain tinted iris while the photo one waits for an idle slot
+      D.fillStyle = e.iris;
+      D.beginPath();
+      D.arc(0, 0, r * .5, 0, TAU);
+      D.fill();
+      D.strokeStyle = 'rgba(10,0,0,.55)';
+      D.lineWidth = r * .07;
+      D.stroke();
+    }
+    const pr = r * .5 * .38 * e.dil, PU = PUP; // built by warmEyes
     if (PU) { // photo pupil, kept upright (slits stay vertical however the eye rolls)
       const f = e.slit ? 1 : pupilOf(e.v), k = pr / (PUPIL_R * PU.k) * (f === 1 ? 1.15 : 1), w = PU.fw * k;
       D.rotate(-e.ang);
