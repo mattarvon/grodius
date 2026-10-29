@@ -116,5 +116,27 @@ All CC0, read from public buckets in the Registry of Open Data on AWS. Blended, 
 | *Ascocoryne sarcoides*, iNaturalist obs 256815760, photo 460544380 | quillipede | CC0 | tex-flesh |
 | *Didymium spongiosum*, iNaturalist obs 330256534, photo 598824077 | pilmar | CC0 | tex-ice |
 
+## OpenGameArt sprites (found with `tools/sprite-scout.mjs`, cut and recoloured by `tools/prep_*.py` into `src/sprites/`)
+All repainted toward the game's palette; CC-BY / OGA-BY rows are the ones that require this credit.
+| Used for | Work | Author | License | Source |
+|---|---|---|---|---|
+| Swarm drone (`wasp`) | wasp | Tiamalt | CC-BY 3.0 | https://opengameart.org/content/wasp |
+| Hatchling (`eyeball`) | Floating Eyeball | OwlishMedia | CC0 | https://opengameart.org/content/floating-eyeball-0 |
+| Drifting corpses (`corpse`) | Zombie Character Pack | Soluna Software | CC0 | https://opengameart.org/content/zombie-character-pack |
+| Wall eye turret, ceiling womb (`walleye`, `womb`) | Top Down Tentacle Creature | Sean Noonan | CC0 | https://opengameart.org/content/top-down-tentacle-creature |
+| Wall crawler (`earwig`) | Earwig top down | Scarcz | CC-BY 4.0 | https://opengameart.org/content/earwig-top-down |
+| Snot slime (`slime-*`) | Blob Sprite | Woostar | CC0 | https://opengameart.org/content/blob-sprite |
+| Hulking mutant (`mutant-*`) | Zombie - Fully Animated | Cethiel | CC0 | https://opengameart.org/content/zombie-fully-animated |
+| Security drone (`sentry`), corridor plating (`src/img/tex-derelict.png`) | Enemy sprite | mieki256 | CC0 | https://opengameart.org/content/enemy-sprite |
+| THE SQUIDFUCKED SAUCER (`ufo1-3`) | Alien Boss Set (Infested UFO Boss) | The_Scientist___ | CC0 | https://opengameart.org/content/alien-boss-set |
+| Hit sparks (`hit_*`) | Sparks (Fire, Ice, Blood) | Clint Bellanger | CC-BY 3.0 | https://opengameart.org/content/sparks-fire-ice-blood |
+| Explosions (`boom_*`) | Space Sprites: "Sinistar clone", "Hard Vacuum" & "Remastered Tyrian" graphics by Daniel Cook (Lostgarden.com), collected by titmouse001 | Daniel Cook | CC-BY 3.0 | https://opengameart.org/content/space-sprites-0 |
+| Eye irises (`iris_grey`, `pupil`) | Eyeballs | sunburn | CC-BY 3.0 | https://opengameart.org/content/eyeballs |
+| Triton (`src/img/triton.png`) | Planet T | krislachowski | CC0 | https://opengameart.org/content/planet-t-0 |
+| Ice crystals (`crystal-*`) | Magic Fence | qwedeath | CC0 | https://opengameart.org/content/magic-fence |
+| Hype-voice comms faces (`hface`) | Modular Reticulan Portraits | surt | CC0 | https://opengameart.org/content/modular-reticulan-portraits |
+| Game-over demon (`creep`) | Animated Creepy Thing | Charlie | CC0 | https://opengameart.org/content/animated-creepy-thing |
+| Infirmary poster (`poster`) | Zombie Take Away | CiderCorpse | OGA-BY 3.0 | https://opengameart.org/content/zombie-take-away |
+
 ## Fonts
 Silkscreen and Grenze Gotisch via @fontsource (SIL Open Font License 1.1).

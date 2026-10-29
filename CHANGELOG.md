@@ -2,6 +2,41 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-28 (sprite upgrade)
+
+Twenty OpenGameArt picks (found with `tools/sprite-scout.mjs`, placed slot by slot in the `tools/upgrade-picker.mjs` page) cut, repainted toward the game's palette and wired in by seven parallel agents. Credits in CREDITS.md and on the title screen.
+
+### Enemies get real art
+- **Swarm drones are wasps**, sick yellow-green with a bloodshot eye and venom dripping off the sting.
+- **Hatchlings are loose eyeballs** swimming on their torn optic nerves.
+- **Drifting corpses are frozen zombie crew** (cop, civilian, zombie): four variants, still dismembered and still pleading.
+- **Wall eye turrets are tentacle starfish** half-buried in the rock, the eye tracking you and going amber when it charges.
+- **Wall crawlers are earwigs**, wet red-brown, mandibles gaping before they spit.
+- **Ceiling wombs are toothed flesh sacs** that split open to birth hatchlings, the same species as the eye turrets.
+
+### New enemies
+- **Snot slime** (the Sinus): oozes along floor and ceiling, rears up and lobs snot, lunges if you fly over.
+- **Hulking mutant** (Cryovault and Furnace floors): a 40 px crewman-hulk that tears off meat and throws it, then gets torn in half. 26 HP, the tankiest regular enemy.
+- **MERIDIAN security drone** (Open Orbit and the drive corridor): the derelict's own defences. It locks a dashed aim line on you, blinks, then fires a burst down it, and bleeds blood-oil when killed.
+
+### New midboss: THE SQUIDFUCKED SAUCER
+- A wrecked saucer gone to meat, halfway through Open Orbit. It whips a tentacle along a line it aims first, bursts tumours into glob fans, and drops hatchling litters from a puckered belly hatch; below half HP it adds a bullet ring. It dies splitting in two in a flood of tentacles: CALAMARI SERVED.
+- 80 HP, so a fresh run can kill it (13 s naked, 8 s with a stage-1 kit). It drifts with the scroll instead of holding it, and the Open Orbit filler is skipped while it's up, so the stage keeps its length. It pays out in pods as it breaks up.
+
+### Effects, world, screens
+- **Hit sparks** per biome: blood, ice, fire, plus teal acid and yellow snot versions.
+- **Explosions**: Tyrian fireballs in sick bloody fire under the gibs, sized to what died.
+- **Eyes** use a real iris photo, tinted per eye, some with cat, frog or fish pupils. Built at idle, never mid-fight.
+- **Triton**, an eclipsed moon, hangs beside Neptune in Open Orbit.
+- **MERIDIAN corridors** show brass panels, vents and pipes with flesh growing over them.
+- **Ice biome** gets crystal pillars with frozen-blood veins.
+- **Hype voices** each get a diseased alien face in a glitchy CRT comms window, jaw flapping. The corpse plea gets an eyeless dead crewman.
+- **Game over**: a blood-red horned demon chews and drools over your score.
+- **Infirmary**: a HUMANFLESH / EAT HERE poster with stuttering neon.
+
+### Checked
+Two full descents on two fork routes with no errors or slams; midboss kill times in line; performance unchanged after the idle warm-up (`tools/perf-probe.mjs` now takes `WARM_MS=20000` to measure that way). The harness baseline moved because of the new enemies and the midboss (new: score 2869, scroll 2168) and stays deterministic.
+
 ## 2026-10-25 (voices, no crosses)
 
 ### Less hype, rarer pleading

@@ -1,7 +1,7 @@
 // Perf probe: real-clock cost of step() and render() per frame in the heaviest scenes: a crowded Open Orbit with a
 // strong kit, every boss / midboss in its own biome, and each boss's death + aftermath. The game's own rAF loop is
 // disabled; frames are driven by hand. CPU is throttled (default 4x) to approximate a phone.
-// Usage: node tools/perf-probe.mjs <url> [throttle=4] [scenes=all|maw,crux,...] [prof]
+// Usage: node tools/perf-probe.mjs <url> [throttle=4] [scenes=all|maw,crux,...] [prof]   (WARM_MS=20000 env: wait for the idle art warm-up first, like the title screen; fairer for boss scenes)
 //   prints avg / p95 / max ms for step and render, and the share of frames whose step+render blows the 16.7 ms budget.
 //   prof: also samples the JS profiler per scene and prints the top self-time functions.
 // Needs the VITE DEV server (imports live modules). Restart vite after edits before trusting numbers.
@@ -14,7 +14,7 @@ const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { window.requestAnimationFrame = () => 1; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
-await p.waitForTimeout(1500); // images / patterns load
+await p.waitForTimeout(+(process.env.WARM_MS || 1500)); // images / patterns load (WARM_MS: let the idle warm-up finish, like the title screen does)
 const cdp = await p.context().newCDPSession(p);
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: +THR });
 if (PROF) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 200 }); }

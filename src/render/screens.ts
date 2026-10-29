@@ -128,6 +128,7 @@ export function drawTitle() {
   txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', 28, 226, '#3f4955');
   txt('HI ' + pad($.hi, 8), 28, 240, '#8fa3b8');
   txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#5a2a2c', 'right');
+  txt('SPRITES: TIAMALT, SCARCZ, C.BELLANGER, D.COOK, SUNBURN, CIDERCORPSE', W - 8, H - 39, '#3a4048', 'right', 7);
   txt('MUSIC: DANCRAMP - VOID, FREESOUND ARTISTS   SFX: KENNEY, FREESOUND', W - 8, H - 30, '#3a4048', 'right', 7);
   txt('IMAGES: NASA/ESA/CSA JWST, VOYAGER 2, CHANDRA, FLICKR   SEE CREDITS.MD', W - 8, H - 21, '#3a4048', 'right', 7);
 }
