@@ -1,6 +1,6 @@
 // @ts-nocheck
 // =====================================================================
-//  THE ANAL PROBE - the Open Orbit midboss: a wrecked saucer gone to meat, smothered in tentacles.
+//  THE SQUIDFUCKED SAUCER - the Open Orbit midboss: a wrecked saucer gone to meat, smothered in tentacles.
 //  Gameplay only (art: src/render/gross/ufo.ts). Three telegraphed attacks, cycled lash / volley / lash / brood:
 //   LASH   (42f): a tentacle uncoils and a dashed line tracks you, then locks; it whips out ~220 px along it and back
 //   VOLLEY (36f): three tumours on the hull swell and glow, then burst into aimed 3-fans of pus globs
@@ -24,7 +24,7 @@ import { aimA, banner, every, fan, miniWarn, mk, ring, wrapA } from './spawn';
 import { playerHit } from '../player';
 import { dropCap } from './update';
 
-export const UFO_NAME = 'THE ANAL PROBE';
+export const UFO_NAME = 'THE SQUIDFUCKED SAUCER';
 /** Open Orbit scroll x of its WARNING (lands ~150 px later, ~45% through the stage), and where it must be gone by
  *  (the last of the filler, 1880..1900, always comes; the Maw's "SOMETHING IS COMING" is at 2000) */
 export const UFO_AT = 800, UFO_GAP_END = 1840;

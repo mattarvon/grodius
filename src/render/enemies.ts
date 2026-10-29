@@ -627,7 +627,7 @@ export const DRAW = {
   hatch: drawHatch,
   womb: drawWomb,
   maw: drawMaw,
-  ufo: drawUfoGross, // THE ANAL PROBE, the Open Orbit midboss: src/render/gross/ufo.ts
+  ufo: drawUfoGross, // THE SQUIDFUCKED SAUCER, the Open Orbit midboss: src/render/gross/ufo.ts
   choir: drawChoir,
   cyst: drawCyst,
   prentice: drawPrentice,

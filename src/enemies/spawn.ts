@@ -143,7 +143,7 @@ export const ET = {
   prentice: { hp: 150, r: 15, gsz: 4, score: 6000, bio: 70, skull: 1, limbs: 3, eyes: 3, teeth: 6, big: 1, mini: 1, mid: 1 },
   brood: { hp: 105, r: 20, gsz: 4, score: 6000, bio: 70, half: 1, amnio: 1, eyes: 3, teeth: 8, big: 1, mini: 1, mid: 1 },
   // the Open Orbit midboss (enemies/ufo.ts): r is the eye-core; the saucer's wings are extra hitboxes (e.hb)
-  ufo: { hp: 90, r: 15, gsz: 5, score: 6000, bio: 70, eyes: 3, teeth: 4, limbs: 4, big: 1, mini: 1, mid: 1 }
+  ufo: { hp: 80, r: 15, gsz: 5, score: 6000, bio: 70, eyes: 3, teeth: 4, limbs: 4, big: 1, mini: 1, mid: 1 }
 };
 export function mk(k, x, y, o = {}) {
   const b = ET[k],
@@ -444,7 +444,7 @@ export function buildScript(L) {
     sfx.dread();
   });
   at(2120, () => maw(true));
-  at(UFO_AT, ufoWarn); // THE ANAL PROBE, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
+  at(UFO_AT, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
   if (hard) {
     at(900, () => behindWave(PH * .3, 4)); // a rear wave between the dives and the wall
     at(1550, () => { flayer(PH * .25); flayer(PH * .75); }); // a flayer pair as the behind wave clears

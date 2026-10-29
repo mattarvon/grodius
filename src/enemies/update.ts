@@ -499,7 +499,7 @@ export function updEnemy(e) {
         break;
       }
     case 'ufo':
-      updUfo(e); // THE ANAL PROBE, the Open Orbit midboss: enemies/ufo.ts
+      updUfo(e); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss: enemies/ufo.ts
       break;
     case 'maw':
       {
@@ -742,7 +742,7 @@ export function killEnemy(e, dir = 1) {
     dropCap(e.x - 20, e.y + 16);
     splat(rr(150, 330), rr(60, 160), 4);
     splat(rr(150, 330), rr(60, 160), 3);
-    banner({ choir: 'SILENCED', cyst: 'BURST', prentice: 'CLEAVED', brood: 'STILLBORN', ufo: 'PROBE EXTRACTED' }[e.k], '', undefined, 90);
+    banner({ choir: 'SILENCED', cyst: 'BURST', prentice: 'CLEAVED', brood: 'STILLBORN', ufo: 'CALAMARI SERVED' }[e.k], '', undefined, 90);
     if (e.k === 'ufo') ufoKilled(e);
     $.G.hitstop = Math.max($.G.hitstop || 0, 10);
     sfx.roar();

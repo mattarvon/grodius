@@ -1,6 +1,6 @@
 // Midboss probe: time-to-kill for each biome midboss (docs/pacing.md 3.2) across boss-probe's loadout tiers, with the
 // Maw midboss (maw(false)) as the yardstick. Each fight runs inside its real biome (fork gate taken, terrain rewritten,
-// palette on); THE ANAL PROBE (ufo) runs in Open Orbit at its real scroll x, with the scroll moving (it doesn't hold it)
+// palette on); THE SQUIDFUCKED SAUCER (ufo) runs in Open Orbit at its real scroll x, with the scroll moving (it doesn't hold it)
 // and its forced exit before the Maw's run-up. Invincible bot parks at x=90 and tracks the midboss's y, holding fire.
 // Usage: node tools/midboss-probe.mjs <url> [shotsDir] [zoomDir]   (also saves a rendered mid-fight midboss-<biome>.png, and a close-up)
 //  TTK = seconds from the midboss being on screen to dead; "esc" = it left (escape timer) first
@@ -69,7 +69,7 @@ for (const [name, pw, gm, pkk] of L) {
   }
 }
 console.log('rank per loadout:', JSON.stringify(rank));
-console.log('loadout'.padEnd(16), ...['MAW(mid)', 'NAIL CHOIR', 'DISS. WOMB', 'APPRENTICE', 'BROOD MOM', 'ANAL PROBE'].map((s) => s.padStart(11)));
+console.log('loadout'.padEnd(16), ...['MAW(mid)', 'NAIL CHOIR', 'DISS. WOMB', 'APPRENTICE', 'BROOD MOM', 'SQUID SAUCER'].map((s) => s.padStart(11)));
 for (const [n, r] of Object.entries(out)) console.log(n.padEnd(16), ...MIDS.map(([k]) => String(r[k]).padStart(11)));
 if (SHOTS) for (const [k, biome] of MIDS.slice(1)) {
   await prep(...L[1].slice(1), k, biome);

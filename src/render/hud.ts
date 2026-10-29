@@ -164,7 +164,7 @@ export function drawHUD() {
         cyst: 'THE DISSOLVING WOMB',
         prentice: "THE BUTCHER'S APPRENTICE",
         brood: 'THE BROOD MOTHER',
-        ufo: 'THE ANAL PROBE'
+        ufo: 'THE SQUIDFUCKED SAUCER'
       }[m.k] || '',
       bw = 180,
       bx = W / 2 - bw / 2,

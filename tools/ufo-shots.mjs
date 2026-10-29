@@ -1,4 +1,4 @@
-// UFO shots: THE ANAL PROBE (Open Orbit midboss, enemies/ufo.ts + render/gross/ufo.ts) at 2x: the WARNING, idle, each
+// UFO shots: THE SQUIDFUCKED SAUCER (Open Orbit midboss, enemies/ufo.ts + render/gross/ufo.ts) at 2x: the WARNING, idle, each
 // attack's telegraph and release, wounded (last damage sheet + hull cracks), and the death (hull split, tentacle flood).
 // Saves full-frame + close-up PNGs.
 // Usage: node tools/ufo-shots.mjs <url> <outDir>      (needs the VITE dev server: imports live modules)

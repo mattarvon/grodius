@@ -37,7 +37,7 @@ export const BIOME_MIX = {
   fire: { track: 'void-11-corporate-identity', rate: 1, type: 'lowshelf', f: 160, q: .7, gain: 4, lfo: 0, depth: 0, drive: .35 },
   // snot: muffled, a soft lowpass breathing between ~1800 and ~3000Hz
   snot: { track: 'void-09-pods', rate: 1, type: 'lowpass', f: 2400, q: 1, lfo: .13, depth: 600, drive: .05 },
-  // not a biome: while THE ANAL PROBE (Open Orbit midboss) is up, Open Orbit's own track goes wet and wobbly, a slow wah
+  // not a biome: while THE SQUIDFUCKED SAUCER (Open Orbit midboss) is up, Open Orbit's own track goes wet and wobbly, a slow wah
   ufo: { rate: 1, type: 'bandpass', f: 1100, q: .6, lfo: .35, depth: 650, drive: .25 },
 };
 const FADE = 1.4, PAUSE_LVL = .35, DUCK_LVL = .3;

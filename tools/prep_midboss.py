@@ -1,4 +1,4 @@
-"""Sprite prep for THE ANAL PROBE, the Open Orbit midboss (src/render/gross/ufo.ts).
+"""Sprite prep for THE SQUIDFUCKED SAUCER, the Open Orbit midboss (src/render/gross/ufo.ts).
 
 Source: The_Scientist___'s CC0 "Alien Bosses" set, Infested UFO Boss: InfUFO_1/_2/_3.png, three damage states of a
 saucer smothered in tentacles, each a 2x9 sheet of 160x40 frames (17 used). The source is flat, bright cartoon art

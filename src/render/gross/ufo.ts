@@ -1,6 +1,6 @@
 // @ts-nocheck
 // =====================================================================
-//  THE ANAL PROBE, the Open Orbit midboss: a wrecked saucer gone to meat under a skin of tentacles.
+//  THE SQUIDFUCKED SAUCER, the Open Orbit midboss: a wrecked saucer gone to meat under a skin of tentacles.
 //  Render-only. Gameplay (HP, attacks, hitboxes, timing) is enemies/ufo.ts; everything here reads entity fields
 //  (e.t, e.st, e.wt, e.la, e.ll, e.burst, e.hp) and never calls the gameplay RNG (core R / rr / pick).
 //
