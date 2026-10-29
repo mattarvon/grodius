@@ -5,6 +5,7 @@ import { ceilAt } from '../world';
 import { whipPts } from '../enemies/update';
 import { drawChain, drawHookTip, drawSkull, glow, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
+import { spr, sprAt, sprN, sprReady } from '../sprites';
 import { grossBrood, grossChoir, grossCyst, grossPrentice } from './gross/midbosses';
 
 // --- enemies ---
@@ -135,88 +136,200 @@ export function drawCorpse(c, e) {
   c.fillRect(-2, -8, 1, 2.6);
   c.fillRect(1.2, -8, 1, 1.8);
 }
+// wall eye turret: the tentacle creature (eye variant) rooted in the rock. A flattened copy is the root mat splayed
+// over the surface, the upright body is half-buried (clipped at the surface), and the realistic eye on top keeps the
+// aim / blink / charge tells. Ceiling ones are mirrored by the scale flip. Render-only: no gameplay RNG.
 export function drawEyeT(c, e) {
-  if (e.o < 0) c.scale(1, -1);
-  c.fillStyle = '#1a2027';
-  poly(c, [[-13, 6], [-9, -2], [9, -2], [13, 6]]);
-  c.fillStyle = '#5d6b7a';
-  c.fillRect(-9, -2, 18, 1);
-  c.fillStyle = '#8e9cab';
-  c.fillRect(-7, 1, 1, 1);
-  c.fillRect(6, 1, 1, 1);
-  c.fillStyle = C.fleshD;
+  if (!sprReady('walleye')) {
+    // fallback until the strip loads: the old code-drawn art
+    if (e.o < 0) c.scale(1, -1);
+    c.fillStyle = '#1a2027';
+    poly(c, [[-13, 6], [-9, -2], [9, -2], [13, 6]]);
+    c.fillStyle = '#5d6b7a';
+    c.fillRect(-9, -2, 18, 1);
+    c.fillStyle = '#8e9cab';
+    c.fillRect(-7, 1, 1, 1);
+    c.fillRect(6, 1, 1, 1);
+    c.fillStyle = C.fleshD;
+    c.beginPath();
+    c.ellipse(0, -3, 10, 4, 0, 0, TAU);
+    c.fill();
+    c.fillStyle = C.flesh;
+    c.beginPath();
+    c.ellipse(0, -3.6, 8.5, 2.6, 0, Math.PI, TAU);
+    c.fill();
+    const ey = e.y - e.o * 9;
+    eye(c, 0, -9, 6.9, {
+      ang: Math.atan2($.P.y - ey, $.P.x - e.x),
+      iris: '#8a9a22',
+      bs: 1.6,
+      dil: e.cool < 20 ? 1.5 : .85,
+      blink: e.blink > 0 ? 1 : 0,
+      lid: '#7a2a24'
+    });
+    return;
+  }
+  const o = e.o < 0 ? -1 : 1;
+  if (o < 0) c.scale(1, -1);
+  const t = e.t || 0,
+    f = sprAt(t + (e.x * 7 | 0), 7),
+    chg = e.cool < 20 ? 1 - Math.max(0, e.cool) / 20 : 0,
+    br = Math.sin(t * .07) * .04 + chg * .08;
+  // root mat: the creature's tentacles spread flat over the rock, veins running off into it
+  spr(c, 'walleye', f + 3, 0, .5, { sx: 1.35, sy: .32, a: .95 });
+  c.strokeStyle = 'rgba(110,8,16,.85)';
+  c.lineWidth = .8;
   c.beginPath();
-  c.ellipse(0, -3, 10, 4, 0, 0, TAU);
-  c.fill();
-  c.fillStyle = C.flesh;
+  for (const [a, l] of e.veins || []) {
+    const dx = Math.cos(a) * (l * 2.2 + 6);
+    c.moveTo(dx * .45, 0);
+    c.quadraticCurveTo(dx * .8, 1.6 + Math.sin(a * 3) * 1.2, dx, .8 + Math.abs(Math.sin(a)) * 2);
+  }
+  c.stroke();
+  // upright body, sunk into the rock below y = 1.5
+  c.save();
   c.beginPath();
-  c.ellipse(0, -3.6, 8.5, 2.6, 0, Math.PI, TAU);
+  c.rect(-22, -34, 44, 35.5);
+  c.clip();
+  spr(c, 'walleye', f, 0, -8, { sx: 1 + br, sy: 1 - br * .6 });
+  // wet, swollen lip of rock-flesh where it grows out
+  c.fillStyle = '#3a0c10';
+  c.beginPath();
+  c.ellipse(0, 1.2, 11, 2.4, 0, Math.PI, TAU);
   c.fill();
+  c.fillStyle = 'rgba(190,70,70,.55)';
+  c.fillRect(-8, -1, 3, 1);
+  c.fillRect(4, -1, 4, 1);
+  c.restore();
+  // charge tell: the socket flushes and throbs before it fires
+  if (chg > 0) {
+    c.fillStyle = `rgba(255,40,40,${.25 + .45 * chg * (.6 + .4 * Math.sin(t * 1.3))})`;
+    c.beginPath();
+    c.arc(0, -8.5, 5.6 + chg * 1.2, 0, TAU);
+    c.fill();
+  }
+  // pus: beads that ooze out of the socket and slide down to the rock (floor) or drip off the tip (ceiling)
+  const pu = (t * .025 + e.x * .013) % 1;
+  c.fillStyle = 'rgba(214,196,92,.9)';
+  if (o > 0) {
+    c.fillRect(3.5, -6 + pu * 6, 1, 1.4);
+    c.fillRect(-5, -4 + ((pu + .5) % 1) * 4, 1, 1);
+  } else {
+    c.fillRect(1, -19 - pu * 6, 1, 1 + pu * 1.5);
+    c.fillStyle = 'rgba(214,196,92,.5)';
+    c.fillRect(1, -19, .6, -pu * 5);
+  }
   const ey = e.y - e.o * 9;
-  eye(c, 0, -9, 6.9, {
+  eye(c, 0, -8.5, 4.6 + chg * .6, {
     ang: Math.atan2($.P.y - ey, $.P.x - e.x),
-    iris: '#8a9a22',
-    bs: 1.6,
-    dil: e.cool < 20 ? 1.5 : .85,
+    iris: chg > .5 ? '#c8a020' : '#8a9a22',
+    bs: 1.8,
+    dil: e.cool < 20 ? 1.6 : .8,
     blink: e.blink > 0 ? 1 : 0,
-    lid: '#7a2a24'
+    lid: '#4a1018'
   });
 }
+// wall crawler: the earwig, turned on its side to scuttle along the wall head-first (left), walk frames tied to the
+// ground it covers. Wet carapace glint, dripping mandibles that gape before it spits.
 export function drawCrawler(c, e) {
+  if (!sprReady('earwig')) {
+    // fallback until the strip loads: the old code-drawn art
+    if (e.o < 0) c.scale(1, -1);
+    const t = e.t * .35;
+    c.strokeStyle = C.bone;
+    c.lineWidth = 1.3;
+    c.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+      const bx = -5 + k * 5,
+        ph = t + k * 2.1;
+      const fx = bx + Math.sin(ph) * 3,
+        fy = 7 - Math.max(0, Math.cos(ph)) * 2.5;
+      c.beginPath();
+      c.moveTo(bx, 0);
+      c.lineTo(bx + (k - 1) * 2, -7);
+      c.lineTo(fx, fy);
+      c.stroke();
+      const ph2 = ph + Math.PI;
+      c.beginPath();
+      c.moveTo(bx, 1);
+      c.lineTo(bx + (k - 1) * 2 + 1, -5);
+      c.lineTo(bx + Math.sin(ph2) * 3, 7 - Math.max(0, Math.cos(ph2)) * 2.5);
+      c.stroke();
+    }
+    c.lineCap = 'butt';
+    c.fillStyle = '#3e1410';
+    c.beginPath();
+    c.ellipse(1, 0, 10, 5.5, 0, 0, TAU);
+    c.fill();
+    c.fillStyle = e.cap ? '#c4313a' : '#8c3b32';
+    c.beginPath();
+    c.ellipse(1, -.6, 9, 4.4, 0, 0, TAU);
+    c.fill();
+    c.strokeStyle = C.bone;
+    c.lineWidth = 1;
+    for (let k = 0; k < 4; k++) {
+      c.beginPath();
+      c.arc(-3 + k * 3.5, 0, 4, Math.PI * 1.1, Math.PI * 1.9);
+      c.stroke();
+    }
+    c.fillStyle = C.skin;
+    c.beginPath();
+    c.arc(-10, -1, 4.2, 0, TAU);
+    c.fill();
+    c.fillStyle = '#120606';
+    c.fillRect(-12.5, -3, 1.6, 1.8);
+    c.fillRect(-9.8, -3, 1.6, 1.8);
+    const j = e.air ? 2.5 : Math.abs(Math.sin(e.t * .12)) * 1.5;
+    c.fillRect(-12, 0, 4, 1 + j);
+    c.fillStyle = C.bone;
+    for (let k = 0; k < 3; k++) {
+      c.fillRect(-11.8 + k * 1.3, 0, .8, .8);
+      c.fillRect(-11.8 + k * 1.3, .4 + j, .8, .8);
+    }
+    c.fillStyle = C.blood;
+    c.fillRect(-11, 1.5 + j, 1, 2);
+    return;
+  }
   if (e.o < 0) c.scale(1, -1);
-  const t = e.t * .35;
-  c.strokeStyle = C.bone;
-  c.lineWidth = 1.3;
-  c.lineCap = 'round';
-  for (let k = 0; k < 3; k++) {
-    const bx = -5 + k * 5,
-      ph = t + k * 2.1;
-    const fx = bx + Math.sin(ph) * 3,
-      fy = 7 - Math.max(0, Math.cos(ph)) * 2.5;
-    c.beginPath();
-    c.moveTo(bx, 0);
-    c.lineTo(bx + (k - 1) * 2, -7);
-    c.lineTo(fx, fy);
-    c.stroke();
-    const ph2 = ph + Math.PI;
-    c.beginPath();
-    c.moveTo(bx, 1);
-    c.lineTo(bx + (k - 1) * 2 + 1, -5);
-    c.lineTo(bx + Math.sin(ph2) * 3, 7 - Math.max(0, Math.cos(ph2)) * 2.5);
-    c.stroke();
-  }
-  c.lineCap = 'butt';
-  c.fillStyle = '#3e1410';
+  const t = e.t || 0,
+    n = sprN('earwig'),
+    f = e.air ? t * 1.6 : t * (e.spd || .6) * n / 14,
+    bob = e.air ? 0 : Math.abs(Math.sin(f * TAU / n * 2)) * .5;
+  const flt = c.filter;
+  if (e.cap && flt === 'none') c.filter = 'saturate(1.7) hue-rotate(-12deg) brightness(1.15)';
+  // body centre sits ~2 px over the surface (y = 7): the lower legs dig into the rock, the upper ones paw the air
+  c.translate(0, 1.7 - bob);
+  spr(c, 'earwig', f, 0, 0, { sy: .72 });
+  c.filter = flt;
+  // glistening carapace: a slick highlight that slides along the back, plus fixed wet specks
+  const g = (t * .05 + e.x * .02) % 1;
+  c.fillStyle = 'rgba(255,225,200,.8)';
+  c.fillRect(-9 + g * 13, -2.2, 2, .7);
+  c.fillStyle = 'rgba(255,200,180,.5)';
+  c.fillRect(-5, -1.6, 1, .6);
+  c.fillRect(1.5, -1.9, 1, .6);
+  // mandibles: gape before a spit and while airborne
+  const gp = e.air ? 1 : e.cool < 14 ? 1 - Math.max(0, e.cool) / 14 : Math.abs(Math.sin(t * .12)) * .25;
+  c.strokeStyle = '#e3d2b0';
+  c.lineWidth = .9;
   c.beginPath();
-  c.ellipse(1, 0, 10, 5.5, 0, 0, TAU);
-  c.fill();
-  c.fillStyle = e.cap ? '#c4313a' : '#8c3b32';
-  c.beginPath();
-  c.ellipse(1, -.6, 9, 4.4, 0, 0, TAU);
-  c.fill();
-  c.strokeStyle = C.bone;
-  c.lineWidth = 1;
-  for (let k = 0; k < 4; k++) {
-    c.beginPath();
-    c.arc(-3 + k * 3.5, 0, 4, Math.PI * 1.1, Math.PI * 1.9);
-    c.stroke();
+  c.moveTo(-12, -.9);
+  c.lineTo(-15, -1.1 - gp * 1.8);
+  c.moveTo(-12, .9);
+  c.lineTo(-15, 1.1 + gp * 1.8);
+  c.stroke();
+  if (gp > .3) {
+    c.fillStyle = '#5a0408';
+    c.fillRect(-15, -gp, 2.6, gp * 2);
   }
-  c.fillStyle = C.skin;
-  c.beginPath();
-  c.arc(-10, -1, 4.2, 0, TAU);
-  c.fill();
-  c.fillStyle = '#120606';
-  c.fillRect(-12.5, -3, 1.6, 1.8);
-  c.fillRect(-9.8, -3, 1.6, 1.8);
-  const j = e.air ? 2.5 : Math.abs(Math.sin(e.t * .12)) * 1.5;
-  c.fillRect(-12, 0, 4, 1 + j);
-  c.fillStyle = C.bone;
-  for (let k = 0; k < 3; k++) {
-    c.fillRect(-11.8 + k * 1.3, 0, .8, .8);
-    c.fillRect(-11.8 + k * 1.3, .4 + j, .8, .8);
-  }
-  c.fillStyle = C.blood;
-  c.fillRect(-11, 1.5 + j, 1, 2);
+  // drool: a slime string with a bead stretching off the jaw, and a blood drip
+  const dl = (t * .04 + e.x * .03) % 1;
+  c.fillStyle = 'rgba(205,215,170,.75)';
+  c.fillRect(-14.2, 1.4, .7, 1 + dl * 4.5);
+  c.fillStyle = 'rgba(225,235,190,.95)';
+  c.fillRect(-14.5, 2.1 + dl * 4.5, 1.3, 1.3);
+  c.fillStyle = C.bloodL;
+  c.fillRect(-12.4, 1.4, .8, 1 + ((dl + .4) % 1) * 2.5);
 }
 export function drawHatch(c, e) {
   const w = Math.sin(e.t * .4 + (e.ph || 0));
@@ -249,51 +362,148 @@ export function drawHatch(c, e) {
   c.fillStyle = '#7a0b10';
   c.fillRect(-dir * 3 - 1, 1.3, 2.4, 1);
 }
+// ceiling womb: the tentacle creature again (teeth variant, same grade as the eye turret), its root mat gripping the
+// rock, slung on a raw umbilical, its toothed slit turned upright. It throbs harder as the next birth comes due, the
+// slit splits open on a hatchling's face, then gapes and gushes after it drops. Render-only: no gameplay RNG.
 export function drawWomb(c, e) {
-  const s = 1 + Math.sin(e.t * .09) * .05;
-  c.strokeStyle = '#5a1a1a';
-  c.lineWidth = 3;
+  if (!sprReady('womb')) {
+    // fallback until the strip loads: the old code-drawn art
+    const s = 1 + Math.sin(e.t * .09) * .05;
+    c.strokeStyle = '#5a1a1a';
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(0, -11);
+    c.quadraticCurveTo(Math.sin(e.t * .03) * 3, -e.st * .6, 0, -e.st - 4);
+    c.stroke();
+    c.strokeStyle = '#8c3b32';
+    c.lineWidth = 1;
+    c.stroke();
+    c.save();
+    c.scale(s, s);
+    c.fillStyle = 'rgba(120,30,30,.9)';
+    c.beginPath();
+    c.ellipse(0, 0, 11.5, 14, 0, 0, TAU);
+    c.fill();
+    c.fillStyle = 'rgba(205,110,95,.55)';
+    c.beginPath();
+    c.ellipse(0, 0, 10, 12.6, 0, 0, TAU);
+    c.fill();
+    c.fillStyle = 'rgba(60,8,10,.85)';
+    const k = Math.sin(e.t * .05);
+    c.beginPath();
+    c.arc(-2 + k, -4, 4, 0, TAU);
+    c.fill();
+    c.beginPath();
+    c.ellipse(1, 3, 4.5, 6, .5 + k * .2, 0, TAU);
+    c.fill();
+    c.fillStyle = 'rgba(255,40,30,.6)';
+    c.fillRect(-3.4 + k, -5, 1, 1);
+    c.strokeStyle = 'rgba(70,5,10,.8)';
+    c.lineWidth = .7;
+    c.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * TAU;
+      c.moveTo(Math.cos(a) * 10, Math.sin(a) * 12);
+      c.quadraticCurveTo(Math.cos(a + .4) * 6, Math.sin(a + .4) * 7, Math.cos(a + .7) * 3, Math.sin(a + .7) * 4);
+    }
+    c.stroke();
+    c.fillStyle = 'rgba(255,230,210,.5)';
+    c.beginPath();
+    c.ellipse(-4, -6, 2.4, 1.2, -.6, 0, TAU);
+    c.fill();
+    c.restore();
+    return;
+  }
+  const t = e.t || 0,
+    cy = Math.min(-8, ceilAt(e.x + $.G.scroll) - e.y),
+    cap = Math.max(70, 120 - ($.G.loop || 0) * 15),
+    since = cap - e.cool,
+    pre = e.cool < 26 ? Math.min(1, (26 - e.cool) / 26) : 0,
+    post = since >= 0 && since < 18 ? 1 - since / 18 : 0,
+    op = Math.max(pre, post),
+    f = sprAt(t + (e.x * 5 | 0), 6),
+    s = 1 + Math.sin(t * (.09 + op * .3)) * (.04 + op * .05) + op * .05,
+    sw = Math.sin(t * .03) * 3;
+  // grip: the tentacles splayed flat over the ceiling
+  spr(c, 'womb', f + 4, sw * .3, cy - .5, { sx: 1.3, sy: -.3 });
+  // umbilical: raw cord from the grip down into the sac
+  c.lineCap = 'round';
+  c.strokeStyle = '#3a0a0e';
+  c.lineWidth = 4.5;
   c.beginPath();
-  c.moveTo(0, -11);
-  c.quadraticCurveTo(Math.sin(e.t * .03) * 3, -e.st * .6, 0, -e.st - 4);
+  c.moveTo(sw * .3, cy);
+  c.quadraticCurveTo(sw, cy * .5, 0, -8);
   c.stroke();
-  c.strokeStyle = '#8c3b32';
-  c.lineWidth = 1;
+  c.strokeStyle = '#7a2228';
+  c.lineWidth = 2.2;
   c.stroke();
-  c.save();
-  c.scale(s, s);
-  c.fillStyle = 'rgba(120,30,30,.9)';
-  c.beginPath();
-  c.ellipse(0, 0, 11.5, 14, 0, 0, TAU);
-  c.fill();
-  c.fillStyle = 'rgba(205,110,95,.55)';
-  c.beginPath();
-  c.ellipse(0, 0, 10, 12.6, 0, 0, TAU);
-  c.fill();
-  c.fillStyle = 'rgba(60,8,10,.85)';
-  const k = Math.sin(e.t * .05);
-  c.beginPath();
-  c.arc(-2 + k, -4, 4, 0, TAU);
-  c.fill();
-  c.beginPath();
-  c.ellipse(1, 3, 4.5, 6, .5 + k * .2, 0, TAU);
-  c.fill();
-  c.fillStyle = 'rgba(255,40,30,.6)';
-  c.fillRect(-3.4 + k, -5, 1, 1);
-  c.strokeStyle = 'rgba(70,5,10,.8)';
+  c.strokeStyle = 'rgba(230,150,140,.5)';
   c.lineWidth = .7;
   c.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a = i / 6 * TAU;
-    c.moveTo(Math.cos(a) * 10, Math.sin(a) * 12);
-    c.quadraticCurveTo(Math.cos(a + .4) * 6, Math.sin(a + .4) * 7, Math.cos(a + .7) * 3, Math.sin(a + .7) * 4);
-  }
+  c.moveTo(sw * .3 - .8, cy + 1);
+  c.quadraticCurveTo(sw - .8, cy * .5, -.8, -9);
   c.stroke();
-  c.fillStyle = 'rgba(255,230,210,.5)';
+  c.lineCap = 'butt';
+  // the sac: toothed slit stood upright (the sheet's slit runs at 45 degrees)
+  c.save();
+  c.scale(s, s * (1 + op * .04));
+  spr(c, 'womb', f, 0, 0, { rot: -Math.PI / 4 });
+  // the slit: a dark lens that splits wider as it births
+  const w = 1.5 + op * 3,
+    h = 6.5 + op * 1.5;
+  c.fillStyle = '#5a1418';
   c.beginPath();
-  c.ellipse(-4, -6, 2.4, 1.2, -.6, 0, TAU);
+  c.ellipse(0, 1, w + 1.2, h + .8, 0, 0, TAU);
+  c.fill();
+  c.fillStyle = '#140204';
+  c.beginPath();
+  c.ellipse(0, 1, w, h, 0, 0, TAU);
+  c.fill();
+  // something pale pushing through: a hatchling's face in the slit before it drops
+  if (pre > .45) {
+    const k = (pre - .45) / .55;
+    c.fillStyle = '#d8a59a';
+    c.beginPath();
+    c.ellipse(0, 2.5 + k * 1.5, w * .75, 2.6 + k, 0, 0, TAU);
+    c.fill();
+    c.fillStyle = '#0c0405';
+    c.fillRect(-1.6, 2 + k * 1.5, 1, 1);
+    c.fillRect(.6, 2 + k * 1.5, 1, 1);
+  }
+  // teeth on both lips, pointing in
+  c.fillStyle = C.bone;
+  for (let i = 0; i < 3; i++) {
+    const ty = -3.2 + i * 3.6,
+      tw = (i === 1 ? 1.6 : 1.1) + op * .6;
+    poly(c, [[-w - .6, ty - 1.1], [-w + tw, ty + .2], [-w - .6, ty + 1.2]]);
+    poly(c, [[w + .6, ty + .6], [w - tw, ty + 1.8], [w + .6, ty + 2.9]]);
+  }
+  // mucus strings across the gap after a birth
+  if (post > 0) {
+    c.strokeStyle = `rgba(220,210,170,${.7 * post})`;
+    c.lineWidth = .5;
+    c.beginPath();
+    c.moveTo(-w, -2);
+    c.quadraticCurveTo(0, 1 + post * 2, w, -1);
+    c.moveTo(-w, 3);
+    c.quadraticCurveTo(0, 5 + post, w, 4);
+    c.stroke();
+  }
+  // wet sheen on the bulge
+  c.fillStyle = 'rgba(255,220,210,.45)';
+  c.beginPath();
+  c.ellipse(-5, -6, 2, .9, -.6, 0, TAU);
   c.fill();
   c.restore();
+  // amniotic drool off the bottom of the slit; a gush right after a birth
+  const dl = (t * .035 + e.x * .02) % 1,
+    gush = post * 9;
+  c.fillStyle = 'rgba(190,40,45,.85)';
+  c.fillRect(-.5, 7.5 * s, 1, 1.5 + dl * 4 + gush);
+  c.fillStyle = 'rgba(225,215,170,.75)';
+  c.fillRect(.6, 7 * s, .7, 1 + ((dl + .5) % 1) * 5 + gush * .6);
+  c.fillStyle = 'rgba(160,20,28,.9)';
+  c.fillRect(-.9, 9 * s + dl * 4 + gush, 1.6, 1.6);
 }
 import { GROSS as GROSS_MAW, drawGrossMaw } from './gross/maw'; // THE MAW / DISSOLVED / MUCUS, gross edition
 export function drawMaw(c, e) {
