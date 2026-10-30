@@ -23,6 +23,7 @@ import { drop, flash, spark } from '../fx/spawn';
 import { aimA, banner, every, fan, miniWarn, mk, ring, wrapA } from './spawn';
 import { playerHit } from '../player';
 import { dropCap } from './update';
+import { cdm } from '../depth';
 
 export const UFO_NAME = 'THE SQUIDFUCKED SAUCER';
 /** Open Orbit scroll x of its WARNING (lands ~150 px later, ~45% through the stage), and where it must be gone by
@@ -54,7 +55,7 @@ function onLash(e) {
   const px = $.P.x - ox, py = $.P.y - oy, u = clamp(px * dx + py * dy, 0, e.ll);
   return dist2(px, py, dx * u, dy * u) < 6 * 6;
 }
-const cd = (e, ph2) => Math.round((ph2 ? 52 : 78) * (1 - .3 * ($.G.rank || 0)));
+const cd = (e, ph2) => Math.round((ph2 ? 52 : 78) * (1 - .3 * ($.G.rank || 0)) * cdm()); // cdm: depth, src/depth.ts
 
 export function updUfo(e) {
   const ph2 = e.hp < e.max * .5;

@@ -21,19 +21,21 @@ import { SET } from './save';
 import { WARD_MAX } from './player';
 import { drawChain, drawHookTip, light } from './render/util';
 
-/** id, name, Infirmary blurb, buy cost, level-up costs (lvl 2, 3). Logic/visual owners key off `id`. */
+/** id, name, Infirmary blurb, buy cost, level-up costs (lvl 2, 3). Logic/visual owners key off `id`.
+ *  Prices (docs/pacing.md 3.7): buy prices as before; level 2 ~1.4-1.7x and level 3 ~2.3-2.9x the buy price (was +80 / +240), so
+ *  with SOCKET_COST the whole rack (~9.4k) takes ~5 descents of biomass and the whole Infirmary (~13.5k) ~6. */
 export const RIG = [
-  { id: 'saw', name: 'BONE SAW', desc: 'A buzzsaw of sharpened ribs on the prow. Ram enemies to shred them.', cost: 180, up: [260, 420] },
-  { id: 'gut', name: 'GUT CANNON', desc: 'A belly cannon that coughs a piercing slug of bone and offal every few seconds.', cost: 220, up: [300, 480] },
-  { id: 'leech', name: 'LEECH PUMP', desc: 'A pumping heart on the spine. Kills fill its vial; a full vial regrows a WARD hit (or grants one).', cost: 260, up: [340, 520] },
-  { id: 'spine', name: 'SPINE LAUNCHER', desc: 'Dorsal quill rack. Fires a volley of homing spines at the nearest enemies.', cost: 240, up: [320, 500] },
-  { id: 'hook', name: 'MEAT WINCH', desc: 'A chain-and-hook arm that harpoons an enemy, rips it open and reels its pods in.', cost: 200, up: [280, 460] },
-  { id: 'furnace', name: 'FURNACE BELLY', desc: 'Stoked exhaust stacks. Faster ship, and a trail of burning slag behind you.', cost: 200, up: [280, 440] },
-  { id: 'choir', name: 'CHOIR OF MOUTHS', desc: 'A ring of screaming mouths. At a 10-kill chain they scream and wipe nearby enemy bullets.', cost: 300, up: [380, 560] },
+  { id: 'saw', name: 'BONE SAW', desc: 'A buzzsaw of sharpened ribs on the prow. Ram enemies to shred them.', cost: 180, up: [300, 520] },
+  { id: 'gut', name: 'GUT CANNON', desc: 'A belly cannon that coughs a piercing slug of bone and offal every few seconds.', cost: 220, up: [340, 580] },
+  { id: 'leech', name: 'LEECH PUMP', desc: 'A pumping heart on the spine. Kills fill its vial; a full vial regrows a WARD hit (or grants one).', cost: 260, up: [380, 620] },
+  { id: 'spine', name: 'SPINE LAUNCHER', desc: 'Dorsal quill rack. Fires a volley of homing spines at the nearest enemies.', cost: 240, up: [360, 600] },
+  { id: 'hook', name: 'MEAT WINCH', desc: 'A chain-and-hook arm that harpoons an enemy, rips it open and reels its pods in.', cost: 200, up: [320, 560] },
+  { id: 'furnace', name: 'FURNACE BELLY', desc: 'Stoked exhaust stacks. Faster ship, and a trail of burning slag behind you.', cost: 200, up: [320, 540] },
+  { id: 'choir', name: 'CHOIR OF MOUTHS', desc: 'A ring of screaming mouths. At a 10-kill chain they scream and wipe nearby enemy bullets.', cost: 300, up: [420, 680] },
 ];
 export const RIG_BY = Object.fromEntries(RIG.map((r) => [r.id, r]));
 /** sockets: 1 base, +1 per Infirmary 'socket' level (max 3 sockets) */
-export const SOCKET_COST = [400, 900];
+export const SOCKET_COST = [450, 1000];
 export const SOCKET_MAX = 3;
 
 // ---------------- tuning (index = level 1..3) ----------------
