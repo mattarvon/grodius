@@ -158,9 +158,45 @@ Stage 3 is about 500 px, roughly 8 s. That's too short to feel like arriving at 
 
 **Done (branch `stage-scripts`), option B.** Measured, stage 3 really started at ~8370, not 8200: the stage 2 boss's WARNING lets the scroll coast to ~8170, and the next stage starts 200 steps after the kill. So the old approach was **6.0–6.6 s**.
 - `LEVEL` 10000, `BOSS_AT` 9300. Everything keyed to the chamber moved +600 px in `world.ts` (`AMT.corr`/`core`, the `fT`/`cT`/`kT` fade-outs, `zT`) and in `render/terrain.ts` (`drawInterior`). The biome handoff `T_END0/1` stays at 8300–8600, so the biome hands back to the MERIDIAN corridor, which then opens into the chamber over 8900–9300.
-- `buildScript` PHASE 4 (8430–9150): sine + crew, two divers from opposite sides, wall eyes, a behind wave, zig + flayer, a wall, a flayer pair (Descent 2+: hatchlings and an extra diver), then **WARNING: GRAVITY WELL CRITICAL** at 9060 and a ~4 s breath of drifting corpses before the boss.
+- `buildScript` PHASE 4 (8430–9150) as first shipped (now remixed per descent, below): sine + crew, two divers from opposite sides, wall eyes, a behind wave, zig + flayer, a wall, a flayer pair (Descent 2+: hatchlings and an extra diver), then **WARNING: GRAVITY WELL CRITICAL** at 9060 and a ~4 s breath of drifting corpses before the boss.
 - **Approach (stage 3 start → boss): 16.5–17.6 s, mean 17.0** (`pod-probe` seeds 1–5). The "approach" track now plays for that long before the `boss3` track.
 - Stage 1-4 is 67.9 s on average (53.5–82.4), up from 58.0 s. Gravity Drive TTK with an end-of-Descent-1 kit is 32.0 s (was 32.2). `route-probe` passes on all 4 gate routes over 2 descents: minGap 114.7–138.1, 0 slams, hazards bad=[], errors none. One run in six logged a single `state:icicle`, a hazard spawned in the same frame a stage 2 tally began. It didn't repeat in two reruns of that route, and it's in biome code this change doesn't touch.
+
+#### Open Orbit and the Drive approach, remixed (branch `tune-remix`)
+A bot playtest (`tools/playtest.mjs`) showed stage x-1 and x-4 replaying the same script every descent (100% of kinds and the same wave order; only the drone count grew 5 → 8 with rank) and drones making up 54–75% of their spawns. The two scripts now live in `src/enemies/scripts.ts` (`spawn.ts` re-exports `buildScript`) and are cut into sections, each with hand-made variants:
+
+| Section | Scroll | Variants (0 = Descent 1's classic; D3+ = unlocks in Descent 3) |
+|---|---|---|
+| Orbit A, intro/build (always plays) | 200–760 | 0 classic (sine, sine, crew, lone sentry, hatchling swarm, divers) · 1 debris field (crew first, a sine weaving through, sentry pair, flayer, swarm) · 2 ambush (opens with a rear wave, crew, swarm head-on, sentries high and low) · 3 sentry picket, D3+ (two pods park high/low, a zig runs the gap, crew, flayer, swarm from behind) |
+| Saucer WARNING | 800 | fixed (`UFO_AT`); the filler up to `UFO_GAP_END` 1840 is still eaten while it's up |
+| Orbit C, peak (eaten while the Saucer is up) | 980–1780 | 0 classic · 1 brood swarm (floods from both sides, sentry cover, one sine, one dive) · 2 flayer alley (flayer pair over a drone wall, rear wave, swarm, late sentry) · 3 hull breach, D3+ (logline, a cascade of six corpses under a sentry, divers top and bottom, flayer pair, sentry pair) |
+| Orbit D, run-up (always plays) | 1880, 1900 | 0 hatch 8 + flayer · 1 sentry over a small zig, swarm from behind · 2 rear wave, flayer + corpse |
+| breath, Maw | 2000, 2120 | fixed |
+| Drive E, corridor gauntlet | 8430–8700 | 0 classic (the first mutant, alone; high sine, crew, swarm from behind) · 1 the hulk (mutant on the floor, ceiling crawlers, a sine down the middle, crew, sentry, swarm) · 2 crew drift (mutant, a womb on the ceiling, four corpses pulled aft, zig, flayer, swarm) · 3 lockdown, D3+ (sentry pair, drone wall, swarm from behind, crew; no meat) |
+| wall eyes | 8730 | fixed |
+| Drive F, rising pressure | 8760–8995 | 0 classic (sentry, rear wave, flayer, swarm, flayer pair) · 1 meat in the wind (rear wave, swarm through crew, sentry pair, flayer pair) · 2 gauntlet (swarm from behind, drone wall, sentry over a flayer, late sine) · 3 the crew wakes, D3+ (logline, crew, flayer pair, swarm + sentry, zig) |
+| WARNING: GRAVITY WELL CRITICAL, breath, Drive | 9060, 9150, 9300 | fixed |
+
+- **Picking:** Descent 1 always plays variant 0, and variant 0 never comes back. From Descent 2 each section picks a remix with the gameplay RNG at build time (`pickV`, so a seed replays the same run), preferring one this run hasn't played and never last descent's. Descents 1, 2 and 3 therefore never share a section's variant.
+- **Mutants and the corridor floor:** the floor gives out over world x ~8980–9200 (the drop into the chamber), and `mutant()` spawns at scroll + 504, so mutants (and floor/ceiling crawlers, wombs) only fit at scroll ~8430–8470. Open Orbit has no terrain, so its kinds can't change across descents (drone, corpse, sentry, flayer, hatch); its variety is in the formations, mixes and order.
+- **Drone budget:** `formation()` adds `round(3·rank)` drones per wave, so a remix wave is a base 3 (Orbit) or 4 (Drive). Each script keeps to about three drone waves.
+- **Descent 1 changes:** the 420 sine is 4 drones; the corpses move to 500, the lone sentry to 580, a 5-hatchling swarm takes 660 and the dive (4) moves to 730 (the old 820 dive was always eaten by the Saucer). In the peak, the 1220 sine became crew, a sentry joined at 1400 and the 1760 dive became a swarm. The Drive approach starts with the first mutant at 8440, trades the 8600/8670 dives for a swarm from behind, drops the 8850 zig and the 8920 wall for a hatchling swarm.
+
+`playtest.mjs`, seeds 11 and 7, 3 descents, before (`s11.txt`/`s7.txt` at `32c0350`) → after (`assets-raw/playtest/remix/v4-*`). Drone share of spawns, and the top wave signature:
+
+| Stage | Seed 11 before → after | Seed 7 before → after |
+|---|---|---|
+| 1-1 | 60% → 32% | 54% → 40% |
+| 1-4 | 75% → 36% | 75% → 31% |
+| 2-1 | 70% (top dronex8 ×5) → 48% (sentry ×2) | 70% (dronex8 ×5) → 35% (corpsex3 ×2) |
+| 2-4 | 72% → 40% | 71% → 31% |
+| 3-1 | 73% (dronex8 ×5) → 37% (sentry ×2) | 72% (dronex8 ×5) → 41% (sentry ×2) |
+| 3-4 | 73% → 30% | 71% → 41% |
+
+- Distinct wave signatures per stage: x-1 9–10 → 12–13, x-4 6 → 8–9. The 8-drone formation is no longer the top wave in any of these stages.
+- Kinds shared with last descent's stage: x-4 100% → 88% (crawlers in one remix, a womb in another). x-1 stays 100%: Open Orbit has no terrain for anything new.
+- Would-be hits per minute (invincible bot, whole run): seed 11 0.4 → 1.0, seed 7 0.2 → 0.4. Hatchling swarms and the mutant's lobs add body contact; still low.
+- `route-probe` 0 1 2 and 1 0 2: every boss and midboss spawns in both descents, 0 slams, hazards bad=[], 0 deaths, no page errors (only the worktree's `@fs` font 403s). `harness.mjs` st: `{"state":"over","score":1332,"scroll":3509,...}`, identical over two runs (was score 2869, scroll 2168: the build-time RNG calls shift the stream).
 
 ### 3.4 Power you can predict
 > **Baseline update (2026-10-15):** pods are *not* scarce. The first pod lands at 5.7 s and the rate is about 2× the targets below (§5), so **skip the guaranteed drops and the pity timer**. If anything, the open question is whether biome stages, at 7.7/min with a range of 2.8–12, are too swingy. The real problem in the baseline is **biome bosses running long with a stage-1 kit** (Crucifer 36 s, Butcher 30 s, bot time; real fights take about twice as long), so §3.6's timed phases matter more.
@@ -195,7 +231,7 @@ Bio income is about 270 per full-kill stage 0 and about 900–1200 per descent. 
 ## 4. Bugs and inconsistencies found while mapping
 1. ~~**DESCEND DEEPER promises "every stage pays double"** but no code doubled bio.~~ **Fixed (`pacing-pass`):** from Descent 2 on, stage grade bio and the +30 boss choice bio are ×2 (`deepPay()` in `src/stages.ts`), and the tally card shows `DEEP x2`. Kill-orb bio is unchanged.
 2. **Hatchlings that come out of wombs count toward `spawned`** (`spawn.ts:159`). That lowers kill% and the stage grade in womb-heavy biomes (acid, snot) for enemies the player never saw arrive. Only count enemies spawned by the script.
-3. ~~**Stage 0 is the same in every descent.** `const hard = L > 0` in `spawn.ts:400` is computed and never used.~~ **Fixed (`stage-scripts`):** from Descent 2 on, the sine waves at 420 and 1220 become zig waves, a 4-drone rear wave comes in at 900, and a flayer pair arrives at 1550. Descent 1 is unchanged: seeded `pod-probe` runs match the pre-change code exactly through stage 1-2 (same pod times, first pod 5.7 s). Stage 2-1 averages 48.1 s (45.1–51.6), against 49.4 s before; the stage length is scroll-fixed, so the extra waves show up as kills, not time. `route-probe` 2-1 kills: 99–104 out of 100–104 spawned.
+3. ~~**Stage 0 is the same in every descent.** `const hard = L > 0` in `spawn.ts:400` is computed and never used.~~ **Fixed (`stage-scripts`):** from Descent 2 on, the sine waves at 420 and 1220 become zig waves, a 4-drone rear wave comes in at 900, and a flayer pair arrives at 1550. Descent 1 is unchanged: seeded `pod-probe` runs match the pre-change code exactly through stage 1-2 (same pod times, first pod 5.7 s). Stage 2-1 averages 48.1 s (45.1–51.6), against 49.4 s before; the stage length is scroll-fixed, so the extra waves show up as kills, not time. `route-probe` 2-1 kills: 99–104 out of 100–104 spawned. **Superseded (`tune-remix`):** Descent 2+ now plays remixed sections instead (see "Open Orbit and the Drive approach, remixed" in §3.3).
 4. **Perk count:** `perks.ts` defines 24 perks; CHANGELOG says 26.
 5. Escaping the stage 0 Maw grades the stage C and pays no reward, but the mid-stage Maw's escape costs nothing. Probably intended (the first boss teaches you to kill fast); note it in the help text.
 
