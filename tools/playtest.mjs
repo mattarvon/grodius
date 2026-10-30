@@ -36,7 +36,7 @@ await p.addInitScript((seed) => {
       // enemy lifetimes: from first on screen to removal; killed if removed while still on screen
       const alive = new Set();
       for (const e of h.enemies) { alive.add(e);
-        if (!L.seen.has(e)) { L.seen.set(e, { k: e.k, f0: null, st, big: !!(e.big || e.mini || e.mid) }); L.spawns.push({ f: L.fr, k: e.k, st }); }
+        if (!L.seen.has(e)) { L.seen.set(e, { k: e.k, f0: null, st, big: !!(e.big || e.mini || e.mid) }); L.spawns.push({ f: L.fr, k: e.k, st, el: !!e.elite }); }
         const r = L.seen.get(e); if (r.f0 == null && e.x < 480 && e.x > 0) r.f0 = L.fr; r.x = e.x; }
       for (const [e, r] of L.seen) if (!alive.has(e)) { L.seen.delete(e);
         if (r.f0 != null && !r.big) L.life.push({ k: r.k, st: r.st, s: (L.fr - r.f0) / 60, killed: r.x > -8 && r.x < 490, right: r.x > 360 }); }
@@ -80,14 +80,14 @@ const stages = []; let cur = null, lastFork = false, nextShot = SHOT, end = '';
 const snap = () => p.evaluate(() => { const g = __G(), G = g.G, P = g.P, M = window.__music && __music();
   return { st: g.state, k: G ? `${G.loop + 1}-${(G.stage || 0) + 1}` : '', loop: G ? G.loop : 0, fr: __pt.fr, lvl: G && G.lvl, rank: G ? +(G.rank || 0).toFixed(2) : 0,
     wep: P ? [P.speed, P.missile, P.double, P.laser, P.pyre, P.options, P.wardLv || 0].join(',') : '', gm: G ? Object.entries(G.gm || {}).filter(([, v]) => v > 0).map(([k, v]) => k + v).join(' ') : '',
-    pick: !!(G && G.pick), pt: G && G.pick ? G.pick.t : 0, fork: !!(G && G.fork), biome: G && G.biome, mix: M ? M.mix : '', kills: G ? G.gmk || G.kills : 0, bio: G ? Math.round(G.bio || 0) : 0 }; });
+    pick: !!(G && G.pick), pt: G && G.pick ? G.pick.t : 0, fork: !!(G && G.fork), biome: G && G.route && (G.stage === 1 || G.stage === 2) ? G.route[G.stage - 1] : null, remix: G && G.remix && (G.stage === 1 || G.stage === 2) ? G.remix[G.stage - 1] : 0, mix: M ? M.mix : '', kills: G ? G.gmk || G.kills : 0, bio: G ? Math.round(G.bio || 0) : 0 }; });
 for (let it = 0; it < MAXM * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
   const s = await snap();
   if (s.fork && !lastFork) await p.evaluate(() => (window.__gi = (window.__gi ?? 0) + 1));
   lastFork = s.fork;
   if (s.st === 'play' && (!cur || cur.k !== s.k)) { cur = { k: s.k, f0: s.fr, start: s, music: new Set(), biome: s.biome }; stages.push(cur); }
-  if (cur && s.st === 'play') { cur.end = s; if (s.mix) cur.music.add(s.mix); if (s.biome) cur.biome = s.biome; }
+  if (cur && s.st === 'play') { cur.end = s; if (s.mix) cur.music.add(s.mix); if (s.biome) { cur.biome = s.biome; cur.remix = s.remix; } }
   if (s.fr / 60 >= nextShot && s.st === 'play') { await p.screenshot({ path: `${OUT}/t${String(Math.round(s.fr / 60)).padStart(4, '0')}-${s.k}.png` }); nextShot += SHOT; }
   if (s.pick && s.pt > 36) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); }
   if (s.st === 'shop') { const r = await shop(); console.log(`INFIRMARY after descent ${s.loop + 1}: bought ${r.bought.join(' ') || 'nothing'} | bolted ${r.rig} levels ${r.cl} | bio left ${r.bio}`);
@@ -96,7 +96,7 @@ for (let it = 0; it < MAXM * 60 * 2; it++) {
 }
 const L = await p.evaluate(() => { const L = __pt; return { fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r) }; });
 const q = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(f * s.length))].toFixed(2) : null; };
-const prev = {};
+const prev = {}, prevB = {}, drn = { biome: [0, 0] };
 for (let i = 0; i < stages.length; i++) {
   const S = stages[i], f1 = stages[i + 1] ? stages[i + 1].f0 : L.fr, dur = (f1 - S.f0) / 60;
   const life = L.life.filter((x) => x.st === S.k), kl = life.filter((x) => x.killed);
@@ -108,11 +108,18 @@ for (let i = 0; i < stages.length; i++) {
   const slot = S.k.split('-')[1], pk = prev[slot];
   const overlap = pk ? Object.keys(kinds).filter((k) => pk.has(k)).length / Math.max(1, Object.keys(kinds).length) : null;
   prev[slot] = new Set(Object.keys(kinds));
+  const pb = S.biome && prevB[S.biome], bo = pb ? Object.keys(kinds).filter((k) => pb.k.has(k)).length / Math.max(1, Object.keys(kinds).length) : null;
+  const sigB = new Set(Object.keys(sig)), so = pb ? [...sigB].filter((k) => pb.s.has(k)).length / Math.max(1, sigB.size) : null;
+  if (S.biome) prevB[S.biome] = { k: new Set(Object.keys(kinds)), s: sigB };
+  const els = sp.filter((x) => x.el).length, big = new Set(['maw', 'crux', 'butcher', 'choir', 'cyst', 'prentice', 'brood', 'nailbar', 'ufo']), reg = sp.filter((x) => !big.has(x.k));
+  if (S.biome) { drn.biome[0] += reg.filter((x) => x.k === 'drone').length; drn.biome[1] += reg.length; }
   const bos = L.bosses.filter((x) => x.st === S.k).map((x) => `${x.title || x.k} ${x.f1 ? ((x.f1 - x.f0) / 60).toFixed(1) + 's' + (x.killed ? '' : ' (left)') : 'unfinished'}`);
   console.log(`\n== stage ${S.k}${S.biome ? ' [' + S.biome + ']' : ''}  ${dur.toFixed(0)}s  lvl ${S.start.lvl}->${S.end.lvl}  rank ${S.start.rank}->${S.end.rank}  weapons ${S.end.wep}  grafts ${S.end.gm || '-'}`);
   console.log(`   kill: on-screen life median ${q(kl.map((x) => x.s), .5)}s p90 ${q(kl.map((x) => x.s), .9)}s | killed in right quarter ${kl.length ? Math.round(100 * kl.filter((x) => x.right).length / kl.length) : 0}% | escaped ${life.length ? Math.round(100 * (life.length - kl.length) / life.length) : 0}% (${life.length} enemies)`);
   console.log(`   bosses: ${bos.join(', ') || '-'}`);
   console.log(`   variety: ${Object.keys(kinds).length} kinds ${JSON.stringify(kinds)} | ${waves.length} waves, ${Object.keys(sig).length} distinct, top ${top.map(([k, n]) => k + ' x' + n).join(', ')}${overlap != null ? ` | kinds shared with last descent's stage: ${Math.round(overlap * 100)}%` : ''} | music ${[...S.music].join(', ')}`);
+  console.log(`   drones ${reg.length ? Math.round(100 * (kinds.drone || 0) / reg.length) : 0}% of ${reg.length} | elites ${els}${S.biome ? ` | ${S.remix ? 'REMIX (visit ' + (S.remix + 1) + ')' : 'first visit'}` : ''}${bo != null ? ` | vs last ${S.biome} visit: kinds shared ${Math.round(bo * 100)}%, wave signatures shared ${Math.round(so * 100)}%` : ''}`);
 }
+console.log(`\nbiome stages: drones ${drn.biome[1] ? Math.round(100 * drn.biome[0] / drn.biome[1]) : 0}% of ${drn.biome[1]} regular spawns`);
 console.log(`\nwould-be hits: ${L.hits} in ${(L.fr / 3600).toFixed(1)} min (${(L.hits / (L.fr / 3600)).toFixed(1)}/min) | hype voices ${L.hype} | end ${end} | errors ${errs.slice(0, 3).join(' / ') || 'none'}`);
 await b.close();

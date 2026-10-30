@@ -9,6 +9,7 @@ import { spr, sprAt, sprN, sprReady } from '../sprites';
 import { grossBrood, grossChoir, grossCyst, grossPrentice } from './gross/midbosses';
 import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'; // flyers: wasp / eyeball / corpse
 import { drawUfoGross } from './gross/ufo';
+import { drawEliteAura, drawElitePus } from '../enemies/elite';
 
 // --- enemies ---
 export function drawDrone(c, e) {
@@ -1037,6 +1038,7 @@ export function drawEnemy(e) {
     ctx.globalCompositeOperation = 'source-over';
     light(e.x, e.y, 30, .8);
   }
+  if (e.elite) drawEliteAura(e); // elites: sick violet aura (enemies/elite.ts)
   const ga = ctx.globalAlpha;
   if (e.ghost > 0) ctx.globalAlpha = ga * (.35 + .25 * Math.sin($.T * .5));
   ctx.save();
@@ -1044,6 +1046,7 @@ export function drawEnemy(e) {
   if (e.k === 'corpse' || e.k === 'hook') ctx.rotate(e.rot);
   if (e.flash) ctx.filter = 'brightness(2.6) saturate(.4)';
   DRAW[e.k](ctx, e);
+  if (e.elite) drawElitePus(ctx, e); // ...and its pustules, under the hit-flash filter
   ctx.restore();
   ctx.globalAlpha = ga;
   if (e.cap && e.k !== 'corpse') {

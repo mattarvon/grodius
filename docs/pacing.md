@@ -190,6 +190,75 @@ Current Infirmary prices already sit near Tyrian's triangular curve. For example
 
 Bio income is about 270 per full-kill stage 0 and about 900–1200 per descent. That means the first purchase comes after 1 run, and BLACK BOX or DESCEND DEEPER take 1–3 runs. That's healthy, but see bug 1 below.
 
+### 3.8 Biome variety: mixes, elites, repeat-biome remix (branch `tune-variety`)
+The `tools/playtest.mjs` bot showed three problems. Drones (wasps) were 50–80% of biome-stage spawns, and 131 of about 150 in one Furnace stage. The new enemies barely showed up: about 1 mutant per Cryovault or Furnace stage and 4–6 slimes per Sinus stage. A biome you'd already visited (descent 3 always repeats; 4 biomes, 2 per descent) replayed its last visit exactly: 100% of the same kinds and the same music.
+
+**Mixes** (`BIOMES[b].mix` / `SET` in `src/biomes.ts`). In biome stages a formation is a size smaller: `FM = 4` drones, plus rank as everywhere else (Open Orbit keeps 5). Drone patterns are only a small weight in each mix, so each biome's own creatures carry the stage:
+
+| Biome | sig | Mix (weight) | SET piece |
+|---|---|---|---|
+| ice | corpse | corpse 4, cross 3, **mutant 2.5**, flayer 2, eye 2, hook 2, sine 2 | morgue: 3 corpses + a mutant under them |
+| acid | **crawler** (was wall) | crawler 4, womb 3, eye 2, hatch 1, wall .7, dive .3; **Descent 2+: slime 2.5** | walls: a double wall of 2(+rank) each, crawler on floor and ceiling |
+| fire | flayer | flayer 3, hook 3, **mutant 2.5**, crawler 2, dive .6, behind .4 | pincer: flayers top and bottom, a 2(+rank) rear wave |
+| snot | hatch | **slime 5**, hatch 3, womb 3, corpse 2, sine 1.5, crawler 1, eye 1 | flood: hatch flood (7–9 + 4–6 from behind) + a floor and a ceiling slime |
+
+The mutant's and slime's own terrain checks (`mutant()`: floor with 70 px of headroom; `slime()`: floor or ceiling on screen) still apply. Every biome keeps both a gap of at least 108 px and a floor, so they rarely fail.
+
+**Repeat-biome remix** (`remix(b, v, loop)` in `src/biomes.ts`). `choose()` counts visits per biome in `G.bvis` (run-wide). A visit with `v >= 1` earlier visits gets these changes:
+- **A second signature and SET.** Ice: mutant + *crucify* (crucifixes on floor and ceiling, a mutant, then another cross). Acid: womb + *gutter* (a womb, two waves of crawler pairs, an eye). Fire: mutant + *kiln* (a mutant under hooks, a flayer, a second mutant). Snot: slime + *drip* (three waves of slimes on both surfaces, a womb).
+- **The set pieces move** from p .30/.75 to .22/.62.
+- **`drop`**: 2–3 of its kinds are gone, and **`add`** swaps its drone pattern. Ice and snot lose sine and get zig; fire loses dive and gets zig; acid loses dive and hatch and gets a little sine.
+- **Crossovers**: 2 kinds from the biome's `pool`, picked fresh with the gameplay RNG each visit. Ice: crawler, womb, slime, hatch. Acid: mutant, hook, flayer, cross. Fire: cross, eye, corpse, slime. Snot: mutant, hook, cross, flayer.
+- **More elites** (below).
+- **Music**: the same track with a different filter (`BIOME_MIX['ice+']` etc. in `src/music.ts`, chosen through `G.remix[seg]`).
+
+**Elites** (`src/enemies/elite.ts`). From Descent 2 on, every spawn a biome slot makes rolls `eliteChance(loop, v)`: 10% on a first visit in Descent 2, +4% per descent after that, +10% on a repeat visit, and a 34% cap. Drones and hatchlings roll at 0.45× that chance. The roll runs **after** `mk()`, through a wrapper in `biomeScript`, and rear waves and staggered set pieces are wrapped too. `mk()`, `ET`, base HP and fire rates are untouched. An elite gets:
+- HP ×1.8.
+- Score and bio ×2.5.
+- Its own fire cooldown ticks an extra step every 2nd frame, about 1.5× fire rate. Wombs are excluded, since a faster womb only makes more hatchlings.
+- A **pustule shot** every 150–210 frames: its pustules swell for 32 frames (they flash white), then it fires an aimed glob, or a 3-glob fan from Descent 3.
+- A look: a dark halo plus a pulsing violet aura (`glow()`, cached sprites) behind the body, and 3–5 throbbing violet pustules drawn on the body inside `drawEnemy`'s transform, so the hit flash covers them too. The art is render-only: the layout comes from `e.eid`, rolled at eliteify time, and motion from `$.T`.
+- A violet burst on death.
+
+Hooks into shared code: one line each in `updEnemy` (`eliteTick`), `killEnemy` (`eliteKill`) and `drawEnemy` (aura + pustules).
+
+**Knobs:** `ELITE` (hp, pay, fast, pz, tel, swarm) and `eliteChance()` in `elite.ts`. `FM`, the mix weights, `remix` (sig/set/drop/add/pool), `late`, and `remix().sets` in `biomes.ts`.
+
+**Measured.** `tools/kind-probe.mjs` (new) walks the real inserted script of each biome without stepping the game, at rank 0.9, averaged over 30 rolls. The table shows the drone share of biome-stage spawns:
+
+| | ice | acid | fire | snot |
+|---|---|---|---|---|
+| before | 51–53% | 74–78% | 81–83% | 12–14% |
+| after, first visit | 26–30% | 25–31% | 27–33% | 8–10% |
+| after, repeat (D3) | 13–15% | 17–18% | 19–21% | 8–12% |
+
+The Sinus was never drone-heavy: its hatchling flood is its own creature. Mutants went from about 1.2–2.7 per Cryovault or Furnace stage to about 5–8 (10–15 on a remix), and slimes from 3.4–5 per Sinus stage to 10–13 (about 21 on a remix). Elites per biome stage: 4–7 on a first visit in Descent 2, 11–14 on a repeat visit. Total spawns per biome stage went down, by about 20% in ice and about 50% in fire. HP to chew through went up, because singles replaced 1-HP drones.
+
+The `playtest.mjs` bot played 3 descents per seed. Before is the bot's run on `32c0350`, the files `assets-raw/playtest/s*.txt`. After is in `assets-raw/playtest/variety/`. The bot now also prints per stage the drone share, the elite count, first visit or REMIX, and kinds and wave signatures shared with the last visit to the *same* biome:
+
+| | seed 11 | seed 7 |
+|---|---|---|
+| drones in biome stages, before | 52% (fire 1-3: 131/146) | 76% (fire 3-2: 141/167) |
+| drones in biome stages, after | **29%** of 457 | **17%** of 408 (3 Sinus stages; non-Sinus stages 12–40%) |
+| mutants per ice/fire stage, before → after | 0–1 → 5–11 | 1–5 → 7–9 |
+| slimes per Sinus stage, before → after | 4–6 → 7–17 | none visited → 11–22 |
+| repeat biome vs its last visit, before | 100% same kinds, same music | 100% same kinds, same music |
+| repeat biome vs its last visit, after | snot: kinds 78%, wave signatures 47%, 11 elites, `snot+` mix; fire: 75% / 38%, 12 elites, `fire+` | snot: 75% / 39%, 12 elites; acid: 70% / 47%, 11 elites, `acid+` |
+
+Single stages still swing a lot: a first-visit Cryovault ran 38% and 47% drones in two runs, against 26–30% in the probe. Escapes went up in some stages, up to 26% in an ice stage with 6 mutants, because the singles are tougher than drones. Would-be hits: 1.0 and 0.2 per minute (before: 0.4 and 0.2).
+
+`route-probe` gates 0 1 and 1 0 over 2 descents, including an ice → ice repeat: minGap 135.4 / 128.2, 0 slams, hazards bad=[], no deaths, no page errors. The only console errors are the worktree's fontsource 403s, which are outside Vite's allow list and happen on base too.
+
+`perf-probe` (4× CPU throttle, `WARM_MS=20000`), render avg/p95 ms:
+- Base: prentice 9.1/12.9, brood 11.1/16.7.
+- After, no elites: 9.5/13.2 and 10.3/13.6.
+- With 8 non-elite enemies streaming in (`ELITE=2`): 12.4/17.0 and 14.8/22.0.
+- The same 8 as elites (`ELITE=1`): 12.9/19.2 and 15.9/23.0.
+
+So the elite look and attacks cost about 0.5–1.1 ms per frame with 8 elites on screen, which is far more than a real stage has at once.
+
+`harness` is unchanged (Open Orbit only, never reaches a biome): st `{state: over, score: 2869, scroll: 2168}`, identical across runs. Its canvas hashes between frames 1200 and 2400 differ run to run on base too, from render-side randomness.
+
 ---
 
 ## 4. Bugs and inconsistencies found while mapping
