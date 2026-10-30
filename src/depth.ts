@@ -1,6 +1,6 @@
 // @ts-nocheck
 // =====================================================================
-//  DEPTH SCALING (docs/pacing.md 3.8). The power rank G.rank (step.ts) runs 0..1 and hits the cap around the end of
+//  DEPTH SCALING (docs/pacing.md 3.9). The power rank G.rank (step.ts) runs 0..1 and hits the cap around the end of
 //  Descent 1, but the player keeps growing after that: more weapon levels, grafts, perks and contraption levels. From
 //  Descent 2 on, toughness and aggression keep climbing with the descent AND with the power past the cap, so bosses
 //  keep a clock, fodder lives long enough to shoot, and a stacked build still gets a fight. In Descent 1 every factor
@@ -13,15 +13,17 @@
 import { $ } from './state';
 
 export const DEPTH = {
-  fod: 1, fodO: 1, //       regular enemies (a boss's parts take the boss's factor)
-  mid: 1.1, midO: 1, //     midbosses: the Saucer, the biome midbosses, and the Open Orbit Maw
-  boss: 1.5, bossO: 1.2, // biome stage bosses (Crucifer, Butcher, the biome Maws)
-  drive: 0, driveO: .4,  // the Gravity Drive (its own formula in boss/update.ts already tracks loop and rank)
-  // share of the extra: the Open Orbit Maw runs on a 28 s escape clock with only the midboss's kit to beat it, and
-  // the Butcher's fight is gated by its cleaver and guard more than its HP pool (Descent 2 already took 7-15 s before)
-  w: { maw0: .6, butcher: .3 },
+  fod: .8, fodO: .8, //     regular enemies (a boss's parts take the boss's factor)
+  mid: .8, midO: .8, //     midbosses: the Saucer, the biome midbosses, and the Open Orbit Maw
+  boss: 1.1, bossO: 1, //   biome stage bosses (Crucifer, Butcher, the biome Maws)
+  drive: 0, driveO: .2, //  the Gravity Drive (its own formula in boss/update.ts already tracks loop and rank)
+  // share of the extra: every Maw runs on a 28 s escape clock (maw0 = the Open Orbit one, maw = a biome stage boss),
+  // the Butcher's fight is gated by its cleaver and guard more than its HP pool (Descent 2 took 7-15 s before), and
+  // the Womb (cyst), the Brood Mother and the Crucifer (crux) have guarded windows that make extra HP count more.
+  // Elites (enemies/elite.ts, HP x1.8) are rolled after mk(), so they stack on top of all of this
+  w: { maw0: .5, maw: .45, butcher: .15, crux: .6, cyst: .6, brood: .6 },
   rig: .035, //             each bolted contraption level counts this much raw power toward over()
-  fire: .35, //             enemy fire: cooldowns / (1 + fire * loop), random fire chance x(1 + fire * loop)
+  fire: .45, //             enemy fire: cooldowns / (1 + fire * loop), random fire chance x(1 + fire * loop)
 };
 
 /** raw power past the rank cap, 0..2 (0 throughout Descent 1 by construction of the callers) */

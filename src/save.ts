@@ -84,7 +84,7 @@ export const UPG = [{
   name: 'HARVEST GLAND',
   desc: '+25% biomass squeezed out of every kill.',
   max: 4,
-  cost: [100, 250, 500, 900]
+  cost: [80, 200, 400, 750]
 }, {
   id: 'lure',
   name: 'AMPOULE LURE',

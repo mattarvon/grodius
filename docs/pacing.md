@@ -224,6 +224,20 @@ The effect: dominating players see bigger formations sooner, and struggling play
 ### 3.7 Shop prices
 Current Infirmary prices already sit near Tyrian's triangular curve. For example, gland 80/200/400/750 is ≈ 80 × (1, 2.5, 5, 9.4), against Tyrian's (1, 3, 6, 10). Contraption level-ups go up linearly (+80, +160 over the buy price). That's fine, because there are only 3 levels.
 
+**Update (branch `tune-difficulty`):** the playtest bot owned every contraption by its 2nd or 3rd visit, with the bolted ones at level 3 (see §3.9). Level-ups are now steeper, about 1.4–1.7× and 2.3–2.9× the buy price instead of +80 and +240, and sockets cost 450 / 1000 instead of 400 / 900. Buy prices and the `UPG` list are unchanged, and the first contraption is still free.
+
+| | buy | lvl 2 | lvl 3 |
+|---|---|---|---|
+| BONE SAW | 180 | 300 | 520 |
+| GUT CANNON | 220 | 340 | 580 |
+| LEECH PUMP | 260 | 380 | 620 |
+| SPINE LAUNCHER | 240 | 360 | 600 |
+| MEAT WINCH | 200 | 320 | 560 |
+| FURNACE BELLY | 200 | 320 | 540 |
+| CHOIR OF MOUTHS | 300 | 420 | 680 |
+
+The full rack costs ~9.4k with sockets (was ~8.3k), and the whole Infirmary ~13.5k (was ~12.4k).
+
 Bio income is about 270 per full-kill stage 0 and about 900–1200 per descent. That means the first purchase comes after 1 run, and BLACK BOX or DESCEND DEEPER take 1–3 runs. That's healthy, but see bug 1 below.
 
 ### 3.8 Biome variety: mixes, elites, repeat-biome remix (branch `tune-variety`)
@@ -294,6 +308,57 @@ Single stages still swing a lot: a first-visit Cryovault ran 38% and 47% drones 
 So the elite look and attacks cost about 0.5–1.1 ms per frame with 8 elites on screen, which is far more than a real stage has at once.
 
 `harness` is unchanged (Open Orbit only, never reaches a biome): st `{state: over, score: 2869, scroll: 2168}`, identical across runs. Its canvas hashes between frames 1200 and 2400 differ run to run on base too, from render-side randomness.
+
+### 3.9 Depth scaling past the rank cap, more fire, a longer Infirmary (branch `tune-difficulty`)
+The `tools/playtest.mjs` bot (seed 11, 3 descents, bolting its contraptions) got overpowered early in Descent 2. Rank hit its 1.0 cap at stage 2-1 while the player kept growing. Bosses melted: the Saucer took 3.0 s in D2 and D3, the Bloated Bitch 5.8 s, the Dissolved Maw 5.1 s and the Mucus Maw 2.4 s. A bot that never dodges would have been hit only 0.2–0.3 times a minute. The Infirmary was nearly bought out by the 3rd visit.
+
+**Depth** (`src/depth.ts`; the knobs are in `DEPTH`). In Descent 1 every factor is exactly 1, so D1 is unchanged and `harness` st matches `main`. From Descent 2 on:
+- **`G.pow`** (`step.ts`) is the uncapped rank, `(gear power + perkPower) / 14`. `G.rank` is still `clamp(pow, 0, 1)` for everything that already used it. `over()` = `pow` + 0.035 × the levels of the bolted contraptions − 1, clamped to 0..2. Contraptions count here because they add real DPS that rank never saw.
+- **HP**: `mk()` multiplies by `e.dm = depthHP()` = 1 + k·loop + kO·over, on top of the old ×(1 + .4·loop) and ×(1 + rank):
+
+| Who | k | kO | Typical ×, D2 / D3 |
+|---|---|---|---|
+| Regular enemies | .8 | .8 | ~2.0 / ~3.0 |
+| Midbosses (Saucer, biome midbosses, Open Orbit Maw) | .8 | .8 | ~2.0 / ~3.0 |
+| Biome stage bosses | 1.1 | 1.0 | ~2.4 / ~3.6 |
+| Gravity Drive (`driveHP()`, in `startBoss`) | 0 | .2 | ~1.05 / ~1.1 |
+
+  - Per-kind share of the extra (`DEPTH.w`): Open Orbit Maw .5 and biome Maw .45, because every Maw leaves after ~28 s and an escaped stage boss grades C. The Butcher gets .15, because its cleaver and guard gate the fight more than its HP (D2 already took 7–15 s). The Crucifer gets .6, and the Womb and Brood Mother .6 each, because their guarded windows make extra HP count more.
+  - A boss's parts (nailbars) take the boss's factor (`o.par.dm`).
+  - Elites (`enemies/elite.ts`, ×1.8) roll after `mk()`, so they stack on top.
+- **Fire** (`enemies/update.ts`, `enemies/ufo.ts`): the cooldowns of eyes, crawlers, crosses, flayers, slimes, mutants, sentries and every midboss are divided by `1 + .45·loop` (`cdm()`). The drone and flayer random fire chance is ×`1 + .45·loop` (`firem()`). From Descent 3, eyes fire 3 shots (was 2) and sentries burst 5 rounds (was 4) (`xtra()`). The **revenge shot** a dying enemy spits from Descent 2 becomes a pair that brackets you in D2 (sit still and it misses) and a 3-fan in D3+ (spread .22, speed 1.3). Every telegraph and its length is unchanged.
+
+**Results**, `playtest.mjs` with 3 descents. The before columns are the original code (`base`, seed 11) and `main` after the remix and variety merges (seeds 11 / 7). The after column is this branch merged with `main` (seeds 11 / 7). Bosses are bot time; routes differ per run, so these are the fights that came up.
+
+| | base s11 | main s11 / s7 | after s11 / s7 | target |
+|---|---|---|---|---|
+| Saucer D1 / D2 / D3 | 7.3 / 3.0 / 3.0 | 10.9 / 5.6 / 4.4 · 8.5 / 7.3 / 4.2 | 11.6 / 10.0 / 11.2 · 10.6 / 12.1 / 15.5 | D1 same, D2–3 8–15 |
+| Biome midbosses D2 | Choir 4.5, Apprentice 3.8 | Apprentice 7.2, Choir 5.5 · Apprentice 6.3, Womb 7.1 | Brood 11.9, Choir 13.5 · Brood 10.9, Womb 12.9 | 8–15 |
+| Biome midbosses D3 | Womb 5.0, Brood 5.8 | Womb 9.1, Apprentice 4.7 · Choir 3.2, Brood 9.6 | Womb 10.8, Apprentice 7.8 · Brood 13.1, Choir 15.8 | 8–15 |
+| Biome bosses D2 | Bloated 5.8, Butcher 14.5 | Butcher 14.8, Bloated 12.3 · Butcher 14.4, Dissolved 7.8 | Mucus 13.3, Bloated 18.9 · Mucus 14.3, Dissolved 16.6 | 12–25 |
+| Biome bosses D3 | Dissolved 5.1, Mucus 2.4 | Dissolved 5.3, Butcher 5.8 · Bloated 6.3, Mucus 6.5 | Dissolved 17.3, Butcher 12.0 · Mucus 16.7, Bloated 15.8 | 12–25 |
+| Open Orbit Maw D2 / D3 | 4.7 / 5.8 | 8.6 / 7.9 · 11.2 / 6.5 | 11.9 / 9.7 · 11.9 / 17.0 | (escapes at ~28 s) |
+| Gravity Drive D1 / D2 / D3 | 42.7 / 34.7 / 29.7 | 49.9 / 37.5 / 37.1 · 58.4 / 32.6 / 38.7 | 51.5 / 36.6 / 23.8 · 51.2 / 37.5 / 38.9 | 30–45 |
+| Would-be hits/min D2 / D3 | 0.2 / 0.3 | 0.4 / 1.0 · 0.7 / 0.5 | 1.3 / 1.6 · 1.9 / 1.6 | 1–2 |
+| Regular enemy on-screen life, median per stage, D2–D3 | 0.4–2.0 s | 0.8–1.9 s · 0.6–1.9 s | 0.6–3.0 s · 0.8–2.5 s | longer |
+
+- **Rank:** the formula is unchanged. It still caps at 2-1 or 2-2, and `pow` runs 1.0 → 1.4–1.7 by the end of D3.
+- **D1 is not changed by this branch.** A 1-descent seed-11 run on warm servers matches `main` on every D1 boss time and HP; the D1 differences between columns are cold-server run variance (see the probe caveats in §5). `main`'s D1 is slower than base, though: the Drive takes 50–58 s and the Saucer 9–12 s. That comes from the remix and variety merges.
+- **`route-probe` 0 1 2:** all 8 stages cleared, no escapes, minGap 122.7, 0 slams, bad hazards = []. One run before the final Maw weight (.6) let a D2 Dissolved Maw escape the route-probe bot, which is why the Maw share is .45.
+- **`tools/depth-probe.mjs`** gives TTK for every fight with D1 / D2 / D3 kits in about a minute. Use it to turn the knobs, then confirm with `playtest.mjs`. Its kits are stronger than the playtest bot's, so read it relatively.
+
+**Infirmary** (prices in §3.7), the playtest bot's purchases per visit:
+
+| | after D1 | after D2 | after D3 |
+|---|---|---|---|
+| base, original prices | gut socket leech spine hook furnace sculpt | socket choir saw+ saw+ gland | gut+ gut+ leech+ leech+ hull hull |
+| main, original prices | gut socket leech hook | socket spine furnace choir saw+ | saw+ gut+ gut+ leech+ hull gland gland sculpt |
+| after, s11 | gut socket leech spine | socket hook furnace choir hull gland | saw+ saw+ gut+ gut+ leech+ leech+ gland lure |
+| after, s7 | gut socket leech hull | socket spine hook furnace | choir saw+ saw+ gut+ gland gland sculpt |
+
+- **Income per descent** on the merged code is ~1.1–1.2k, ~1.7–1.9k and ~2–3k, rising with elites and HARVEST GLAND.
+- **After 3 visits,** 3.8k–5.4k of the rack and ~3.6k of upgrades are left. That's 2–3 more descents, so **everything is bought around Descent 5–6**. With `main`'s prices it was about a descent sooner.
+- **The first visit** still buys the free saw, a second socket, and 2–3 machines.
 
 ---
 
