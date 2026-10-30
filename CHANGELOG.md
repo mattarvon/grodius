@@ -2,6 +2,29 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-30 (deeper descents fight back, less repetition)
+
+A bot playtest (`tools/playtest.mjs`: three descents, spends in the Infirmary, logs kill speed, would-be hits and repeats) showed the ship outgrowing everything by Descent 2 and half of every descent replaying the same script. Three parallel agents fixed it; tuning knobs are in `src/depth.ts`, `src/biomes.ts` and `src/enemies/elite.ts`.
+
+### Bosses stop melting
+- Power keeps counting past the rank cap (bolted contraptions included), and from Descent 2 enemy and boss HP grows with depth and with that excess. Descent 1 is unchanged.
+- Bot times, Descent 2-3: midbosses 10-16 s and biome bosses 12-19 s (were 2-6 s), the Saucer 10-15 s (was 3 s), the Gravity Drive 24-39 s.
+- From Descent 2 enemies fire faster (+45% per descent); from Descent 3 wall eyes fire 3 shots and security drones 5-round bursts, and death shots bracket you. No telegraph got shorter.
+
+### Every descent plays differently
+- Open Orbit and the Gravity Drive approach have 3-4 hand-made variants per section (debris fields, ambushes from behind, security-drone pickets, a hull breach, mutants leading the corridor). Descent 1 keeps the classic script; later descents never replay one you've seen.
+- Drones are about a third of Open Orbit and about a quarter of biome spawns (were 50-80%). Mutants show up 5-12 times per Cryovault or Furnace stage, slimes 13-23 times per Sinus stage.
+- A biome you've visited before plays remixed: a different signature enemy and set pieces, two creatures borrowed from other biomes, a filtered version of its music, and elites.
+
+### Elites (Descent 2+)
+- 10-34% of biome spawns: a violet aura and throbbing pustules, 1.8x HP, faster fire, and a pustule that swells and spits an aimed glob. They pay 2.5x biomass and burst violet.
+
+### The Infirmary lasts
+- Contraption levels and sockets cost more; buying everything takes about 5-6 descents instead of 3. The first contraption is still free.
+
+### Checked
+Three-descent playtests on two seeds; would-be hits about 1 per minute overall for a bot that never dodges (were 0.2); route-probe clean on two routes; harness deterministic (new baseline: score 3028, scroll 2168).
+
 ## 2026-10-28 (sprite upgrade)
 
 Twenty OpenGameArt picks (found with `tools/sprite-scout.mjs`, placed slot by slot in the `tools/upgrade-picker.mjs` page) cut, repainted toward the game's palette and wired in by seven parallel agents. Credits in CREDITS.md and on the title screen.
