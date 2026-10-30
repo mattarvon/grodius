@@ -8,6 +8,7 @@ import { SET, lv } from '../save';
 import { sample, sfx } from '../audio';
 import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world';
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
+import { cdm, firem, xtra } from '../depth';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
@@ -45,7 +46,7 @@ export function updEnemy(e) {
             e.y += e.vy;
           }
         }
-        if (onScreen(e) && !(e.ghost > 0) && R() < .0025 * (1 + $.G.loop) && e.x > $.P.x + 40) eshoot(e.x, e.y, aimA(e.x, e.y), 1.5);
+        if (onScreen(e) && !(e.ghost > 0) && R() < .0025 * (1 + $.G.loop) * firem() && e.x > $.P.x + 40) eshoot(e.x, e.y, aimA(e.x, e.y), 1.5);
         break;
       }
     case 'corpse':
@@ -66,11 +67,12 @@ export function updEnemy(e) {
         if (e.blink > 0) e.blink--;else if (R() < .006) e.blink = 10;
         e.cool--;
         if (e.cool <= 0 && onScreen(e) && e.x > 20) {
-          e.cool = Math.max(55, 120 - $.G.loop * 18) + ri(0, 40);
+          e.cool = Math.round((Math.max(55, 120 - $.G.loop * 18) + ri(0, 40)) * cdm()); // cdm/firem/xtra: depth, src/depth.ts
           const ex = e.x,
             ey = e.y - e.o * 8;
           eshoot(ex, ey, aimA(ex, ey), 1.7);
           if ($.G.loop > 0) eshoot(ex, ey, aimA(ex, ey) + .25, 1.7);
+          if (xtra()) eshoot(ex, ey, aimA(ex, ey) - .25, 1.7);
           flash(ex, ey, 12, 5, '255,60,60');
         }
         break;
@@ -89,7 +91,7 @@ export function updEnemy(e) {
           }
           e.cool--;
           if (e.cool <= 0 && onScreen(e)) {
-            e.cool = ri(110, 170);
+            e.cool = Math.round(ri(110, 170) * cdm());
             eshoot(e.x, e.y - e.o * 4, aimA(e.x, e.y), 1.4, 'glob');
           }
           if (e.o > 0 && surf > PH + 10 || e.o < 0 && surf < -10) {
@@ -148,7 +150,7 @@ export function updEnemy(e) {
         e.y = sy - e.o * 22;
         e.cool--;
         if (e.cool <= 0 && onScreen(e) && e.x > 30) {
-          e.cool = Math.max(70, 130 - $.G.loop * 18) + ri(0, 40);
+          e.cool = Math.round((Math.max(70, 130 - $.G.loop * 18) + ri(0, 40)) * cdm());
           const hx = e.x,
             hy = e.y + 14,
             a = aimA(hx, hy),
@@ -219,11 +221,11 @@ export function updEnemy(e) {
           }
           if (e.wt >= 26) {
             e.ws = 'idle';
-            e.cool = Math.max(60, 110 - $.G.loop * 15) + ri(0, 40);
+            e.cool = Math.round((Math.max(60, 110 - $.G.loop * 15) + ri(0, 40)) * cdm());
           }
         }
         if (R() < .15) drop(e.x + rr(-5, 5), e.y + rr(-2, 8), rr(-.3, .3), rr(0, .5), 1, R() < .5 ? 0 : 1, 80);
-        if ($.G.loop > 0 && e.ws === 'idle' && R() < .004 && onScreen(e)) eshoot(e.x, e.y - 8, aimA(e.x, e.y), 1.4, 'glob');
+        if ($.G.loop > 0 && e.ws === 'idle' && R() < .004 * firem() && onScreen(e)) eshoot(e.x, e.y - 8, aimA(e.x, e.y), 1.4, 'glob');
         break;
       }
     case 'nailbar':
@@ -386,7 +388,7 @@ export function updEnemy(e) {
             if (e.wt >= 40) {
               fan(e.x - 10, e.y, e.ha, live.length ? 5 : 7, .16, 1.8, 'spike');
               flash(e.x - 10, e.y, 16, 6, '200,235,255');
-              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)));
+              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm());
             }
           }
           if (every(e, ph2 ? 110 : 150)) for (const b of live) b.sing = 36;
@@ -412,14 +414,14 @@ export function updEnemy(e) {
             if (e.wt >= 45) { e.st = 'spray'; e.wt = 0; geysers.push({ wx: 0, y: 0, att: e, ox: -2, oy: -19, a: -Math.PI / 2, l: ph2 ? 44 : 32, rate: 4, c: 2 }); }
           } else if (e.st === 'spray') {
             if (e.wt % 5 === 0) lob(e.x - 2, e.y - 20, $.P.x + rr(-36, 36), $.P.y + rr(-20, 20), rr(1.3, 1.8));
-            if (e.wt >= (ph2 ? 40 : 28)) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 55 : 80) * (1 - .3 * ($.G.rank || 0))); }
+            if (e.wt >= (ph2 ? 40 : 28)) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 55 : 80) * (1 - .3 * ($.G.rank || 0)) * cdm()); }
           } else if (e.st === 'swell') {
             e.sw = e.wt;
             if (e.wt >= 30) {
               ring(e.x, e.y, ph2 ? 14 : 10, e.t * .07, 1.05);
               for (let k = 0; k < 20; k++) drop(e.x, e.y, rr(-2, 2), rr(-2, 2), 1.5, 2, 70);
               sfx.glob();
-              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 55 : 80) * (1 - .3 * ($.G.rank || 0)));
+              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 55 : 80) * (1 - .3 * ($.G.rank || 0)) * cdm());
             }
           }
         }
@@ -460,10 +462,10 @@ export function updEnemy(e) {
               if (cur < 0) cur += TAU;
               if (d > 14 && d < 84 && pa <= 3.99 && pa >= cur) playerHit();
             }
-            if (e.wt >= 30) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0))); }
+            if (e.wt >= 30) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0)) * cdm()); }
           } else if (e.st === 'spit') {
             if (e.wt === 24 || e.wt === 38) fan(e.x - 4, e.y - 24, aimA(e.x - 4, e.y - 24), ph2 ? 7 : 5, .19, 1.7);
-            if (e.wt >= 50) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0))); }
+            if (e.wt >= 50) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0)) * cdm()); }
           }
           if (ph2 && every(e, 120)) ring(e.x, e.y, 10, e.t * .06, 1.05);
         }
@@ -489,11 +491,11 @@ export function updEnemy(e) {
               for (let i = 0; i < n; i++) mk('hatch', e.x - 16 - i * 7, e.y + 6 + rr(-8, 8), { kid: 1, ph: R() * TAU, vy: rr(-1.4, 1.4) });
               for (let k = 0; k < 18; k++) drop(e.x - 14, e.y + 6, rr(-2.5, 0), rr(-1.5, 1.5), 1.5, R() < .5 ? 4 : 0, 80);
               sfx.squish();
-              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)));
+              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm());
             }
           } else if (e.st === 'sneeze') {
             if (e.wt >= 26 && e.wt <= 38 && e.wt % 6 === 2) fan(e.x - 18, e.y - 4, aimA(e.x - 18, e.y - 4), ph2 ? 5 : 3, .22, 1.8, 'glob');
-            if (e.wt >= 50) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0))); }
+            if (e.wt >= 50) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm()); }
           }
         }
         if (R() < .3) drop(e.x + rr(-16, 16), e.y + rr(10, 20), rr(-.2, .2), rr(.2, .6), 1.4, R() < .5 ? 0 : 4, 90);
@@ -785,7 +787,9 @@ export function killEnemy(e, dir = 1) {
     });
   }
   if (e.k === 'slime' || e.k === 'mutant' || e.k === 'sentry') killNew(e);
-  if ($.G.loop > 0 && e.k !== 'hatch' && !($.G.boss && $.G.boss.dying) && e.x < W - 10 && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) > 70 * 70) eshoot(e.x, e.y, aimA(e.x, e.y), 1.3);
+  // Descent 2+: a dying enemy spits one last slow shot at you (Gradius's revenge bullets). From Descent 2 it's a pair
+  // that brackets you (sit still and it misses), from Descent 3 a 3-fan with one dead on (depth: src/depth.ts)
+  if ($.G.loop > 0 && e.k !== 'hatch' && !($.G.boss && $.G.boss.dying) && e.x < W - 10 && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) > 70 * 70) fan(e.x, e.y, aimA(e.x, e.y), Math.min(3, 1 + $.G.loop), .22, 1.3);
 }
 export const POD = [{
   c: '127,224,255',
@@ -903,7 +907,7 @@ function updNew(e, ss) {
           for (let k = 0; k < 12; k++) drop(sx, sy, rr(-2, .3), rr(-1.5, 1.5) - e.o * .6, rr(1, 1.6), R() < .5 ? 4 : 0, 70);
           sample('snot', { vol: .6 }) || sfx.glob();
         }
-      } else if (e.wt >= 22) { e.st = 'ooze'; e.wt = 0; e.cool = Math.max(100, 170 - $.G.loop * 20) + ri(0, 50); }
+      } else if (e.wt >= 22) { e.st = 'ooze'; e.wt = 0; e.cool = Math.round((Math.max(100, 170 - $.G.loop * 20) + ri(0, 50)) * cdm()); }
       if (e.o > 0 && surf > PH + 10 || e.o < 0 && surf < -10) { e.air = 1; e.vy = 0; e.vx = 0; }
       if (R() < .12) drop(e.x + rr(-6, 6), e.y + e.o * 5, rr(-.2, .2), e.o > 0 ? 0 : rr(.3, .8), 1, R() < .5 ? 4 : 0, 60); // the slick it leaves, or drips off the ceiling
     } else {
@@ -948,7 +952,7 @@ function updNew(e, ss) {
         $.G.shake += 2;
         sample('splat_m', { vol: .6, rate: .8 }) || sfx.squish();
       }
-      if (e.wt >= 34) { e.st = 'walk'; e.wt = 0; e.cool = Math.max(120, 190 - $.G.loop * 25) + ri(0, 50); }
+      if (e.wt >= 34) { e.st = 'walk'; e.wt = 0; e.cool = Math.round((Math.max(120, 190 - $.G.loop * 25) + ri(0, 50)) * cdm()); }
     }
     if (R() < .25) drop(e.x + rr(-6, 6), e.y + rr(-12, 10), rr(-.2, .2), rr(.1, .6), 1.2, R() < .5 ? 0 : 1, 90);
     if (e.fy > PH + 30) e.dead = true;
@@ -967,13 +971,13 @@ function updNew(e, ss) {
       if (e.wt < 34) e.ha += wrapA(aimA(e.x - 5, e.y) - e.ha) * .2;
       if (e.wt >= 52) { e.st = 'fire'; e.wt = 0; }
     } else if (e.st === 'fire') {
-      const n = $.G.loop > 0 ? 4 : 3;
+      const n = ($.G.loop > 0 ? 4 : 3) + xtra();
       if (e.wt % 7 === 1 && e.wt < n * 7) {
         eshoot(e.x - 6, e.y, e.ha, 1.9);
         flash(e.x - 7, e.y, 9, 4, '255,70,50');
         e.x += 1.5;
       }
-      if (e.wt >= n * 7 + 14) { e.shots++; e.st = 'hover'; e.wt = 0; e.cool = Math.max(80, 130 - $.G.loop * 20) + ri(0, 30); }
+      if (e.wt >= n * 7 + 14) { e.shots++; e.st = 'hover'; e.wt = 0; e.cool = Math.round((Math.max(80, 130 - $.G.loop * 20) + ri(0, 30)) * cdm()); }
     } else {
       e.x -= 1.3 + ss * .3;
       e.y0 += e.y0 < PH / 2 ? -.2 : .2;

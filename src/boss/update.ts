@@ -13,12 +13,13 @@ import { hitShot } from '../shots';
 import { hellFlash } from '../fx/update';
 import { critMul } from '../mutations';
 import { perkFX, pk } from '../perks';
+import { driveHP } from '../depth';
 
 // ---------------- boss: the gravity drive ----------------
 export function startBoss() {
   $.G.bossStarted = true;
   // HP tracks loop AND power rank (biome bosses already do via mk()): a stacked build still gets a real fight
-  const m = (1 + .4 * $.G.loop) * (1 + .6 * ($.G.rank || 0));
+  const m = (1 + .4 * $.G.loop) * (1 + .6 * ($.G.rank || 0)) * driveHP(); // driveHP: depth past the cap (src/depth.ts)
   $.G.boss = {
     x: W + 150,
     y: PH / 2,

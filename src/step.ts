@@ -23,7 +23,8 @@ export function stepWorld() {
   $.G.t++;
   {
     const pw = $.P ? $.P.speed * .5 + ($.P.double || $.P.laser ? 1 : 0) + $.P.missile + $.P.pyre + $.P.options + ($.P.wardLv || 0) + Object.values($.G.gm || {}).reduce((a, b) => a + b, 0) * .7 : 0;
-    $.G.rank = clamp((pw + perkPower()) / 14, 0, 1);
+    $.G.pow = (pw + perkPower()) / 14; // uncapped: src/depth.ts keeps scaling past the cap from Descent 2 on
+    $.G.rank = clamp($.G.pow, 0, 1);
   }
   if ($.G.mini && $.G.mini.dead) $.G.mini = null;
   const tgt = $.G.bossStarted || ($.G.mini && !$.G.mini.drift) || $.G.forkHold ? 0 : 1; // drift: the Open Orbit midboss doesn't hold the scroll

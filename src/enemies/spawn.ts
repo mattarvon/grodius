@@ -5,6 +5,7 @@ import { sfx } from '../audio';
 import { ceilAt, enemies, eshots, floorAt } from '../world';
 import { startBoss } from '../boss/update';
 import { UFO_AT, ufoWarn } from './ufo';
+import { depthHP } from '../depth';
 
 // ---------------- enemies ----------------
 export const ET = {
@@ -163,6 +164,9 @@ export function mk(k, x, y, o = {}) {
   };
   // power rank (0..1) thickens everything: +80% HP for fodder, +100% for bosses (a maxed build still gets a fight)
   e.hp = b.hp * hm * (o.hpm || 1) * (1 + ($.G.rank || 0) * (b.mini ? 1 : .8));
+  // ...and from Descent 2 on, depth keeps it climbing past the rank cap (src/depth.ts; dm = 1 in Descent 1)
+  e.dm = depthHP(k, b, o);
+  e.hp *= e.dm;
   e.max = e.hp;
   if (!b.mini && !o.par && !o.kid && $.G.st) $.G.st.spawned++; // kid: born from a midboss, not scripted
   if (e.cap && !e.mini && R() < .65) e.cap = false;
