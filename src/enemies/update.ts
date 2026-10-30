@@ -14,12 +14,14 @@ import { countKill } from '../mutations';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { ufoKilled, updUfo } from './ufo';
+import { eliteKill, eliteTick } from './elite';
 
 // --- enemy behaviour ---
 export function updEnemy(e) {
   e.t++;
   if (e.flash > 0) e.flash--;
   if (e.ghost > 0) e.ghost--;
+  if (e.elite) eliteTick(e); // elites (enemies/elite.ts): faster fire + a pustule shot
   const ss = $.G.scrollSpeed;
   switch (e.k) {
     case 'slime': case 'mutant': case 'sentry': updNew(e, ss); break; // new enemies, at the end of this file
@@ -661,6 +663,7 @@ export function hurt(e, d, hx, hy, dir) {
 export const mult = () => 1 + Math.min(4, $.G.combo * .05);
 export function killEnemy(e, dir = 1) {
   e.dead = true;
+  if (e.elite) eliteKill(e);
   gore(e.x, e.y, e.gsz, {
     dir,
     eyes: e.eyes || 0,

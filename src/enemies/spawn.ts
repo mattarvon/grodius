@@ -409,72 +409,8 @@ export function banner(text, sub, col = '#d4141e', t = 200) {
     ml: t
   };
 }
-export function buildScript(L) {
-  const S = [],
-    at = (x, f) => S.push({
-      x,
-      f
-    }),
-    hard = L > 0;
-  // PHASE 1: open orbit, the derelict looming
-  at(200, () => formation('sine', 80));
-  at(420, () => formation(hard ? 'zig' : 'sine', 175)); // Descent 2+ upgrades a few waves (Descent 1 is untouched)
-  at(560, () => {
-    corpse(60);
-    corpse(200);
-  });
-  at(700, () => formation('dive', 50));
-  at(820, () => formation('dive', 205));
-  at(980, () => formation('wall', PH / 2));
-  at(1100, () => hatch(6, true));
-  at(1220, () => {
-    formation(hard ? 'zig' : 'sine', 60);
-    corpse(150);
-  });
-  at(1320, () => flayer(PH * .3));
-  at(1700, () => flayer(PH * .7));
-  at(1900, () => flayer(PH * .4));
-  at(1380, () => formation('zig', 190));
-  at(1500, () => behindWave(PH / 2));
-  at(1620, () => {
-    corpse(40);
-    corpse(120);
-    corpse(210);
-  });
-  at(1760, () => formation('dive', 120));
-  at(1880, () => hatch(8, false));
-  at(2000, () => {
-    banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
-    sfx.dread();
-  });
-  at(2120, () => maw(true));
-  at(UFO_AT, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
-  if (hard) {
-    at(900, () => behindWave(PH * .3, 4)); // a rear wave between the dives and the wall
-    at(1550, () => { flayer(PH * .25); flayer(PH * .75); }); // a flayer pair as the behind wave clears
-  }
-  // the MERIDIAN's security drones: one alone first, then a pair, then one more inside the drive corridor
-  at(640, () => sentry(PH * .32));
-  at(1040, () => { sentry(PH * .22, W * .8); sentry(PH * .74, W * .66); });
-  at(8760, () => { sentry(PH * .45, W * .72); if (hard) sentry(PH * .7, W * .6); });
-  // PHASE 4: the Gravity Drive approach (stage 3 starts ~8370): corridor gauntlet, rising pressure, WARNING, a breath
-  at(8430, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
-  at(8450, () => formation('sine', PH * .3));
-  at(8530, () => { corpse(70); corpse(PH - 70); });
-  at(8600, () => formation('dive', 60));
-  at(8670, () => formation('dive', PH - 80));
-  at(8730, () => { eyeT(1); eyeT(-1); });
-  at(8790, () => behindWave(PH / 2));
-  at(8850, () => { formation('zig', PH * .35); flayer(PH * .75); });
-  at(8920, () => { formation('wall', PH / 2); if (hard) hatch(6, true); });
-  at(8990, () => { flayer(PH * .25); flayer(PH * .7); if (hard) formation('dive', 120); });
-  at(9060, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
-  at(9150, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
-  at(BOSS_AT, () => startBoss());
-  // stages 1 and 2 (world x 2300..8200) are biome slots, scripted when you pick a gate (biomes.ts insertScript)
-  S.sort((a, b) => a.x - b.x);
-  return S;
-}
+// the Open Orbit and Gravity Drive approach scripts, remixed per descent, live in enemies/scripts.ts
+export { buildScript } from './scripts';
 export function runScript() {
   while ($.G.si < $.G.script.length && $.G.script[$.G.si].x <= $.G.scroll) {
     const s = $.G.script[$.G.si++];

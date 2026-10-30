@@ -13,6 +13,8 @@ import { spark, drop, flash, gore, pop, mist } from './fx/spawn';
 import { banner, behindWave, butcher, corpse, crawler, crossT, eyeT, flayer, formation, hatch, hookE, logLine, maw, midboss, miniWarn, womb, crux } from './enemies/spawn';
 import { glow, light } from './render/util';
 import { mutant, slime } from './enemies/spawn';
+import { eliteChance, eliteRoll } from './enemies/elite';
+import { enemies } from './world';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
@@ -30,8 +32,10 @@ export const BIOMES = {
     gore: ['#7a1222', '#300610', '#d8efff', '#0c0809', '#8cc4ee', '#ffffff'], blood: ['#7a1222', '#300610', '#c8506a'],
     boss: 'crux', bossName: 'THE BLOATED BITCH', mid: 'choir', midName: 'THE NAIL CHOIR', haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
-    gap: 115, dbl: .5, set: 'morgue', sig: 'corpse',
-    mix: [['corpse', 3], ['cross', 3], ['flayer', 2], ['eye', 2], ['hook', 2], ['wall', 2], ['sine', 2], ['mutant', 1]],
+    gap: 115, dbl: .55, set: 'morgue', sig: 'corpse',
+    mix: [['corpse', 4], ['cross', 3], ['mutant', 2.5], ['flayer', 2], ['eye', 2], ['hook', 2], ['sine', 2]],
+    // a repeat visit (remix(), below): the hulks lead, crucifixes line the shelves, two kinds wander in from elsewhere
+    remix: { sig: 'mutant', set: 'crucify', drop: ['hook', 'eye', 'sine'], add: [['zig', 1]], pool: [['crawler', 2], ['womb', 2], ['slime', 2], ['hatch', 1.2]] },
     logs: ['TEMPERATURE: -140C. THE BODIES ARE STANDING UP.', 'THE ICE IS FULL OF FACES.'],
   },
   acid: {
@@ -40,8 +44,10 @@ export const BIOMES = {
     gore: ['#8a4630', '#2e140c', '#46e0c0', '#0c0809', '#ddd27a', '#c8f4e8'], blood: ['#1c9a80', '#0a3a32', '#6ff0d4'],
     boss: 'maw', bossName: 'THE DISSOLVED MAW', mid: 'cyst', midName: 'THE DISSOLVING WOMB', haz: 'geyser', hazEvery: 135,
     // wall swarms over a floor full of crawlers and wombs
-    gap: 125, dbl: .5, set: 'walls', sig: 'wall',
-    mix: [['wall', 4], ['crawler', 3], ['womb', 2], ['eye', 2], ['dive', 1], ['hatch', 1]],
+    gap: 125, dbl: .55, set: 'walls', sig: 'crawler',
+    mix: [['crawler', 4], ['womb', 3], ['eye', 2], ['hatch', 1], ['wall', .7], ['dive', .3]],
+    late: [['slime', 2.5]], // Descent 2+: the Sinus's slimes have leaked into the tanks
+    remix: { sig: 'womb', set: 'gutter', drop: ['dive', 'hatch'], add: [['sine', .6]], pool: [['mutant', 2], ['hook', 2], ['flayer', 2], ['cross', 2]] },
     logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'MY HULL PLATING IS SIZZLING.'],
   },
   fire: {
@@ -51,7 +57,8 @@ export const BIOMES = {
     boss: 'butcher', bossName: 'THE BURNING BUTCHER', mid: 'prentice', midName: "THE BUTCHER'S APPRENTICE", haz: 'jet', hazEvery: 125,
     // aggressive: tight spacing, divers and flayers, things coming from behind
     gap: 100, dbl: .6, set: 'pincer', sig: 'flayer',
-    mix: [['flayer', 3], ['dive', 3], ['hook', 2], ['zig', 2], ['crawler', 2], ['behind', 1], ['mutant', 1]],
+    mix: [['flayer', 3], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
+    remix: { sig: 'mutant', set: 'kiln', drop: ['crawler', 'dive'], add: [['zig', .8]], pool: [['cross', 2], ['eye', 2], ['corpse', 2], ['slime', 2]] },
     logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.'],
   },
   snot: {
@@ -60,8 +67,9 @@ export const BIOMES = {
     gore: ['#d0b840', '#7a4a18', '#f4e6a0', '#3a1a0a', '#fff4c8', '#a83a24'], blood: ['#c8ac3a', '#6a4a14', '#f2e08a'],
     boss: 'maw', bossName: 'THE MUCUS MAW', mid: 'brood', midName: 'THE BROOD MOTHER', haz: 'strand', hazEvery: 150,
     // hatchling floods out of wombs and the walls
-    gap: 125, dbl: .45, set: 'flood', sig: 'hatch',
-    mix: [['hatch', 4], ['womb', 3], ['corpse', 2], ['sine', 2], ['crawler', 1], ['eye', 1], ['slime', 3]],
+    gap: 125, dbl: .5, set: 'flood', sig: 'hatch',
+    mix: [['slime', 5], ['hatch', 3], ['womb', 3], ['corpse', 2], ['sine', 1.5], ['crawler', 1], ['eye', 1]],
+    remix: { sig: 'slime', set: 'drip', drop: ['corpse', 'eye', 'sine'], add: [['zig', 1.2]], pool: [['mutant', 2], ['hook', 2], ['cross', 2], ['flayer', 2]] },
     logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.'],
   },
 };
@@ -141,41 +149,66 @@ export function biomeExit() {
 }
 
 // ---------------- enemy script for a biome slot ----------------
+const FM = 4;
 const SPAWN = {
-  corpse: () => corpse(rr(50, PH - 80)), wall: () => formation('wall', PH / 2), sine: () => formation('sine', rr(50, PH - 90)),
-  zig: () => formation('zig', rr(60, PH - 90)), dive: () => formation('dive', rr(50, PH - 90)), cross: () => crossT(R() < .6 ? 1 : -1),
+  // biome formations are a size smaller than Open Orbit's (FM drones, + rank as everywhere): the biome's own creatures carry the stage
+  corpse: () => corpse(rr(50, PH - 80)), wall: () => formation('wall', PH / 2, FM), sine: () => formation('sine', rr(50, PH - 90), FM),
+  zig: () => formation('zig', rr(60, PH - 90), FM), dive: () => formation('dive', rr(50, PH - 90), FM), cross: () => crossT(R() < .6 ? 1 : -1),
   eye: () => eyeT(R() < .55 ? 1 : -1), flayer: () => flayer(rr(60, PH - 60)), hook: () => hookE(), womb: () => womb(),
-  hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70)),
+  hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
 };
 Object.assign(SPAWN, { slime: () => slime(R() < .65 ? 1 : -1), mutant: () => mutant() }); // new enemies: snot slime (floor or ceiling), hulking mutant (floor)
 function insertScript(entries) {
   const G = $.G, rest = G.script.slice(G.si).concat(entries).sort((a, b) => a.x - b.x);
   G.script = G.script.slice(0, G.si).concat(rest);
 }
-// one signature set piece per biome, dropped in twice per slot
+// one signature set piece per biome, dropped in twice per slot; a repeat visit swaps in the second one (remix)
+const later = (t, f) => $.G.pend.push({ t, f });
 const SET = {
-  morgue: () => { corpse(PH * .25); corpse(PH * .5, { drift: .2 }); corpse(PH * .75); }, // a frozen crew drifting in a line
-  walls: () => { formation('wall', PH * .33, 4); formation('wall', PH * .67, 4); }, // a double wall, gap in the middle
-  pincer: () => { formation('dive', 55); formation('dive', PH - 75); behindWave(PH / 2, 4); },
-  flood: () => { hatch(ri(9, 12), false); hatch(ri(5, 7), true); },
+  morgue: () => { corpse(PH * .25); corpse(PH * .5, { drift: .2 }); corpse(PH * .75); later(40, mutant); }, // a frozen crew drifting in a line, a hulk walking under it
+  walls: () => { formation('wall', PH * .33, 2); formation('wall', PH * .67, 2); crawler(1); crawler(-1); }, // a double wall, gap in the middle, crawlers on the lining
+  pincer: () => { flayer(55); flayer(PH - 75); behindWave(PH / 2, 2); }, // flayers top and bottom, a short rear wave between them
+  flood: () => { hatch(ri(7, 9), false); hatch(ri(4, 6), true); slime(1); later(30, () => slime(-1)); },
+  // remix sets
+  crucify: () => { crossT(1); crossT(-1); later(30, mutant); later(70, () => crossT(R() < .5 ? 1 : -1)); }, // the shelves are lined with crucifixes
+  gutter: () => { womb(); crawler(1); crawler(-1); later(35, () => { crawler(1); crawler(-1); }); later(70, () => eyeT(1)); }, // the lining crawls
+  kiln: () => { mutant(); hookE(); later(40, () => { hookE(); flayer(PH / 2); }); later(80, mutant); }, // the meat line: hulks under swinging hooks
+  drip: () => { slime(1); slime(-1); later(35, () => { slime(1); slime(-1); }); later(70, () => { slime(1); womb(); }); }, // the walls run with slimes
 };
-export function biomeScript(seg, b, from) {
-  const B = BIOMES[b], g = SEG[seg], S = [], at = (x, f) => S.push({ x, f }), hard = $.G.loop > 0;
-  const tot = B.mix.reduce((s, m) => s + m[1], 0), roll = () => { let r = R() * tot, k = 0; while ((r -= B.mix[k][1]) > 0) k++; return B.mix[k][0]; };
+/** a repeat visit to a biome (v = earlier visits this run): its own second signature + set, the set pieces moved, some
+ *  of its kinds gone, its drone pattern swapped (add), two kinds borrowed from other biomes (a fresh pick each time),
+ *  and more elites (enemies/elite.ts) */
+export function remix(b, v, loop) {
+  const B = BIOMES[b], X = B.remix, mix = B.mix.concat(loop > 0 && B.late ? B.late : []);
+  if (!v || !X) return { sig: B.sig, set: B.set, mix, sets: [.3, .75], cross: [] };
+  const pool = X.pool.slice(), cross = [];
+  while (cross.length < 2 && pool.length) cross.push(pool.splice(Math.floor(R() * pool.length), 1)[0]);
+  return { sig: X.sig, set: X.set, mix: mix.filter((m) => !X.drop.includes(m[0])).concat(X.add || [], cross), sets: [.22, .62], cross: cross.map((c) => c[0]) };
+}
+export function biomeScript(seg, b, from, v = 0) {
+  const B = BIOMES[b], g = SEG[seg], S = [], at = (x, f) => S.push({ x, f }), hard = $.G.loop > 0, X = remix(b, v, $.G.loop), MX = X.mix;
+  const tot = MX.reduce((s, m) => s + m[1], 0), roll = () => { let r = R() * tot, k = 0; while ((r -= MX[k][1]) > 0 && k < MX.length - 1) k++; return MX[k][0]; };
+  // elites: every spawn this slot makes (rear waves and staggered set pieces included) rolls eliteChance once
+  const ep = eliteChance($.G.loop, v), el = (f) => !ep ? f : () => {
+    const n0 = enemies.length, p0 = $.G.pend.length;
+    f();
+    eliteRoll(enemies.slice(n0), ep, R);
+    for (let i = p0; i < $.G.pend.length; i++) $.G.pend[i].f = el($.G.pend[i].f);
+  };
   const a = Math.max(g.x0 + 220, from + 60), z = g.bossX - 160, mid = Math.round((a + z) / 2);
   at(a - 40, () => logLine(B.logs[0]));
   at(mid, () => logLine(B.logs[1]));
   // pacing beats by p = (x-a)/(z-a): intro <.2 (sparse, signature first) / build / breath .45-.55 (empty) / peak .55-.9 (dense) / tail
-  const P = (q) => a + (z - a) * q, sig = () => (R() < .6 ? B.sig : roll()), sets = [P(.3), P(.75)];
+  const P = (q) => a + (z - a) * q, sig = () => (R() < .6 ? X.sig : roll()), sets = X.sets.map(P);
   const bZ = seg === 1 ? Math.max(P(.55), mid + 260) : P(.55), bA = bZ - (z - a) * .1; // stage 2: the breath is shifted to end just past mid+260 (the midboss), as it was for the old mid-stage Maw
   for (let x = a, n = 0; x < z; n++) {
     const q = (x - a) / (z - a), intro = q < .2, peak = x >= bZ && q < .9, st = Math.round(B.gap * (intro ? 1.4 : peak ? .75 : 1)), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
     if (x >= bA && x < bZ) { x = bZ; continue; }
-    if (sets.length && x + st / 2 > sets[0]) { sets.shift(); at(x, SET[B.set]); x += st; continue; }
+    if (sets.length && x + st / 2 > sets[0]) { sets.shift(); at(x, el(SET[X.set])); x += st; continue; }
     const pk = intro ? sig : roll, dbl = intro ? .2 : peak ? Math.min(.85, B.dbl + .15) : B.dbl;
-    at(x, SPAWN[n ? pk() : B.sig]); // the very first slot is the signature enemy, alone
-    if (n && R() < dbl && !(y2 >= bA && y2 < bZ)) at(y2, SPAWN[pk()]); // extras never spill into the breath
-    if (n && hard && R() < .35 && !(y3 >= bA && y3 < bZ)) at(y3, SPAWN[pk()]);
+    at(x, el(SPAWN[n ? pk() : X.sig])); // the very first slot is the signature enemy, alone
+    if (n && R() < dbl && !(y2 >= bA && y2 < bZ)) at(y2, el(SPAWN[pk()])); // extras never spill into the breath
+    if (n && hard && R() < .35 && !(y3 >= bA && y3 < bZ)) at(y3, el(SPAWN[pk()]));
     x += st;
   }
   // the breath's centerpiece: the biome's own midboss. WARNING 150f (~150px) ahead so it lands ~60px before bZ and the scroll coasts to a stop inside the breath
@@ -202,12 +235,15 @@ export function openFork(seg) {
 function choose(b) {
   const G = $.G, f = G.fork, seg = f.seg;
   G.route[seg] = b;
+  const v = ((G.bvis ||= {})[b] || 0); // earlier visits to this biome this run: 1+ = remix
+  G.bvis[b] = v + 1;
+  (G.remix ||= [0, 0])[seg] = v;
   G.fork = null;
   G.forkHold = false;
   const from = Math.max(SEG[seg].x0, G.scroll + W + 10);
   (G.bx ||= [null, null, null])[seg] = from;
   rewriteTerrain(seg, b, from);
-  insertScript(biomeScript(seg, b, from));
+  insertScript(biomeScript(seg, b, from, v));
   G.pend.push({ t: 40, f: () => startStage(seg + 1) });
   flash($.P.x, $.P.y, 80, 18, BIOMES[b].rgb);
   sfx.power();

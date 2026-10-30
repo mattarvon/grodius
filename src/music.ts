@@ -39,6 +39,11 @@ export const BIOME_MIX = {
   snot: { track: 'void-09-pods', rate: 1, type: 'lowpass', f: 2400, q: 1, lfo: .13, depth: 600, drive: .05 },
   // not a biome: while THE SQUIDFUCKED SAUCER (Open Orbit midboss) is up, Open Orbit's own track goes wet and wobbly, a slow wah
   ufo: { rate: 1, type: 'bandpass', f: 1100, q: .6, lfo: .35, depth: 650, drive: .25 },
+  // a repeat visit to a biome (biomes.ts remix): same track, filtered differently so it doesn't replay the last visit
+  'ice+': { rate: 1, type: 'bandpass', f: 1400, q: .45, lfo: .07, depth: 700, drive: .1 }, // a cold wind sweeping through it
+  'acid+': { rate: 1, type: 'lowpass', f: 1300, q: 3, lfo: .3, depth: 600, drive: .3 }, // a gurgling resonant wah
+  'fire+': { rate: 1, type: 'highpass', f: 260, q: 1.1, lfo: 0, depth: 0, drive: .5 }, // the bass burnt out, louder grit
+  'snot+': { rate: 1, type: 'lowpass', f: 900, q: 1.4, lfo: .09, depth: 350, drive: .12 }, // heard through a blocked nose
 };
 const FADE = 1.4, PAUSE_LVL = .35, DUCK_LVL = .3;
 let filt = null, shaper = null, lfo = null, lfoG = null, mixNow = 'none';
@@ -141,7 +146,8 @@ export function musicUpdate() {
   const w = wanted();
   if (w !== curName) play(w);
   if (!bus) return;
-  applyMix(($.state === 'play' || $.state === 'pause') && (curBiome() || ufoMix()) || 'none');
+  const cb = curBiome(), deep = cb && $.G.remix && $.G.remix[$.G.stage - 1] ? cb + '+' : cb;
+  applyMix(($.state === 'play' || $.state === 'pause') && (deep || ufoMix()) || 'none');
   if (cur && cur.el.playbackRate !== (BIOME_MIX[mixNow] || BIOME_MIX.none).rate) cur.el.playbackRate = (BIOME_MIX[mixNow] || BIOME_MIX.none).rate;
   // a play() refused before the first click/key gets retried once audio is unlocked
   if (cur && cur.name && cur.el.paused && AU.c.state === 'running' && !document.hidden && $.T % 30 === 0) cur.el.play().catch(() => {});

@@ -4,6 +4,8 @@
 // Usage: node tools/perf-probe.mjs <url> [throttle=4] [scenes=all|maw,crux,...] [prof]   (WARM_MS=20000 env: wait for the idle art warm-up first, like the title screen; fairer for boss scenes)
 //   prints avg / p95 / max ms for step and render, and the share of frames whose step+render blows the 16.7 ms budget.
 //   prof: also samples the JS profiler per scene and prints the top self-time functions.
+//   ELITE=1 env: in biome scenes, a crowd of elites (enemies/elite.ts) keeps streaming in alongside the fight (~8 alive);
+//   ELITE=2: the same crowd, not elite (the control: what the elite visuals and attacks cost on top).
 // Needs the VITE DEV server (imports live modules). Restart vite after edits before trusting numbers.
 import { chromium } from 'playwright';
 const [url, THR = '4', SC = 'all', PROF = ''] = process.argv.slice(2);
@@ -23,7 +25,7 @@ const STRONG = [{ speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal
 const BIOME = { choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot', crux: 'ice', butcher: 'fire', maw: null, ufo: null, orbit: null, gravity: null };
 
 async function scene(k) {
-  return p.evaluate(async ([k, biome, kit]) => {
+  return p.evaluate(async ([k, biome, kit, elite]) => {
     const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
     const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
     const BU = await import('/src/boss/update.ts'), SCR = await import('/src/render/screens.ts');
@@ -53,7 +55,9 @@ async function scene(k) {
     const st = [], rt = [];
     let deadAt = -1, f = 0;
     const MAX = k === 'orbit' ? 900 : 2400;
+    const EL = elite && biome ? await import('/src/enemies/elite.ts') : null;
     for (; f < MAX; f++) {
+      if (EL && f % 40 === 0 && W.enemies.filter((e) => (e.elite || e.crowd) && !e.dead).length < 8) { const n0 = W.enemies.length; [() => SP.corpse(C.rr(40, 200)), () => SP.flayer(C.rr(50, 200)), () => SP.crawler(1), () => SP.hatch(3, false)][(f / 40) % 4](); for (const e of W.enemies.slice(n0)) if (elite === 1) EL.eliteify(e); else e.crowd = 1; }
       const m = $.G.mini, B = $.G.boss;
       const tgt = k === 'gravity' ? (B ? B.y : $.P.y) : k === 'orbit' ? 135 + Math.sin(f * .02) * 70 : (m ? m.y : $.P.y);
       const y = C.clamp(tgt + Math.sin(f * .05) * 6, 8, C.PH - 8);
@@ -71,7 +75,7 @@ async function scene(k) {
     const dSl = deadAt >= 0 ? rt.slice(deadAt) : [];
     return { frames: f, deadAt, step: [avg(st), q(st, .95), Math.max(...st)], render: [avg(rt), q(rt, .95), Math.max(...rt)],
       over: tot.filter((v) => v > 1000 / 60).length / tot.length, death: dSl.length ? [avg(dSl), q(dSl, .95)] : null };
-  }, [k, BIOME[k], STRONG]);
+  }, [k, BIOME[k], STRONG, +(process.env.ELITE || 0)]);
 }
 
 const f1 = (a) => a.map((v) => v.toFixed(1).padStart(5)).join(' ');
