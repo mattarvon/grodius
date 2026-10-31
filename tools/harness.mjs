@@ -33,6 +33,9 @@ const init = () => {
   window.requestAnimationFrame = (f) => { q.push(f); return q.length; };
   window.setTimeout = (f) => 0; // voice lines / delayed sfx: irrelevant to sim
   window.speechSynthesis = undefined;
+  // no audio: auInit draws R() once per noise sample, so the device sample rate (44.1k vs 48k) and whether
+  // the context runs (autoplay policy, no sound card on CI) would otherwise change the sim's RNG stream
+  window.AudioContext = undefined; window.webkitAudioContext = undefined;
   try { localStorage.clear(); } catch (e) {}
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const fs = q.splice(0); for (const f of fs) f(now); } };
 };
@@ -47,7 +50,8 @@ try {
   await p.goto(url); await p.waitForFunction(() => window.__started || typeof G !== 'undefined', null, { timeout: 10000 }).catch(() => {}); await p.waitForTimeout(300);
   const hashes = [];
   // script: frame -> actions
-  const plan = { 30: ['down:Enter'], 32: ['up:Enter'], 60: ['down:KeyZ'] };
+  // with no audio the title gate stays up and swallows the first key, so open it before pressing Enter
+  const plan = { 10: ['down:KeyX'], 12: ['up:KeyX'], 30: ['down:Enter'], 32: ['up:Enter'], 60: ['down:KeyZ'] };
   for (let f = 90; f < FRAMES; f += 90) (plan[f] ||= []).push(`down:${(f / 90) % 2 ? 'ArrowUp' : 'ArrowDown'}`), (plan[f + 45] ||= []).push(`up:${(f / 90) % 2 ? 'ArrowUp' : 'ArrowDown'}`);
   const stops = [...new Set([...Object.keys(plan).map(Number), ...Array.from({ length: FRAMES / 600 }, (_, i) => i * 600 + 600)])].filter((f) => f <= FRAMES).sort((a, b) => a - b);
   let f = 0;

@@ -1,26 +1,26 @@
 {
   "frames": 3600,
-  "commit": "4bdc3e3",
+  "commit": "1e20b36",
   "os": "linux 6.18.42-1-cachyos-lts",
   "st": {
     "state": "over",
-    "score": 3136,
+    "score": 2282,
     "scroll": 2168,
     "lives": 0,
     "px": 50,
-    "py": 58.17,
+    "py": 123.25,
     "en": 1,
     "gibs": 0,
-    "drops": 86,
+    "drops": 112,
     "caps": 0
   },
   "hashes": [
-    "366ec62cf4",
-    "54c2f94193",
-    "a2c5e0b62a",
-    "b8e2ebef8a",
-    "409aebe80b",
-    "8a86d0f973"
+    "030d0952a1",
+    "3560bfdcab",
+    "4da6a76ea4",
+    "600fcb245c",
+    "1141259f95",
+    "ae09d339da"
   ],
   "errs": []
 }
