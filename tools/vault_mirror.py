@@ -3,13 +3,16 @@
 E:\\projects\\obsidian-vault-sync\\Sync-Vault.ps1 (same frontmatter stamp, callout, stale cleanup).
 Exists so the mirror can be refreshed from a shell without PowerShell (e.g. after a push from CI or Claude).
 
-  python3 tools/vault_mirror.py <repo dir> <vault Projects/Grodius dir> [--win-repo E:\\projects\\grodius]
+  python3 tools/vault_mirror.py <repo dir> <vault Projects/Grodius dir> [--win-repo E:\\projects\\grodius] [--dry-run]
 
-Keep INCLUDE in sync with the Grodius entry in Sync-Vault.ps1's $Manifest.
+Keep INCLUDE/EXCLUDE in sync with the Grodius entry in Sync-Vault.ps1's $Manifest.
 """
 import datetime, glob, os, subprocess, sys
 
 INCLUDE = ['README.md', 'CHANGELOG.md', 'docs/*.md', 'docs/*.png']
+# Claude Code Game Studios framework docs: tooling, not Grodius design
+EXCLUDE = {'docs/CLAUDE.md', 'docs/COLLABORATIVE-DESIGN-PRINCIPLE.md', 'docs/WORKFLOW-GUIDE.md',
+           'docs/migration-guide-v1.1.md', 'docs/skill-flow-diagrams.md'}
 
 
 def git(repo, *args):
@@ -22,6 +25,7 @@ def git(repo, *args):
 def main():
     repo, proj = sys.argv[1], sys.argv[2]
     win_repo = sys.argv[sys.argv.index('--win-repo') + 1] if '--win-repo' in sys.argv else repo
+    dry = '--dry-run' in sys.argv
     dest = os.path.join(proj, 'Mirrors')
     url = git(repo, 'remote', 'get-url', 'origin').strip()
     url = url[:-4] if url.endswith('.git') else url
@@ -35,9 +39,15 @@ def main():
             if not os.path.isfile(f):
                 continue
             rel = os.path.relpath(f, repo)
+            if rel.replace(os.sep, '/') in EXCLUDE:
+                continue
             out = os.path.join(dest, rel)
-            os.makedirs(os.path.dirname(out), exist_ok=True)
             wanted.add(os.path.normcase(os.path.abspath(out)))
+            n += 1
+            if dry:
+                print('would sync:', rel)
+                continue
+            os.makedirs(os.path.dirname(out), exist_ok=True)
             if f.endswith('.md'):
                 body = open(f, encoding='utf-8').read()
                 rel_win = rel.replace('/', '\\')
@@ -57,14 +67,16 @@ def main():
             else:
                 with open(f, 'rb') as r, open(out, 'wb') as w:
                     w.write(r.read())
-            n += 1
     for root, _, files in os.walk(dest):
         for fn in files:
             p = os.path.join(root, fn)
             if os.path.normcase(os.path.abspath(p)) not in wanted:
+                if dry:
+                    print('would remove stale mirror:', p)
+                    continue
                 os.remove(p)
                 print('removed stale mirror:', p)
-    print(f'Synced {n} files into {dest} @ {commit} ({today})')
+    print(f'{"Would sync" if dry else "Synced"} {n} files into {dest} @ {commit} ({today})')
 
 
 if __name__ == '__main__':
