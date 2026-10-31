@@ -27,12 +27,19 @@ project:
 
 modes:
   rigor: minimal
+  # Deliberate override of two knobs rigor fronts (Matt, 2026-10-31: "apply every Studio Hierarchy agent to
+  # everything we do with Grodius"): full director/lead review on every change, the whole studio roster active.
+  # rigor still sets the paperwork (workflow, docs.density, qa.level, story_granularity), which stays minimal.
+  review_mode: full
   automation: guided
   automation_always_ask:
     - scope_changes
     - file_deletions
     - schema_changes
     - architecture_decisions
+
+team:
+  size: studio  # see the modes comment above: all agents active, not the solo core 8
 
 testing:
   framework: vitest

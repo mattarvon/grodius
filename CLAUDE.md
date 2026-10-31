@@ -57,6 +57,29 @@ Every task follows: **Question -> Options -> Decision -> Draft -> Approval**
 
 See `docs/COLLABORATIVE-DESIGN-PRINCIPLE.md` for full protocol and examples.
 
+## Studio Hierarchy on Every Change
+
+Standing instruction from Matt (2026-10-31): **apply every Studio Hierarchy agent to
+everything done on Grodius.** `project.yaml` sets `modes.review_mode: full` and
+`team.size: studio` for this; paperwork stays at `rigor: minimal`.
+
+- **Every change** (code, tuning, design, art, audio, copy, tools, CI, docs) gets a
+  full hierarchy pass before it lands on `main`: the relevant Tier 3 specialists
+  build or review it, **every department lead** reviews it for their domain
+  (game-designer, lead-programmer, art-director, audio-director,
+  narrative-director, qa-lead, release-manager, localization-lead), and the three
+  directors (creative-director, technical-director, producer) sign off last.
+- A lead or director whose domain is untouched still looks, and says "no impact"
+  with a reason; silence is not a pass.
+- Use the team skills at `studio` size (`/team-combat`, `/team-ui`, `/team-level`,
+  `/team-audio`, `/team-narrative`, `/team-qa`, `/team-polish`, `/team-release`)
+  and the review skills at `full` (`/code-review`, `/design-review`,
+  `/balance-check`) where they fit. Otherwise run the hierarchy as a multi-agent
+  workflow: specialists, then leads, then directors.
+- A director or lead **block** stops the merge until it is resolved or Matt
+  overrides it. Record the outcome in the commit message (`Studio review: ...`)
+  and any decision in `production/decision-log.md`.
+
 > **Where things stand:** `production/studio-roadmap.md` (ranked work, current
 > sprint), `production/decision-log.md` (decisions made and pending),
 > `design/game-brief.md` (the design record at `rigor: minimal`). Run `/help` for
