@@ -18,7 +18,8 @@ import { driveHP } from '../depth';
 // ---------------- boss: the gravity drive ----------------
 export function startBoss() {
   $.G.bossStarted = true;
-  // HP tracks loop AND power rank (biome bosses already do via mk()): a stacked build still gets a real fight
+  // HP tracks loop AND power rank: a stacked build still gets a real fight. The Drive is now the only enemy whose HP
+  // scales with rank (mk() in src/enemies/spawn.ts dropped its rank term in 48eb7cb)
   const m = (1 + .4 * $.G.loop) * (1 + .6 * ($.G.rank || 0)) * driveHP(); // driveHP: depth past the cap (src/depth.ts)
   $.G.boss = {
     x: W + 150,

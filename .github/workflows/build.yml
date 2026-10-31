@@ -70,11 +70,12 @@ jobs:
       - name: Publish latest APK
         env:
           GH_TOKEN: ${{ github.token }}
+          COMMIT_MSG: ${{ github.event.head_commit.message || 'manual run' }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest grodius.apk --prerelease \
             --title "Latest build #${{ github.run_number }}" \
-            --notes "Sideload build from ${GITHUB_SHA::7}: ${{ github.event.head_commit.message || 'manual run' }}"
+            --notes "Sideload build from ${GITHUB_SHA::7}: $COMMIT_MSG"
 
   web:
     runs-on: ubuntu-latest
