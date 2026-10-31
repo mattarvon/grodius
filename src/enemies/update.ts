@@ -48,7 +48,7 @@ export function updEnemy(e) {
             e.y += e.vy;
           }
         }
-        if (onScreen(e) && !(e.ghost > 0) && R() < .0025 * (1 + $.G.loop) * firem() && e.x > $.P.x + 40) eshoot(e.x, e.y, aimA(e.x, e.y), 1.5);
+        if (onScreen(e) && !(e.ghost > 0) && R() < .0025 * firem() && e.x > $.P.x + 40) eshoot(e.x, e.y, aimA(e.x, e.y), 1.5);
         break;
       }
     case 'corpse':

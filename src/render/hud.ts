@@ -476,7 +476,7 @@ export function drawWorld() {
   ctx.globalAlpha = 1;
   const sc = $.G.scroll;
   let dk = AMT.corr(sc) * .62 + AMT.core(sc) * .3;
-  if ($.G.flick > 0) dk = Math.min(.9, dk + .3);
+  if ($.G.flick > 0 && SET.flashes) dk = Math.min(.9, dk + .3);
   flushLo();
   drawLighting(dk);
 }

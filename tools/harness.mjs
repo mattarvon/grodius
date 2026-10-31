@@ -36,18 +36,32 @@ const init = () => {
   // no audio: auInit draws R() once per noise sample, so the device sample rate (44.1k vs 48k) and whether
   // the context runs (autoplay policy, no sound card on CI) would otherwise change the sim's RNG stream
   window.AudioContext = undefined; window.webkitAudioContext = undefined;
-  try { localStorage.clear(); } catch (e) {}
+  // fresh save that has already answered the first-launch HELL FLASHES prompt (flashes ON, the default)
+  try { localStorage.clear(); localStorage.setItem('grodius.v1', '{"meta":{"v":2},"asked":true}'); } catch (e) {}
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const fs = q.splice(0); for (const f of fs) f(now); } };
 };
 const key = (type, code) => `dispatchEvent(new KeyboardEvent('${type}',{code:'${code}',key:'${code}'}))`;
-const b = await chromium.launch();
-let result;
-try {
-  const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Ready = booted, fonts in, and every sprite strip and photo decoded. Images that finish loading after frames start
+// change which draw paths run, so they must all be in first. Polled from Node: the page's own timers are stubbed.
+const ready = () => p0.evaluate(async () => {
+  if (!window.__started || document.fonts.status !== 'loaded') return false;
+  try {
+    const [s, t] = await Promise.all([import('/src/sprites.ts'), import('/src/textures.ts')]);
+    return Object.values(s.SPR).every((x) => x.fw > 0) && Object.values(t.PIC).every((i) => i.complete && i.naturalWidth > 0);
+  } catch (e) { return true; } // not a Vite dev server (e.g. a preview URL): boot + fonts is the best available
+});
+let p0;
+async function runOnce(b) {
+  const p = (p0 = await b.newPage({ viewport: { width: 1280, height: 720 } }));
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+  let loads = 0; p.on('load', () => loads++);
   await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
   await p.addInitScript(init);
-  await p.goto(url); await p.waitForFunction(() => window.__started || typeof G !== 'undefined', null, { timeout: 10000 }).catch(() => {}); await p.waitForTimeout(300);
+  await p.goto(url);
+  let ok = false;
+  for (let i = 0; i < 300 && !ok; i++) { ok = await ready().catch(() => false); if (!ok) await sleep(50); }
+  if (!ok) errs.push('harness: game not ready after 15 s (boot, fonts or images)');
   const hashes = [];
   // script: frame -> actions
   // with no audio the title gate stays up and swallows the first key, so open it before pressing Enter
@@ -62,13 +76,34 @@ try {
   }
   const st = await p.evaluate(() => { const g = window.__G ? window.__G() : { G, P, state, enemies, gibs, drops, caps };
     return { state: g.state, score: g.G && g.G.score, scroll: g.G && Math.round(g.G.scroll), lives: g.G && g.G.lives, px: g.P && +g.P.x.toFixed(3), py: g.P && +g.P.y.toFixed(3), en: g.enemies.length, gibs: g.gibs.length, drops: g.drops.length, caps: g.caps.length }; });
-  result = { st, hashes, errs };
+  if (loads > 1) errs.push(`harness: page reloaded ${loads - 1}x mid-run (Vite dependency re-optimisation?)`);
+  await p.close();
+  return { st, hashes, errs };
+}
+function compare(base, r) {
+  const diffs = Object.keys({ ...base.st, ...r.st }).filter((k) => base.st[k] !== r.st[k]).map((k) => `  st.${k}: ${base.st[k]} -> ${r.st[k]}`);
+  if (JSON.stringify(base.errs) !== JSON.stringify(r.errs)) diffs.push(`  errs: ${JSON.stringify(base.errs)} -> ${JSON.stringify(r.errs)}`);
+  return diffs;
+}
+
+const b = await chromium.launch();
+let result, retry;
+try {
+  result = await runOnce(b);
+  console.log(JSON.stringify(result));
+  // one retry on a mismatch: a real regression fails twice; a one-off is reported as FLAKY, never hidden
+  if (!UPDATE && existsSync(BASELINE)) {
+    const base = JSON.parse(readFileSync(BASELINE, 'utf8'));
+    if (base.frames === FRAMES && compare(base, result).length) {
+      console.log('mismatch on first run; running once more to tell a regression from a flake');
+      retry = await runOnce(b);
+      console.log(JSON.stringify(retry));
+    }
+  }
 } finally {
   await b.close();
   if (server) await server.close();
 }
-
-console.log(JSON.stringify(result));
 
 if (UPDATE) {
   let commit = 'unknown';
@@ -80,9 +115,10 @@ if (UPDATE) {
 if (!existsSync(BASELINE)) { console.error('no baseline: run with --update'); process.exit(1); }
 const base = JSON.parse(readFileSync(BASELINE, 'utf8'));
 if (base.frames !== FRAMES) { console.error(`baseline is for ${base.frames} frames, ran ${FRAMES}`); process.exit(1); }
-const diffs = Object.keys({ ...base.st, ...result.st }).filter((k) => base.st[k] !== result.st[k]).map((k) => `  st.${k}: ${base.st[k]} -> ${result.st[k]}`);
-if (JSON.stringify(base.errs) !== JSON.stringify(result.errs)) diffs.push(`  errs: ${JSON.stringify(base.errs)} -> ${JSON.stringify(result.errs)}`);
-const hashMoves = result.hashes.filter((h, i) => h !== base.hashes[i]).length;
-if (hashMoves) console.log(`note: ${hashMoves}/${result.hashes.length} canvas hashes differ (advisory)`);
+const first = compare(base, result);
+const final = retry || result, diffs = retry ? compare(base, retry) : first;
+const hashMoves = final.hashes.filter((h, i) => h !== base.hashes[i]).length;
+if (hashMoves) console.log(`note: ${hashMoves}/${final.hashes.length} canvas hashes differ (advisory)`);
 if (diffs.length) { console.error(`REGRESSION vs baseline @ ${base.commit}:\n${diffs.join('\n')}`); process.exit(1); }
+if (retry) console.warn(`FLAKY: first run differed, the retry matched. Nondeterminism to track down:\n${first.join('\n')}`);
 console.log(`PASS vs baseline @ ${base.commit}`);

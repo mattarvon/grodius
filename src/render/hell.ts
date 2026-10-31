@@ -62,27 +62,48 @@ export function makeHell() {
   }
   hx.stroke();
 }
+// Photosensitivity: a full-screen wash may start at most once per MIN_GAP steps (60 Hz -> <= 3 per second).
+// A wash that tries to start sooner holds its previous (fading) level until the gap has passed.
+const MIN_GAP = 20;
+const LIM = { white: { shown: 0, last: -99 }, red: { shown: 0, last: -99 }, hell: { last: -99, on: false } };
+function limited(s, v) {
+  if (v > s.shown + .05) {
+    if ($.T - s.last >= MIN_GAP) { s.last = $.T; s.shown = v; } else s.shown *= .85;
+  } else s.shown = v;
+  return s.shown;
+}
 export function postFX() {
-  if ($.G && $.G.glitch > 0) for (let i = 0; i < 3; i++) {
+  if (!$.G) return;
+  // HELL FLASHES OFF removes every full-screen flash, wash and tear; the sim state ($.G.white etc.) is unchanged
+  const on = SET.flashes;
+  if ($.G.glitch > 0) for (let i = 0; i < 3; i++) {
     const y = R() * H | 0,
       h = ri(2, 14),
       dx = ri(-14, 14);
-    GLQ.push([0, y, W, h, dx, y, W, h]);
+    if (on) GLQ.push([0, y, W, h, dx, y, W, h]);
   }
-  if ($.G && $.G.hell > 0) {
+  const hl = LIM.hell;
+  if ($.G.hell > 0) {
+    if (!hl.on && $.T - hl.last >= MIN_GAP) { hl.on = true; hl.last = $.T; }
+  } else hl.on = false;
+  if (on && hl.on && $.G.hell > 0) {
     ctx.save();
     ctx.globalAlpha = .92;
-    ctx.translate(rr(-4, 4), rr(-4, 4));
-    if (R() < .5) ctx.globalCompositeOperation = 'difference';
+    // jitter and the inverted look change every 10 steps (3 Hz), not every frame: a per-frame flip is a strobe
+    const k = $.T / 10 | 0;
+    ctx.translate((k * 7 % 9) - 4, (k * 5 % 9) - 4);
+    if (k % 2) ctx.globalCompositeOperation = 'difference';
     ctx.drawImage(hc, 0, 0);
     ctx.restore();
   }
-  if ($.G && $.G.red > .02) {
-    ctx.fillStyle = `rgba(160,0,8,${$.G.red * .4})`;
+  const red = limited(LIM.red, $.G.red);
+  if (on && red > .02) {
+    ctx.fillStyle = `rgba(160,0,8,${red * .4})`;
     ctx.fillRect(0, 0, W, H);
   }
-  if ($.G && $.G.white > .02) {
-    ctx.fillStyle = `rgba(255,250,245,${$.G.white * (SET.flashes ? 1 : .4)})`;
+  const white = limited(LIM.white, $.G.white);
+  if (on && white > .02) {
+    ctx.fillStyle = `rgba(255,250,245,${white})`;
     ctx.fillRect(0, 0, W, H);
   }
 }

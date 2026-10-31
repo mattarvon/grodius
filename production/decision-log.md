@@ -22,6 +22,27 @@ fill **Chosen**, **Reason** and the date, and move it to "Decided".
 **Reason:** Matt, 2026-10-31: "apply the framework to Grodius, make it great."
 **Category:** schema_changes
 
+### Delegated batch — 2026-10-31
+
+Matt, 2026-10-31: "do it all and commit to the main and let me play it when we get to certain milestones."
+Claude took the studio's recommended option wherever the roadmap named one, and a conservative option elsewhere.
+Each is **provisional until Matt plays the milestone it ships in** — overrule any of them and it gets reverted.
+Not decided (Matt only): D7 licensing/consent, D9 recordings, D12 WARD, D13-D14, D15 distribution (except
+localization), D16-D18, and the signing keystore half of D6.
+
+| ID | Chosen | Milestone |
+|----|--------|-----------|
+| D1 | Power shows up as enemy fire and density only; HP comes from depth (and loop) alone. The Gravity Drive loses its rank HP term too, unless boss-probe shows its fight collapsing. | M2 |
+| D2 | All perks and bolted contraptions count toward power from Descent 1 (one weight table). Drone `(1+loop)` double scaling removed. pow-2 fire compression kept. | M1 (drone), M2 |
+| D3 | Flashes stay ON by default but a first-launch prompt asks; OFF removes white/red washes, glitch tear and flicker entirely; a ≤3 flashes/s limiter applies in both modes. | M1 |
+| D4 | A red `verify` blocks both Pages and the APK. `workflow_dispatch` still exists for manual builds. Work commits straight to main (Matt's call), gated locally by `npm test`. | M1 |
+| D5b | DESCEND DEEPER keeps the run-wide double pay but is described honestly as a Descent 2 start. An escaped boss pays no biomass (matches README) but the stage still counts toward seals. Grade pay and the biomass sink are left for a later pass. | M2 |
+| D6 | Save hardening plus save export/import ship first; the stable-signing switch waits for Matt's keystore. | M1 |
+| D8 | No-crosses covers all cross and halo imagery on player-facing surfaces; logs and stage cards stay deadpan. | M3 |
+| D10 | Daily seeds and replays are not a goal; the RNG split is hygiene, done only where it serves the harness. | — |
+| D11 | Shared Maw body with biome-specific attack sets for acid and snot. | M3 |
+| D15 | Localization: English-only for now. | — |
+
 ---
 
 ## Open

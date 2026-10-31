@@ -118,7 +118,10 @@ export function drawTitle() {
       GLQ.push([20, y, 240, h, 20 + ri(-8, 8), y, 240, h]);
     }
   }
-  txt('DERELICT MERIDIAN // NEPTUNE ORBIT', 28, 96, '#6d8094');
+  if (!SET.asked && !$.gate) {
+    txt('THIS GAME HAS FLASHING IMAGES.', 28, 96, '#f0c8c8');
+    txt('YOU CAN CHANGE THIS LATER IN OPTIONS.', 28, 142, '#8fa3b8');
+  } else txt('DERELICT MERIDIAN // NEPTUNE ORBIT', 28, 96, '#6d8094');
   if ($.gate) {
     $.menuBoxes = [];
     if (($.T >> 5) % 2 === 0) txt(touch.used || matchMedia('(pointer: coarse)').matches ? 'TAP TO DESCEND' : 'PRESS ANY KEY', 40, 140, '#e0242c', 'left', 10);
@@ -127,7 +130,7 @@ export function drawTitle() {
   txt((SET.meter ? 'CAPSULES MOVE THE METER, X POWERS UP' : 'FLY INTO A POD TO TAKE IT') + '   P PAUSE   M MUTE', 28, 217, '#5b6573');
   txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', 28, 226, '#3f4955');
   txt('HI ' + pad($.hi, 8), 28, 240, '#8fa3b8');
-  txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#5a2a2c', 'right');
+  txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#c46a6e', 'right');
   txt('SPRITES: TIAMALT, SCARCZ, C.BELLANGER, D.COOK, SUNBURN, CIDERCORPSE', W - 8, H - 39, '#3a4048', 'right', 7);
   txt('MUSIC: DANCRAMP - VOID, FREESOUND ARTISTS   SFX: KENNEY, FREESOUND', W - 8, H - 30, '#3a4048', 'right', 7);
   txt('IMAGES: NASA/ESA/CSA JWST, VOYAGER 2, CHANDRA, FLICKR   SEE CREDITS.MD', W - 8, H - 21, '#3a4048', 'right', 7);

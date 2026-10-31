@@ -4,6 +4,7 @@ import { $ } from './state';
 // ---------------- persistence ----------------
 export const SET = {
   flashes: true,
+  asked: false, // the first-launch HELL FLASHES question has been answered
   muted: false,
   music: true,
   meter: false // POWER: false = typed pods (grab to pick), true = classic Gradius meter (capsules move a cursor, POWER buys)
@@ -18,8 +19,24 @@ $.meta = {
   cl: {},
   v: 2
 };
+const KEY = 'grodius.v1', BAK = 'grodius.v1.bak', BAD = 'grodius.v1.corrupt';
+// a save that exists but won't parse is kept aside (BAD) before anything is written over it
+let unreadable = null;
+function readSave() {
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); } catch (e) { return null; }
+  for (const k of [KEY, BAK]) {
+    try {
+      const s = k === KEY ? raw : localStorage.getItem(BAK);
+      const d = s && JSON.parse(s);
+      if (d && typeof d === 'object') return d;
+    } catch (e) {}
+  }
+  if (raw) unreadable = raw;
+  return null;
+}
 try {
-  const d = JSON.parse(localStorage.getItem('grodius.v1') || 'null');
+  const d = readSave();
   if (d) {
     $.meta = {
       bio: +(d.meta && d.meta.bio) || 0,
@@ -54,22 +71,46 @@ try {
     }
     $.hi = +d.hi || 0;
     SET.flashes = d.flashes !== false;
+    SET.asked = !!d.asked;
     SET.muted = !!d.muted;
     SET.music = d.music !== false;
     SET.meter = !!d.meter;
   }
-} catch (e) {}
+} catch (e) {
+  try { unreadable = localStorage.getItem(KEY); } catch (e2) {}
+}
+const snapshot = () => JSON.stringify({
+  meta: $.meta,
+  hi: $.hi,
+  flashes: SET.flashes,
+  asked: SET.asked,
+  muted: SET.muted,
+  music: SET.music,
+  meter: SET.meter
+});
 export function save() {
   try {
-    localStorage.setItem('grodius.v1', JSON.stringify({
-      meta: $.meta,
-      hi: $.hi,
-      flashes: SET.flashes,
-      muted: SET.muted,
-      music: SET.music,
-      meter: SET.meter
-    }));
+    if (unreadable) { localStorage.setItem(BAD, unreadable); unreadable = null; }
+    const prev = localStorage.getItem(KEY);
+    if (prev) localStorage.setItem(BAK, prev);
+    localStorage.setItem(KEY, snapshot());
   } catch (e) {}
+}
+/** the whole save as a pasteable code (base64 JSON) */
+export const exportSave = () => btoa(unescape(encodeURIComponent(snapshot())));
+/** replace the save with a code from exportSave(); false if the code isn't a Grodius save. Reload to apply. */
+export function importSave(code) {
+  try {
+    const s = decodeURIComponent(escape(atob(String(code).trim())));
+    const d = JSON.parse(s);
+    if (!d || typeof d !== 'object' || !d.meta || typeof d.meta !== 'object') return false;
+    const prev = localStorage.getItem(KEY);
+    if (prev) localStorage.setItem(BAK, prev);
+    localStorage.setItem(KEY, s);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 export const lv = id => $.meta.lv[id] || 0;
 // The Infirmary buys options and comfort, not raw power: in-run power has to be earned in-run.

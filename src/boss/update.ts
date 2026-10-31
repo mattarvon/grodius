@@ -97,7 +97,7 @@ export function updateBoss() {
     if (b.dying % 28 === 0) {
       splat(rr(60, 420), rr(30, 220), rr(2, 4));
       $.G.glitch = 6;
-      if (SET.flashes && R() < .5) hellFlash();
+      if (R() < .5) hellFlash();
     }
     $.G.shake = Math.max($.G.shake, 5);
     if (b.dying === 1) {
@@ -131,7 +131,7 @@ export function updateBoss() {
     sfx.roar();
     $.G.shake = 12;
     $.G.glitch = 16;
-    if (SET.flashes) hellFlash();
+    hellFlash();
     banner(np === 1 ? 'IT OPENED ITS EYE' : 'IT IS ANGRY NOW', '', undefined, 120);
     splat(rr(100, 380), rr(40, 200), 3);
   }

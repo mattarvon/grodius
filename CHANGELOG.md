@@ -2,6 +2,16 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-31 (safer flashes, safer saves)
+
+- First launch asks whether you want HELL FLASHES on. Change it any time under the new OPTIONS menu on the title screen.
+- HELL FLASHES OFF now really means off: no white or red screen washes, no glitch tearing, no corridor flicker, no hell images. Turning it off no longer changes how a run plays out.
+- With flashes on, full-screen flashes are limited to 3 per second and the hell image no longer strobes every frame.
+- OPTIONS has EXPORT SAVE (shows a code to keep somewhere safe) and IMPORT SAVE (paste a code to restore it).
+- Saves keep a backup copy; a save that can't be read is kept aside instead of being overwritten with a fresh one.
+- Security drones from Descent 2 on fire at the intended rate (+45% per descent). They had been firing two to three times that.
+- The APK is now only published when the checks pass, like the web build.
+
 ## 2026-10-31 (bug fixes, regression gate)
 
 - Picking one capsule from a choice row no longer applies its power twice or deletes an unrelated capsule on screen.

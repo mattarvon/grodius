@@ -1,13 +1,40 @@
 // @ts-nocheck
 import { $ } from './state';
-import { SET, UPG, lv, save } from './save';
+import { SET, UPG, exportSave, importSave, lv, save } from './save';
 import { auInit, sample, setMute, sfx } from './audio';
 import { I } from './input';
 import { newGame, openShop, shopNext, startLoop } from './flow';
 import { RIG, RIG_BY, SOCKET_COST, rigInit, rigged, sockets } from './contraptions';
 
 // ---------------- menus ----------------
+let titleSub = null, saveMsg = '';
+const sub = (s) => () => { titleSub = s; saveMsg = ''; $.menuSel = 0; };
+function exportItem() {
+  const code = exportSave();
+  saveMsg = 'SHOWN';
+  try { navigator.clipboard.writeText(code).then(() => { saveMsg = 'COPIED'; }, () => {}); } catch (e) {}
+  // prompt() shows the code in a selectable field: works where the clipboard API doesn't
+  try { window.prompt('YOUR SAVE CODE (KEEP IT SOMEWHERE SAFE)', code); } catch (e) {}
+}
+function importItem() {
+  let code = null;
+  try { code = window.prompt('PASTE A SAVE CODE. THIS REPLACES YOUR CURRENT SAVE.'); } catch (e) {}
+  if (!code) return;
+  if (importSave(code)) location.reload();
+  else saveMsg = 'BAD CODE';
+}
 export function titleItems() {
+  if (!SET.asked) return [true, false].map((on) => ({
+    l: 'HELL FLASHES ' + (on ? 'ON' : 'OFF'),
+    r: on ? 'AS INTENDED' : 'NO FLASHING',
+    a: () => {
+      SET.flashes = on;
+      SET.asked = true;
+      save();
+      $.menuSel = 0;
+    }
+  }));
+  if (titleSub === 'opt') return optionItems();
   return [{
     l: 'DESCEND',
     a: () => {
@@ -22,6 +49,12 @@ export function titleItems() {
     r: fmtBio($.meta.bio),
     a: () => openShop('title')
   }, {
+    l: 'OPTIONS',
+    a: sub('opt')
+  }];
+}
+function optionItems() {
+  return [{
     l: 'POWER',
     r: SET.meter ? 'METER' : 'PODS',
     a: () => {
@@ -46,6 +79,17 @@ export function titleItems() {
       SET.music = !SET.music;
       save();
     }
+  }, {
+    l: 'EXPORT SAVE',
+    r: saveMsg === 'SHOWN' || saveMsg === 'COPIED' ? saveMsg : '',
+    a: exportItem
+  }, {
+    l: 'IMPORT SAVE',
+    r: saveMsg === 'BAD CODE' ? saveMsg : '',
+    a: importItem
+  }, {
+    l: 'BACK',
+    a: sub(null)
   }];
 }
 export function overItems() {

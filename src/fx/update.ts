@@ -300,8 +300,8 @@ export function hype(n) {
     if (!sample('hype' + n, { vol: 1.15, spread: .02, wet: .16 })) say(L.join(' ').replace(/[!']/g, '').toLowerCase());
   }, 120);
 }
+// runs the same whatever the setting (postFX hides it when HELL FLASHES is OFF), so the setting can't change the sim
 export function hellFlash() {
-  if (!SET.flashes) return;
   makeHell();
   $.G.hell = ri(3, 5);
   $.G.glitch = Math.max($.G.glitch, 8);
@@ -313,7 +313,7 @@ export function updateAmbient() {
     core = AMT.core(s);
   if (AU.lp && $.G.t % 30 === 0) AU.lp.frequency.setTargetAtTime(140 + AMT.hull(s) * 60 + corr * 80 + core * 220 + ($.G.boss && $.G.boss.phase === 2 ? 180 : 0), AU.c.currentTime, 1.5);
   if (R() < .0018) sfx.groan();
-  if (SET.flashes && R() < corr * .0011 + core * .0018 + ($.G.boss && $.G.boss.phase === 2 ? .003 : 0)) hellFlash();else if (R() < corr * .003) $.G.glitch = Math.max($.G.glitch, ri(2, 5));
+  if (R() < corr * .0011 + core * .0018 + ($.G.boss && $.G.boss.phase === 2 ? .003 : 0)) hellFlash();else if (R() < corr * .003) $.G.glitch = Math.max($.G.glitch, ri(2, 5));
   if (corr > 0 && R() < .012) $.G.flick = ri(2, 8);
   if ($.G.flick > 0) $.G.flick--;
   if ($.G.bossStarted && $.G.boss && $.G.boss.enter && $.G.t % 50 === 0) sfx.heart();
