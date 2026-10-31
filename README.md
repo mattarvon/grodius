@@ -90,7 +90,7 @@ The scroll stops until they die.
 
 ## Progression: earn your guns
 - **Stages.** Each descent is 4 stages: OPEN ORBIT (ends on THE MAW), THE HULL (THE BLOATED BITCH), THE CORRIDORS (THE BUTCHER; a second Maw mid-stage only coughs up pods), THE GRAVITY DRIVE. Each opens with a stage card.
-- **Stage clear tally:** kills (% of everything that spawned), hits taken, deaths, best chain, time, and a grade S/A/B/C. S needs no hits. The grade pays score (x descent) and biomass; no-hit adds PERFECT. Your best grade per stage is saved. If the Maw escapes, the stage ends on a C with no reward.
+- **Stage clear tally:** kills (% of everything that spawned), hits taken, deaths, best chain, time, and a grade S/A/B/C. S needs no hits. The grade pays score (x descent) and biomass; no-hit adds PERFECT. Your best grade per stage is saved. If the stage boss escapes, the stage ends on a C with no biomass, but it still counts toward the seals.
 - **Seals** break on the 2nd, 4th and 6th stage cleared in a run: end of the Hull, end of Descent 1, Descent 2 Hull. Full power is a Descent 2 thing.
 - **Stage-boss reward:** 3 gold-ringed pods, each a full level, take one and the others burst.
 - **Fragments:** a pod is one fragment of its upgrade; higher levels cost more (THRUST 1,1,2,2,3; MISSILE 1,2; ARC 2; PYRE 2,3; WRAITH 2,3,4; WARD 1,2,3).

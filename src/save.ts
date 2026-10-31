@@ -141,7 +141,7 @@ export const UPG = [{
 }, {
   id: 'deep',
   name: 'DESCEND DEEPER',
-  desc: 'Unlocks starting a run at Descent 2. Tougher, and every stage pays double.',
+  desc: 'Start a run at Descent 2. Tougher from the first stage.',
   max: 1,
   cost: [600]
 }, {

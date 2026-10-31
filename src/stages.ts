@@ -1,6 +1,7 @@
 // @ts-nocheck
 // Stage structure: each descent is 4 stages, each ending on a boss. Clearing a stage shows a tally,
 // pays out score + biomass by grade, records your best grade, and every 2nd clear breaks a seal.
+// An escaped boss grades C and pays its score but no biomass; it still counts toward the seals (D5b).
 import { $ } from './state';
 import { save } from './save';
 import { sample, sfx } from './audio';
@@ -24,7 +25,7 @@ const GRADE = {
   C: { score: 2000, bio: 5, col: '#7a8694' },
 };
 const ORDER = 'SABC';
-/** stage payouts from Descent 2 on are doubled (DESCEND DEEPER's "every stage pays double") */
+/** biomass payouts from Descent 2 on are doubled in every run, DESCEND DEEPER bought or not (D5b) */
 export const deepPay = () => ($.G.loop > 0 ? 2 : 1);
 
 export const stageLabel = () => `${$.G.loop + 1}-${$.G.stage + 1}`;
@@ -60,7 +61,7 @@ export function clearStage(escaped = false) {
   st.done = true;
   const g = grade(st, escaped), R = GRADE[g], perfect = !st.hits && !st.deaths && !escaped;
   const bonus = R.score * (G.loop + 1) + (perfect ? 10000 * (G.loop + 1) : 0);
-  const bio = R.bio * deepPay(); // Descent 2+ stages pay double (the DESCEND DEEPER promise)
+  const bio = escaped ? 0 : R.bio * deepPay(); // IT GOT AWAY / NO REWARD: no biomass (D5b)
   G.score += bonus;
   G.bio += bio;
   $.meta.bio += bio;
@@ -71,7 +72,7 @@ export function clearStage(escaped = false) {
   G.cleared = (G.cleared || 0) + 1;
   const seal = SEAL_AT[G.cleared] && SEAL_AT[G.cleared] > (G.seal || 0) ? SEAL_AT[G.cleared] : 0;
   G.tally = {
-    id, name: stageInfo(G.stage).name, g, col: R.col, perfect, escaped, bonus, bio, deep: deepPay() > 1,
+    id, name: stageInfo(G.stage).name, g, col: R.col, perfect, escaped, bonus, bio, deep: bio > 0 && deepPay() > 1,
     kills: st.kills, pct: Math.round((st.kills / Math.max(1, st.spawned)) * 100),
     hits: st.hits, deaths: st.deaths, chain: st.chain, secs: Math.round((G.t - st.t0) / 60),
     best: newBest ? (prev ? 'NEW BEST (WAS ' + prev + ')' : 'FIRST CLEAR') : 'BEST ' + best[id],
