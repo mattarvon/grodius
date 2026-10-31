@@ -2,7 +2,8 @@
 import { $ } from './state';
 import { playerHit } from './player';
 import { stepBiome, hazardHit } from './biomes';
-import { perkPower, stepPerks } from './perks';
+import { stepPerks } from './perks';
+import { powerBudget } from './power';
 import { musicUpdate } from './music';
 import { R, clamp, swapRm } from './core';
 import { SET, save } from './save';
@@ -21,11 +22,10 @@ import { menuNav, overItems, pauseItems, stepShop, titleItems } from './menus';
 // ---------------- main step ----------------
 export function stepWorld() {
   $.G.t++;
-  {
-    const pw = $.P ? $.P.speed * .5 + ($.P.double || $.P.laser ? 1 : 0) + $.P.missile + $.P.pyre + $.P.options + ($.P.wardLv || 0) + Object.values($.G.gm || {}).reduce((a, b) => a + b, 0) * .7 : 0;
-    $.G.pow = (pw + perkPower()) / 14; // uncapped: src/depth.ts keeps scaling past the cap from Descent 2 on
-    $.G.rank = clamp($.G.pow, 0, 1);
-  }
+  // one power budget (src/power.ts): every gun, graft, perk and bolted contraption. Difficulty reads it only as enemy
+  // fire and density (D1); uncapped here, every()/BS()/formation() cap it at 2
+  $.G.pow = powerBudget();
+  $.G.rank = clamp($.G.pow, 0, 1);
   if ($.G.mini && $.G.mini.dead) $.G.mini = null;
   const tgt = $.G.bossStarted || ($.G.mini && !$.G.mini.drift) || $.G.forkHold ? 0 : 1; // drift: the Open Orbit midboss doesn't hold the scroll
   $.G.scrollSpeed += (tgt - $.G.scrollSpeed) * .02;
