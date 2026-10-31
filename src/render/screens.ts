@@ -467,11 +467,12 @@ export function render() {
     pOut('world');
     pIn();
     drawSplats();
+    postFX();
+    // enemy bullets go over the hell image and the washes: a bullet must never be hidden by an effect
     ctx.save();
     ctx.translate(shx, shy);
     drawEShots();
     ctx.restore();
-    postFX();
     pOut('fx');
     pIn();
     drawHUD();

@@ -322,6 +322,7 @@ export function updateEnemies() {
 export function updateCaps() {
   for (let i = caps.length - 1; i >= 0; i--) {
     const c = caps[i];
+    if (c.purged) continue;
     c.t++;
     if (c.choice) c.x += $.G.scrollSpeed * .55;
     if (!c.blue && !c.graft && !c.choice && c.ty >= 0 && $.G.t % 60 === 0 && $.P && slotMaxed(c.ty)) {
@@ -351,12 +352,9 @@ export function updateCaps() {
       } else if (c.blue) purge();else if (c.ty === METER_CAP) meterAdvance();else {
         if (c.ty < 0 || c.ty == null) c.ty = podType();
         applyPower(c.ty, !!c.choice || !!c.full);
-        if (c.choice) {
-          for (let j = caps.length - 1; j >= 0; j--) if (j !== i && caps[j].choice === c.choice) {
-            gore(caps[j].x, caps[j].y, .5, {});
-            swapRm(caps, j);
-            if (j < i) i--;
-          }
+        if (c.choice) for (const o of caps) if (o !== c && o.choice === c.choice) {
+          gore(o.x, o.y, .5, {});
+          o.purged = 1;
         }
       }
       $.G.score += 500;
@@ -368,6 +366,8 @@ export function updateCaps() {
       swapRm(caps, i);
     }
   }
+  // unchosen siblings are removed after the loop: swapRm mid-loop can move the collected capsule into a sibling's slot
+  for (let j = caps.length - 1; j >= 0; j--) if (caps[j].purged) swapRm(caps, j);
 }
 export function purge() {
   sfx.purge();

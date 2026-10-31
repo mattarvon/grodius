@@ -2,6 +2,14 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-31 (bug fixes, regression gate)
+
+- Picking one capsule from a choice row no longer applies its power twice or deletes an unrelated capsule on screen.
+- The Nail Choir's nail bars fire again at high power (their wind-up was being reset before it finished).
+- The Womb's hatchlings no longer drag down the stage's kill % and grade, matching the Brood Mother's litter.
+- When exactly one biome is left unvisited, the fork always offers it.
+- `npm run test:regress` is now a real gate: it starts its own server, compares the run against `tools/harness.baseline.json`, and fails on any difference.
+
 ## 2026-10-30 (deeper descents fight back, less repetition)
 
 A bot playtest (`tools/playtest.mjs`: three descents, spends in the Infirmary, logs kill speed, would-be hits and repeats) showed the ship outgrowing everything by Descent 2 and half of every descent replaying the same script. Three parallel agents fixed it; tuning knobs are in `src/depth.ts`, `src/biomes.ts` and `src/enemies/elite.ts`.

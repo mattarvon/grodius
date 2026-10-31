@@ -136,6 +136,7 @@ export function updEnemy(e) {
         if (e.cool <= 0 && onScreen(e) && e.x > 60) {
           e.cool = Math.max(70, 120 - $.G.loop * 15);
           mk('hatch', e.x, e.y + 12, {
+            kid: 1,
             ph: R() * TAU,
             vy: 1
           });
@@ -393,7 +394,7 @@ export function updEnemy(e) {
               e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm());
             }
           }
-          if (every(e, ph2 ? 110 : 150)) for (const b of live) b.sing = 36;
+          if (every(e, ph2 ? 110 : 150)) for (const b of live) if (!(b.sing > 0)) b.sing = 36;
           for (const b of live) if (b.sing > 0 && --b.sing === 0) { fan(b.x, b.y, aimA(b.x, b.y), 3, .22, 1.35, 'spike'); sfx.tink(); }
           if (ph2 && every(e, 130)) ring(e.x, e.y, 10, e.t * .05, 1.05);
         }

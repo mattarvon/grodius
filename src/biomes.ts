@@ -222,8 +222,8 @@ export function biomeScript(seg, b, from, v = 0) {
 export function holdForFork() { $.G.forkHold = true; }
 export function openFork(seg) {
   const G = $.G, fresh = BIOME_KEYS.filter((k) => !G.route.includes(k) && !(G.visited || []).includes(k));
-  let pool = fresh.length >= 2 ? fresh : BIOME_KEYS.filter((k) => !G.route.includes(k));
-  pool = pool.sort(() => R() - .5).slice(0, 2);
+  const rest = BIOME_KEYS.filter((k) => !G.route.includes(k) && !fresh.includes(k)).sort(() => R() - .5);
+  const pool = [...fresh.sort(() => R() - .5), ...rest].slice(0, 2).sort(() => R() - .5);
   G.fork = { seg, opts: pool, t: 0 };
   G.fork.gy = gateYs();
   G.forkHold = true;
