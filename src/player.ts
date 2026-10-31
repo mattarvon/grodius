@@ -10,7 +10,7 @@ import { ceilAt, floorAt, shots } from './world';
 import { flash, pop, spark } from './fx/spawn';
 import { killPlayer, respawn } from './flow';
 import { POD, hurt } from './enemies/update';
-import { gmL, sporeBurst } from './mutations';
+import { dmMul, gmL, gunDm, sporeBurst } from './mutations';
 import { gunTier, smoke } from './fx/gunfx';
 
 // ---------------- player ----------------
@@ -159,8 +159,11 @@ export function playerHit() {
   killPlayer();
   return true;
 }
-/** perk-side damage multiplier (SERRATED MARROW, GLASS JAW) */
-export const dmMul = () => (1 + .1 * pk('dmg')) * (pk('glass') ? 1.35 : 1);
+export { dmMul }; // lives in src/mutations.ts next to gunDm(); re-exported for existing importers
+/** SNOT ROCKET glob base damage, before gunDm() (it pierces 8, so it's worth ~4 bolts per enemy in line) */
+export const SNOT_DMG = 4;
+/** the SNOT ROCKET glob: scales like the main gun, so it keeps its share of the damage as depth HP grows */
+export const snotGlob = (x, y) => ({ k: 'bolt', x: x + 10, y, vx: 4.2, vy: 0, dmg: SNOT_DMG * gunDm(), r: 5, pierce: 8, glob: 1, t: 0 });
 // ---- weapon numbers (tuned with tools/dps-probe.mjs: every pickup is a felt jump, not a rounding error) ----
 /** SPLIT fan: [angle (rad), damage share]. 3-way spread: the core plus two flankers that sweep the screen */
 const FAN = [[0, 1], [-.2, .8], [.2, .8]];
@@ -169,7 +172,7 @@ const WR = .5;
 export function fire() {
   const cal = gmL('cal'),
     serr = gmL('serr'),
-    dm = 1.25 ** serr * 1.22 ** cal * dmMul(), // geometric: every graft level is a +22-25% step, not a shrinking one
+    dm = gunDm(), // geometric: every graft level is a +22-25% step, not a shrinking one (src/mutations.ts)
     rem = Math.max(-1, Math.min(0, $.P.cd || 0)),
     rp = gmL('rapid'),
     tier = gunTier(),
@@ -319,7 +322,7 @@ export function updatePlayer() {
   const sp = (1.25 + $.P.speed * .42) * (1 + .08 * pk('spd')) * ($.P.slow > 0 ? .45 : 1);
   // SNOT ROCKET: periodic piercing glob
   if (pk('snot') && $.state === 'play' && ($.G.t % (pk('snot') > 1 ? 150 : 240)) === 0) {
-    shots.push({ k: 'bolt', x: $.P.x + 10, y: $.P.y, vx: 4.2, vy: 0, dmg: 4, r: 5, pierce: 8, glob: 1, t: 0 });
+    shots.push(snotGlob($.P.x, $.P.y));
     sfx.glob();
   }
   let dx = I.x,

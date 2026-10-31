@@ -110,6 +110,11 @@ export const GM = [{
 }];
 export const ROM = ['', 'I', 'II', 'III', 'IV'];
 export const gmL = id => $.G && $.G.gm ? $.G.gm[id] || 0 : 0;
+/** perk-side damage multiplier (SERRATED MARROW, GLASS JAW) */
+export const dmMul = () => (1 + .1 * pk('dmg')) * (pk('glass') ? 1.35 : 1);
+/** the main gun's damage multiplier: CALIBER and SERRATION grafts (geometric, +22-25% a level) times dmMul(). Every
+ *  periodic player shot multiplies its base damage by this, so it keeps pace with depth HP (design/progression.md) */
+export const gunDm = () => 1.25 ** gmL('serr') * 1.22 ** gmL('cal') * dmMul();
 export const gunSlots = () => Math.min(3, 1 + ($.G && $.G.seal || 0));
 export function countKill(e) {
   if (!$.G || !$.G.gm || e.kid) return; // a midboss's litter doesn't feed grafts
@@ -218,6 +223,8 @@ export function chainArc(e, d) {
     src = best;
   }
 }
+/** SPORE COAT base damage per spore, before gunDm() */
+export const SPORE_DMG = 1.2;
 export function sporeBurst() {
   const L = gmL('spore');
   if (!L) return;
@@ -230,7 +237,7 @@ export function sporeBurst() {
       y: $.P.y,
       vx: Math.cos(a) * 5,
       vy: Math.sin(a) * 5,
-      dmg: 1.2,
+      dmg: SPORE_DMG * gunDm(), // scales like the main gun; a flat 1.2 fell off against Descent 2-3 HP
       r: 2,
       spore: 1
     });
