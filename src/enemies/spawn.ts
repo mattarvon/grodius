@@ -162,8 +162,9 @@ export function mk(k, x, y, o = {}) {
     ...b,
     ...o
   };
-  // power rank (0..1) thickens everything: +80% HP for fodder, +100% for bosses (a maxed build still gets a fight)
-  e.hp = b.hp * hm * (o.hpm || 1) * (1 + ($.G.rank || 0) * (b.mini ? 1 : .8));
+  // HP no longer tracks rank: pressure lives in fire rate + spawn density (BS(), every(), formation()),
+  // not in sponge toughness. Depth (depth.ts) still scales HP from Descent 2 on so fodder survives long enough to shoot.
+  e.hp = b.hp * hm * (o.hpm || 1);
   // ...and from Descent 2 on, depth keeps it climbing past the rank cap (src/depth.ts; dm = 1 in Descent 1)
   e.dm = depthHP(k, b, o);
   e.hp *= e.dm;
@@ -173,7 +174,7 @@ export function mk(k, x, y, o = {}) {
   enemies.push(e);
   return e;
 }
-export const BS = () => Math.min(1.45, 1 + .12 * $.G.loop) * (1 + .22 * ($.G.rank || 0));
+export const BS = () => Math.min(1.45, 1 + .12 * $.G.loop) * (1 + .35 * Math.min(2.0, $.G.pow || 0));
 export function eshoot(x, y, a, sp, k = 'orb') {
   if (eshots.length > 260) return;
   eshots.push({
@@ -211,7 +212,7 @@ export function behindWave(y, n = 5) {
   rearWarn(y, () => formation('behind', rearLane(y), n));
 }
 export function formation(pat, y, n = 5, o = {}) {
-  n += Math.round(($.G.rank || 0) * 3); // denser waves as you power up
+  n += Math.round(Math.min(2.0, $.G.pow || 0) * 3); // denser waves as you power up; uncapped past rank 1 so Infirmary buys still add bodies
   const g = {
     n,
     killed: 0
@@ -365,7 +366,7 @@ export const fan = (x, y, a, n, spread, sp, k) => {
 export const ring = (x, y, n, a0, sp, k) => {
   for (let i = 0; i < n; i++) eshoot(x, y, a0 + i * TAU / n, sp, k);
 };
-export const every = (e, n) => e.t % Math.max(18, Math.round(n * (1 - .3 * ($.G.rank || 0)))) === 0;
+export const every = (e, n) => e.t % Math.max(18, Math.round(n * (1 - .4 * Math.min(2.0, $.G.pow || 0)))) === 0;
 export function miniWarn(name, f) {
   banner('WARNING', name, '#ff2a2a', 170);
   sfx.dread();

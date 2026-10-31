@@ -7,7 +7,7 @@
 //  here is exactly 1 (it's the tuned, fresh-player game).
 //
 //  over() = raw power past the cap: G.pow (the uncapped rank, step.ts) + bolted contraption levels, minus 1, 0..2.
-//  HP multipliers are (1 + k * loop + kO * over) on top of the old mk() scaling (x(1 + .4 * loop), x(1 + rank)).
+//  HP multipliers are (1 + k * loop + kO * over) on top of the old mk() scaling (x(1 + .4 * loop)).
 //  Measured with tools/playtest.mjs (seeds 11 and 7, 3 descents); the knobs are below.
 // =====================================================================
 import { $ } from './state';
