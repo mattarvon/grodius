@@ -70,7 +70,8 @@ one-liners). If `design/game-brief.md` exists, read it and refine it instead of 
    at this tier.
 4. **Next steps.** Read `engine.name` in `project.yaml`:
    1. `/setup-engine`: configure the engine. List it **only** when `engine.name` is absent or
-      empty: on the minimal path it usually ran before this skill.
+      empty and the project is not engine-less (`commands.build` + `specialists.code` set in
+      `project.yaml`): on the minimal path it usually ran before this skill.
    2. `/create-stories`: turn the MVP list into stories. At `minimal` there is no separate
       `/create-epics` or `/sprint-plan`; the build order is the plan.
    3. `/dev-story`: the first line of game code.

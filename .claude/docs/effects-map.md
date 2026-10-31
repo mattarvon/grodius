@@ -1734,6 +1734,7 @@ implementation, review, and architecture validation
 | **Unity** | `unity-specialist` | `unity-shader-specialist` | `unity-ui-specialist` | `unity-addressables-specialist`, `unity-dots-specialist` |
 | **Unreal** | `unreal-specialist` | `unreal-specialist` | `ue-umg-specialist` | `ue-gas-specialist`, `ue-blueprint-specialist`, `ue-replication-specialist` |
 | **[UNSET]** | No specialist spawned — warning emitted | No specialist spawned | No specialist spawned | None |
+| **None — Grodius (TypeScript canvas)** | `web-specialist`, set explicitly in the `specialists` block (engine.name stays unset) | `web-specialist` | `web-specialist` | None |
 
 ---
 

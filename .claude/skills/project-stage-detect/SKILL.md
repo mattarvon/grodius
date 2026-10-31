@@ -79,7 +79,7 @@ track, and the judgement calls.
 - Count narrative docs in `design/narrative/`
 - Count level designs in `design/levels/`
 
-**Source Code** (the code root — `src/` Godot, `Assets/` Unity, `Source/` Unreal; resolve per `.claude/docs/code-root-resolution.md`):
+**Source Code** (the code root — `src/` Godot, `Assets/` Unity, `Source/` Unreal, the detected root (e.g. `src/`) for an engine-less project; resolve per `.claude/docs/code-root-resolution.md`):
 - Count source files (language-agnostic)
 - Identify major systems (directories with 5+ files)
 - Check for core/, gameplay/, ai/, networking/, ui/ directories

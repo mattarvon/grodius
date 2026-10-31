@@ -179,8 +179,10 @@ Every numeric system exposes exactly three categories of knobs:
 3. **Gate knobs**: affect pacing (level requirements, resource thresholds,
    cooldown timers). These are tuned through session-length targets.
 
-All tuning knobs must live in external data files (`assets/data/`), never
-hardcoded. Document the intended range and the reasoning for the current value.
+All tuning knobs live in named, typed in-code tables (the pattern of `DEPTH`
+in `src/depth.ts`), never as anonymous literals scattered through logic.
+Document the intended range and the reasoning for the current value in a
+comment beside it, and point to the probe that measures it (`tools/*-probe.mjs`).
 
 #### Economy Design Principles
 Apply the **sink/faucet model** for all virtual economies:

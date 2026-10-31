@@ -25,7 +25,10 @@ question is the last thing in the reply: no path, note or advice after it. A ski
 question is not an answer: ask again in plain text.
 
 The questions in Phases 2, 4 and 5 shape the project, so they are asked in every automation mode.
-The engine is not one of them: `/setup-engine` chooses it. Phase 6's last question follows a
+The engine is not one of them: `/setup-engine` chooses it. An **engine-less project** (no
+`engine.name`, but `commands.build` and `specialists.code` set in `project.yaml`, e.g. a TypeScript
+web game) is already configured: report its engine as "none (custom stack)" and never send it to
+`/setup-engine`. Phase 6's last question follows a
 `modes.automation` already in `project.yaml`, per `.claude/docs/automation-modes.md`; with none
 set, ask it.
 
@@ -84,8 +87,9 @@ Name the immediate next step only. The full path waits for Phase 6, after the ri
   [concept]` writes it down) / `Jump straight in` (`/setup-engine` now, write the design after).
   The next step is their pick.
 - **D, existing work:** say what Phase 1 found ("N source files under `[code_root]`, N design
-  documents, engine [X / not set]"). Next step: `/setup-engine` when no engine is set and there is
-  no more than a concept; otherwise `/project-stage-detect`.
+  documents, engine [X / none (custom stack) / not set]"). Next step: `/setup-engine` when no engine is set,
+  the project is not engine-less, and there is no more than a concept; otherwise
+  `/project-stage-detect`.
 
 Then say: "I'll lay out the full path in a moment."
 
@@ -97,7 +101,8 @@ Work out two values.
 
 | On disk | Stage |
 |---|---|
-| no engine, or nothing beyond a concept (`gdd_files` 0) | `Concept` |
+| `project.stage` already set in `project.yaml` (checked first) | keep it |
+| no engine (and not engine-less), or nothing beyond a concept (`gdd_files` 0) | `Concept` |
 | `gdd_files` 1 or more, `adr` 0 | `Systems Design` |
 | `adr` 1 or more | `Technical Setup` |
 
@@ -189,7 +194,8 @@ Pre-Production and `/design-review` after each GDD.
 Print only the steps that apply, and for the brief only the one source that applies. At `minimal`:
 1. `/project-stage-detect`: what stage the project is at and what is missing
 2. `/adopt`: whether the existing files are in the format the skills read
-3. `/setup-engine`: only when no engine is set; leave it out when `engine` names one
+3. `/setup-engine`: only when no engine is set; leave it out when `engine` names one or the
+   project is engine-less
 4. The brief, only if `concept` is absent: `/reverse-document design [code_root]` when the code
    root holds 10 or more source files (it writes the brief from the game), and then do not mention
    `/brainstorm` at all; `/brainstorm` only when it holds fewer

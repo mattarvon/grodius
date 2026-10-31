@@ -255,7 +255,7 @@ exactly:
 | Requirement | `Brief MVP feature N`, never a TR-ID |
 | ADR Governing Implementation, ADR Decision Summary, ADR Version | `N/A (minimal — no ADRs)` |
 | Manifest Version, Control Manifest Rules | `N/A (minimal — no control manifest)` |
-| Engine | `engine.name` + `engine.version` |
+| Engine | `engine.name` + `engine.version`; an engine-less project (no `engine.name`, `commands.build` + `specialists.code` set): `none ([stack from CLAUDE.md's Technology Stack])` |
 | Risk | the level `docs/engine-reference/<engine>/VERSION.md` gives the pinned version (its timeline row, or its overall rating). No file or no level: `NOT ASSESSED (no VERSION.md risk rating)`, never a guess. `/dev-story` reads NOT ASSESSED as HIGH |
 | Engine Notes | `none (no ADR engine-compatibility analysis at minimal)` |
 | Acceptance Criteria | from the brief's **Player goal & fail state** and the MVP feature, made concrete and testable; never invented from a bare bullet |

@@ -56,7 +56,7 @@ Read the target file(s) in full. Read CLAUDE.md for project coding standards.
 
 Read the `specialists` block from `project.yaml`; if it is absent, fall back to the `## Engine Specialists` section of `.claude/docs/technical-preferences.md`. Note:
 
-- The **Primary** specialist — `<engine>-specialist` derived from `engine.name` (Godot→`godot-specialist`, Unity→`unity-specialist`, Unreal→`unreal-specialist`); used for architecture and broad engine concerns
+- The **Primary** specialist — `<engine>-specialist` derived from `engine.name` (Godot→`godot-specialist`, Unity→`unity-specialist`, Unreal→`unreal-specialist`); when `engine.name` is unset, the Primary is `specialists.code` (an engine-less project, e.g. `web-specialist`); used for architecture and broad engine concerns
 - The **Language/Code Specialist** — `specialists.code` — used when reviewing the project's primary language files
 - The **Shader Specialist** — `specialists.shader` — used when reviewing shader files
 - The **UI Specialist** — `specialists.ui` — used when reviewing UI code

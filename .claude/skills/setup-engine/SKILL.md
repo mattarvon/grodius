@@ -24,6 +24,24 @@ artifact this skill expects and the finish path it recommends in §12:
 
 If the block did not render (shell preprocessing disabled), assume `minimal` (the default).
 
+## 0. Engine-less Projects
+
+Read `project.yaml`. When `engine.name` is absent or empty **and** `commands.build` and
+`specialists.code` are both set, the project is **engine-less** (a custom stack such as a
+TypeScript web game) and is already configured. Do not run guided selection, version lookup,
+Godot/Unity/Unreal reference docs, language config or scaffolding, and do not ask the user to pick
+an engine. Instead:
+
+1. Report the configuration: the stack from CLAUDE.md's Technology Stack section, the `commands`
+   block, the `specialists` block, and whether `specialists.code` names an agent that exists in
+   `.claude/agents/`.
+2. Run `bash .claude/scripts/project-coherence.sh` and relay what it finds.
+3. If the user passed an engine argument anyway, ask whether they really mean to move the
+   project onto that engine before doing anything else; never overwrite the engine-less config
+   without that explicit answer.
+
+Stop here unless the user confirmed an engine switch.
+
 ## 1. Parse Arguments
 
 Four modes:

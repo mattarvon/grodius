@@ -56,7 +56,8 @@ identical to no rule at all.
 
 ### 4. Never assert what you cannot source — and wire the gap to the verdict
 
-Where this repo pins external facts (`docs/engine-reference/**`), do not fill a
+Where this repo pins external facts (`docs/engine-reference/**`; in Grodius,
+`docs/architecture/stack-reference.md`), do not fill a
 gap from training data. Write the gap down instead: `NOT SOURCEABLE — <what> is
 not covered by <path>`.
 

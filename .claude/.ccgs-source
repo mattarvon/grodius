@@ -1,1 +1,51 @@
-05ad7c8 Release 1.2.0 — the main path, rebuilt and tested
+Upstream: https://github.com/Donchitos/Claude-Code-Game-Studios @ 05ad7c8 (Release 1.2.0, 2026-10-19)
+Vendored into Grodius: 2026-10-31 (commit 90bb5f8), adapted for an engine-less TypeScript/Canvas/Vite/Capacitor game.
+
+Before an upstream upgrade, diff against 05ad7c8 and re-apply the changes below.
+This list covers the knowledge layer (agents, rules, docs). Scripts, hooks,
+settings, project.yaml and skills were adapted separately; their changes are in
+the git history of the same commit series (git log -- .claude/scripts .claude/hooks .claude/skills).
+
+DELETED (no surface in Grodius)
+  .claude/agents/godot-specialist.md, godot-gdscript-specialist.md, godot-csharp-specialist.md,
+    godot-shader-specialist.md, godot-gdextension-specialist.md
+  .claude/agents/unity-specialist.md, unity-dots-specialist.md, unity-shader-specialist.md,
+    unity-addressables-specialist.md, unity-ui-specialist.md
+  .claude/agents/unreal-specialist.md, ue-gas-specialist.md, ue-blueprint-specialist.md,
+    ue-replication-specialist.md, ue-umg-specialist.md
+  docs/engine-reference/godot/, docs/engine-reference/unity/, docs/engine-reference/unreal/
+  .claude/rules/scene-files.md, shader-code.md, network-code.md, data-files.md
+  (not vendored at all: upstream studio-tests/, .github/, README/CONTRIBUTING/SECURITY/LICENSE)
+
+NEW
+  .claude/agents/web-specialist.md           stack authority; specialists.code/.shader/.ui route here
+  .claude/rules/sim-determinism.md           one shared RNG stream; harness baseline discipline
+  .claude/rules/tools.md                     probes/rigs/harness/asset-prep conventions
+  docs/architecture/stack-reference.md       replaces docs/engine-reference/<engine>/
+
+REWRITTEN (Grodius-specific content, upstream headings kept where possible)
+  .claude/rules/gameplay-code.md, ai-code.md, engine-code.md, ui-code.md, test-standards.md
+    (paths: re-scoped to real src/ files; TypeScript examples; Vitest)
+  .claude/docs/coding-standards.md           typed in-code tuning tables, no DI mandate, Vitest + harness, CI
+  .claude/docs/directory-structure.md        Grodius tree; code root src/ by detection
+  .claude/docs/run-and-observe.md            Playwright + Vite procedure instead of per-engine launch
+  .claude/docs/technical-preferences.md      filled by hand (Engine: None; Primary: web-specialist)
+  docs/engine-reference/README.md            points at stack-reference.md
+  CLAUDE.md, src/CLAUDE.md
+
+PATCHED (small edits)
+  .claude/agents/{engine,gameplay,ui,tools}-programmer.md, technical-artist.md   version safety -> stack-reference + node_modules types
+  .claude/agents/qa-tester.md                Vitest test pattern replaces GDScript/C#/C++ patterns
+  .claude/agents/game-designer.md            tuning knobs in typed in-code tables, not assets/data/
+  .claude/agents/prototyper.md               TypeScript + npm run dev instead of engine
+  .claude/rules/prototype-code.md            prototypes may import src/
+  .claude/rules/skill-authoring.md           obligation 4 also names stack-reference.md
+  .claude/docs/workflow-catalog.yaml         engine-setup any_of: project.yaml specialists code -> web-specialist (both entries)
+  .claude/docs/agent-roster.md, model-tiers.md, rules-reference.md, quick-start.md   engine agents/rules -> web-specialist / current rules
+  .claude/docs/code-root-resolution.md       Grodius note (src detected)
+  .claude/docs/effects-map.md                one Grodius row in the specialist routing table
+  .claude/docs/director-gates/td-engine-risk.md   Grodius sourcing (stack-reference + installed types; NOT SOURCEABLE -> CONCERNS)
+  docs/CLAUDE.md                             stack reference section; ADRs optional at rigor minimal
+
+LEFT AS UPSTREAM (generic, mention engines as options only)
+  .claude/docs/templates/**, hooks-reference*.md, config-resolution.md, effects-map.md (rest)

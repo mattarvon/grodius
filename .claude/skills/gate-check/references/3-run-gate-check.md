@@ -75,7 +75,7 @@ does not turn on.
 > - It reports a passing automated suite → the engine's test root must actually
 >   contain test files and the project must have a runner. "24 passed, 0 failed"
 >   in a repo with no test files under that root — `tests/unit/` and
->   `tests/integration/` on Godot, `Assets/Tests/` on Unity,
+>   `tests/integration/` on Godot and engine-less projects, `Assets/Tests/` on Unity,
 >   `Source/<Module>/Private/Tests/` on Unreal — and no runner is a finding, not
 >   evidence.
 > - It marks a critical path PASS → the code for that path must exist in the code
@@ -104,7 +104,8 @@ A report whose `Focus:` line names one pass only (a `consistency` or
 `design-theory` run) is treated the same way: the other pass never ran.
 
 ### Quality Checks
-- For test checks: Run the test suite via `Bash` if a test runner is configured.
+- For test checks: Run the test suite via `Bash` if a test runner is configured
+  (`commands.test` from `project.yaml` first; for an engine-less project it is the only runner).
   **If no runner is configured, that is `NOT ASSESSED`, not a silent skip** — see
   the trigger in the verdict section. A gate that ran no tests found no test
   failures, which is not the same as passing.
@@ -112,9 +113,9 @@ A report whose `Focus:` line names one pass only (a `consistency` or
   **resolved in Phase 1** (`resolve_config` merges `project.local.yaml` over
   `project.yaml`; reading the file directly would drop a local override), per
   test type:
-  - **Logic** — unit-level failures (`tests/unit/` on Godot, Edit Mode on
+  - **Logic** — unit-level failures (`tests/unit/` on Godot and engine-less projects, Edit Mode on
     Unity), gated by `testing.strict.logic`.
-  - **Integration** — failures in `tests/integration/` on Godot, Play Mode on
+  - **Integration** — failures in `tests/integration/` on Godot and engine-less projects, Play Mode on
     Unity, gated by `testing.strict.integration`. On Unreal, where one root
     (`Source/<Module>/Private/Tests/`) holds both, classify a failure by its
     story's Type, or apply the stricter of the two levels when that is unknown.

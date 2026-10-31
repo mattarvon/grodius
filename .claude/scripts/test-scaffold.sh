@@ -13,7 +13,8 @@
 #
 # Usage: bash .claude/scripts/test-scaffold.sh ENGINE [--dry-run | --list] [--root DIR]
 #          [--module NAME] [--project NAME] [--date YYYY-MM-DD]
-#   ENGINE          godot, unity or unreal (the engine.name values, in any case;
+#   ENGINE          godot, unity, unreal, or none for an engine-less project
+#                   (nothing is scaffolded for none) (the engine.name values, in any case;
 #                   UE5 is not one)
 #   --dry-run       print what would be created (WOULD_CREATE), write nothing
 #   --list          print the project-relative paths this engine's scaffold
@@ -95,7 +96,15 @@ done
 ENG=$(printf '%s' "$ENGINE" | tr '[:upper:]' '[:lower:]')
 case "$ENG" in
   godot|unity|unreal) ;;
-  *) usage "engine must be godot, unity or unreal (the engine.name values), got $ENGINE" ;;
+  # An engine-less project (engine.name unset) brings its own runner through
+  # commands.test; there are no engine files to scaffold, so nothing is written.
+  none)
+    [ "$MODE" = list ] && exit 0
+    printf 'engine\tnone\nmode\t%s\n' "$MODE"
+    printf 'SKIPPED\ttests/\tengine-less project: the test layout and runner are the ones commands.test runs (project.yaml); this scaffold only knows godot, unity and unreal\n'
+    printf 'skipped\t1\n'
+    exit 3 ;;
+  *) usage "engine must be godot, unity, unreal or none (the engine.name values), got $ENGINE" ;;
 esac
 # A module or project name goes into paths and file text: letters, digits and _ only.
 for _n in "$MODULE_ARG" "$PROJECT_ARG"; do

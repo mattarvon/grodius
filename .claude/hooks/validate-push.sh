@@ -237,6 +237,11 @@ fi
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 MATCHED_BRANCH=""
+# The current branch is the push target only when no refspec is named: at most
+# one non-flag word (the remote) after `push`. `git push origin feature` from
+# main pushes feature, not main.
+PUSH_ARGS=$(printf '%s\n' "${PUSH_SEG#*[[:space:]]push}" | awk '{n=0; for (i=1;i<=NF;i++) if ($i !~ /^-/) n++; print n}')
+[ "${PUSH_ARGS:-0}" -le 1 ] 2>/dev/null || CURRENT_BRANCH=""
 
 # Check if pushing to a protected branch: main, master, or any release/*
 # branch (the trunk model's only other protected line -- no GitFlow develop).

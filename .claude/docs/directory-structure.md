@@ -3,44 +3,48 @@
 ```text
 /
 ├── CLAUDE.md                    # Master configuration
-├── project.yaml                 # Machine-readable project config — engine, modes, stage (source of truth)
+├── project.yaml                 # Machine-readable project config — modes, specialists, commands, stage (source of truth)
 ├── .claude/                     # Agent definitions, skills, hooks, rules, docs
-├── <code root>/                 # Game source code — THE PATH IS ENGINE-SPECIFIC, see below
-├── assets/                      # Game assets (art, audio, vfx, shaders, data)
-├── design/                      # Game design documents (gdd, narrative, levels, balance)
-├── docs/                        # Technical documentation (architecture, api, postmortems)
-│   └── engine-reference/        # Curated engine API snapshots (version-pinned)
-├── tests/                       # Game test suites (unit, integration, performance, playtest)
-├── tools/                       # Build and pipeline tools (ci, build, asset-pipeline)
-├── prototypes/                  # Throwaway prototypes (outside the code root)
-├── production/                  # Production management (sprints, milestones, releases)
+├── src/                         # Game source code (TypeScript) — the code root
+│   ├── main.ts                  # Boot, fixed 60 Hz loop, render dispatch
+│   ├── state.ts  world.ts       # Module state ($) and entity arrays
+│   ├── core.ts                  # Canvas, constants, RNG (R), helpers (swapRm, clamp, ...)
+│   ├── step.ts  flow.ts         # Per-step sim update; run/screen flow (newGame, shop, fork)
+│   ├── player.ts shots.ts perks.ts mutations.ts contraptions.ts shipform.ts
+│   ├── stages.ts biomes.ts depth.ts  # Stage scripts, biome forks, depth/pressure scaling
+│   ├── enemies/  boss/          # Enemy and boss behaviour, spawning, stage scripts
+│   ├── render/  fx/             # Canvas drawing, HUD/screens, gore, post-FX, particles
+│   ├── audio.ts music.ts        # Procedural Web Audio + recorded sfx/voice
+│   ├── input.ts platform.ts save.ts perf.ts
+│   └── img/ sprites/ sfx/ music/  # Game assets imported by the code (bundled by Vite)
+├── assets/                      # App icon and splash sources (Capacitor)
+├── android/                     # Capacitor Android project (Gradle)
+├── design/                      # Design record: game-brief.md (+ progression notes)
+├── docs/                        # Technical docs: architecture/ (overview, stack-reference), pacing.md
+├── tests/                       # Vitest suites: unit/, integration/ (*.test.ts)
+├── tools/                       # Probes, screenshot rigs, harness, asset prep, vault mirror
+├── prototypes/                  # Throwaway prototypes (created on demand; may import src/)
+├── production/                  # Roadmap, decision log, sprints, QA evidence
+│   ├── qa/evidence/             # Retained screenshots
 │   ├── session-state/           # Ephemeral session state (active.md — gitignored)
 │   └── session-logs/            # Session audit trail (gitignored)
-└── studio-tests/                # QA for the skills/agents themselves — /skill-test, /skill-improve
+└── dist/                        # Vite build output (gitignored; deployed to gh-pages, synced into android/)
 ```
 
-## The code root is engine-specific
+## The code root is `src/`
 
-**Two of the three supported engines will not build a project whose code sits in
-`src/`.** This is not a style preference — it is a hard constraint of the engine's
-own toolchain:
+Grodius has no engine, so the template's engine table does not apply: the code
+root is `src/`, resolved from the tree because `engine.name` is unset
+(`resolve_code_root` in `.claude/hooks/yaml-helper.sh` reports `src detected`).
+A path shown as `src/…` in a skill means this `src/`.
 
-| `engine.name` | Code root | Why it cannot be `src/` |
+## Tests
+
+| Kind | Root | Runner |
 |---|---|---|
-| **Godot** | `src/` | No constraint — Godot loads from `res://` anywhere under the project root. |
-| **Unity** | `Assets/` | Unity compiles **only** `Assets/` and `Packages/`. Code outside them is invisible to the compiler. |
-| **Unreal** | `Source/<Module>/` | UnrealBuildTool discovers modules under `Source/`; content lives in `Content/`. A module elsewhere is not built. |
+| Unit | `tests/unit/[system].test.ts` | Vitest (`npm run test:unit`) |
+| Integration | `tests/integration/[system].test.ts` | Vitest (`npm run test:unit`) |
+| Whole-game regression | `tools/harness.mjs` + `tools/harness.baseline.json` | Playwright (`npm run test:regress`) |
 
-**Resolve the code root from `engine.name` before writing any source file.** A
-path shown as `src/…` alone is a Godot example: read it as *"the code root"* and
-substitute the row above. `src/` is the table's Godot row, not a universal path.
-
-**Tests follow the same rule** — the same compilers decide what they see:
-
-| `engine.name` | Test root | Anywhere else |
-|---|---|---|
-| **Godot** | `tests/unit/`, `tests/integration/` | — |
-| **Unity** | `Assets/Tests/EditMode/`, `Assets/Tests/PlayMode/` | not compiled: "0 tests, Passed" |
-| **Unreal** | `Source/<Module>/Private/Tests/` | not built: "No automation tests matched" |
-
-Read `tests/unit/[system]/` (or `integration/`) anywhere as the test root plus `[System]/`.
+`npm test` runs the Vitest suites and then the harness. Read `tests/unit/[system]/`
+in any template doc as `tests/unit/[system].test.ts`.

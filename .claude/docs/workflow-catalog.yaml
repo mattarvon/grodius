@@ -39,6 +39,9 @@ paths:
           any_of:
             - glob: "project.yaml"
               pattern: 'name:[[:space:]]*"?(Godot|Unity|Unreal)'
+            # Grodius: no engine; a configured stack routes specialists.code to web-specialist
+            - glob: "project.yaml"
+              pattern: 'code:[[:space:]]*"?web-specialist'
             - glob: ".claude/docs/technical-preferences.md"
               pattern: '\*\*Engine\*\*: [^[]'
         description: "Configure the engine and pin its version"
@@ -102,6 +105,9 @@ phases:
           any_of:
             - glob: "project.yaml"
               pattern: 'name:[[:space:]]*"?(Godot|Unity|Unreal)'
+            # Grodius: no engine; a configured stack routes specialists.code to web-specialist
+            - glob: "project.yaml"
+              pattern: 'code:[[:space:]]*"?web-specialist'
             # technical-preferences.md writes "- **Engine**: Godot 4.7", so the
             # pattern must clear the bold markers. The [^[] guard rejects the
             # "[TO BE CONFIGURED]" placeholder.

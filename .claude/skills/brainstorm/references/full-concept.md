@@ -117,7 +117,9 @@ it is not for, and successful games that serve the same player.
   Android)` / `Console` / `Web / Browser` / `Multiple platforms`. Record it for `/setup-engine`.
   Note what the platform implies, without recommending an engine: `/setup-engine` makes that call
   against the pinned engine reference.
-- **Engine.** Ask in every automation mode, `autonomous` included: "Do you already have an engine
+- **Engine.** Skip this question when the project is already configured: `engine.name` is set,
+  or it is engine-less (`commands.build` + `specialists.code` set in `project.yaml`); say which.
+  Otherwise ask in every automation mode, `autonomous` included: "Do you already have an engine
   you work in?" `Godot` / `Unity` / `Unreal Engine 5` / `No preference — help me decide`. Never
   pick an engine for the user. A named engine is recorded as their preference without second
   guessing. No preference: "Run `/setup-engine` after this session; it walks through the choice
@@ -164,7 +166,8 @@ Write the file, creating folders as needed. Never write `design/game-brief.md` a
 
 ## Phase 8: Next steps
 
-List every step, in order.
+List every step, in order. Leave `/setup-engine` out when the project is already configured
+(`engine.name` set, or engine-less).
 
 **Design-first** (the concept is well defined):
 1. `/setup-engine`: configure the engine and its version-aware reference docs

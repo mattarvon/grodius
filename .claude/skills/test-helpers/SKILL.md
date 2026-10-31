@@ -30,6 +30,7 @@ the only place its test runner compiles them (`.claude/docs/directory-structure.
 | Godot | `tests/helpers/` |
 | Unity | `Assets/Tests/EditMode/Helpers/` — inside the `EditModeTests` assembly `/test-setup` creates. If PlayMode tests need the same helpers, ask before creating `Assets/Tests/Helpers/TestHelpers.asmdef` and referencing it from both test assemblies. |
 | Unreal | `Source/<Module>/Private/Tests/Helpers/` |
+| Engine-less (no `engine.name`; `commands`/`specialists` set in `project.yaml`) | `tests/helpers/`, in the project's own language and the module style of its existing `tests/` files |
 
 `tests/helpers/` below means the helper root for the project's engine.
 
@@ -89,7 +90,7 @@ Read from `project.yaml` first, falling back to `.claude/docs/technical-preferen
 - `engine.language` (else the `Language:` value)
 - `testing.framework` (else `Framework:` from the Testing section)
 
-If the engine is not configured in either source: "Engine not configured. Run `/setup-engine` first."
+If the engine is not configured in either source and the project is not engine-less: "Engine not configured. Run `/setup-engine` first." For an **engine-less** project (no `engine.name`, but `commands.build` and `specialists.code` set in `project.yaml`), helpers follow `testing.framework` and the existing files under `tests/`; never scaffold an engine layout.
 
 ---
 
@@ -102,6 +103,7 @@ Scan the engine's test root for patterns already in use (Godot `tests/`, Unity
 Glob pattern="tests/**/*_test.*"                  (Godot)
 Glob pattern="Assets/Tests/**/*Tests.cs"          (Unity)
 Glob pattern="Source/*/Private/Tests/**/*.cpp"    (Unreal)
+Glob pattern="tests/**/*.test.*"                 (engine-less, e.g. node:test)
 ```
 
 For a representative sample (up to 5 files), read the test files and extract:
@@ -123,6 +125,12 @@ Also read:
 ---
 
 ## 4. Generate Engine-Specific Helpers
+
+**Engine-less projects** have no template below. Write `tests/helpers/` modules in the
+project's language using only the runner named by `testing.framework` (for `node:test`, the
+`node:assert/strict` API) and import the code under test from the code root the way the existing
+tests do. If there are no existing tests to copy the import style from, say so and generate only
+the factory helpers whose shapes you read from source.
 
 ### Godot 4 (GDUnit4 / GDScript)
 
