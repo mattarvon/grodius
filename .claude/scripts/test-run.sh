@@ -13,7 +13,9 @@
 # /smoke-check, which also decides what an unmatched exit code means.
 #
 # Usage: bash .claude/scripts/test-run.sh <engine> [options]
-#   <engine>            godot, unity or unreal (any case)
+#   <engine>            godot, unity or unreal (any case); `none` for an
+#                       engine-less project (engine.name unset): runs
+#                       commands.test or --cmd as written, nothing else
 #   --cmd COMMAND       the test command to run, instead of project.yaml's
 #                       commands.test or the engine's default
 #   --exe PATH          the editor executable (default: the one commands.test
@@ -75,7 +77,8 @@
 #   rule        <id>  <what that row of the ladder says>     `-` when no row fits
 #   pre_log     <path>                                      when the import or build ran
 #   log         <path>
-# Rule ids: timeout, runner-unavailable, godot:no-gdunit4, godot:0, godot:0-zero,
+# Rule ids: timeout, runner-unavailable, none:no-command, none:0, none:0-zero,
+# none:fail, godot:no-gdunit4, godot:0, godot:0-zero,
 # godot:101, godot:100, godot:105, godot:103, godot:104, godot:1, godot:1-no-import,
 # unity:no-test-framework, unity:0, unity:zero-tests, unity:no-count,
 # unity:no-results, unity:2, unity:1, unity:3, unity:4, unity:other,
@@ -121,7 +124,8 @@ case "$(printf '%s' "$ENGINE_ARG" | tr 'A-Z' 'a-z')" in
   godot) ENGINE=godot; ENAME=Godot ;;
   unity) ENGINE=unity; ENAME=Unity ;;
   unreal) ENGINE=unreal; ENAME=Unreal ;;
-  *) echo "test-run: '$ENGINE_ARG' is not an engine this knows (godot, unity, unreal)" >&2; exit 3 ;;
+  none) ENGINE=none; ENAME=none ;;
+  *) echo "test-run: '$ENGINE_ARG' is not an engine this knows (godot, unity, unreal, none)" >&2; exit 3 ;;
 esac
 case "$PLATFORM" in editmode|playmode) ;; *) usage "--platform is editmode or playmode" ;; esac
 case "$OS_ARG" in ""|windows|linux|macos) ;; *) usage "--os is windows, linux or macos" ;; esac
@@ -231,6 +235,7 @@ is_timeout() {
 ABS=$(pwd -W 2>/dev/null || pwd)
 RESULTS=""; BUILD=""; CMD=""; CMD_SRC="default"; PRE_FAIL=""; PRE_ID=""; PRE_WHY=""
 case "$ENGINE" in
+  none) CMD="" ;;
   godot)
     CMD="\"${EXE:-godot}\" --headless -s -d --remote-debug tcp://127.0.0.1:0 res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode 2>&1"
     ;;
@@ -288,6 +293,12 @@ printf 'timeout\t%s\t%s\n' "$TIMEOUT" "$TOOL"
 # --- prechecks ----------------------------------------------------------------
 ran_no() { printf 'ran\tno\t%s\n' "$2"; printf 'rule\t%s\t%s\n' "$1" "$3"; exit 0; }
 case "$ENGINE" in
+  none)
+    if [ -z "$CMD" ]; then
+      printf 'precheck\tcommands.test\tabsent\n'
+      ran_no none:no-command "no engine and no commands.test or --cmd" "an engine-less project runs only its declared test command, and none is set"
+    fi
+    printf 'precheck\tcommands.test\tpresent\n' ;;
   godot)
     if [ -f addons/gdUnit4/bin/GdUnitCmdTool.gd ]; then printf 'precheck\taddons/gdUnit4/bin/GdUnitCmdTool.gd\tpresent\n'
     else
@@ -362,6 +373,29 @@ list_failed() {
 RULE_ID="-"; RULE_TXT="no row of the ladder fits"
 set_rule() { RULE_ID="$1"; RULE_TXT="$2"; }
 case "$ENGINE" in
+  none)
+    # The runner is whatever commands.test names. Vitest's summary is read when
+    # present (" Tests  N passed (N)", " Tests  F failed | P passed (N)"); a
+    # tools/harness.mjs regression line is evidence. Anything else: exit code only.
+    marker=$(first_line 'No test files found')
+    if [ -n "$marker" ]; then printf 'zero_tests\tyes\t%s\n' "$marker"; else printf 'zero_tests\tno\t-\n'; fi
+    sum=$(first_line '^[[:blank:]]*Tests[[:blank:]]+[0-9]')
+    if [ -n "$sum" ]; then
+      total=$(printf '%s\n' "$sum" | sed -n -E 's/.*\(([0-9]+)\).*/\1/p')
+      passed=$(printf '%s\n' "$sum" | sed -n -E 's/.*[^0-9]([0-9]+) passed.*/\1/p')
+      failed=$(printf '%s\n' "$sum" | sed -n -E 's/.*[^0-9]([0-9]+) failed.*/\1/p')
+      printf 'tests\ttotal=%s passed=%s failed=%s\n' "${total:--}" "${passed:-0}" "${failed:-0}"
+    else
+      printf 'tests\t-\tnot sourced: no vitest summary line in the output\n'
+    fi
+    list_failed '^[[:blank:]]*FAIL[[:blank:]]' "$LOG"
+    e=$(first_line '^REGRESSION vs baseline'); [ -n "$e" ] && printf 'evidence\t%s\n' "$e"
+    case "$CODE" in
+      0) if [ -n "$marker" ]; then set_rule none:0-zero "exit 0 over zero tests: the runner found no test files"
+         else set_rule none:0 "exit 0: the declared test command passed"; fi ;;
+      126|127) set_rule runner-unavailable "the test command did not start (command not found or not executable)" ;;
+      *) set_rule none:fail "the declared test command exited non-zero" ;;
+    esac ;;
   godot)
     marker=$(first_line 'No test cases found')
     if [ -n "$marker" ]; then printf 'zero_tests\tyes\t%s\n' "$marker"; else printf 'zero_tests\tno\t-\n'; fi

@@ -11,6 +11,12 @@ or before finalizing any engine-specific implementation approach
 - The specific API or feature being used
 - Engine version and LLM knowledge cutoff (from `docs/engine-reference/[engine]/VERSION.md`)
 - Relevant excerpt from breaking-changes or deprecated-apis docs
+- **Grodius (no engine):** pass the pinned package version and the "what changed"
+  notes from `docs/architecture/stack-reference.md`, plus the installed type
+  signature from `node_modules/<pkg>/**/*.d.ts` for the API in question. If no
+  installed type or stack-reference entry covers the API, the reviewer returns
+  CONCERNS with `NOT SOURCEABLE — <API> is not covered by stack-reference.md or
+  the installed types`, never APPROVE
 
 **Prompt**:
 > "Review this engine API usage against the version reference. Is this API present

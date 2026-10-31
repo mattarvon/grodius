@@ -11,6 +11,7 @@
 - Godot 4
 - Unity: Edit Mode, then Play Mode as a second run
 - Unreal Engine: build first, commands per OS, macOS
+- Engine-less projects (commands-driven)
 - Unknown engine / not configured
 - Test runner not available here
 - Build check (the WAIVED path only)
@@ -155,6 +156,17 @@ Read the output, not the exit code: a failing test and a run that matched nothin
 - Any other non-zero exit (`Project file not found`, `The game module … could
   not be found`) → FAIL: no test ran. The exception: the editor never started (exit 126 or 127, `command not found`) — that is the runner not being
   available, below, and `NOT ASSESSED`.
+
+**Engine-less projects** (no `engine.name`; `commands.build` and `specialists.code` set, see
+Phase 1 step 3). There is no per-engine default: run `commands.test` under the timeout rules
+above (`timeout 900 npm test`, say). If `commands.test` is unset, report
+`NOT ASSESSED — engine-less project with no commands.test` and run no tests. Read the output:
+- Non-zero exit, or any failing test the runner reports → FAIL (name the failing tests).
+- Exit 0 but the runner reports zero tests run (`node:test` prints `# tests 0`), or no test
+  summary at all → `NOT ASSESSED — commands.test ran no tests`, not PASS.
+- Exit 0 with a non-zero passing count → PASS.
+A regression or harness step chained into `commands.test` (e.g. `&& node tools/harness.mjs`)
+counts as part of the suite: its non-zero exit is a FAIL even when every unit test passed.
 
 **Unknown engine / not configured:**
 "Engine not configured in `project.yaml` or

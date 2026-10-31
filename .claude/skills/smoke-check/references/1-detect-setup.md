@@ -24,9 +24,11 @@ Before running anything, understand the environment:
    that `tests/` does. Check the engine's **test root** (from step 3; the table
    is in `.claude/docs/directory-structure.md` — Godot `tests/unit/` and
    `tests/integration/`, Unity `Assets/Tests/`, Unreal
-   `Source/*/Private/Tests/`) and `tests/smoke/` for actual test files. A
+   `Source/*/Private/Tests/`; an engine-less project `tests/unit/` and
+   `tests/integration/`) and `tests/smoke/` for actual test files. A
    **test file** is one the engine's test runner executes — a `*_test.gd` suite,
-   a C# test class, an Unreal automation test source. Markdown checklists do not
+   a C# test class, an Unreal automation test source, or for an engine-less project a file
+   its `testing.framework` runner executes (e.g. `*.test.mjs` / `*.test.ts` for `node:test`). Markdown checklists do not
    count: `/test-setup` always writes `tests/smoke/critical-paths.md`, and
    counting it would hide exactly the zero-test state this step exists to catch.
    If none are found **at `qa.level: minimal`**, tests are waived at this level:
@@ -63,7 +65,11 @@ Before running anything, understand the environment:
    is absent or empty (including when `project.yaml` has no `engine:` block),
    fall back to the `Engine:` value in `.claude/docs/technical-preferences.md`
    (a `[TO BE CONFIGURED]` value means not configured). Store this for test
-   command selection in Phase 2.
+   command selection in Phase 2. When both are unset but `project.yaml` sets
+   `commands.build` and `specialists.code`, the project is **engine-less** (a custom
+   stack such as a TypeScript web game): it is configured, report `Environment:
+   engine-less ([stack from CLAUDE.md])`, and the executable below is the first word of
+   `commands.test` (e.g. `npm`), resolved with `command -v`.
 
    Then find the **editor executable** — none of the three engines installs
    onto `PATH` by default on Windows or macOS, so a bare `godot` that does not

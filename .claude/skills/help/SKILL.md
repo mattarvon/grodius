@@ -188,7 +188,7 @@ Map the statuses exactly as in Step 4. `implement` and `story-done` are
 `NO_CHECK` by design — the story status lines below are their check. The next
 step is the first of these that applies:
 
-1. `engine-setup` not PRESENT → `/setup-engine`
+1. `engine-setup` not PRESENT → `/setup-engine`, unless an **engine-less** project (no `engine.name`, but `commands.build` and `specialists.code` set in `project.yaml`) is configured: then treat `engine-setup` as PRESENT and say "engine: none (custom stack)"
 2. `game-brief` not PRESENT → `/reverse-document design [code root]` when the
    code root already holds the game (10 or more source files, the test Step 2
    uses for `production`): at `minimal` it writes `design/game-brief.md` from

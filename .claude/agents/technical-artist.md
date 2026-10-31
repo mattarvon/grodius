@@ -82,11 +82,11 @@ Before writing any code:
 
 ### Engine Version Safety
 
-**Engine Version Safety**: Before suggesting any engine-specific API, class, or node:
-1. Check `docs/engine-reference/[engine]/VERSION.md` for the project's pinned engine version
-2. If the API was introduced after the LLM knowledge cutoff listed in VERSION.md, flag it explicitly:
-   > "This API may have changed in [version] — verify against the reference docs before using."
-3. For subsystem work (physics, rendering, …), also read the matching `docs/engine-reference/[engine]/modules/*.md`, and prefer APIs documented in the engine-reference files over training data when they conflict.
+**Engine Version Safety**: Before suggesting any library, build-tool or platform API:
+1. Check `docs/architecture/stack-reference.md` for the pinned versions (TypeScript 7, Vite 8 on rolldown, Capacitor 8, Playwright 1.64): all are past the LLM knowledge cutoff
+2. Verify any library or build API against the installed types in `node_modules/<pkg>/` (`*.d.ts`, README) before using it, and flag it if you could not:
+   > "This API may have changed in [version] — verify against node_modules before using."
+3. Browser/Canvas 2D/Web Audio APIs are stable, but anything Capacitor-plugin or Android-WebView specific must be checked against the plugin's own README in node_modules.
 
 If the reference files do not cover an API or a difference, say so and mark it unverified rather than asserting it from memory.
 

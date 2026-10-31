@@ -27,6 +27,8 @@ jobs:
       # only part of src/ is type-checked today, so a type error is reported but doesn't block
       - run: npm run typecheck
         continue-on-error: true
+      - name: Unit tests (vitest, tests/unit)
+        run: npm run test:unit
       - run: npm run build
       - name: Regression gate (sim state vs tools/harness.baseline.json)
         run: npm run test:regress

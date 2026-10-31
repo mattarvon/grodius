@@ -75,6 +75,59 @@ summarise() {
 # major.minor of the first version in $1, with Unity's 6000.N read as 6.N.
 vmm() { printf '%s' "$1" | grep -oE '[0-9]+\.[0-9]+' | head -1 | sed -E 's/^6000\./6./'; }
 
+# --- 6. Declared commands reference files that exist -------------------------
+# A function so an engine-less project (no engine.name, commands declared) still
+# gets it: the engine gate below returns early for that project.
+check_commands() {
+BUILD_CMD="$(yaml_block_value commands build)"
+TEST_CMD="$(yaml_block_value commands test)"
+
+if [ -z "$BUILD_CMD" ] && [ -z "$TEST_CMD" ]; then
+  skipped "command checks — project.yaml declares no commands.build or commands.test"
+else
+  if printf '%s' "$BUILD_CMD" | grep -qE 'export-(debug|release|pack)'; then
+    if [ -f export_presets.cfg ]; then
+      match "commands.build names an export preset and export_presets.cfg exists"
+    else
+      differs "commands.build is '$BUILD_CMD' but there is no export_presets.cfg. Godot cannot resolve the preset, so this command fails the first time CI or /smoke-check runs it."
+    fi
+  fi
+
+  # Godot names its runner as res://addons/gdUnit4/bin/GdUnitCmdTool.gd. Match the
+  # res:// prefix and strip it: a class that stops at the colon checked
+  # //addons/... and reported a present runner as missing.
+  RUNNER="$(printf '%s' "$TEST_CMD" | grep -oE '(res://)?[A-Za-z0-9_/.-]+\.(gd|cs|py|sh)' | head -1)"
+  RUNNER="${RUNNER#res://}"
+  if [ -n "$RUNNER" ]; then
+    if [ -f "$RUNNER" ]; then
+      match "commands.test runner exists ($RUNNER)"
+    else
+      case "$RUNNER" in
+        addons/gdUnit4/*) HINT=" gdUnit4 is not installed at addons/gdUnit4/ (capital U) — see /test-setup." ;;
+        *)                HINT="" ;;
+      esac
+      differs "commands.test is '$TEST_CMD' but '$RUNNER' does not exist, so this command cannot run as written.$HINT"
+    fi
+  fi
+fi
+
+  # `npm run X` / `npm test` resolve through package.json, not a file on disk.
+  for CK in build test run smoke; do
+    CV="$(yaml_block_value commands "$CK")"
+    for NS in $(printf '%s\n' "$CV" | grep -oE 'npm (run [A-Za-z0-9:_-]+|test)' | sed -E 's/^npm (run )?//' | sort -u); do
+      if [ ! -f package.json ]; then
+        differs "commands.$CK runs npm script '$NS' but there is no package.json"
+      elif if command -v node >/dev/null 2>&1; then
+             node -e 'process.exit((require("./package.json").scripts||{})[process.argv[1]]?0:1)' "$NS" 2>/dev/null
+           else grep -qE "\"$NS\"[[:space:]]*:" package.json; fi; then
+        match "commands.$CK: npm script '$NS' exists in package.json"
+      else
+        differs "commands.$CK runs npm script '$NS', which package.json does not define"
+      fi
+    done
+  done
+}
+
 say "=== project coherence ==="
 
 if [ ! -f project.yaml ]; then
@@ -88,7 +141,12 @@ RENDERING="$(yaml_block_value engine rendering)"
 PHYSICS="$(yaml_block_value engine physics)"
 
 if [ -z "$ENGINE" ]; then
-  skipped "every engine check — project.yaml has no engine.name. Run /setup-engine."
+  if [ -n "$(yaml_block_value commands build)$(yaml_block_value commands test)" ]; then
+    skipped "every engine check — no engine.name; project.yaml declares commands, so this is an engine-less project (engine checks do not apply)"
+    check_commands
+  else
+    skipped "every engine check — project.yaml has no engine.name. Run /setup-engine."
+  fi
   summarise
 fi
 
@@ -281,37 +339,6 @@ else
   fi
 fi
 
-# --- 6. Declared commands reference files that exist -------------------------
-BUILD_CMD="$(yaml_block_value commands build)"
-TEST_CMD="$(yaml_block_value commands test)"
-
-if [ -z "$BUILD_CMD" ] && [ -z "$TEST_CMD" ]; then
-  skipped "command checks — project.yaml declares no commands.build or commands.test"
-else
-  if printf '%s' "$BUILD_CMD" | grep -qE 'export-(debug|release|pack)'; then
-    if [ -f export_presets.cfg ]; then
-      match "commands.build names an export preset and export_presets.cfg exists"
-    else
-      differs "commands.build is '$BUILD_CMD' but there is no export_presets.cfg. Godot cannot resolve the preset, so this command fails the first time CI or /smoke-check runs it."
-    fi
-  fi
-
-  # Godot names its runner as res://addons/gdUnit4/bin/GdUnitCmdTool.gd. Match the
-  # res:// prefix and strip it: a class that stops at the colon checked
-  # //addons/... and reported a present runner as missing.
-  RUNNER="$(printf '%s' "$TEST_CMD" | grep -oE '(res://)?[A-Za-z0-9_/.-]+\.(gd|cs|py|sh)' | head -1)"
-  RUNNER="${RUNNER#res://}"
-  if [ -n "$RUNNER" ]; then
-    if [ -f "$RUNNER" ]; then
-      match "commands.test runner exists ($RUNNER)"
-    else
-      case "$RUNNER" in
-        addons/gdUnit4/*) HINT=" gdUnit4 is not installed at addons/gdUnit4/ (capital U) — see /test-setup." ;;
-        *)                HINT="" ;;
-      esac
-      differs "commands.test is '$TEST_CMD' but '$RUNNER' does not exist, so this command cannot run as written.$HINT"
-    fi
-  fi
-fi
+check_commands
 
 summarise

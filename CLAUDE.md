@@ -1,21 +1,24 @@
-# Claude Code Game Studios -- Game Studio Agent Architecture
+# Grodius — Claude Code Game Studios
 
-Indie game development managed through 49 coordinated Claude Code subagents.
-Each agent owns a specific domain, enforcing separation of concerns and quality.
+Grodius is a Gradius-style body-horror shooter, developed with the Claude Code
+Game Studios framework (35 coordinated subagents, adapted to this engine-less
+TypeScript stack; local changes to the framework are listed in
+`.claude/.ccgs-source`). Each agent owns a specific domain.
 
 ## Technology Stack
 
 - **Engine**: None — custom TypeScript canvas game (Grodius: Gradius-style body-horror shooter)
 - **Language**: TypeScript (`src/`, entry `src/main.ts`)
-- **Version Control**: Git, trunk on `main`; GitHub Actions builds the APK + Pages on every push
+- **Version Control**: Git, trunk on `main` (whether tune work must go through PRs is pending decision D4); GitHub Actions `verify` runs on PRs and gates the Pages deploy, and pushes to `main` build the APK + Pages
 - **Build System**: Vite (`npm run dev`, `npm run build`, `npm run typecheck`); Android via Capacitor (`npm run android`)
-- **Tests**: `npm run test:regress` (`tools/harness.mjs`); `tools/*-probe.mjs` and `tools/*-shots.mjs` are balance probes and screenshot rigs
-- **Asset Pipeline**: Python prep scripts in `tools/` (`prep_*.py`, `gen_*_sfx.py`) feeding `assets/`
+- **Tests**: Vitest unit tests (`npm run test:unit`, `tests/unit/*.test.ts`) and the deterministic regression harness (`npm run test:regress`, `tools/harness.mjs`); `npm test` runs both. `tools/*-probe.mjs` and `tools/*-shots.mjs` are balance probes and screenshot rigs
+- **Asset Pipeline**: Python prep scripts in `tools/` (`prep_*.py`, `gen_*_sfx.py`) feeding `src/sprites/`, `src/sfx/`, `src/img/`
 
-> **Note**: The Godot/Unity/Unreal specialist agents, engine references and
-> engine-specific CI/test paths in `.claude/` do not apply here. Use the
-> engine-agnostic agents (design, gameplay/systems programming, art, audio, QA,
-> production) and Grodius's own scripts above.
+> **No engine.** The template's Godot/Unity/Unreal agents and engine references
+> were removed. `web-specialist` is the stack authority (what `specialists.*`
+> route to). Pinned toolchain versions and their post-cutoff changes:
+> `docs/architecture/stack-reference.md`. Where a skill mentions
+> `docs/engine-reference/<engine>/`, use that file instead.
 
 ## Project Structure
 
@@ -28,9 +31,9 @@ naming, platform, performance, modes. Skills resolve it via `resolve_config`
 (see `.claude/docs/config-resolution.md`).
 
 `.claude/docs/technical-preferences.md` is the **legacy fallback**, read on demand
-when a key is absent from `project.yaml`. It is not imported here: before
-`/setup-engine` runs it is almost entirely `[TO BE CONFIGURED]` placeholders, and
-after it runs `project.yaml` holds the real values.
+when a key is absent from `project.yaml`. For Grodius it was filled in by hand
+(no `/setup-engine`) and also holds the forbidden patterns and allowed
+libraries.
 
 ## Coordination Rules
 
@@ -54,8 +57,10 @@ Every task follows: **Question -> Options -> Decision -> Draft -> Approval**
 
 See `docs/COLLABORATIVE-DESIGN-PRINCIPLE.md` for full protocol and examples.
 
-> **First session?** If the project has no engine configured and no game concept,
-> run `/start` to begin the guided onboarding flow.
+> **Where things stand:** `production/studio-roadmap.md` (ranked work, current
+> sprint), `production/decision-log.md` (decisions made and pending),
+> `design/game-brief.md` (the design record at `rigor: minimal`). Run `/help` for
+> the next step in the pipeline.
 
 ## Coding Standards
 

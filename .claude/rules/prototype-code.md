@@ -9,9 +9,8 @@ Prototypes are throwaway code for validating ideas. Standards are intentionally
 relaxed to maximize iteration speed. The goal is learning, not production quality.
 
 ## What's Allowed in Prototypes
-- Hardcoded values (no need for data-driven config)
+- Hardcoded values (no need for named tuning tables)
 - Minimal or no doc comments
-- Simple architecture (no dependency injection required)
 - Singletons and global state
 - Copy-pasted code (no need for abstraction)
 - Debug output left in place
@@ -25,7 +24,8 @@ relaxed to maximize iteration speed. The goal is learning, not production qualit
   - How to run the prototype
   - Current status (in-progress / concluded)
   - Findings (updated when prototype concludes)
-- No production code may reference or import from `prototypes/`
+- No production code may reference or import from `prototypes/`; a prototype
+  may import from `src/` (it runs through `npm run dev` like the game)
 - Prototypes must not modify files outside `prototypes/`
 - Prototypes must not be deployed or shipped
 

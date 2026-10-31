@@ -1,62 +1,44 @@
 ---
 paths:
-  - "src/core/**"
-  - "Assets/**/{Core,core}/**/*.cs"
-  - "Source/**/{Core,core}/**/*.{h,cpp}"
+  - "src/core.ts"
+  - "src/world.ts"
+  - "src/main.ts"
+  - "src/perf.ts"
+  - "src/platform.ts"
+  - "src/input.ts"
+  - "src/save.ts"
+  - "src/audio.ts"
+  - "src/music.ts"
+  - "src/sprites.ts"
+  - "src/textures.ts"
+  - "src/render/**"
+  - "src/fx/**"
 ---
 
-# Engine Code Rules
+# Runtime Code Rules (loop, render, audio, input, save, platform)
 
-- ZERO allocations in hot paths (update loops, rendering, physics) — pre-allocate, pool, reuse
-- All engine APIs must be thread-safe OR explicitly documented as single-thread-only
-- Profile before AND after every optimization — document the measured numbers
-- Engine code must NEVER depend on gameplay code (strict dependency direction: engine <- gameplay)
-- Every public API must have usage examples in its doc comment
-- Changes to public interfaces require a deprecation period and migration guide
-- Use RAII / deterministic cleanup for all resources
-- All engine systems must support graceful degradation
-- Before writing engine API code, consult `docs/engine-reference/` for the current engine version and verify APIs against the reference docs
+Grodius has no engine; this is the code that plays that role. `web-specialist`
+owns it.
 
-## Examples
-
-**Correct** (zero-alloc hot path) — Godot:
-
-```gdscript
-# Pre-allocated array reused each frame
-var _nearby_cache: Array[Node3D] = []
-
-func _physics_process(delta: float) -> void:
-    _nearby_cache.clear()  # Reuse, don't reallocate
-    _spatial_grid.query_radius(position, radius, _nearby_cache)
-```
-
-Unity:
-
-```csharp
-private readonly Collider[] _nearbyCache = new Collider[64];  // allocated once
-
-void FixedUpdate()
-{
-    int count = Physics.OverlapSphereNonAlloc(transform.position, radius, _nearbyCache);
-}
-```
-
-Unreal:
-
-```cpp
-// TArray member, reserved once; Reset() keeps the allocation
-void UProximityComponent::TickComponent(float DeltaTime, ELevelTick TickType,
-                                        FActorComponentTickFunction* ThisTickFunction)
-{
-    NearbyCache.Reset();
-    SpatialGrid->QueryRadius(GetComponentLocation(), Radius, NearbyCache);
-}
-```
-
-**Incorrect** (allocating in hot path):
-
-```gdscript
-func _physics_process(delta: float) -> void:
-    var nearby: Array[Node3D] = []  # VIOLATION: allocates every frame
-    nearby = get_tree().get_nodes_in_group("enemies")  # VIOLATION: tree query every frame
-```
+- **No allocations in hot paths**: `step()`, the render functions and per-entity
+  fx updates run every frame. No array spreads, `filter`/`map`, closures or new
+  gradients/paths per entity per frame. Cache procedural art in offscreen
+  canvases (the `warm*()` functions at boot) and reuse scratch arrays.
+- **Profile before and after** any optimisation and record the numbers
+  (`src/perf.ts` timers, `tools/perf-probe.mjs`). The budget is 16.7 ms per frame
+  at 60 Hz on a mid-range Android phone, not a desktop.
+- **Dependency direction**: runtime modules (`core`, `world`, `state`, `render/util`)
+  must not import gameplay modules. Gameplay may import runtime.
+- **Draw order is meaning**: enemy bullets draw after `postFX()`; any new
+  full-screen layer goes below them. Full-screen washes, flicker and glitch tears
+  must respect `SET.flashes`.
+- **Audio and render must not perturb the sim**: see
+  `.claude/rules/sim-determinism.md`. Audio init consumes `R()` per sample today;
+  do not add more environment-dependent draws.
+- **Graceful degradation**: every Capacitor call is guarded by `NATIVE`
+  (`src/platform.ts`) and must work in a plain browser (Pages) and in the
+  harness, where `AudioContext`, `speechSynthesis` and `setTimeout` are stubbed out.
+- **Save format**: a change to what `src/save.ts` writes needs a migration for old
+  saves and must not write defaults back after a failed load.
+- **Verify library APIs** against `node_modules/<pkg>` types; see
+  `docs/architecture/stack-reference.md` for the post-cutoff versions.

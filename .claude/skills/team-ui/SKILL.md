@@ -93,7 +93,7 @@ Use the `Agent` tool to spawn each team member as a subagent:
 - `subagent_type: ux-designer` — User flows, wireframes, accessibility, input handling
 - `subagent_type: ui-programmer` — UI framework, screens, widgets, data binding
 - `subagent_type: art-director` — Visual style, layout polish, art bible consistency
-- `subagent_type: [UI engine specialist]` — Engine-specific UI pattern validation (e.g., unity-ui-specialist, ue-umg-specialist, godot-specialist)
+- `subagent_type: [UI engine specialist]` — Engine-specific UI pattern validation (`specialists.ui` from `project.yaml`, e.g. `web-specialist` for an engine-less project; engine projects: unity-ui-specialist, ue-umg-specialist, godot-specialist). Skip this member only when no UI specialist resolves
 - `subagent_type: accessibility-specialist` — Accessibility compliance audit
 
 **Brief each agent — do not dump context.** Read the shared inputs **once** and pass a distilled brief inline: the lines each agent actually needs, never a file path for a document you have already read (an agent handed a path re-reads the whole file). Pass a path only for a document you have not read and only that agent needs.

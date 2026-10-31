@@ -31,41 +31,27 @@ reason (`session_start`, `path_glob_match`, `nested_traversal`, `include`,
 
 **Globs match regardless of case.** Claude Code 2.1.282 matches `paths:`
 gitignore-style and case-insensitively (observed; the docs do not say), so
-`Assets/**/UI/**` also matches a Godot project's `assets/ui/` art. That is why
-the Unity and Unreal code globs below name their file types.
+`src/render/**` would also match a hypothetical `SRC/Render/` folder; Grodius's
+globs below name exact files where a folder glob would over-match.
 
-Paths are listed Godot · Unity · Unreal. Folder names are shown in one case;
-each rule's own globs list the case variants (`{AI,Ai,ai}`).
+Grodius has no engine: the template's Unity/Unreal globs and the scene,
+shader, network and data-file rules were removed, and the code rules were
+re-scoped to Grodius's real files.
 
 | Rule File | Path Pattern | Enforces |
 | ---- | ---- | ---- |
-| `gameplay-code.md` | `src/gameplay/**` · `Assets/**/Gameplay/**/*.cs` · `Source/**/Gameplay/**/*.{h,cpp}` | Data-driven values, delta time, no UI references |
-| `engine-code.md` | `src/core/**` · `Assets/**/Core/**/*.cs` · `Source/**/Core/**/*.{h,cpp}` | Zero allocs in hot paths, thread safety, API stability |
-| `ai-code.md` | `src/ai/**` · `Assets/**/AI/**/*.cs` · `Source/**/AI/**/*.{h,cpp}` | Performance budgets, debuggability, data-driven params |
-| `network-code.md` | `src/networking/**` · `Assets/**/Network(ing)/**/*.cs` · `Source/**/Network(ing)/**/*.{h,cpp}` | Server-authoritative, versioned messages, security |
-| `ui-code.md` | `src/ui/**` · `Assets/**/UI/**/*.cs` · `Source/**/UI/**/*.{h,cpp}` | No game state ownership, localization-ready, accessibility |
+| `gameplay-code.md` | `src/{player,shots,perks,mutations,contraptions,shipform,stages,biomes,depth,flow,step,state}.ts` | Named typed tuning tables, frame-based time, `$` state lifecycle, swapRm safety, pure formulas |
+| `engine-code.md` | `src/{core,world,main,perf,platform,input,save,audio,music,sprites,textures}.ts`, `src/render/**`, `src/fx/**` | No hot-path allocation, draw order, graceful native degradation, save migrations |
+| `ai-code.md` | `src/enemies/**`, `src/boss/**` | Telegraphs, `every()`/`cdm()` cadence, wind-up safety, `kid`/`par` children, probes |
+| `ui-code.md` | `src/menus.ts`, `src/input.ts`, `src/render/{screens,hud,hype}.ts` | Display-only UI, keyboard/gamepad/touch, legibility, flash limits |
+| `sim-determinism.md` | `src/**` | One shared random stream; no environment-dependent draws; harness baseline discipline |
+| `tools.md` | `tools/**` | Probes measure and never mutate; pinned Playwright; self-started server; usage headers |
 | `design-docs.md` | `design/gdd/**` | Required sections per `modes.workflow` (8 at `full`, 5 at `standard`), formula format, edge cases |
 | `narrative.md` | `design/narrative/**` | Lore consistency, character voice, canon levels |
-| `data-files.md` | `assets/data/**/*.json` · `Assets/**/Data/**/*.json` · `Content/**/Data/**/*.json` | JSON validity, naming conventions, schema rules |
-| `test-standards.md` | `tests/**` · `Assets/Tests/**/*.cs` · `Source/**/Tests/**/*.{h,cpp}` | Test naming, coverage requirements, fixture patterns |
+| `test-standards.md` | `tests/**`, `tools/harness.mjs`, `tools/harness.baseline.json` | Vitest naming and structure, watched-fail regression tests, harness baseline |
 | `prototype-code.md` | `prototypes/**` | Relaxed standards, README required, hypothesis documented |
-| `shader-code.md` | `assets/shaders/**`, `**/*.gdshader` · `Assets/**/*.{shader,hlsl,cginc,compute,shadergraph}` · `Shaders/**`, `**/*.{usf,ush}` | Naming conventions, performance targets, cross-platform rules |
-| `scene-files.md` | `**/*.tscn`, `**/*.tres` · `**/*.unity`, `**/*.prefab`, `Assets/**/*.asset` · — | Hand-edit limits for editor-written scene and asset files; Unreal `.uasset`/`.umap` are binary, and `settings.json` denies edits to them |
 | `agent-memory.md` | `.claude/agent-memory/**` | The one place an agent may write unasked — and why a temporary absence must never be recorded as a durable fact |
 | `skill-authoring.md` | `.claude/skills/**`, `.claude/agents/**` | A check must be able to report that it did not run — the five obligations for verdicts, defaults, skips, sourcing and derived coverage |
-
-Each engine-facing rule loads on all three engines:
-
-- **Code rules** (`gameplay`, `engine`, `ai`, `network`, `ui`) match
-  `Assets/**/<System>/**/*.cs` and `Source/**/<System>/**/*.{h,cpp}` (`Core`,
-  `AI`, `Networking`/`Network`, `UI` for the others).
-- **`data-files.md`** matches `Assets/**/Data/**/*.json` and `Content/**/Data/**/*.json`
-  — JSON only, so C# or C++ in a `Data/` folder does not pick up its file-naming rule.
-- **`shader-code.md`** matches shader files by type: `.gdshader`, `.shader`,
-  `.hlsl`, `.cginc`, `.compute`, `.shadergraph`, `.usf`, `.ush`, plus `Shaders/**`.
-- **`test-standards.md`** matches `Assets/Tests/**/*.cs` and `Source/**/Tests/**/*.{h,cpp}`.
-- **`scene-files.md`** is the exception: Godot and Unity scene and asset files are text and have
-  rules; Unreal's are binary, so a deny rule blocks edits instead of a rule guiding them.
 
 > **`skill-authoring.md` is the odd one out and deliberately so.** Every other
 > rule here scopes a *game* directory; that one scopes the **framework's own**

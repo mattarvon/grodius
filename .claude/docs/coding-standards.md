@@ -1,22 +1,37 @@
 # Coding Standards
 
-- All game code must include doc comments on public APIs
-- Architecture decisions are recorded as ADRs in `docs/architecture/`. **How many is
-  set by `modes.workflow`** — all ADRs at `full`, *critical* ADRs only at `standard`,
-  and none required at `minimal`, where the decision log and `design/game-brief.md`
-  carry the rationale instead. See `.claude/docs/workflow-modes.md`.
-- Gameplay values must be data-driven (external config), never hardcoded
-- All public methods must be unit-testable (dependency injection over singletons)
+Grodius is TypeScript on a Canvas 2D context with no engine (see
+`docs/architecture/stack-reference.md`). These standards replace the
+template's engine-oriented ones; the path-scoped rules in `.claude/rules/` carry
+the per-area detail.
+
+- Comment the *why* where it is not obvious: a tuning value's rationale, a
+  hidden invariant, a workaround. Public functions that other systems call get a
+  one-line doc comment; no multi-paragraph docblocks
+- Decisions are logged in `production/decision-log.md`. ADRs in
+  `docs/architecture/` are **set by `modes.workflow`**: all at `full`, critical
+  only at `standard`, none required at `minimal` (this project's tier), where the
+  decision log and `design/game-brief.md` carry the rationale. See
+  `.claude/docs/workflow-modes.md`.
+- Gameplay values live in **named, typed in-code tuning tables** (the `DEPTH`
+  pattern in `src/depth.ts`), each value commented with its rationale and the
+  probe that measures it. External config files are not the convention here
+- Module-level state (`$` in `src/state.ts`, entity arrays in `src/world.ts`) is
+  the architecture; no dependency-injection mandate. Keep formulas as pure
+  functions that read `$` so unit tests can set the fields they need
+- The sim is deterministic under the harness: no wall-clock time in sim code and
+  no new environment-dependent `R()` draws (`.claude/rules/sim-determinism.md`)
 - Commits must reference the relevant design document or task ID
-- **Commit messages**: Use Conventional Commits format — `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`. Reference the story or task ID in the body (e.g., `Story: EPIC-001-S02`).
-- **Verification-driven development**: Write tests first when adding gameplay systems.
-  For UI changes, verify with screenshots. Compare expected output to actual output
-  before marking work complete. Every implementation should have a way to prove it works.
+- **Commit messages**: Use Conventional Commits format — `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`. Reference the story or task ID in the body (e.g., `Story: S1-2`).
+- **Verification-driven development**: Write tests first when adding pure
+  formulas or rules (`npm run test:unit`). For UI and visual changes, verify with
+  screenshots. Every implementation needs a way to prove it works; a fix in code
+  the harness does not reach needs its own test or targeted in-page check.
 - **A parse check is not a run.** Every story that changes something
   player-observable is launched and observed before it closes, and the
-  observation is a retained screenshot in `production/qa/evidence/`. Procedure
-  per engine: `.claude/docs/run-and-observe.md`. Not waived at
-  `qa.level: minimal` — tests are, the look is not.
+  observation is a screenshot in `production/qa/evidence/`. Procedure:
+  `.claude/docs/run-and-observe.md`. In this project screenshot evidence is
+  advisory (`testing.strict.visual`/`.ui: false`), but the look is still checked.
 
 # Design Document Standards
 
@@ -46,8 +61,8 @@ All stories must have appropriate test evidence before they can be marked Done:
 
 | Story Type | Required Evidence | Location | Default Gate Level |
 |---|---|---|---|
-| **Logic** (formulas, AI, state machines) | Automated unit test — must pass | `tests/unit/[system]/` | BLOCKING |
-| **Integration** (multi-system) | Integration test OR documented playtest | `tests/integration/[system]/` | BLOCKING |
+| **Logic** (formulas, AI, state machines) | Vitest unit test — must pass | `tests/unit/[system].test.ts` | BLOCKING |
+| **Integration** (multi-system) | Vitest integration test, harness baseline move explained, OR documented playtest | `tests/integration/[system].test.ts` | BLOCKING |
 | **Visual/Feel** (animation, VFX, feel) | Retained screenshot + lead sign-off | `production/qa/evidence/` | BLOCKING |
 | **UI** (menus, HUD, screens) | Retained screenshot of each screen touched | `production/qa/evidence/` | BLOCKING |
 | **Config/Data** (balance tuning) | Smoke check pass | `production/qa/smoke-[date].md` | ADVISORY |
@@ -73,12 +88,18 @@ falling back to the defaults above when it is absent.
 
 ## Automated Test Rules
 
-- **Naming**: per engine — `.claude/rules/test-standards.md`
-- **Determinism**: Tests must produce the same result every run — no random seeds, no time-dependent assertions
-- **Isolation**: Each test sets up and tears down its own state; tests must not depend on execution order
-- **No hardcoded data**: Test fixtures use constant files or factory functions, not inline magic numbers
+- **Naming**: `.claude/rules/test-standards.md` — `tests/unit/[system].test.ts`, sentence-named `it(...)`
+- **Runners**: Vitest for unit/integration (`npm run test:unit`); the Playwright
+  regression harness for whole-game regressions (`npm run test:regress`); `npm test` runs both
+- **Determinism**: Tests must produce the same result every run — no unpinned
+  randomness, no time-dependent assertions. The harness seeds `Math.random`,
+  fakes the clock and removes `AudioContext`
+- **Isolation**: Each test sets up the module state it reads (`beforeEach`);
+  tests must not depend on execution order
+- **No hardcoded data**: Test fixtures use constants or factory functions, not inline magic numbers
   (exception: boundary value tests where the exact number IS the point)
-- **Independence**: Unit tests do not call external APIs, databases, or file I/O — use dependency injection
+- **Independence**: Unit tests do not touch the DOM, canvas, audio, network or
+  file I/O. Modules that do at import time are stubbed with `vi.mock`
 
 ## What NOT to Automate
 
@@ -89,10 +110,9 @@ falling back to the defaults above when it is absent.
 
 ## CI/CD Rules
 
-- Automated test suite runs on every push to main and every PR
-- No merge if tests fail — tests are a blocking gate in CI
-- Never disable or skip failing tests to make CI pass — fix the underlying issue
-- Engine-specific CI commands:
-  - **Godot**: `godot --headless -s -d --remote-debug tcp://127.0.0.1:0 res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode`
-  - **Unity**: `game-ci/unity-test-runner@v4` (GitHub Actions)
-  - **Unreal**: headless runner with `-nullrhi` flag
+- The `verify` job in `.github/workflows/build.yml` runs on every push to main and
+  every PR: `npm ci`, Playwright Chromium, typecheck (non-blocking while most
+  files are `@ts-nocheck`), build, unit tests and the harness
+- The Pages deploy needs `verify`; PRs run `verify` only and never deploy
+- Never disable or skip failing tests to make CI pass, and never re-baseline the
+  harness to silence an unexplained diff — fix the underlying issue

@@ -62,23 +62,17 @@ high-stakes output; otherwise write `model: sonnet` explicitly. Every skill
 declares a tier. Whether the tier takes effect depends on how the skill starts
 (see the table at the top of this file).
 
-**Agent model tiers.** 30 agents use `model: inherit` and run on the session's
-model. 19 are pinned:
+**Agent model tiers.** 28 agents use `model: inherit` and run on the session's
+model (including Grodius's `web-specialist`). 7 are pinned:
 
 - **opus (3):** `creative-director`, `producer`, `technical-director`. Under an
   Opus session an `opus` pin runs on the session's exact model, `[1m]` included,
   so it never gets a smaller window than its parent.
-- **sonnet (16):** `lead-programmer`, `prototyper`, `devops-engineer`,
-  `community-manager` and the 12 engine sub-specialists:
-  `godot-csharp-specialist`, `godot-gdextension-specialist`,
-  `godot-gdscript-specialist`, `godot-shader-specialist`,
-  `ue-blueprint-specialist`, `ue-gas-specialist`, `ue-replication-specialist`,
-  `ue-umg-specialist`, `unity-addressables-specialist`,
-  `unity-dots-specialist`, `unity-shader-specialist`, `unity-ui-specialist`.
-  `/dev-story` and `/code-review` spawn the sub-specialists named in
-  `project.yaml`'s `specialists` block (which `/setup-engine` writes); `/team-ui` spawns
-  `unity-ui-specialist` and `ue-umg-specialist`; `/team-release` spawns
-  `devops-engineer` and `community-manager`, and `/team-live-ops` spawns
+- **sonnet (4):** `lead-programmer`, `prototyper`, `devops-engineer`,
+  `community-manager`. (The template's 12 Sonnet-pinned engine sub-specialists
+  were removed in Grodius.) `/dev-story` and `/code-review` spawn the specialist
+  named in `project.yaml`'s `specialists` block (`web-specialist`); `/team-release`
+  spawns `devops-engineer` and `community-manager`, and `/team-live-ops` spawns
   `community-manager`.
 - **haiku (0):** no agent. The Haiku row above is for read-only lookups and
   formatting; every agent drafts, writes or judges. Building CI pipelines and

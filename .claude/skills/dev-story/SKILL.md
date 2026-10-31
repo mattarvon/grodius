@@ -4,7 +4,7 @@ description: "Implements one story in code with tests, following its ADRs. Use w
 argument-hint: "[story-path]"
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Read, Glob, Grep, Write, Edit, Agent, AskUserQuestion, Bash(bash "*/.claude/skills/dev-story/../../hooks/yaml-helper.sh" resolve_config *), Bash(bash .claude/scripts/story-facts.sh *), Bash(bash .claude/scripts/adr-status.sh *), Bash(bash .claude/scripts/md-section.sh *), Bash(bash .claude/scripts/session-state.sh *), Bash(bash .claude/scripts/review-receipts.sh hash *), Bash(godot *), Bash(mkdir -p production/qa/evidence/*)
+allowed-tools: Read, Glob, Grep, Write, Edit, Agent, AskUserQuestion, Bash(bash "*/.claude/skills/dev-story/../../hooks/yaml-helper.sh" resolve_config *), Bash(bash .claude/scripts/story-facts.sh *), Bash(bash .claude/scripts/adr-status.sh *), Bash(bash .claude/scripts/md-section.sh *), Bash(bash .claude/scripts/session-state.sh *), Bash(bash .claude/scripts/review-receipts.sh hash *), Bash(godot *), Bash(npm run build), Bash(npm run typecheck), Bash(node tools/*-shots.mjs*), Bash(mkdir -p production/qa/evidence/*)
 model: sonnet
 ---
 
@@ -195,7 +195,10 @@ the acceptance criteria and the [GDD | brief].`
 **Then hand the engine check to the specialist** once the programmer reports.
 Brief: check the changed files for engine-API use that is wrong or changed in
 [engine + version], against `docs/engine-reference/<engine>/`; return a list of
-file, line, problem, fix; edit nothing. A problem that breaks a criterion goes back
+file, line, problem, fix; edit nothing. For an **engine-less** project (no `engine.name`; `commands.build` and `specialists.code` set in `project.yaml`), the check is against the
+stack and versions in CLAUDE.md's Technology Stack and `package.json` (or the project's
+manifest) instead: library, platform and browser APIs, not engine APIs. Anything the
+specialist cannot confirm for those versions it lists as `NOT SOURCEABLE`, never as fine. A problem that breaks a criterion goes back
 to the programmer once; the rest go in the summary.
 
 ## Phase 6: Check the result
@@ -229,6 +232,10 @@ command, the exit code and any error lines:
   run-tests.sh` is not the editor), else `engine.path`, else `godot`. Never search the disk for
   one: when none of the three runs, the check is not verified.
 - **Unity, Unreal:** read `references/engine-checks.md`.
+- **Engine-less:** `commands.build` (for a TypeScript project, also its typecheck script
+  when `package.json` has one, e.g. `npm run typecheck`). Exit 0 from the build is the parse
+  check; a type error the typecheck reports in a changed file is a finding even when the
+  build passes.
 - **No engine executable:** `parse NOT VERIFIED — engine binary not available`.
   Never infer from reading the code that it parses.
 
@@ -239,7 +246,10 @@ straight into the scene the story touched, capture a screenshot straight into
 without `.md`; `mkdir -p` the folder first), stamp it with
 `bash .claude/scripts/review-receipts.sh hash <each changed file> > production/qa/evidence/[story-slug]/stamp.txt`,
 then open the image and compare it with the criteria. Not waived at `qa.level:
-minimal`. Report exactly one line, plain text starting `Run result:` (no bold:
+minimal`. For an **engine-less** project (no `engine.name`; `commands.build` and `specialists.code` set in `project.yaml`), launch with `commands.run` or the project's own Playwright
+screenshot rigs (`tools/*-shots.mjs`, which drive the game headless and save PNGs; check each
+rig's usage line for its output path), then copy the PNGs that show the story into the evidence
+folder. Report exactly one line, plain text starting `Run result:` (no bold:
 `/story-done` reads it as written):
 
 - `Run result: OBSERVED — <what was on screen>` with the retained path;

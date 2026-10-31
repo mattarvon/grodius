@@ -17,6 +17,10 @@ code. This file is the procedure for applying it.
 
 `src/` is the **Godot row of that table, not a universal path.**
 
+**Grodius:** no engine. `engine.name` is unset and the legacy Engine line reads
+`None`, which names no row, so resolution falls through to tree detection
+(step 3), which finds `src/` alone: `resolve_code_root` reports `src detected`.
+
 ## Resolution order
 
 1. `engine.name` from `project.local.yaml`, then `project.yaml`.

@@ -82,7 +82,8 @@ gate files:
 - **CD-PHASE-GATE**: the game pillars and core fantasy (from
   `design/gdd/game-concept.md`, else `design/game-brief.md`).
 - **TD-PHASE-GATE**: the architecture document path, the engine reference path
-  (`docs/engine-reference/<engine>/VERSION.md`), and the ADR list.
+  (`docs/engine-reference/<engine>/VERSION.md`; for an engine-less project, CLAUDE.md's
+  Technology Stack section instead), and the ADR list.
 - **PR-PHASE-GATE**: the sprint and milestone artifacts present, `team.size` as
   resolved above (with the current sprint plan's capacity, if a plan exists), and
   the number of stories under `production/epics/` whose status is `Blocked`. At

@@ -120,9 +120,9 @@ timing precision is not what you're testing.
 Best for action games, platformers, physics-heavy games, or any concept where
 moment-to-moment feel IS the hypothesis.
 
-- Write it in the project's engine and language — `engine.name` and `engine.language` from `project.yaml`; for any key absent or empty, from `.claude/docs/technical-preferences.md`; if neither names one, ask. Check each node and API against `docs/engine-reference/[engine]/deprecated-apis.md` before using it from memory, and use the replacement it lists.
+- Write it in TypeScript against the game's own modules (Grodius has no engine: see `.claude/docs/technical-preferences.md`). Check library and build APIs against `node_modules/<pkg>` types before using them from memory (`docs/architecture/stack-reference.md` lists the post-cutoff versions). The fastest playable path is usually a dev-only branch in `src/` behind `import.meta.env.DEV`, or a `prototypes/` entry served by `npm run dev`.
 - Reliability: ~50–60% one-shot. **2–4 rounds of iteration are normal — this is not failure.**
-- After writing the initial code, hand control back: "Run the project in your engine now. Paste any errors or describe what you see."
+- After writing the initial code, hand control back: "Run `npm run dev` and open the page now. Paste any console errors or describe what you see."
 - Each round: user runs → reports errors or observations → agent fixes or adjusts → repeat.
 - **Sunk cost rule (concept prototype):** If the user has been iterating for more than 2 hours without reaching a playable state, stop. The scope is too large or the question is wrong. Reframe the hypothesis and simplify aggressively, or switch paths.
 - **Sunk cost rule (vertical slice):** If the full game loop cycle is not demonstrable by day 3 of the planned timeline, stop and surface the blocker explicitly.
@@ -194,8 +194,8 @@ Prototype code must NEVER leak into the production codebase:
   [comment] Date: [When it was created]
   ```
   (Or `[comment] VERTICAL SLICE - NOT FOR PRODUCTION` for vertical slices.)
-  Write `[comment]` in each file's own comment syntax — `#` in GDScript (`.gd`)
-  and Python, `//` in C#, C++ and JavaScript, `--` in Lua, `<!-- … -->` in HTML
+  Write `[comment]` in each file's own comment syntax — `#` in Python,
+  `//` in TypeScript and JavaScript, `--` in Lua, `<!-- … -->` in HTML
   and Markdown. A header in another language's syntax is a parse error, not a
   label. Files that cannot hold a comment (JSON, engine-generated scene and
   project files) are exempt.
