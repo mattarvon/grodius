@@ -44,4 +44,15 @@ describe('no literal world x outside src/layout.ts', () => {
     const orbitLen = Math.min(...Object.values(LAYOUTS).map((L) => L.stages[0].x1));
     expect(hits(/\bat\(\s*(\d+)/g).filter((h) => +h.match(/\d+$/)![0] >= orbitLen)).toEqual([]);
   });
+
+  // technical-director condition C1 (LS1-A review): the @deprecated boot-time aliases copy the layout active at import,
+  // so they go stale once a second entry can be activated. Item J deletes them before item D adds one.
+  it('keeps the deprecated layout aliases only while short is the only layout entry', () => {
+    const aliases = hits(/\b(LEVEL|BOSS_AT|SEG|UFO_AT|UFO_GAP_END)\s*=\s*(layout\(\)|bossAt|segs|ufoAt|ufoGapEnd)\(?/g);
+    const tripped = (keys: string[], found: string[]) => keys.length > 1 && found.length > 0;
+    expect(tripped(Object.keys(LAYOUTS), aliases)).toBe(false);
+    // the tripwire itself: it fires for a second entry while any alias exists, and not once J has deleted them all
+    expect(tripped(['short', 'long4'], aliases.length ? aliases : ['core.ts: LEVEL = layout()'])).toBe(true);
+    expect(tripped(['short', 'long4'], [])).toBe(false);
+  });
 });

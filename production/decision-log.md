@@ -88,6 +88,8 @@ localization), D16-D18, and the signing keystore half of D6.
 
 ### Soon — before sprint 2/3
 
+- **D21 Short-layout tune** *(creative-director condition, LS1-A review, 2026-11-01)*. The `short` layout keeps known pacing debt (D20). On a slot-2 repeat visit, a set piece fires within a second of the midboss kill, with no release beat. The Saucer leaves about 3.7 s before "SOMETHING IS COMING". **Default: no tune.** `short` is deleted one milestone after the long flip, and the long layouts build in the Release beat (spec §3.2). **Trigger:** if the long flip slips past the next milestone, offer Matt a separate short-tune story. It moves the harness baseline once, and the short layout's byte-identical parity no longer applies after it.
+
 - *(delegated 2026-10-31, see the batch above)* **D5b Economy.** What DESCEND DEEPER gives (`deepPay` ignores `lv('deep')`, `src/stages.ts:28`; pinned as current behaviour in `tests/unit/stages.test.ts`). Does an escaped boss pay and count toward seals? Should grade pay more? Which biomass sink?
 - **D6 Saves.** One final save-wiping uninstall for stable signing, or ship save export first (recommended)?
 - **D7 Licensing.** Licence for code, art, voice; second voice performer's consent and credit; CC BY credits vs CC0 swap; which README asset rule is current.
