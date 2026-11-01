@@ -17,11 +17,13 @@ import { eliteChance, eliteRoll } from './enemies/elite';
 import { enemies } from './world';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
-import { layout, nSlots, slotRow } from './layout';
+import { layout, nSlots, segs, slotRow } from './layout';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
 // stage 2 = slot 1
+/** @deprecated boot-time alias for density-probe / kind-probe until build plan item J repoints them; game code uses slotRow() */
+export const SEG = segs();
 
 export const BIOMES = {
   ice: {
