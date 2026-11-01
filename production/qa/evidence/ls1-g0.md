@@ -28,18 +28,29 @@ Files: `src/economy.ts`, `tests/unit/economy.test.ts`, this file. No existing fi
 
 ## Gates
 
-- `npm run test:unit`: 9 files, **88 passed**.
+- `npm run test:unit`: 9 files, **95 passed** (40 in `economy.test.ts` after the specialist fixes).
 - `npm run typecheck`: clean (no `@ts-nocheck` on the new file; it is fully typed).
-- `npm run test:regress`: **PASS vs baseline**, harness `st` identical. 6/6 canvas hashes differ (advisory). The likely cause is the worktree: its `node_modules` symlink points outside Vite's serving allow list, so the webfonts don't load (the harness log shows the warnings). No code path reaches `economy.ts`.
+- `npm run test:regress`: **PASS vs baseline**, harness `st` identical. 6/6 canvas hashes differ (advisory). **Confirmed environmental:** an untouched `main` (f2f9c03) in a scratch worktree with the same symlinked `node_modules` produces the same six hashes byte for byte and the same 6/6 note. The symlink points outside Vite's serving allow list, so the webfonts don't load. No code path reaches `economy.ts`.
 
 ## Interpretations and open points (for review)
 
 1. **Stage kinds and N are duplicated from the layout.** `ECON[id].n` and the `Kind` type stand in for lane A's `src/layout.ts`. When both land, item G should read N from `layout()` or add a test that the two agree.
-2. **Ts (scroll seconds) is a parameter.** The layout owns stage length, so `gradePts` takes Ts from the caller. With no Ts given, or Ts = 0, it grades as a 35 s stage, so it can never divide by zero.
+2. **Ts (scroll seconds) is a parameter.** The layout owns stage length, so `gradePts` takes Ts from the caller. With no usable Ts (missing, 0, negative or NaN) it grades as a 35 s stage. A stage shorter than 35 s grades its hits harder, which is the spec formula followed literally and uncapped. `gradeOf(id, st, Ts, escaped)` puts Ts before `escaped` so a caller can't drop it by accident.
 3. **Which biomass `killBio` scales.** I read it as the kill pods only (`fx/update.ts` orb pickup). Grade pay, midboss capsule pay and the first-kill bonus are not scaled. Item G should confirm this against the D1 1.3-1.5k target.
 4. **`descDepth` scope.** The spec feeds it to `depthHP`, `cdm` and `firem` for regular enemies and midbosses. The Drive's own HP keeps the integer loop (`driveMul`). Note that `depthHP` returns 1 whenever `loop ≤ 0`, so item G must change that guard for intra-descent depth to reach Descent 1.
 5. **Pending Matt answers carry the recommended defaults:** Q9 (S ≤ 1 hit), Q10 (`long5` seals), Q11 (Drive lives), Q12 (kill bio ×0.6). The `long5` D1 elite is marked "optional" in the spec and is included at .05.
-6. **Not in G0:** best grades by kind (`gradeKey()`, lane H0), grade pay (unchanged per stage), and the seal copy (`SEAL_TXT`/HUD, LS3-0).
+6. **`sealAt` returns the scheduled tier only.** `clearStage`'s guard that a tier breaks only if it is above `G.seal` stays with the caller (doc comment says so).
+7. **Descent 4+ hits/min** read the D3 row; the spec sets D1-D3 only. `long4` has no interior column (`hpmTarget` returns null).
+8. **Spec naming:** the spec writes `PAY.killBio`; the code has `ECON[id].killBio`. The spec text can follow.
+9. **Not in G0:** best grades by kind (`gradeKey()`, lane H0), grade pay (unchanged per stage), and the seal copy (`SEAL_TXT`/HUD, LS3-0).
+
+## Studio Hierarchy review, specialist pass
+
+| Reviewer | Verdict | Acted on |
+|---|---|---|
+| systems-designer | APPROVE WITH CHANGES | **Fixed:** Ts = 0 gave a hit weight of 35, not 1 (major; the new test was watched failing on the old code); `long4` interior column removed; n = 1 guard in `descDepth`; `sealAt` guard note; D4+ and Ts < 35 behaviour documented |
+| web-specialist | APPROVE | **Fixed:** Ts moved before `escaped` in `gradeOf`; probes named on the *start* values; n = 1 guard; mock caveat commented. The hash claim was confirmed against `main` (above) |
+| qa-tester | ADEQUATE, APPROVE WITH CHANGES | **Fixed:** the false Ts test; grade boundaries 70/50/30 under normalisation; all 15 §8 cells checked against a literal copy of the spec for both entries; negative loop, zero/negative clears, ord past the end. **Not changed:** the tests that restate spec values (GLUTTONY, targets) are deliberate spec pins; no explicit AAA comments in loop-style parity tests |
 
 ## Merge order
 

@@ -63,7 +63,8 @@ export interface EconEntry {
   } | null;
 }
 
-/** spec §8: the default row set for both long entries (`long4` simply never reads `interior`) */
+/** spec §8: the default row set for both long entries. `long4` has no interior stage, so it gets no interior column
+ *  (and room for a `long4` row of its own if item G needs one, spec §8) */
 const HPM_LONG = {
   orbit: [.5, 1.0, 1.3],
   biome0: [.8, 1.3, 1.6],
@@ -71,6 +72,7 @@ const HPM_LONG = {
   biome1: [1.1, 1.6, 1.9],
   drive: [1.3, 1.8, 2.0],
 } as const;
+const { interior: _noInterior, ...HPM_LONG4 } = HPM_LONG;
 /** spec §7: the biomass targets are the same for both long entries (holds 2-4 purchases per Infirmary visit) */
 const BIO_LONG: readonly [Band, Band, Band] = [[1300, 1500], [2100, 2400], [2600, 3600]];
 
@@ -101,13 +103,13 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     gradeRef: 35, // today's ~35 s of scroll, so a 35 s stage grades exactly as today; without it grades collapse on 1.75x the exposure
     sHits: 1, // Q9: a two-minute no-hit stage is a different ask
     xp: { a: 30, b: 45, c: 40 }, // today's lump; the per-kill cut below does the work
-    killXP: .75, // *start*: LV 13±1 at the end of Descent 1
-    killBio: .75, // *start*: one fewer long stage than long5 needs a smaller cut
-    intra: .35, // late Descent 1 would otherwise stay soft over a longer descent
+    killXP: .75, // *start*: LV 13±1 at the end of Descent 1 (pod-probe, item G)
+    killBio: .75, // *start*: one fewer long stage than long5 needs a smaller cut (pod-probe D1-D3 biomass, item G)
+    intra: .35, // late Descent 1 would otherwise stay soft over a longer descent (depth-probe, playtest.mjs hits/min)
     glut: [3, 6], // ~5 midbosses per descent in LS1
     d1Elite: null,
     driveLife: null,
-    hpm: HPM_LONG,
+    hpm: HPM_LONG4,
     // Orbit (no slot B) and the Drive (no approach midboss) are measured in LS1 and banded from LS2-orbit / LS2-ship
     hpmBanded: ['biome0', 'biome1'],
     targets: { lvD1: [12, 14], bio: BIO_LONG },
@@ -119,7 +121,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     gradeRef: 35,
     sHits: 1, // Q9
     xp: { a: 40, b: 35, c: 40 },
-    killXP: .75,
+    killXP: .75, // LV 4 / 8 after stages 1 / 2, LV 14±1 at the end of Descent 1 (pod-probe, LS3-0)
     killBio: .6, // Q12: holds purchases per Infirmary visit at 2-4 items
     intra: .35,
     glut: [3, 7], // ~9 Maw + midboss kills per descent
@@ -136,18 +138,21 @@ export const HPM_TOL = .3;
 
 const E = (id: EntryId): EconEntry => ECON[id];
 
-/** seal tier broken by the `cleared`-th stage clear of the run, or 0 */
+/** seal tier scheduled for the `cleared`-th stage clear of the run, or 0. The caller keeps clearStage's guard that a
+ *  tier only breaks if it is above G.seal */
 export const sealAt = (id: EntryId, cleared: number): number => E(id).seals[cleared] || 0;
 
-/** grade points: kill% x100 - 10 x hits (x ref/Ts on a normalised entry) - 30 x deaths. Ts = the stage's scroll seconds */
+/** grade points: kill% x100 - 10 x hits (x ref/Ts on a normalised entry) - 30 x deaths. Ts = the stage's scroll seconds.
+ *  A stage shorter than the reference grades its hits harder (the spec formula, uncapped) */
 export function gradePts(id: EntryId, st: StageCounts, Ts?: number): number {
   const ref = E(id).gradeRef, pct = st.kills / Math.max(1, st.spawned);
-  const hitW = ref == null ? 1 : ref / Math.max(1, Ts ?? ref); // no Ts given: grade as a reference-length stage
+  // no usable Ts (missing, 0, negative, NaN): grade as a reference-length stage rather than divide by it
+  const hitW = ref == null || !(Ts > 0) ? 1 : ref / Ts;
   return pct * 100 - st.hits * 10 * hitW - st.deaths * 30;
 }
 
-/** the stage grade; an escaped boss always grades C (D5b) */
-export function gradeOf(id: EntryId, st: StageCounts, escaped = false, Ts?: number): Grade {
+/** the stage grade (Ts as gradePts); an escaped boss always grades C (D5b) */
+export function gradeOf(id: EntryId, st: StageCounts, Ts?: number, escaped = false): Grade {
   if (escaped) return 'C';
   const pts = gradePts(id, st, Ts);
   if (pts >= 70 && st.hits <= E(id).sHits && !st.deaths) return 'S';
@@ -173,7 +178,7 @@ export const killBio = (id: EntryId, v: number): number => v * E(id).killBio;
  *  the integer loop (depth.ts driveMul) */
 export const descDepth = (id: EntryId, loop: number, ord: number): number => {
   const e = E(id);
-  return e.intra ? loop + e.intra * Math.min(1, Math.max(0, ord / (e.n - 1))) : loop;
+  return e.intra && e.n > 1 ? loop + e.intra * Math.min(1, Math.max(0, ord / (e.n - 1))) : loop;
 };
 
 /** GLUTTONY graft thresholds (Maw + midboss kills per level) */
@@ -195,7 +200,8 @@ export const livesAfterDrive = (id: EntryId, lives: number): number => {
 export const hpmCol = (kind: Kind, slot = 0): HpmCol => (kind === 'biome' ? (slot ? 'biome1' : 'biome0') : kind);
 
 /** would-be hits/min target and its ±30% band for a stage, or null where the entry sets none. `banded` says whether
- *  the stage is held to the band at this entry's exit or only measured */
+ *  the stage is held to the band at this entry's exit or only measured. The spec sets D1-D3 only: Descent 4 and later
+ *  read the D3 row until a later descent gets targets of its own */
 export function hpmTarget(id: EntryId, kind: Kind, slot: number, loop: number): { t: number; lo: number; hi: number; banded: boolean } | null {
   const e = E(id), col = hpmCol(kind, slot), row = e.hpm && e.hpm[col];
   if (!row) return null;

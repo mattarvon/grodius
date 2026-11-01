@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
 // stages.ts, perks.ts and mutations.ts pull in canvas/audio/DOM modules at import time; stub them so the live tables
-// load in node and the `short` entry can be pinned against today's code rather than against copied numbers
+// load in node and the `short` entry can be pinned against today's code rather than against copied numbers.
+// The pins rely on today's grading, seals and stage XP being plain arithmetic: if they ever route through a stubbed
+// core helper (clamp etc.), the live side of the comparison runs on the stub and these mocks need real implementations
 vi.mock('../../src/core', () => ({ FIRE: 0, PH: 270, R: () => 0, TAU: Math.PI * 2, W: 480, clamp: (v: number) => v, ctx: {}, dist2: () => 0, lerp: (a: number) => a, pick: (a: any[]) => a[0], ri: () => 0, rr: () => 0, swapRm: () => {} }));
 vi.mock('../../src/audio', () => ({ sample: () => {}, sfx: { power: () => {}, alarm: () => {} } }));
 vi.mock('../../src/platform', () => ({ buzz: () => {} }));
@@ -21,6 +23,16 @@ const { ECON, HPM_TOL, d1EliteChance, descDepth, gluttonyN, gradeOf, gradePts, h
 const { clearStage } = await import('../../src/stages');
 const perks = await import('../../src/perks');
 const { GM } = await import('../../src/mutations');
+
+/** spec §8, copied from design/content-expansion.md as a literal: rows D1..D3 per column */
+const SPEC_HPM = {
+  orbit: [.5, 1.0, 1.3],
+  biome0: [.8, 1.3, 1.6],
+  interior: [.8, 1.2, 1.5],
+  biome1: [1.1, 1.6, 1.9],
+  drive: [1.3, 1.8, 2.0],
+};
+const COLS = [['orbit', 0, 'orbit'], ['biome', 0, 'biome0'], ['interior', 0, 'interior'], ['biome', 1, 'biome1'], ['drive', 0, 'drive']] as const;
 
 type St = { kills: number; spawned: number; hits: number; deaths: number };
 const st = (kills: number, spawned: number, hits = 0, deaths = 0): St => ({ kills, spawned, hits, deaths });
@@ -41,7 +53,7 @@ describe('short entry reproduces today exactly', () => {
   it('grades every stage result the same as stages.ts clearStage', () => {
     for (const s of CASES) {
       expect(gradeOf('short', s), JSON.stringify(s)).toBe(liveClear(s).g);
-      expect(gradeOf('short', s, true)).toBe(liveClear(s, true).g);
+      expect(gradeOf('short', s, undefined, true)).toBe(liveClear(s, true).g);
     }
   });
 
@@ -94,10 +106,10 @@ describe('long4 matches spec §7 (LS1)', () => {
   });
 
   it('allows an S with one hit but not with a death', () => {
-    expect(gradeOf('long4', st(10, 10, 1), false, 60)).toBe('S');
-    expect(gradeOf('long4', st(10, 10, 2), false, 60)).toBe('A');
-    expect(gradeOf('long4', st(10, 10, 0, 1), false, 60)).toBe('A');
-    expect(gradeOf('long4', st(10, 10), true, 60)).toBe('C');
+    expect(gradeOf('long4', st(10, 10, 1), 60)).toBe('S');
+    expect(gradeOf('long4', st(10, 10, 2), 60)).toBe('A');
+    expect(gradeOf('long4', st(10, 10, 0, 1), 60)).toBe('A');
+    expect(gradeOf('long4', st(10, 10), 60, true)).toBe('C');
   });
 
   it("pays today's stage XP lump and cuts kill XP and kill biomass to x0.75", () => {
@@ -119,7 +131,31 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(livesAfterDrive('long4', 3)).toBe(3);
   });
 
-  it('sets the §8 hits/min targets, banding only the biome slots in LS1', () => {
+  it('sets every §8 hits/min cell except the interior column it does not have', () => {
+    for (const [kind, slot, col] of COLS) for (let loop = 0; loop < 3; loop++) {
+      const h = hpmTarget('long4', kind, slot, loop);
+      if (col === 'interior') expect(h).toBeNull();
+      else expect(h?.t, `${col} D${loop + 1}`).toBe(SPEC_HPM[col][loop]);
+    }
+  });
+
+  it('grades the 70 / 50 / 30 point boundaries with a normalised hit weight', () => {
+    // Ts = 35: the weight is 1, so 80% kills with 1 hit is exactly 70 points and still an S under the 1-hit rule
+    expect(gradePts('long4', st(8, 10, 1), 35)).toBe(70);
+    expect(gradeOf('long4', st(8, 10, 1), 35)).toBe('S');
+    expect(gradeOf('long4', st(79, 100, 1), 35)).toBe('A'); // 69 points
+    // Ts = 105: each hit costs 10/3 points, so 60% kills with 3 hits is exactly 50 and 40% with 3 hits exactly 30
+    expect(gradePts('long4', st(6, 10, 3), 105)).toBeCloseTo(50);
+    expect(gradeOf('long4', st(6, 10, 3), 105)).toBe('A');
+    expect(gradeOf('long4', st(40, 100, 3), 105)).toBe('B');
+    expect(gradeOf('long4', st(39, 100, 3), 105)).toBe('C');
+  });
+
+  it('grades a stage shorter than 35 s harder per hit, as the spec formula does', () => {
+    expect(gradePts('long4', st(10, 10, 1), 17.5)).toBe(80);
+  });
+
+  it('bands only the biome slots in LS1, measuring Orbit and the Drive', () => {
     expect(hpmTarget('long4', 'biome', 0, 0)).toMatchObject({ t: .8, banded: true });
     expect(hpmTarget('long4', 'biome', 1, 1)).toMatchObject({ t: 1.6, banded: true });
     expect(hpmTarget('long4', 'orbit', 0, 2)).toMatchObject({ t: 1.3, banded: false });
@@ -163,6 +199,11 @@ describe('long5 matches spec §7 (LS3-0)', () => {
     expect(livesAfterDrive('long5', 6)).toBe(6);
   });
 
+  it('sets every §8 hits/min cell, the interior included', () => {
+    for (const [kind, slot, col] of COLS) for (let loop = 0; loop < 3; loop++)
+      expect(hpmTarget('long5', kind, slot, loop)?.t, `${col} D${loop + 1}`).toBe(SPEC_HPM[col][loop]);
+  });
+
   it('bands every column, the interior included', () => {
     expect(hpmTarget('long5', 'interior', 0, 0)).toMatchObject({ t: .8, banded: true });
     expect(hpmTarget('long5', 'orbit', 0, 1)).toMatchObject({ t: 1.0, banded: true });
@@ -175,6 +216,21 @@ describe('long5 matches spec §7 (LS3-0)', () => {
 });
 
 describe('edge cases', () => {
+  it('reads the D1 hits/min row for a negative descent', () => {
+    expect(hpmTarget('long5', 'orbit', 0, -1)!.t).toBe(.5);
+  });
+
+  it('breaks no seal on a zero or negative clear count', () => {
+    for (const id of ['short', 'long4', 'long5'] as const) {
+      expect(sealAt(id, 0)).toBe(0);
+      expect(sealAt(id, -1)).toBe(0);
+    }
+  });
+
+  it('keeps the long5 Descent 1 elite chance past the last stage', () => {
+    expect(d1EliteChance('long5', 9)).toBe(.05);
+  });
+
   it('reads the D3 hits/min row for Descent 4 and later, with a ±30% band', () => {
     const h = hpmTarget('long5', 'drive', 0, 7)!;
     expect(h.t).toBe(2.0);
@@ -188,14 +244,13 @@ describe('edge cases', () => {
     expect(hpmCol('drive', 1)).toBe('drive');
   });
 
-  it('treats a missing or zero stage length as a reference-length stage', () => {
+  it('treats a missing, zero, negative or NaN stage length as a reference-length stage', () => {
     const s = st(9, 10, 1);
-    expect(gradePts('long4', s)).toBe(gradePts('short', s));
-    expect(Number.isFinite(gradePts('long4', s, 0))).toBe(true);
+    for (const Ts of [undefined, 0, -5, NaN]) expect(gradePts('long4', s, Ts), String(Ts)).toBe(gradePts('short', s));
   });
 
   it('grades a stage with nothing spawned on hits and deaths alone', () => {
-    expect(gradeOf('long4', st(0, 0), false, 60)).toBe('C');
+    expect(gradeOf('long4', st(0, 0), 60)).toBe('C');
   });
 
   it('clamps intra-descent depth to the descent', () => {
@@ -216,9 +271,12 @@ describe('edge cases', () => {
 });
 
 describe('purity', () => {
-  beforeEach(() => { $.G = { loop: 3, stage: 2 }; });
-  it('reads no module state', () => {
+  beforeEach(() => { $.G = { loop: 3, stage: 2, seal: 3, cleared: 9 }; });
+
+  it('ignores the run state: the same arguments give the same answer whatever $.G holds', () => {
+    // Arrange: a run deep in Descent 4 (beforeEach). Act + Assert: the functions answer from their arguments alone
     expect(descDepth('long4', 0, 0)).toBe(0);
     expect(stageXP('long5', 0, 0)).toBe(40);
+    expect(sealAt('long5', 1)).toBe(1);
   });
 });
