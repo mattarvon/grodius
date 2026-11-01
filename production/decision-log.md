@@ -63,6 +63,8 @@ localization), D16-D18, and the signing keystore half of D6.
 - Save v3 (LS1-H0) applies spec Q19's recommended default: best grades move to stage-kind keys (`1-orbit`, `1-ice`, `1-drive`); v2's `N-1` becomes `N-orbit`, `N-4` becomes `N-drive`, and the biome-slot grades `N-2`/`N-3` leave `meta.best`.
 - **Reversible:** the dropped slot grades are kept in `meta.bestV2` (written, never read), so a different answer to Q19 can still restore them. Asked for by the game-designer in the H0 Studio review; Matt chose "keep them in bestV2" on 2026-11-01.
 - Player-visible: a returning player's next clear of a biome stage reads FIRST CLEAR. Carried as a CHANGELOG line when H0 reaches main.
+- **Removing `bestV2`:** owner lead-programmer. Trigger: Matt confirms Q19 at the LS1 playtest (build plan item L); then a save v4 drops `meta.bestV2` (or maps it, if he answers otherwise). Caveat: reverting `main` to a build from before H0 drops `meta.bestV2` and `meta.mb` on that build's next save, the one way this stops being reversible.
+- **Backlog (not an H0 regression, found in its review):** older load code in `src/save.ts` coerces imported values with `+` (`+d.hi`, `+(d.meta.bio)`, `+(m.cl[id])`) and spreads `d.meta.lv` unchecked; an imported object there can throw mid-load like S3 did. Owner: a later save-hardening pass (engine-programmer).
 
 ## Open
 

@@ -5,9 +5,10 @@
 // stageLabel() is unchanged: it still feeds the "STAGE 1-1" banner and tally.id.
 import { $ } from './state';
 
-/** stage kind of slot i in today's 4-stage descent. Stub until LS1-A's layout.ts kindOf(stage) lands: slot 0 is the
- *  Orbit, slot 3 the Drive, slots 1-2 are named by the biome flown into (null if no gate was taken, which never
- *  happens on a clear). LS1-A replaces the body with kindOf; gradeKey's output format must not change. */
+/** stage kind of slot i in today's 4-stage descent. Stub until LS1-A's layout.ts lands: slot 0 is the Orbit, slot 3
+ *  the Drive, slots 1-2 are named by the biome flown into ('biome' if no gate was taken, which never happens on a
+ *  clear). When A lands, map kindOf(i) === 'biome' to route[row(i).slot] (kindOf alone says 'biome' for both slots,
+ *  which would merge their grades); the output strings must not change (save.test.ts pins them). */
 export function stageKind(i = $.G.stage || 0, route = $.G.route) {
   if (i === 0) return 'orbit';
   if (i === 3) return 'drive';

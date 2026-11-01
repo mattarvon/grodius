@@ -4,7 +4,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 
 ## 2026-11-01 (best grades by place)
 
-- Best stage grades are now kept per place: Open Orbit, the Gravity Drive, and each biome by name. Before, both biome stages shared a slot number whatever biome you flew. Your Orbit and Drive bests carry over; biome-stage bests start fresh, so your next clear of each biome reads FIRST CLEAR. The old biome-slot grades are kept in your save in case they can be mapped back later.
+- Best stage grades are now kept per place: Open Orbit, the Gravity Drive, and each biome by name. Before, both biome stages shared a slot number whatever biome you flew. Your Orbit and Drive bests carry over; biome-stage bests start fresh, so your next clear of each biome reads FIRST CLEAR. The old biome-slot grades are still in your save, not deleted.
 
 ## 2026-10-31 (one power rule — provisional until Matt's M2 playtest)
 
