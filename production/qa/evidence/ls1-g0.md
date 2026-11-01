@@ -65,6 +65,16 @@ Files: `src/economy.ts`, `tests/unit/economy.test.ts`, this file. No existing fi
 | release-manager | APPROVE WITH CHANGES | No bundle/APK change (unimported). **Carried:** merge order (below); final `Studio review:` line in the merge commit |
 | localization-lead | APPROVE | No strings. Carried to LS3-0: new seal copy and any "+1 SHIP" go through a string key |
 
+## Studio Hierarchy review, director sign-off
+
+| Director | Verdict | Notes |
+|---|---|---|
+| creative-director | SIGN OFF WITH NOTES | Fits Pillars 1, 3 and 4. Matt approves the §13 Pillar 4 text and answers Q9 before item G ships `long4` (added to the decision-log entry). The `long5` D1 elite is Matt's call at the LS3-0 playtest. Leans toward the Ts < 35 clamp |
+| technical-director | SIGN OFF WITH NOTES | Architecture approved, risk low, merge order agreed. Moving `Kind`/`n` to `layout.ts` is a **lane A merge criterion**. Item G obligations below are binding. Deleting the `short` entry (one milestone after the flip) goes on the tech-debt list |
+| producer | SIGN OFF WITH NOTES | Scope stayed inside row G0; acceptance met. Plan §2's "G0, F0 and H0 are new files with no conflicts" is wrong for test pins: the producer updates it in a separate `docs:` commit with Matt's approval. Check F0 and H0 for the same pinning. Ask Matt Q9 before item G is scheduled |
+
+**Outcome:** 3 specialists, 8 leads and 3 directors reviewed. No block at any tier. All findings were applied or carried forward, as listed here.
+
 ## Obligations carried to item G (wiring `long4`)
 
 - Wiring the `short` entry leaves the harness `st` byte-identical and the parity check identical, with no re-baseline.
@@ -75,6 +85,7 @@ Files: `src/economy.ts`, `tests/unit/economy.test.ts`, this file. No existing fi
 - Confirm that `killBio` scales the kill pods only, against D1 1.3-1.5k.
 - pod-probe LV 13±1.
 - Screenshots of tally / seal / grade on `short` and `long4`.
+- Tech debt: delete the `short` entry (and its pins) one milestone after the long layout becomes the default (spec §2.2).
 
 ## Merge order
 
