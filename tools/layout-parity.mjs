@@ -12,12 +12,14 @@
 //
 // Runs: the main set (--seeds x --descents, invincible bot) plus two fixed extra runs that cover what it can't reach:
 //   1x3  seed 1 for 3 descents: Descent 3 is the first where a slot-0 gate can be a repeat visit (forks offer fresh
-//        biomes first); seed 1's Descent 3 takes the revisit (acid, '+' mix). Seed 3's does not (it takes fresh ice)
+//        biomes first); seed 1's Descent 3 takes the revisit
 //   7m   seed 7 with a MORTAL bot (same pilot, no invincibility) until game over: hits, deaths, BLACK BOX/salvage
 //        pods, respawn, lives and game over
 //
-// Usage: node tools/layout-parity.mjs [url] [--seeds 1,3,5,7,11] [--descents 2] [--update] [--out file]
-//   Seed 2 is not in the default set: its bot kit cannot kill the Gravity Drive (no escape clock), so it times out.
+// Usage: node tools/layout-parity.mjs [url] [--seeds 1,5,6,7,11] [--descents 2] [--update] [--out file]
+//   Seeds 2 and 3 are not in the default set: their bot kits cannot kill the Gravity Drive (no escape clock), so they
+//   time out (seed 3 since P0's brood cap and B1's RNG split moved its run). Seed 6 replaced 3: it covers both gates
+//   at every fork with the others and flies a slot-1 repeat visit in Descent 2.
 //   The gate taken at each fork is a hash of the seed; over the default seeds every fork position takes both gates.
 //   The url must be a Vite DEV server (the anchors are read by importing /src modules).
 //   Not measured (printed at the end of every run): anything render-only (canvas calls are stubbed;
@@ -32,7 +34,7 @@ import { execSync } from 'node:child_process';
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
 const UPDATE = argv.includes('--update');
-const SEEDS = opt('--seeds', '1,3,5,7,11').split(',').map(Number);
+const SEEDS = opt('--seeds', '1,5,6,7,11').split(',').map(Number);
 const DESCENTS = +opt('--descents', '2');
 const OUT = opt('--out', null);
 let url = argv.find((a, i) => !a.startsWith('--') && !['--seeds', '--descents', '--out'].includes(argv[i - 1]));
@@ -199,7 +201,7 @@ try {
   if (server) await server.close();
 }
 
-console.log('not measured: render-only output (canvas stubbed); deaths after the mortal run\'s game over' + (SEEDS.includes(2) ? '' : '; seed 2 (its bot cannot kill the Gravity Drive)'));
+console.log('not measured: render-only output (canvas stubbed); deaths after the mortal run\'s game over' + '; seeds 2 and 3 (their bots cannot kill the Gravity Drive)');
 if (OUT) writeFileSync(OUT, JSON.stringify(runs, null, 1) + '\n');
 let commit = 'unknown';
 try { commit = execSync('git describe --always --dirty', { encoding: 'utf8' }).trim(); } catch {}
