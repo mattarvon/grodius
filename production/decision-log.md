@@ -50,6 +50,14 @@ localization), D16-D18, and the signing keystore half of D6.
 
 ---
 
+### D19 Content scale — 2026-11-01 (Matt)
+
+- **Phone:** the game no longer has to be catered to phone sessions, but it must stay playable on a phone (touch controls, readable at phone size, holds frame rate on the reference device).
+- **Stage length:** ~90–120 s per stage, classic Gradius length (was ~35 s). A mid-stage checkpoint follows from this.
+- **More levels:** all three kinds: new biomes, more stages per descent, and ship-interior stages (non-biome, like Open Orbit and the Drive).
+- **Mini bosses:** a pool of 3–4 per biome; a long stage meets two different ones, and repeat runs meet different ones.
+- **Supersedes:** game-brief Pillar 4's "phone-sized, about 35 s stages" and the pacing.md stage-length targets. The "never the same twice" half of the pillar stands.
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path
