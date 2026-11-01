@@ -85,6 +85,13 @@ localization), D16-D18, and the signing keystore half of D6.
 **Reason:** Studio Hierarchy review of LS1-A (3 specialists, 8 leads: all APPROVE WITH NOTES). Evidence: `production/qa/evidence/ls1-a.md`.
 **Category:** design_rules
 
+### D21 Short-layout tune — 2026-11-01 (Matt)
+
+**Decision point:** Tune the `short` layout's known pacing debt (D20: no release beat after a slot-2 repeat-visit midboss; the Saucer leaves about 3.7 s before "SOMETHING IS COMING")?
+**Chosen:** No. `short` stays byte-identical until it is deleted one milestone after the long flip; the long layouts build in the Release beat (spec §3.2).
+**Reason:** Matt, 2026-11-01: "no".
+**Category:** design_rules
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path
@@ -96,7 +103,6 @@ localization), D16-D18, and the signing keystore half of D6.
 
 ### Soon — before sprint 2/3
 
-- **D21 Short-layout tune** *(creative-director condition, LS1-A review, 2026-11-01)*. The `short` layout keeps known pacing debt (D20). On a slot-2 repeat visit, a set piece fires within a second of the midboss kill, with no release beat. The Saucer leaves about 3.7 s before "SOMETHING IS COMING". **Default: no tune.** `short` is deleted one milestone after the long flip, and the long layouts build in the Release beat (spec §3.2). **Trigger:** if the long flip slips past the next milestone, offer Matt a separate short-tune story. It moves the harness baseline once, and the short layout's byte-identical parity no longer applies after it.
 
 - *(delegated 2026-10-31, see the batch above)* **D5b Economy.** What DESCEND DEEPER gives (`deepPay` ignores `lv('deep')`, `src/stages.ts:28`; pinned as current behaviour in `tests/unit/stages.test.ts`). Does an escaped boss pay and count toward seals? Should grade pay more? Which biomass sink?
 - **D6 Saves.** One final save-wiping uninstall for stable signing, or ship save export first (recommended)?
