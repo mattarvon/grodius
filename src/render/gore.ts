@@ -5,6 +5,8 @@ import { decals, drops, gibs, mists } from '../world';
 import { drawSkull, poly } from '../render/util';
 import { eye } from '../render/eyes';
 import { DRAW } from '../render/enemies';
+import { drawMidCross } from './gross/midbosses';
+import { HOST_TINT, isCross } from '../enemies/midhost';
 import { biomeMist, splatCols } from '../biomes';
 import { drawBooms } from '../fx/fxsprites';
 
@@ -147,7 +149,8 @@ export function drawGibs() {
           ctx.clip();
           ctx.translate(0, -side * 3);
           $.EYE_LOW = 1;
-          DRAW[e.k](ctx, e);
+          if (e.host && isCross(e)) { const T = HOST_TINT[e.host]; drawMidCross(ctx, e, DRAW[e.k], T.rgb, T.a); } // a crossover's halves keep its host tint
+          else DRAW[e.k](ctx, e);
           $.EYE_LOW = 0;
           ctx.restore();
           ctx.strokeStyle = '#5a050a';

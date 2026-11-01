@@ -316,9 +316,10 @@ export function maw(stageBoss = false) {
     leave: 1700
   });
 }
-/** a biome's midboss (k = choir / cyst / prentice / brood), in from the right edge */
-export function midboss(k, title) {
-  const e = mk(k, W + 50, k === 'prentice' ? PH * .42 : PH / 2, { title, tx: W - 92, st: 'idle', wt: 0, cool: 110, att: 0, ba: -2.3, leave: 1400 });
+/** a biome's midboss (k = choir / cyst / prentice / brood), in from the right edge. host = the biome it fights in;
+ *  outside its home biome it is a crossover (enemies/midhost.ts: terrain-fitted y, host sparks and tint) */
+export function midboss(k, title, host?) {
+  const e = mk(k, W + 50, k === 'prentice' ? PH * .42 : PH / 2, { title, tx: W - 92, st: 'idle', wt: 0, cool: 110, att: 0, ba: -2.3, leave: 1400, host });
   if (k === 'choir') e.bars = [0, 1].map(i => mk('nailbar', e.x, e.y, { par: e, ox: 0, oy: 0, i, hpm: 1.6 }));
   $.G.mini = e;
 }

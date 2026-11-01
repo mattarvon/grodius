@@ -6,12 +6,57 @@
 //  originals (frost glare, crown bubbling + bloat, sweep cone + glowing mouth, heave + flaring nostrils).
 // =====================================================================
 import { $ } from '../../state';
-import { C, TAU, hash } from '../../core';
+import { C, H, TAU, W, ctx, hash } from '../../core';
 import { floorAt } from '../../world';
 import { SET } from '../../save';
 import { sample } from '../../audio';
-import { drawHookTip, drawSkull, glow, poly } from '../util';
+import { drawHookTip, drawSkull, glowSpr, poly } from '../util';
 import { eye } from '../eyes';
+
+// ---------------- crossover host tint (enemies/midhost.ts, build plan LS1 P0) ----------------
+// A crossover's body is drawn into a screen-sized layer, washed with the host biome's colour (source-atop: only where
+// the body is), then composited at the caller's transform. In a home fight none of this runs and c is the main ctx,
+// so glowC/eyeC below are exactly glow()/eye(). The layer is 480x270, the same as the low-res frame, so the extra
+// cost is one clear, one fill and one blit per crossover per frame.
+let TL = null, tl = null, tE = null;
+const TFILL = {};
+/** glow() onto c instead of the global ctx: the same pixels when c is ctx; lets a crossover glow inside its layer */
+function glowC(c, x, y, r, col, a) {
+  if (r <= 0 || a <= 0) return;
+  const p = c.globalAlpha;
+  c.globalAlpha = p * Math.min(1, a);
+  c.drawImage(glowSpr(col), x - r, y - r, r * 2, r * 2);
+  c.globalAlpha = p;
+}
+/** eye() that still queues on the main ctx (hi-res, untinted) when the body is being drawn into the tint layer */
+function eyeC(c, lx, ly, r, o) {
+  if (c !== tl) return eye(c, lx, ly, r, o);
+  const m = c.getTransform(), X = m.a * lx + m.c * ly + m.e, Y = m.b * lx + m.d * ly + m.f, sc = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c));
+  ctx.save();
+  ctx.translate(X - tE.x, Y - tE.y); // the caller has ctx translated to the midboss; the layer is in screen px
+  ctx.scale(sc, sc);
+  eye(ctx, 0, 0, r, o);
+  ctx.restore();
+}
+/** draw a crossover midboss through its host tint. c is translated to e (render/enemies.ts drawEnemy) */
+export function drawMidCross(c, e, draw, rgb, a) {
+  if (!TL) { TL = document.createElement('canvas'); TL.width = W; TL.height = H; tl = TL.getContext('2d'); tl.imageSmoothingEnabled = false; }
+  tl.setTransform(1, 0, 0, 1, 0, 0);
+  tl.globalAlpha = 1;
+  tl.globalCompositeOperation = 'source-over';
+  tl.clearRect(0, 0, W, H);
+  tl.translate(e.x, e.y);
+  tE = e;
+  draw(tl, e);
+  tE = null;
+  tl.setTransform(1, 0, 0, 1, 0, 0);
+  tl.globalAlpha = 1;
+  tl.globalCompositeOperation = 'source-atop';
+  tl.fillStyle = TFILL[rgb + a] || (TFILL[rgb + a] = `rgba(${rgb},${a})`);
+  tl.fillRect(0, 0, W, H);
+  tl.globalCompositeOperation = 'source-over';
+  c.drawImage(TL, -e.x, -e.y);
+}
 
 /** dial-back knob: 0 = the old clean art (plus the base redesign), 1 = full gross. Scales drips, strands, bubbles, particles, maggots, sound. */
 export const GROSS = 1;
@@ -79,7 +124,7 @@ function drawParts(c, s, e) {
       c.fillStyle = p.col;
       c.fillRect(x - .5, y - .5, 1.2, 1.2);
       c.globalCompositeOperation = 'lighter';
-      glow(x, y, 3, '255,190,60', .5 * a * (SET.flashes ? 1 : .5));
+      glowC(c, x, y, 3, '255,190,60', .5 * a * (SET.flashes ? 1 : .5));
       c.globalCompositeOperation = 'source-over';
     } else if (p.k === 2) {
       wiggler(c, x, y, Math.atan2(p.vy, p.vx) + Math.sin(p.l * .6 + p.ph) * .9, 1);
@@ -297,7 +342,7 @@ export function grossChoir(c, e) {
   for (const [x, y, r] of [[-10, -1, 1.6], [6.2, 2, 1.3], [-6, 7.2, 1.2]]) { c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); }
   // the choir: frostbitten mouths with rotten teeth, gargling frozen phlegm
   for (let k = 0; k < MOUTHS.length; k++) { const [mx, my, sz, dr] = MOUTHS[k]; if (k < 3 || GROSS > 0) choirMouth(c, s, e, k, mx, my, sz, dr && GROSS > 0, tel); }
-  eye(c, -2, 0, 7.5, { ang: e.st === 'tel' ? e.ha : Math.atan2($.P.y - e.y, $.P.x - e.x), iris: '#9fd8ff', bs: 3, blink: !tel && t % 170 < 5 ? 1 : 0, lid: '#5a2a3a' });
+  eyeC(c, -2, 0, 7.5, { ang: e.st === 'tel' ? e.ha : Math.atan2($.P.y - e.y, $.P.x - e.x), iris: '#9fd8ff', bs: 3, blink: !tel && t % 170 < 5 ? 1 : 0, lid: '#5a2a3a' });
   // nails driven through the lids
   c.fillStyle = '#b8c4d0';
   for (const [x, y, a] of [[-2, -9, 1.7], [-2, 9, -1.7], [6, -5, 2.6]]) {
@@ -323,7 +368,7 @@ export function grossChoir(c, e) {
   drawParts(c, s, e);
   if (tel) {
     c.globalCompositeOperation = 'lighter';
-    glow(-2, 0, 10 + tel * 14, '160,215,255', .25 + .55 * tel);
+    glowC(c, -2, 0, 10 + tel * 14, '160,215,255', .25 + .55 * tel);
     c.globalCompositeOperation = 'source-over';
   }
 }
@@ -494,7 +539,7 @@ export function grossCyst(c, e) {
   drawParts(c, s, e);
   if (tel || sw) {
     c.globalCompositeOperation = 'lighter';
-    glow(-2, tel ? -20 : 0, tel ? 8 + tel * 12 : 16 + sw * 18, '60,230,195', .2 + .5 * Math.max(tel, sw));
+    glowC(c, -2, tel ? -20 : 0, tel ? 8 + tel * 12 : 16 + sw * 18, '60,230,195', .2 + .5 * Math.max(tel, sw));
     c.globalCompositeOperation = 'source-over';
   }
 }
@@ -646,7 +691,7 @@ export function grossPrentice(c, e) {
   const la = Math.atan2($.P.y - e.y + 24, $.P.x - e.x + 4), spit = e.st === 'spit' && e.wt < 40, sk = Math.min(1, e.wt / 24);
   if (s.ev === 'idle>spit' && GROSS > 0) { spray(s, e.x - 13.5, e.y - 23, 7, '#c8d060', 1.2, 1); popSnd(s, .6); }
   const EY = [[-7, -27, 1.9], [-2, -28, 1.5], [-5, -22, 1.2]];
-  for (const [ex, ey, er] of EY) eye(c, ex, ey, er, { ang: la, iris: '#ffb347', bs: 3, blink: (t + ex * 9) % 140 < 5 ? 1 : 0, lid: '#3a2a1a' });
+  for (const [ex, ey, er] of EY) eyeC(c, ex, ey, er, { ang: la, iris: '#ffb347', bs: 3, blink: (t + ex * 9) % 140 < 5 ? 1 : 0, lid: '#3a2a1a' });
   // crying: tear tracks streaming down, red raw rims
   if (GROSS > 0) {
     c.fillStyle = 'rgba(190,230,255,.85)';
@@ -671,7 +716,7 @@ export function grossPrentice(c, e) {
   if (!spit) bubble(c, s, e, 231, -15, -23.2, 4, 80, 'rgba(210,220,120,.45)', 'rgba(230,240,160,.95)', '#c8d060', 6);
   if (spit) {
     c.globalCompositeOperation = 'lighter';
-    glow(-8, -19, 6 + sk * 8, '255,120,30', .7);
+    glowC(c, -8, -19, 6 + sk * 8, '255,120,30', .7);
     c.globalCompositeOperation = 'source-over';
   }
   // cleaver arm
@@ -879,7 +924,7 @@ export function grossBrood(c, e) {
   }
   const la = Math.atan2($.P.y - e.y + 10, $.P.x - e.x + 8);
   for (const [ex, ey, er] of [[-8, -14, 2.4], [-2, -16, 1.8], [-11, -9, 1.5]]) {
-    eye(c, ex, ey, er, { ang: la, iris: '#c8ac3a', bs: 3, blink: (t + ex * 5) % 160 < 6 ? 1 : 0, lid: '#5a5a18' });
+    eyeC(c, ex, ey, er, { ang: la, iris: '#c8ac3a', bs: 3, blink: (t + ex * 5) % 160 < 6 ? 1 : 0, lid: '#5a5a18' });
     c.fillStyle = 'rgba(220,200,90,.95)'; // crusty eye goop in the corners
     c.fillRect(ex - er - .9, ey - .2, 1, 1);
     c.fillRect(ex + er - .1, ey + .3, .8, .8);
@@ -887,7 +932,7 @@ export function grossBrood(c, e) {
   drawParts(c, s, e);
   if (sn) {
     c.globalCompositeOperation = 'lighter';
-    glow(-19, -5, 6 + sn * 10, '236,210,90', .3 + .5 * sn);
+    glowC(c, -19, -5, 6 + sn * 10, '236,210,90', .3 + .5 * sn);
     c.globalCompositeOperation = 'source-over';
   }
 }

@@ -6,7 +6,8 @@ import { whipPts } from '../enemies/update';
 import { drawChain, drawHookTip, drawSkull, glow, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
 import { spr, sprAt, sprN, sprReady } from '../sprites';
-import { grossBrood, grossChoir, grossCyst, grossPrentice } from './gross/midbosses';
+import { drawMidCross, grossBrood, grossChoir, grossCyst, grossPrentice } from './gross/midbosses';
+import { HOST_TINT, isCross } from '../enemies/midhost';
 import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'; // flyers: wasp / eyeball / corpse
 import { drawUfoGross } from './gross/ufo';
 import { drawEliteAura, drawElitePus } from '../enemies/elite';
@@ -933,7 +934,9 @@ export function drawEnemy(e) {
   }
   if (e.k === 'flayer') drawWhip(e);
   if (e.k === 'choir' && e.st === 'tel') { // the fan it's about to throw, as frost lines
-    const k = e.wt / 40, n = e.bars.some(b => !b.dead) ? 5 : 7;
+    let n = 7; // 5 while a nailbar lives (a loop, not .some(): no per-frame closure)
+    for (const b of e.bars) if (!b.dead) { n = 5; break; }
+    const k = e.wt / 40;
     ctx.save();
     ctx.setLineDash([2, 4]);
     ctx.lineDashOffset = -$.T;
@@ -1045,7 +1048,8 @@ export function drawEnemy(e) {
   ctx.translate(e.x + (e.flash ? rr(-1, 1) : 0), e.y);
   if (e.k === 'corpse' || e.k === 'hook') ctx.rotate(e.rot);
   if (e.flash) ctx.filter = 'brightness(2.6) saturate(.4)';
-  DRAW[e.k](ctx, e);
+  if (e.host && isCross(e)) { const T = HOST_TINT[e.host]; drawMidCross(ctx, e, DRAW[e.k], T.rgb, T.a); } // a crossover midboss takes its host biome's tint
+  else DRAW[e.k](ctx, e);
   if (e.elite) drawElitePus(ctx, e); // ...and its pustules, under the hit-flash filter
   ctx.restore();
   ctx.globalAlpha = ga;
