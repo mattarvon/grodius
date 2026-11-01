@@ -3,7 +3,8 @@
 // SPLIT fans needles, ARC is a crackling piercing beam, MISSILES are chunky with smoke, PYRE lobs burning eyes.
 // Player rounds stay out of the toxic-green band so enemy bullets always read. No ctx.filter, no per-pixel work.
 import { $ } from '../state';
-import { TAU, clamp, ctx, lerp, rr } from '../core';
+import { TAU, clamp, ctx, lerp } from '../core';
+import { srnd, srr } from '../srnd';
 import { LIGHTS, arcs, shots } from '../world';
 import { SMOKE, RINGS } from '../fx/gunfx';
 import { drawHits } from '../fx/fxsprites';
@@ -106,18 +107,18 @@ function laserDraw(s) {
     ctx.beginPath();
     ctx.moveTo(x0, y);
     const n = 6;
-    for (let j = 1; j < n; j++) ctx.lineTo(lerp(x0, x1, j / n), y + rr(-2.2, 2.2) * w);
+    for (let j = 1; j < n; j++) ctx.lineTo(lerp(x0, x1, j / n), y + srr(-2.2, 2.2) * w);
     ctx.lineTo(x1, y);
     ctx.stroke();
   }
   // a stray fork now and then
-  if (Math.random() < .35) {
-    const fx = rr(x0, x1), fy = y + rr(-1, 1);
+  if (srnd() < .35) {
+    const fx = srr(x0, x1), fy = y + srr(-1, 1);
     ctx.strokeStyle = 'rgba(170,220,255,.7)';
     ctx.lineWidth = .6;
     ctx.beginPath();
     ctx.moveTo(fx, fy);
-    ctx.lineTo(fx + rr(3, 7), fy + rr(-6, 6));
+    ctx.lineTo(fx + srr(3, 7), fy + srr(-6, 6));
     ctx.stroke();
   }
   ctx.fillStyle = '#e6f6ff';
@@ -141,7 +142,7 @@ export function drawShots() {
     if (s.k === 'laser') laserDraw(s);
     else if (s.k === 'missile') {
       // exhaust flame
-      const fl = (s.lv > 1 ? 1.25 : 1) * rr(.8, 1.2), a = s.g ? (s.dir > 0 ? 0 : 0) : Math.atan2(s.vy, s.vx);
+      const fl = (s.lv > 1 ? 1.25 : 1) * srr(.8, 1.2), a = s.g ? (s.dir > 0 ? 0 : 0) : Math.atan2(s.vy, s.vx);
       const bx = s.x - Math.cos(a) * 6, by = s.y - Math.sin(a) * 6;
       glow(bx, by, 8 * fl, '255,140,40', .7);
       glow(bx, by, 3.5 * fl, '255,240,200', .9);
@@ -162,7 +163,7 @@ export function drawShots() {
       ctx.moveTo(a.x1, a.y1);
       for (let j = 1; j < 6; j++) {
         const f = j / 6;
-        ctx.lineTo(lerp(a.x1, a.x2, f) + rr(-3, 3), lerp(a.y1, a.y2, f) + rr(-3, 3));
+        ctx.lineTo(lerp(a.x1, a.x2, f) + srr(-3, 3), lerp(a.y1, a.y2, f) + srr(-3, 3));
       }
       ctx.lineTo(a.x2, a.y2);
       ctx.stroke();
@@ -185,8 +186,8 @@ export function drawShots() {
     ctx.translate(s.x, s.y);
     ctx.fillStyle = 'rgba(255,120,30,.85)';
     for (let k = 0; k < 3 + (big > 1 ? 2 : 0); k++) {
-      const fy = rr(-2.5, 2.5) * big;
-      poly(ctx, [[-2, fy - 1.6], [(-9 - rr(0, 5)) * big, fy], [-2, fy + 1.6]]);
+      const fy = srr(-2.5, 2.5) * big;
+      poly(ctx, [[-2, fy - 1.6], [(-9 - srr(0, 5)) * big, fy], [-2, fy + 1.6]]);
     }
     eye(ctx, 0, 0, 3.6 * big, {
       ang: s.rot,

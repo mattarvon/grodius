@@ -3,6 +3,7 @@
 // Every function draws in ship-local space (nose +x, centre 0,0). Vector only: no per-pixel work, no ctx.filter.
 import { $ } from '../state';
 import { TAU } from '../core';
+import { srnd } from '../srnd';
 import { glowSpr, poly } from '../render/util';
 import { eye } from '../render/eyes';
 
@@ -71,7 +72,7 @@ export function thrustParts(c, spd, eng, mini) {
   for (let i = 0; i < n; i++) {
     const y = ys[i], x1 = -15.5 - 2 * sz, h = 2.6 * sz;
     if (eng) {
-      const f = .7 + Math.random() * .4, L = (5 + Math.min(4, spd) * 2) * f * (i ? .75 : 1);
+      const f = .7 + srnd() * .4, L = (5 + Math.min(4, spd) * 2) * f * (i ? .75 : 1);
       add(c);
       c.fillStyle = 'rgba(255,80,30,.55)';
       ell(c, x1 - L * .55, y, L * .6, h * .85);
@@ -188,11 +189,11 @@ export function nerveSpine(c) {
   c.strokeStyle = 'rgba(190,225,255,.95)';
   c.lineWidth = .45;
   for (let k = 0; k < N.length - 1; k++) {
-    if (Math.random() < .45) continue;
+    if (srnd() < .45) continue;
     const [ax, ay] = N[k], [bx, by] = N[k + 1];
     c.beginPath();
     c.moveTo(ax, ay);
-    for (let j = 1; j < 4; j++) c.lineTo(ax + (bx - ax) * j / 4 + (Math.random() - .5) * 2, ay + (by - ay) * j / 4 + (Math.random() - .5) * 2.4);
+    for (let j = 1; j < 4; j++) c.lineTo(ax + (bx - ax) * j / 4 + (srnd() - .5) * 2, ay + (by - ay) * j / 4 + (srnd() - .5) * 2.4);
     c.lineTo(bx, by);
     c.stroke();
   }
@@ -212,8 +213,8 @@ export function pyreStalks(c, n, look, mini) {
     taper(c, -5, sg * 3.6, -6, sg * 8, ex, ey, 2.4, 1.2);
     if (!mini) for (let k = 0; k < 3; k++) {
       c.fillStyle = k ? 'rgba(255,170,40,.85)' : 'rgba(255,90,20,.8)';
-      const fy = ey + (Math.random() - .5) * 2.4;
-      poly(c, [[ex - 1, fy - 1.3], [ex - 6 - Math.random() * 5, fy], [ex - 1, fy + 1.3]]);
+      const fy = ey + (srnd() - .5) * 2.4;
+      poly(c, [[ex - 1, fy - 1.3], [ex - 6 - srnd() * 5, fy], [ex - 1, fy + 1.3]]);
     }
     add(c);
     gl(c, ex, ey, 7, '255,110,30', .7);
@@ -635,7 +636,7 @@ export function perkTells(c, p, beat) {
   if (p.ignite) {
     add(c);
     for (let k = 0; k < 2 + p.ignite; k++) {
-      const x = -8 + k * 5, b = hullTop(x), f = Math.random();
+      const x = -8 + k * 5, b = hullTop(x), f = srnd();
       c.fillStyle = 'rgba(255,120,30,.75)';
       poly(c, [[x - 1, b + .5], [x - 2.4 - f * 2, b - 2.5 - f * 2], [x + 1, b + .3]]);
     }
@@ -837,7 +838,7 @@ export function rigFurnace(c, l, mini) {
     c.fillRect(L + 1.6, -wd / 2 - .6, .8, wd + 1.2);
     add(c);
     c.fillStyle = `rgba(255,${150 + heat * 90 | 0},70,${.35 + heat * .55})`;
-    poly(c, [[L + 2, -wd / 2], [L + 3.5 + heat * (3 + Math.random() * 3), 0], [L + 2, wd / 2]]);
+    poly(c, [[L + 2, -wd / 2], [L + 3.5 + heat * (3 + srnd() * 3), 0], [L + 2, wd / 2]]);
     nrm(c);
     c.restore();
   }
@@ -1070,7 +1071,7 @@ export function rigSaw(c, l, mini) {
     add(c);
     c.fillStyle = 'rgba(255,220,160,.95)';
     for (let k = 0; k < 3; k++) {
-      const a = -.6 + Math.random() * 1.2;
+      const a = -.6 + srnd() * 1.2;
       c.fillRect(x + Math.cos(a) * (r + 2.5), y + Math.sin(a) * (r + 2.5), 1, 1);
     }
     nrm(c);

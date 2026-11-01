@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { R, rr } from './core';
 import { SET } from './save';
 import { nativeSay } from './platform';
 import { duckMusic, curBiome } from './music';
@@ -30,13 +29,13 @@ export function auInit() {
   const len = A.sampleRate * 2,
     b = A.createBuffer(1, len, A.sampleRate),
     d = b.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = R() * 2 - 1;
+  for (let i = 0; i < len; i++) d[i] = ar() * 2 - 1;
   AU.noise = b;
   const il = A.sampleRate * 2.6 | 0,
     ib = A.createBuffer(2, il, A.sampleRate);
   for (let c = 0; c < 2; c++) {
     const ch = ib.getChannelData(c);
-    for (let i = 0; i < il; i++) ch[i] = (R() * 2 - 1) * Math.pow(1 - i / il, 3.2);
+    for (let i = 0; i < il; i++) ch[i] = (ar() * 2 - 1) * Math.pow(1 - i / il, 3.2);
   }
   AU.verb = A.createConvolver();
   AU.verb.buffer = ib;
@@ -98,6 +97,9 @@ const LASTS: Record<string, number> = {};
 // doesn't open with the same run of clips
 let arng = ((globalThis.crypto?.getRandomValues?.(new Uint32Array(1))[0] ?? Date.now()) | 1) >>> 0;
 const ar = () => ((arng ^= arng << 13), (arng ^= arng >>> 17), (arng ^= arng << 5), (arng >>> 0) / 4294967296);
+// audio never draws the sim R() (M2 #13): sfx args are evaluated even when no context runs (the harness, a muted or
+// autoplay-blocked device), so an R() there made the sim depend on how many gibs hit the floor and on the sample rate
+const arr = (a, b) => a + ar() * (b - a);
 let voices = 0;
 function loadBank(A) {
   for (const [p, u] of Object.entries(SFX_URLS)) {
@@ -210,7 +212,7 @@ export function nz(o) {
   f.connect(g);
   route(g, o.wet ?? .2);
   s.loop = true;
-  s.start(t, R() * 1.5);
+  s.start(t, ar() * 1.5);
   s.stop(t + a + dur + .05);
 }
 export const sfx = {
@@ -308,9 +310,9 @@ export const sfx = {
       vol: .5 * v
     });
     for (let k = 0; k < 2 + sz * 2; k++) nz({
-      at: R() * .22 * sz + .02,
-      f: rr(500, 1500),
-      f2: rr(140, 300),
+      at: ar() * .22 * sz + .02,
+      f: arr(500, 1500),
+      f2: arr(140, 300),
       dur: .05,
       vol: .18 * v,
       ft: 'bandpass',
@@ -640,8 +642,8 @@ export const sfx = {
     for (let k = 0; k < 5; k++) tone({
       at: k * .035,
       type: 'triangle',
-      f: rr(1800, 3600),
-      f2: rr(900, 1500),
+      f: arr(1800, 3600),
+      f2: arr(900, 1500),
       dur: .04,
       vol: .035
     });
@@ -704,7 +706,7 @@ export const sfx = {
     if (thr('dr', 200)) return;
     tone({
       type: 'sine',
-      f: rr(1100, 1500),
+      f: arr(1100, 1500),
       f2: 500,
       dur: .05,
       vol: .02,

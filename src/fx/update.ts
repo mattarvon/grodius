@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { $ } from '../state';
 import { pk } from '../perks';
-import { FIRE, H, R, W, dist2, pick, ri, rr, swapRm } from '../core';
+import { FIRE, H, W, dist2, swapRm } from '../core';
+import { srnd, srr, sri, spick } from '../srnd';
 import { SET } from '../save';
 import { AU, BANK, sample, say, sfx, tone } from '../audio';
 import { AMT, ceilAt, decals, drops, flashes, floorAt, geysers, gibs, grav, mists, orbs, sparks, splats, texts } from '../world';
@@ -45,7 +46,7 @@ export function updateFX() {
     q.l--;
     if (q.stuck) {
       q.x -= ss;
-      if (q.stuck < 0 && R() < .002) {
+      if (q.stuck < 0 && srnd() < .002) {
         q.stuck = 0;
         q.vy = .5;
       }
@@ -79,7 +80,7 @@ export function updateFX() {
         addDecal(wx, c, q.s * .7, -1);
         q.vy = Math.abs(q.vy) * .3;
         q.vx *= .5;
-        if (R() < .5) {
+        if (srnd() < .5) {
           q.stuck = -1;
           q.vx = 0;
           q.vy = 0;
@@ -90,11 +91,11 @@ export function updateFX() {
     }
     if (q.burning > 0) {
       q.burning--;
-      if (R() < .7) spark(q.x, q.y, rr(-.3, .3), -rr(.4, 1.3), ri(6, 14), pick(FIRE));
+      if (srnd() < .7) spark(q.x, q.y, srr(-.3, .3), -srr(.4, 1.3), sri(6, 14), spick(FIRE));
     }
     if (q.bleed > 0) {
       q.bleed--;
-      if (q.bleed % (q.k === 'half' ? 2 : 5) === 0) drop(q.x, q.y, q.vx * .3 + rr(-.3, .3), q.vy * .3 + rr(-.3, .3), q.k === 'half' ? 1.6 : 1, R() < .4 ? 1 : 0, 55);
+      if (q.bleed % (q.k === 'half' ? 2 : 5) === 0) drop(q.x, q.y, q.vx * .3 + srr(-.3, .3), q.vy * .3 + srr(-.3, .3), q.k === 'half' ? 1.6 : 1, srnd() < .4 ? 1 : 0, 55);
     }
     if (q.pts && (q.k === 'rope' || q.k === 'eye')) {
       const p = q.pts;
@@ -170,9 +171,9 @@ export function updateFX() {
       y = q.y;
     }
     for (let k = 0; k < q.rate; k++) {
-      const a = q.a + rr(-.25, .25),
-        sp = rr(1.5, 3.8) * (q.l / (q.l + 30));
-      drop(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rr(1, 1.8), q.c || (R() < .3 ? 2 : 0), 100);
+      const a = q.a + srr(-.25, .25),
+        sp = srr(1.5, 3.8) * (q.l / (q.l + 30));
+      drop(x, y, Math.cos(a) * sp, Math.sin(a) * sp, srr(1, 1.8), q.c || (srnd() < .3 ? 2 : 0), 100);
     }
     if (q.l <= 0) swapRm(geysers, i);
   }
@@ -237,7 +238,7 @@ export function updateCombo() {
       $.G.hypeCD = HYPE_CD;
       if (n === 20) babe();else hype(n);
     }
-    if (n >= 10) splat(rr(80, 400), rr(40, 200), 1.5 + n / 40);
+    if (n >= 10) splat(srr(80, 400), srr(40, 200), 1.5 + n / 40);
     $.G.red = Math.max($.G.red, .35);
   }
   if ($.G.hypeCD > 0) $.G.hypeCD--;
@@ -259,7 +260,7 @@ export function babe() {
   $.G.babe = {
     t: voiced ? 400 : 230,
     ml: voiced ? 400 : 230,
-    y: rr(34, 52)
+    y: srr(34, 52)
   };
   tone({
     f: 523,
@@ -304,7 +305,7 @@ export function hype(n) {
 // runs the same whatever the setting (postFX hides it when HELL FLASHES is OFF), so the setting can't change the sim
 export function hellFlash() {
   makeHell();
-  $.G.hell = ri(3, 5);
+  $.G.hell = sri(3, 5);
   $.G.glitch = Math.max($.G.glitch, 8);
   sfx.whisper();
 }
@@ -313,18 +314,18 @@ export function updateAmbient() {
     corr = AMT.corr(s),
     core = AMT.core(s);
   if (AU.lp && $.G.t % 30 === 0) AU.lp.frequency.setTargetAtTime(140 + AMT.hull(s) * 60 + corr * 80 + core * 220 + ($.G.boss && $.G.boss.phase === 2 ? 180 : 0), AU.c.currentTime, 1.5);
-  if (R() < .0018) sfx.groan();
+  if (srnd() < .0018) sfx.groan();
   // hell flashes and their glitches are keyed to the stage kinds (layout().hell: the last biome slot + the Drive
   // approach, and the Drive chamber), not the AMT backdrop bands; in the short layout the two are the same curves
   const hc = hellCorr(s), hk = hellCore(s);
-  if (R() < hc * .0011 + hk * .0018 + ($.G.boss && $.G.boss.phase === 2 ? .003 : 0)) hellFlash();else if (R() < hc * .003) $.G.glitch = Math.max($.G.glitch, ri(2, 5));
-  if (corr > 0 && R() < .012) $.G.flick = ri(2, 8);
+  if (srnd() < hc * .0011 + hk * .0018 + ($.G.boss && $.G.boss.phase === 2 ? .003 : 0)) hellFlash();else if (srnd() < hc * .003) $.G.glitch = Math.max($.G.glitch, sri(2, 5));
+  if (corr > 0 && srnd() < .012) $.G.flick = sri(2, 8);
   if ($.G.flick > 0) $.G.flick--;
   if ($.G.bossStarted && $.G.boss && $.G.boss.enter && $.G.t % 50 === 0) sfx.heart();
   // dripping ceilings
   for (let i = 0; i < decals.length; i++) {
     const d = decals[i];
-    if (d.side < 0 && d.r > 2.2 && R() < .0035) {
+    if (d.side < 0 && d.r > 2.2 && srnd() < .0035) {
       const x = d.wx - s;
       if (x > 0 && x < W) {
         drop(x, d.y + Math.min(d.r * 4, ($.T - d.t) * .05), 0, .2, 1, 0, 120);

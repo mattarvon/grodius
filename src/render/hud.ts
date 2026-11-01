@@ -5,7 +5,8 @@ import { pk, xpNeed, perkName, perkDesc, perkReq, perkCost, perkMax, perkFX, per
 import { stageInfo, stageLabel } from '../stages';
 import { sfx } from '../audio';
 import { WARD_MAX } from '../player';
-import { C, FONT_D, FONT_H, H, PH, R, TAU, W, clamp, ctx, lerp, pwBtn, rr } from '../core';
+import { C, FONT_D, FONT_H, H, PH, TAU, W, clamp, ctx, lerp, pwBtn } from '../core';
+import { srnd } from '../srnd';
 import { SET } from '../save';
 import { touch } from '../input';
 import { AMT, LIGHTS, arcs, caps, enemies, eshots, flashes, orbs, shots, sparks, texts } from '../world';
@@ -211,7 +212,7 @@ export function drawHUD() {
   if ($.G.banner) {
     const b = $.G.banner,
       a = Math.min(1, b.t / 30, (b.ml - b.t) / 12),
-      fl = R() < .06 ? .4 : 1;
+      fl = srnd() < .06 ? .4 : 1;
     ctx.globalAlpha = a * fl;
     ctx.fillStyle = 'rgba(0,0,0,.5)';
     ctx.fillRect(0, PH * .36, W, b.sub ? 48 : 36);

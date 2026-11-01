@@ -4,7 +4,8 @@
 import { $ } from '../state';
 import { pk } from '../perks';
 import { gmL } from '../mutations';
-import { R, TAU, clamp, rr, ri } from '../core';
+import { TAU, clamp } from '../core';
+import { srnd, srr, sri } from '../srnd';
 import { sfx } from '../audio';
 import { drop, gore, mist, pop, spark } from './spawn';
 import { hitBurst, stepHits } from './fxsprites';
@@ -22,7 +23,7 @@ export const gunTier = () => Math.min(4, Math.floor(gunPow() / 1.5));
 export const SMOKE = [], RINGS = [];
 export function smoke(x, y, r, l, vx = -.35, vy = -.1, c = 0) {
   if (SMOKE.length >= 160) return;
-  SMOKE.push({ x, y, r, vr: rr(.06, .14), vx, vy, l, ml: l, c });
+  SMOKE.push({ x, y, r, vr: srr(.06, .14), vx, vy, l, ml: l, c });
 }
 export function ring(x, y, r0, r1, l, col, w = 2) {
   if (RINGS.length >= 24) RINGS.shift();
@@ -51,12 +52,12 @@ export function impact(e, d, x, y, dir, crit = 1, col = '255,230,200') {
   // sparks scale with damage (bounded)
   const n = Math.min(10, 1 + Math.round(d * 1.6));
   hitBurst(x, y, dir, d, crit, e.burn > 0); // sprite spray (render-only, srnd)
-  for (let k = 0; k < n; k++) spark(x, y, -dir * rr(.4, 2.6) + rr(-.6, .6), rr(-1.8, 1.8), ri(5, 11), k & 1 ? '#fff4e0' : `rgb(${col})`);
+  for (let k = 0; k < n; k++) spark(x, y, -dir * srr(.4, 2.6) + srr(-.6, .6), srr(-1.8, 1.8), sri(5, 11), k & 1 ? '#fff4e0' : `rgb(${col})`);
   // heavy rounds blow a cone of blood out the far side
   if (d >= 2.2) {
     const m = Math.min(16, Math.round(d * 2.2));
-    for (let k = 0; k < m; k++) drop(x, y, dir * rr(1.2, 4.2), rr(-1.6, 1.2), rr(1, 1.8), R() < .25 ? 2 : 0, ri(40, 90));
-    if (R() < .5) mist(x + dir * 4, y, rr(3, 4 + d), 22);
+    for (let k = 0; k < m; k++) drop(x, y, dir * srr(1.2, 4.2), srr(-1.6, 1.2), srr(1, 1.8), srnd() < .25 ? 2 : 0, sri(40, 90));
+    if (srnd() < .5) mist(x + dir * 4, y, srr(3, 4 + d), 22);
   }
   // knockback on fodder (bosses/minis are anchored)
   if (!e.dead && !e.big && !e.mini && !e.par && d >= 1.4) {
@@ -69,7 +70,7 @@ export function impact(e, d, x, y, dir, crit = 1, col = '255,230,200') {
     for (let k = 0; k < 9; k++) { const a = k / 9 * TAU; spark(x, y, Math.cos(a) * 2.6, Math.sin(a) * 2.6, 10, '#ffd23a'); }
     if (G && G.t - critGoreT > 5) { critGoreT = G.t; gore(x, y, .45, { dir }); }
     sfx.crit();
-  } else if (d >= 6) pop(x + rr(-3, 3), y - 9, '' + Math.round(d * 10), '#ffe0c0', 7, 22);
+  } else if (d >= 6) pop(x + srr(-3, 3), y - 9, '' + Math.round(d * 10), '#ffe0c0', 7, 22);
   if (d >= 2.2) sfx.hitHeavy(d);
   // kill weight: a heavy blow freezes the frame (throttled so a hose doesn't stutter the game)
   if (G && e.dead) {
