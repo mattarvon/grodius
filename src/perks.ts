@@ -252,5 +252,4 @@ export function ribShards(shots, dm) {
   }
 }
 
-/** perk power for difficulty: stepWorld (src/step.ts) adds it to G.pow. Only the perks weighted below count. */
-export const perkPower = () => ($.G && $.G.pk ? Object.entries($.G.pk).reduce((s, [k, v]) => s + v * ({ dmg: .6, rof: .6, crit: .4, glass: 1.2, pierce: .4, volatile: .4, teeth: .4, trail: .4 }[k] || 0), 0) : 0);
+// a perk's weight toward difficulty (G.pow) lives in POWER.perk (src/power.ts): every perk above has one

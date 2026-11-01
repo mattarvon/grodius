@@ -207,12 +207,17 @@ export function rearWarn(y, f) {
     f
   });
 }
-export function behindWave(y, n = 5) {
+export function behindWave(y, n = 5, o = {}) {
   y = rearLane(y);
-  rearWarn(y, () => formation('behind', rearLane(y), n));
+  rearWarn(y, () => formation('behind', rearLane(y), n, o));
 }
+/** extra drones a power-scaled formation gets: round(3 * min(2, pow)), 0..6 (density is where power shows, D1) */
+export const formationExtra = () => Math.round(Math.min(2.0, $.G.pow || 0) * 3);
+/** a drone wave of n (+ formationExtra()). o.fixed: a scripted set piece whose layout must hold (the acid biome's
+ *  double wall would merge into one at +6 drones), so it spawns exactly n; other o fields go to every drone's mk() */
 export function formation(pat, y, n = 5, o = {}) {
-  n += Math.round(Math.min(2.0, $.G.pow || 0) * 3); // denser waves as you power up; uncapped past rank 1 so Infirmary buys still add bodies
+  const { fixed, ...mo } = o;
+  if (!fixed) n += formationExtra(); // denser waves as you power up; uncapped past rank 1 so Infirmary buys still add bodies
   const g = {
     n,
     killed: 0
@@ -224,7 +229,7 @@ export function formation(pat, y, n = 5, o = {}) {
       i,
       y0: y,
       ghost: pat === 'behind' ? 60 + i * 9 : 0,
-      ...o
+      ...mo
     });
     if (pat === 'wall') {
       e.x = W + 16;
