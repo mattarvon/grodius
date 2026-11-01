@@ -65,8 +65,8 @@ describe('save export and import', () => {
   });
 });
 
-// A v2 save exactly as snapshot() wrote it on main at f2f9c03 (key order, fields and best-grade keys as the game
-// produces them): two descents of best grades under the old slot keys N-1..N-4, contraptions, a v1 refund note.
+// A v2 save shaped as snapshot() writes it on main at f2f9c03 (its fields and the best-grade keys the game produces):
+// two descents of best grades under the old slot keys N-1..N-4, contraptions, a v1 refund note.
 const V2_BLOB = JSON.stringify({
   meta: {
     bio: 2310,
@@ -101,6 +101,8 @@ describe('save v3', () => {
     expect($.meta.cl).toEqual({ saw: 2, gut: 1 });
     expect($.hi).toBe(412300);
     expect($.meta.mb).toEqual({});
+    // the dropped biome-slot grades are kept aside, unread, until Q19 is answered (decision log)
+    expect($.meta.bestV2).toEqual({ '1-2': 'S', '1-3': 'B', '2-2': 'A', '2-3': 'C' });
   });
 
   it('writes v3 with meta.mb, and does not migrate a v3 save a second time', async () => {
@@ -113,6 +115,7 @@ describe('save v3', () => {
     const b = await load({ 'grodius.v1': written });
     expect(b.$.meta.best).toEqual({ '1-orbit': 'A', '1-drive': 'C', '2-orbit': 'B', '2-drive': 'A', '1-ice': 'S' });
     expect(b.$.meta.mb).toEqual({ cyst: 2, brood: 1 });
+    expect(b.$.meta.bestV2).toEqual({ '1-2': 'S', '1-3': 'B', '2-2': 'A', '2-3': 'C' });
   });
 
   it('migrates a v1 save through the v2 refund and on to v3', async () => {
@@ -128,14 +131,36 @@ describe('save v3', () => {
     expect($.meta.v).toBe(3);
     expect($.meta.best).toEqual({});
     expect($.meta.mb).toEqual({});
+    expect($.meta.bestV2).toBeUndefined();
   });
 
   it('cleans a malformed meta.mb instead of throwing', async () => {
-    const blob = JSON.stringify({ meta: { bio: 1, lv: {}, v: 3, mb: { cyst: '3', brood: -1, maw: 'x', choir: 2.7 } } });
+    const blob = JSON.stringify({ meta: { bio: 1, lv: {}, v: 3, mb: { cyst: '3', brood: -1, maw: 'x', choir: 2.7, ok: 4 } } });
     const { $ } = await load({ 'grodius.v1': blob });
-    expect($.meta.mb).toEqual({ cyst: 3, choir: 2 });
+    expect($.meta.mb).toEqual({ choir: 2, ok: 4 }); // numbers only: a string count is not trusted
     const arr = await load({ 'grodius.v1': JSON.stringify({ meta: { bio: 1, lv: {}, v: 3, mb: [1, 2] } }) });
     expect(arr.$.meta.mb).toEqual({});
+  });
+
+  it('loads the rest of an imported save whose meta.mb entry would throw when converted to a number', async () => {
+    // `+n` on {valueOf, toString} that are not functions throws; the load must not fall back to defaults
+    const blob = JSON.stringify({ meta: { bio: 9, lv: {}, v: 3, mb: { cyst: { valueOf: 0, toString: 0 } } }, hi: 4321, muted: true, music: false });
+    const { $, SET } = await load({ 'grodius.v1': blob });
+    expect($.meta.mb).toEqual({});
+    expect($.meta.bio).toBe(9);
+    expect($.hi).toBe(4321);
+    expect(SET.muted).toBe(true);
+    expect(SET.music).toBe(false);
+  });
+
+  it('cleans the best table of a v3 save too, so a bad import cannot crash a stage clear', async () => {
+    const asString = await load({ 'grodius.v1': JSON.stringify({ meta: { bio: 0, lv: {}, v: 3, best: 'x' } }) });
+    expect(asString.$.meta.best).toEqual({});
+    // object grades dropped; slot keys an older build wrote into a v3 save are folded back into kind keys
+    const mixed = JSON.stringify({ meta: { bio: 0, lv: {}, v: 3, best: { '1-orbit': 'B', '1-ice': { g: 'S' }, '1-1': 'A', '1-4': 'C', '1-2': 'S' } } });
+    const { $ } = await load({ 'grodius.v1': mixed });
+    expect($.meta.best).toEqual({ '1-orbit': 'A', '1-drive': 'C' });
+    expect($.meta.bestV2).toEqual({ '1-2': 'S' });
   });
 
   it('migrates a malformed best table to an empty one without throwing', async () => {
@@ -164,5 +189,18 @@ describe('gradeKey and migrateBest', () => {
     expect(migrateBest({ '1-orbit': 'C', '1-1': 'S' })).toEqual({ '1-orbit': 'S' });
     expect(migrateBest(null)).toEqual({});
     expect(migrateBest(['S'])).toEqual({});
+    expect(migrateBest({ '1-orbit': 'SS', '1-drive': '' })).toEqual({});
+  });
+
+  it('is idempotent, so running it on every load changes nothing on a clean v3 table', async () => {
+    const { migrateBest } = await import('../../src/gradekey');
+    const once = migrateBest({ '1-1': 'A', '1-4': 'B', '2-ice': 'S', '1-3': 'C' });
+    expect(migrateBest(once)).toEqual(once);
+  });
+
+  it('keeps the dropped biome-slot grades aside, best grade winning', async () => {
+    const { slotGrades } = await import('../../src/gradekey');
+    expect(slotGrades({ '1-1': 'A', '1-2': 'B', '2-3': 'C' }, { '1-2': 'S', '1-orbit': 'A', junk: 'S' })).toEqual({ '1-2': 'S', '2-3': 'C' });
+    expect(slotGrades(null, null)).toEqual({});
   });
 });

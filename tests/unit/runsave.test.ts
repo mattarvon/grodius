@@ -20,7 +20,7 @@ const forkX = (x0: number, scroll: number) => Math.max(x0, scroll + W + 10);
 function midRun(bx: (number | null)[]) {
   const G: any = {
     loop: 1, stage: 2, cpX: 6120.5, layout: 'short', seed: 123456789, bx,
-    pk: { graze: 2, tape: 1 }, xp: 17.25, xpTot: 912.5, lvl: 14, gm: { rapid: 2, seek: 1 }, kk: { sm: 40 }, gmk: 3, meter: -1,
+    pk: { graze: 2, tape: 1 }, xp: 17.25, xpTot: 912.5, lvl: 14, gm: { rapid: 2, seek: 1 }, kk: { sm: 40 }, gmk: 3, cur: 2,
     lives: 2, score: 123450, bio: 812.4, kills: 410, maxCombo: 37, seal: 2, cleared: 5,
     route: ['ice', 'fire'], bvis: { ice: 2, fire: 1 }, visited: ['ice', 'acid', 'fire'], seenV: 3,
     remix: { 0: 1, 1: 0, orbitA: { used: [0, 2], last: 2 } },
@@ -51,8 +51,8 @@ describe('run save round trip', () => {
     const { G: g0, P: p0 } = midRun(bx as (number | null)[]);
     for (const k of LIVE_G) delete g0[k];
     for (const k of LIVE_P) delete p0[k];
-    expect(b.G).toEqual(g0);
-    expect(b.P).toEqual(p0);
+    expect(b.G).toStrictEqual(g0);
+    expect(b.P).toStrictEqual(p0);
     expect(b.G.bx).toEqual(bx); // all three entries, null kept as null
   });
 
@@ -70,6 +70,26 @@ describe('run save round trip', () => {
     G.remix = r;
     const d = decodeRun(JSON.stringify(serializeRun(G, P)))!;
     expect(d.g.remix).toEqual({ 0: 1, 1: 0, orbitA: { used: [0], last: 0 } });
+  });
+
+  it('keeps a sparse frag readable (player.ts writes frag[i] at the pod index picked up first)', () => {
+    const { G, P } = midRun([2300, null, null]);
+    P.frag = [];
+    P.frag[2] = 1; // [ , , 1]
+    expect(writeRun(G, P)).toBe(true);
+    const d = readRun()!;
+    expect(d).not.toBeNull();
+    expect(d.p.frag).toEqual([null, null, 1]); // holes come back as null; player.ts reads frag[i] || 0
+  });
+
+  it('refuses to write a run that would not read back, leaving the last checkpoint standing', () => {
+    const a = midRun([2300, null, null]);
+    expect(writeRun(a.G, a.P)).toBe(true);
+    const before = (localStorage as any).map.get(RUN_KEY);
+    const b = midRun([2300, 5150, null]);
+    b.G.score = NaN; // JSON writes NaN as null
+    expect(writeRun(b.G, b.P)).toBe(false);
+    expect((localStorage as any).map.get(RUN_KEY)).toBe(before);
   });
 
   it('restores copies, so the saved blob and the live run never share objects', () => {
@@ -105,6 +125,20 @@ describe('a bad or old run save', () => {
     ['bx holding a string', JSON.stringify({ ...ok(), g: { ...ok().g, bx: [1, 'x', null] } })],
     ['a field outside the allowlist', JSON.stringify({ ...ok(), g: { ...ok().g, boss: {} } })],
     ['a missing stage', JSON.stringify({ ...ok(), g: { ...ok().g, stage: undefined } })],
+    ['a missing bx', JSON.stringify({ ...ok(), g: { ...ok().g, bx: undefined } })],
+    ['a missing route', JSON.stringify({ ...ok(), g: { ...ok().g, route: undefined } })],
+    ['no G at all', JSON.stringify({ v: RUN_V, p: {} })],
+    ['an inherited name: toString', JSON.stringify({ ...ok(), g: { ...ok().g, toString: 5 } })],
+    ['an inherited name: constructor', JSON.stringify({ ...ok(), g: { ...ok().g, constructor: {} } })],
+    ['an inherited name: hasOwnProperty', JSON.stringify({ ...ok(), g: { ...ok().g, hasOwnProperty: 'loop' } })],
+    ['an inherited name: __proto__', '{"v":' + RUN_V + ',"g":{"loop":0,"stage":0,"bx":[null,null,null],"route":[null,null],"__proto__":{"x":1}},"p":{}}'],
+    ['an inherited name in P', JSON.stringify({ ...ok(), p: { ...ok().p, valueOf: 1 } })],
+    ['a negative stage', JSON.stringify({ ...ok(), g: { ...ok().g, stage: -1 } })],
+    ['a negative loop', JSON.stringify({ ...ok(), g: { ...ok().g, loop: -7 } })],
+    ['negative lives', JSON.stringify({ ...ok(), g: { ...ok().g, lives: -3 } })],
+    ['a negative gun level', JSON.stringify({ ...ok(), p: { ...ok().p, missile: -1 } })],
+    ['a perk level that is not a number', JSON.stringify({ ...ok(), g: { ...ok().g, pk: { graze: 'x' } } })],
+    ['a graft table with an own __proto__', '{"v":' + RUN_V + ',"g":{"loop":0,"stage":0,"bx":[null,null,null],"route":[null,null],"gm":{"__proto__":{"x":1}}},"p":{}}'],
     ['a fractional loop', JSON.stringify({ ...ok(), g: { ...ok().g, loop: 1.5 } })],
     ['a bad loadout', JSON.stringify({ ...ok(), p: { missile: 'lots' } })],
   ])('is discarded without throwing: %s', (_, s) => {

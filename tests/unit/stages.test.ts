@@ -78,9 +78,13 @@ describe('clearStage', () => {
     expect($.G.tally.best).toBe('FIRST CLEAR');
     const { BIOMES } = (await import('../../src/biomes')) as any; // mocked {}: give the tally a name to show
     BIOMES.acid = { name: 'ACID', sub: '' };
-    $.G = { ...gravityDriveRun(0), stage: 2, route: ['ice', 'acid'] };
-    clearStage(true);
-    expect($.meta.best['1-acid']).toBe('C');
-    expect($.G.tally.id).toBe('1-3');
+    try {
+      $.G = { ...gravityDriveRun(0), stage: 2, route: ['ice', 'acid'] };
+      clearStage(true);
+      expect($.meta.best['1-acid']).toBe('C');
+      expect($.G.tally.id).toBe('1-3');
+    } finally {
+      delete BIOMES.acid; // the mock is shared by the whole file
+    }
   });
 });

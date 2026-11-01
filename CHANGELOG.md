@@ -2,6 +2,10 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-01 (best grades by place)
+
+- Best stage grades are now kept per place: Open Orbit, the Gravity Drive, and each biome by name. Before, both biome stages shared a slot number whatever biome you flew. Your Orbit and Drive bests carry over; biome-stage bests start fresh, so your next clear of each biome reads FIRST CLEAR. The old biome-slot grades are kept in your save in case they can be mapped back later.
+
 ## 2026-10-31 (one power rule — provisional until Matt's M2 playtest)
 
 - Your power now shows up only as more enemy fire, faster bullets and denser waves. It no longer makes enemies tankier; enemy HP comes from how deep you are.
