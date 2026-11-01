@@ -1,66 +1,43 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { $ } from '../../src/state';
-import { DEPTH } from '../../src/depth';
+import { cdm } from '../../src/depth';
 import { COOL, coolFor, revengeN, wombCool } from '../../src/enemies/cadence';
 
-// D2: src/depth.ts is the single home for depth fire scaling, so each cooldown scales by cdm() exactly once
-const KINDS = Object.keys(COOL);
-const base = (k: string) => COOL[k];
-const once = (b: number, loop: number) => Math.round(b / (1 + DEPTH.fire * loop));
+// The pre-M2 cooldowns, verbatim from src/enemies/update.ts at cb67b3e (Matt's cb50d04 curves under cdm()).
+// cadence.ts must reproduce them exactly until Matt picks otherwise ("deep fire" in the art-direction picker).
+const LEGACY = {
+  eye: (L: number, r: number) => Math.round((Math.max(55, 120 - L * 18) + r) * cdm()),
+  cross: (L: number, r: number) => Math.round((Math.max(70, 130 - L * 18) + r) * cdm()),
+  flayer: (L: number, r: number) => Math.round((Math.max(60, 110 - L * 15) + r) * cdm()),
+  slime: (L: number, r: number) => Math.round((Math.max(100, 170 - L * 20) + r) * cdm()),
+  mutant: (L: number, r: number) => Math.round((Math.max(120, 190 - L * 25) + r) * cdm()),
+  sentry: (L: number, r: number) => Math.round((Math.max(80, 130 - L * 20) + r) * cdm()),
+};
 
 describe('coolFor', () => {
   beforeEach(() => { $.G = { loop: 0 }; });
 
-  it('is the Descent 1 base plus the roll in Descent 1, for every kind', () => {
-    for (const k of KINDS) expect(coolFor(k, 0)).toBe(base(k));
-    expect(coolFor('eye', 40)).toBe(base('eye') + 40);
+  it('matches the pre-M2 cooldown for every kind, descent and roll', () => {
+    for (const L of [0, 1, 2, 3, 6]) {
+      $.G.loop = L;
+      for (const k of Object.keys(LEGACY)) for (const r of [0, 17, 40, 50]) expect(coolFor(k, r)).toBe(LEGACY[k](L, r));
+    }
   });
 
-  it('scales the Descent 1 cooldown by cdm() once in Descent 2, for every kind', () => {
-    // Arrange
-    $.G.loop = 1;
-    // Act + Assert
-    for (const k of KINDS) expect(coolFor(k, 0)).toBe(once(base(k), 1));
-  });
-
-  it('scales the Descent 1 cooldown by cdm() once in Descent 3, roll included', () => {
-    // Arrange
-    $.G.loop = 2;
-    // Act + Assert
-    for (const k of KINDS) expect(coolFor(k, 20)).toBe(once(base(k) + 20, 2));
+  it('covers exactly the kinds that had authored curves', () => {
+    expect(Object.keys(COOL).sort()).toEqual(Object.keys(LEGACY).sort());
   });
 });
 
 describe('wombCool', () => {
   beforeEach(() => { $.G = { loop: 0 }; });
 
-  it('is 120 frames in Descent 1', () => {
-    expect(wombCool()).toBe(120);
-  });
-
-  it('goes through cdm() so a deeper descent shortens it by the depth knob', () => {
-    // Arrange: a different fire knob must move it if (and only if) it reads depth.ts
-    $.G.loop = 1;
-    const k0 = DEPTH.fire;
-    let a, b;
-    try {
-      // Act
-      a = wombCool();
-      DEPTH.fire = k0 * 2;
-      b = wombCool();
-    } finally { DEPTH.fire = k0; }
-    // Assert
-    expect(b).toBeLessThan(a);
-  });
-
-  it('stays within 5% of the old 105-frame litter gap in Descent 2', () => {
-    $.G.loop = 1;
-    expect(Math.abs(wombCool() - 105) / 105).toBeLessThan(.05);
-  });
-
-  it('never drops below the 70-frame floor', () => {
-    $.G.loop = 9;
-    expect(wombCool()).toBe(70);
+  it('matches the pre-M2 litter gap and its 70-frame floor', () => {
+    for (const L of [0, 1, 2, 3, 9]) {
+      $.G.loop = L;
+      expect(wombCool()).toBe(Math.max(70, 120 - L * 15));
+    }
   });
 });
 
@@ -77,5 +54,23 @@ describe('revengeN', () => {
     expect(revengeN()).toBe(3);
     $.G.loop = 6;
     expect(revengeN()).toBe(3);
+  });
+});
+
+// Wiring guard: the helpers are only correct if the enemies use them. Reads the source, so a reverted or
+// hand-edited cooldown line fails here even when every other gate is green.
+describe('enemy cooldown wiring', () => {
+  const src = readFileSync(new URL('../../src/enemies/update.ts', import.meta.url), 'utf8');
+  const coolLines = src.split('\n').filter((l) => /\be\.cool\s*=/.test(l) && !/e\.cool\s*=\s*0\b/.test(l));
+
+  it('routes every authored-curve kind through coolFor', () => {
+    for (const k of Object.keys(COOL)) expect(src).toContain(`coolFor('${k}'`);
+    expect(src).toContain('wombCool()');
+  });
+
+  it('keeps raw descent terms off the cooldown lines that cadence.ts owns', () => {
+    const owned = coolLines.filter((l) => /coolFor\(|wombCool\(/.test(l));
+    expect(owned.length).toBeGreaterThanOrEqual(Object.keys(COOL).length + 1);
+    for (const l of owned) expect(l).not.toMatch(/\$\.G\.loop/);
   });
 });

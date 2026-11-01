@@ -43,20 +43,25 @@ localization), D16-D18, and the signing keystore half of D6.
 | D11 | Shared Maw body with biome-specific attack sets for acid and snot. | M3 |
 | D15 | Localization: English-only for now. | — |
 
+**M2 amendments (2026-10-31, studio review of the integrated branch):**
+- **D1:** the Gravity Drive keeps its rank/over HP terms as the one documented exception. Without them a stacked Descent 1 build kills it in 9.8 s (boss-probe; `design/progression.md`). M3 replaces them with phase structure if both instruments pass (milestone plan Q3). The loop HP weights absorbed the old `over()` term (fodder/mid .8→1.12, boss 1.1→1.5), so light builds and DESCEND DEEPER starts pay ~+18% HP at Descent 2 while typical builds hold. To be measured in the M2 re-measure (bare and rigged kits).
+- **D2:** cooldowns are centralised in `src/enemies/cadence.ts`, but **Matt's per-kind depth curves (cb50d04) are kept exactly**. The first pass dropped them and softened Descent 3 fire by ~22%. The creative director blocked that as beyond D2's mandate. Whether deep fire should be softer is offered to Matt in the art-direction picker ("deep fire").
+- **D5b:** DESCEND DEEPER's final wording is offered to Matt in the picker (variants that keep "pays double"); the code ships the honest interim text.
+
 ---
 
 ## Open
 
 ### Now — blocks sprint 1 or the critical path
 
-- **D1 Power rule.** Power only as fire and density, HP only from depth (recommended, matches 48eb7cb) — or rank also raises HP? Does the Gravity Drive keep its rank HP term (`src/boss/update.ts:22`)?
-- **D2 One power accounting.** Count all 24 perks and the contraptions toward difficulty in Descent 1? Is the pow-2 fire compression intended? Is the drone `(1+loop)` factor a leftover (recommended: remove)?
+- *(delegated 2026-10-31, see the batch above)* **D1 Power rule.** Power only as fire and density, HP only from depth (recommended, matches 48eb7cb) — or rank also raises HP? Does the Gravity Drive keep its rank HP term (`src/boss/update.ts:22`)?
+- *(delegated 2026-10-31, see the batch above)* **D2 One power accounting.** Count all 24 perks and the contraptions toward difficulty in Descent 1? Is the pow-2 fire compression intended? Is the drone `(1+loop)` factor a leftover (recommended: remove)?
 - **D3 Photosensitivity.** Flashes default OFF, or ON behind a first-launch prompt? Does OFF remove washes, glitch and flicker (recommended) or cap them?
 - **D4 Gate policy.** Does a red `verify` block Pages only, or the APK too (recommended: both, plus manual dispatch for debug builds)? Move tune work to PRs?
 
 ### Soon — before sprint 2/3
 
-- **D5b Economy.** What DESCEND DEEPER gives (`deepPay` ignores `lv('deep')`, `src/stages.ts:28`; pinned as current behaviour in `tests/unit/stages.test.ts`). Does an escaped boss pay and count toward seals? Should grade pay more? Which biomass sink?
+- *(delegated 2026-10-31, see the batch above)* **D5b Economy.** What DESCEND DEEPER gives (`deepPay` ignores `lv('deep')`, `src/stages.ts:28`; pinned as current behaviour in `tests/unit/stages.test.ts`). Does an escaped boss pay and count toward seals? Should grade pay more? Which biomass sink?
 - **D6 Saves.** One final save-wiping uninstall for stable signing, or ship save export first (recommended)?
 - **D7 Licensing.** Licence for code, art, voice; second voice performer's consent and credit; CC BY credits vs CC0 swap; which README asset rule is current.
 - **D8 Copy rules.** No-crosses scope; deadpan logs and stage cards; one noun per progression system; banner and spelling fixes.

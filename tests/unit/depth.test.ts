@@ -81,3 +81,20 @@ describe('driveMul(): the Gravity Drive, the one HP exception to the power rule'
     expect(driveMul()).toBeCloseTo(1.8 * 1.6 * 1.1);
   });
 });
+
+// Pinned tuning (M2 studio review): the loop HP weights absorbed the old over() term for a typical build. A retune
+// must update these numbers and re-run tools/depth-probe.mjs in the same change.
+describe('pinned depth HP weights', () => {
+  it('keeps the M2 loop HP weights and shares', () => {
+    expect([DEPTH.fod, DEPTH.mid, DEPTH.boss]).toEqual([1.12, 1.12, 1.5]);
+    expect(DEPTH.w).toEqual({ maw0: .5, maw: .45, butcher: .15, crux: .6, cyst: .6, brood: .6 });
+  });
+
+  it('gives fodder the same HP multiplier at pow 0 and pow 3 in Descent 3 (power never raises HP)', () => {
+    $.G = { loop: 2, pow: 0 };
+    const weak = depthHP('drone', {}, {});
+    $.G.pow = 3;
+    expect(depthHP('drone', {}, {})).toBe(weak);
+    expect(weak).toBeCloseTo(1 + 1.12 * 2, 10);
+  });
+});

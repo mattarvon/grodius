@@ -116,3 +116,10 @@ that file is next touched.
 `tests/unit/power.test.ts` (weight table coverage, calibration, contraptions from Descent 1),
 `tests/unit/depth.test.ts` (HP ignores power, `driveMul()`), `tests/unit/damage.test.ts` (`gunDm()`, SNOT,
 SPORE), `tests/unit/formation.test.ts` (fixed set pieces).
+
+## Cooldowns
+
+Per-kind attack cooldowns live in `src/enemies/cadence.ts`: Matt's authored curve `max(floor, base - step * loop)`
+(cb50d04) with the global depth step `cdm()` on top, plus the Womb's litter gap (no `cdm()`). The numbers are the
+pre-M2 ones exactly (pinned by `tests/unit/cadence.test.ts`; `tools/fire-probe.mjs`: eye 0.42 / 1.37 / 3.03 bullets/s
+in Descent 1 / 2 / 3).
