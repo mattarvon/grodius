@@ -86,8 +86,9 @@ import { enemies, gibs, drops, caps } from './world';
 // test hook for tools/harness.mjs
 (window as any).__G = () => ({ G: $.G, P: $.P, state: $.state, enemies, gibs, drops, caps });
 import { BANK } from './audio';
-import { musicNow } from './music';
+import { musicNow, musicPlan } from './music';
 (window as any).__music = musicNow;
+(window as any).__musicPlan = musicPlan;
 import { RST, rigFX, rigged } from './contraptions';
 (window as any).__rig = () => ({ ...RST, rigged: rigged(), fx: rigFX() });
 (window as any).__mb = () => ($.menuBoxes || []).map(({ x, y, w, h, i, now }) => ({ x, y, w, h, i, now }));

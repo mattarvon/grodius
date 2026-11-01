@@ -140,14 +140,21 @@ function wanted() {
   return byLoop(TRACKS['stage' + st], L) || '';
 }
 
+/** the filter mix the music wants now: the biome's (a repeat visit gets its '+' mix), the Saucer's, or none */
+function mixWanted() {
+  const cb = curBiome(), deep = cb && $.G.remix && $.G.remix[$.G.stage - 1] ? cb + '+' : cb;
+  return ($.state === 'play' || $.state === 'pause') && (deep || ufoMix()) || 'none';
+}
+/** test hook (tools/layout-parity.mjs): what the music wants, readable with audio off */
+export const musicPlan = () => ({ want: wanted(), mix: $.G ? mixWanted() : 'none' });
+
 /** call every step: switches tracks, pause level, ducking */
 export function musicUpdate() {
   if (!AU.c) return;
   const w = wanted();
   if (w !== curName) play(w);
   if (!bus) return;
-  const cb = curBiome(), deep = cb && $.G.remix && $.G.remix[$.G.stage - 1] ? cb + '+' : cb;
-  applyMix(($.state === 'play' || $.state === 'pause') && (deep || ufoMix()) || 'none');
+  applyMix(mixWanted());
   if (cur && cur.el.playbackRate !== (BIOME_MIX[mixNow] || BIOME_MIX.none).rate) cur.el.playbackRate = (BIOME_MIX[mixNow] || BIOME_MIX.none).rate;
   // a play() refused before the first click/key gets retried once audio is unlocked
   if (cur && cur.name && cur.el.paused && AU.c.state === 'running' && !document.hidden && $.T % 30 === 0) cur.el.play().catch(() => {});
