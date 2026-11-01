@@ -6,6 +6,21 @@
 
 **One-sentence pitch:** Gradius on a derelict meat-ship: fly the CHARON-7 tug into the MERIDIAN, shoot through four-stage descents of ice, acid, fire and snot, and grow a disgusting living gunship out of everything you kill.
 
+**Touchstone: Gradius meets *Event Horizon* (1997).** Matt's framing (README: "an Event Horizon aesthetic"). Gradius
+supplies the mechanics. *Event Horizon* supplies the world: a ship that came back from somewhere it should not have
+been, a gravity drive that opened a door, and a crew who are still aboard, changed. The game already says this:
+"TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.", "ITS GRAVITY DRIVE IS STILL RUNNING.", THE GATE / BEYOND THE
+GATE, HELL FLASHES and "HELL IS SHIPWIDE", "THE CREW IS STILL MOVING IN THERE.", "CREWMAN #5 // DECEASED", "THE
+MERIDIAN KEEPS WHAT IT CATCHES." For the studio this means:
+- **The ship is the antagonist** and the Gravity Drive is the door.
+- **Dread comes before gore.**
+- **Hell is glimpsed**, in flashes and through the gate, never fully explained.
+- **The crew is present** as bodies, remains and logs.
+- **Machinery is gone wrong and organic**: cold industrial hardware fused with meat.
+
+The gross-out stays the punchline (pillar 5); *Event Horizon* is the straight man. Art, audio, canon and level work
+are judged against both halves.
+
 **Concept:** A horizontal shooter in the Gradius tradition (capsule power, exclusive main and sub weapons, options, a Big Core-style shielded heart, bosses that leave if you're too slow), played as body horror and as "ultimate gross-out" (Grodius = Gross Gradius, Grodius.md:9). Each run is a series of descents. Each descent is Open Orbit, two biome stages picked at forks, then the Gravity Drive, and takes about 4-6 minutes (pacing.md:74). The MERIDIAN has been "lost 7 years, back 9 days", and its gravity drive is still running (src/flow.ts:18).
 
 **Player fantasy:** *You become what you kill.* You start as a small rescue tug and end as an ABOMINATION: egg-sac missile pods, a horn cannon, nerve spines, eye stalks and a lamprey maw. Every part on the hull is power you earned in this run, and every bullet you dodge is one you could read through the gore.
