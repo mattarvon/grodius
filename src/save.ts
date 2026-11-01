@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { migrateBest, slotGrades } from './gradekey';
 
 // ---------------- persistence ----------------
 export const SET = {
@@ -17,7 +18,8 @@ $.meta = {
   rig: [],
   own: [],
   cl: {},
-  v: 2
+  mb: {}, // midbosses met: {kind: timesMet} (spec §6.3 weighting, §6.4 first-kill pay); written by item F
+  v: 3
 };
 const KEY = 'grodius.v1', BAK = 'grodius.v1.bak', BAD = 'grodius.v1.corrupt';
 // a save that exists but won't parse is kept aside (BAD) before anything is written over it
@@ -68,6 +70,21 @@ try {
       $.meta.bio += refund;
       $.meta.refund = refund;
       $.meta.v = 2;
+    }
+    // v3 (D19 LS1): best grades keyed by stage kind (gradekey.ts) and meta.mb. The grade cleaning runs on EVERY load,
+    // not only v<3: it is idempotent, and it is what stops an imported code with a junk best table from crashing
+    // clearStage. The dropped biome-slot grades go to bestV2 (kept, never read) until Q19 is answered.
+    {
+      const raw = $.meta.best, bestV2 = slotGrades(raw, d.meta && d.meta.bestV2);
+      $.meta.best = migrateBest(raw);
+      if (Object.keys(bestV2).length) $.meta.bestV2 = bestV2;
+      if ($.meta.v < 3) $.meta.v = 3;
+    }
+    {
+      // numbers only: `+n` on an imported object runs its valueOf/toString, which can throw mid-load
+      const mb = d.meta && d.meta.mb, ok = mb && typeof mb === 'object' && !Array.isArray(mb) ? mb : {};
+      $.meta.mb = {};
+      for (const [k, n] of Object.entries(ok)) if (typeof n === 'number' && Number.isFinite(n) && n >= 1) $.meta.mb[k] = Math.floor(n);
     }
     $.hi = +d.hi || 0;
     SET.flashes = d.flashes !== false;

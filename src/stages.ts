@@ -9,6 +9,7 @@ import { banner } from './enemies/spawn';
 import { buzz } from './platform';
 import { BIOMES, openFork, holdForFork, biomeExit } from './biomes';
 import { forkAfter, lastStage, row } from './layout';
+import { gradeKey } from './gradekey';
 
 /** stage names by stage kind; a biome stage is named by the biome you fly into once its gate is taken */
 export const STAGE_NAMES = {
@@ -66,17 +67,17 @@ export function clearStage(escaped = false) {
   G.score += bonus;
   G.bio += bio;
   $.meta.bio += bio;
-  const id = stageLabel(), best = ($.meta.best ||= {});
-  const newBest = !best[id] || ORDER.indexOf(g) < ORDER.indexOf(best[id]);
-  const prev = best[id];
-  if (newBest) best[id] = g;
+  const id = stageLabel(), key = gradeKey(), best = ($.meta.best ||= {}); // id: banner/tally label; key: by stage kind
+  const newBest = !best[key] || ORDER.indexOf(g) < ORDER.indexOf(best[key]);
+  const prev = best[key];
+  if (newBest) best[key] = g;
   G.cleared = (G.cleared || 0) + 1;
   const seal = SEAL_AT[G.cleared] && SEAL_AT[G.cleared] > (G.seal || 0) ? SEAL_AT[G.cleared] : 0;
   G.tally = {
     id, name: stageInfo(G.stage).name, g, col: R.col, perfect, escaped, bonus, bio, deep: bio > 0 && deepPay() > 1,
     kills: st.kills, pct: Math.round((st.kills / Math.max(1, st.spawned)) * 100),
     hits: st.hits, deaths: st.deaths, chain: st.chain, secs: Math.round((G.t - st.t0) / 60),
-    best: newBest ? (prev ? 'NEW BEST (WAS ' + prev + ')' : 'FIRST CLEAR') : 'BEST ' + best[id],
+    best: newBest ? (prev ? 'NEW BEST (WAS ' + prev + ')' : 'FIRST CLEAR') : 'BEST ' + best[key],
     t: 420, ml: 420,
   };
   sfx.power();
