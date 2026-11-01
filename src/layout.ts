@@ -118,6 +118,8 @@ export const slotOf = (i: number) => { const r = active.stages[i]; return r && r
 export const nSlots = () => active.stages.filter((r) => r.kind === 'biome').length;
 /** the stage row of biome slot s */
 export const slotRow = (s: number) => active.stages.find((r) => r.kind === 'biome' && r.slot === s)!;
+/** the stage index that flies biome slot s */
+export const stageOfSlot = (s: number) => active.stages.findIndex((r) => r.kind === 'biome' && r.slot === s);
 /** index of the last stage in a descent */
 export const lastStage = () => active.stages.length - 1;
 /** clearing stage i opens a fork into this biome slot, or -1 */

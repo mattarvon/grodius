@@ -15,7 +15,7 @@
 // 35-40% of a stage's spawns.
 import { $ } from '../state';
 import { PH, W, ri } from '../core';
-import { rowOfKind, ufoDrift } from '../layout';
+import { rowOfKind, ufoDrift, ufoRow } from '../layout';
 import { sfx } from '../audio';
 import { startBoss } from '../boss/update';
 import { ufoWarn } from './ufo';
@@ -221,7 +221,7 @@ export function buildScript(L) {
   // PHASE 1: open orbit, the derelict looming
   const O = rowOfKind('orbit'), oAt = stageAt(O);
   pickV('oA', ORBIT_A, L)(oAt);
-  oAt(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
+  stageAt(ufoRow())(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
   pickV('oC', ORBIT_C, L)(oAt);
   pickV('oD', ORBIT_D, L)(oAt);
   oAt(O.warnX - O.x0, () => {

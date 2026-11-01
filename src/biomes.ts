@@ -17,7 +17,7 @@ import { eliteChance, eliteRoll } from './enemies/elite';
 import { enemies } from './world';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
-import { layout, nSlots, segs, slotRow } from './layout';
+import { layout, nSlots, segs, slotRow, stageOfSlot } from './layout';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -84,7 +84,7 @@ export function biomeK(wx) {
   const G = $.G;
   if (!G || !G.route || !G.bx) return [null, 0];
   let best = null, bk = 0;
-  for (let s = 0, n = nSlots(); s < n; s++) {
+  for (let s = 0; s < G.route.length; s++) { // G.route has one entry per biome slot (flow.ts); no nSlots() here: it allocates, and this runs ~10x a frame
     const b = G.route[s], x0 = G.bx[s];
     if (!b || x0 == null) continue;
     const x1 = G.bx[s + 1], k = fadeIn(x0, wx) * (x1 == null ? 1 : 1 - fadeIn(x1, wx));
@@ -247,7 +247,7 @@ function choose(b) {
   (G.bx ||= Array(nSlots() + 1).fill(null))[seg] = from;
   rewriteTerrain(seg, b, from);
   insertScript(biomeScript(seg, b, from, v));
-  G.pend.push({ t: 40, f: () => startStage(seg + 1) });
+  G.pend.push({ t: 40, f: () => startStage(stageOfSlot(seg)) });
   flash($.P.x, $.P.y, 80, 18, BIOMES[b].rgb);
   sfx.power();
   buzz('heavy');

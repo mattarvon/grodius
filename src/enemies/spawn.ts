@@ -4,7 +4,7 @@ import { PH, R, TAU, W, pick, ri, rr } from '../core';
 import { sfx } from '../audio';
 import { ceilAt, enemies, eshots, floorAt } from '../world';
 import { startBoss } from '../boss/update';
-import { UFO_AT, ufoWarn } from './ufo';
+import { ufoWarn } from './ufo'; // unused here, but kept: it fixes the spawn/ufo ESM init order
 import { depthHP } from '../depth';
 
 // ---------------- enemies ----------------

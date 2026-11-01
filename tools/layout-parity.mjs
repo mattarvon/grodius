@@ -12,6 +12,10 @@
 //
 // Usage: node tools/layout-parity.mjs [url] [--seeds 1,3,5,7,11] [--descents 2] [--update] [--out file]
 //   Seed 2 is not in the default set: its bot kit cannot kill the Gravity Drive (no escape clock), so it times out.
+//   The gate taken at each fork is a hash of the seed; over the default seeds every fork position takes both gates.
+//   The url must be a Vite DEV server (the anchors are read by importing /src modules).
+//   Not measured (printed at the end of every run): hits, deaths, game over and respawn (the bot is invincible), and
+//   anything render-only (canvas calls are stubbed; tests/unit/layout.test.ts pins the render bands).
 //   No url: starts its own Vite dev server. Compares against tools/layout-parity.baseline.json and exits 1 on any
 //   difference (field by field). --update rewrites the baseline. --out also writes this run's dump to a file.
 import { chromium } from 'playwright';
@@ -50,10 +54,10 @@ const init = ([seed, gates, descents]) => {
   const fnv = (h, str) => { for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
   const arrHash = (a, i0 = 0, i1 = a.length) => { let h = 2166136261; for (let i = i0; i < i1; i++) h = fnv(h, a[i].toFixed(3) + ','); return h.toString(16); };
   const key = (t, c) => dispatchEvent(new KeyboardEvent(t, { code: c, key: c }));
-  const R = (window.__par = { stages: [], route: { minGap: 999, minGapAt: 0, slam: 0, slamMax: 0, slamAt: [], haz: 0, hazKinds: {}, hazBad: [], hazHits: 0, forks: [] }, shops: 0, frames: 0, end: '', errs: [] });
-  let cur = null, lastKey = '', prevVis = null, lastLoop = -1, lastMini = null, lastBoss = null, lastFork = null, lastTally = null, seenE = new WeakSet(), seenH = new WeakSet(), shopT = -1, fr = 0, enterUp = 0;
+  const R = (window.__par = { stages: [], route: { minGap: 999, minGapAt: 0, slam: 0, slamMax: 0, slamAt: [], haz: 0, hazKinds: {}, hazHash: 2166136261, hazBad: [], hazHits: 0, forks: [] }, shops: 0, frames: 0, end: '', errs: [] });
+  let miniF = 0, curMus = null, cur = null, lastKey = '', prevVis = null, lastLoop = -1, lastMini = null, lastBoss = null, lastFork = null, lastTally = null, seenE = new WeakSet(), seenH = new WeakSet(), shopT = -1, fr = 0, enterUp = 0;
   const music = () => { try { const m = window.__musicPlan && window.__musicPlan(); return m ? `${m.want}|${m.mix}` : '-'; } catch (e) { return 'err'; } };
-  const close = (G, B) => { if (!cur) return; cur.scroll1 = Math.round(G.scroll * 1000) / 1000; cur.frames = fr - cur.f0; cur.terrain1 = arrHash(B.F) + '/' + arrHash(B.C); cur.spawnHash = cur.sh.toString(16); cur.music = [...cur.mus].sort(); delete cur.sh; delete cur.mus; delete cur.f0; R.stages.push(cur); cur = null; };
+  const close = (G, B) => { if (!cur) return; cur.scroll1 = Math.round(G.scroll * 1000) / 1000; cur.frames = fr - cur.f0; cur.terrain1 = arrHash(B.F) + '/' + arrHash(B.C); cur.spawnHash = cur.sh.toString(16); delete cur.sh; delete cur.f0; R.stages.push(cur); cur = null; };
   window.__tick = (n) => {
     for (let i = 0; i < n && !R.end; i++) {
       now += 1000 / 60;
@@ -98,15 +102,22 @@ const init = ([seed, gates, descents]) => {
         close(G, B);
         lastKey = k;
         cur = { id: k, scroll0: Math.round(G.scroll * 1000) / 1000, f0: fr, route: (G.route || []).join('/'), script: G.script.slice(G.si).map((e) => e.x), si: G.si, scriptLen: G.script.length,
-          terrain0: arrHash(B.F) + '/' + arrHash(B.C), fired: [], minis: [], boss: null, fork: null, tally: null, spawns: 0, kinds: {}, sh: 2166136261, mus: new Set() };
+          terrain0: arrHash(B.F) + '/' + arrHash(B.C), fired: [], minis: [], boss: null, fork: null, tally: null, spawns: 0, kinds: {}, sh: 2166136261, music: [] };
+        curMus = null;
       }
       // script entries that fired this step (the kinds they spawned are this step's new enemies)
       const fresh = [];
       for (const e of h.enemies) if (!seenE.has(e)) { seenE.add(e); fresh.push(e); }
       if (sc0 === G.script && G.si > si0) cur.fired.push(G.script.slice(si0, G.si).map((e) => e.x).join('+') + ':' + fresh.map((e) => e.k).join(','));
       for (const e of fresh) { cur.spawns++; cur.kinds[e.k] = (cur.kinds[e.k] || 0) + 1; cur.sh = fnv(cur.sh, `${fr}:${e.k}:${e.x.toFixed(2)}:${e.y.toFixed(2)};`); }
-      if (fr % 30 === 0) cur.mus.add(music());
-      if (G.mini !== lastMini) { if (G.mini) cur.minis.push(`${G.mini.k}|${G.mini.title || '-'}|${G.mini.biome || '-'}|${!!G.mini.stageBoss}|${Math.round(G.scroll * 1000) / 1000}`); lastMini = G.mini; }
+      // music: every switch of the wanted track or mix, in order, with the stage frame it happened on
+      if (fr % 5 === 0) { const m = music(); if (m !== curMus) { cur.music.push(`${fr - cur.f0}:${m}`); curMus = m; } }
+      // midbosses and stage bosses: arrival (kind, title, biome, stage boss, scroll), then how and where they left
+      if (G.mini !== lastMini) {
+        if (lastMini) { const how = lastMini.dead && !lastMini.gone && !(lastMini.t >= lastMini.leave) ? 'killed' : lastMini.gone || lastMini.t >= lastMini.leave ? 'withdrew' : 'replaced'; cur.minis.push(`  left ${how} at ${Math.round(G.scroll * 1000) / 1000} after ${fr - miniF}f`); }
+        if (G.mini) { cur.minis.push(`${G.mini.k}|${G.mini.title || '-'}|${G.mini.biome || '-'}|${!!G.mini.stageBoss}|${Math.round(G.scroll * 1000) / 1000}`); miniF = fr; }
+        lastMini = G.mini;
+      }
       if (G.boss && G.boss !== lastBoss) cur.boss = Math.round(G.scroll * 1000) / 1000;
       lastBoss = G.boss;
       if (G.fork && !lastFork) cur.fork = { seg: G.fork.seg, opts: G.fork.opts.join('/'), scroll: Math.round(G.scroll * 1000) / 1000 };
@@ -120,7 +131,7 @@ const init = ([seed, gates, descents]) => {
       if (prevVis && prevVis.i0 === i0) for (let j = 0; j < vis.length; j++) { const d = Math.abs(vis[j] - prevVis.v[j]); if (d > 1.5) { R.route.slam++; R.route.slamMax = Math.max(R.route.slamMax, +d.toFixed(3)); if (R.route.slamAt.length < 5) R.route.slamAt.push((i0 + (j >> 1)) * B.TS); } }
       prevVis = { i0, v: vis };
       for (const z of B.haz) if (!seenH.has(z)) {
-        seenH.add(z); R.route.haz++; R.route.hazKinds[z.k] = (R.route.hazKinds[z.k] || 0) + 1;
+        seenH.add(z); R.route.haz++; R.route.hazKinds[z.k] = (R.route.hazKinds[z.k] || 0) + 1; R.route.hazHash = fnv(R.route.hazHash, `${fr}:${z.k}:${z.x.toFixed(2)};`);
         const bad = G.fork || G.forkHold || G.tally || !h.P.alive ? 'state' : z.k !== 'strand' && Math.abs(z.x - h.P.x) < 40 ? 'on-ship' : '';
         if (bad) R.route.hazBad.push(bad + ':' + z.k + '@' + k);
       }
@@ -150,7 +161,7 @@ const b = await chromium.launch();
 const runs = {};
 try {
   for (const seed of SEEDS) {
-    const gates = [seed & 1, (seed >> 1) & 1, (seed >> 2) & 1, ((seed >> 3) ^ seed) & 1];
+    const gates = [0, 1, 2, 3].map((i) => (Math.imul(seed + 1, 0x9e3779b1) >>> (7 + i * 5)) & 1); // fork n of the run takes gate gates[n % 4]
     const p = await b.newPage({ viewport: { width: 960, height: 540 } });
     const errs = []; p.on('pageerror', (e) => errs.push(e.message));
     await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
@@ -176,9 +187,10 @@ try {
   if (server) await server.close();
 }
 
+console.log('not measured: hits, deaths, game over, respawn (invincible bot); render-only output (canvas stubbed)' + (SEEDS.includes(2) ? '' : '; seed 2 (its bot cannot kill the Gravity Drive)'));
 if (OUT) writeFileSync(OUT, JSON.stringify(runs, null, 1) + '\n');
 let commit = 'unknown';
-try { commit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch {}
+try { commit = execSync('git describe --always --dirty', { encoding: 'utf8' }).trim(); } catch {}
 const meta = { seeds: SEEDS, descents: DESCENTS };
 if (UPDATE) { writeFileSync(BASELINE, JSON.stringify({ ...meta, commit, runs }, null, 1) + '\n'); console.log(`parity baseline updated (${SEEDS.length} seeds x ${DESCENTS} descents @ ${commit})`); process.exit(0); }
 if (!existsSync(BASELINE)) { console.error('no parity baseline: run with --update on the commit to compare against'); process.exit(1); }
@@ -189,6 +201,10 @@ const diffs = [];
 const walk = (a, b, path) => {
   if (diffs.length > 60) return;
   if (a && b && typeof a === 'object' && typeof b === 'object') { for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[k], b[k], path + '.' + k); return; }
+  if (path.includes('.amt.') && typeof a === 'string' && typeof b === 'string' && a !== b) { // a sampled band: name the first x that moved
+    const A = a.split(','), B = b.split(','), i = A.findIndex((v, j) => v !== B[j]);
+    diffs.push(`  ${path}: first differs at sample ${i} (x = ${-200 + i * 10}): ${A[i]} -> ${B[i]}`); return;
+  }
   if (JSON.stringify(a) !== JSON.stringify(b)) diffs.push(`  ${path}: ${JSON.stringify(a)?.slice(0, 160)} -> ${JSON.stringify(b)?.slice(0, 160)}`);
 };
 walk(base.runs, runs, 'seed');

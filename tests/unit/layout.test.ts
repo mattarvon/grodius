@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BANDS, LAYOUTS, bandAt, bossAt, forkAfter, hellCore, hellCorr, innerBand, kindOf, lastStage, layout, nSlots, row,
-  segs, setLayout, slotOf, slotRow, ufoAt, ufoGapEnd, type LayoutEntry,
+  segs, setLayout, slotOf, slotRow, stageOfSlot, ufoAt, ufoGapEnd, type LayoutEntry,
 } from '../../src/layout';
 
 // ---- the invariants every layout entry must keep (design/content-expansion.md §2.2, §3.2) ----
@@ -133,6 +133,7 @@ describe('short layout reproduces today', () => {
     expect([0, 1, 2, 3].map(slotOf)).toEqual([-1, 0, 1, -1]); // was route[stage - 1] for stages 1 and 2
     expect([0, 1, 2, 3].map(forkAfter)).toEqual([0, 1, -1, -1]); // was G.stage === 0 || G.stage === 1
     expect(nSlots()).toBe(2);
+    expect([0, 1].map(stageOfSlot)).toEqual([1, 2]); // was seg + 1 in biomes.ts choose()
     expect(lastStage()).toBe(3); // was STAGES.length - 1
     expect(kindOf(4)).toBeUndefined();
     expect(slotOf(4)).toBe(-1);
