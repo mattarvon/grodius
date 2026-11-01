@@ -107,7 +107,7 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
 | **J** | **Repoint every probe with a hard-coded x to `layout()`:** density, route:103, midboss, perf, biomeboss/walls/maw/fx/upgrade/newenemy shots, world-shots:32, hazard, depth, gun | tools-programmer | `tools/*.mjs` | Every probe runs on both layouts and says which one it ran on; **the `@deprecated` boot-time aliases (`core` LEVEL/BOSS_AT, `biomes` SEG, `ufo` UFO_AT/UFO_GAP_END) are deleted** (a tripwire test in `layout-literals.test.ts` fails if a second layout entry exists while they do) | Probe output for both layouts | S-M |
 
 - **Merge order:** C → B2 → D → E. **J goes in after A and before D** (D must not activate a non-`short` entry or add a `setLayout` caller while the aliases exist; technical-director condition, LS1-A review). D2 goes in any time after D's flag parse.
-- **Coverage before D/E merge:** the parity check gains a mortal-bot or third-descent run, or qa-lead accepts the gap in writing (hits, deaths, respawn, game over and slot-0 repeat visits are covered by neither gate today).
+- **Coverage before D/E merge:** done in row A: the parity check runs a third descent (`1x3`, a slot-0 repeat visit) and a mortal bot to game over (`7m`: hits, deaths, respawn, lives). Deaths after Descent 1's second stage remain unmeasured.
 - **Parallel lanes:** C/B2 (one lane, sequential), D, E (rebases on D's `biomes.ts` only where needed; mostly `scripts.ts`), J, D2.
 
 ### Sprint 3: midbosses ×2, economy, resume, measurement (5 lanes)

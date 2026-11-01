@@ -10,12 +10,19 @@
 // Once per run it dumps the static anchors (LEVEL, BOSS_AT, SEG, T_END0/1, UFO_AT/UFO_GAP_END, AMT sampled every
 // 10 px), and route-probe's checks (min on-screen gap, terrain slams, hazards spawned / spawned badly, fork events).
 //
+// Runs: the main set (--seeds x --descents, invincible bot) plus two fixed extra runs that cover what it can't reach:
+//   1x3  seed 1 for 3 descents: Descent 3 is the first where a slot-0 gate can be a repeat visit (forks offer fresh
+//        biomes first); seed 1's Descent 3 takes the revisit (acid, '+' mix). Seed 3's does not (it takes fresh ice)
+//   7m   seed 7 with a MORTAL bot (same pilot, no invincibility) until game over: hits, deaths, BLACK BOX/salvage
+//        pods, respawn, lives and game over
+//
 // Usage: node tools/layout-parity.mjs [url] [--seeds 1,3,5,7,11] [--descents 2] [--update] [--out file]
 //   Seed 2 is not in the default set: its bot kit cannot kill the Gravity Drive (no escape clock), so it times out.
 //   The gate taken at each fork is a hash of the seed; over the default seeds every fork position takes both gates.
 //   The url must be a Vite DEV server (the anchors are read by importing /src modules).
-//   Not measured (printed at the end of every run): hits, deaths, game over and respawn (the bot is invincible), and
-//   anything render-only (canvas calls are stubbed; tests/unit/layout.test.ts pins the render bands).
+//   Not measured (printed at the end of every run): anything render-only (canvas calls are stubbed;
+//   tests/unit/layout.test.ts pins the render bands), and deaths past Descent 1's first stages (the mortal run ends
+//   at its game over).
 //   No url: starts its own Vite dev server. Compares against tools/layout-parity.baseline.json and exits 1 on any
 //   difference (field by field). --update rewrites the baseline. --out also writes this run's dump to a file.
 import { chromium } from 'playwright';
@@ -30,7 +37,9 @@ const DESCENTS = +opt('--descents', '2');
 const OUT = opt('--out', null);
 let url = argv.find((a, i) => !a.startsWith('--') && !['--seeds', '--descents', '--out'].includes(argv[i - 1]));
 const BASELINE = new URL('./layout-parity.baseline.json', import.meta.url);
-const MAX_FRAMES = 60 * 60 * 14 * DESCENTS; // a descent is 4-6 min; 14 min each is a hang, not a slow run
+const MAX_FRAMES = (d) => 60 * 60 * 14 * d; // a descent is 4-6 min; 14 min each is a hang, not a slow run
+const RUNS = [...SEEDS.map((seed) => ({ id: String(seed), seed, descents: DESCENTS, mortal: false })),
+  { id: '1x3', seed: 1, descents: 3, mortal: false }, { id: '7m', seed: 7, descents: 2, mortal: true }];
 
 let server;
 if (!url) {
@@ -41,7 +50,7 @@ if (!url) {
 }
 
 // ---- in-page: seeded RNG, fake clock, no audio, no canvas work, the autopilot and the recorder ----
-const init = ([seed, gates, descents]) => {
+const init = ([seed, gates, descents, mortal]) => {
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) | 0;
   Math.random = () => { s |= 0; s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   let now = 0; const q = [];
@@ -54,8 +63,8 @@ const init = ([seed, gates, descents]) => {
   const fnv = (h, str) => { for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
   const arrHash = (a, i0 = 0, i1 = a.length) => { let h = 2166136261; for (let i = i0; i < i1; i++) h = fnv(h, a[i].toFixed(3) + ','); return h.toString(16); };
   const key = (t, c) => dispatchEvent(new KeyboardEvent(t, { code: c, key: c }));
-  const R = (window.__par = { stages: [], route: { minGap: 999, minGapAt: 0, slam: 0, slamMax: 0, slamAt: [], haz: 0, hazKinds: {}, hazHash: 2166136261, hazBad: [], hazHits: 0, forks: [] }, shops: 0, frames: 0, end: '', errs: [] });
-  let miniF = 0, curMus = null, cur = null, lastKey = '', prevVis = null, lastLoop = -1, lastMini = null, lastBoss = null, lastFork = null, lastTally = null, seenE = new WeakSet(), seenH = new WeakSet(), shopT = -1, fr = 0, enterUp = 0;
+  const R = (window.__par = { stages: [], route: { minGap: 999, minGapAt: 0, slam: 0, slamMax: 0, slamAt: [], haz: 0, hazKinds: {}, hazHash: 2166136261, hazBad: [], hazHits: 0, deaths: 0, forks: [] }, shops: 0, frames: 0, end: '', errs: [] });
+  let backUp = 0, wasAlive = true, miniF = 0, curMus = null, cur = null, lastKey = '', prevVis = null, lastLoop = -1, lastMini = null, lastBoss = null, lastFork = null, lastTally = null, seenE = new WeakSet(), seenH = new WeakSet(), shopT = -1, fr = 0, enterUp = 0;
   const music = () => { try { const m = window.__musicPlan && window.__musicPlan(); return m ? `${m.want}|${m.mix}` : '-'; } catch (e) { return 'err'; } };
   const close = (G, B) => { if (!cur) return; cur.scroll1 = Math.round(G.scroll * 1000) / 1000; cur.frames = fr - cur.f0; cur.terrain1 = arrHash(B.F) + '/' + arrHash(B.C); cur.spawnHash = cur.sh.toString(16); delete cur.sh; delete cur.f0; R.stages.push(cur); cur = null; };
   window.__tick = (n) => {
@@ -65,7 +74,7 @@ const init = ([seed, gates, descents]) => {
       // ---- autopilot (route-probe's, at 3 px/f like playtest.mjs) ----
       if (g0 && g0.P && g0.state === 'play') {
         const G = g0.G, P = g0.P;
-        P.inv = 30;
+        if (!mortal) P.inv = 30;
         let tx, ty;
         if (G.fork && G.fork.t > 45) { tx = 480 * .74; ty = G.fork.gy[gates[(G.loop * 2 + G.fork.seg) % gates.length]]; }
         else if (G.fork) { tx = 60; ty = 127; }
@@ -80,6 +89,7 @@ const init = ([seed, gates, descents]) => {
         if (enterUp) { key('keyup', 'Enter'); enterUp = 0; }
         if (G.pick && G.pick.t === 40) { key('keydown', 'Enter'); enterUp = 1; }
       }
+      if (backUp && ++backUp > 2) { key('keyup', 'Backspace'); backUp = 0; } // released whatever state we are in, or K.Backspace sticks
       const si0 = g0 && g0.G && g0.G.script ? g0.G.si : 0, sc0 = g0 && g0.G && g0.G.script;
       q.splice(0).forEach((f) => f(now));
       const h = window.__G && window.__G();
@@ -87,12 +97,11 @@ const init = ([seed, gates, descents]) => {
       // ---- menus: the Infirmary (leave it), game over (stop) ----
       if (h.state === 'shop') {
         if (shopT < 0) { shopT = 0; R.shops++; if (cur && h.G) close(h.G, window.__biome()); if (R.shops >= descents) { R.end = 'shop ' + R.shops; break; } }
-        if (++shopT === 60) key('keydown', 'Backspace');
-        if (shopT === 62) key('keyup', 'Backspace');
+        if (++shopT === 60) { key('keydown', 'Backspace'); backUp = 1; }
         continue;
       }
       shopT = -1;
-      if (h.state === 'over') { R.end = 'game over'; break; }
+      if (h.state === 'over') { if (cur && h.G) { cur.deaths.push(`game over at ${Math.round(h.G.scroll * 1000) / 1000} score ${h.G.score}`); close(h.G, window.__biome()); } R.end = 'game over'; break; }
       if (!h.G || !h.G.route || h.state !== 'play') continue;
       const G = h.G, B = window.__biome();
       fr++; R.frames = fr;
@@ -102,7 +111,7 @@ const init = ([seed, gates, descents]) => {
         close(G, B);
         lastKey = k;
         cur = { id: k, scroll0: Math.round(G.scroll * 1000) / 1000, f0: fr, route: (G.route || []).join('/'), script: G.script.slice(G.si).map((e) => e.x), si: G.si, scriptLen: G.script.length,
-          terrain0: arrHash(B.F) + '/' + arrHash(B.C), fired: [], minis: [], boss: null, fork: null, tally: null, spawns: 0, kinds: {}, sh: 2166136261, music: [] };
+          terrain0: arrHash(B.F) + '/' + arrHash(B.C), fired: [], minis: [], deaths: [], boss: null, fork: null, tally: null, spawns: 0, kinds: {}, sh: 2166136261, music: [] };
         curMus = null;
       }
       // script entries that fired this step (the kinds they spawned are this step's new enemies)
@@ -136,6 +145,9 @@ const init = ([seed, gates, descents]) => {
         if (bad) R.route.hazBad.push(bad + ':' + z.k + '@' + k);
       }
       if (G.hazHit) R.route.hazHits++;
+      // deaths (the mortal run): where, lives left, and what came back (BLACK BOX / boss salvage pods)
+      if (wasAlive && !h.P.alive) { R.route.deaths++; cur.deaths.push(`died at ${Math.round(G.scroll * 1000) / 1000} f${fr - cur.f0} lives ${G.lives} hits ${G.st ? G.st.hits : '-'} recover ${(G.recover || []).join('')} caps ${h.caps.length}`); }
+      wasAlive = h.P.alive;
     }
     const g = window.__G && window.__G(), G = g && g.G;
     return { end: R.end, fr, st: g && g.state, sc: G && Math.round(G.scroll), stage: G && G.stage, pick: !!(G && G.pick), mini: G && G.mini && G.mini.k, boss: !!(G && G.boss), fork: !!(G && G.fork), hold: !!(G && G.forkHold), tally: !!(G && G.tally), alive: !!(g && g.P && g.P.alive) };
@@ -160,12 +172,12 @@ const anchors = (p) => p.evaluate(async () => {
 const b = await chromium.launch();
 const runs = {};
 try {
-  for (const seed of SEEDS) {
+  for (const { id, seed, descents, mortal } of RUNS) {
     const gates = [0, 1, 2, 3].map((i) => (Math.imul(seed + 1, 0x9e3779b1) >>> (7 + i * 5)) & 1); // fork n of the run takes gate gates[n % 4]
     const p = await b.newPage({ viewport: { width: 960, height: 540 } });
     const errs = []; p.on('pageerror', (e) => errs.push(e.message));
     await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
-    await p.addInitScript(init, [seed, gates, DESCENTS]);
+    await p.addInitScript(init, [seed, gates, descents, mortal]);
     await p.goto(url);
     await p.waitForFunction(() => window.__started, null, { timeout: 30000 });
     const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c, key: c })), [t, c]);
@@ -175,11 +187,11 @@ try {
     await p.evaluate('__tick(28)'); await key('keydown', 'KeyZ');
     const anc = await anchors(p);
     let r;
-    for (let f = 0; f < MAX_FRAMES; f += 1200) { r = await p.evaluate('__tick(1200)'); if (process.env.PARITY_DEBUG) console.log(JSON.stringify(r)); if (r.end) break; }
+    for (let f = 0; f < MAX_FRAMES(descents); f += 1200) { r = await p.evaluate('__tick(1200)'); if (process.env.PARITY_DEBUG) console.log(JSON.stringify(r)); if (r.end) break; }
     const par = await p.evaluate(() => window.__par);
     if (!par.end) par.end = `timeout after ${par.frames} play frames`;
-    runs[seed] = { gates: gates.join(''), anchors: anc, end: par.end, playFrames: par.frames, shops: par.shops, route: par.route, stages: par.stages, errs };
-    console.log(`seed ${seed} gates ${gates.join('')}: ${par.end}, ${par.stages.length} stages, ${par.frames} play frames, errors ${errs.length}`);
+    runs[id] = { seed, descents, mortal, gates: gates.join(''), anchors: anc, end: par.end, playFrames: par.frames, shops: par.shops, route: par.route, stages: par.stages, errs };
+    console.log(`run ${id} (seed ${seed}, ${descents} descents${mortal ? ', mortal' : ''}) gates ${gates.join('')}: ${par.end}, ${par.stages.length} stages, ${par.frames} play frames, deaths ${par.route.deaths}, errors ${errs.length}`);
     await p.close();
   }
 } finally {
@@ -187,15 +199,15 @@ try {
   if (server) await server.close();
 }
 
-console.log('not measured: hits, deaths, game over, respawn (invincible bot); render-only output (canvas stubbed)' + (SEEDS.includes(2) ? '' : '; seed 2 (its bot cannot kill the Gravity Drive)'));
+console.log('not measured: render-only output (canvas stubbed); deaths after the mortal run\'s game over' + (SEEDS.includes(2) ? '' : '; seed 2 (its bot cannot kill the Gravity Drive)'));
 if (OUT) writeFileSync(OUT, JSON.stringify(runs, null, 1) + '\n');
 let commit = 'unknown';
 try { commit = execSync('git describe --always --dirty', { encoding: 'utf8' }).trim(); } catch {}
-const meta = { seeds: SEEDS, descents: DESCENTS };
-if (UPDATE) { writeFileSync(BASELINE, JSON.stringify({ ...meta, commit, runs }, null, 1) + '\n'); console.log(`parity baseline updated (${SEEDS.length} seeds x ${DESCENTS} descents @ ${commit})`); process.exit(0); }
+const meta = { seeds: SEEDS, descents: DESCENTS, runs: RUNS.map((r) => r.id) };
+if (UPDATE) { writeFileSync(BASELINE, JSON.stringify({ ...meta, runIds: meta.runs, commit, runs }, null, 1) + '\n'); console.log(`parity baseline updated (${SEEDS.length} seeds x ${DESCENTS} descents @ ${commit})`); process.exit(0); }
 if (!existsSync(BASELINE)) { console.error('no parity baseline: run with --update on the commit to compare against'); process.exit(1); }
 const base = JSON.parse(readFileSync(BASELINE, 'utf8'));
-if (JSON.stringify(base.seeds) !== JSON.stringify(SEEDS) || base.descents !== DESCENTS) { console.error(`baseline is for seeds ${base.seeds} x ${base.descents} descents`); process.exit(1); }
+if (JSON.stringify(base.runIds) !== JSON.stringify(meta.runs) || base.descents !== DESCENTS) { console.error(`baseline is for runs ${base.runIds} (${base.descents} descents in the main set)`); process.exit(1); }
 // field-by-field diff, so a failure names what moved
 const diffs = [];
 const walk = (a, b, path) => {
@@ -209,4 +221,4 @@ const walk = (a, b, path) => {
 };
 walk(base.runs, runs, 'seed');
 if (diffs.length) { console.error(`PARITY DIFF vs baseline @ ${base.commit}:\n${diffs.join('\n')}`); process.exit(1); }
-console.log(`PARITY PASS vs baseline @ ${base.commit}: ${SEEDS.length} seeds x ${DESCENTS} descents identical`);
+console.log(`PARITY PASS vs baseline @ ${base.commit}: runs ${meta.runs.join(', ')} identical (${SEEDS.length} seeds x ${DESCENTS} descents + 1x3 + 7m)`);

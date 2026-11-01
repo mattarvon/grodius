@@ -38,6 +38,11 @@ describe('no literal world x outside src/layout.ts', () => {
   it('has no band (sstep) or scroll comparison on a world-x literal', () => {
     expect(hits(/sstep\(\s*\d{4,}/g)).toEqual([]);
     expect(hits(/scroll\s*[<>]=?\s*\d{4,}/g)).toEqual([]);
+    // arithmetic on the scroll with a world-x literal (G.scroll - 2300, 9300 - $.G.scroll)
+    expect(hits(/scroll\s*[-+]\s*\d{4,}|\b\d{4,}\s*[-+]\s*(\$\.G\.|G\.)?scroll\b/g)).toEqual([]);
+    // a scroll copied into a local and compared there (const s = G.scroll; s > 9300): flag any 4+ digit comparison on
+    // the usual scroll locals in the anchor files
+    expect(hits(/\b(sc|s)\s*[<>]=?\s*\d{4,}/g, ANCHOR_FILES)).toEqual([]);
   });
 
   it('has no script entry at an absolute world x past Open Orbit (script x is stage-relative)', () => {
@@ -48,7 +53,7 @@ describe('no literal world x outside src/layout.ts', () => {
   // technical-director condition C1 (LS1-A review): the @deprecated boot-time aliases copy the layout active at import,
   // so they go stale once a second entry can be activated. Item J deletes them before item D adds one.
   it('keeps the deprecated layout aliases only while short is the only layout entry', () => {
-    const aliases = hits(/\b(LEVEL|BOSS_AT|SEG|UFO_AT|UFO_GAP_END)\s*=\s*(layout\(\)|bossAt|segs|ufoAt|ufoGapEnd)\(?/g);
+    const aliases = hits(/\b(LEVEL|BOSS_AT|SEG|UFO_AT|UFO_GAP_END)\s*=\s*(layout\(\)|bossAt|slotSpans|ufoAt|ufoGapEnd)\(?/g);
     const tripped = (keys: string[], found: string[]) => keys.length > 1 && found.length > 0;
     expect(tripped(Object.keys(LAYOUTS), aliases)).toBe(false);
     // the tripwire itself: it fires for a second entry while any alias exists, and not once J has deleted them all

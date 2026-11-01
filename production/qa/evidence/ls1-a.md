@@ -87,19 +87,27 @@ The gate at each fork is hashed from the seed, so over the default seeds every f
 
 ## Test and probe output
 
-**Parity** (seed, gates, end condition, stages, play frames, errors):
+**Parity** (second review round: 5 seeds × 2 descents, plus `1x3` and `7m`):
 
 ```
-seed 1  gates 0111: shop 2, 8 stages, 31846 play frames, errors 0
-seed 3  gates 1001: shop 2, 8 stages, 31385 play frames, errors 0
-seed 5  gates 0101: shop 2, 8 stages, 35177 play frames, errors 0
-seed 7  gates 1010: shop 2, 8 stages, 33796 play frames, errors 0
-seed 11 gates 0100: shop 2, 8 stages, 30441 play frames, errors 0
-not measured: hits, deaths, game over, respawn (invincible bot); render-only output (canvas stubbed); seed 2 (its bot cannot kill the Gravity Drive)
-PARITY PASS vs baseline @ 4f3206f (f2f9c03 src + the __musicPlan test hook; ...): 5 seeds x 2 descents identical
+run 1 (seed 1, 2 descents) gates 0111: shop 2, 8 stages, 31846 play frames, deaths 0, errors 0
+run 3 (seed 3, 2 descents) gates 1001: shop 2, 8 stages, 31385 play frames, deaths 0, errors 0
+run 5 (seed 5, 2 descents) gates 0101: shop 2, 8 stages, 35177 play frames, deaths 0, errors 0
+run 7 (seed 7, 2 descents) gates 1010: shop 2, 8 stages, 33796 play frames, deaths 0, errors 0
+run 11 (seed 11, 2 descents) gates 0100: shop 2, 8 stages, 30441 play frames, deaths 0, errors 0
+run 1x3 (seed 1, 3 descents) gates 0111: shop 3, 12 stages, 47126 play frames, deaths 0, errors 0
+run 7m (seed 7, 2 descents, mortal) gates 1010: game over, 2 stages, 5781 play frames, deaths 3, errors 0
+not measured: render-only output (canvas stubbed); deaths after the mortal run's game over; seed 2 (its bot cannot kill the Gravity Drive)
+PARITY PASS vs baseline @ 4f3206f (...): runs 1, 3, 5, 7, 11, 1x3, 7m identical
 ```
 
-The run covers all 4 biomes, both slots, both gates at every fork, and Descent 2, including a slot-1 repeat visit (seed 3). A slot-0 repeat visit can only happen from Descent 3, because forks offer fresh biomes first, so it is not covered.
+What the runs cover:
+- All 4 biomes, both slots, and both gates at every fork.
+- Descent 2 with a slot-1 repeat visit (seed 3).
+- Descent 3 with a slot-0 repeat visit (`1x3`: acid, with the `'+'` mix).
+- A mortal run (`7m`) with three deaths in the Cryovault, respawns, lives running out and the game over.
+
+The baseline was re-recorded with this tool against `4f3206f`'s code, served from a temporary worktree. Two tool fixes went in along the way: Backspace is now always released, so a third Infirmary visit no longer gets stuck; and deaths are recorded with the last stage closed at game over.
 
 **Mutation checks** (current tool, each change reverted afterwards):
 
@@ -138,7 +146,7 @@ The run covers all 4 biomes, both slots, both gates at every fork, and Descent 2
 
 1. **`G.bx` assumes the biome slots are adjacent.** long5's interior between them would hand back terrain and the biome look wrongly. Owner: LS3, marked at `biomes.ts` "where are we".
 2. **The deprecated boot-time aliases go stale if `setLayout` runs after import.** Item J deletes them **before** item D lets a long layout activate.
-3. **Hits, deaths, respawn and game over are covered by neither gate.** Slot-0 repeat visits need Descent 3, and seed 2 is excluded. Owner: whoever adds `long4` (D/E) adds a third descent or a mortal-bot variant, or accepts the gap in writing (qa-lead).
+3. **~~Hits, deaths, respawn and game over are covered by neither gate~~: closed in the second round** (`1x3` and `7m` runs). Still open: deaths after the mortal run's game over, and seed 2, which is excluded.
 4. **`perks.ts:48` `stageXP`.** Moved to G0/G (D20).
 5. **`hell` bands are literal copies of AMT in `short`.** Per-kind values come with the long rows (D/E). Art re-checks the mood timing then.
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BANDS, LAYOUTS, bandAt, bossAt, forkAfter, hellCore, hellCorr, innerBand, kindOf, lastStage, layout, nSlots, row,
-  segs, setLayout, slotOf, slotRow, stageOfSlot, ufoAt, ufoGapEnd, type LayoutEntry,
+  driftRow, driftsOf, setLayout, slotSpans, slotOf, slotRow, stageOfSlot, ufoAt, ufoGapEnd, type LayoutEntry,
 } from '../../src/layout';
 
 // ---- the invariants every layout entry must keep (design/content-expansion.md §2.2, §3.2) ----
@@ -128,7 +128,7 @@ describe('short layout reproduces today', () => {
   it('has the old anchors: LEVEL, BOSS_AT, SEG, T_END0/1, UFO_AT, UFO_GAP_END', () => {
     expect(L.level).toBe(10000);
     expect(bossAt()).toBe(9300);
-    expect(segs()).toEqual([{ x0: 2300, x1: 5050, bossX: 4950 }, { x0: 5150, x1: 8200, bossX: 8020 }]);
+    expect(slotSpans()).toEqual([{ x0: 2300, x1: 5050, bossX: 4950 }, { x0: 5150, x1: 8200, bossX: 8020 }]);
     expect(L.tEnd).toEqual([8300, 8600]);
     expect(ufoAt()).toBe(800);
     expect(ufoGapEnd()).toBe(1840);
@@ -167,6 +167,15 @@ describe('short layout reproduces today', () => {
     expect(lastStage()).toBe(3); // was STAGES.length - 1
     expect(kindOf(4)).toBeUndefined();
     expect(slotOf(4)).toBe(-1);
+  });
+
+  it('finds drift midbosses by stage and by kind, and names what is missing', () => {
+    expect(driftsOf(0)).toEqual([{ k: 'ufo', at: 800, gapEnd: 1840, exitLead: 60 }]);
+    expect(driftsOf(1)).toEqual([]);
+    expect(driftsOf(9)).toEqual([]);
+    expect(driftRow('ufo').row).toBe(row(0));
+    expect(() => driftRow('shelf')).toThrow(/no drift midboss 'shelf'/);
+    expect(() => slotRow(5)).toThrow(/no biome slot 5/);
   });
 
   it('refuses an unknown layout id', () => {

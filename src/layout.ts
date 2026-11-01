@@ -127,7 +127,7 @@ export const slotOf = (i: number) => { const r = active.stages[i]; return r && r
 /** how many biome slots a descent has (the length of G.route) */
 export const nSlots = () => active.stages.filter((r) => r.kind === 'biome').length;
 /** the stage row of biome slot s */
-export const slotRow = (s: number) => active.stages.find((r) => r.kind === 'biome' && r.slot === s)!;
+export const slotRow = (s: number) => { const r = active.stages.find((x) => x.kind === 'biome' && x.slot === s); if (!r) throw new Error(`layout ${active.id} has no biome slot ${s}`); return r; };
 /** the stage index that flies biome slot s */
 export const stageOfSlot = (s: number) => active.stages.findIndex((r) => r.kind === 'biome' && r.slot === s);
 /** index of the last stage in a descent */
@@ -135,14 +135,22 @@ export const lastStage = () => active.stages.length - 1;
 /** clearing stage i opens a fork into this biome slot, or -1 */
 export const forkAfter = (i: number) => { const n = active.stages[i + 1]; return n && n.kind === 'biome' && n.fork ? n.slot! : -1; };
 /** the first stage of kind k */
-export const rowOfKind = (k: StageKind) => active.stages.find((r) => r.kind === k)!;
+export const rowOfKind = (k: StageKind) => { const r = active.stages.find((x) => x.kind === k); if (!r) throw new Error(`layout ${active.id} has no ${k} stage`); return r; };
 /** world x of the Gravity Drive fight (startBoss; was BOSS_AT) */
 export const bossAt = () => rowOfKind('drive').bossX;
 /** world x of a stage-relative x in stage row r */
 export const wx = (r: StageRow, rel: number) => r.x0 + rel;
+/** the DRIFT midbosses of stage i (stage-relative WARNING / forced exit), [] when it has none */
+export const driftsOf = (i: number): Drift[] => active.stages[i]?.drift || [];
+/** the stage row and drift entry of the DRIFT midboss of kind k (first match; throws if the layout has none) */
+export function driftRow(k: string) {
+  const r = active.stages.find((s) => s.drift && s.drift.some((d) => d.k === k));
+  if (!r) throw new Error(`layout ${active.id} has no drift midboss '${k}'`);
+  return { row: r, drift: r.drift!.find((d) => d.k === k)! };
+}
 /** the Saucer: its stage row and drift entry */
-export const ufoRow = () => active.stages.find((r) => r.drift && r.drift.some((d) => d.k === 'ufo'))!;
-export const ufoDrift = () => ufoRow().drift!.find((d) => d.k === 'ufo')!;
+export const ufoRow = () => driftRow('ufo').row;
+export const ufoDrift = () => driftRow('ufo').drift;
 /** world x of the Saucer's WARNING, and of the end of its filler-skip window */
 export const ufoAt = () => wx(ufoRow(), ufoDrift().at);
 export const ufoGapEnd = () => wx(ufoRow(), ufoDrift().gapEnd);
@@ -165,8 +173,9 @@ export const innerBand = (s: number) => bandAt(active.bands.inner, s);
 export const hellCorr = (s: number) => bandAt(active.hell.corr, s);
 export const hellCore = (s: number) => bandAt(active.hell.core, s);
 
-/** the biome slots as {x0, x1, bossX} (SEG before the table; x1 is the slot's nominal content end) */
-export const segs = () => active.stages.filter((r) => r.kind === 'biome').map((r) => ({ x0: r.x0, x1: r.end ?? r.x1, bossX: r.bossX }));
+/** the biome slots as {x0, x1, bossX}: SEG before the table. Careful: x1 here is the slot's nominal content end
+ *  (the row's `end`), not the row's x1 */
+export const slotSpans = () => active.stages.filter((r) => r.kind === 'biome').map((r) => ({ x0: r.x0, x1: r.end ?? r.x1, bossX: r.bossX }));
 
 /** test hook (tools/layout-parity.mjs): the static anchors, under their pre-table names */
-export const parityAnchors = () => ({ level: active.level, bossAt: bossAt(), seg: segs(), tEnd: [...active.tEnd], ufoAt: ufoAt(), ufoGapEnd: ufoGapEnd() });
+export const parityAnchors = () => ({ level: active.level, bossAt: bossAt(), seg: slotSpans(), tEnd: [...active.tEnd], ufoAt: ufoAt(), ufoGapEnd: ufoGapEnd() });
