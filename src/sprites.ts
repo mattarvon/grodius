@@ -6,7 +6,7 @@
 // code-drawn art.
 // RULE: sprite draws and their fallbacks never touch the gameplay RNG (core R / rr / ri / pick). The harness seeds
 // Math.random and renders real frames, so a render-side R() call that depends on image-load timing would desync it.
-// Use srnd() below for any render randomness.
+// Use srnd() (src/srnd.ts) for any render randomness.
 const URLS = import.meta.glob('./sprites/*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 export const SPR: Record<string, { img: HTMLImageElement, n: number, fw: number, fh: number }> = {};
 for (const [p, u] of Object.entries(URLS)) {
@@ -40,9 +40,6 @@ export function spr(c, k, f, x, y, o: any = {}) {
 /** animation frame for a clock t (game frames, 60/s) at fps frames per second */
 export const sprAt = (t, fps) => Math.floor(t * fps / 60);
 
-// render-only RNG (xorshift32): never the gameplay R()
-let seed = 0x9e3779b9;
-export function srnd() {
-  seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
-  return (seed >>> 0) / 4294967296;
-}
+// render-only RNG: lives in srnd.ts (pure, so unit tests can import fx without the sprite loader); re-exported here
+// for the existing sprite callers
+export { srnd } from './srnd';

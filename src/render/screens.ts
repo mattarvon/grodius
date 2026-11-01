@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, FONT_D, FONT_H, H, PH, R, TAU, W, ctx, hash, ri, rr, sstep, swapRm } from '../core';
+import { C, FONT_D, FONT_H, H, PH, TAU, W, ctx, hash, sstep, swapRm } from '../core';
+import { srnd, srr, sri } from '../srnd';
 import { SET, lv } from '../save';
 import { touch } from '../input';
 import { drops } from '../world';
@@ -86,15 +87,15 @@ export function drawTitle() {
   hangSpine(ctx, W * .73, -10, PH + 20, 16, '#0c0204');
   hangSpine(ctx, W * .73, -10, PH + 20, 10, '#2a0408');
   drawTitleEye();
-  if (R() < .25) drops.push({
-    x: rr(W * .55, W * .95),
+  if (srnd() < .25) drops.push({
+    x: srr(W * .55, W * .95),
     y: -2,
     px: 0,
     py: 0,
     vx: 0,
-    vy: rr(.5, 1.5),
+    vy: srr(.5, 1.5),
     s: 1,
-    c: R() < .5 ? 0 : 1,
+    c: srnd() < .5 ? 0 : 1,
     l: 300
   });
   for (let i = drops.length - 1; i >= 0; i--) {
@@ -108,14 +109,14 @@ export function drawTitle() {
   drawDrops();
   ctx.fillStyle = 'rgba(2,3,6,.55)';
   ctx.fillRect(0, 0, W * .56, H);
-  const gx = R() < .04 ? ri(-4, 4) : 0;
+  const gx = srnd() < .04 ? sri(-4, 4) : 0;
   txt('GRODIUS', 26 + gx + 2, 30 + 2, '#1a0003', 'left', 64, FONT_D);
   txt('GRODIUS', 26 + gx, 30, '#b3121a', 'left', 64, FONT_D);
-  if (R() < .05) {
+  if (srnd() < .05) {
     {
-      const y = 40 + ri(0, 40),
-        h = ri(3, 8);
-      GLQ.push([20, y, 240, h, 20 + ri(-8, 8), y, 240, h]);
+      const y = 40 + sri(0, 40),
+        h = sri(3, 8);
+      GLQ.push([20, y, 240, h, 20 + sri(-8, 8), y, 240, h]);
     }
   }
   if (!SET.asked && !$.gate) {
@@ -522,7 +523,7 @@ function drawTitleEye() {
     for (let k = 0; k <= 14; k++) { const [x, y] = pts[k]; const o = Math.sin(k * 1.7 + v * 2) * 5; k ? ctx.lineTo(x + o, y) : ctx.moveTo(x + o, y); }
     ctx.stroke();
   }
-  if (R() < .3) drops.push({ x: ex + rr(-r * .4, r * .6), y: ey + rr(r * .3, r * .8), px: 0, py: 0, vx: 0, vy: rr(.3, 1), s: 1, c: R() < .6 ? 0 : 1, l: 300 });
+  if (srnd() < .3) drops.push({ x: ex + srr(-r * .4, r * .6), y: ey + srr(r * .3, r * .8), px: 0, py: 0, vx: 0, vy: srr(.3, 1), s: 1, c: srnd() < .6 ? 0 : 1, l: 300 });
   // gaze: slow wander, occasional darting look (the ball jiggles when it darts), blink every few seconds
   const dart = Math.sin(t * .0031) > .93, ang = Math.PI + Math.sin(t * .013) * .9 + (dart ? Math.sin(t * .2) * .6 : 0);
   const bc = t % 340, blink = bc < 10 ? Math.sin(bc / 10 * Math.PI) : 0;

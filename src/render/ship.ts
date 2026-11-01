@@ -2,6 +2,7 @@
 import { $ } from '../state';
 import { boltDraw } from './bullets';
 import { TAU, ctx, dist2 } from '../core';
+import { srnd } from '../srnd';
 import { lv } from '../save';
 import { enemies } from '../world';
 import { spark } from '../fx/spawn';
@@ -116,7 +117,7 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
   const irisC = IRIS_T[Math.min(3, Math.max(tier / 5 | 0, ft))];
   c.save();
   c.translate(x, y);
-  if (PK.rof && !mini && $.T % 7 < 2) c.translate((Math.random() - .5) * .45 * PK.rof, (Math.random() - .5) * .45 * PK.rof);
+  if (PK.rof && !mini && $.T % 7 < 2) c.translate((srnd() - .5) * .45 * PK.rof, (srnd() - .5) * .45 * PK.rof);
   c.scale(s, s * (1 - Math.abs(bank) * .07));
   // ---- contraptions that sit behind the hull
   if (!mini && RG.furnace) part(c, 'r:furnace', () => rigFurnace(c, RG.furnace, mini));
@@ -126,7 +127,7 @@ export function drawShip(c, x, y, bank, s = 1, eng = 1, ld) {
   c.scale(hs, hs);
   // bile engine + sinew tendrils
   if (eng) {
-    const f = .75 + Math.random() * .4,
+    const f = .75 + srnd() * .4,
       L = 1 + ld.spd * .18;
     c.globalCompositeOperation = 'lighter';
     c.fillStyle = 'rgba(255,70,30,.45)';
@@ -397,8 +398,8 @@ export function drawWraith(x, y, i) {
   }
   for (let k = 0; k < 3; k++) {
     ctx.fillStyle = k ? 'rgba(255,170,60,.7)' : 'rgba(255,80,20,.7)';
-    const fy = y + (Math.random() - .5) * 3;
-    poly(ctx, [[x - 2, fy - 1.6], [x - 7 - Math.random() * 5, fy], [x - 2, fy + 1.6]]);
+    const fy = y + (srnd() - .5) * 3;
+    poly(ctx, [[x - 2, fy - 1.6], [x - 7 - srnd() * 5, fy], [x - 2, fy + 1.6]]);
   }
   ctx.globalCompositeOperation = 'source-over';
   // skull

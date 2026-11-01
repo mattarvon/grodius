@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, PH, R, TAU, W, pick, ri, rr } from '../core';
+import { C, PH, TAU, W } from '../core';
+import { srnd, srr, sri, spick } from '../srnd';
 import { sfx } from '../audio';
 import { buzz } from '../platform';
 import { boom } from './fxsprites';
@@ -82,29 +83,29 @@ export function gib(x, y, vx, vy, k, s, o = {}) {
     vy,
     k,
     s,
-    rot: R() * TAU,
-    vr: rr(-.35, .35),
-    l: rr(170, 260),
-    bleed: rr(30, 90),
+    rot: srnd() * TAU,
+    vr: srr(-.35, .35),
+    l: srr(170, 260),
+    bleed: srr(30, 90),
     stuck: 0,
     ...o
   };
   if (k === 'chunk' || k === 'metal' || k === 'skin') {
-    const n = ri(5, 7);
+    const n = sri(5, 7);
     g.pts = Array.from({
       length: n
     }, (_, i) => {
-      const a = i / n * TAU + rr(-.3, .3),
-        r = s * rr(.6, 1.15);
+      const a = i / n * TAU + srr(-.3, .3),
+        r = s * srr(.6, 1.15);
       return [Math.cos(a) * r, Math.sin(a) * r];
     });
-    g.col = k === 'metal' ? pick(['#3a434d', '#56616d', '#2a3038']) : pick([C.flesh, C.fleshD, '#8e3a32', '#a3473c', C.blood]);
-    g.fat = k === 'chunk' && R() < .35;
-    g.bn = k === 'chunk' && R() < .3;
+    g.col = k === 'metal' ? spick(['#3a434d', '#56616d', '#2a3038']) : spick([C.flesh, C.fleshD, '#8e3a32', '#a3473c', C.blood]);
+    g.fat = k === 'chunk' && srnd() < .35;
+    g.bn = k === 'chunk' && srnd() < .3;
   }
   if (k === 'rope') {
     g.pts = Array.from({
-      length: ri(7, 12)
+      length: sri(7, 12)
     }, () => ({
       x,
       y,
@@ -112,10 +113,10 @@ export function gib(x, y, vx, vy, k, s, o = {}) {
       py: y
     }));
     g.vr = 0;
-    g.l = rr(220, 320);
+    g.l = srr(220, 320);
   }
   if (k === 'eye') {
-    g.iris = pick(['#9bb030', '#3b6fd0', '#6a3b1c', '#b01018']);
+    g.iris = spick(['#9bb030', '#3b6fd0', '#6a3b1c', '#b01018']);
     g.pts = Array.from({
       length: 4
     }, () => ({
@@ -126,18 +127,18 @@ export function gib(x, y, vx, vy, k, s, o = {}) {
     }));
   }
   if (k === 'limb') {
-    g.arm = R() < .55;
-    g.bleed = rr(160, 300);
-    g.boot = R() < .5;
+    g.arm = srnd() < .55;
+    g.bleed = srr(160, 300);
+    g.boot = srnd() < .5;
   }
   if (k === 'skull') {
-    g.vr = rr(-.25, .25);
-    g.bleed = rr(20, 80);
+    g.vr = srr(-.25, .25);
+    g.bleed = srr(20, 80);
   }
   if (k === 'half') {
     g.jag = Array.from({
       length: 7
-    }, (_, i) => [-16 + i * 5.3, rr(-1.8, 1.8)]);
+    }, (_, i) => [-16 + i * 5.3, srr(-1.8, 1.8)]);
     g.bleed = 200;
   }
   g.ml = g.l;
@@ -151,7 +152,7 @@ export function mist(x, y, r, l, ov = 0) {
     x,
     y,
     r,
-    vr: rr(.15, .45),
+    vr: srr(.15, .45),
     l,
     ml: l,
     ov
@@ -162,24 +163,24 @@ export function splat(x, y, sz) {
   const b = [],
     dr = [];
   for (let i = 0; i < 5 + sz * 3; i++) b.push({
-    dx: rr(-1, 1) * sz * 11,
-    dy: rr(-1, 1) * sz * 7,
-    r: rr(2, 5.5) * Math.sqrt(sz)
+    dx: srr(-1, 1) * sz * 11,
+    dy: srr(-1, 1) * sz * 7,
+    r: srr(2, 5.5) * Math.sqrt(sz)
   });
   for (let i = 0; i < 2 + sz * 2; i++) {
-    const k = pick(b);
+    const k = spick(b);
     dr.push({
-      dx: k.dx + rr(-1, 1),
+      dx: k.dx + srr(-1, 1),
       dy: k.dy,
       len: 0,
-      sp: rr(.04, .22),
-      w: rr(.8, 2.2)
+      sp: srr(.04, .22),
+      w: srr(.8, 2.2)
     });
   }
   for (let i = 0; i < sz * 8; i++) b.push({
-    dx: rr(-1, 1) * sz * 20,
-    dy: rr(-1, 1) * sz * 14,
-    r: rr(.5, 1.4)
+    dx: srr(-1, 1) * sz * 20,
+    dy: srr(-1, 1) * sz * 14,
+    r: srr(.5, 1.4)
   });
   splats.push({
     x,
@@ -194,44 +195,44 @@ export function gore(x, y, sz, o = {}) {
   const dir = o.dir || 0,
     nd = Math.min(570, 42 + sz * 75);
   for (let k = 0; k < nd; k++) {
-    const a = R() * TAU,
-      sp = rr(.3, 4.3) * Math.sqrt(sz) * (R() < .2 ? 1.8 : 1);
-    const c = o.fire && R() < .4 ? 5 : o.black && R() < .55 ? 3 : o.amnio && R() < .35 ? 4 : R() < .22 ? 2 : R() < .3 ? 1 : 0;
-    drop(x + rr(-3, 3) * sz, y + rr(-3, 3) * sz, Math.cos(a) * sp + dir * rr(0, 2.4), Math.sin(a) * sp - .6, rr(1, 1.7 + sz * .5), c, ri(45, 120));
+    const a = srnd() * TAU,
+      sp = srr(.3, 4.3) * Math.sqrt(sz) * (srnd() < .2 ? 1.8 : 1);
+    const c = o.fire && srnd() < .4 ? 5 : o.black && srnd() < .55 ? 3 : o.amnio && srnd() < .35 ? 4 : srnd() < .22 ? 2 : srnd() < .3 ? 1 : 0;
+    drop(x + srr(-3, 3) * sz, y + srr(-3, 3) * sz, Math.cos(a) * sp + dir * srr(0, 2.4), Math.sin(a) * sp - .6, srr(1, 1.7 + sz * .5), c, sri(45, 120));
   }
   boom(x, y, sz); // sprite fireball under the gibs (render-only: srnd, no R)
   const ov = sz >= .55 ? 1 : 0;
-  for (let k = 0; k < 2 + sz * 2.5; k++) mist(x + rr(-5, 5) * sz, y + rr(-5, 5) * sz, rr(3, 7) * (.6 + sz * .4), ri(30, 70), ov);
-  const gv = () => [rr(-2.6, 2.6) * Math.sqrt(sz) + dir * rr(.5, 2.2), rr(-2.9, 1.6) * Math.sqrt(sz)];
+  for (let k = 0; k < 2 + sz * 2.5; k++) mist(x + srr(-5, 5) * sz, y + srr(-5, 5) * sz, srr(3, 7) * (.6 + sz * .4), sri(30, 70), ov);
+  const gv = () => [srr(-2.6, 2.6) * Math.sqrt(sz) + dir * srr(.5, 2.2), srr(-2.9, 1.6) * Math.sqrt(sz)];
   for (let k = 0; k < 3 + sz * 3.6; k++) {
     const [vx, vy] = gv();
-    gib(x + rr(-4, 4), y + rr(-4, 4), vx, vy, 'chunk', rr(1.8, 3.4) + sz * .5);
+    gib(x + srr(-4, 4), y + srr(-4, 4), vx, vy, 'chunk', srr(1.8, 3.4) + sz * .5);
   }
   for (let k = 0; k < Math.floor(sz * 2.4); k++) {
     const [vx, vy] = gv();
-    gib(x, y, vx, vy, 'bone', rr(2.5, 5.5));
+    gib(x, y, vx, vy, 'bone', srr(2.5, 5.5));
   }
   for (let k = 0; k < (o.teeth || 0) * 2; k++) {
     const [vx, vy] = gv();
     gib(x, y, vx * 1.3, vy * 1.3, 'tooth', 1.3);
   }
-  const ne = (o.eyes || 0) * 2 + (sz >= 1 ? ri(0, 2) : 0);
+  const ne = (o.eyes || 0) * 2 + (sz >= 1 ? sri(0, 2) : 0);
   for (let k = 0; k < ne; k++) {
     const [vx, vy] = gv();
-    const g = gib(x, y, vx, vy, 'eye', rr(2.2, 3));
-    if (g && o.fire) g.burning = ri(60, 140);
+    const g = gib(x, y, vx, vy, 'eye', srr(2.2, 3));
+    if (g && o.fire) g.burning = sri(60, 140);
   }
-  const sk = o.skull != null ? o.skull + (sz >= 2 ? 1 : 0) : sz >= 1.4 ? ri(1, 1 + Math.floor(sz / 2)) : R() < .3 ? 1 : 0;
+  const sk = o.skull != null ? o.skull + (sz >= 2 ? 1 : 0) : sz >= 1.4 ? sri(1, 1 + Math.floor(sz / 2)) : srnd() < .3 ? 1 : 0;
   for (let k = 0; k < sk; k++) {
     const [vx, vy] = gv();
-    gib(x, y, vx * .9, vy * .9 - .6, 'skull', rr(3, 4.2));
+    gib(x, y, vx * .9, vy * .9 - .6, 'skull', srr(3, 4.2));
   }
-  const lb = o.limbs != null ? o.limbs + (sz >= 2 ? 1 : 0) : sz >= 1.4 ? ri(1, 2 + Math.floor(sz / 2)) : R() < .25 ? 1 : 0;
+  const lb = o.limbs != null ? o.limbs + (sz >= 2 ? 1 : 0) : sz >= 1.4 ? sri(1, 2 + Math.floor(sz / 2)) : srnd() < .25 ? 1 : 0;
   for (let k = 0; k < lb; k++) {
     const [vx, vy] = gv();
-    gib(x, y, vx * 1.15, vy * 1.15, 'limb', rr(3, 5));
+    gib(x, y, vx * 1.15, vy * 1.15, 'limb', srr(3, 5));
   }
-  const ropes = o.rope != null ? o.rope : sz >= 1.4 ? ri(1, Math.ceil(sz) + 1) : R() < .5 ? 1 : 0;
+  const ropes = o.rope != null ? o.rope : sz >= 1.4 ? sri(1, Math.ceil(sz) + 1) : srnd() < .5 ? 1 : 0;
   for (let k = 0; k < ropes; k++) {
     const [vx, vy] = gv();
     gib(x, y, vx * 1.2, vy * 1.2, 'rope', 3);
@@ -244,16 +245,16 @@ export function gore(x, y, sz, o = {}) {
   }
   if (o.metal) for (let k = 0; k < o.metal; k++) {
     const [vx, vy] = gv();
-    gib(x, y, vx * 1.4, vy * 1.4, 'metal', rr(1.5, 4));
+    gib(x, y, vx * 1.4, vy * 1.4, 'metal', srr(1.5, 4));
   }
   if (o.half) {
     const e = o.half;
     for (const side of [-1, 1]) {
-      const g = gib(e.x, e.y + side * 3, dir * rr(.6, 1.8) + rr(-.5, .5), side * rr(.8, 1.8), 'half', e.r);
+      const g = gib(e.x, e.y + side * 3, dir * srr(.6, 1.8) + srr(-.5, .5), side * srr(.8, 1.8), 'half', e.r);
       if (g) {
         g.e = e;
         g.side = side;
-        g.vr = side * rr(.04, .12);
+        g.vr = side * srr(.04, .12);
         g.rot = e.rot || 0;
       }
     }
@@ -263,7 +264,7 @@ export function gore(x, y, sz, o = {}) {
     $.G.shake = Math.min(16, $.G.shake + sz * 1.8);
     if (sz >= 3) $.G.hitstop = Math.max($.G.hitstop, 5);
   }
-  if (sz >= 3 || sz >= 1.5 && R() < .45) splat(x * .4 + W * .3 + rr(-70, 70), y * .5 + PH * .25 + rr(-40, 40), Math.min(4, sz * .8));
+  if (sz >= 3 || sz >= 1.5 && srnd() < .45) splat(x * .4 + W * .3 + srr(-70, 70), y * .5 + PH * .25 + srr(-40, 40), Math.min(4, sz * .8));
   sfx.gore(sz);
   if (sz >= 3) buzz('heavy');
   else if (sz >= 1.4) buzz('medium');

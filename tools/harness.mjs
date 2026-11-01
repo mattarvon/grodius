@@ -1,8 +1,10 @@
 // Deterministic regression gate: seeded RNG, fake clock, manual rAF, scripted input.
-// Usage: node tools/harness.mjs [url] [--frames N] [--update]
+// Usage: node tools/harness.mjs [url] [--frames N] [--flashes off] [--update]
 //   No url: starts its own Vite dev server. Compares sim state + page errors against
 //   tools/harness.baseline.json and exits 1 on any difference. Canvas hashes are
-//   advisory only (render-side RNG is not yet split from the sim RNG).
+//   advisory only (they also move with sprite decode order and the HELL FLASHES setting).
+//   --flashes off runs with HELL FLASHES off; `st` must still match the (flashes-on) baseline, which proves the
+//   setting cannot reach the sim (render/fx draw srnd(), never the sim R()). Never combine it with --update.
 //   --update rewrites the baseline from this run.
 import { chromium } from 'playwright';
 import { createHash } from 'node:crypto';
@@ -14,7 +16,10 @@ const argv = process.argv.slice(2);
 const UPDATE = argv.includes('--update');
 const fi = argv.indexOf('--frames');
 const FRAMES = fi >= 0 ? +argv[fi + 1] : 3600;
-let url = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--frames');
+const fl = argv.indexOf('--flashes');
+const FLASHES = fl >= 0 ? argv[fl + 1] !== 'off' : true;
+if (UPDATE && !FLASHES) { console.error('--update records the flashes-on baseline: drop --flashes off'); process.exit(1); }
+let url = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--frames' && argv[i - 1] !== '--flashes');
 const BASELINE = new URL('./harness.baseline.json', import.meta.url);
 
 let server;
@@ -25,7 +30,7 @@ if (!url) {
   url = server.resolvedUrls.local[0];
 }
 
-const init = () => {
+const init = (flashes) => {
   let s = 0x9e3779b9;
   Math.random = () => { s |= 0; s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   let now = 0; const q = [];
@@ -36,8 +41,8 @@ const init = () => {
   // no audio: auInit draws R() once per noise sample, so the device sample rate (44.1k vs 48k) and whether
   // the context runs (autoplay policy, no sound card on CI) would otherwise change the sim's RNG stream
   window.AudioContext = undefined; window.webkitAudioContext = undefined;
-  // fresh save that has already answered the first-launch HELL FLASHES prompt (flashes ON, the default)
-  try { localStorage.clear(); localStorage.setItem('grodius.v1', '{"meta":{"v":2},"asked":true}'); } catch (e) {}
+  // fresh save that has already answered the first-launch HELL FLASHES prompt (flashes ON, the default; --flashes off)
+  try { localStorage.clear(); localStorage.setItem('grodius.v1', JSON.stringify({ meta: { v: 2 }, asked: true, ...(flashes ? {} : { flashes: false }) })); } catch (e) {}
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const fs = q.splice(0); for (const f of fs) f(now); } };
 };
 const key = (type, code) => `dispatchEvent(new KeyboardEvent('${type}',{code:'${code}',key:'${code}'}))`;
@@ -57,11 +62,14 @@ async function runOnce(b) {
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
   let loads = 0; p.on('load', () => loads++);
   await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
-  await p.addInitScript(init);
+  await p.addInitScript(init, FLASHES);
   await p.goto(url);
   let ok = false;
   for (let i = 0; i < 300 && !ok; i++) { ok = await ready().catch(() => false); if (!ok) await sleep(50); }
   if (!ok) errs.push('harness: game not ready after 15 s (boot, fonts or images)');
+  // --flashes off must actually reach the game's setting, or the ON/OFF comparison proves nothing
+  const fset = await p.evaluate(async () => { try { return (await import('/src/save.ts')).SET.flashes; } catch (e) { return null; } });
+  if (fset !== null && fset !== FLASHES) errs.push(`harness: SET.flashes is ${fset}, wanted ${FLASHES}`);
   const hashes = [];
   // script: frame -> actions
   // with no audio the title gate stays up and swallows the first key, so open it before pressing Enter

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { H, R, TAU, W, ctx, hc, hx, ri, rr } from '../core';
+import { H, TAU, W, ctx, hc, hx } from '../core';
+import { srnd, srr, sri } from '../srnd';
 import { SET } from '../save';
 import { GLQ } from '../render/eyes';
 
@@ -9,23 +10,23 @@ export function makeHell() {
   hx.fillStyle = '#160000';
   hx.fillRect(0, 0, W, H);
   for (let i = 0; i < 50; i++) {
-    hx.fillStyle = `rgba(${120 + R() * 120 | 0},0,0,${R() * .5})`;
-    hx.fillRect(R() * W, R() * H, R() * W * .6, R() * 3);
+    hx.fillStyle = `rgba(${120 + srnd() * 120 | 0},0,0,${srnd() * .5})`;
+    hx.fillRect(srnd() * W, srnd() * H, srnd() * W * .6, srnd() * 3);
   }
-  const cx = W / 2 + rr(-90, 90),
-    cy = H / 2 + rr(-20, 20),
-    s = rr(.9, 1.5);
+  const cx = W / 2 + srr(-90, 90),
+    cy = H / 2 + srr(-20, 20),
+    s = srr(.9, 1.5);
   hx.save();
   hx.translate(cx, cy);
-  hx.scale(s, s * rr(1, 1.35));
-  hx.rotate(rr(-.15, .15));
+  hx.scale(s, s * srr(1, 1.35));
+  hx.rotate(srr(-.15, .15));
   hx.fillStyle = '#d6bfae';
   hx.beginPath();
   hx.ellipse(0, -10, 46, 58, 0, 0, TAU);
   hx.fill();
   for (let i = 0; i < 340; i++) {
-    hx.fillStyle = `rgba(${60 + R() * 60 | 0},0,0,${R() * .45})`;
-    hx.fillRect(rr(-46, 46), rr(-68, 48), rr(1, 4), rr(1, 9));
+    hx.fillStyle = `rgba(${60 + srnd() * 60 | 0},0,0,${srnd() * .45})`;
+    hx.fillRect(srr(-46, 46), srr(-68, 48), srr(1, 4), srr(1, 9));
   }
   hx.fillStyle = '#000';
   hx.beginPath();
@@ -55,10 +56,10 @@ export function makeHell() {
   hx.lineWidth = 1;
   hx.beginPath();
   for (let i = 0; i < 24; i++) {
-    const x = R() * W,
-      y = R() * H;
+    const x = srnd() * W,
+      y = srnd() * H;
     hx.moveTo(x, y);
-    hx.lineTo(x + rr(-60, 60), y + rr(-60, 60));
+    hx.lineTo(x + srr(-60, 60), y + srr(-60, 60));
   }
   hx.stroke();
 }
@@ -77,9 +78,9 @@ export function postFX() {
   // HELL FLASHES OFF removes every full-screen flash, wash and tear; the sim state ($.G.white etc.) is unchanged
   const on = SET.flashes;
   if ($.G.glitch > 0) for (let i = 0; i < 3; i++) {
-    const y = R() * H | 0,
-      h = ri(2, 14),
-      dx = ri(-14, 14);
+    const y = srnd() * H | 0,
+      h = sri(2, 14),
+      dx = sri(-14, 14);
     if (on) GLQ.push([0, y, W, h, dx, y, W, h]);
   }
   const hl = LIM.hell;

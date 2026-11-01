@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, R, TAU, ctx, hash, rr } from '../core';
+import { C, TAU, ctx, hash } from '../core';
+import { srnd, srr } from '../srnd';
 import { ceilAt } from '../world';
 import { whipPts } from '../enemies/update';
 import { drawChain, drawHookTip, drawSkull, glow, light, poly } from '../render/util';
@@ -703,7 +704,7 @@ export function drawCross(c, e) {
   c.lineCap = 'round';
   c.lineWidth = 2.6;
   c.strokeStyle = C.suit;
-  const tw = e.flash ? 1 : Math.sin(e.t * .3) * (R() < .02 ? 2 : 0);
+  const tw = e.flash ? 1 : Math.sin(e.t * .3) * (srnd() < .02 ? 2 : 0);
   c.beginPath();
   c.moveTo(-1.4, -5);
   c.lineTo(-1.6, -19 + tw);
@@ -1034,7 +1035,7 @@ export function drawEnemy(e) {
   }
   if (e.burn > 0) {
     ctx.globalCompositeOperation = 'lighter';
-    glow(e.x, e.y, e.r + 10, '255,110,30', .3 + .2 * R());
+    glow(e.x, e.y, e.r + 10, '255,110,30', .3 + .2 * srnd());
     ctx.globalCompositeOperation = 'source-over';
     light(e.x, e.y, 30, .8);
   }
@@ -1042,7 +1043,7 @@ export function drawEnemy(e) {
   const ga = ctx.globalAlpha;
   if (e.ghost > 0) ctx.globalAlpha = ga * (.35 + .25 * Math.sin($.T * .5));
   ctx.save();
-  ctx.translate(e.x + (e.flash ? rr(-1, 1) : 0), e.y);
+  ctx.translate(e.x + (e.flash ? srr(-1, 1) : 0), e.y);
   if (e.k === 'corpse' || e.k === 'hook') ctx.rotate(e.rot);
   if (e.flash) ctx.filter = 'brightness(2.6) saturate(.4)';
   DRAW[e.k](ctx, e);
