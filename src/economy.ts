@@ -72,7 +72,7 @@ const HPM_LONG = {
   biome1: [1.1, 1.6, 1.9],
   drive: [1.3, 1.8, 2.0],
 } as const;
-const { interior: _noInterior, ...HPM_LONG4 } = HPM_LONG;
+const HPM_LONG4 = { orbit: HPM_LONG.orbit, biome0: HPM_LONG.biome0, biome1: HPM_LONG.biome1, drive: HPM_LONG.drive };
 /** spec §7: the biomass targets are the same for both long entries (holds 2-4 purchases per Infirmary visit) */
 const BIO_LONG: readonly [Band, Band, Band] = [[1300, 1500], [2100, 2400], [2600, 3600]];
 
@@ -143,7 +143,8 @@ const E = (id: EntryId): EconEntry => ECON[id];
 export const sealAt = (id: EntryId, cleared: number): number => E(id).seals[cleared] || 0;
 
 /** grade points: kill% x100 - 10 x hits (x ref/Ts on a normalised entry) - 30 x deaths. Ts = the stage's scroll seconds.
- *  A stage shorter than the reference grades its hits harder (the spec formula, uncapped) */
+ *  A stage shorter than the reference grades its hits harder (the spec formula, uncapped; no long stage is under 35 s.
+ *  Whether to clamp at 1 is open with Q9 in production/decision-log.md). Wiring must pass Ts on the long entries */
 export function gradePts(id: EntryId, st: StageCounts, Ts?: number): number {
   const ref = E(id).gradeRef, pct = st.kills / Math.max(1, st.spawned);
   // no usable Ts (missing, 0, negative, NaN): grade as a reference-length stage rather than divide by it

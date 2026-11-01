@@ -12,7 +12,7 @@
   - `gluttonyN(id)`, `d1EliteChance(id, ord)`, `livesAfterDrive(id, lives)`
   - `hpmCol(kind, slot)`, `hpmTarget(id, kind, slot, loop)`: §8 target, ±30% band (`HPM_TOL`), and whether that column is banded at the entry's exit
   - `targets`: the LV and biomass probe targets for item G (`long4`) and LS3-0 (`long5`)
-- **New `tests/unit/economy.test.ts`**: 33 tests.
+- **New `tests/unit/economy.test.ts`**: 42 tests (33 at first commit, grown through the specialist and lead passes).
 
 Files: `src/economy.ts`, `tests/unit/economy.test.ts`, this file. No existing file is touched.
 
@@ -28,7 +28,7 @@ Files: `src/economy.ts`, `tests/unit/economy.test.ts`, this file. No existing fi
 
 ## Gates
 
-- `npm run test:unit`: 9 files, **95 passed** (40 in `economy.test.ts` after the specialist fixes).
+- `npm run test:unit`: 9 files, **97 passed** (42 in `economy.test.ts` after the specialist and lead fixes).
 - `npm run typecheck`: clean (no `@ts-nocheck` on the new file; it is fully typed).
 - `npm run test:regress`: **PASS vs baseline**, harness `st` identical. 6/6 canvas hashes differ (advisory). **Confirmed environmental:** an untouched `main` (f2f9c03) in a scratch worktree with the same symlinked `node_modules` produces the same six hashes byte for byte and the same 6/6 note. The symlink points outside Vite's serving allow list, so the webfonts don't load. No code path reaches `economy.ts`.
 
@@ -52,6 +52,30 @@ Files: `src/economy.ts`, `tests/unit/economy.test.ts`, this file. No existing fi
 | web-specialist | APPROVE | **Fixed:** Ts moved before `escaped` in `gradeOf`; probes named on the *start* values; n = 1 guard; mock caveat commented. The hash claim was confirmed against `main` (above) |
 | qa-tester | ADEQUATE, APPROVE WITH CHANGES | **Fixed:** the false Ts test; grade boundaries 70/50/30 under normalisation; all 15 §8 cells checked against a literal copy of the spec for both entries; negative loop, zero/negative clears, ord past the end. **Not changed:** the tests that restate spec values (GLUTTONY, targets) are deliberate spec pins; no explicit AAA comments in loop-style parity tests |
 
+## Studio Hierarchy review, lead pass
+
+| Lead | Verdict | Acted on |
+|---|---|---|
+| game-designer | APPROVE WITH CHANGES | **Done:** Q9-Q12 logged as open in `production/decision-log.md` (Q9 needed before item G); the Ts < 35 clamp question attached to Q9 rather than changed here, because the spec formula is uncapped; `long5` D1 elite logged as a playtest call |
+| lead-programmer | APPROVE WITH CHANGES | **Done:** `n` pinned at 4/4/5; unused binding removed. **Carried:** layout.ts becomes the single owner of `Kind` and `n` at merge (below); item G names one accessor for the current entry |
+| qa-lead | APPROVE | **Done:** golden literal table of today's `short` outputs (stage XP, seals, grades), so the pins survive item G pointing the live code at `ECON`; test count corrected |
+| art-director | APPROVE | No visual impact. Carried to G: tally / seal banner / grade screenshots per entry; harness re-run with real fonts |
+| audio-director | APPROVE | No audio impact. Carried: seal-alarm timing under `{1,3,5}` (LS3-0), a 1UP cue for Drive lives (LS3-0) |
+| narrative-director | APPROVE | No copy impact. Carried to LS3-0: `SEAL_TXT`, HUD, brief "Run" line together; Drive-life copy |
+| release-manager | APPROVE WITH CHANGES | No bundle/APK change (unimported). **Carried:** merge order (below); final `Studio review:` line in the merge commit |
+| localization-lead | APPROVE | No strings. Carried to LS3-0: new seal copy and any "+1 SHIP" go through a string key |
+
+## Obligations carried to item G (wiring `long4`)
+
+- Wiring the `short` entry leaves the harness `st` byte-identical and the parity check identical, with no re-baseline.
+- Matt answers Q9 first.
+- Every long-entry call passes Ts; add a test that it does.
+- A test that `ECON[id].n` (or its replacement) agrees with `layout()`.
+- `depthHP`'s `loop <= 0` guard changes so fractional depth reaches Descent 1, with a unit test.
+- Confirm that `killBio` scales the kill pods only, against D1 1.3-1.5k.
+- pod-probe LV 13±1.
+- Screenshots of tally / seal / grade on `short` and `long4`.
+
 ## Merge order
 
-The lane adds new files only, so it conflicts with nothing and can merge in any order. Item G (sprint 3) depends on it, after F.
+The lane adds new files only, so there are no text conflicts. Its tests, though, pin the live `stages.ts`, `perks.ts` and `mutations.ts`, which lanes A and H0 change. **Merge G0 before A and H0**, so their `verify` runs check the pins. If it lands after them, run `npm run test:unit` on the merged result first. A failing pin then means a behaviour change in that lane, not a G0 problem. At A's merge, `Kind` and `n` move to `src/layout.ts` (`import type { Kind }`, derive `n`), keeping the 4/4/5 test. Item G (sprint 3) depends on this lane, after F.

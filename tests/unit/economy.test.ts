@@ -81,6 +81,13 @@ describe('short entry reproduces today exactly', () => {
     expect(gluttonyN('short')).toEqual([2, 4]); // the value itself, so a change to GM is noticed here too
   });
 
+  it("matches a frozen golden copy of today's outputs, so the pins survive item G wiring the live code to ECON", () => {
+    // once stages.ts / perks.ts read ECON, the live-code pins above compare ECON with itself: these literals do not
+    expect([0, 1, 2].map((loop) => [0, 1, 2, 3].map((ord) => stageXP('short', ord, loop)))).toEqual([[30, 75, 120, 165], [70, 115, 160, 205], [110, 155, 200, 245]]);
+    expect([1, 2, 3, 4, 5, 6, 7, 8].map((c) => sealAt('short', c))).toEqual([0, 1, 0, 2, 0, 3, 0, 0]);
+    expect([st(10, 10), st(10, 10, 1), st(8, 10, 1), st(7, 10), st(6, 10, 1), st(3, 10), st(2, 10), st(10, 10, 0, 1)].map((s) => gradeOf('short', s))).toEqual(['S', 'A', 'A', 'S', 'A', 'B', 'C', 'A']);
+  });
+
   it('keeps depth per descent only', () => {
     for (let loop = 0; loop < 4; loop++) for (let ord = 0; ord < 4; ord++) expect(descDepth('short', loop, ord)).toBe(loop);
   });
@@ -256,6 +263,10 @@ describe('edge cases', () => {
   it('clamps intra-descent depth to the descent', () => {
     expect(descDepth('long4', 0, 9)).toBeCloseTo(.35);
     expect(descDepth('long4', 0, -1)).toBe(0);
+  });
+
+  it('has as many stages per descent as its layout (4, 4, 5) until layout.ts owns the count', () => {
+    expect([ECON.short.n, ECON.long4.n, ECON.long5.n]).toEqual([4, 4, 5]);
   });
 
   it('every long entry sets every value the spec column has', () => {
