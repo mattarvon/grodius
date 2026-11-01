@@ -80,7 +80,7 @@ const stages = []; let cur = null, lastFork = false, nextShot = SHOT, end = '';
 const snap = () => p.evaluate(() => { const g = __G(), G = g.G, P = g.P, M = window.__music && __music();
   return { st: g.state, k: G ? `${G.loop + 1}-${(G.stage || 0) + 1}` : '', loop: G ? G.loop : 0, fr: __pt.fr, lvl: G && G.lvl, rank: G ? +(G.rank || 0).toFixed(2) : 0,
     wep: P ? [P.speed, P.missile, P.double, P.laser, P.pyre, P.options, P.wardLv || 0].join(',') : '', gm: G ? Object.entries(G.gm || {}).filter(([, v]) => v > 0).map(([k, v]) => k + v).join(' ') : '',
-    pick: !!(G && G.pick), pt: G && G.pick ? G.pick.t : 0, fork: !!(G && G.fork), biome: G && G.route && (G.stage === 1 || G.stage === 2) ? G.route[G.stage - 1] : null, remix: G && G.remix && (G.stage === 1 || G.stage === 2) ? G.remix[G.stage - 1] : 0, mix: M ? M.mix : '', kills: G ? G.gmk || G.kills : 0, bio: G ? Math.round(G.bio || 0) : 0 }; });
+    pick: !!(G && G.pick), pt: G && G.pick ? G.pick.t : 0, fork: !!(G && G.fork), biome: G && G.route && (G.stage === 1 || G.stage === 2) ? G.route[G.stage - 1] : null, remix: G && G.visitNo && (G.stage === 1 || G.stage === 2) ? G.visitNo[G.stage - 1] : 0, mix: M ? M.mix : '', kills: G ? G.gmk || G.kills : 0, bio: G ? Math.round(G.bio || 0) : 0 }; });
 for (let it = 0; it < MAXM * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
   const s = await snap();

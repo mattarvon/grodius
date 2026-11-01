@@ -24,18 +24,21 @@ import { aimA, banner, every, fan, miniWarn, mk, ring, wrapA } from './spawn';
 import { playerHit } from '../player';
 import { dropCap } from './update';
 import { cdm } from '../depth';
+import { ufoAt, ufoDrift, ufoGapEnd } from '../layout';
 
 export const UFO_NAME = 'THE SQUIDFUCKED SAUCER';
-/** Open Orbit scroll x of its WARNING (lands ~150 px later, ~45% through the stage), and where it must be gone by
- *  (the last of the filler, 1880..1900, always comes; the Maw's "SOMETHING IS COMING" is at 2000) */
-export const UFO_AT = 800, UFO_GAP_END = 1840;
+// Where its WARNING is (it lands ~150 px later, ~45% through the stage) and where it must be gone by (the last of the
+// filler, 1880..1900, always comes; the Maw's "SOMETHING IS COMING" is at 2000) are the Open Orbit row's drift entry
+// in src/layout.ts, stage-relative (ufoAt() / ufoGapEnd() give world x).
+/** @deprecated boot-time world-x aliases for the probes until build plan item J repoints them */
+export const UFO_AT = ufoAt(), UFO_GAP_END = ufoGapEnd();
 /** where the lash, the tumours and the belly hatch sit, relative to its centre (the art in render/gross/ufo.ts uses these) */
 export const LASH_O = [-34, 9], TUMOURS = [[-24, -7], [6, -10], [30, -5]], HATCH_O = [12, 11];
 const LASH_LEN = 220;
 
 /** the WARNING beat (buildScript): the filler stops here, a breath, then the wreck drifts in */
 export function ufoWarn() {
-  $.G.eat = UFO_GAP_END;
+  $.G.eat = ufoGapEnd();
   miniWarn(UFO_NAME, spawnUfo);
 }
 export function spawnUfo() {
@@ -44,7 +47,7 @@ export function spawnUfo() {
     la: Math.PI, ll: 0, lash2: 0, burst: 0, hb: [[-34, 2, 10], [32, 0, 9]],
   });
   // it has to be gone before the Maw's run-up: the scroll keeps moving (1 px/f) while it's up
-  e.leave = clamp(Math.round(UFO_GAP_END - $.G.scroll - 70), 420, 1400);
+  e.leave = clamp(Math.round(ufoGapEnd() - $.G.scroll - 70), 420, 1400);
   $.G.mini = e;
 }
 /** lash tentacle: origin (world) and whether the ship is on it */
@@ -62,7 +65,7 @@ export function updUfo(e) {
   // leave: on its timer, or when the scroll reaches the Maw's run-up (escape costs nothing, like the other midbosses)
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);
-  if (e.t < e.leave && $.G.scroll > UFO_GAP_END - 60) e.leave = e.t;
+  if (e.t < e.leave && $.G.scroll > ufoGapEnd() - ufoDrift().exitLead) e.leave = e.t; // the forced exit (layout invariant: >= 300 px before the next G.mini write)
   const go = e.t >= e.leave;
   if (go) {
     if (!e.gone) { e.gone = 1; e.st = 'idle'; e.ll = 0; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); }

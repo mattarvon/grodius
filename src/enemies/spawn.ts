@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { BOSS_AT, PH, R, TAU, W, pick, ri, rr } from '../core';
+import { PH, R, TAU, W, pick, ri, rr } from '../core';
 import { sfx } from '../audio';
 import { ceilAt, enemies, eshots, floorAt } from '../world';
 import { startBoss } from '../boss/update';

@@ -14,6 +14,7 @@
 //  Measured with tools/depth-probe.mjs and tools/playtest.mjs (seeds 11 and 7).
 // =====================================================================
 import { $ } from './state';
+import { kindOf } from './layout';
 
 export const DEPTH = {
   fod: 1.12, //  regular enemies (a boss's parts take the boss's factor)
@@ -40,8 +41,8 @@ export function depthHP(k, b, o) {
   if (!($.G.loop > 0)) return 1;
   if (o.par && o.par.dm) return o.par.dm; // a boss's parts (the Crucifer's nailbars, the Choir's) are as tough as it is
   if (!b.mini) return f(DEPTH.fod);
-  // the Open Orbit Maw (stage 0) and the mid-stage Maw count as midbosses: they escape on a clock and must stay killable
-  const mid = b.mid || (k === 'maw' && (!o.stageBoss || !$.G.stage)), m = mid ? f(DEPTH.mid) : f(DEPTH.boss);
+  // the Open Orbit Maw and the mid-stage Maw count as midbosses: they escape on a clock and must stay killable
+  const mid = b.mid || (k === 'maw' && (!o.stageBoss || kindOf($.G.stage || 0) === 'orbit')), m = mid ? f(DEPTH.mid) : f(DEPTH.boss);
   return 1 + (DEPTH.w[k === 'maw' && mid ? 'maw0' : k] ?? 1) * (m - 1);
 }
 /** the Gravity Drive's HP multiplier (x560 HP, x48 per plate): loop and, as the one D1 exception, rank and over() */

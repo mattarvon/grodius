@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { $ } from './state';
-import { H, LEVEL, PH, TS, W, hash, lerp, sstep, vnoise } from './core';
+import { H, PH, TS, W, hash, lerp, sstep, vnoise } from './core';
+import { BANDS, layout } from './layout';
 
 // ---------------- world state ----------------
 $.state = 'title';
@@ -42,28 +43,25 @@ export const ceilAt = wx => {
   if (i >= CEIL.length - 1) return CEIL[CEIL.length - 1];
   return lerp(CEIL[i], CEIL[i + 1], f - i);
 };
-export const AMT = {
-  hull: s => sstep(2200, 2700, s),
-  corr: s => sstep(5000, 5500, s) * (1 - sstep(8900, 9300, s)),
-  core: s => sstep(8900, 9350, s),
-  space: s => 1 - sstep(4800, 5400, s)
-};
+/** world bands by scroll x (hull plating, the MERIDIAN corridor, the drive core, open space): the layout's (src/layout.ts) */
+export const AMT = BANDS;
 export const grav = () => {
   if (!$.G) return .08;
   const s = $.G.scroll;
   return lerp(lerp(.035, .12, AMT.corr(s)), .075, AMT.core(s));
 };
 export function buildTerrain(L) {
-  const n = Math.ceil((LEVEL + W * 2) / TS) + 2;
+  const LY = layout(), T = LY.terrain, n = Math.ceil((LY.level + W * 2) / TS) + 2;
   CEIL = new Float32Array(n);
   FLOOR = new Float32Array(n);
   const o = L * 91.7;
   for (let i = 0; i < n; i++) {
     const x = i * TS;
-    const fT = sstep(2250, 2700, x) * (1 - sstep(8850, 9200, x)),
-      cT = sstep(3500, 3950, x) * (1 - sstep(8850, 9200, x));
-    const kT = sstep(5050, 5500, x) * (1 - sstep(8750, 9100, x)),
-      zT = sstep(8900, 9300, x);
+    // floor and ceiling close in over the hull, the corridor squeezes, the chamber opens (bands: layout().terrain)
+    const fT = sstep(T.fT[0], T.fT[1], x) * (1 - sstep(T.fT[2], T.fT[3], x)),
+      cT = sstep(T.cT[0], T.cT[1], x) * (1 - sstep(T.cT[2], T.cT[3], x));
+    const kT = sstep(T.kT[0], T.kT[1], x) * (1 - sstep(T.kT[2], T.kT[3], x)),
+      zT = sstep(T.zT[0], T.zT[1], x);
     const a = vnoise(x / 210 + o) * 2 - 1,
       b = vnoise(x / 61 + o + 5) * 2 - 1,
       c = vnoise(x / 19 + o + 9) * 2 - 1;
@@ -74,7 +72,7 @@ export function buildTerrain(L) {
     let ce = 24 + a2 * 20 + b2 * 8 + c2 * 2 + kT * (28 + a2 * 10);
     const blk = Math.floor(x / 360),
       bx = x % 360;
-    if (blk % 2 === 1 && bx < 44 && x > 2800 && x < 5000) {
+    if (blk % 2 === 1 && bx < 44 && x > T.blocks[0] && x < T.blocks[1]) {
       if (hash(blk + L) < .5) fl -= 34;else ce += 34;
     }
     fl = lerp(PH + 70, fl, fT);

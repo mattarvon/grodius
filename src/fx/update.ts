@@ -8,6 +8,7 @@ import { AMT, ceilAt, decals, drops, flashes, floorAt, geysers, gibs, grav, mist
 import { addDecal, drop, spark, splat } from '../fx/spawn';
 import { stepBooms } from './fxsprites';
 import { makeHell } from '../render/hell';
+import { hellCore, hellCorr } from '../layout';
 
 // ---------------- fx simulation ----------------
 export function updateFX() {
@@ -313,7 +314,10 @@ export function updateAmbient() {
     core = AMT.core(s);
   if (AU.lp && $.G.t % 30 === 0) AU.lp.frequency.setTargetAtTime(140 + AMT.hull(s) * 60 + corr * 80 + core * 220 + ($.G.boss && $.G.boss.phase === 2 ? 180 : 0), AU.c.currentTime, 1.5);
   if (R() < .0018) sfx.groan();
-  if (R() < corr * .0011 + core * .0018 + ($.G.boss && $.G.boss.phase === 2 ? .003 : 0)) hellFlash();else if (R() < corr * .003) $.G.glitch = Math.max($.G.glitch, ri(2, 5));
+  // hell flashes and their glitches are keyed to the stage kinds (layout().hell: the last biome slot + the Drive
+  // approach, and the Drive chamber), not the AMT backdrop bands; in the short layout the two are the same curves
+  const hc = hellCorr(s), hk = hellCore(s);
+  if (R() < hc * .0011 + hk * .0018 + ($.G.boss && $.G.boss.phase === 2 ? .003 : 0)) hellFlash();else if (R() < hc * .003) $.G.glitch = Math.max($.G.glitch, ri(2, 5));
   if (corr > 0 && R() < .012) $.G.flick = ri(2, 8);
   if ($.G.flick > 0) $.G.flick--;
   if ($.G.bossStarted && $.G.boss && $.G.boss.enter && $.G.t % 50 === 0) sfx.heart();

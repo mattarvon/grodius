@@ -5,7 +5,7 @@ import { pk, xpNeed, perkName, perkDesc, perkReq, perkCost, perkMax, perkFX, per
 import { stageInfo, stageLabel } from '../stages';
 import { sfx } from '../audio';
 import { WARD_MAX } from '../player';
-import { BOSS_AT, C, FONT_D, FONT_H, H, PH, R, TAU, W, clamp, ctx, lerp, pwBtn, rr } from '../core';
+import { C, FONT_D, FONT_H, H, PH, R, TAU, W, clamp, ctx, lerp, pwBtn, rr } from '../core';
 import { SET } from '../save';
 import { touch } from '../input';
 import { AMT, LIGHTS, arcs, caps, enemies, eshots, flashes, orbs, shots, sparks, texts } from '../world';
@@ -26,6 +26,7 @@ import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
 import { drawBG, drawDecor, drawLighting, drawTerrain } from '../render/terrain';
 import { drawBabe, drawHype } from '../render/hype';
+import { bossAt, layout } from '../layout';
 
 /** generic POWER capsule (meter mode): classic Gradius orange */
 const GEN_CAP = { c: '255,110,30', h: '#ff7a1a' };
@@ -102,10 +103,11 @@ export function drawHUD() {
   if (!$.G.boss || $.G.boss.dying) {
     const bw = 110,
       bx = W / 2 - bw / 2,
-      pr = clamp($.G.scroll / BOSS_AT, 0, 1);
+      BA = bossAt(),
+      pr = clamp($.G.scroll / BA, 0, 1);
     ctx.fillStyle = '#14191f';
     ctx.fillRect(bx, 8, bw, 2);
-    for (const m of [2400, 5200]) ctx.fillStyle = '#36414c', ctx.fillRect(bx + bw * m / BOSS_AT, 6, 1, 6);
+    for (const m of layout().hudMarks) ctx.fillStyle = '#36414c', ctx.fillRect(bx + bw * m / BA, 6, 1, 6);
     ctx.fillStyle = C.bloodL;
     ctx.fillRect(bx, 8, bw * pr, 2);
     ctx.fillRect(bx + bw * pr - 1, 6, 2, 6);

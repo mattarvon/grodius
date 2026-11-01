@@ -14,10 +14,11 @@
 // (and in the corridor, which has a floor and a ceiling at its start, a mutant, crawlers or a womb) to hold drones near
 // 35-40% of a stage's spawns.
 import { $ } from '../state';
-import { BOSS_AT, PH, W, ri } from '../core';
+import { PH, W, ri } from '../core';
+import { rowOfKind, ufoDrift } from '../layout';
 import { sfx } from '../audio';
 import { startBoss } from '../boss/update';
-import { UFO_AT, ufoWarn } from './ufo';
+import { ufoWarn } from './ufo';
 import { banner, behindWave, corpse, crawler, eyeT, flayer, formation, hatch, logLine, maw, mutant, sentry, womb } from './spawn';
 
 const crew = (...ys) => ys.forEach(y => corpse(y));
@@ -25,7 +26,7 @@ const crew = (...ys) => ys.forEach(y => corpse(y));
 /** pick a section's variant: 0 (the classic) in Descent 1, else an unlocked remix this run hasn't played yet, and
  *  never last descent's */
 function pickV(key, vs, L) {
-  const m = ($.G.remix ||= {}), h = (m[key] ||= { used: [], last: -1 });
+  const m = ($.G.remixV ||= {}), h = (m[key] ||= { used: [], last: -1 }); // per-section variant memory, kept across descents
   let i = 0;
   if (L > 0) {
     const ok = vs.map((v, j) => j).filter(j => j > 0 && vs[j].min <= L && j !== h.last);
@@ -39,6 +40,7 @@ function pickV(key, vs, L) {
 const V = (min, f) => Object.assign(f, { min });
 
 // ---------------- OPEN ORBIT ----------------
+// Open Orbit x is relative to the orbit row's x0 (0 in every layout so far)
 // A: intro + build, 200..760 (always plays: the Saucer's WARNING is at 800)
 const ORBIT_A = [
   // 0, the classic: one idea per wave. drones, crew, the lone sentry, a hatchling swarm, divers
@@ -138,101 +140,105 @@ const ORBIT_D = [
   V(1, (at) => { at(1880, () => behindWave(PH / 2, 3)); at(1900, () => { flayer(PH * .4); corpse(PH * .8); }); })
 ];
 
-// ---------------- THE GRAVITY DRIVE APPROACH (PHASE 4, stage 3 starts ~8370) ----------------
-// The MERIDIAN corridor's floor gives out at world x ~8980 (the drop into the drive chamber), and a mutant spawns at
-// scroll + W + 24, so mutants only fit at scroll ~8430..8470, right at the start. E: the corridor gauntlet,
-// 8430..8730, ending on the wall eyes
+// ---------------- THE GRAVITY DRIVE APPROACH (PHASE 4) ----------------
+// x here is relative to the Drive stage row's x0 (src/layout.ts; short: world 8300, where the biome terrain hands back).
+// The MERIDIAN corridor's floor gives out at ~680 (the drop into the drive chamber), and a mutant spawns at
+// scroll + W + 24, so mutants only fit at ~130..170, right at the start. E: the corridor gauntlet, 130..430, ending on
+// the wall eyes
 const DRIVE_E = [
   // 0, the classic: the first mutant, alone on the floor, then a high sine, crew and divers
   V(0, (at) => {
-    at(8440, () => mutant());
-    at(8520, () => formation('sine', PH * .25, 4));
-    at(8580, () => crew(70, PH - 70));
-    at(8650, () => hatch(5, true));
+    at(140, () => mutant());
+    at(220, () => formation('sine', PH * .25, 4));
+    at(280, () => crew(70, PH - 70));
+    at(350, () => hatch(5, true));
   }),
   // 1, the hulk: a mutant on the floor, crawlers on the ceiling and a sine wave down the middle, then crew, a sentry
   // and a hatchling swarm (the corridor's floor and ceiling only reach this far, so they all come in at once)
   V(1, (at) => {
-    at(8440, () => { mutant(); crawler(-1); });
-    at(8465, () => { crawler(-1); formation('sine', PH * .45, 4); });
-    at(8560, () => crew(80, 150));
-    at(8630, () => sentry(PH * .3, W * .74));
-    at(8700, () => hatch(6, false));
+    at(140, () => { mutant(); crawler(-1); });
+    at(165, () => { crawler(-1); formation('sine', PH * .45, 4); });
+    at(260, () => crew(80, 150));
+    at(330, () => sentry(PH * .3, W * .74));
+    at(400, () => hatch(6, false));
   }),
   // 2, crew drift: the dead are being pulled aft over a mutant's head, a womb clings to the ceiling, a zig wave
   // inside the drift, then a flayer
   V(1, (at) => {
-    at(8440, () => mutant());
-    at(8460, () => womb());
-    [8450, 8470, 8490, 8510].forEach((x, i) => at(x, () => corpse([45, 125, 80, 150][i], { drift: .8 })));
-    at(8550, () => formation('zig', PH * .42, 4));
-    at(8620, () => flayer(PH * .55));
-    at(8690, () => hatch(5, false));
+    at(140, () => mutant());
+    at(160, () => womb());
+    [150, 170, 190, 210].forEach((x, i) => at(x, () => corpse([45, 125, 80, 150][i], { drift: .8 })));
+    at(250, () => formation('zig', PH * .42, 4));
+    at(320, () => flayer(PH * .55));
+    at(390, () => hatch(5, false));
   }),
   // 3, lockdown (Descent 3+): no meat this time, the MERIDIAN's machines. A sentry pair seals the corridor, a drone
   // wall, a swarm from behind, crew
   V(2, (at) => {
-    at(8450, () => { sentry(PH * .25, W * .8); sentry(PH * .65, W * .66); });
-    at(8540, () => formation('wall', PH * .45, 4));
-    at(8620, () => hatch(6, true));
-    at(8690, () => crew(60, 130, 200));
+    at(150, () => { sentry(PH * .25, W * .8); sentry(PH * .65, W * .66); });
+    at(240, () => formation('wall', PH * .45, 4));
+    at(320, () => hatch(6, true));
+    at(390, () => crew(60, 130, 200));
   })
 ];
-// F: rising pressure, 8760..9000, up to the WARNING at 9060
+// F: rising pressure, 460..700, up to the WARNING at the row's warnX (short: 760)
 const DRIVE_F = [
   // 0, the classic
   V(0, (at) => {
-    at(8760, () => sentry(PH * .45, W * .72));
-    at(8790, () => behindWave(PH / 2));
-    at(8850, () => { flayer(PH * .75); corpse(PH * .3); });
-    at(8920, () => hatch(6, false));
-    at(8990, () => { flayer(PH * .25); flayer(PH * .7); });
+    at(460, () => sentry(PH * .45, W * .72));
+    at(490, () => behindWave(PH / 2));
+    at(550, () => { flayer(PH * .75); corpse(PH * .3); });
+    at(620, () => hatch(6, false));
+    at(690, () => { flayer(PH * .25); flayer(PH * .7); });
   }),
   // 1, meat in the wind: a rear wave, a swarm through the crew, a sentry pair, a flayer pair
   V(1, (at) => {
-    at(8770, () => behindWave(PH / 2, 4));
-    at(8850, () => { hatch(6, false); crew(50, 210); });
-    at(8920, () => { sentry(PH * .3, W * .78); sentry(PH * .7, W * .64); });
-    at(8990, () => { flayer(PH * .25); flayer(PH * .7); });
+    at(470, () => behindWave(PH / 2, 4));
+    at(550, () => { hatch(6, false); crew(50, 210); });
+    at(620, () => { sentry(PH * .3, W * .78); sentry(PH * .7, W * .64); });
+    at(690, () => { flayer(PH * .25); flayer(PH * .7); });
   }),
   // 2, gauntlet: a swarm from behind, a drone wall, a sentry over a flayer, a late sine
   V(1, (at) => {
-    at(8770, () => hatch(7, true));
-    at(8850, () => { formation('wall', PH / 2, 4); corpse(PH * .85); });
-    at(8930, () => { sentry(PH * .25, W * .76); flayer(PH * .7); });
-    at(8995, () => formation('sine', PH * .72, 4));
+    at(470, () => hatch(7, true));
+    at(550, () => { formation('wall', PH / 2, 4); corpse(PH * .85); });
+    at(630, () => { sentry(PH * .25, W * .76); flayer(PH * .7); });
+    at(695, () => formation('sine', PH * .72, 4));
   }),
   // 3, the crew wakes (Descent 3+): the drifting dead turn out to be flayers, and the brood pours in behind them
   V(2, (at) => {
-    at(8760, () => { logLine('THE CREW IS STILL MOVING IN THERE.'); crew(60, 130, 200); });
-    at(8820, () => { flayer(PH * .3); flayer(PH * .7); });
-    at(8900, () => { hatch(6, true); sentry(PH * .5, W * .8); });
-    at(8980, () => { formation('zig', PH * .4, 4); corpse(PH * .8); });
+    at(460, () => { logLine('THE CREW IS STILL MOVING IN THERE.'); crew(60, 130, 200); });
+    at(520, () => { flayer(PH * .3); flayer(PH * .7); });
+    at(600, () => { hatch(6, true); sentry(PH * .5, W * .8); });
+    at(680, () => { formation('zig', PH * .4, 4); corpse(PH * .8); });
   })
 ];
 
 export function buildScript(L) {
   const S = [],
-    at = (x, f) => S.push({ x, f });
+    // script x values are relative to their stage row's x0 (src/layout.ts); `at` places them in world x
+    stageAt = (r) => (x, f) => S.push({ x: r.x0 + x, f });
   // PHASE 1: open orbit, the derelict looming
-  pickV('oA', ORBIT_A, L)(at);
-  at(UFO_AT, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
-  pickV('oC', ORBIT_C, L)(at);
-  pickV('oD', ORBIT_D, L)(at);
-  at(2000, () => {
+  const O = rowOfKind('orbit'), oAt = stageAt(O);
+  pickV('oA', ORBIT_A, L)(oAt);
+  oAt(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
+  pickV('oC', ORBIT_C, L)(oAt);
+  pickV('oD', ORBIT_D, L)(oAt);
+  oAt(O.warnX - O.x0, () => {
     banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
     sfx.dread();
   });
-  at(2120, () => maw(true));
+  oAt(O.bossX - O.x0, () => maw(true));
   // PHASE 4: the Gravity Drive approach: corridor gauntlet, rising pressure, WARNING, a breath
-  at(8430, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
-  pickV('dE', DRIVE_E, L)(at);
-  at(8730, () => { eyeT(1); eyeT(-1); });
-  pickV('dF', DRIVE_F, L)(at);
-  at(9060, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
-  at(9150, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
-  at(BOSS_AT, () => startBoss());
-  // stages 1 and 2 (world x 2300..8200) are biome slots, scripted when you pick a gate (biomes.ts insertScript)
+  const D = rowOfKind('drive'), dAt = stageAt(D), warn = D.warnX - D.x0;
+  dAt(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
+  pickV('dE', DRIVE_E, L)(dAt);
+  dAt(430, () => { eyeT(1); eyeT(-1); });
+  pickV('dF', DRIVE_F, L)(dAt);
+  dAt(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
+  dAt(warn + 90, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
+  dAt(D.bossX - D.x0, () => startBoss());
+  // the biome stages are scripted when you pick a gate (biomes.ts insertScript)
   S.sort((a, b) => a.x - b.x);
   return S;
 }

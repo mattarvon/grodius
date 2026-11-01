@@ -17,13 +17,11 @@ import { eliteChance, eliteRoll } from './enemies/elite';
 import { enemies } from './world';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
+import { layout, nSlots, slotRow } from './layout';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
-/** the two biome slots in the level (world x). Stage 1 = slot 0, stage 2 = slot 1. */
-export const SEG = [
-  { x0: 2300, x1: 5050, bossX: 4950 },
-  { x0: 5150, x1: 8200, bossX: 8020 },
-];
+// the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
+// stage 2 = slot 1
 
 export const BIOMES = {
   ice: {
@@ -84,7 +82,7 @@ export function biomeK(wx) {
   const G = $.G;
   if (!G || !G.route || !G.bx) return [null, 0];
   let best = null, bk = 0;
-  for (let s = 0; s < SEG.length; s++) {
+  for (let s = 0, n = nSlots(); s < n; s++) {
     const b = G.route[s], x0 = G.bx[s];
     if (!b || x0 == null) continue;
     const x1 = G.bx[s + 1], k = fadeIn(x0, wx) * (x1 == null ? 1 : 1 - fadeIn(x1, wx));
@@ -127,13 +125,12 @@ function shape(b, x, o) {
   if (fl - ce < 108) { const m = (fl + ce) / 2; fl = m + 54; ce = m - 54; }
   return [ce, fl];
 }
-/** the biome terrain hands back to the level's own corridor here (the Gravity Drive approach); the chamber opens from 8900 (world.ts) */
-const T_END0 = 8300, T_END1 = 8600;
 /** blend the terrain from world x `from` onward (over 300px, all of it off-screen) into biome b; it stays that
- *  biome until the next rewrite, and always fades back to the untouched level over T_END0..T_END1. The biome shape
+ *  biome until the next rewrite, and always fades back to the untouched level over layout().tEnd, where the biome
+ *  terrain hands back to the level's own corridor (the Gravity Drive approach; its chamber band is in world.ts). The biome shape
  *  and the base level both keep a >=104px gap, and a lerp of two such gaps can't be narrower. */
 function rewriteTerrain(seg, b, from) {
-  const o = ($.G.loop + 1) * 37.1 + seg * 11;
+  const o = ($.G.loop + 1) * 37.1 + seg * 11, [T_END0, T_END1] = layout().tEnd;
   const i0 = Math.max(0, Math.floor(from / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil(T_END1 / TS));
   for (let i = i0; i <= i1; i++) {
     const x = i * TS, [ce, fl] = shape(b, x, o), w = sstep(from, from + 300, x) * (1 - sstep(T_END0, T_END1, x));
@@ -141,11 +138,12 @@ function rewriteTerrain(seg, b, from) {
     CEIL[i] = lerp(CEIL[i], ce, w);
   }
 }
-/** stage 2 cleared: the biome's look and hazards hand back to the Gravity Drive approach from just off-screen */
-export function biomeExit() {
+/** the last biome stage (slot `slot`) cleared: the biome's look and hazards hand back to the ship (the Gravity Drive
+ *  approach) from just off-screen. G.bx[slot + 1] is where that biome ends */
+export function biomeExit(slot) {
   const G = $.G;
-  if (!G || !G.bx || G.bx[2] != null || !G.route[1]) return;
-  G.bx[2] = G.scroll + W + 10;
+  if (!G || !G.bx || G.bx[slot + 1] != null || !G.route[slot]) return;
+  G.bx[slot + 1] = G.scroll + W + 10;
 }
 
 // ---------------- enemy script for a biome slot ----------------
@@ -181,14 +179,14 @@ const SET = {
  *  of its kinds gone, its drone pattern swapped (add), two kinds borrowed from other biomes (a fresh pick each time),
  *  and more elites (enemies/elite.ts) */
 export function remix(b, v, loop) {
-  const B = BIOMES[b], X = B.remix, mix = B.mix.concat(loop > 0 && B.late ? B.late : []);
-  if (!v || !X) return { sig: B.sig, set: B.set, mix, sets: [.3, .75], cross: [] };
+  const B = BIOMES[b], X = B.remix, mix = B.mix.concat(loop > 0 && B.late ? B.late : []), BT = layout().beats;
+  if (!v || !X) return { sig: B.sig, set: B.set, mix, sets: BT.sets.slice(), cross: [] };
   const pool = X.pool.slice(), cross = [];
   while (cross.length < 2 && pool.length) cross.push(pool.splice(Math.floor(R() * pool.length), 1)[0]);
-  return { sig: X.sig, set: X.set, mix: mix.filter((m) => !X.drop.includes(m[0])).concat(X.add || [], cross), sets: [.22, .62], cross: cross.map((c) => c[0]) };
+  return { sig: X.sig, set: X.set, mix: mix.filter((m) => !X.drop.includes(m[0])).concat(X.add || [], cross), sets: BT.remixSets.slice(), cross: cross.map((c) => c[0]) };
 }
 export function biomeScript(seg, b, from, v = 0) {
-  const B = BIOMES[b], g = SEG[seg], S = [], at = (x, f) => S.push({ x, f }), hard = $.G.loop > 0, X = remix(b, v, $.G.loop), MX = X.mix;
+  const B = BIOMES[b], g = slotRow(seg), BT = layout().beats, S = [], at = (x, f) => S.push({ x, f }), hard = $.G.loop > 0, X = remix(b, v, $.G.loop), MX = X.mix;
   const tot = MX.reduce((s, m) => s + m[1], 0), roll = () => { let r = R() * tot, k = 0; while ((r -= MX[k][1]) > 0 && k < MX.length - 1) k++; return MX[k][0]; };
   // elites: every spawn this slot makes (rear waves and staggered set pieces included) rolls eliteChance once
   const ep = eliteChance($.G.loop, v), el = (f) => !ep ? f : () => {
@@ -197,12 +195,13 @@ export function biomeScript(seg, b, from, v = 0) {
     eliteRoll(enemies.slice(n0), ep, R);
     for (let i = p0; i < $.G.pend.length; i++) $.G.pend[i].f = el($.G.pend[i].f);
   };
-  const a = Math.max(g.x0 + 220, from + 60), z = g.bossX - 160, mid = Math.round((a + z) / 2);
+  const a = Math.max(g.x0 + BT.pad[0], from + 60), z = g.bossX - BT.pad[1], mid = Math.round((a + z) / 2);
   at(a - 40, () => logLine(B.logs[0]));
   at(mid, () => logLine(B.logs[1]));
   // pacing beats by p = (x-a)/(z-a): intro <.2 (sparse, signature first) / build / breath .45-.55 (empty) / peak .55-.9 (dense) / tail
   const P = (q) => a + (z - a) * q, sig = () => (R() < .6 ? X.sig : roll()), sets = X.sets.map(P);
-  const bZ = seg === 1 ? Math.max(P(.55), mid + 260) : P(.55), bA = bZ - (z - a) * .1; // stage 2: the breath is shifted to end just past mid+260 (the midboss), as it was for the old mid-stage Maw
+  // the breath (layout().beats); a row with breathAfterMid (short slot 1) shifts it to end just past mid + that, where the old mid-stage Maw was
+  const bZ = g.breathAfterMid != null ? Math.max(P(BT.breath.end), mid + g.breathAfterMid) : P(BT.breath.end), bA = bZ - (z - a) * BT.breath.len;
   for (let x = a, n = 0; x < z; n++) {
     const q = (x - a) / (z - a), intro = q < .2, peak = x >= bZ && q < .9, st = Math.round(B.gap * (intro ? 1.4 : peak ? .75 : 1)), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
     if (x >= bA && x < bZ) { x = bZ; continue; }
@@ -214,7 +213,7 @@ export function biomeScript(seg, b, from, v = 0) {
     x += st;
   }
   // the breath's centerpiece: the biome's own midboss. WARNING 150f (~150px) ahead so it lands ~60px before bZ and the scroll coasts to a stop inside the breath
-  at(Math.round(bZ - 210), () => miniWarn(B.midName, () => midboss(B.mid, B.midName)));
+  at(Math.round(bZ - BT.warnLead), () => miniWarn(B.midName, () => midboss(B.mid, B.midName)));
   const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
   at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }));
   return S;
@@ -239,11 +238,11 @@ function choose(b) {
   G.route[seg] = b;
   const v = ((G.bvis ||= {})[b] || 0); // earlier visits to this biome this run: 1+ = remix
   G.bvis[b] = v + 1;
-  (G.remix ||= [0, 0])[seg] = v;
+  (G.visitNo ||= Array(nSlots()).fill(0))[seg] = v; // the music's repeat-visit mix reads it (music.ts)
   G.fork = null;
   G.forkHold = false;
-  const from = Math.max(SEG[seg].x0, G.scroll + W + 10);
-  (G.bx ||= [null, null, null])[seg] = from;
+  const from = Math.max(slotRow(seg).x0, G.scroll + W + 10);
+  (G.bx ||= Array(nSlots() + 1).fill(null))[seg] = from;
   rewriteTerrain(seg, b, from);
   insertScript(biomeScript(seg, b, from, v));
   G.pend.push({ t: 40, f: () => startStage(seg + 1) });
@@ -268,7 +267,7 @@ const haz = [], amb = [];
 export function biomeReset() {
   haz.length = amb.length = 0;
   applyPalette(null);
-  if ($.G) { $.G.bx = [null, null, null]; $.G.hazT = 90; $.G.hazHit = 0; }
+  if ($.G) { $.G.bx = Array(nSlots() + 1).fill(null); $.G.hazT = 90; $.G.hazHit = 0; }
 }
 
 function spawnHazard(b) {

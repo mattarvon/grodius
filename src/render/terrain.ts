@@ -6,6 +6,7 @@ import { AMT, LIGHTS, ceilAt, floorAt, splats } from '../world';
 import { DERE, GROSS, PIC, STARS, fleshPat, metalPat, ready, texPat } from '../textures';
 import { drawChain, drawHookTip, drawSkull, glow, glowSpr, hangSpine, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
+import { innerBand } from '../layout';
 
 // --- terrain & backgrounds ---
 export function drawTerrain() {
@@ -511,7 +512,7 @@ export function drawBG() {
     drawNeptune(sp, sc);
     drawTriton(sp, sc);
     drawDerelict(sp * (1 - AMT.corr(sc)), sc);
-    drawInterior(AMT.corr(sc) > 0 ? sstep(5000, 5400, sc) * (1 - sstep(9100, 9500, sc)) : 0, sc);
+    drawInterior(AMT.corr(sc) > 0 ? innerBand(sc) : 0, sc);
     drawCoreBG(AMT.core(sc));
     drawBiomeBG(sc);
   }

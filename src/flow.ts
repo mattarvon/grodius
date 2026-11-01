@@ -13,6 +13,7 @@ import { perksReset } from './perks';
 import { caps } from './world';
 import { resetContraptions, rigFresh } from './contraptions';
 import { shipShed } from './shipform';
+import { nSlots } from './layout';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
@@ -79,7 +80,7 @@ export function startLoop(L) {
   }
   $.G.logQ = L === 0 ? [...LOG_START] : [`THE GATE OPENED AGAIN. DESCENT ${L + 1}.`, 'IT REMEMBERS YOU.'];
   $.G.tally = null;
-  $.G.route = [null, null];
+  $.G.route = Array(nSlots()).fill(null); // the biome picked at each fork, by slot
   $.G.fork = null;
   $.G.forkHold = false;
   if ($.G.sealQ) { $.G.sealQ(); $.G.sealQ = null; } // a seal earned right before a fork is never lost

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { bossAt, layout } from './layout';
 
 // =====================================================================
 //  GRODIUS  -  side-scrolling shooter. Derelict MERIDIAN, Neptune orbit.
@@ -7,9 +8,11 @@ import { $ } from './state';
 export const W = 480,
   H = 270,
   PH = 254,
-  TS = 4,
-  LEVEL = 10000,
-  BOSS_AT = 9300; // ~18 s of Gravity Drive approach after stage 2 (docs/pacing.md 3.3)
+  TS = 4;
+/** @deprecated boot-time aliases of the active layout (src/layout.ts) kept for the probes until build plan item J
+ *  repoints them; game code reads layout() / bossAt() at call time */
+export const LEVEL = layout().level,
+  BOSS_AT = bossAt();
 export const cv = document.getElementById('c'),
   dctx = cv.getContext('2d'),
   lo = document.createElement('canvas');

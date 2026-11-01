@@ -83,7 +83,7 @@ for (const [bk, tag] of [['ice', 'first'], ['ice', 'remix'], ['fire', 'first'], 
     await step(k === 1 ? 900 : 420);
     await shot(`stage-${bk}-${tag}-${k}`, 0, 0, 0);
   }
-  console.log(bk, tag, await p.evaluate(() => { const m = window.__us; return JSON.stringify({ scroll: Math.round(m.$.G.scroll), remix: m.$.G.remix, el: m.W.enemies.filter((e) => e.elite).length, ks: [...new Set(m.W.enemies.map((e) => e.k))] }); }));
+  console.log(bk, tag, await p.evaluate(() => { const m = window.__us; return JSON.stringify({ scroll: Math.round(m.$.G.scroll), remix: m.$.G.visitNo, el: m.W.enemies.filter((e) => e.elite).length, ks: [...new Set(m.W.enemies.map((e) => e.k))] }); }));
   await p.evaluate(() => { window.__us.IN.K.KeyZ = false; });
 }
 fs.writeFileSync(`${OUT}/errors.txt`, errs.join('\n'));

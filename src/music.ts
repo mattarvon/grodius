@@ -5,10 +5,11 @@
 import { $ } from './state';
 import { AU } from './audio';
 import { SET } from './save';
+import { row, slotOf } from './layout';
 
 const URLS = import.meta.glob('./music/*.ogg', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 
-/** slot -> file stem in src/music/. Change a mapping to retheme a stage. A list is one track per descent
+/** slot -> file stem in src/music/, stages keyed by stage kind. Change a mapping to retheme a stage. A list is one track per descent
  *  (Descent 1 first); past its end, Descent 2+ cycle through the rest so Descent 1's track stays special.
  *  ov-* tracks are Openverse picks (tools/import_openverse.py), credited in CREDITS.md. */
 export const TRACKS = {
@@ -16,12 +17,11 @@ export const TRACKS = {
   menu: ['void-07-heist', 'ov-dx7-chords'], // the Infirmary: alternates per visit
   over: 'ov-horror-ambience', // game over
   fork: 'ov-dark-drone-loop', // the ship splits: the gates hang open
-  stage0: ['void-05-cyber-side-scroller', 'ov-circuit-synthwave', 'ov-dreamchip-synthwave', 'ov-synthwave-electropop'], // Open Orbit
-  boss0: ['ov-cyberpunk-beat', 'ov-cyberpunk-snippet'], // THE MAW
-  stage1: 'void-02-institutional-values', // fallback only: stages 1-2 play their biome's track (BIOME_MIX)
-  stage2: 'void-11-corporate-identity',
-  stage3: ['void-12-not-done-here-yet', 'ov-circuit-synthwave-alt', 'ov-space-wind'], // The Gravity Drive approach
-  boss3: 'void-13-finale', // The Gravity Drive fight
+  orbit: ['void-05-cyber-side-scroller', 'ov-circuit-synthwave', 'ov-dreamchip-synthwave', 'ov-synthwave-electropop'], // Open Orbit
+  orbitBoss: ['ov-cyberpunk-beat', 'ov-cyberpunk-snippet'], // THE MAW
+  biome: ['void-02-institutional-values', 'void-11-corporate-identity'], // fallback only, by biome slot: a biome stage plays its biome's track (BIOME_MIX)
+  drive: ['void-12-not-done-here-yet', 'ov-circuit-synthwave-alt', 'ov-space-wind'], // The Gravity Drive approach
+  driveBoss: 'void-13-finale', // The Gravity Drive fight
 };
 const byLoop = (v, L) => !Array.isArray(v) ? v : L < v.length ? v[L] : v[1 + (L - 1) % (v.length - 1)];
 let shopVisits = 0, lastState = '';
@@ -132,17 +132,18 @@ function wanted() {
   if (s === 'over') return TRACKS.over;
   if (!$.G) return '';
   if ($.G.fork) return TRACKS.fork;
-  const st = $.G.stage || 0, L = $.G.loop || 0, b = curBiome();
+  const r = row($.G.stage || 0), L = $.G.loop || 0, b = curBiome();
   if (b) return BIOME_MIX[b].track;
-  if ($.G.bossStarted && TRACKS['boss' + st]) return byLoop(TRACKS['boss' + st], L);
+  if (!r) return '';
+  if ($.G.bossStarted && TRACKS[r.kind + 'Boss']) return byLoop(TRACKS[r.kind + 'Boss'], L);
   // the Maw is a mini, not startBoss(): its track runs from its arrival through the stage card, up to the fork
-  if (st === 0 && (($.G.mini && $.G.mini.stageBoss) || $.G.tally)) return byLoop(TRACKS.boss0, L);
-  return byLoop(TRACKS['stage' + st], L) || '';
+  if (r.kind === 'orbit' && (($.G.mini && $.G.mini.stageBoss) || $.G.tally)) return byLoop(TRACKS.orbitBoss, L);
+  return (r.kind === 'biome' ? TRACKS.biome[r.slot] : byLoop(TRACKS[r.kind], L)) || '';
 }
 
 /** the filter mix the music wants now: the biome's (a repeat visit gets its '+' mix), the Saucer's, or none */
 function mixWanted() {
-  const cb = curBiome(), deep = cb && $.G.remix && $.G.remix[$.G.stage - 1] ? cb + '+' : cb;
+  const cb = curBiome(), deep = cb && $.G.visitNo && $.G.visitNo[slotOf($.G.stage)] ? cb + '+' : cb;
   return ($.state === 'play' || $.state === 'pause') && (deep || ufoMix()) || 'none';
 }
 /** test hook (tools/layout-parity.mjs): what the music wants, readable with audio off */
@@ -183,6 +184,6 @@ const ufoMix = () => ($.G && $.G.mini && $.G.mini.k === 'ufo' && !$.G.mini.dead 
 /** biome the music should be in: the stage's chosen route once that stage has started */
 export function curBiome() {
   const G = $.G;
-  if (!G || !G.route || !(G.stage === 1 || G.stage === 2)) return null;
-  return G.route[G.stage - 1] || null;
+  const s = G && G.route ? slotOf(G.stage) : -1;
+  return s >= 0 ? G.route[s] || null : null;
 }
