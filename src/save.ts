@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { migrateBest } from './gradekey';
 
 // ---------------- persistence ----------------
 export const SET = {
@@ -17,7 +18,8 @@ $.meta = {
   rig: [],
   own: [],
   cl: {},
-  v: 2
+  mb: {}, // midbosses met: {kind: timesMet} (spec §6.3 weighting, §6.4 first-kill pay); written by item F
+  v: 3
 };
 const KEY = 'grodius.v1', BAK = 'grodius.v1.bak', BAD = 'grodius.v1.corrupt';
 // a save that exists but won't parse is kept aside (BAD) before anything is written over it
@@ -68,6 +70,16 @@ try {
       $.meta.bio += refund;
       $.meta.refund = refund;
       $.meta.v = 2;
+    }
+    // v3 (D19 LS1): best grades keyed by stage kind (gradekey.ts) and meta.mb. A v3 save is never re-migrated.
+    if ($.meta.v < 3) {
+      $.meta.best = migrateBest($.meta.best);
+      $.meta.v = 3;
+    }
+    {
+      const mb = d.meta && d.meta.mb, ok = mb && typeof mb === 'object' && !Array.isArray(mb) ? mb : {};
+      $.meta.mb = {};
+      for (const [k, n] of Object.entries(ok)) if (Number.isFinite(+n) && +n > 0) $.meta.mb[k] = Math.floor(+n);
     }
     $.hi = +d.hi || 0;
     SET.flashes = d.flashes !== false;
