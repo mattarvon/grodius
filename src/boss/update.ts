@@ -13,14 +13,14 @@ import { hitShot } from '../shots';
 import { hellFlash } from '../fx/update';
 import { critMul } from '../mutations';
 import { perkFX, pk } from '../perks';
-import { driveHP } from '../depth';
+import { driveMul } from '../depth';
 
 // ---------------- boss: the gravity drive ----------------
 export function startBoss() {
   $.G.bossStarted = true;
-  // HP tracks loop AND power rank: a stacked build still gets a real fight. The Drive is now the only enemy whose HP
-  // scales with rank (mk() in src/enemies/spawn.ts dropped its rank term in 48eb7cb)
-  const m = (1 + .4 * $.G.loop) * (1 + .6 * ($.G.rank || 0)) * driveHP(); // driveHP: depth past the cap (src/depth.ts)
+  // HP tracks loop AND power: the one documented exception to the power rule (D1, design/progression.md): every other
+  // enemy's HP comes from depth alone, but without its power terms the Drive's fight collapses (driveMul, src/depth.ts)
+  const m = driveMul();
   $.G.boss = {
     x: W + 150,
     y: PH / 2,

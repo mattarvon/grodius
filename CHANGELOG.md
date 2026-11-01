@@ -2,6 +2,21 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-31 (one power rule — provisional until Matt's M2 playtest)
+
+- Your power now shows up only as more enemy fire, faster bullets and denser waves. It no longer makes enemies tankier; enemy HP comes from how deep you are.
+- Every perk and every bolted contraption now counts toward your power from the first stage, through one weight table (before, only 8 perks counted, and contraptions only past Descent 1).
+- Deeper enemies are a bit tougher for light builds and DESCEND DEEPER starts, and a little quicker to kill for stacked builds. A typical build's kill times hold.
+- The Gravity Drive is the one exception: its HP still grows with your power, so a stacked build still gets a real fight.
+- SNOT ROCKET and SPORE COAT now grow with your gun's damage instead of staying flat.
+- The acid biome's double wall and the pincer wave keep their gap no matter how strong you are.
+- Enemy fire in Descent 2 and 3 is unchanged: the cooldowns moved into one table (`src/enemies/cadence.ts`) with the same numbers.
+
+## 2026-10-31 (honest biomass)
+
+- A stage boss that escapes now pays no biomass, as the IT GOT AWAY / NO REWARD banner always said. The stage still grades C, pays its score and counts toward breaking the next seal.
+- DESCEND DEEPER's Infirmary text now says what it buys: starting a run at Descent 2. Stages from Descent 2 on pay double biomass in every run, bought or not; that hasn't changed.
+
 ## 2026-10-31 (safer flashes, safer saves)
 
 - First launch asks whether you want HELL FLASHES on. Change it any time under the new OPTIONS menu on the title screen.

@@ -7,6 +7,7 @@ import { $ } from '../state';
 import { TAU, W, ctx, ri } from '../core';
 import { sfx } from '../audio';
 import { aimA, eshoot, fan, onScreen } from './spawn';
+import { xtra } from '../depth';
 import { glow } from '../render/util';
 import { spark } from '../fx/spawn';
 
@@ -56,7 +57,7 @@ export function eliteTick(e) {
   if (e.pt > 0) {
     if (--e.pt === 0 && P && P.alive && onScreen(e)) {
       const a = aimA(e.x, e.y);
-      if ($.G.loop >= 2) fan(e.x - 2, e.y, a, 3, .22, 1.5, 'glob');
+      if (xtra()) fan(e.x - 2, e.y, a, 3, .22, 1.5, 'glob'); // Descent 3+: a 3-fan (depth: src/depth.ts, D2)
       else eshoot(e.x - 2, e.y, a, 1.6, 'glob');
       for (let i = 0; i < 5; i++) spark(e.x, e.y, Math.cos(a + (i - 2) * .4) * 1.5, Math.sin(a + (i - 2) * .4) * 1.5, 14, i % 2 ? '#e08aff' : '#fff0a0');
     }

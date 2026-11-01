@@ -164,10 +164,12 @@ function insertScript(entries) {
 }
 // one signature set piece per biome, dropped in twice per slot; a repeat visit swaps in the second one (remix)
 const later = (t, f) => $.G.pend.push({ t, f });
+const FIXED = { fixed: 1 };
 const SET = {
   morgue: () => { corpse(PH * .25); corpse(PH * .5, { drift: .2 }); corpse(PH * .75); later(40, mutant); }, // a frozen crew drifting in a line, a hulk walking under it
-  walls: () => { formation('wall', PH * .33, 2); formation('wall', PH * .67, 2); crawler(1); crawler(-1); }, // a double wall, gap in the middle, crawlers on the lining
-  pincer: () => { flayer(55); flayer(PH - 75); behindWave(PH / 2, 2); }, // flayers top and bottom, a short rear wave between them
+  // set pieces are fixed: formation()'s power drones (up to +6) would close the walls' gap and stretch the pincer's wave
+  walls: () => { formation('wall', PH * .33, 2, FIXED); formation('wall', PH * .67, 2, FIXED); crawler(1); crawler(-1); }, // a double wall, gap in the middle, crawlers on the lining
+  pincer: () => { flayer(55); flayer(PH - 75); behindWave(PH / 2, 2, FIXED); }, // flayers top and bottom, a short rear wave between them
   flood: () => { hatch(ri(7, 9), false); hatch(ri(4, 6), true); slime(1); later(30, () => slime(-1)); },
   // remix sets
   crucify: () => { crossT(1); crossT(-1); later(30, mutant); later(70, () => crossT(R() < .5 ? 1 : -1)); }, // the shelves are lined with crucifixes

@@ -9,6 +9,7 @@ import { sample, sfx } from '../audio';
 import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world';
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
+import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
@@ -69,7 +70,7 @@ export function updEnemy(e) {
         if (e.blink > 0) e.blink--;else if (R() < .006) e.blink = 10;
         e.cool--;
         if (e.cool <= 0 && onScreen(e) && e.x > 20) {
-          e.cool = Math.round((Math.max(55, 120 - $.G.loop * 18) + ri(0, 40)) * cdm()); // cdm/firem/xtra: depth, src/depth.ts
+          e.cool = coolFor('eye', ri(0, 40)); // depth: src/enemies/cadence.ts -> src/depth.ts
           const ex = e.x,
             ey = e.y - e.o * 8;
           eshoot(ex, ey, aimA(ex, ey), 1.7);
@@ -134,7 +135,7 @@ export function updEnemy(e) {
         e.y = ceilAt(e.x + $.G.scroll) + e.st + Math.sin(e.t * .04) * 1.5;
         e.cool--;
         if (e.cool <= 0 && onScreen(e) && e.x > 60) {
-          e.cool = Math.max(70, 120 - $.G.loop * 15);
+          e.cool = wombCool();
           mk('hatch', e.x, e.y + 12, {
             kid: 1,
             ph: R() * TAU,
@@ -153,7 +154,7 @@ export function updEnemy(e) {
         e.y = sy - e.o * 22;
         e.cool--;
         if (e.cool <= 0 && onScreen(e) && e.x > 30) {
-          e.cool = Math.round((Math.max(70, 130 - $.G.loop * 18) + ri(0, 40)) * cdm());
+          e.cool = coolFor('cross', ri(0, 40));
           const hx = e.x,
             hy = e.y + 14,
             a = aimA(hx, hy),
@@ -224,7 +225,7 @@ export function updEnemy(e) {
           }
           if (e.wt >= 26) {
             e.ws = 'idle';
-            e.cool = Math.round((Math.max(60, 110 - $.G.loop * 15) + ri(0, 40)) * cdm());
+            e.cool = coolFor('flayer', ri(0, 40));
           }
         }
         if (R() < .15) drop(e.x + rr(-5, 5), e.y + rr(-2, 8), rr(-.3, .3), rr(0, .5), 1, R() < .5 ? 0 : 1, 80);
@@ -793,7 +794,7 @@ export function killEnemy(e, dir = 1) {
   if (e.k === 'slime' || e.k === 'mutant' || e.k === 'sentry') killNew(e);
   // Descent 2+: a dying enemy spits one last slow shot at you (Gradius's revenge bullets). From Descent 2 it's a pair
   // that brackets you (sit still and it misses), from Descent 3 a 3-fan with one dead on (depth: src/depth.ts)
-  if ($.G.loop > 0 && e.k !== 'hatch' && !($.G.boss && $.G.boss.dying) && e.x < W - 10 && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) > 70 * 70) fan(e.x, e.y, aimA(e.x, e.y), Math.min(3, 1 + $.G.loop), .22, 1.3);
+  if ($.G.loop > 0 && e.k !== 'hatch' && !($.G.boss && $.G.boss.dying) && e.x < W - 10 && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) > 70 * 70) fan(e.x, e.y, aimA(e.x, e.y), revengeN(), .22, 1.3);
 }
 export const POD = [{
   c: '127,224,255',
@@ -911,7 +912,7 @@ function updNew(e, ss) {
           for (let k = 0; k < 12; k++) drop(sx, sy, rr(-2, .3), rr(-1.5, 1.5) - e.o * .6, rr(1, 1.6), R() < .5 ? 4 : 0, 70);
           sample('snot', { vol: .6 }) || sfx.glob();
         }
-      } else if (e.wt >= 22) { e.st = 'ooze'; e.wt = 0; e.cool = Math.round((Math.max(100, 170 - $.G.loop * 20) + ri(0, 50)) * cdm()); }
+      } else if (e.wt >= 22) { e.st = 'ooze'; e.wt = 0; e.cool = coolFor('slime', ri(0, 50)); }
       if (e.o > 0 && surf > PH + 10 || e.o < 0 && surf < -10) { e.air = 1; e.vy = 0; e.vx = 0; }
       if (R() < .12) drop(e.x + rr(-6, 6), e.y + e.o * 5, rr(-.2, .2), e.o > 0 ? 0 : rr(.3, .8), 1, R() < .5 ? 4 : 0, 60); // the slick it leaves, or drips off the ceiling
     } else {
@@ -956,7 +957,7 @@ function updNew(e, ss) {
         $.G.shake += 2;
         sample('splat_m', { vol: .6, rate: .8 }) || sfx.squish();
       }
-      if (e.wt >= 34) { e.st = 'walk'; e.wt = 0; e.cool = Math.round((Math.max(120, 190 - $.G.loop * 25) + ri(0, 50)) * cdm()); }
+      if (e.wt >= 34) { e.st = 'walk'; e.wt = 0; e.cool = coolFor('mutant', ri(0, 50)); }
     }
     if (R() < .25) drop(e.x + rr(-6, 6), e.y + rr(-12, 10), rr(-.2, .2), rr(.1, .6), 1.2, R() < .5 ? 0 : 1, 90);
     if (e.fy > PH + 30) e.dead = true;
@@ -981,7 +982,7 @@ function updNew(e, ss) {
         flash(e.x - 7, e.y, 9, 4, '255,70,50');
         e.x += 1.5;
       }
-      if (e.wt >= n * 7 + 14) { e.shots++; e.st = 'hover'; e.wt = 0; e.cool = Math.round((Math.max(80, 130 - $.G.loop * 20) + ri(0, 30)) * cdm()); }
+      if (e.wt >= n * 7 + 14) { e.shots++; e.st = 'hover'; e.wt = 0; e.cool = coolFor('sentry', ri(0, 30)); }
     } else {
       e.x -= 1.3 + ss * .3;
       e.y0 += e.y0 < PH / 2 ? -.2 : .2;
