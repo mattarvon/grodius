@@ -24,7 +24,7 @@ Files: `src/economy.ts`, `tests/unit/economy.test.ts`, this file. No existing fi
 | Pins watched failing | **PASS.** Perturbing `short` (`sHits` 1, XP b 44, seal at 7, GLUTTONY [2,5]) fails exactly those 4 tests; the file was then restored |
 | `long4` matches the spec §7 `long4` column | **PASS.** Seals {2,4,6}; grade ref 35 s; S ≤ 1 hit, 0 deaths; today's XP lump; kill XP ×0.75 and kill bio ×0.75 (*start*); intra .35 with N = 4; GLUTTONY [3,6]; no D1 elites or Drive lives; §8 rows with only biome slots 0/1 banded (Orbit/Drive measured-only until LS2); LV 13±1, biomass D1 1.3-1.5k / D2 2.1-2.4k / D3 2.6-3.6k |
 | `long5` matches the spec §7 `long5` column | **PASS.** Seals {1,3,5}; XP `40 + 35×ord + 40×loop`; kill XP ×0.75, kill bio ×0.6; intra .35 with N = 5; GLUTTONY [3,7]; D1 elites .05 from stage 4; +1 ship per Drive kill, capped at 5 (never removes one above the cap); all 5 hits/min columns banded; LV 4 / 8 after stages 1 / 2, LV 14±1 |
-| No wiring | **PASS.** `grep -rn economy src` finds only the file itself |
+| No wiring | **PASS.** no file in `src` imports `./economy` (`grep -rn "economy'" src` is empty; `src/power.ts` only uses the word in comments) |
 
 ## Gates
 
