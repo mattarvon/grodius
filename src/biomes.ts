@@ -218,7 +218,7 @@ export function biomeScript(seg, b, from, v = 0) {
     x += st;
   }
   // the breath's centerpiece: the biome's own midboss. WARNING 150f (~150px) ahead so it lands ~60px before bZ and the scroll coasts to a stop inside the breath
-  at(Math.round(bZ - BT.warnLead), () => miniWarn(B.midName, () => midboss(B.mid, B.midName)));
+  at(Math.round(bZ - BT.warnLead), () => miniWarn(B.midName, () => midboss(B.mid, B.midName, b)));
   const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
   at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }));
   return S;

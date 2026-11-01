@@ -6,6 +6,7 @@
 //   prof: also samples the JS profiler per scene and prints the top self-time functions.
 //   ELITE=1 env: in biome scenes, a crowd of elites (enemies/elite.ts) keeps streaming in alongside the fight (~8 alive);
 //   ELITE=2: the same crowd, not elite (the control: what the elite visuals and attacks cost on top).
+//   XHOST=ice|acid|fire|snot env: the four biome midboss scenes run as crossovers in that biome (host tint and terrain fit, LS1 P0).
 // Needs the VITE DEV server (imports live modules). Restart vite after edits before trusting numbers.
 import { chromium } from 'playwright';
 const [url, THR = '4', SC = 'all', PROF = ''] = process.argv.slice(2);
@@ -23,9 +24,11 @@ if (PROF) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSampl
 
 const STRONG = [{ speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }];
 const BIOME = { choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot', crux: 'ice', butcher: 'fire', maw: null, ufo: null, orbit: null, gravity: null };
+const XHOST = process.env.XHOST || '';
+if (XHOST) for (const k of ['choir', 'cyst', 'prentice', 'brood']) BIOME[k] = XHOST;
 
 async function scene(k) {
-  return p.evaluate(async ([k, biome, kit, elite]) => {
+  return p.evaluate(async ([k, biome, kit, elite, xhost]) => {
     const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
     const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
     const BU = await import('/src/boss/update.ts'), SCR = await import('/src/render/screens.ts');
@@ -49,7 +52,7 @@ async function scene(k) {
       else if (k === 'maw') SP.maw(true);
       else if (k === 'ufo') { const UF = await import('/src/enemies/ufo.ts'); $.G.scroll = UF.UFO_AT + 150; $.G.eat = UF.UFO_GAP_END; UF.spawnUfo(); } // Open Orbit midboss
       else if (k === 'crux' || k === 'butcher') { SP[k](); if ($.G.mini) $.G.mini.biome = biome; }
-      else SP.midboss(k, BI.BIOMES[biome].midName);
+      else SP.midboss(k, BI.BIOMES[biome].midName, xhost || undefined);
     }
     $.G.pick = null; $.G.pickQ = 0; $.G.tally = null;
     const st = [], rt = [];
@@ -75,7 +78,7 @@ async function scene(k) {
     const dSl = deadAt >= 0 ? rt.slice(deadAt) : [];
     return { frames: f, deadAt, step: [avg(st), q(st, .95), Math.max(...st)], render: [avg(rt), q(rt, .95), Math.max(...rt)],
       over: tot.filter((v) => v > 1000 / 60).length / tot.length, death: dSl.length ? [avg(dSl), q(dSl, .95)] : null };
-  }, [k, BIOME[k], STRONG, +(process.env.ELITE || 0)]);
+  }, [k, BIOME[k], STRONG, +(process.env.ELITE || 0), XHOST]);
 }
 
 const f1 = (a) => a.map((v) => v.toFixed(1).padStart(5)).join(' ');

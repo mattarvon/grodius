@@ -16,6 +16,7 @@ import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { ufoKilled, updUfo } from './ufo';
 import { eliteKill, eliteTick } from './elite';
+import { BAND_EASE, BROOD_CAP, HOST_SPARK, MID_BODY, bodyBand, fitY, fitsTerrain, isCross } from './midhost';
 
 // --- enemy behaviour ---
 export function updEnemy(e) {
@@ -380,9 +381,13 @@ export function updEnemy(e) {
     case 'choir':
       {
         // THE NAIL CHOIR: a frozen eye in two orbiting nailbars. Glares 40f down a fan line, then a spike fan; the nails "sing" (glint 36f) and spit spikes at you
-        const go = midLeave(e), ph2 = e.hp < e.max * .5, live = e.bars.filter(b => !b.dead);
+        // nLive: a counted loop rather than filtering e.bars into a new array, so the update allocates nothing per frame (build plan LS1 P0)
+        const go = midLeave(e), ph2 = e.hp < e.max * .5, cx = isCross(e);
+        let nLive = 0;
+        for (const b of e.bars) if (!b.dead) nLive++;
         e.y = PH / 2 + Math.sin(e.t * .014) * (PH * .16);
-        e.spin = (e.spin || 0) + (live.length < 2 ? .034 : .022);
+        if (cx) bandFit(e);
+        e.spin = (e.spin || 0) + (nLive < 2 ? .034 : .022);
         for (const b of e.bars) { const a = e.spin + b.i * Math.PI; b.ox = Math.cos(a) * 31; b.oy = Math.sin(a) * 31; }
         if (!go && e.t > 120 && $.P.alive) {
           e.wt++;
@@ -390,24 +395,25 @@ export function updEnemy(e) {
           else if (e.st === 'tel') {
             e.ha += wrapA(aimA(e.x - 10, e.y) - e.ha) * .04;
             if (e.wt >= 40) {
-              fan(e.x - 10, e.y, e.ha, live.length ? 5 : 7, .16, 1.8, 'spike');
+              fan(e.x - 10, e.y, e.ha, nLive ? 5 : 7, .16, 1.8, 'spike');
               flash(e.x - 10, e.y, 16, 6, '200,235,255');
               e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm());
             }
           }
-          if (every(e, ph2 ? 110 : 150)) for (const b of live) if (!(b.sing > 0)) b.sing = 36;
-          for (const b of live) if (b.sing > 0 && --b.sing === 0) { fan(b.x, b.y, aimA(b.x, b.y), 3, .22, 1.35, 'spike'); sfx.tink(); }
+          if (every(e, ph2 ? 110 : 150)) for (const b of e.bars) if (!b.dead && !(b.sing > 0)) b.sing = 36;
+          for (const b of e.bars) if (!b.dead && b.sing > 0 && --b.sing === 0) { fan(b.x, b.y, aimA(b.x, b.y), 3, .22, 1.35, 'spike'); sfx.tink(); }
           if (ph2 && every(e, 130)) ring(e.x, e.y, 10, e.t * .05, 1.05);
         }
-        if (R() < .25) spark(e.x + rr(-12, 12), e.y + rr(-10, 12), rr(-.3, .3), rr(.2, .6), 14, R() < .5 ? '#d8efff' : '#8cc4ee');
+        if (R() < .25) spark(e.x + rr(-12, 12), e.y + rr(-10, 12), rr(-.3, .3), rr(.2, .6), 14, cx ? pick(HOST_SPARK[e.host]) : R() < .5 ? '#d8efff' : '#8cc4ee');
         if (R() < .15) drop(e.x + rr(-6, 6), e.y + 10, 0, .4, 1.2, 0, 80);
         break;
       }
     case 'cyst':
       {
         // THE DISSOLVING WOMB: a melting sac on the lake. Bubbles 45f, then geysers a rain of globs lobbed onto you; or bloats 30f and bursts a ring
-        const go = midLeave(e), ph2 = e.hp < e.max * .5;
-        e.y = PH * .6 + Math.sin(e.t * .016) * (PH * .13);
+        const go = midLeave(e), ph2 = e.hp < e.max * .5, cx = isCross(e);
+        e.y = PH * .6 + Math.sin(e.t * .016) * (PH * .13); // tuned to sit on the acid lake; a crossover fits the host's cave
+        if (cx) bandFit(e);
         if (!go && e.t > 120 && $.P.alive) {
           e.wt++;
           if (e.st === 'idle') {
@@ -430,16 +436,17 @@ export function updEnemy(e) {
           }
         }
         if (R() < .35) drop(e.x + rr(-14, 14), e.y + rr(8, 20), rr(-.2, .2), rr(.3, .9), 1.3, R() < .6 ? 2 : 4, 80);
-        if (R() < .08) spark(e.x + rr(-16, 16), e.y - rr(0, 14), 0, -rr(.3, .8), 20, '#a6ff2a');
+        if (R() < .08) spark(e.x + rr(-16, 16), e.y - rr(0, 14), 0, -rr(.3, .8), 20, cx ? HOST_SPARK[e.host][e.t % HOST_SPARK[e.host].length] : '#a6ff2a'); // no extra R() for the colour
         break;
       }
     case 'prentice':
       {
         // THE BUTCHER'S APPRENTICE: a small carcass on one chain with a cleaver. Lunges in behind a red sweep cone (50f to get out), or spits ember fans
-        const go = midLeave(e, e.st === 'tel' ? .06 : .03), ph2 = e.hp < e.max * .5;
+        const go = midLeave(e, e.st === 'tel' ? .06 : .03), ph2 = e.hp < e.max * .5, cx = isCross(e), sp = cx ? HOST_SPARK[e.host] : FIRE; // its embers burn in the host's colours
         e.sw = (e.sw || 0) + (ph2 ? .028 : .018);
         if (e.st === 'tel' && e.wt < 25) e.y = lerp(e.y, clamp($.P.y + 6, 50, PH - 40), .06);
         else if (e.st !== 'tel' && e.st !== 'cut') e.y = lerp(e.y, PH * .42 + Math.sin(e.sw) * 34, .05);
+        if (cx) bandFit(e);
         const sx = e.x - 8, sy = e.y - 6;
         if (!go && e.t > 120 && $.P.alive) {
           e.wt++;
@@ -456,7 +463,7 @@ export function updEnemy(e) {
             e.ba = -2.3 - p * (TAU - 4.6);
             if (e.wt === 6) {
               $.G.shake += 3;
-              for (let k = 0; k < 24; k++) spark(sx - 50, sy + rr(-30, 30), rr(-3, 0), rr(-2, 2), ri(8, 16), pick(FIRE));
+              for (let k = 0; k < 24; k++) spark(sx - 50, sy + rr(-30, 30), rr(-3, 0), rr(-2, 2), ri(8, 16), pick(sp));
               fan(sx, sy, aimA(sx, sy), 3, .3, 1.5);
             }
             if ($.P.alive && e.wt <= 12) {
@@ -473,7 +480,7 @@ export function updEnemy(e) {
           }
           if (ph2 && every(e, 120)) ring(e.x, e.y, 10, e.t * .06, 1.05);
         }
-        if (R() < .5) spark(e.x + rr(-12, 12), e.y + rr(-10, 24), rr(-.4, .3), -rr(.4, 1.4), ri(8, 16), pick(FIRE));
+        if (R() < .5) spark(e.x + rr(-12, 12), e.y + rr(-10, 24), rr(-.4, .3), -rr(.4, 1.4), ri(8, 16), pick(sp));
         if (R() < .25) drop(e.x + rr(-10, 10), e.y + rr(0, 20), rr(-.3, .3), rr(.2, .8), 1.3, R() < .5 ? 0 : 1, 90);
         break;
       }
@@ -482,6 +489,7 @@ export function updEnemy(e) {
         // THE BROOD MOTHER: a swollen mucus sac. Heaves 44f, then births a litter of hatchlings; or flares 26f and sneezes snot globs
         const go = midLeave(e), ph2 = e.hp < e.max * .5;
         e.y = PH / 2 + Math.sin(e.t * .013) * (PH * .2);
+        if (fitsTerrain(e)) bandFit(e);
         if (!go && e.t > 120 && $.P.alive) {
           e.wt++;
           if (e.st === 'idle') {
@@ -491,7 +499,9 @@ export function updEnemy(e) {
             e.bul = e.wt / 44;
             if (R() < .3) drop(e.x - 8 + rr(-4, 4), e.y + 14, rr(-.5, .5), rr(.3, 1), 1.2, 4, 60);
             if (e.wt >= 44) {
-              const kids = enemies.filter(q => q.kid && !q.dead).length, n = Math.min(10 - kids, 3 + Math.round(($.G.rank || 0) * 2) + (ph2 ? 2 : 0));
+              let kids = 0;
+              for (const q of enemies) if (q.kid && !q.dead) kids++;
+              const n = Math.min(BROOD_CAP - kids, 3 + Math.round(($.G.rank || 0) * 2) + (ph2 ? 2 : 0));
               for (let i = 0; i < n; i++) mk('hatch', e.x - 16 - i * 7, e.y + 6 + rr(-8, 8), { kid: 1, ph: R() * TAU, vy: rr(-1.4, 1.4) });
               for (let k = 0; k < 18; k++) drop(e.x - 14, e.y + 6, rr(-2.5, 0), rr(-1.5, 1.5), 1.5, R() < .5 ? 4 : 0, 80);
               sfx.squish();
@@ -591,6 +601,19 @@ export function whipPts(e) {
     });
   }
   return pts;
+}
+const BAND = [0, 0];
+/** a crossover midboss, or a home one fitsTerrain() names (enemies/midhost.ts): fit e.y into the terrain band under its body. The band tightens at once
+ *  (terrain under a moving body must never swallow it) and relaxes eased, so a spire leaving the sample window
+ *  doesn't drop the body back with a snap */
+function bandFit(e) {
+  const wx = e.x + $.G.scroll, hw = MID_BODY[e.k].hw;
+  let ce = -1e9, fl = 1e9;
+  for (let d = -hw; d <= hw; d += hw / 2) { ce = Math.max(ce, ceilAt(wx + d)); fl = Math.min(fl, floorAt(wx + d)); }
+  bodyBand(e.k, ce, fl, BAND);
+  e.blo = e.blo == null || BAND[0] > e.blo ? BAND[0] : lerp(e.blo, BAND[0], BAND_EASE);
+  e.bhi = e.bhi == null || BAND[1] < e.bhi ? BAND[1] : lerp(e.bhi, BAND[1], BAND_EASE);
+  e.y = fitY(e.y, e.blo, e.bhi);
 }
 // biome midbosses: settle at e.tx, and once e.t passes e.leave slide off right (escape costs nothing). The HUD fuse shows the time left.
 function midLeave(e, k = .03) {
