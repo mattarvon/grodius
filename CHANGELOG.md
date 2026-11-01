@@ -2,6 +2,11 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-10-31 (honest biomass)
+
+- A stage boss that escapes now pays no biomass, as the IT GOT AWAY / NO REWARD banner always said. The stage still grades C, pays its score and counts toward breaking the next seal.
+- DESCEND DEEPER's Infirmary text now says what it buys: starting a run at Descent 2. Stages from Descent 2 on pay double biomass in every run, bought or not; that hasn't changed.
+
 ## 2026-10-31 (safer flashes, safer saves)
 
 - First launch asks whether you want HELL FLASHES on. Change it any time under the new OPTIONS menu on the title screen.
