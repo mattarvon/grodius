@@ -156,3 +156,9 @@ The baseline was re-recorded with this tool against `4f3206f`'s code, served fro
 - **B1 (render RNG split) can land before or after A.** Whichever lands second re-runs the harness **and** `node tools/layout-parity.mjs` against the merged tree. B1 moves the RNG, so it re-records the parity baseline with `--update` in the same commit, with the reason; it must not re-baseline silently.
 - **H0 (run save):** the allowlist carries `remixV` (an object kept across descents) and `visitNo` (an array by slot), plus `route` and `bx` sized by `nSlots()`. `G.remix` is gone.
 - **D, E and J** build on `layout()` and the accessors. They add `long4` to `LAYOUTS`; `layout.test.ts` and `layout-kinds.test.ts` check every entry automatically. J deletes the aliases.
+
+## Second round (handed off)
+
+Matt asked for the remaining findings to be fixed. That is commit `2374691`: drift accessors, the `slotSpans` rename, named errors, the parity runs `1x3` and `7m`, the stronger grep test and the CI label. Its gates pass: parity on all 7 runs, harness, 76 tests.
+
+The second lead review of `37ddac0..2374691` was **stopped before any verdict**, at Matt's request, to consolidate review in his herdr panes. Review that delta in the batched milestone review, alongside the other five lanes. The round-1 verdicts above still stand for everything before `37ddac0`.
