@@ -1,0 +1,11 @@
+GRAVITY DRIVE  DIFF  ON 79be97c870 OFF 79be97c870 BARE a77adc453c | ON: cap @40.0s hp=294.72 score=9300 en=1 es=0 gibs=53 drops=70
+MAW (stage)    DIFF  ON 48dfd1d0c6 OFF 48dfd1d0c6 BARE 0354ea4e9c | ON: dead @9.4s hp=-0.646 score=18000 en=0 es=4 gibs=105 drops=832
+CRUCIFER       DIFF  ON 0e23c87993 OFF 0e23c87993 BARE 5da14e5cbf | ON: dead @25.4s hp=-1.01 score=30240 en=0 es=0 gibs=174 drops=1385
+BUTCHER        DIFF  ON 29cdaf1a6f OFF 29cdaf1a6f BARE 665d45f4fa | ON: dead @20.5s hp=-0.608 score=30000 en=0 es=0 gibs=184 drops=1417
+MAW (mid)      DIFF  ON e8add97de8 OFF e8add97de8 BARE 75e9063721 | ON: dead @9.6s hp=-0.377 score=6000 en=0 es=5 gibs=107 drops=810
+NAIL CHOIR     DIFF  ON 9454508e37 OFF 9454508e37 BARE 2424c29b5f | ON: dead @10.4s hp=-1.191 score=8255 en=0 es=20 gibs=79 drops=522
+DISS. WOMB     DIFF  ON 55a48e6442 OFF 55a48e6442 BARE 8e8e7534ff | ON: dead @9.1s hp=-0.274 score=6000 en=0 es=22 gibs=74 drops=625
+APPRENTICE     DIFF  ON 7a04ea5122 OFF 7a04ea5122 BARE e3e7bfffae | ON: dead @7.2s hp=-0.304 score=6000 en=0 es=16 gibs=88 drops=800
+BROOD MOM      DIFF  ON 1b3632e26d OFF 1b3632e26d BARE 6ed94ebb51 | ON: dead @10.0s hp=-0.615 score=10192 en=0 es=15 gibs=203 drops=709
+SQUID SAUCER   DIFF  ON 51d63722dc OFF 51d63722dc BARE 7465c4c702 | ON: dead @6.0s hp=-0.52 score=6000 en=0 es=13 gibs=67 drops=667
+FAIL: 10/10 fights differ between ON / OFF / BARE (or errored)

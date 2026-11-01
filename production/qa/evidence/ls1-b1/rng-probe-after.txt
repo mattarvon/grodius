@@ -1,0 +1,11 @@
+GRAVITY DRIVE  SAME  ON 9b7b8d14f8 OFF 9b7b8d14f8 BARE 9b7b8d14f8 | ON: cap @40.0s hp=294.72 score=9300 en=1 es=0 gibs=45 drops=71
+MAW (stage)    SAME  ON 88aa3e6705 OFF 88aa3e6705 BARE 88aa3e6705 | ON: dead @9.4s hp=-0.646 score=18000 en=0 es=4 gibs=107 drops=840
+CRUCIFER       SAME  ON d640b174e3 OFF d640b174e3 BARE d640b174e3 | ON: dead @25.4s hp=-1.01 score=30240 en=0 es=0 gibs=173 drops=1381
+BUTCHER        SAME  ON 3e41c40eb0 OFF 3e41c40eb0 BARE 3e41c40eb0 | ON: dead @20.5s hp=-0.608 score=30000 en=0 es=0 gibs=186 drops=1429
+MAW (mid)      SAME  ON 3487a0a773 OFF 3487a0a773 BARE 3487a0a773 | ON: dead @9.6s hp=-0.377 score=6000 en=0 es=5 gibs=107 drops=819
+NAIL CHOIR     SAME  ON 473bf6709e OFF 473bf6709e BARE 473bf6709e | ON: dead @10.4s hp=-1.191 score=7640 en=0 es=20 gibs=82 drops=520
+DISS. WOMB     SAME  ON 19c49fccf0 OFF 19c49fccf0 BARE 19c49fccf0 | ON: dead @9.1s hp=-0.274 score=6000 en=0 es=22 gibs=78 drops=620
+APPRENTICE     SAME  ON 8b554cbd76 OFF 8b554cbd76 BARE 8b554cbd76 | ON: dead @7.2s hp=-0.304 score=6450 en=0 es=16 gibs=101 drops=815
+BROOD MOM      SAME  ON 39d66e53f4 OFF 39d66e53f4 BARE 39d66e53f4 | ON: dead @10.0s hp=-1.286 score=9956 en=0 es=15 gibs=189 drops=787
+SQUID SAUCER   SAME  ON 4aa430e00f OFF 4aa430e00f BARE 4aa430e00f | ON: dead @6.0s hp=-0.52 score=6000 en=0 es=13 gibs=62 drops=665
+PASS: all 10 fights identical ON / OFF / BARE
