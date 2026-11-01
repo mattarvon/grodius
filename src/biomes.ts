@@ -76,6 +76,9 @@ export const BIOMES = {
 export const BIOME_KEYS = Object.keys(BIOMES);
 
 // ---------------- where are we ----------------
+// LS3: G.bx assumes the biome slots follow each other (slot s ends where slot s + 1 starts, the last one at
+// biomeExit). long5 puts an interior between the slots, so it needs a per-slot end (e.g. G.bxEnd[slot]) read here
+// and by rewriteTerrain, which today blends every slot until layout().tEnd.
 // G.bx[s] = world x where biome s starts (just off the right edge when its gate was taken); G.bx[2] = where the
 // second biome hands back to the ship (just off the right edge when stage 2 clears). A biome holds through its
 // boss and the fork that follows, and crossfades into the next one over ~320px.

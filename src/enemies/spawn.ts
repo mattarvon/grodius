@@ -4,7 +4,9 @@ import { PH, R, TAU, W, pick, ri, rr } from '../core';
 import { sfx } from '../audio';
 import { ceilAt, enemies, eshots, floorAt } from '../world';
 import { startBoss } from '../boss/update';
-import { ufoWarn } from './ufo'; // unused here, but kept: it fixes the spawn/ufo ESM init order
+// DO NOT REMOVE: unused here, but this import fixes the spawn <-> ufo ESM init order. The harness runs the dev server,
+// not the bundle, so a removal that breaks the built game would pass every gate.
+import { ufoWarn } from './ufo';
 import { depthHP } from '../depth';
 
 // ---------------- enemies ----------------

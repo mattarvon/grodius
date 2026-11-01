@@ -58,6 +58,25 @@ localization), D16-D18, and the signing keystore half of D6.
 - **Mini bosses:** a pool of 3–4 per biome; a long stage meets two different ones, and repeat runs meet different ones.
 - **Supersedes:** game-brief Pillar 4's "phone-sized, about 35 s stages" and the pacing.md stage-length targets. The "never the same twice" half of the pillar stands.
 
+### D20 LS1-A layout table: rulings — 2026-11-01 (studio review; Matt approved running it)
+
+**Decision point:** Three questions the layout table (`src/layout.ts`, branch `ls1-a`) raised against spec `design/content-expansion.md` §2.2/§3.2.
+**Chosen:**
+- **The DRIFT forced-exit rule is measured to the next WARNING the player sees** (a miniWarn banner, a row's `warnX` banner, another drift's WARNING), not to the later `G.mini` write. Game-designer ruling; spec wording stands. `tests/unit/layout.test.ts` measures it that way, breath WARNINGs included.
+- **The `short` layout keeps its gaps as pinned legacy exceptions**, because it must stay byte-identical:
+  - the Saucer's exit is 220 px before "SOMETHING IS COMING" (about 3.7 s);
+  - repeat-visit set pieces are 158.9 px and 38.8 px after the breath with the gate taken early;
+  - with the gate taken late they are 144.9 px, 280.0 px and 0.0 px.
+  - In play, the slot-1 repeat-visit set piece fires within a second of the midboss kill, with no release beat.
+  - The pins are known short-layout debt. Matt may ask for a separate short tune story; otherwise `short` is deleted one milestone after the long flip.
+- **Beat invariants are checked at both the earliest and the latest gate** (`gateLate` per biome row). Long entries are authored against the late case.
+- **hellFlash re-key is neutral:** `layout().hell` is its own kind-keyed table. In `short` it equals the AMT corr/core curves (pinned bit for bit). Real per-kind values come with the long rows (items D/E).
+- **Scope deviation:** row A's `perks.ts:48` (`stageXP`) was not re-keyed. It moves to G0/G, which own the economy and list `perks.ts:48`.
+- **The parity check stays a manual pre-merge gate** (about 4 min), not a CI job. It is required for any lane touching layout, stages, biomes or scripts. A lane that moves the RNG re-records the baseline with `--update` in the same commit and explains it.
+
+**Reason:** Studio Hierarchy review of LS1-A (3 specialists, 8 leads: all APPROVE WITH NOTES). Evidence: `production/qa/evidence/ls1-a.md`.
+**Category:** design_rules
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path

@@ -29,11 +29,16 @@ export interface StageRow {
   end?: number;
   /** world x of the stage's end encounter: the Maw spawn, the biome boss WARNING, the Drive's startBoss */
   bossX: number;
-  /** world x of the end encounter's warning banner, when it is not a miniWarn at bossX */
+  /** world x of the end encounter's warning banner, when it is not a miniWarn at bossX. It counts as a WARNING for
+   *  the DRIFT forced-exit rule (spec §3.2 rule 1, measured to what the player sees) */
   warnX?: number;
   drift?: Drift[];
   /** biome rows, legacy: the breath ends no earlier than the spawn span's midpoint + this (the old mid-stage Maw) */
   breathAfterMid?: number;
+  /** biome rows: the latest world x the slot's gate is taken at (the `from` of biomes.ts choose(): scroll + W + 10 when
+   *  the fork opens after the previous stage's boss). Only the layout invariant test reads it: a late gate shortens the
+   *  spawn span, so every beat gap is checked at both the earliest (x0) and this latest gate. */
+  gateLate?: number;
 }
 
 /** biome stage beat fractions, p = progress through the spawn span (biomes.ts biomeScript) */
@@ -76,9 +81,10 @@ const SHORT: LayoutEntry = {
   stages: [
     // Open Orbit: the Saucer drifts in (WARNING at 800, its filler window to 1840), then SOMETHING IS COMING and the Maw
     { kind: 'orbit', x0: 0, x1: 2300, bossX: 2120, warnX: 2000, drift: [{ k: 'ufo', at: 800, gapEnd: 1840, exitLead: 60 }] },
-    { kind: 'biome', slot: 0, fork: true, x0: 2300, x1: 5150, end: 5050, bossX: 4950 },
+    // gateLate: the gate x the parity bots take (bx 2658 / 5637 in tools/layout-parity.baseline.json), rounded up
+    { kind: 'biome', slot: 0, fork: true, x0: 2300, x1: 5150, end: 5050, bossX: 4950, gateLate: 2660 },
     // slot 1's breath is shifted to end just past mid + 260, where the old mid-stage Maw was
-    { kind: 'biome', slot: 1, fork: true, x0: 5150, x1: 8300, end: 8200, bossX: 8020, breathAfterMid: 260 },
+    { kind: 'biome', slot: 1, fork: true, x0: 5150, x1: 8300, end: 8200, bossX: 8020, breathAfterMid: 260, gateLate: 5640 },
     // ~18 s of Gravity Drive approach after stage 2 (docs/pacing.md 3.3): WARNING: GRAVITY WELL CRITICAL, then startBoss
     { kind: 'drive', x0: 8300, x1: 10000, bossX: 9300, warnX: 9060 },
   ],
@@ -96,15 +102,19 @@ const SHORT: LayoutEntry = {
   hudMarks: [2400, 5200],
 };
 
-export const LAYOUTS: Record<string, LayoutEntry> = { short: SHORT };
+export const LAYOUTS: Partial<Record<LayoutEntry['id'], LayoutEntry>> = { short: SHORT };
 let active: LayoutEntry = SHORT;
 
 /** the active layout entry */
 export const layout = () => active;
-/** switch the active entry (before a run starts; the flag parse is build plan item D) */
+/** switch the active entry. Contract: only before newGame() (the flag parse, build plan item D); a run in progress
+ *  has G.route, G.bx and the terrain arrays sized for the old entry, and the @deprecated boot-time aliases
+ *  (core LEVEL/BOSS_AT, biomes SEG, ufo UFO_AT/UFO_GAP_END) keep the entry active at import. Item J deletes the
+ *  aliases before item D lets this run with anything but 'short'. */
 export function setLayout(id: string) {
-  if (!LAYOUTS[id]) throw new Error('unknown layout ' + id);
-  active = LAYOUTS[id];
+  const L = LAYOUTS[id as LayoutEntry['id']];
+  if (!L) throw new Error('unknown layout ' + id);
+  active = L;
 }
 
 // ---------------- stage accessors ----------------

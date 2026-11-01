@@ -9,7 +9,7 @@ import { row, slotOf } from './layout';
 
 const URLS = import.meta.glob('./music/*.ogg', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 
-/** slot -> file stem in src/music/, stages keyed by stage kind. Change a mapping to retheme a stage. A list is one track per descent
+/** key -> file stem in src/music/, stages keyed by stage kind (layout.ts). Change a mapping to retheme a stage. A list is one track per descent
  *  (Descent 1 first); past its end, Descent 2+ cycle through the rest so Descent 1's track stays special.
  *  ov-* tracks are Openverse picks (tools/import_openverse.py), credited in CREDITS.md. */
 export const TRACKS = {
@@ -39,7 +39,7 @@ export const BIOME_MIX = {
   snot: { track: 'void-09-pods', rate: 1, type: 'lowpass', f: 2400, q: 1, lfo: .13, depth: 600, drive: .05 },
   // not a biome: while THE SQUIDFUCKED SAUCER (Open Orbit midboss) is up, Open Orbit's own track goes wet and wobbly, a slow wah
   ufo: { rate: 1, type: 'bandpass', f: 1100, q: .6, lfo: .35, depth: 650, drive: .25 },
-  // a repeat visit to a biome (biomes.ts remix): same track, filtered differently so it doesn't replay the last visit
+  // a repeat visit to a biome (G.visitNo, set in biomes.ts choose()): same track, filtered differently so it doesn't replay the last visit
   'ice+': { rate: 1, type: 'bandpass', f: 1400, q: .45, lfo: .07, depth: 700, drive: .1 }, // a cold wind sweeping through it
   'acid+': { rate: 1, type: 'lowpass', f: 1300, q: 3, lfo: .3, depth: 600, drive: .3 }, // a gurgling resonant wah
   'fire+': { rate: 1, type: 'highpass', f: 260, q: 1.1, lfo: 0, depth: 0, drive: .5 }, // the bass burnt out, louder grit
@@ -146,7 +146,8 @@ function mixWanted() {
   const cb = curBiome(), deep = cb && $.G.visitNo && $.G.visitNo[slotOf($.G.stage)] ? cb + '+' : cb;
   return ($.state === 'play' || $.state === 'pause') && (deep || ufoMix()) || 'none';
 }
-/** test hook (tools/layout-parity.mjs): what the music wants, readable with audio off */
+/** test hook (tools/layout-parity.mjs): what the music wants, readable with audio off. wanted() counts Infirmary
+ *  visits on entering the shop, so calling this while musicUpdate also runs could advance that count */
 export const musicPlan = () => ({ want: wanted(), mix: $.G ? mixWanted() : 'none' });
 
 /** call every step: switches tracks, pause level, ducking */

@@ -65,7 +65,7 @@ export function updUfo(e) {
   // leave: on its timer, or when the scroll reaches the Maw's run-up (escape costs nothing, like the other midbosses)
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);
-  if (e.t < e.leave && $.G.scroll > ufoGapEnd() - ufoDrift().exitLead) e.leave = e.t; // the forced exit (layout invariant: >= 300 px before the next G.mini write)
+  if (e.t < e.leave && $.G.scroll > ufoGapEnd() - ufoDrift().exitLead) e.leave = e.t; // the forced exit (layout invariant, spec §3.2 rule 1: >= 300 px before the next WARNING; short is a pinned 220 px exception)
   const go = e.t >= e.leave;
   if (go) {
     if (!e.gone) { e.gone = 1; e.st = 'idle'; e.ll = 0; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); }
