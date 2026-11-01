@@ -3,7 +3,8 @@
 // host biome differs from its home biome is a "crossover": it keeps its body and attacks, but its vertical motion is
 // fitted to the host's terrain (the Womb's bob was tuned to the acid lake, the others to their own caves), its
 // ambient sim sparks take the host's palette, and its render takes the host's tint.
-// In its home biome nothing here changes anything: every crossover branch is gated on isCross().
+// In its home biome nothing here changes anything (every crossover branch is gated on isCross()), except the terrain fit
+// for the HOME_FIT kinds (the Brood Mother), whose home bob clipped her own biome's walls.
 // Pure tables and formulas only (no DOM, no world access) so tests/unit/midhost.test.ts can drive them.
 
 export type Biome = 'ice' | 'acid' | 'fire' | 'snot';
@@ -35,6 +36,18 @@ export const MID_BODY: Record<MidKind, { up: number; dn: number; hw: number }> =
   prentice: { up: 30, dn: 30, hw: 18 }, // carcass ellipse -18..24, head and spit point to -24, cleaver arm below
   brood: { up: 28, dn: 28, hw: 26 }, //   sac rim 21-24 px x 1.16 heave; eyes at -16
 };
+
+/**
+ * Midbosses whose HOME fight is also fitted to the terrain band. The Brood Mother's +-20% PH bob predates the Sinus
+ * walls and put a hittable part of her inside them on 28% of on-screen frames (LS1 P0 matrix); the other three never
+ * clip at home, so their home fights stay untouched.
+ */
+export const HOME_FIT: readonly MidKind[] = ['brood'];
+
+/** true when a midboss's y is fitted into the terrain band this frame: every crossover, plus the HOME_FIT kinds */
+export function fitsTerrain(e: { k: string; host?: string }): boolean {
+  return isCross(e) || HOME_FIT.includes(e.k as MidKind);
+}
 
 /** how fast the fitted band relaxes when the terrain under the midboss opens up (per frame); it tightens at once */
 export const BAND_EASE = 0.08;

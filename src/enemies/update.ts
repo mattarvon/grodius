@@ -16,7 +16,7 @@ import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { ufoKilled, updUfo } from './ufo';
 import { eliteKill, eliteTick } from './elite';
-import { BAND_EASE, BROOD_CAP, HOST_SPARK, MID_BODY, bodyBand, fitY, isCross } from './midhost';
+import { BAND_EASE, BROOD_CAP, HOST_SPARK, MID_BODY, bodyBand, fitY, fitsTerrain, isCross } from './midhost';
 
 // --- enemy behaviour ---
 export function updEnemy(e) {
@@ -386,7 +386,7 @@ export function updEnemy(e) {
         let nLive = 0;
         for (const b of e.bars) if (!b.dead) nLive++;
         e.y = PH / 2 + Math.sin(e.t * .014) * (PH * .16);
-        if (cx) crossFit(e);
+        if (cx) bandFit(e);
         e.spin = (e.spin || 0) + (nLive < 2 ? .034 : .022);
         for (const b of e.bars) { const a = e.spin + b.i * Math.PI; b.ox = Math.cos(a) * 31; b.oy = Math.sin(a) * 31; }
         if (!go && e.t > 120 && $.P.alive) {
@@ -413,7 +413,7 @@ export function updEnemy(e) {
         // THE DISSOLVING WOMB: a melting sac on the lake. Bubbles 45f, then geysers a rain of globs lobbed onto you; or bloats 30f and bursts a ring
         const go = midLeave(e), ph2 = e.hp < e.max * .5, cx = isCross(e);
         e.y = PH * .6 + Math.sin(e.t * .016) * (PH * .13); // tuned to sit on the acid lake; a crossover fits the host's cave
-        if (cx) crossFit(e);
+        if (cx) bandFit(e);
         if (!go && e.t > 120 && $.P.alive) {
           e.wt++;
           if (e.st === 'idle') {
@@ -446,7 +446,7 @@ export function updEnemy(e) {
         e.sw = (e.sw || 0) + (ph2 ? .028 : .018);
         if (e.st === 'tel' && e.wt < 25) e.y = lerp(e.y, clamp($.P.y + 6, 50, PH - 40), .06);
         else if (e.st !== 'tel' && e.st !== 'cut') e.y = lerp(e.y, PH * .42 + Math.sin(e.sw) * 34, .05);
-        if (cx) crossFit(e);
+        if (cx) bandFit(e);
         const sx = e.x - 8, sy = e.y - 6;
         if (!go && e.t > 120 && $.P.alive) {
           e.wt++;
@@ -489,7 +489,7 @@ export function updEnemy(e) {
         // THE BROOD MOTHER: a swollen mucus sac. Heaves 44f, then births a litter of hatchlings; or flares 26f and sneezes snot globs
         const go = midLeave(e), ph2 = e.hp < e.max * .5;
         e.y = PH / 2 + Math.sin(e.t * .013) * (PH * .2);
-        if (isCross(e)) crossFit(e);
+        if (fitsTerrain(e)) bandFit(e);
         if (!go && e.t > 120 && $.P.alive) {
           e.wt++;
           if (e.st === 'idle') {
@@ -603,10 +603,10 @@ export function whipPts(e) {
   return pts;
 }
 const BAND = [0, 0];
-/** a crossover midboss (enemies/midhost.ts): fit e.y into the terrain band under its body. The band tightens at once
+/** a crossover midboss, or a home one fitsTerrain() names (enemies/midhost.ts): fit e.y into the terrain band under its body. The band tightens at once
  *  (terrain under a moving body must never swallow it) and relaxes eased, so a spire leaving the sample window
  *  doesn't drop the body back with a snap */
-function crossFit(e) {
+function bandFit(e) {
   const wx = e.x + $.G.scroll, hw = MID_BODY[e.k].hw;
   let ce = -1e9, fl = 1e9;
   for (let d = -hw; d <= hw; d += hw / 2) { ce = Math.max(ce, ceilAt(wx + d)); fl = Math.min(fl, floorAt(wx + d)); }

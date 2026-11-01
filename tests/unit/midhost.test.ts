@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BROOD_CAP, HOST_SPARK, HOST_TINT, MID_BODY, MID_HOME, bodyBand, fitY, isCross, midHost } from '../../src/enemies/midhost';
+import { BROOD_CAP, HOME_FIT, HOST_SPARK, HOST_TINT, MID_BODY, MID_HOME, bodyBand, fitY, fitsTerrain, isCross, midHost } from '../../src/enemies/midhost';
 
 // Build plan LS1 row P0: the four biome midbosses must work as crossovers in every biome.
 // biomes.ts and update.ts touch the DOM at import time, so their facts are read from the source text.
@@ -37,6 +37,18 @@ describe('midboss home and host', () => {
 });
 
 describe('terrain band', () => {
+  it('fits every crossover and only the Brood Mother at home', () => {
+    expect(HOME_FIT).toEqual(['brood']);
+    for (const k of KINDS) for (const b of BIOME_KEYS) expect(fitsTerrain({ k, host: b })).toBe(b !== MID_HOME[k] || k === 'brood');
+    expect(fitsTerrain({ k: 'brood' })).toBe(true);
+    expect(fitsTerrain({ k: 'cyst' })).toBe(false);
+    expect(fitsTerrain({ k: 'maw', host: 'snot' })).toBe(false);
+  });
+
+  it('gates the Brood Mother fit on fitsTerrain in update.ts', () => {
+    expect(UPDATE_SRC).toContain('if (fitsTerrain(e)) bandFit(e);');
+  });
+
   it('leaves every body room in the narrowest biome corridor', () => {
     for (const k of KINDS) expect(MID_BODY[k].up + MID_BODY[k].dn).toBeLessThanOrEqual(MIN_CORRIDOR);
   });

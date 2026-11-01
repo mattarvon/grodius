@@ -13,6 +13,7 @@ Source: `production/content-build-plan.md` §2 row P0; `design/content-expansion
 | Crossover terrain fit (cyst's lake y, and the other three) | Outside its home biome, after its own y motion each midboss is clamped into the band `[max ceil + up, min floor − dn]` sampled across its body width (`crossFit` in `update.ts`, `MID_BODY` / `bodyBand` / `fitY` in `midhost.ts`). The band tightens at once and relaxes eased (`BAND_EASE`). Its own motion and attacks are untouched. |
 | Crossover sparks (prentice's fire sparks, and the others) | Ambient and cleaver-strike sparks use `HOST_SPARK[host]`. A `pick()` replaces a colour that was already an `R()` draw; the Womb's constant colour becomes a frame-indexed entry. **A crossover draws exactly as many `R()` values as a home fight.** Telegraph cues keep their own colours. |
 | Host-biome tint | `drawMidCross` (`render/gross/midbosses.ts`): a crossover's body is drawn into a 480×270 layer, washed with `HOST_TINT[host]` (the biome's `rgb`, alpha .20-.26, source-atop), then blitted at the caller's transform. Eyes still queue on the main ctx (hi-res, untinted); the hit-flash filter still applies. The Womb's and Brood's death halves (`render/gore.ts`) use the same path. Its five `glow()` and three `eye()` calls go through `glowC`/`eyeC`, which are exactly `glow`/`eye` when `c` is the main ctx, so **home rendering is unchanged**. |
+| Home Brood fit (follow-up commit, Matt's request) | The Brood Mother's home fight now uses the same terrain band (`HOME_FIT = ['brood']`, `fitsTerrain()` in `midhost.ts`; `crossFit` renamed `bandFit`). Her ±20% PH bob clipped the Sinus walls on 28% of on-screen frames; now 0%. The other three home fights are untouched. The fit draws no `R()`. |
 | Probes | `tools/midboss-probe.mjs <url> matrix [dir]`: a 4 midboss × 4 biome × 4 stage-position matrix, plus a brood cap check. `tools/perf-probe.mjs`: `XHOST=<biome>` env runs the 4 midboss scenes as crossovers. Default modes unchanged. |
 
 **Files:** `src/enemies/midhost.ts` (new), `src/enemies/update.ts`, `src/enemies/spawn.ts`, `src/biomes.ts` (one argument), `src/render/gross/midbosses.ts`, `src/render/enemies.ts`, `src/render/gore.ts`, `tests/unit/midhost.test.ts` (new), `tools/midboss-probe.mjs`, `tools/perf-probe.mjs`, and this file plus `ls1-p0/`.
@@ -29,7 +30,7 @@ Source: `production/content-build-plan.md` §2 row P0; `design/content-expansion
 | No per-frame allocation | **PASS for the sim** (see above). Render: the gross art still allocates per frame (inline `[[x,y,r],...]` literals, `createRadialGradient` in the Choir, `eye()` option objects, `rim` closures). This is pre-existing and out of this diff's scope. Handed to lane K with the list. |
 | `midboss-probe` across a 4×4 biome matrix | **Done**, output below. |
 | `perf-probe` brood scene p95 not worse than 22.0 ms | **No regression vs base, but the 22.0 ms absolute could not be reproduced on this host** (see Perf). |
-| Short layout behaviour-identical | **PASS** with one intended exception: the brood cap, which the row mandates. Harness `st` is byte-identical. Crossover code runs only when `e.host` ≠ home, and the short layout always spawns the home midboss. |
+| Short layout behaviour-identical | **PASS** with two intended exceptions, both in the home Sinus fight: the brood cap, which the row mandates, and the home Brood terrain fit, which Matt asked for after the first report. Harness `st` is byte-identical. Crossover code runs only when `e.host` ≠ home, and the short layout always spawns the home midboss. Harness re-run after the Brood fit: PASS, same `st` and hashes. |
 
 ## Test and probe output
 
@@ -37,19 +38,20 @@ Source: `production/content-build-plan.md` §2 row P0; `design/content-expansion
 
 **Harness reach:** the 60 s harness never reaches a biome or a midboss. So it neither covers nor moves on the brood cap: no re-baseline, no separate commit needed.
 
-**Midboss matrix** (`node tools/midboss-probe.mjs <url> matrix production/qa/evidence/ls1-p0`): STAGE 1 kit. Each cell is the mean of 4 stage positions (world x 3300/3700/4100/4500). "clip" = % of on-screen frames with a hittable part inside the terrain. `*` = home.
+**Midboss matrix**, re-run after the home Brood fit (`node tools/midboss-probe.mjs <url> matrix production/qa/evidence/ls1-p0`): STAGE 1 kit. Each cell is the mean of 4 stage positions (world x 3300/3700/4100/4500). "clip" = % of on-screen frames with a hittable part inside the terrain. `*` = home.
 
 ```
 midboss                              ice                          acid                          fire                          snot
 choir          * 10.0   clip  0% y86-168       10.0   clip  0% y86-168        9.8   clip  0% y86-168        8.7   clip  0% y90-154
 cyst             8.7   clip  0% y119-185    *  8.7   clip  0% y119-185       9.9   clip  0% y119-185       8.5   clip  0% y119-174
 prentice          6.8   clip  0% y87-139        6.8   clip  0% y87-139     *  6.8   clip  0% y87-139        6.8   clip  0% y87-139
-brood             9.9   clip  0% y76-178        9.9   clip  0% y76-178       11.5   clip  0% y76-178     *  9.2   clip 28% y76-178
+brood             9.8   clip  0% y76-178        9.8   clip  0% y76-178       11.2   clip  0% y76-178     *  9.8   clip  0% y76-175
 brood CROWD cap (STRONG kit holding fire, Descent 5, phase 2): max hatchlings alive 8 over 9 litters, rank 1 (cap 8)
 render frames sampled: 1485      errors: none
 ```
 
-- Crossover TTKs (8.5-11.5 s) are in the spec's slot-A 8-11 s range, give or take 0.5 s. The Apprentice (6.8 s) is under it everywhere, its home included; that is a balance note, not a crossover effect.
+- Home Brood before the fit: 9.2 s, clip **28%**. After: 9.8 s, clip 0%. With all of her body hittable she should die faster, but the fit also keeps her off the top and bottom of the screen, where she was easiest to line up on; net +0.6 s, inside the 8-11 s band. Crossover brood TTKs moved by ≤0.3 s between runs (probe noise from hatchling spread).
+- Crossover TTKs (8.5-11.2 s) are in the spec's slot-A 8-11 s range, give or take 0.5 s. The Apprentice (6.8 s) is under it everywhere, its home included; that is a balance note, not a crossover effect.
 - A first version eased the band in both directions. That left 1-5% clipping in crossovers while the body slid in over changing terrain, which is why the band now tightens at once. A no-fit crossover baseline was not measured.
 - The default mode is unchanged: STAGE 1 kit, Choir 10.0 / Womb 8.7 / Apprentice 6.8 / Brood 9.8 s.
 
@@ -72,7 +74,7 @@ No-elite pass, P0, 4×, render avg/p95: home choir 50.2/251.4, cyst 43.8/172.1, 
 ## Stubs, open risks, findings
 
 1. **Picker wiring is lane F0's.** P0 only provides the interface: `midboss(kind, title, host)`. Today `biomes.ts` passes its own biome with its own midboss, so no crossover can occur in a real run until F0's `pickMids` passes a foreign kind. `title` should be the **midboss's** name, not the host's (the probe had that bug; fixed).
-2. **Home Brood Mother clips the Sinus walls 28% of the time.** This is existing behaviour, and the short layout must stay identical, so I did not fix it. A fix is one line (call `crossFit` for home fights too, or for the Brood only), but it moves home Sinus fights. Needs a game-designer call. Flagged for M3 or for when the parity gate lets it in.
+2. **Home Brood Mother clipped the Sinus walls 28% of the time: fixed** in a follow-up commit at Matt's request (`HOME_FIT`). It changes the home Sinus fight (her y range is 76-175 instead of 76-178 and she never enters the walls), so game-designer should still look at the fight's feel; TTK stays in band.
 3. **Tint values are a first pass.** `HOST_TINT` alpha is .20-.26, chosen so the body still reads as the same creature and its own telegraph glows show. Glows drawn inside the tint layer composite source-over instead of additively, so a crossover's crown/eye glow is slightly softer than at home. Art-director to review against `ls1-p0/xmb-matrix-zoom.png`.
 4. **Nailbars stay untinted.** The Choir's bars are separate entities (grey metal), and its telegraph lines and the Apprentice's sweep cone are drawn outside the body on purpose (readability).
 5. **Render-side allocations** in the gross art (item above) go to lane K.
@@ -88,6 +90,6 @@ No-elite pass, P0, 4×, render avg/p95: home choir 50.2/251.4, cyst 43.8/172.1, 
 ## Studio review prompts
 
 - **technical-artist / art-director:** tint strength per host; the softer glows in crossovers; whether nailbars should tint.
-- **game-designer:** the home-Brood clipping (finding 2); crossover TTKs.
+- **game-designer:** the home-Brood fit's feel (finding 2); crossover TTKs.
 - **qa-lead:** the matrix is the regression check for crossovers; the harness does not reach them.
 - **performance-analyst:** paired perf only; absolute re-take needed.

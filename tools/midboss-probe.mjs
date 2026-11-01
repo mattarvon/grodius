@@ -165,7 +165,7 @@ async function matrix() {
     const t = r.ttks.filter((v) => v !== 'esc' && v !== '--').map(Number), tt = t.length ? (t.reduce((a, v) => a + v, 0) / t.length).toFixed(1) : 'esc';
     return `${r.home ? '*' : ' '}${tt.padStart(5)}${t.length < r.ttks.length ? '+e' : '  '} clip${pc.padStart(3)}% y${Math.round(r.y0)}-${Math.round(r.y1)}`.padStart(29);
   }));
-  console.log('(* = home biome, unchanged behaviour)   brood max hatchlings alive:', BS.map((b) => `${b} ${res['brood@' + b].maxKids ?? '?'}`).join(', '));
+  console.log('(* = home biome; only the Brood is fitted at home)   brood max hatchlings alive:', BS.map((b) => `${b} ${res['brood@' + b].maxKids ?? '?'}`).join(', '));
   // the CROWD cap: hold fire so the litters pile up, push rank to 1 and phase 2 (the largest litters), count the alive
   await prep(...L[3].slice(1), 'brood', 'snot', 'snot'); // STRONG D1 kit: high power, so rank and the litters are at their largest
   const cap = await p.evaluate(async () => {
