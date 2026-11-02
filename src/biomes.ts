@@ -161,7 +161,9 @@ const SPAWN = {
   hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
 };
 Object.assign(SPAWN, { slime: () => slime(R() < .65 ? 1 : -1), mutant: () => mutant() }); // new enemies: snot slime (floor or ceiling), hulking mutant (floor)
-function insertScript(entries) {
+/** merge script entries into the unplayed part of G.script, kept sorted by x (a stable sort: equal x keep their
+ *  order, entries already there first) */
+export function insertScript(entries) {
   const G = $.G, rest = G.script.slice(G.si).concat(entries).sort((a, b) => a.x - b.x);
   G.script = G.script.slice(0, G.si).concat(rest);
 }
@@ -224,6 +226,15 @@ export function biomeScript(seg, b, from, v = 0) {
   return S;
 }
 
+/** build biome slot seg's stage from world x `from` (its gate, G.bx[seg]): blend its terrain in and script it.
+ *  Reads the biome and visit number choose() stored (G.route[seg], G.visitNo[seg]), so a resume can call it again
+ *  with the stored bx. Draws the sim R() (biomeScript, remix): call it at the gate, nowhere else, until B2 */
+export function biomeStage(seg, from) {
+  const G = $.G, b = G.route[seg], v = G.visitNo[seg];
+  rewriteTerrain(seg, b, from);
+  insertScript(biomeScript(seg, b, from, v));
+}
+
 // ---------------- the fork ----------------
 export function holdForFork() { $.G.forkHold = true; }
 export function openFork(seg) {
@@ -248,8 +259,7 @@ function choose(b) {
   G.forkHold = false;
   const from = Math.max(slotRow(seg).x0, G.scroll + W + 10);
   (G.bx ||= Array(nSlots() + 1).fill(null))[seg] = from;
-  rewriteTerrain(seg, b, from);
-  insertScript(biomeScript(seg, b, from, v));
+  biomeStage(seg, from); // the gate is this stage's entry: build it here (stagebuild.ts buildStage)
   G.pend.push({ t: 40, f: () => startStage(stageOfSlot(seg)) });
   flash($.P.x, $.P.y, 80, 18, BIOMES[b].rgb);
   sfx.power();

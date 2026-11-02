@@ -15,7 +15,7 @@
 // 35-40% of a stage's spawns.
 import { $ } from '../state';
 import { PH, W, ri } from '../core';
-import { rowOfKind, ufoDrift, ufoRow } from '../layout';
+import { row, ufoDrift, ufoRow } from '../layout';
 import { sfx } from '../audio';
 import { startBoss } from '../boss/update';
 import { ufoWarn } from './ufo';
@@ -214,31 +214,45 @@ const DRIVE_F = [
   })
 ];
 
-export function buildScript(L) {
-  const S = [],
+// the hand-made sections of each non-biome stage kind, in the order their variants are picked (pickStageVariants)
+const SECTIONS = { orbit: [['oA', ORBIT_A], ['oC', ORBIT_C], ['oD', ORBIT_D]], drive: [['dE', DRIVE_E], ['dF', DRIVE_F]] };
+/** the build-time variant picks of a descent: every hand-made section's remix, drawn with the sim R() at startLoop in
+ *  today's order (oA, oC, oD, dE, dF; nothing is drawn in Descent 1). The pick is kept in G.remixV[key].last, which
+ *  stageScript reads, so placing a stage draws nothing. B2 moves these draws onto the per-stage build stream. */
+export function pickStageVariants(L) {
+  for (const k of ['orbit', 'drive']) for (const [key, vs] of SECTIONS[k]) pickV(key, vs, L);
+}
+/** the section variant this descent plays (picked by pickStageVariants) */
+const played = (key, vs) => vs[$.G.remixV[key].last];
+
+/** the script entries of non-biome stage i (Open Orbit, the Drive approach), in world x, unsorted; [] for a biome
+ *  stage (biomes.ts biomeStage scripts those at the gate). Places the variants pickStageVariants picked: no R() draw */
+export function stageScript(i) {
+  const r = row(i), S = [],
     // script x values are relative to their stage row's x0 (src/layout.ts); `at` places them in world x
-    stageAt = (r) => (x, f) => S.push({ x: r.x0 + x, f });
-  // PHASE 1: open orbit, the derelict looming
-  const O = rowOfKind('orbit'), oAt = stageAt(O);
-  pickV('oA', ORBIT_A, L)(oAt);
-  stageAt(ufoRow())(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
-  pickV('oC', ORBIT_C, L)(oAt);
-  pickV('oD', ORBIT_D, L)(oAt);
-  oAt(O.warnX - O.x0, () => {
-    banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
-    sfx.dread();
-  });
-  oAt(O.bossX - O.x0, () => maw(true));
-  // PHASE 4: the Gravity Drive approach: corridor gauntlet, rising pressure, WARNING, a breath
-  const D = rowOfKind('drive'), dAt = stageAt(D), warn = D.warnX - D.x0;
-  dAt(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
-  pickV('dE', DRIVE_E, L)(dAt);
-  dAt(430, () => { eyeT(1); eyeT(-1); });
-  pickV('dF', DRIVE_F, L)(dAt);
-  dAt(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
-  dAt(warn + 90, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
-  dAt(D.bossX - D.x0, () => startBoss());
-  // the biome stages are scripted when you pick a gate (biomes.ts insertScript)
-  S.sort((a, b) => a.x - b.x);
+    stageAt = (rr) => (x, f) => S.push({ x: rr.x0 + x, f });
+  if (r.kind === 'orbit') {
+    // PHASE 1: open orbit, the derelict looming
+    const oAt = stageAt(r);
+    played('oA', ORBIT_A)(oAt);
+    if (ufoRow() === r) stageAt(r)(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
+    played('oC', ORBIT_C)(oAt);
+    played('oD', ORBIT_D)(oAt);
+    oAt(r.warnX - r.x0, () => {
+      banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
+      sfx.dread();
+    });
+    oAt(r.bossX - r.x0, () => maw(true));
+  } else if (r.kind === 'drive') {
+    // PHASE 4: the Gravity Drive approach: corridor gauntlet, rising pressure, WARNING, a breath
+    const dAt = stageAt(r), warn = r.warnX - r.x0;
+    dAt(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
+    played('dE', DRIVE_E)(dAt);
+    dAt(430, () => { eyeT(1); eyeT(-1); });
+    played('dF', DRIVE_F)(dAt);
+    dAt(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
+    dAt(warn + 90, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
+    dAt(r.bossX - r.x0, () => startBoss());
+  }
   return S;
 }

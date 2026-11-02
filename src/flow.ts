@@ -6,14 +6,15 @@ import { sfx } from './audio';
 import { buzz } from './platform';
 import { ALL, buildTerrain, ceilAt, eshots, floorAt } from './world';
 import { drop, flash, gore, spark, splat } from './fx/spawn';
-import { buildScript } from './enemies/spawn';
+import { pickStageVariants } from './enemies/spawn';
 import { startStage } from './stages';
 import { biomeReset } from './biomes';
 import { perksReset } from './perks';
 import { caps } from './world';
 import { resetContraptions, rigFresh } from './contraptions';
 import { shipShed } from './shipform';
-import { nSlots } from './layout';
+import { lastStage, nSlots, row } from './layout';
+import { buildStage } from './stagebuild';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
@@ -62,7 +63,9 @@ export function startLoop(L) {
   $.G.scroll = 0;
   $.G.scrollSpeed = 1;
   $.G.si = 0;
-  $.G.script = buildScript(L);
+  $.G.script = [];
+  pickStageVariants(L); // the descent's build-time R() draws: same order and moment as the old up-front buildScript
+  for (let i = 0; i <= lastStage(); i++) if (row(i).kind !== 'biome') buildStage(i); // Orbit and the Drive approach (see stagebuild.ts); a biome stage is built at its gate
   $.G.bossStarted = false;
   $.G.boss = null;
   $.G.clearT = 0;

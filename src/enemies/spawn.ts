@@ -419,7 +419,7 @@ export function banner(text, sub, col = '#d4141e', t = 200) {
   };
 }
 // the Open Orbit and Gravity Drive approach scripts, remixed per descent, live in enemies/scripts.ts
-export { buildScript } from './scripts';
+export { pickStageVariants, stageScript } from './scripts';
 export function runScript() {
   while ($.G.si < $.G.script.length && $.G.script[$.G.si].x <= $.G.scroll) {
     const s = $.G.script[$.G.si++];
