@@ -40,6 +40,20 @@ export interface StageRow {
    *  the fork opens after the previous stage's boss). Only the layout invariant test reads it: a late gate shortens the
    *  spawn span, so every beat gap is checked at both the earliest (x0) and this latest gate. */
   gateLate?: number;
+  /** long Orbit / Drive rows: the cell-and-filler plan the long script generator builds from (enemies/scripts.ts,
+   *  src/cellpick.ts). The short rows have none: their scripts are today's hand-made sections */
+  plan?: StagePlan;
+}
+
+/** a generated stage (spec §3.4 "Authoring method"; LS1 row E). All x are stage-relative to the row's x0 */
+export interface StagePlan {
+  /** hand-authored cells, about 300 px each: where each starts, and which tagged pool it draws from. `floor` is the
+   *  Drive's first slot, the only stretch of the corridor with a floor and ceiling for mutants, crawlers and wombs */
+  slots: { x: number; tag: 'intro' | 'build' | 'peak' | 'floor' }[];
+  /** generator filler: a beat every `gap` px over [a, b), kinds from the `mix` table (src/cellpick.ts) */
+  fill: { a: number; b: number; gap: number; mix: 'orbit' | 'interior' }[];
+  /** Descent 1 plays the pool's fixed opener in the first `opener` slots (Orbit's teaching cells) */
+  opener?: number;
 }
 
 /** a breath: an empty window (no spawns) ending at p `end`, `len` of the spawn span long. `mid`: it holds the biome's
@@ -130,32 +144,57 @@ const SHORT: LayoutEntry = {
   hudMarks: [2400, 5200],
 };
 
+// ---------------- long4's Open Orbit and Drive approach content (LS1 row E) ----------------
+// The rows' spans, bossX and warnX are item D's; the cell-and-filler plans and the Saucer's window are item E's
+// (spec §3.4 "Authoring method"; enemies/scripts.ts builds them, src/cellpick.ts picks the cells).
+/** long Open Orbit: 3 intro cells (the ~15 s teaching opener in Descent 1, 180..1060), the Saucer, then build and peak
+ *  cells with generator filler between them, ending 80 px before the Maw's banner */
+const LONG4_ORBIT_PLAN: StagePlan = {
+  slots: [{ x: 180, tag: 'intro' }, { x: 480, tag: 'intro' }, { x: 780, tag: 'intro' }, { x: 2100, tag: 'build' }, { x: 2700, tag: 'build' }, { x: 3300, tag: 'peak' }],
+  fill: [
+    { a: 1150, b: 2100, gap: 80, mix: 'orbit' }, // the Saucer's window: eaten while it is up (runScript, $.G.eat)
+    { a: 2400, b: 2700, gap: 70, mix: 'orbit' }, // build, ~0.9 beats/s
+    { a: 3000, b: 3300, gap: 70, mix: 'orbit' },
+    { a: 3600, b: 4000, gap: 55, mix: 'orbit' }, // peak, ~1.1 beats/s, ending 80 px before the Maw's banner
+  ],
+  opener: 3,
+};
+/** long Drive approach (x relative to the row's x0): the floor cell where the corridor still has a floor, the wall eyes
+ *  at 430 and the log line at 130 (fixed beats, enemies/scripts.ts), then cells and filler up to the WARNING */
+const LONG4_DRIVE_PLAN: StagePlan = {
+  slots: [{ x: 140, tag: 'floor' }, { x: 460, tag: 'intro' }, { x: 800, tag: 'build' }, { x: 1120, tag: 'build' }, { x: 1760, tag: 'peak' }, { x: 2080, tag: 'peak' }],
+  fill: [{ a: 1440, b: 1740, gap: 65, mix: 'interior' }],
+};
+
 // ---------------- long4: the LS1 long layout (spec §2.2, §3.2-3.4; build plan sprint 2 item D) ----------------
 // Orbit, biome, biome, Drive, each long, behind ?layout=long (the default stays short). Rows are sized by scroll time, not row width: a biome
 // stage is timed from its gate (the scroll holds at the fork ~50 px past the previous Maw, ~200 px past a biome boss:
 // its miniWarn runs 150 f while the scroll coasts) to its boss WARNING at bossX. bossX - gate scroll = 3550 px gives
 // ~60 s of scroll with the fork start and the midboss hold (two ~50 f speed ramps); measured: production/qa/evidence/ls1-d.md.
 // The Orbit and Drive rows' spans, bossX, warnX and the Saucer's entry are D's; their script content is item E's (until
-// E lands they replay today's scripts, placed by these rows: Orbit's filler ends ~1900, the Drive's ~700).
+// E landed them: enemies/scripts.ts builds each from its row's `plan`).
 const LONG4: LayoutEntry = {
   id: 'long4',
-  level: 14370,
+  level: 15150,
   stages: [
-    // Open Orbit 3600: the Saucer's WARNING at 1080 (spec §3.4 "around 1100"; not 1100 itself, which is an Orbit script
-    // x in enemies/scripts.ts and would trip layout-literals.test.ts); gapEnd 2140 is provisional (item E owns it: >= 300
-    // px before Orbit's slot B WARNING once LS2-orbit adds one). The Maw at 3420, its SOMETHING IS COMING 120 px before
-    { kind: 'orbit', x0: 0, x1: 3600, bossX: 3420, warnX: 3300, drift: [{ k: 'ufo', at: 1080, gapEnd: 2140, exitLead: 60 }] },
-    // gate scroll ~3470 (the Maw holds at ~3420 + 50), so the gate x (scroll + W + 10) is ~3960; gateLate rounds up
-    { kind: 'biome', slot: 0, fork: true, x0: 3600, x1: 7220, end: 7120, bossX: 7020, gateLate: 3970 },
-    // gate scroll ~7220 (the biome boss lands 150 f after its WARNING at 7020, then the scroll coasts ~50 px)
-    { kind: 'biome', slot: 1, fork: true, x0: 7220, x1: 10970, end: 10870, bossX: 10770, gateLate: 7720 },
-    // the Drive approach: 2700 px (45 s) from where slot 1's boss leaves the scroll (~10970) to startBoss; its
+    // Open Orbit 4380 (item E: D's 3600 measured 65-66 s on long4 with E's content, under the LS1 band of 75-90 s,
+    // because the drift Saucer holds no scroll; every row after it moved +780). The Saucer's WARNING at 1080 (spec §3.4 "around 1100"; not 1100 itself, which is an Orbit script
+    // x in enemies/scripts.ts and would trip layout-literals.test.ts). Item E: its filler window ends at 2100 (about
+    // today's 1000 px, so the Saucer fight and its pods keep docs/pacing.md 3.2's tuning) and it is forced out at 2040,
+    // 1260 px before the Maw's banner, the next WARNING in LS1 (D20 rule 1); LS2-orbit's slot-B WARNING must sit at
+    // >= 2340. The Maw at 4200, its SOMETHING IS COMING 120 px before
+    { kind: 'orbit', x0: 0, x1: 4380, bossX: 4200, warnX: 4080, drift: [{ k: 'ufo', at: 1080, gapEnd: 2100, exitLead: 60 }], plan: LONG4_ORBIT_PLAN },
+    // gate scroll ~4250 (the Maw holds at ~4200 + 50), so the gate x (scroll + W + 10) is ~4740; gateLate rounds up
+    { kind: 'biome', slot: 0, fork: true, x0: 4380, x1: 8000, end: 7900, bossX: 7800, gateLate: 4750 },
+    // gate scroll ~8000 (the biome boss lands 150 f after its WARNING at 7800, then the scroll coasts ~50 px)
+    { kind: 'biome', slot: 1, fork: true, x0: 8000, x1: 11750, end: 11650, bossX: 11550, gateLate: 8500 },
+    // the Drive approach: 2700 px (45 s) from where slot 1's boss leaves the scroll (~11750) to startBoss; its
     // WARNING: GRAVITY WELL CRITICAL 240 px before, and today's 700 px of chamber past it
-    { kind: 'drive', x0: 10970, x1: 14370, bossX: 13670, warnX: 13430 },
+    { kind: 'drive', x0: 11750, x1: 15150, bossX: 14450, warnX: 14210, plan: LONG4_DRIVE_PLAN },
   ],
-  // the biome hands back to the ship one screen into the Drive approach, so slot 1's boss arena (scroll ~10970,
-  // screen to ~11450) stays on movement C; biomeExit's look hand-back (G.bx[2] = scroll + W + 10) lands at the same x
-  tEnd: [11450, 11750],
+  // the biome hands back to the ship one screen into the Drive approach, so slot 1's boss arena (scroll ~11750,
+  // screen to ~12230) stays on movement C; biomeExit's look hand-back (G.bx[2] = scroll + W + 10) lands at the same x
+  tEnd: [12230, 12530],
   beats: {
     // the span starts 330 px of scroll after the gate (its right-edge x + 320 - W: the terrain has finished blending
     // in) and ends 60 px before the boss WARNING; the run-up (p .9-1) is the rest of the spec's 6 s of quiet. Late
@@ -181,20 +220,20 @@ const LONG4: LayoutEntry = {
   // where slot 0's boss is and squeezes from slot 1's start, and everything opens into the chamber over the 400 px
   // before the Drive's bossX
   bands: {
-    hull: [3500, 4000],
-    corr: [7070, 7570, 13270, 13670],
-    core: [13270, 13720],
-    space: [6870, 7470],
-    inner: [7070, 7470, 13470, 13870],
+    hull: [4280, 4780],
+    corr: [7850, 8350, 14050, 14450],
+    core: [14050, 14500],
+    space: [7650, 8250],
+    inner: [7850, 8250, 14250, 14650],
   },
-  terrain: { fT: [3550, 4000, 13220, 13570], cT: [4800, 5250, 13220, 13570], kT: [7120, 7570, 13120, 13470], zT: [13270, 13670], blocks: [4100, 7070] },
+  terrain: { fT: [4330, 4780, 14000, 14350], cT: [5580, 6030, 14000, 14350], kT: [7900, 8350, 13900, 14250], zT: [14050, 14450], blocks: [4880, 7850] },
   // PROVISIONAL (creative-director condition, LS1-A review): per-kind hell values are authored after art round 2, never
   // copied from the AMT bands. Until then they are keyed to the stage rows, not to AMT: `corr` rises over slot 1's
   // first 500 px (the last biome slot) and falls into the Drive chamber; `core` is the chamber
-  hell: { corr: [7220, 7720, 13270, 13670], core: [13270, 13720] },
+  hell: { corr: [8000, 8500, 14050, 14450], core: [14050, 14500] },
   // PROVISIONAL (art-director: the tick design for long rows is an art decision): today's rule, a tick just inside
   // each biome slot's start
-  hudMarks: [3700, 7270],
+  hudMarks: [4480, 8050],
 };
 
 export const LAYOUTS: Partial<Record<LayoutEntry['id'], LayoutEntry>> = { short: SHORT, long4: LONG4 };

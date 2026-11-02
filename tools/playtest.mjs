@@ -9,9 +9,34 @@
 //            how much of descent N's stage repeats descent N-1's mix, hype voice count, music per stage
 // Screenshots every SHOT seconds of game time go to <outDir>. Needs the VITE dev server (imports live modules).
 // Usage: node tools/playtest.mjs <url> <outDir> [descents=3] [seed=7] [maxMinutes=30] [--layout short]
+// Every run also writes <outDir>/sig.json: per stage, its script signature (each spawn's stage-relative scroll x and
+// kind, grouped into waves), and the Open Orbit opener (Descent 1, spawns before the Saucer's WARNING).
+// Cross-seed signature report (LS1 row E): run several seeds into their own outDirs, then
+//   node tools/playtest.mjs --compare <outDir1> <outDir2> ...
+// prints whether the Descent 1 opener is identical across the seeds and how much of each stage's rest differs.
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
+if (process.argv[2] === '--compare') { compare(process.argv.slice(3)); process.exit(0); }
+/** the cross-seed signature report over sig.json files */
+function compare(dirs) {
+  const runs = dirs.map((d) => ({ d, ...JSON.parse(fs.readFileSync(`${d}/sig.json`, 'utf8')) }));
+  const layouts = [...new Set(runs.map((r) => r.layout))];
+  console.log(`cross-seed signature report: ${runs.length} runs (seeds ${runs.map((r) => r.seed).join(', ')}), layout ${layouts.join('/')}`);
+  const op = runs.map((r) => JSON.stringify(r.opener)), same = op.every((x) => x === op[0]);
+  console.log(`Descent 1 opener (Open Orbit, before the Saucer WARNING at ${runs[0].openerEnd}): ${same ? 'IDENTICAL' : 'DIFFERS'} across seeds, ${runs[0].opener.length} waves: ${runs[0].opener.map((w) => w.x + ':' + w.ks).join(' ')}`);
+  if (!same) runs.forEach((r, i) => console.log(`   seed ${r.seed}: ${op[i]}`));
+  const keys = [...new Set(runs.flatMap((r) => Object.keys(r.stages)))].sort();
+  for (const k of keys) {
+    if (runs.every((r) => !(r.stages[k] || []).length)) { console.log(`stage ${k}: no spawns recorded in any run (not measured)`); continue; }
+    const sigs = runs.filter((r) => r.stages[k]).map((r) => r.stages[k].filter((w) => !(k === '1-1' && w.x < r.openerEnd)).map((w) => w.x + ':' + w.ks).join(' '));
+    const sets = sigs.map((s) => new Set(s.split(' ')));
+    let pair = 0, n = 0;
+    for (let i = 0; i < sets.length; i++) for (let j = i + 1; j < sets.length; j++) { const u = new Set([...sets[i], ...sets[j]]); pair += [...sets[i]].filter((x) => sets[j].has(x)).length / Math.max(1, u.size); n++; }
+    console.log(`stage ${k}${k === '1-1' ? ' after the opener' : ''}: ${new Set(sigs).size}/${sigs.length} distinct signatures, mean pairwise wave overlap ${n ? Math.round(100 * pair / n) : 0}%`);
+  }
+  console.log('not measured: spawn-time rolls (y, side, elite) are left out of the signature on purpose; a stage a run never reached is missing from its row');
+}
 const [url, OUT, DESC = '3', SEED = '7', MAXM = '30'] = process.argv.slice(2);
 const SHOT = 20;
 fs.mkdirSync(OUT, { recursive: true });
@@ -37,7 +62,7 @@ await p.addInitScript((seed) => {
       // enemy lifetimes: from first on screen to removal; killed if removed while still on screen
       const alive = new Set();
       for (const e of h.enemies) { alive.add(e);
-        if (!L.seen.has(e)) { L.seen.set(e, { k: e.k, f0: null, st, big: !!(e.big || e.mini || e.mid) }); L.spawns.push({ f: L.fr, k: e.k, st, el: !!e.elite }); }
+        if (!L.seen.has(e)) { L.seen.set(e, { k: e.k, f0: null, st, big: !!(e.big || e.mini || e.mid) }); L.spawns.push({ f: L.fr, k: e.k, st, el: !!e.elite, sx: Math.round(G.scroll - (window.__x0 ? window.__x0(G.stage || 0) : 0)) }); }
         const r = L.seen.get(e); if (r.f0 == null && e.x < 480 && e.x > 0) r.f0 = L.fr; r.x = e.x; }
       for (const [e, r] of L.seen) if (!alive.has(e)) { L.seen.delete(e);
         if (r.f0 != null && !r.big) L.life.push({ k: r.k, st: r.st, s: (L.fr - r.f0) / 60, killed: r.x > -8 && r.x < 490, right: r.x > 360 }); }
@@ -51,6 +76,8 @@ await p.addInitScript((seed) => {
 }, +SEED);
 await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'playtest');
+// stage-relative x for the signature (script x is relative to its row's x0), read from the layout useLayout activated
+const LAY = await p.evaluate(() => { const M = window.__LY; window.__x0 = (i) => (M.row(i) ? M.row(i).x0 : 0); return { id: M.layout().id, ufoAt: M.ufoAt() }; });
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
@@ -122,6 +149,13 @@ for (let i = 0; i < stages.length; i++) {
   console.log(`   variety: ${Object.keys(kinds).length} kinds ${JSON.stringify(kinds)} | ${waves.length} waves, ${Object.keys(sig).length} distinct, top ${top.map(([k, n]) => k + ' x' + n).join(', ')}${overlap != null ? ` | kinds shared with last descent's stage: ${Math.round(overlap * 100)}%` : ''} | music ${[...S.music].join(', ')}`);
   console.log(`   drones ${reg.length ? Math.round(100 * (kinds.drone || 0) / reg.length) : 0}% of ${reg.length} | elites ${els}${S.biome ? ` | ${S.remix ? 'REMIX (visit ' + (S.remix + 1) + ')' : 'first visit'}` : ''}${bo != null ? ` | vs last ${S.biome} visit: kinds shared ${Math.round(bo * 100)}%, wave signatures shared ${Math.round(so * 100)}%` : ''}`);
 }
+// the script signature per stage: spawns grouped into waves by stage-relative x (a wave = spawns within 40 px), each
+// wave as its x and its sorted distinct kinds; Descent 1's Orbit opener is every wave before the Saucer's WARNING
+const sigOf = (k) => { const w = []; for (const x of L.spawns.filter((x) => x.st === k)) { const l = w[w.length - 1]; if (l && x.sx - l.x1 < 40) { l.k.push(x.k); l.x1 = x.sx; } else w.push({ x: x.sx, x1: x.sx, k: [x.k] }); }
+  return w.map((v) => ({ x: v.x, ks: [...new Set(v.k)].sort().join('+') })); }; // kinds, not counts: formation() sizes waves by power
+const sigStages = Object.fromEntries(stages.map((S) => [S.k, sigOf(S.k)]));
+fs.writeFileSync(`${OUT}/sig.json`, JSON.stringify({ seed: +SEED, layout: LAY.id, openerEnd: LAY.ufoAt, opener: (sigStages['1-1'] || []).filter((w) => w.x < LAY.ufoAt), stages: sigStages }));
+console.log(`\nscript signature written to ${OUT}/sig.json (layout ${LAY.id}); compare seeds with --compare`);
 console.log(`\nbiome stages: drones ${drn.biome[1] ? Math.round(100 * drn.biome[0] / drn.biome[1]) : 0}% of ${drn.biome[1]} regular spawns`);
 console.log(`\nwould-be hits: ${L.hits} in ${(L.fr / 3600).toFixed(1)} min (${(L.hits / (L.fr / 3600)).toFixed(1)}/min) | hype voices ${L.hype} | end ${end} | errors ${errs.slice(0, 3).join(' / ') || 'none'}`);
 ranOn('playtest'); await b.close();

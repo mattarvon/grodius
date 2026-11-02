@@ -1,0 +1,39 @@
+playtest: layout long4 (orbit, biome, biome, drive)
+INFIRMARY after descent 1: bought gut socket leech socket spine hull | bolted saw,gut,leech levels {"saw":1,"gut":1,"leech":1,"spine":1} | bio left 16
+
+== stage 1-1  87s  lvl 1->6  rank 0->0.47  weapons 2,1,1,0,0,1,1  grafts spore1 over1
+   kill: on-screen life median 1.02s p90 2.42s | killed in right quarter 49% | escaped 2% (109 enemies)
+   bosses: THE SQUIDFUCKED SAUCER 9.7s, maw 8.3s
+   variety: 7 kinds {"drone":47,"corpse":10,"sentry":7,"flayer":11,"hatch":45,"ufo":1,"maw":1} | 37 waves, 18 distinct, top dronex4 x8, flayer x8, corpsex2 x3 | music none, ufo
+   drones 39% of 120 | elites 0
+
+== stage 1-2 [acid]  88s  lvl 6->9  rank 0.49->0.53  weapons 2,1,1,0,0,1,1  grafts spore1 over1
+   kill: on-screen life median 0.38s p90 1.15s | killed in right quarter 92% | escaped 0% (49 enemies)
+   bosses: THE DISSOLVING WOMB 9.3s, THE DISSOLVED MAW 8.2s
+   variety: 7 kinds {"crawler":19,"womb":2,"hatch":15,"drone":24,"eye":3,"cyst":1,"maw":1} | 28 waves, 9 distinct, top crawler x13, crawlerx2+dronex4 x3, eye x3 | music acid
+   drones 38% of 63 | elites 0 | first visit
+
+== stage 1-3 [ice]  81s  lvl 9->13  rank 0.54->0.84  weapons 3,0,1,0,1,2,2  grafts spore1 cal1 pierce1
+   kill: on-screen life median 0.78s p90 3.8s | killed in right quarter 77% | escaped 0% (43 enemies)
+   bosses: THE NAIL CHOIR 5.5s, THE BLOATED BITCH 6.6s
+   variety: 10 kinds {"corpse":16,"cross":4,"flayer":5,"mutant":6,"eye":3,"drone":18,"choir":1,"nailbar":6,"hook":1,"crux":1} | 30 waves, 13 distinct, top corpse x6, flayer x5, cross x4 | music ice
+   drones 34% of 53 | elites 0 | first visit
+
+== stage 1-4  99s  lvl 13->16  rank 0.84->1  weapons 3,2,1,0,0,2,2  grafts spore2 cal1 pierce1
+   kill: on-screen life median 0.85s p90 2.75s | killed in right quarter 55% | escaped 3% (104 enemies)
+   bosses: drive 44.5s
+   variety: 8 kinds {"mutant":3,"corpse":22,"womb":2,"hatch":31,"drone":56,"flayer":8,"eye":3,"sentry":9} | 34 waves, 21 distinct, top corpse x7, sentryx2 x3, flayerx2 x3 | music none
+   drones 42% of 134 | elites 0
+
+== stage 2-1  0s  lvl 16->16  rank 1->1  weapons 3,2,1,0,0,2,2  grafts spore2 cal1 pierce1
+   kill: on-screen life median nulls p90 nulls | killed in right quarter 0% | escaped 0% (0 enemies)
+   bosses: -
+   variety: 0 kinds {} | 0 waves, 0 distinct, top  | kinds shared with last descent's stage: 0% | music none
+   drones 0% of 0 | elites 0
+
+script signature written to /tmp/claude-1000/-home-matt-Projects-grodius-ls1-e/72b16790-d742-444b-b240-c32db3300c2a/scratchpad/m4380/pt-7/sig.json (layout long4); compare seeds with --compare
+
+biome stages: drones 36% of 116 regular spawns
+
+would-be hits: 1 in 5.9 min (0.2/min) | hype voices 9 | end {"st":"play","k":"2-1","loop":1,"fr":21307,"lvl":16,"rank":1,"wep":"3,2,1,0,0,2,2","gm":"spore2 cal1 pierce1","pick":true,"pt":90,"fork":false,"biome":null,"remix":0,"mix":"none","kills":378,"bio":2336} | errors none
+playtest: ran on long4

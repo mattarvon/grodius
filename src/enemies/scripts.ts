@@ -17,6 +17,7 @@ import { $ } from '../state';
 import { PH, W } from '../core';
 import { rsInt } from '../rng';
 import { row, ufoDrift, ufoRow } from '../layout';
+import { INTERIOR_MIX, ORBIT_MIX, genFiller, noteCells, pickCells } from '../cellpick';
 import { sfx } from '../audio';
 import { startBoss } from '../boss/update';
 import { ufoWarn } from './ufo';
@@ -219,6 +220,132 @@ const DRIVE_F = [
   })
 ];
 
+// ---------------- LONG STAGES: cells + generator (LS1 row E; spec §3.4 "Authoring method") ----------------
+// A row with a `plan` (src/layout.ts: long4's Orbit and Drive) is built from tagged cells of about 300 px plus filler
+// from a mix table, instead of the short layout's sections above. Cell x is relative to the cell's start (0..280, so
+// a cell never runs into the next slot); src/cellpick.ts picks them with pickV's rules moved down to the cell.
+// Today's ORBIT_*/DRIVE_* variants are the first cells; a cell keeps its source variant's beats, re-timed to start
+// at 0. Single tags on purpose: with each tag's pool at least twice its slots per descent, "never last descent's"
+// always holds (tests/unit/cellpick.test.ts runs the real pools).
+const C = (id, tag, min, f) => Object.assign(f, { id, tags: [tag], min });
+
+/** Open Orbit: 3 teaching cells (the Descent 1 opener, back as ordinary intro cells from Descent 3), 3 intro, 4 build,
+ *  3 peak (13: one over the spec's 10-12, for the second build slot of the 4380 px Orbit). Open space: no terrain kinds */
+export const ORBIT_CELLS = [
+  // the teaching opener, ~15 s: ORBIT_A's classic, one idea per wave, spread over three cells
+  C('o.drones', 'intro', 2, (at) => { at(0, () => formation('sine', 80)); at(140, () => formation('sine', 175, 4)); at(250, () => crew(60, 200)); }),
+  C('o.sentry', 'intro', 2, (at) => { at(20, () => sentry(PH * .32)); at(130, () => crew(70, 190)); at(240, () => flayer(PH * .5)); }),
+  C('o.swarm', 'intro', 2, (at) => { at(0, () => hatch(5, false)); at(120, () => formation('dive', 50, 4)); at(240, () => sentry(PH * .7, W * .7)); }),
+  // intro remixes: ORBIT_A's debris field, ambush and sentry picket, first halves
+  C('o.debris', 'intro', 1, (at) => {
+    at(0, () => corpse(55)); at(25, () => corpse(205)); at(50, () => corpse(130));
+    at(100, () => formation('sine', PH / 2, 3));
+    at(220, () => { sentry(PH * .24, W * .8); sentry(PH * .74, W * .64); });
+  }),
+  C('o.ambush', 'intro', 1, (at) => { at(0, () => behindWave(PH / 2, 3)); at(130, () => crew(60, 200)); at(220, () => hatch(5, false)); }),
+  C('o.picket', 'intro', 1, (at) => {
+    at(0, () => sentry(PH * .22, W * .78)); at(50, () => sentry(PH * .78, W * .7));
+    at(130, () => formation('zig', PH / 2, 3)); at(270, () => crew(50, 135, 220));
+  }),
+  // build: ORBIT_A's second halves, ORBIT_D's run-up and ORBIT_C's brood swarm
+  C('o.alley', 'build', 0, (at) => { at(0, () => flayer(PH * .6)); at(90, () => hatch(6, false)); at(160, () => crew(70, 190)); at(240, () => formation('dive', PH - 60, 3)); }),
+  C('o.watch', 'build', 0, (at) => { at(0, () => sentry(PH * .66)); at(80, () => flayer(PH * .35)); at(180, () => { sentry(PH * .25, W * .8); corpse(PH * .8); }); at(260, () => formation('sine', 70, 3)); }),
+  // the run-up: ORBIT_D's sentry over a zig and its flayer + corpse, then a big swarm (a fourth build cell: long Orbit
+  // has two build slots, and "never last descent's" needs twice that many)
+  C('o.runup', 'build', 0, (at) => { at(0, () => { sentry(PH * .5, W * .75); formation('zig', PH * .8, 3); }); at(90, () => { flayer(PH * .4); corpse(PH * .8); }); at(170, () => hatch(8, false)); at(250, () => flayer(PH * .6)); }),
+  C('o.brood', 'build', 0, (at) => { at(0, () => hatch(6, false)); at(120, () => { sentry(PH * .25, W * .78); sentry(PH * .72, W * .64); }); at(200, () => hatch(6, true)); }),
+  // peak: ORBIT_C's classic, flayer alley and hull breach (still Descent 3+)
+  C('o.wall', 'peak', 0, (at) => { at(0, () => formation('wall', PH / 2)); at(60, () => { sentry(PH * .22, W * .8); sentry(PH * .74, W * .66); }); at(120, () => hatch(6, true)); at(240, () => { crew(60); corpse(150); }); }),
+  C('o.flayers', 'peak', 0, (at) => { at(0, () => crew(80, 180)); at(120, () => { flayer(PH * .25); flayer(PH * .75); }); at(250, () => formation('wall', PH / 2, 3)); }),
+  C('o.breach', 'peak', 2, (at) => {
+    at(0, () => logLine('HULL BREACH. THE CREW IS COMING OUT.'));
+    [10, 40, 70, 100, 130, 160].forEach((x, i) => at(x, () => corpse(i % 2 ? PH * .7 + i * 4 : PH * .28 - i * 4, { drift: .7 })));
+    at(80, () => sentry(PH * .2, W * .82));
+    at(220, () => { formation('dive', 40, 3); formation('dive', PH - 40, 3); });
+  }),
+];
+/** the Descent 1 Open Orbit opener: identical on every seed (spec §3.4) */
+export const ORBIT_OPENER = ['o.drones', 'o.sentry', 'o.swarm'];
+
+/** the Gravity Drive approach: 3 floor cells (the mutant ones: only the first slot has a floor), 2 intro, 4 build,
+ *  4 peak. Enough for the 2700 px approach with no cell twice in a descent and none from last descent */
+export const DRIVE_CELLS = [
+  // floor: DRIVE_E's classic, the hulk and crew drift
+  C('d.mutant', 'floor', 0, (at) => { at(0, () => mutant()); at(80, () => formation('sine', PH * .25, 4)); at(140, () => crew(70, PH - 70)); at(210, () => hatch(5, true)); }),
+  C('d.hulk', 'floor', 0, (at) => {
+    at(0, () => { mutant(); crawler(-1); }); at(25, () => { crawler(-1); formation('sine', PH * .45, 4); });
+    at(120, () => crew(80, 150)); at(190, () => sentry(PH * .3, W * .74)); at(260, () => hatch(6, false));
+  }),
+  C('d.drift', 'floor', 0, (at) => {
+    at(0, () => mutant()); at(20, () => womb());
+    [10, 30, 50, 70].forEach((x, i) => at(x, () => corpse([45, 125, 80, 150][i], { drift: .8 })));
+    at(110, () => formation('zig', PH * .42, 4)); at(180, () => flayer(PH * .55)); at(250, () => hatch(5, false));
+  }),
+  // intro: DRIVE_E's lockdown (Descent 1 now: the Drive needs two intro cells from the start), and the sentinel
+  C('d.lockdown', 'intro', 0, (at) => { at(0, () => { sentry(PH * .25, W * .8); sentry(PH * .65, W * .66); }); at(90, () => formation('wall', PH * .45, 4)); at(170, () => hatch(6, true)); at(240, () => crew(60, 130, 200)); }),
+  C('d.sentinel', 'intro', 0, (at) => { at(0, () => sentry(PH * .5, W * .8)); at(90, () => crew(60, 200)); at(180, () => formation('sine', PH * .7, 4)); at(260, () => hatch(5, false)); }),
+  // build: DRIVE_F's classic, meat in the wind and gauntlet, and the press
+  C('d.pressure', 'build', 0, (at) => { at(0, () => sentry(PH * .45, W * .72)); at(30, () => behindWave(PH / 2)); at(90, () => { flayer(PH * .75); corpse(PH * .3); }); at(160, () => hatch(6, false)); at(230, () => { flayer(PH * .25); flayer(PH * .7); }); }),
+  C('d.wind', 'build', 0, (at) => { at(0, () => behindWave(PH / 2, 4)); at(80, () => { hatch(6, false); crew(50, 210); }); at(150, () => { sentry(PH * .3, W * .78); sentry(PH * .7, W * .64); }); at(220, () => { flayer(PH * .25); flayer(PH * .7); }); }),
+  C('d.gauntlet', 'build', 0, (at) => { at(0, () => hatch(7, true)); at(80, () => { formation('wall', PH / 2, 4); corpse(PH * .85); }); at(160, () => { sentry(PH * .25, W * .76); flayer(PH * .7); }); at(225, () => formation('sine', PH * .72, 4)); }),
+  C('d.press', 'build', 0, (at) => { at(0, () => behindWave(PH * .3, 4)); at(90, () => flayer(PH * .6)); at(170, () => crew(50, 130, 210)); at(250, () => sentry(PH * .4, W * .76)); }),
+  // peak: DRIVE_F's the crew wakes (Descent 2+), and three new ones
+  C('d.wakes', 'peak', 1, (at) => {
+    at(0, () => { logLine('THE CREW IS STILL MOVING IN THERE.'); crew(60, 130, 200); });
+    at(60, () => { flayer(PH * .3); flayer(PH * .7); }); at(140, () => { hatch(6, true); sentry(PH * .5, W * .8); }); at(220, () => { formation('zig', PH * .4, 4); corpse(PH * .8); });
+  }),
+  // the cascade: a swarm from behind, a drone wall, a flayer pair, then a sentry pair seals it
+  C('d.cascade', 'peak', 0, (at) => { at(0, () => hatch(7, true)); at(60, () => formation('wall', PH * .45, 4)); at(140, () => { flayer(PH * .3); flayer(PH * .7); }); at(220, () => { sentry(PH * .22, W * .8); sentry(PH * .76, W * .66); }); }),
+  // the bulkhead: pods high and low, a zig through them, a rear wave, then the dead dragged aft
+  C('d.bulkhead', 'peak', 0, (at) => { at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .7); }); at(80, () => formation('zig', PH / 2, 4)); at(170, () => behindWave(PH * .7, 4)); at(250, () => crew(40, 120, 210)); }),
+  // the flood (Descent 2+): hatchlings from both ends, divers top and bottom, a flayer in the middle
+  C('d.flood', 'peak', 1, (at) => { at(0, () => hatch(6, false)); at(60, () => hatch(6, true)); at(150, () => { formation('dive', 40, 4); formation('dive', PH - 40, 4); }); at(250, () => flayer(PH * .5)); }),
+];
+
+const frac = (x) => x - Math.floor(x);
+const DRONE_PAT = ['sine', 'zig', 'dive', 'wall'];
+/** one generator filler beat (cellpick.ts genFiller) as a spawn; u places it. Orbit drones come 3 to a wave, the Drive's
+ *  4 (the drone budget at the top of this file) */
+function fillSpawn(k, u, nDrone) {
+  const y = PH * (.18 + .64 * frac(u * 7.31));
+  if (k === 'drones') { const pat = DRONE_PAT[Math.floor(u * 4) % 4]; if (pat === 'zig' && u < .15) behindWave(y, nDrone); else formation(pat, y, nDrone); }
+  else if (k === 'sentry') sentry(y, W * (.62 + .2 * frac(u * 3.7)));
+  else if (k === 'corpse') u < .5 ? corpse(y) : crew(y, PH - y);
+  else if (k === 'flayer') flayer(PH * (.25 + .5 * u));
+  else if (k === 'hatch') hatch(5, u < .3);
+  else if (k === 'mutant') mutant();
+  else if (k === 'crawler') crawler(u < .5 ? 1 : -1);
+  else if (k === 'womb') womb();
+  else if (k === 'eyes') eyeT(u < .5 ? 1 : -1);
+}
+const MIXES = { orbit: ORBIT_MIX, interior: INTERIOR_MIX };
+
+/** a planned (long) stage row's build-time draws for descent L: its cells (pickV's rules, src/cellpick.ts) and its
+ *  filler beats, from rs, the stage's build stream (src/rng.ts), never the sim R(). Commits the cell memory to
+ *  G.remixV['c:<kind>'] and keeps the pick there: a row already picked for descent L returns that pick without drawing,
+ *  so building the stage again (a resume, item H) places the same cells and filler, as pickV does for sections */
+export function pickPlanned(r, cells, opener, L, rs) {
+  const P = r.plan, m = ($.G.remixV ||= {}), mem = (m['c:' + r.kind] ||= { used: [], last: [] });
+  if (mem.L === L && mem.pick) return mem.pick;
+  const { ids } = pickCells(cells, P.slots.map((s) => s.tag), L, mem, rs, opener);
+  noteCells(mem, ids);
+  const fill = P.fill.flatMap((w) => genFiller(w.a, w.b, w.gap, MIXES[w.mix], rs));
+  mem.L = L; // the descent this pick is for
+  mem.pick = { ids, fill };
+  return mem.pick;
+}
+/** place a planned row's pick: at(k)(x, f) with x stage-relative and k the cell id or `fill:<kind>`. Draws nothing */
+export function placePlanned(r, cells, pick, at) {
+  pick.ids.forEach((id, i) => {
+    const c = id && cells.find((x) => x.id === id), x0 = r.plan.slots[i].x;
+    if (c) c((x, f) => at(id)(x0 + x, f));
+  });
+  const nDrone = r.kind === 'orbit' ? 3 : 4;
+  for (const b of pick.fill) at('fill:' + b.k)(b.x, () => fillSpawn(b.k, b.u, nDrone));
+}
+/** the cell pool and the fixed Descent 1 opener of a planned row's stage kind */
+const CELLS = { orbit: [ORBIT_CELLS, ORBIT_OPENER], drive: [DRIVE_CELLS, []] };
+
 // the hand-made sections of each non-biome stage kind, in the order their variants are picked
 const SECTIONS = { orbit: [['oA', ORBIT_A], ['oC', ORBIT_C], ['oD', ORBIT_D]], drive: [['dE', DRIVE_E], ['dF', DRIVE_F]] };
 
@@ -228,16 +355,23 @@ const SECTIONS = { orbit: [['oA', ORBIT_A], ['oC', ORBIT_C], ['oD', ORBIT_D]], d
  *  beat), so a rebuild can be compared kind for kind */
 export function stageScript(i, rs) {
   const r = row(i), S = [], L = $.G.loop, picks = {};
-  for (const [key, vs] of SECTIONS[r.kind] || []) picks[key] = pickV(key, vs, L, rs);
+  // a planned row (long4's Orbit and Drive) is cells + generator filler; short's rows pick their sections
+  const planned = r.plan && CELLS[r.kind], pick = planned && pickPlanned(r, planned[0], planned[1], L, rs);
+  if (!planned) for (const [key, vs] of SECTIONS[r.kind] || []) picks[key] = pickV(key, vs, L, rs);
   // script x values are relative to their stage row's x0 (src/layout.ts); `at` places them in world x
   const at = (k) => (x, f) => S.push({ x: r.x0 + x, f, k });
   const play = (key, vs) => vs[picks[key]](at(key + picks[key]));
   if (r.kind === 'orbit') {
     // PHASE 1: open orbit, the derelict looming
-    play('oA', ORBIT_A);
-    if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
-    play('oC', ORBIT_C);
-    play('oD', ORBIT_D);
+    if (planned) {
+      placePlanned(r, planned[0], pick, at);
+      if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // the Saucer: only generator filler sits in its window
+    } else {
+      play('oA', ORBIT_A);
+      if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
+      play('oC', ORBIT_C);
+      play('oD', ORBIT_D);
+    }
     at('warn')(r.warnX - r.x0, () => {
       banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
       sfx.dread();
@@ -247,9 +381,14 @@ export function stageScript(i, rs) {
     // PHASE 4: the Gravity Drive approach: corridor gauntlet, rising pressure, WARNING, a breath
     const warn = r.warnX - r.x0;
     at('log')(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
-    play('dE', DRIVE_E);
-    at('eyes')(430, () => { eyeT(1); eyeT(-1); });
-    play('dF', DRIVE_F);
+    if (planned) {
+      at('eyes')(430, () => { eyeT(1); eyeT(-1); });
+      placePlanned(r, planned[0], pick, at);
+    } else {
+      play('dE', DRIVE_E);
+      at('eyes')(430, () => { eyeT(1); eyeT(-1); });
+      play('dF', DRIVE_F);
+    }
     at('warn')(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
     at('crew')(warn + 90, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
     at('boss')(r.bossX - r.x0, () => startBoss());

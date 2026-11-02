@@ -207,14 +207,16 @@ describe('long4 entry', () => {
     expect(biomeRows.map((r) => [r.slot, r.fork])).toEqual([[0, true], [1, true]]);
   });
 
-  it('has long rows: Orbit 3600, a 2700 px Drive approach, LEVEL near the spec estimate', () => {
+  it('has long rows: Orbit 4380, a 2700 px Drive approach, LEVEL near the spec estimate', () => {
     const [o, , , d] = L.stages;
-    expect(o.x1 - o.x0).toBe(3600);
+    // item E: 4380, not the spec's 3600, for the LS1 Orbit wall-time band (production/qa/evidence/ls1-e.md)
+    expect(o.x1 - o.x0).toBe(4380);
     expect(d.bossX - d.x0).toBe(2700);
     expect(d.warnX).toBeLessThan(d.bossX);
-    // spec §2.2: ~13,500-14,000 for four stages; +370 for the 150 f biome-boss WARNING coasts and today's 700 px chamber
+    // spec §2.2: ~13,500-14,000 for four stages; +370 for the 150 f biome-boss WARNING coasts and today's 700 px chamber,
+    // +780 for item E's longer Orbit
     expect(L.level).toBeGreaterThanOrEqual(13500);
-    expect(L.level).toBeLessThanOrEqual(14400);
+    expect(L.level).toBeLessThanOrEqual(15200);
   });
 
   it('times each biome stage at ~3550 px from its gate scroll (~60 s of scroll) and sets gateLate past that gate', () => {
