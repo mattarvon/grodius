@@ -1,0 +1,39 @@
+seed 1 on layout long4: descents done, 8 stages
+  D1 s0 orbit        start     0  scroll  57.0 s  held  0.0 s  wall  68.5 s  tally 67 s  ufo@1249 killed@1941
+  D1 s1 biome snot   start  3480 gate 3958  scroll  59.4 s  held  7.4 s  wall  78.6 s  tally 76 s  brood@5033 killed@5081  ok
+  D1 s2 biome ice    start  7229 gate 7707  scroll  59.4 s  held  6.3 s  wall  80.2 s  tally 76 s  choir@8783 killed@8831  ok
+  D1 s3 drive        start 11118  scroll  42.5 s  held  0.0 s  wall  93.5 s  tally 92 s  
+  D2 s0 orbit        start     0  scroll  57.0 s  held  0.0 s  wall  67.5 s  tally 65 s  ufo@1249 killed@1818
+  D2 s1 biome acid   start  3480 gate 3958  scroll  59.4 s  held  5.5 s  wall  78.5 s  tally 78 s  cyst@5033 killed@5081  ok
+  D2 s2 biome fire   start  7229 gate 7707  scroll  59.4 s  held  9.3 s  wall  83.2 s  tally 82 s  prentice@8783 killed@8831  ok
+  D2 s3 drive        start 11118  scroll  42.5 s  held  0.0 s  wall  92.4 s  tally 90 s  
+seed 5 on layout long4: descents done, 8 stages
+  D1 s0 orbit        start     0  scroll  57.0 s  held  0.0 s  wall  73.7 s  tally 72 s  ufo@1249 killed@1818
+  D1 s1 biome acid   start  3480 gate 3958  scroll  59.4 s  held  9.3 s  wall  81.8 s  tally 79 s  cyst@5033 killed@5081  ok
+  D1 s2 biome ice    start  7229 gate 7707  scroll  59.4 s  held  5.8 s  wall  82.5 s  tally 79 s  choir@8783 killed@8831  ok
+  D1 s3 drive        start 11118  scroll  42.5 s  held  0.0 s  wall  83.9 s  tally 82 s  
+  D2 s0 orbit        start     0  scroll  57.0 s  held  0.0 s  wall  67.7 s  tally 65 s  ufo@1249 killed@1622
+  D2 s1 biome fire   start  3480 gate 3958  scroll  59.4 s  held 11.5 s  wall  85.3 s  tally 83 s  prentice@5033 killed@5081  ok
+  D2 s2 biome snot   start  7229 gate 7707  scroll  59.4 s  held  5.5 s  wall  75.6 s  tally 74 s  brood@8783 killed@8831  ok
+  D2 s3 drive        start 11118  scroll  42.5 s  held  0.0 s  wall  82.9 s  tally 81 s  
+seed 6 on layout long4: timeout, 4 stages
+  D1 s0 orbit        start     0  scroll  57.0 s  held  0.0 s  wall  68.0 s  tally 67 s  ufo@1249 killed@1797
+  D1 s1 biome acid   start  3480 gate 3958  scroll  59.4 s  held  8.4 s  wall  79.4 s  tally 78 s  cyst@5033 killed@5081  ok
+  D1 s2 biome snot   start  7229 gate 7707  scroll  59.4 s  held  5.2 s  wall  73.8 s  tally 72 s  brood@8783 killed@8831  ok
+  D1 s3 drive        start 11118  scroll  42.5 s  held  0.0 s  wall 1683.4 s  tally - s  
+seed 7 on layout long4: descents done, 8 stages
+  D1 s0 orbit        start     0  scroll  57.0 s  held  0.0 s  wall  85.2 s  tally 84 s  ufo@1249 killed@1764
+  D1 s1 biome snot   start  3480 gate 3958  scroll  59.4 s  held  5.8 s  wall  76.7 s  tally 73 s  brood@5033 killed@5081  ok
+  D1 s2 biome ice    start  7229 gate 7707  scroll  59.4 s  held  6.3 s  wall  79.7 s  tally 77 s  choir@8783 killed@8831  ok
+  D1 s3 drive        start 11118  scroll  42.5 s  held  0.0 s  wall  88.8 s  tally 86 s  
+  D2 s0 orbit        start     0  scroll  57.0 s  held  0.0 s  wall  67.5 s  tally 66 s  ufo@1249 killed@1507
+  D2 s1 biome fire   start  3480 gate 3958  scroll  59.4 s  held  7.2 s  wall  81.8 s  tally 80 s  prentice@5033 killed@5081  ok
+  D2 s2 biome snot+  start  7229 gate 7707  scroll  59.4 s  held  3.9 s  wall  70.6 s  tally 69 s  brood@8783 killed@8831  ok
+  D2 s3 drive        start 11118  scroll  42.5 s  held  0.0 s  wall  76.3 s  tally 75 s  
+seed 11 on layout long4: timeout, 4 stages
+  D1 s0 orbit        start     0  scroll  57.0 s  held  0.0 s  wall  73.3 s  tally 72 s  ufo@1249 killed@1832
+  D1 s1 biome ice    start  3480 gate 3958  scroll  59.4 s  held 14.3 s  wall  99.7 s  tally 96 s  choir@5033 killed@5081  ok
+  D1 s2 biome acid   start  7229 gate 7707  scroll  59.4 s  held  8.3 s  wall  78.3 s  tally 76 s  cyst@8783 killed@8831  ok
+  D1 s3 drive        start 11118  scroll  42.5 s  held  0.0 s  wall 1653.0 s  tally - s  
+biome stages: 16, scroll min 59.4 median 59.4 max 59.4 s; band 58-62 s: 0 out of band
+not measured: render-only output; a mortal pilot; seeds 2 and 3; Orbit and Drive content (item E)

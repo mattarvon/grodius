@@ -1,0 +1,37 @@
+beat-probe: layout short (orbit, biome, biome, drive)
+layout short, 200 rolls per row, late gate
+L0 s0 ice    introA 3.3 @ 0.48/s | build1 5.6 @ 0.65/s | breath1 0.0 @ 0.00/s | peak 13.9 @ 1.15/s | tail 3.8 @ 1.10/s  total 26.5
+L0 s0 acid   introA 3.2 @ 0.46/s | build1 5.3 @ 0.61/s | breath1 0.0 @ 0.00/s | peak 12.8 @ 1.06/s | tail 3.1 @ 0.89/s  total 24.3
+L0 s0 fire   introA 3.4 @ 0.49/s | build1 8.3 @ 0.96/s | breath1 0.0 @ 0.00/s | peak 16.7 @ 1.39/s | tail 3.2 @ 0.92/s  total 31.5
+L0 s0 snot   introA 3.2 @ 0.46/s | build1 5.2 @ 0.61/s | breath1 0.0 @ 0.00/s | peak 12.6 @ 1.04/s | tail 2.9 @ 0.85/s  total 23.9
+L0 s0 ice+   introA 3.4 @ 0.49/s | build1 5.6 @ 0.65/s | breath1 0.0 @ 0.00/s | peak 14.1 @ 1.16/s | tail 3.9 @ 1.12/s  total 26.9
+L0 s0 acid+  introA 3.2 @ 0.46/s | build1 5.3 @ 0.61/s | breath1 0.0 @ 0.00/s | peak 12.9 @ 1.07/s | tail 3.0 @ 0.87/s  total 24.3
+L0 s0 fire+  introA 3.4 @ 0.50/s | build1 8.4 @ 0.98/s | breath1 0.0 @ 0.00/s | peak 16.7 @ 1.38/s | tail 3.3 @ 0.94/s  total 31.8
+L0 s0 snot+  introA 3.2 @ 0.46/s | build1 5.1 @ 0.60/s | breath1 0.0 @ 0.00/s | peak 12.6 @ 1.04/s | tail 3.0 @ 0.88/s  total 23.9
+L0 s1 ice    introA 3.5 @ 0.48/s | build1 8.8 @ 0.77/s | breath1 0.0 @ 0.00/s | peak 12.1 @ 1.20/s | tail 3.8 @ 1.06/s  total 28.2
+L0 s1 acid   introA 3.4 @ 0.47/s | build1 7.2 @ 0.63/s | breath1 0.0 @ 0.00/s | peak 10.5 @ 1.04/s | tail 3.7 @ 1.04/s  total 24.8
+L0 s1 fire   introA 4.3 @ 0.60/s | build1 9.2 @ 0.80/s | breath1 0.0 @ 0.00/s | peak 14.4 @ 1.43/s | tail 3.8 @ 1.06/s  total 31.8
+L0 s1 snot   introA 3.4 @ 0.47/s | build1 7.1 @ 0.61/s | breath1 0.0 @ 0.00/s | peak 10.1 @ 1.00/s | tail 3.6 @ 1.00/s  total 24.1
+L0 s1 ice+   introA 3.4 @ 0.47/s | build1 8.7 @ 0.76/s | breath1 0.0 @ 0.00/s | peak 12.1 @ 1.20/s | tail 3.8 @ 1.06/s  total 28.1
+L0 s1 acid+  introA 3.4 @ 0.47/s | build1 7.3 @ 0.63/s | breath1 0.0 @ 0.00/s | peak 10.5 @ 1.04/s | tail 3.8 @ 1.05/s  total 24.8
+L0 s1 fire+  introA 4.4 @ 0.61/s | build1 9.5 @ 0.82/s | breath1 0.0 @ 0.00/s | peak 14.2 @ 1.41/s | tail 4.0 @ 1.11/s  total 32.2
+L0 s1 snot+  introA 3.4 @ 0.48/s | build1 7.1 @ 0.61/s | breath1 0.0 @ 0.00/s | peak 10.3 @ 1.02/s | tail 3.6 @ 1.01/s  total 24.4
+L1 s0 ice    introA 3.8 @ 0.54/s | build1 7.1 @ 0.83/s | breath1 0.0 @ 0.00/s | peak 16.4 @ 1.36/s | tail 4.9 @ 1.42/s  total 32.2
+L1 s0 acid   introA 3.5 @ 0.51/s | build1 6.3 @ 0.73/s | breath1 0.0 @ 0.00/s | peak 15.0 @ 1.24/s | tail 4.3 @ 1.24/s  total 29.1
+L1 s0 fire   introA 4.1 @ 0.59/s | build1 9.7 @ 1.13/s | breath1 0.0 @ 0.00/s | peak 19.6 @ 1.62/s | tail 4.3 @ 1.25/s  total 37.7
+L1 s0 snot   introA 3.5 @ 0.51/s | build1 6.2 @ 0.72/s | breath1 0.0 @ 0.00/s | peak 14.7 @ 1.22/s | tail 4.2 @ 1.20/s  total 28.6
+L1 s0 ice+   introA 3.7 @ 0.54/s | build1 7.1 @ 0.82/s | breath1 0.0 @ 0.00/s | peak 16.3 @ 1.35/s | tail 5.0 @ 1.45/s  total 32.2
+L1 s0 acid+  introA 3.6 @ 0.52/s | build1 6.3 @ 0.73/s | breath1 0.0 @ 0.00/s | peak 15.0 @ 1.24/s | tail 4.2 @ 1.21/s  total 29.0
+L1 s0 fire+  introA 4.1 @ 0.60/s | build1 10.0 @ 1.16/s | breath1 0.0 @ 0.00/s | peak 19.6 @ 1.62/s | tail 4.3 @ 1.24/s  total 38.1
+L1 s0 snot+  introA 3.5 @ 0.51/s | build1 6.2 @ 0.72/s | breath1 0.0 @ 0.00/s | peak 14.3 @ 1.19/s | tail 3.9 @ 1.14/s  total 28.0
+L1 s1 ice    introA 3.8 @ 0.53/s | build1 10.5 @ 0.91/s | breath1 0.0 @ 0.00/s | peak 14.2 @ 1.41/s | tail 5.0 @ 1.38/s  total 33.5
+L1 s1 acid   introA 3.8 @ 0.52/s | build1 9.1 @ 0.79/s | breath1 0.0 @ 0.00/s | peak 12.1 @ 1.20/s | tail 4.9 @ 1.37/s  total 29.9
+L1 s1 fire   introA 5.1 @ 0.70/s | build1 10.8 @ 0.93/s | breath1 0.0 @ 0.00/s | peak 16.6 @ 1.65/s | tail 4.8 @ 1.33/s  total 37.3
+L1 s1 snot   introA 3.8 @ 0.53/s | build1 8.8 @ 0.76/s | breath1 0.0 @ 0.00/s | peak 12.0 @ 1.19/s | tail 4.7 @ 1.31/s  total 29.3
+L1 s1 ice+   introA 3.8 @ 0.52/s | build1 10.4 @ 0.90/s | breath1 0.0 @ 0.00/s | peak 14.3 @ 1.42/s | tail 4.9 @ 1.35/s  total 33.3
+L1 s1 acid+  introA 3.8 @ 0.53/s | build1 9.0 @ 0.78/s | breath1 0.0 @ 0.00/s | peak 12.1 @ 1.20/s | tail 4.9 @ 1.36/s  total 29.7
+L1 s1 fire+  introA 5.0 @ 0.70/s | build1 11.4 @ 0.99/s | breath1 0.0 @ 0.00/s | peak 16.7 @ 1.66/s | tail 4.9 @ 1.36/s  total 38.0
+L1 s1 snot+  introA 3.8 @ 0.52/s | build1 8.6 @ 0.75/s | breath1 0.0 @ 0.00/s | peak 12.0 @ 1.20/s | tail 4.8 @ 1.34/s  total 29.2
+peak max 1.66/s (exit <= 1.7): ok;  spawns in a breath 0;  spawns in the run-up 0;  closest set piece to a WARNING 209 px (>= 150: ok)
+not measured: spawn-time rolls; the early gate; Descent 3+
+beat-probe: ran on short
