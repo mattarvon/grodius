@@ -1,16 +1,18 @@
 # LS1-D: the long layout and beat template v2, behind `?layout=long` (sprint 2, lane d)
 
-*level-designer + gameplay-programmer, 2026-11-01. Branch `ls1-d`, rebased onto `origin/ls1-s2` at `ddceca7` (J merged). Spec: `design/content-expansion.md` §2.2, §3.2-3.4. Plan: `production/content-build-plan.md` §2 sprint 2, row D. Rulings: `production/decision-log.md` D20.*
+*level-designer + gameplay-programmer, 2026-11-01. Branch `ls1-d`, rebased onto `origin/ls1-s2` at `d3daf63` (J, B1fix and C/B2 merged). All gates below were re-run on that base against its baselines; nothing was re-baselined. Spec: `design/content-expansion.md` §2.2, §3.2-3.4. Plan: `production/content-build-plan.md` §2 sprint 2, row D. Rulings: `production/decision-log.md` D20.*
 
 ## Commits
 
 | Commit | What |
 |---|---|
-| `c95fc16` | `long4` entry, BREATHS table, `beatPlan()`, beat template v2 in `biomeScript`, movement C, log pool; tests |
-| `8642e4a` | `?layout=long` flag parse in `src/main.ts` |
-| `12bc802` | Three new tools: `stage-clock`, `beat-probe`, `movement-shots` |
-| `a41f994` | After J: `long4` registered in `LAYOUTS`; `setLayout` own-keys fix; Saucer at 1080; J's `density-probe` reads `beatPlan`; tools on J's `--layout` |
-| (this file) | Report, probe output, screenshots |
+| `c6ffc94` | `long4` entry, BREATHS table, `beatPlan()`, beat template v2 in `biomeScript`, movement C, log pool; tests |
+| `7f4784c` | `?layout=long` flag parse in `src/main.ts` |
+| `8c676c4` | Three new tools: `stage-clock`, `beat-probe`, `movement-shots` |
+| `c65daeb` | After J: `long4` registered in `LAYOUTS`; `setLayout` own-keys fix; Saucer at 1080; J's `density-probe` reads `beatPlan`; tools on J's `--layout` |
+| `3d392c7` | First report, probe output, screenshots |
+| `cde9216` | After C/B2: the beat and density probes and `biomebeats.test.ts` set a run seed per roll (build rolls now draw the stage stream) |
+| (this commit) | Report refreshed on the `d3daf63` base |
 
 ## What changed
 
@@ -99,23 +101,25 @@ All three new tools take J's `--layout <id>` (`tools/layout-arg.mjs`).
 
 | Criterion | Result |
 |---|---|
-| Biome stage scroll time 58-62 s | **PASS: 59.4 s on every biome stage.** 10 stages after the rebase (seeds 1, 5, 7 × 2 descents) and 16 before it (seeds 1, 5, 6, 7, 11, up to 2 descents each; `stage-clock-long4-pre-rebase.txt`, run with the Saucer at 1100 and the then-temporary registration), across all 4 biomes, both slots, first visits and a repeat (snot+). It is deterministic, because the scroll rate doesn't depend on the bot (`stage-clock-long4.txt`) |
+| Biome stage scroll time 58-62 s | **PASS: 59.4 s on every biome stage.** 8 stages on the final base (seeds 1, 5 × 2 descents, `stage-clock-long4.txt`), 10 on the J-only base (seeds 1, 5, 7 × 2) and 16 before that (seeds 1, 5, 6, 7, 11, up to 2 descents each; `stage-clock-long4-pre-rebase.txt`, run with the Saucer at 1100 and the then-temporary registration), across all 4 biomes, both slots, first visits and a repeat (snot+). It is deterministic, because the scroll rate doesn't depend on the bot |
 | Breaths empty | **PASS.** `beat-probe`: 0 spawn calls in a breath over 4 biomes × 2 slots × 2 visits × 2 descents × 200 rolls. `biomebeats.test.ts` checks the same for every biome, slot, visit and descent |
 | No set piece within 150 px of a WARNING | **PASS: closest 357 px.** That includes breath 2's future WARNING slot and `bossX`, at both gates and on remix (`layout.test.ts`, `beat-probe`) |
 | Arena gap ≥ 150 | **PASS: minimum 154.6 px** (slot 1 snot). Measured from the run-up + 200 px to the boss arena's right screen edge, every biome and slot (`movement-shots-long4.txt`) |
-| Short layout: harness and parity identical | **PASS.** Harness `st` byte-identical (`PASS vs baseline @ f2f9c03`). Parity runs 1, 5, 6, 7, 11, 1x3 and 7m all identical, before and after the rebase (`layout-parity-short.txt`) |
+| Short layout: harness and parity identical | **PASS on the final base.** Harness `PASS vs baseline @ 8ff9ba4` (ls1-s2's). Parity `PASS vs baseline @ ls1-s2 after J + B1FIX + C/B2`: runs 3, 6, 7, 11, 15, 3x3 and 7m identical (`layout-parity-short.txt`). Also passed on each earlier base (`main` 8ff9ba4, `ls1-s2` with J only) |
 | D20 invariants on `long4`, both gates, no legacy exceptions | **PASS** (`layout.test.ts`) |
 | Every stage kind has data | **PASS.** `long4` uses only orbit, biome and drive (`layout-kinds.test.ts` now runs over long4 too) |
-| `npm run test:unit`, `typecheck`, `build` | **318/318** tests. `tsc --noEmit` clean. Build OK. The ">500 kB chunk" notice is pre-existing: `ls1-s2` already builds 513.5 kB, and this lane adds 3.3 kB |
+| `npm run test:unit`, `typecheck`, `build` | **339/339** tests on the final base. `tsc --noEmit` clean. Build OK. The ">500 kB chunk" notice is pre-existing: `ls1-s2` (J base) already built 513.5 kB, and this lane adds about 3.3 kB |
 
 ## Evidence (row D's column)
 
 - **`density-probe` on long4** (`density-probe-long4.txt`, J's probe with short's band set) and **`beat-probe`** (`beat-probe-long4.txt`, long4's own bands; short alongside in `beat-probe-short.txt`).
-  - Peak **≤ 1.61/s** (exit ≤ 1.7).
+  - Peak **≤ 1.59/s** (exit ≤ 1.7). Each of the 200 rolls per row uses its own run seed (build rolls draw the stage stream since B2).
   - Rates per band match short's: intro about 0.5/s, builds 0.5-0.8/s, peak 1.0-1.6/s.
 - **`route-probe`** (`route-probe-long4.txt`).
   - Coverage: 4 gate combinations × 2 descents, plus all **12 ordered biome routes** (forced).
-  - Every run reached the Infirmary with **0 bad hazards, 0 slams and 0 deaths**.
+  - Every run reached the Infirmary with **0 slams and 0 deaths, and 0 hazards spawned in a bad state**.
+  - **One flag, explained as a probe artifact.** On the final base, gates `01` logged `state:jet`. route-probe steps up to 5 sim frames per rAF and checks the state only after the batch. A temporary copy that logs each flagged hazard's age reproduced it once in 6 runs as `icicle@hazAge2,tallyAge1,minicrux`. The hazard spawned 2 frames earlier, during the live biome-boss fight; the boss died one frame later and opened the tally. The spawn rule (no hazards during a fork, tally or death) held. The same batching can flag this on short. The other 31 runs on this base, and all 32 on earlier bases, flagged nothing.
+  - route-probe is not seeded (`Math.random`), so reruns differ.
   - Minimum on-screen gap 113.6 px.
   - The only page messages were font 403s (environment, as `ls1-a.md` notes).
 - **Screenshots** in `production/qa/evidence/ls1-d/`, rendered with real fonts and full frames, empty of enemies:
@@ -126,13 +130,13 @@ All three new tools take J's `--layout <id>` (`tools/layout-arg.mjs`).
 ## Open risks and things not measured
 
 1. **Biome stages spawn fewer enemies than the spec expects.**
-   - Spawned per long biome stage (route-probe tallies, 16 stages): 46-117, median about 58.
-   - The same bot on short (8 stages): 37-95, median about 44.
+   - Spawned per long biome stage (route-probe tallies of the 12 forced routes, 24 stages, final base): 44-128, median about 60.
+   - The same bot on short (8 stages, J base): 37-95, median about 44.
    - The spec expects 55-70, against 30-40 today. Rates per band match today's, as spec §3.2 asks. The total comes out about ×1.3 rather than ×1.7, because the template itself is about 25% empty: two breaths, the release and the run-up.
-   - Ice and acid sit low (46-80); the Sinus runs high (82-117, hatchling litters).
+   - Ice and acid sit low (44-80); the Sinus runs high (98-128, hatchling litters).
    - This feeds item G's economy band (D1 biomass 1.3-1.5k). The knobs are `long4.beats.tempo` (gap multipliers) and `pad`/`gateLead`. Owner: game-designer with G.
 2. **The bot can't kill the Gravity Drive on long4 on some seeds.**
-   - Before the rebase, seeds 6 and 11 timed out at the Descent 1 Drive fight (about 27 min). After it, seed 7 does (the Saucer's move to 1080 changed its run), and seed 5's Descent 2 Drive took 1106 s.
+   - Each base gives different runs. First base: seeds 6 and 11 timed out at the Descent 1 Drive fight (about 27 min). J base: seed 7 did, and seed 5's Descent 2 Drive took 1106 s. Final base: seed 1's Descent 1 Drive took 988 s.
    - This is the same bot-kit limit the parity check has with seeds 2 and 3 on short.
    - Not hidden: `stage-clock-long4*.txt` shows them. It doesn't touch the biome measurements, which finish before the Drive.
 3. **Stage wall times are for an invincible bot**, not the LS1 exit instrument.
@@ -150,15 +154,14 @@ All three new tools take J's `--layout <id>` (`tools/layout-arg.mjs`).
    - Descent 3+.
    - Movement B (a later item).
    - Fold or perf readings (item K).
-8. **Build-time rolls still draw the sim `R()`.** B2 hasn't landed. When it does, `biomeScript`'s rolls move to the per-stage stream, as on short. The long path adds no new draw: `logPick` and `secondKind` are RNG-free.
+8. **Build rolls are on B2's per-stage stream** for long4 too: the remix, kind rolls and extras all draw `rs()`. The long path adds no draw of its own: `logPick` and `secondKind` are RNG-free. Elite rolls stay at spawn time on `R()`, as B2 left them.
 
 ## Merge-order notes
 
-- **Base.** Rebased on `ls1-s2` with J merged. The `LAYOUTS.long4` registration depends on J's alias deletion.
-- **C/B2 conflicts.** `origin/ls1-c` (not yet in `ls1-s2` when I rebased) wraps `rewriteTerrain` + `insertScript(biomeScript(...))` into `biomeStage()`.
-  - That conflicts only at the import line and the `choose()` call. Keep D's `biomeScript`/`rewriteTerrain` bodies and C's wrapper.
-  - B2 then swaps `R()` for the per-stage stream in `biomeScript`.
-  - Re-run the harness and parity after each.
+- **Base.** Rebased on `ls1-s2` at `d3daf63` (J, B1fix, C/B2). It fast-forwards onto that tip. The `LAYOUTS.long4` registration depends on J's alias deletion.
+- **How the C/B2 conflict was resolved.** Git's auto-merge of `biomes.ts` interleaved `rewriteTerrain` with `remix`. So the file was rebuilt from `ls1-s2`'s version, with D's edits re-applied on top.
+  - `biomeScript` keeps B2's `rs` parameter, `remix(..., rs)`, every build roll on `rs()` and the `k` tags on every entry. The release formation is tagged `'pod'`.
+  - The short path draws `rs()` in B2's order: the harness and parity pass against B2's baselines.
 - **E** fills the long Orbit/Drive rows' content in `layout.ts`/`scripts.ts`. The `long4` Orbit/Drive rows here are the spans E builds into.
 - **J's `density-probe`** needs this lane's one-line change (it read `beats.breath`), included here.
 - **D2** goes in after this lane's flag parse (`LAYOUT_FLAG` in `main.ts`).
