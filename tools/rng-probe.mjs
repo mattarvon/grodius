@@ -44,6 +44,9 @@ const FIGHTS = [
   ['prentice', 'APPRENTICE', 'mid', 'fire'],
   ['brood', 'BROOD MOM', 'mid', 'snot'],
   ['ufo', 'SQUID SAUCER', 'ufo', null],
+  // the Crucifer again, with the ship's form changing mid-fight (pods grow at 1, 3 and 5 s; a pod withers at 7 s): render's
+  // trackForm sprouts and withers parts as particles, which the fixed-kit fights above never exercise (LS1-B1fix)
+  ['grow', 'FORM CHANGE', 'stage', null, 'crux'],
 ].filter(([id]) => !ONLY || ONLY.split(',').includes(id));
 const MODES = [['ON', true, true], ['OFF', false, true], ['BARE', true, false]];
 const KIT = [{ speed: 2, missile: 1, double: 1, options: 1, wardLv: 1 }, { cal: 1 }, { dmg: 1 }]; // boss-probe's STAGE 1 kit
@@ -78,7 +81,7 @@ async function run(b, fight, flashes, draw) {
     await new Promise((r) => setTimeout(r, 50));
   }
   const out = await p.evaluate(async ([fight, KIT, FRAMES, draw]) => {
-    const [id, , kind, biome] = fight;
+    const [id, , kind, biome, spawn = id] = fight;
     const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
     const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
     const UF = await import('/src/enemies/ufo.ts'), BU = await import('/src/boss/update.ts'), SV = await import('/src/save.ts');
@@ -104,7 +107,7 @@ async function run(b, fight, flashes, draw) {
     const sv = $.G.scroll; ST.step(); $.G.scroll = sv;
     W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
     if (kind === 'boss') BU.startBoss();
-    else if (kind === 'stage') id === 'maw' ? SP.maw(true) : SP[id]();
+    else if (kind === 'stage') spawn === 'maw' ? SP.maw(true) : SP[spawn]();
     else if (kind === 'ufo') { $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); }
     else id === 'mawmid' ? SP.maw(false) : SP.midboss(id, BI.BIOMES[biome].midName);
     const foe = () => (kind === 'boss' ? $.G.boss : $.G.mini);
@@ -117,6 +120,9 @@ async function run(b, fight, flashes, draw) {
       const y = C.clamp(ty, 8, C.PH - 8);
       $.P.hist.unshift({ x: 90, y }); if ($.P.hist.length > 80) $.P.hist.pop();
       Object.assign($.P, { x: 90, y, alive: true, inv: 30 }); $.G.pick = null; $.G.pickQ = 0;
+      if (id === 'grow') { // sim-side and identical in every mode: only render decides when the form diff is seen
+        if (f === 60) $.P.missile = 2; else if (f === 180) $.P.options = 2; else if (f === 300) $.P.laser = 1; else if (f === 420) $.P.options = 1;
+      }
       ST.step();
       if (draw) {
         // --trace: which sim fields does render() itself write? (flat diff of the foe, the enemies and $.G scalars)

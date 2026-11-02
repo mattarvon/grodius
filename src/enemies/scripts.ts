@@ -14,8 +14,9 @@
 // (and in the corridor, which has a floor and a ceiling at its start, a mutant, crawlers or a womb) to hold drones near
 // 35-40% of a stage's spawns.
 import { $ } from '../state';
-import { PH, R, W, ri } from '../core';
-import { rowOfKind, ufoDrift, ufoRow } from '../layout';
+import { PH, W } from '../core';
+import { rsInt } from '../rng';
+import { row, ufoDrift, ufoRow } from '../layout';
 import { INTERIOR_MIX, ORBIT_MIX, genFiller, noteCells, pickCells } from '../cellpick';
 import { sfx } from '../audio';
 import { startBoss } from '../boss/update';
@@ -25,18 +26,22 @@ import { banner, behindWave, corpse, crawler, eyeT, flayer, formation, hatch, lo
 const crew = (...ys) => ys.forEach(y => corpse(y));
 
 /** pick a section's variant: 0 (the classic) in Descent 1, else an unlocked remix this run hasn't played yet, and
- *  never last descent's */
-function pickV(key, vs, L) {
+ *  never last descent's. Draws from the stage's build stream rs (src/rng.ts), never the sim R(). A section already
+ *  picked for descent L returns that pick without drawing, so building a stage again (a resume, item H) plays the same
+ *  variant even though the memory was updated by the first build */
+function pickV(key, vs, L, rs) {
   const m = ($.G.remixV ||= {}), h = (m[key] ||= { used: [], last: -1 }); // per-section variant memory, kept across descents
+  if (h.L === L) return h.last;
   let i = 0;
   if (L > 0) {
     const ok = vs.map((v, j) => j).filter(j => j > 0 && vs[j].min <= L && j !== h.last);
     const fresh = ok.filter(j => !h.used.includes(j)), pool = fresh.length ? fresh : ok;
-    i = pool[ri(0, pool.length - 1)];
+    i = pool[rsInt(rs, 0, pool.length - 1)];
   }
   h.last = i;
+  h.L = L; // the descent this pick is for
   if (!h.used.includes(i)) h.used.push(i);
-  return vs[i];
+  return i;
 }
 const V = (min, f) => Object.assign(f, { min });
 
@@ -316,60 +321,77 @@ function fillSpawn(k, u, nDrone) {
 const MIXES = { orbit: ORBIT_MIX, interior: INTERIOR_MIX };
 
 /** a planned (long) stage row's build-time draws for descent L: its cells (pickV's rules, src/cellpick.ts) and its
- *  filler beats. Draws the sim R() at build time, as pickV does (B2 moves it to the per-stage build stream), and commits
- *  the cell memory to G.remixV['c:<kind>']. Pure placement is placePlanned: call this once per descent per row */
-export function pickPlanned(r, cells, opener, L, rnd = R) {
+ *  filler beats, from rs, the stage's build stream (src/rng.ts), never the sim R(). Commits the cell memory to
+ *  G.remixV['c:<kind>'] and keeps the pick there: a row already picked for descent L returns that pick without drawing,
+ *  so building the stage again (a resume, item H) places the same cells and filler, as pickV does for sections */
+export function pickPlanned(r, cells, opener, L, rs) {
   const P = r.plan, m = ($.G.remixV ||= {}), mem = (m['c:' + r.kind] ||= { used: [], last: [] });
-  const { ids } = pickCells(cells, P.slots.map((s) => s.tag), L, mem, rnd, opener);
+  if (mem.L === L && mem.pick) return mem.pick;
+  const { ids } = pickCells(cells, P.slots.map((s) => s.tag), L, mem, rs, opener);
   noteCells(mem, ids);
-  const fill = P.fill.flatMap((w) => genFiller(w.a, w.b, w.gap, MIXES[w.mix], rnd));
-  return { ids, fill };
+  const fill = P.fill.flatMap((w) => genFiller(w.a, w.b, w.gap, MIXES[w.mix], rs));
+  mem.L = L; // the descent this pick is for
+  mem.pick = { ids, fill };
+  return mem.pick;
 }
-/** place a planned row's picks into `at` (stage-relative x). Draws nothing */
+/** place a planned row's pick: at(k)(x, f) with x stage-relative and k the cell id or `fill:<kind>`. Draws nothing */
 export function placePlanned(r, cells, pick, at) {
   pick.ids.forEach((id, i) => {
     const c = id && cells.find((x) => x.id === id), x0 = r.plan.slots[i].x;
-    if (c) c((x, f) => at(x0 + x, f));
+    if (c) c((x, f) => at(id)(x0 + x, f));
   });
   const nDrone = r.kind === 'orbit' ? 3 : 4;
-  for (const b of pick.fill) at(b.x, () => fillSpawn(b.k, b.u, nDrone));
+  for (const b of pick.fill) at('fill:' + b.k)(b.x, () => fillSpawn(b.k, b.u, nDrone));
 }
+/** the cell pool and the fixed Descent 1 opener of a planned row's stage kind */
+const CELLS = { orbit: [ORBIT_CELLS, ORBIT_OPENER], drive: [DRIVE_CELLS, []] };
 
-export function buildScript(L) {
-  const S = [],
-    // script x values are relative to their stage row's x0 (src/layout.ts); `at` places them in world x
-    stageAt = (r) => (x, f) => S.push({ x: r.x0 + x, f });
-  // PHASE 1: open orbit, the derelict looming
-  const O = rowOfKind('orbit'), oAt = stageAt(O);
-  if (O.plan) { // long Orbit (long4): cells + generator; the Saucer, the banner and the Maw stay where the row puts them
-    placePlanned(O, ORBIT_CELLS, pickPlanned(O, ORBIT_CELLS, ORBIT_OPENER, L), oAt);
-    stageAt(ufoRow())(ufoDrift().at, ufoWarn);
-  } else {
-    pickV('oA', ORBIT_A, L)(oAt);
-    stageAt(ufoRow())(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
-    pickV('oC', ORBIT_C, L)(oAt);
-    pickV('oD', ORBIT_D, L)(oAt);
+// the hand-made sections of each non-biome stage kind, in the order their variants are picked
+const SECTIONS = { orbit: [['oA', ORBIT_A], ['oC', ORBIT_C], ['oD', ORBIT_D]], drive: [['dE', DRIVE_E], ['dF', DRIVE_F]] };
+
+/** the script entries of non-biome stage i (Open Orbit, the Drive approach), in world x, unsorted; [] for a biome
+ *  stage (biomes.ts biomeStage scripts those at the gate). Its section variants are picked from rs, the stage's build
+ *  stream (src/rng.ts), in a fixed order; every entry carries `k`, the section and variant it came from (or the fixed
+ *  beat), so a rebuild can be compared kind for kind */
+export function stageScript(i, rs) {
+  const r = row(i), S = [], L = $.G.loop, picks = {};
+  // a planned row (long4's Orbit and Drive) is cells + generator filler; short's rows pick their sections
+  const planned = r.plan && CELLS[r.kind], pick = planned && pickPlanned(r, planned[0], planned[1], L, rs);
+  if (!planned) for (const [key, vs] of SECTIONS[r.kind] || []) picks[key] = pickV(key, vs, L, rs);
+  // script x values are relative to their stage row's x0 (src/layout.ts); `at` places them in world x
+  const at = (k) => (x, f) => S.push({ x: r.x0 + x, f, k });
+  const play = (key, vs) => vs[picks[key]](at(key + picks[key]));
+  if (r.kind === 'orbit') {
+    // PHASE 1: open orbit, the derelict looming
+    if (planned) {
+      placePlanned(r, planned[0], pick, at);
+      if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // the Saucer: only generator filler sits in its window
+    } else {
+      play('oA', ORBIT_A);
+      if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
+      play('oC', ORBIT_C);
+      play('oD', ORBIT_D);
+    }
+    at('warn')(r.warnX - r.x0, () => {
+      banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
+      sfx.dread();
+    });
+    at('maw')(r.bossX - r.x0, () => maw(true));
+  } else if (r.kind === 'drive') {
+    // PHASE 4: the Gravity Drive approach: corridor gauntlet, rising pressure, WARNING, a breath
+    const warn = r.warnX - r.x0;
+    at('log')(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
+    if (planned) {
+      at('eyes')(430, () => { eyeT(1); eyeT(-1); });
+      placePlanned(r, planned[0], pick, at);
+    } else {
+      play('dE', DRIVE_E);
+      at('eyes')(430, () => { eyeT(1); eyeT(-1); });
+      play('dF', DRIVE_F);
+    }
+    at('warn')(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
+    at('crew')(warn + 90, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
+    at('boss')(r.bossX - r.x0, () => startBoss());
   }
-  oAt(O.warnX - O.x0, () => {
-    banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
-    sfx.dread();
-  });
-  oAt(O.bossX - O.x0, () => maw(true));
-  // PHASE 4: the Gravity Drive approach: corridor gauntlet, rising pressure, WARNING, a breath
-  const D = rowOfKind('drive'), dAt = stageAt(D), warn = D.warnX - D.x0;
-  dAt(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
-  if (D.plan) { // long Drive approach (long4): the floor cell, the wall eyes, then cells and filler up to the WARNING
-    dAt(430, () => { eyeT(1); eyeT(-1); });
-    placePlanned(D, DRIVE_CELLS, pickPlanned(D, DRIVE_CELLS, [], L), dAt);
-  } else {
-    pickV('dE', DRIVE_E, L)(dAt);
-    dAt(430, () => { eyeT(1); eyeT(-1); });
-    pickV('dF', DRIVE_F, L)(dAt);
-  }
-  dAt(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
-  dAt(warn + 90, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
-  dAt(D.bossX - D.x0, () => startBoss());
-  // the biome stages are scripted when you pick a gate (biomes.ts insertScript)
-  S.sort((a, b) => a.x - b.x);
   return S;
 }

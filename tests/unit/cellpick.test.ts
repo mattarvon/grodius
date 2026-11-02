@@ -3,13 +3,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 import { INTERIOR_MIX, ORBIT_MIX, genFiller, mixPick, noteCells, pickCells, type CellDef, type CellMem } from '../../src/cellpick';
-import { LONG4_ORBIT, long4Drive, type StageRow } from '../../src/layout';
+import { LAYOUTS, type StageRow } from '../../src/layout';
 
 // scripts.ts pulls in canvas/audio modules through spawn.ts; stub them and record what each cell spawns
 const calls: string[] = [];
 const rec = (k: string) => (..._a: unknown[]) => { calls.push(k); };
-const simR = vi.hoisted(() => ({ n: 0 })); // counts sim R() draws made through scripts.ts
-vi.mock('../../src/core', () => ({ PH: 254, W: 480, R: () => (simR.n++, 0), ri: (a: number) => (simR.n++, a) }));
+vi.mock('../../src/core', () => ({ PH: 254, W: 480 }));
 vi.mock('../../src/audio', () => ({ sfx: { dread: () => {}, siren: () => {} } }));
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
 vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: () => {} }));
@@ -23,7 +22,11 @@ const stream = (seed: number) => { let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebc
 const fresh = (): CellMem => ({ used: [], last: [] });
 const defs = (cells: any[]): CellDef[] => cells.map((c) => ({ id: c.id, tags: c.tags, min: c.min }));
 const tags = (r: StageRow) => r.plan!.slots.map((s) => s.tag);
-const DRIVE = long4Drive(8300, 11000);
+// long4's Open Orbit and Drive rows, as item D's entry places them
+const LONG4_ORBIT = LAYOUTS.long4!.stages.find((r) => r.kind === 'orbit')!;
+const DRIVE = LAYOUTS.long4!.stages.find((r) => r.kind === 'drive')!;
+/** an at(k)(x, f) that records x (placePlanned's shape) */
+const rec2 = (xs: number[], ks?: string[]) => (k: string) => (x: number) => { xs.push(x); ks?.push(k); };
 
 describe('pickCells rules', () => {
   const pool: CellDef[] = [
@@ -159,11 +162,12 @@ describe('long4 Orbit and Drive rows', () => {
 
   it('forces the Saucer out at least 300 px before the Maw banner, the next WARNING in LS1 (D20 rule 1)', () => {
     const d = LONG4_ORBIT.drift![0], exit = d.gapEnd - d.exitLead;
-    expect(d.at).toBe(1100);
+    expect(d.at).toBe(1080);
     expect(LONG4_ORBIT.warnX! - exit).toBeGreaterThanOrEqual(300);
   });
 
-  it('puts the Drive startBoss 2700 px into the approach, after its WARNING', () => {
+  it('has plans on both long4 rows, and puts the Drive startBoss 2700 px into the approach, after its WARNING', () => {
+    expect(LONG4_ORBIT.plan && DRIVE.plan).toBeTruthy();
     expect(DRIVE.bossX - DRIVE.x0).toBe(2700);
     expect(DRIVE.warnX!).toBeLessThan(DRIVE.bossX);
   });
@@ -181,6 +185,19 @@ describe('long4 Orbit and Drive rows', () => {
     for (const s of LONG4_ORBIT.plan!.slots) expect(s.x + 280 < d.at || s.x >= d.gapEnd, `slot ${s.x}`).toBe(true);
   });
 
+  it('picking the same descent again draws nothing and returns the same pick (a stage rebuilt on resume)', () => {
+    const a = pickPlanned(DRIVE, DRIVE_CELLS, [], 0, stream(7));
+    const rs = vi.fn(stream(99)), b = pickPlanned(DRIVE, DRIVE_CELLS, [], 0, rs);
+    expect(b).toEqual(a);
+    expect(rs).not.toHaveBeenCalled();
+    // and the memory moved only once: Descent 1's cells are `last`, not doubled
+    expect($.G.remixV['c:drive'].last).toEqual(a.ids);
+    // the next descent does draw
+    const rs2 = vi.fn(stream(5));
+    pickPlanned(DRIVE, DRIVE_CELLS, [], 1, rs2);
+    expect(rs2).toHaveBeenCalled();
+  });
+
   it('pickPlanned opens Descent 1 on the opener and keeps cell memory per stage kind in G.remixV', () => {
     const { ids } = pickPlanned(LONG4_ORBIT, ORBIT_CELLS, ORBIT_OPENER, 0, stream(1));
     expect(ids.slice(0, 3)).toEqual(ORBIT_OPENER);
@@ -190,17 +207,16 @@ describe('long4 Orbit and Drive rows', () => {
     expect(ids2.filter((id: string) => ids.includes(id))).toEqual([]);
   });
 
-  it('placePlanned draws nothing and places the same entries for the same pick (a stage can be rebuilt)', () => {
+  it('placePlanned places the same entries for the same pick, each tagged with its cell or filler kind', () => {
     const pick = pickPlanned(LONG4_ORBIT, ORBIT_CELLS, ORBIT_OPENER, 0, stream(4));
-    const xs1: number[] = [], xs2: number[] = [];
-    simR.n = 0;
-    placePlanned(LONG4_ORBIT, ORBIT_CELLS, pick, (x: number) => xs1.push(x));
-    placePlanned(LONG4_ORBIT, ORBIT_CELLS, pick, (x: number) => xs2.push(x));
+    const xs1: number[] = [], xs2: number[] = [], ks: string[] = [];
+    placePlanned(LONG4_ORBIT, ORBIT_CELLS, pick, rec2(xs1, ks));
+    placePlanned(LONG4_ORBIT, ORBIT_CELLS, pick, rec2(xs2));
     expect(xs1).toEqual(xs2);
-    expect(simR.n).toBe(0);
-    pickPlanned(LONG4_ORBIT, ORBIT_CELLS, ORBIT_OPENER, 1); // the counter does count: picking draws the sim R()
-    expect(simR.n).toBeGreaterThan(0);
-    expect(Math.min(...xs1)).toBe(200);
+    // every entry carries its cell id or filler kind, so a rebuild can be compared kind for kind
+    expect(ks.filter((k) => k.startsWith('o.')).length).toBeGreaterThan(0);
+    expect(ks.every((k) => k.startsWith('o.') || k.startsWith('fill:'))).toBe(true);
+    expect(Math.min(...xs1)).toBe(180);
     expect(Math.max(...xs1)).toBeLessThanOrEqual(LONG4_ORBIT.warnX! - 60);
   });
 });
