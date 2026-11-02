@@ -8,27 +8,29 @@
 //   peak     peak band <= 1.7 spawns/s (LS1 exit, density)
 //   warn     no set piece within 150 px of a WARNING (the midboss WARNING, every breath's WARNING slot, bossX)
 // Set pieces count as one call; logs, WARNINGs and the boss don't count.
-// Usage: node tools/beat-probe.mjs [url] [--layout long] [--n 200]
-//   No url: starts its own Vite dev server. --layout is appended as ?layout= (src/main.ts flag parse).
+// Usage: node tools/beat-probe.mjs [url] [--layout long4] [--n 200]
+//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default short) sets the entry
+//   in-page before the run, like every probe; the game's own ?layout=long flag (src/main.ts) selects the same entry.
 //   Not measured: spawn-time sides/positions/elite rolls (only the build); the early gate (only gateLate, the shorter
 //   and therefore denser span); Descent 3+.
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
-const LAYOUT = opt('--layout', null), N = +opt('--n', '200');
-let url = argv.find((a, i) => !a.startsWith('--') && !['--layout', '--n'].includes(argv[i - 1])), server;
+const N = +opt('--n', '200');
+let url = argv.find((a, i) => !a.startsWith('--') && !['--n'].includes(argv[i - 1])), server;
 if (!url) {
   const { createServer } = await import('vite');
   server = await createServer({ server: { port: 5599, strictPort: false, host: '127.0.0.1' }, logLevel: 'error' });
   await server.listen();
   url = server.resolvedUrls.local[0];
 }
-if (LAYOUT) url += (url.includes('?') ? '&' : '?') + 'layout=' + LAYOUT;
 
 const b = await chromium.launch(); const p = await b.newPage();
 await p.addInitScript(() => { window.requestAnimationFrame = () => 1; window.speechSynthesis = undefined; });
 await p.goto(url); await p.waitForFunction(() => window.__started);
+await useLayout(p, 'beat-probe');
 const res = await p.evaluate(async (N) => {
   const { biomeScript, BIOMES } = await import('/src/biomes.ts'), { $ } = await import('/src/state.ts'), L = await import('/src/layout.ts');
   const LY = L.layout(), BT = LY.beats, out = { id: LY.id, rows: [] }, G0 = $.G;
@@ -84,3 +86,4 @@ for (const r of res.rows) {
 }
 console.log(`peak max ${peakMax.toFixed(2)}/s (exit <= 1.7): ${peakMax <= 1.7 ? 'ok' : 'OVER'};  spawns in a breath ${breathBad};  spawns in the run-up ${runupBad};  closest set piece to a WARNING ${setMin.toFixed(0)} px (>= 150: ${setMin >= 150 ? 'ok' : 'FAIL'})`);
 console.log('not measured: spawn-time rolls; the early gate; Descent 3+');
+ranOn('beat-probe');

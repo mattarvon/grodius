@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BANDS, LAYOUTS, bandAt, bossAt, forkAfter, hellCore, hellCorr, innerBand, kindOf, lastStage, layout, nSlots, row,
-  LONG4_ENTRY, beatPlan, driftRow, driftsOf, setLayout, slotSpans, slotOf, slotRow, stageOfSlot, ufoAt, ufoGapEnd, type LayoutEntry,
+  beatPlan, driftRow, driftsOf, setLayout, slotSpans, slotOf, slotRow, stageOfSlot, ufoAt, ufoGapEnd, type LayoutEntry,
 } from '../../src/layout';
 
 // ---- the invariants every layout entry must keep (design/content-expansion.md §2.2, §3.2) ----
@@ -18,8 +18,8 @@ const gates = (r: Row) => [['early', r.x0], ...(r.gateLate != null ? [['late', r
  *  biomes.ts biomeScript builds the script from */
 const biomeBeats = (L: LayoutEntry, r: Row, from: number, remix: boolean) => beatPlan(r, from, remix, L);
 
-/** every entry the invariants run on: the registered ones, plus long4 as a fixture until item J lets it register */
-const ENTRIES: [string, LayoutEntry][] = [...Object.entries(LAYOUTS) as [string, LayoutEntry][], ...(LAYOUTS.long4 ? [] : [['long4', LONG4_ENTRY] as [string, LayoutEntry]])];
+/** every entry the invariants run on */
+const ENTRIES = Object.entries(LAYOUTS) as [string, LayoutEntry][];
 
 /** every invariant violation in a layout entry, as readable strings (empty = clean) */
 function violations(L: LayoutEntry) {
@@ -191,15 +191,16 @@ describe('short layout reproduces today', () => {
     expect(() => slotRow(5)).toThrow(/no biome slot 5/);
   });
 
-  it('refuses an unknown layout id', () => {
+  it('refuses an unknown layout id, including Object prototype keys a URL flag can carry', () => {
     expect(() => setLayout('long9')).toThrow(/unknown layout/);
+    for (const k of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) expect(() => setLayout(k)).toThrow(/unknown layout/);
     expect(layout().id).toBe('short');
   });
 });
 
 // ---- the long layout (build plan sprint 2 item D; spec §2.2, §3.2-3.4) ----
 describe('long4 entry', () => {
-  const L = LAYOUTS.long4 ?? LONG4_ENTRY, biomeRows = L.stages.filter((r) => r.kind === 'biome');
+  const L = LAYOUTS.long4!, biomeRows = L.stages.filter((r) => r.kind === 'biome');
 
   it('is Orbit, biome slot 0, biome slot 1, Drive, with forks before both biome slots', () => {
     expect(L.stages.map((r) => r.kind)).toEqual(['orbit', 'biome', 'biome', 'drive']);

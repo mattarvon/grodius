@@ -40,7 +40,7 @@ import { setLayout } from './layout';
 // ---------------- layout flag (build plan sprint 2 item D) ----------------
 // ?layout=long flies the long4 entry (src/layout.ts); the default stays short. It runs at boot, before any newGame():
 // setLayout's contract. An unknown or unregistered value falls back to short with a warning, never a crash
-/** the layout entry id a ?layout= value selects (null: no flag) */
+/** the ?layout= values and the layout entry each selects (any other value is tried as an entry id) */
 export const LAYOUT_FLAG = { long: 'long4', long4: 'long4', short: 'short' };
 {
   const v = new URLSearchParams(location.search).get('layout');

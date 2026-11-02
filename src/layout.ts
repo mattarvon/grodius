@@ -3,10 +3,10 @@
 // stage-relative WARNING and forced exit, the biome beat fractions, where biome terrain hands back to the ship, the
 // world bands (AMT, buildTerrain, the corridor backdrop, hell flashes) and the HUD depth marks.
 //
-// Only the `short` entry exists: today's descent (Orbit, biome, biome, Drive) at today's x values, byte-identical to
-// the code it replaced (proved by tools/layout-parity.mjs and the harness). `long4` and `long5` are later rows
-// (build plan sprint 2 item D, LS3-0). Sim code reads the ACTIVE entry through the accessors below at call time,
-// never a copy taken at import, so a flag can switch the entry before a run starts.
+// `short` is today's descent (Orbit, biome, biome, Drive) at today's x values, byte-identical to the code it replaced
+// (proved by tools/layout-parity.mjs and the harness), and stays the default. `long4` is the LS1 long layout behind
+// ?layout=long (build plan sprint 2 item D; src/main.ts); `long5` is LS3-0. Sim code reads the ACTIVE entry through
+// the accessors below at call time, never a copy taken at import, so a flag can switch the entry before a run starts.
 //
 // Pure data and pure functions: no imports, so tests, the game and the probes (tools/layout-arg.mjs, in Node and
 // in-page) can load it without a DOM.
@@ -131,7 +131,7 @@ const SHORT: LayoutEntry = {
 };
 
 // ---------------- long4: the LS1 long layout (spec §2.2, §3.2-3.4; build plan sprint 2 item D) ----------------
-// Orbit, biome, biome, Drive, each long, behind ?layout=long. Rows are sized by scroll time, not row width: a biome
+// Orbit, biome, biome, Drive, each long, behind ?layout=long (the default stays short). Rows are sized by scroll time, not row width: a biome
 // stage is timed from its gate (the scroll holds at the fork ~50 px past the previous Maw, ~200 px past a biome boss:
 // its miniWarn runs 150 f while the scroll coasts) to its boss WARNING at bossX. bossX - gate scroll = 3550 px gives
 // ~60 s of scroll with the fork start and the midboss hold (two ~50 f speed ramps); measured: production/qa/evidence/ls1-d.md.
@@ -141,10 +141,10 @@ const LONG4: LayoutEntry = {
   id: 'long4',
   level: 14370,
   stages: [
-    // Open Orbit 3600: the Saucer's WARNING at 1100 (spec §3.4); gapEnd keeps today's 1040 px window and is provisional
-    // (item E owns it: >= 300 px before Orbit's slot B WARNING once LS2-orbit adds one). The Maw at 3420, its
-    // SOMETHING IS COMING 120 px before, as in short
-    { kind: 'orbit', x0: 0, x1: 3600, bossX: 3420, warnX: 3300, drift: [{ k: 'ufo', at: 1100, gapEnd: 2140, exitLead: 60 }] },
+    // Open Orbit 3600: the Saucer's WARNING at 1080 (spec §3.4 "around 1100"; not 1100 itself, which is an Orbit script
+    // x in enemies/scripts.ts and would trip layout-literals.test.ts); gapEnd 2140 is provisional (item E owns it: >= 300
+    // px before Orbit's slot B WARNING once LS2-orbit adds one). The Maw at 3420, its SOMETHING IS COMING 120 px before
+    { kind: 'orbit', x0: 0, x1: 3600, bossX: 3420, warnX: 3300, drift: [{ k: 'ufo', at: 1080, gapEnd: 2140, exitLead: 60 }] },
     // gate scroll ~3470 (the Maw holds at ~3420 + 50), so the gate x (scroll + W + 10) is ~3960; gateLate rounds up
     { kind: 'biome', slot: 0, fork: true, x0: 3600, x1: 7220, end: 7120, bossX: 7020, gateLate: 3970 },
     // gate scroll ~7220 (the biome boss lands 150 f after its WARNING at 7020, then the scroll coasts ~50 px)
@@ -197,10 +197,7 @@ const LONG4: LayoutEntry = {
   hudMarks: [3700, 7270],
 };
 
-export const LAYOUTS: Partial<Record<LayoutEntry['id'], LayoutEntry>> = { short: SHORT };
-/** the long4 entry, not yet registered in LAYOUTS: the second-layout tripwire (layout-literals.test.ts) holds it out
- *  until item J deletes the boot-time aliases. Tests check its invariants as a fixture */
-export const LONG4_ENTRY = LONG4;
+export const LAYOUTS: Partial<Record<LayoutEntry['id'], LayoutEntry>> = { short: SHORT, long4: LONG4 };
 let active: LayoutEntry = SHORT;
 
 /** the active layout entry */
@@ -210,7 +207,8 @@ export const layout = () => active;
  *  entry. Nothing copies the entry at import: item J deleted the boot-time aliases, and layout-literals.test.ts
  *  keeps them out. */
 export function setLayout(id: string) {
-  const L = LAYOUTS[id as LayoutEntry['id']];
+  // own keys only: a URL flag reaches here, and 'constructor' or '__proto__' must not resolve to Object's
+  const L = Object.hasOwn(LAYOUTS, id) ? LAYOUTS[id as LayoutEntry['id']] : undefined;
   if (!L) throw new Error('unknown layout ' + id);
   active = L;
 }

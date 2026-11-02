@@ -9,16 +9,18 @@
 //   midboss    where breath 1's midboss arrived and how it left
 // Biome stages are checked against the item D band (58-62 s of scroll). Orbit and Drive rows are reported only:
 // their script content is item E's.
-// Usage: node tools/stage-clock.mjs [url] [--layout long] [--seeds 1,5,6,7,11] [--descents 1]
-//   No url: starts its own Vite dev server. --layout is appended as ?layout= (src/main.ts flag parse).
+// Usage: node tools/stage-clock.mjs [url] [--layout long4] [--seeds 1,5,6,7,11] [--descents 1]
+//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default short) sets the entry
+//   in-page before the run, like every probe; the game's own ?layout=long flag (src/main.ts) selects the same entry.
 //   Not measured: render-only output (canvas stubbed); a mortal pilot (it never dies, so no respawn stalls); seeds 2
 //   and 3 (the parity bot's kit cannot kill the Gravity Drive, their runs time out).
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
-const SEEDS = opt('--seeds', '1,5,6,7,11').split(',').map(Number), DESCENTS = +opt('--descents', '1'), LAYOUT = opt('--layout', null);
-let url = argv.find((a, i) => !a.startsWith('--') && !['--seeds', '--descents', '--layout'].includes(argv[i - 1]));
+const SEEDS = opt('--seeds', '1,5,6,7,11').split(',').map(Number), DESCENTS = +opt('--descents', '1');
+let url = argv.find((a, i) => !a.startsWith('--') && !['--seeds', '--descents'].includes(argv[i - 1]));
 let server;
 if (!url) {
   const { createServer } = await import('vite');
@@ -26,7 +28,6 @@ if (!url) {
   await server.listen();
   url = server.resolvedUrls.local[0];
 }
-if (LAYOUT) url += (url.includes('?') ? '&' : '?') + 'layout=' + LAYOUT;
 const BAND = [58, 62];
 
 const init = ([seed, gate]) => {
@@ -92,6 +93,7 @@ for (const seed of SEEDS) {
   await p.addInitScript(init, [seed, (seed * 2654435761) >>> 0]);
   await p.goto(url);
   await p.waitForFunction(() => window.__started);
+  await useLayout(p, 'stage-clock', { limits: 'Orbit and Drive script content is item E\'s; only biome stages are banded' });
   await p.evaluate(async () => { window.__layout = await import('/src/layout.ts'); });
   const layoutId = await p.evaluate(() => window.__layout.layout().id);
   const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
@@ -122,4 +124,5 @@ if (bio.length) {
   console.log(`biome stages: ${bio.length}, scroll min ${xs[0].toFixed(1)} median ${xs[xs.length >> 1].toFixed(1)} max ${xs[xs.length - 1].toFixed(1)} s; band ${BAND.join('-')} s: ${bio.filter((r) => r.sc < BAND[0] || r.sc > BAND[1]).length} out of band`);
 }
 console.log('not measured: render-only output; a mortal pilot; seeds 2 and 3; Orbit and Drive content (item E)');
+ranOn('stage-clock');
 if (server) await server.close();
