@@ -1,20 +1,20 @@
 // @ts-nocheck
 import { $ } from './state';
-import { PH, clamp, dist2, pick, ri, rr, swapRm } from './core';
+import { PH, R, clamp, dist2, pick, ri, rr, swapRm } from './core';
 import { lv, save } from './save';
 import { sfx } from './audio';
 import { buzz } from './platform';
 import { ALL, buildTerrain, ceilAt, eshots, floorAt } from './world';
 import { drop, flash, gore, spark, splat } from './fx/spawn';
-import { pickStageVariants } from './enemies/spawn';
+import './enemies/spawn'; // kept where the old buildScript import was: the boot-time module order stays as it was
 import { startStage } from './stages';
 import { biomeReset } from './biomes';
 import { perksReset } from './perks';
 import { caps } from './world';
 import { resetContraptions, rigFresh } from './contraptions';
 import { shipShed } from './shipform';
-import { lastStage, nSlots, row } from './layout';
-import { buildStage } from './stagebuild';
+import { nSlots } from './layout';
+import { newRunSeed } from './rng';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
@@ -51,7 +51,8 @@ export function newGame(startL = 0) {
     gmk: 0,
     pend: [],
     warn: [],
-    feed: null
+    feed: null,
+    seed: newRunSeed(R) // the run seed (B2): every stage build draws from a stream hashed from it (src/rng.ts); kept in the run save
   };
   perksReset();
   startLoop(startL);
@@ -63,9 +64,7 @@ export function startLoop(L) {
   $.G.scroll = 0;
   $.G.scrollSpeed = 1;
   $.G.si = 0;
-  $.G.script = [];
-  pickStageVariants(L); // the descent's build-time R() draws: same order and moment as the old up-front buildScript
-  for (let i = 0; i <= lastStage(); i++) if (row(i).kind !== 'biome') buildStage(i); // Orbit and the Drive approach (see stagebuild.ts); a biome stage is built at its gate
+  $.G.script = []; // each stage is built on entry (stagebuild.ts): stage 0 by startStage(0) below
   $.G.bossStarted = false;
   $.G.boss = null;
   $.G.clearT = 0;

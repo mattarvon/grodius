@@ -7,6 +7,7 @@ vi.mock('../../src/audio', () => ({ AU: {}, sample: () => {}, sfx: {} }));
 vi.mock('../../src/enemies/spawn', () => ({ banner: () => {} }));
 vi.mock('../../src/platform', () => ({ buzz: () => {} }));
 vi.mock('../../src/biomes', () => ({ BIOMES: {}, openFork: () => {}, holdForFork: () => {}, biomeExit: () => {} }));
+vi.mock('../../src/stagebuild', () => ({ buildStage: () => {} })); // startStage builds Open Orbit / the Drive on entry (LS1 C/B2)
 
 const { STAGE_NAMES } = await import('../../src/stages');
 const { TRACKS } = await import('../../src/music');

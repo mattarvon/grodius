@@ -14,7 +14,8 @@
 // (and in the corridor, which has a floor and a ceiling at its start, a mutant, crawlers or a womb) to hold drones near
 // 35-40% of a stage's spawns.
 import { $ } from '../state';
-import { PH, W, ri } from '../core';
+import { PH, W } from '../core';
+import { rsInt } from '../rng';
 import { row, ufoDrift, ufoRow } from '../layout';
 import { sfx } from '../audio';
 import { startBoss } from '../boss/update';
@@ -24,18 +25,22 @@ import { banner, behindWave, corpse, crawler, eyeT, flayer, formation, hatch, lo
 const crew = (...ys) => ys.forEach(y => corpse(y));
 
 /** pick a section's variant: 0 (the classic) in Descent 1, else an unlocked remix this run hasn't played yet, and
- *  never last descent's */
-function pickV(key, vs, L) {
+ *  never last descent's. Draws from the stage's build stream rs (src/rng.ts), never the sim R(). A section already
+ *  picked for descent L returns that pick without drawing, so building a stage again (a resume, item H) plays the same
+ *  variant even though the memory was updated by the first build */
+function pickV(key, vs, L, rs) {
   const m = ($.G.remixV ||= {}), h = (m[key] ||= { used: [], last: -1 }); // per-section variant memory, kept across descents
+  if (h.L === L) return h.last;
   let i = 0;
   if (L > 0) {
     const ok = vs.map((v, j) => j).filter(j => j > 0 && vs[j].min <= L && j !== h.last);
     const fresh = ok.filter(j => !h.used.includes(j)), pool = fresh.length ? fresh : ok;
-    i = pool[ri(0, pool.length - 1)];
+    i = pool[rsInt(rs, 0, pool.length - 1)];
   }
   h.last = i;
+  h.L = L; // the descent this pick is for
   if (!h.used.includes(i)) h.used.push(i);
-  return vs[i];
+  return i;
 }
 const V = (min, f) => Object.assign(f, { min });
 
@@ -214,45 +219,40 @@ const DRIVE_F = [
   })
 ];
 
-// the hand-made sections of each non-biome stage kind, in the order their variants are picked (pickStageVariants)
+// the hand-made sections of each non-biome stage kind, in the order their variants are picked
 const SECTIONS = { orbit: [['oA', ORBIT_A], ['oC', ORBIT_C], ['oD', ORBIT_D]], drive: [['dE', DRIVE_E], ['dF', DRIVE_F]] };
-/** the build-time variant picks of a descent: every hand-made section's remix, drawn with the sim R() at startLoop in
- *  today's order (oA, oC, oD, dE, dF; nothing is drawn in Descent 1). The pick is kept in G.remixV[key].last, which
- *  stageScript reads, so placing a stage draws nothing. B2 moves these draws onto the per-stage build stream. */
-export function pickStageVariants(L) {
-  for (const k of ['orbit', 'drive']) for (const [key, vs] of SECTIONS[k]) pickV(key, vs, L);
-}
-/** the section variant this descent plays (picked by pickStageVariants) */
-const played = (key, vs) => vs[$.G.remixV[key].last];
 
 /** the script entries of non-biome stage i (Open Orbit, the Drive approach), in world x, unsorted; [] for a biome
- *  stage (biomes.ts biomeStage scripts those at the gate). Places the variants pickStageVariants picked: no R() draw */
-export function stageScript(i) {
-  const r = row(i), S = [],
-    // script x values are relative to their stage row's x0 (src/layout.ts); `at` places them in world x
-    stageAt = (rr) => (x, f) => S.push({ x: rr.x0 + x, f });
+ *  stage (biomes.ts biomeStage scripts those at the gate). Its section variants are picked from rs, the stage's build
+ *  stream (src/rng.ts), in a fixed order; every entry carries `k`, the section and variant it came from (or the fixed
+ *  beat), so a rebuild can be compared kind for kind */
+export function stageScript(i, rs) {
+  const r = row(i), S = [], L = $.G.loop, picks = {};
+  for (const [key, vs] of SECTIONS[r.kind] || []) picks[key] = pickV(key, vs, L, rs);
+  // script x values are relative to their stage row's x0 (src/layout.ts); `at` places them in world x
+  const at = (k) => (x, f) => S.push({ x: r.x0 + x, f, k });
+  const play = (key, vs) => vs[picks[key]](at(key + picks[key]));
   if (r.kind === 'orbit') {
     // PHASE 1: open orbit, the derelict looming
-    const oAt = stageAt(r);
-    played('oA', ORBIT_A)(oAt);
-    if (ufoRow() === r) stageAt(r)(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
-    played('oC', ORBIT_C)(oAt);
-    played('oD', ORBIT_D)(oAt);
-    oAt(r.warnX - r.x0, () => {
+    play('oA', ORBIT_A);
+    if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
+    play('oC', ORBIT_C);
+    play('oD', ORBIT_D);
+    at('warn')(r.warnX - r.x0, () => {
       banner('SOMETHING IS COMING', 'MASS READING: ORGANIC', undefined, 150);
       sfx.dread();
     });
-    oAt(r.bossX - r.x0, () => maw(true));
+    at('maw')(r.bossX - r.x0, () => maw(true));
   } else if (r.kind === 'drive') {
     // PHASE 4: the Gravity Drive approach: corridor gauntlet, rising pressure, WARNING, a breath
-    const dAt = stageAt(r), warn = r.warnX - r.x0;
-    dAt(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
-    played('dE', DRIVE_E)(dAt);
-    dAt(430, () => { eyeT(1); eyeT(-1); });
-    played('dF', DRIVE_F)(dAt);
-    dAt(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
-    dAt(warn + 90, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
-    dAt(r.bossX - r.x0, () => startBoss());
+    const warn = r.warnX - r.x0;
+    at('log')(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
+    play('dE', DRIVE_E);
+    at('eyes')(430, () => { eyeT(1); eyeT(-1); });
+    play('dF', DRIVE_F);
+    at('warn')(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
+    at('crew')(warn + 90, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
+    at('boss')(r.bossX - r.x0, () => startBoss());
   }
   return S;
 }

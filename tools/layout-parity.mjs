@@ -11,8 +11,9 @@
 // 10 px), and route-probe's checks (min on-screen gap, terrain slams, hazards spawned / spawned badly, fork events).
 //
 // Runs: the main set (--seeds x --descents, invincible bot) plus two fixed extra runs that cover what it can't reach:
-//   1x3  seed 1 for 3 descents: Descent 3 is the first where a slot-0 gate can be a repeat visit (forks offer fresh
-//        biomes first); seed 1's Descent 3 takes the revisit
+//   9x3  seed 9 for 3 descents: Descent 3 is the first where a slot-0 gate can be a repeat visit (forks offer fresh
+//        biomes first); seed 9's Descent 3 takes the revisit (ice, first flown in Descent 1). It was seed 1 (1x3) until
+//        LS1-B2 moved the build draws off the sim RNG and seed 1's Descent 3 stopped revisiting (D20 parity coverage)
 //   7m   seed 7 with a MORTAL bot (same pilot, no invincibility) until game over: hits, deaths, BLACK BOX/salvage
 //        pods, respawn, lives and game over
 //
@@ -41,7 +42,7 @@ let url = argv.find((a, i) => !a.startsWith('--') && !['--seeds', '--descents', 
 const BASELINE = new URL('./layout-parity.baseline.json', import.meta.url);
 const MAX_FRAMES = (d) => 60 * 60 * 14 * d; // a descent is 4-6 min; 14 min each is a hang, not a slow run
 const RUNS = [...SEEDS.map((seed) => ({ id: String(seed), seed, descents: DESCENTS, mortal: false })),
-  { id: '1x3', seed: 1, descents: 3, mortal: false }, { id: '7m', seed: 7, descents: 2, mortal: true }];
+  { id: '9x3', seed: 9, descents: 3, mortal: false }, { id: '7m', seed: 7, descents: 2, mortal: true }];
 
 let server;
 if (!url) {
@@ -223,4 +224,4 @@ const walk = (a, b, path) => {
 };
 walk(base.runs, runs, 'seed');
 if (diffs.length) { console.error(`PARITY DIFF vs baseline @ ${base.commit}:\n${diffs.join('\n')}`); process.exit(1); }
-console.log(`PARITY PASS vs baseline @ ${base.commit}: runs ${meta.runs.join(', ')} identical (${SEEDS.length} seeds x ${DESCENTS} descents + 1x3 + 7m)`);
+console.log(`PARITY PASS vs baseline @ ${base.commit}: runs ${meta.runs.join(', ')} identical (${SEEDS.length} seeds x ${DESCENTS} descents + 9x3 + 7m)`);
