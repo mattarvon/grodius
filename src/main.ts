@@ -35,6 +35,19 @@ import './render/screens';
 import { $ } from './state';
 import { step } from './step';
 import { render } from './render/screens';
+import { setLayout } from './layout';
+
+// ---------------- layout flag (build plan sprint 2 item D) ----------------
+// ?layout=long flies the long4 entry (src/layout.ts); the default stays short. It runs at boot, before any newGame():
+// setLayout's contract. An unknown or unregistered value falls back to short with a warning, never a crash
+/** the layout entry id a ?layout= value selects (null: no flag) */
+export const LAYOUT_FLAG = { long: 'long4', long4: 'long4', short: 'short' };
+{
+  const v = new URLSearchParams(location.search).get('layout');
+  if (v != null) {
+    try { setLayout(Object.hasOwn(LAYOUT_FLAG, v) ? LAYOUT_FLAG[v] : v); } catch (e) { console.warn(`?layout=${v}: ${e.message}; flying the short layout`); setLayout('short'); }
+  }
+}
 
 // ---------------- loop ----------------
 export let acc = 0,
