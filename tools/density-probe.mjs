@@ -25,7 +25,7 @@ const res = await p.evaluate(async (N) => {
     const BK = [['intro', 0, .2], ['build', .2, qA], ['breath', qA, qZ], ['peak', qZ, .9], ['tail', .9, 1]], c = Object.fromEntries(BK.map((k) => [k[0], 0]));
     let tot = 0, maw = null;
     for (let n = 0; n < N; n++) {
-      $.G = { loop, rank: 0, pend: [] };
+      $.G = { loop, rank: 0, pend: [], seed: n + 1 }; // a run seed per roll: build rolls draw the stage build stream (src/rng.ts, B2), not R()
       for (const e of biomeScript(seg, bk, from)) {
         const s = e.f.toString();
         if (/midboss\(/.test(s)) { maw = ((e.x + 150 - a) / (z - a)).toFixed(3); continue; } // its WARNING; it lands ~150px later

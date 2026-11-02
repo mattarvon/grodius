@@ -56,7 +56,7 @@ const res = await p.evaluate(async (N) => {
     const c = bands.map(() => 0), bad = { breath: 0, runup: 0 };
     let tot = 0;
     for (let n = 0; n < N; n++) {
-      $.G = { loop, rank: 0, pend: [] };
+      $.G = { loop, rank: 0, pend: [], seed: n + 1 }; // a run seed per roll: build rolls draw the stage build stream (src/rng.ts, B2), not R()
       for (const e of biomeScript(seg, bk, from, v)) {
         const s = e.f.toString();
         if (/logLine|miniWarn/.test(s)) continue;
