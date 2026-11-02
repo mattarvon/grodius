@@ -15,6 +15,7 @@ vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, gib: () 
 vi.mock('../../src/enemies/update', () => ({ POD: {}, hurt: () => {} }));
 vi.mock('../../src/enemies/spawn', () => ({ banner: () => {} }));
 vi.mock('../../src/biomes', () => ({ BIOMES: {}, openFork: () => {}, holdForFork: () => {}, biomeExit: () => {} }));
+vi.mock('../../src/stagebuild', () => ({ buildStage: () => {} })); // startStage builds Open Orbit / the Drive on entry (LS1 C/B2)
 vi.mock('../../src/boss/update', () => ({ bossHitByShot: () => {} }));
 vi.mock('../../src/render/util', () => ({ drawChain: () => {}, drawHookTip: () => {}, light: () => {} }));
 

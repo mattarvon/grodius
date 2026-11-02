@@ -18,6 +18,7 @@ import { enemies } from './world';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 import { layout, nSlots, slotRow, stageOfSlot } from './layout';
+import { seedOf, stream } from './rng';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -159,7 +160,9 @@ const SPAWN = {
   hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
 };
 Object.assign(SPAWN, { slime: () => slime(R() < .65 ? 1 : -1), mutant: () => mutant() }); // new enemies: snot slime (floor or ceiling), hulking mutant (floor)
-function insertScript(entries) {
+/** merge script entries into the unplayed part of G.script, kept sorted by x (a stable sort: equal x keep their
+ *  order, entries already there first) */
+export function insertScript(entries) {
   const G = $.G, rest = G.script.slice(G.si).concat(entries).sort((a, b) => a.x - b.x);
   G.script = G.script.slice(0, G.si).concat(rest);
 }
@@ -181,16 +184,20 @@ const SET = {
 /** a repeat visit to a biome (v = earlier visits this run): its own second signature + set, the set pieces moved, some
  *  of its kinds gone, its drone pattern swapped (add), two kinds borrowed from other biomes (a fresh pick each time),
  *  and more elites (enemies/elite.ts) */
-export function remix(b, v, loop) {
+export function remix(b, v, loop, rs) {
   const B = BIOMES[b], X = B.remix, mix = B.mix.concat(loop > 0 && B.late ? B.late : []), BT = layout().beats;
   if (!v || !X) return { sig: B.sig, set: B.set, mix, sets: BT.sets.slice(), cross: [] };
   const pool = X.pool.slice(), cross = [];
-  while (cross.length < 2 && pool.length) cross.push(pool.splice(Math.floor(R() * pool.length), 1)[0]);
+  while (cross.length < 2 && pool.length) cross.push(pool.splice(Math.floor(rs() * pool.length), 1)[0]);
   return { sig: X.sig, set: X.set, mix: mix.filter((m) => !X.drop.includes(m[0])).concat(X.add || [], cross), sets: BT.remixSets.slice(), cross: cross.map((c) => c[0]) };
 }
-export function biomeScript(seg, b, from, v = 0) {
-  const B = BIOMES[b], g = slotRow(seg), BT = layout().beats, S = [], at = (x, f) => S.push({ x, f }), hard = $.G.loop > 0, X = remix(b, v, $.G.loop), MX = X.mix;
-  const tot = MX.reduce((s, m) => s + m[1], 0), roll = () => { let r = R() * tot, k = 0; while ((r -= MX[k][1]) > 0 && k < MX.length - 1) k++; return MX[k][0]; };
+/** biome slot seg's script from world x `from` (the gate), v = earlier visits to b this run. Every build-time roll
+ *  (the remix, the kind rolls, extras) comes from rs, the stage's build stream (src/rng.ts; default: this run's stream
+ *  for that stage), so the same inputs always give the same x and kind list. Elite rolls stay at spawn time on the sim
+ *  R() (el(), below; spec §4). Every entry carries `k`, what it spawns */
+export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(seg))) {
+  const B = BIOMES[b], g = slotRow(seg), BT = layout().beats, S = [], at = (x, f, k) => S.push({ x, f, k }), hard = $.G.loop > 0, X = remix(b, v, $.G.loop, rs), MX = X.mix;
+  const tot = MX.reduce((s, m) => s + m[1], 0), roll = () => { let r = rs() * tot, k = 0; while ((r -= MX[k][1]) > 0 && k < MX.length - 1) k++; return MX[k][0]; };
   // elites: every spawn this slot makes (rear waves and staggered set pieces included) rolls eliteChance once
   const ep = eliteChance($.G.loop, v), el = (f) => !ep ? f : () => {
     const n0 = enemies.length, p0 = $.G.pend.length;
@@ -199,27 +206,41 @@ export function biomeScript(seg, b, from, v = 0) {
     for (let i = p0; i < $.G.pend.length; i++) $.G.pend[i].f = el($.G.pend[i].f);
   };
   const a = Math.max(g.x0 + BT.pad[0], from + 60), z = g.bossX - BT.pad[1], mid = Math.round((a + z) / 2);
-  at(a - 40, () => logLine(B.logs[0]));
-  at(mid, () => logLine(B.logs[1]));
+  at(a - 40, () => logLine(B.logs[0]), 'log');
+  at(mid, () => logLine(B.logs[1]), 'log');
   // pacing beats by p = (x-a)/(z-a): intro <.2 (sparse, signature first) / build / breath .45-.55 (empty) / peak .55-.9 (dense) / tail
-  const P = (q) => a + (z - a) * q, sig = () => (R() < .6 ? X.sig : roll()), sets = X.sets.map(P);
+  const P = (q) => a + (z - a) * q, sig = () => (rs() < .6 ? X.sig : roll()), sets = X.sets.map(P);
   // the breath (layout().beats); a row with breathAfterMid (short slot 1) shifts it to end just past mid + that, where the old mid-stage Maw was
   const bZ = g.breathAfterMid != null ? Math.max(P(BT.breath.end), mid + g.breathAfterMid) : P(BT.breath.end), bA = bZ - (z - a) * BT.breath.len;
   for (let x = a, n = 0; x < z; n++) {
     const q = (x - a) / (z - a), intro = q < .2, peak = x >= bZ && q < .9, st = Math.round(B.gap * (intro ? 1.4 : peak ? .75 : 1)), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
     if (x >= bA && x < bZ) { x = bZ; continue; }
-    if (sets.length && x + st / 2 > sets[0]) { sets.shift(); at(x, el(SET[X.set])); x += st; continue; }
+    if (sets.length && x + st / 2 > sets[0]) { sets.shift(); at(x, el(SET[X.set]), 'set:' + X.set); x += st; continue; }
     const pk = intro ? sig : roll, dbl = intro ? .2 : peak ? Math.min(.85, B.dbl + .15) : B.dbl;
-    at(x, el(SPAWN[n ? pk() : X.sig])); // the very first slot is the signature enemy, alone
-    if (n && R() < dbl && !(y2 >= bA && y2 < bZ)) at(y2, el(SPAWN[pk()])); // extras never spill into the breath
-    if (n && hard && R() < .35 && !(y3 >= bA && y3 < bZ)) at(y3, el(SPAWN[pk()]));
+    const k1 = n ? pk() : X.sig;
+    at(x, el(SPAWN[k1]), k1); // the very first slot is the signature enemy, alone
+    if (n && rs() < dbl && !(y2 >= bA && y2 < bZ)) { const k = pk(); at(y2, el(SPAWN[k]), k); } // extras never spill into the breath
+    if (n && hard && rs() < .35 && !(y3 >= bA && y3 < bZ)) { const k = pk(); at(y3, el(SPAWN[k]), k); }
     x += st;
   }
   // the breath's centerpiece: the biome's own midboss. WARNING 150f (~150px) ahead so it lands ~60px before bZ and the scroll coasts to a stop inside the breath
-  at(Math.round(bZ - BT.warnLead), () => miniWarn(B.midName, () => midboss(B.mid, B.midName, b)));
+  at(Math.round(bZ - BT.warnLead), () => miniWarn(B.midName, () => midboss(B.mid, B.midName, b)), 'mid:' + B.mid);
   const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
-  at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }));
+  at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }), 'boss:' + B.boss);
   return S;
+}
+
+/** stage i's build stream for this run and descent (src/rng.ts): Rs = stream(seedOf(G.seed, G.loop, i)), fresh
+ *  each call, so every build of a stage replays the same draws */
+export const stageStream = (i) => stream(seedOf(($.G && $.G.seed) || 0, ($.G && $.G.loop) || 0, i));
+
+/** build biome slot seg's stage from world x `from` (its gate, G.bx[seg]): blend its terrain in and script it.
+ *  Reads the biome and visit number choose() stored (G.route[seg], G.visitNo[seg]), so a resume can call it again
+ *  with the stored bx. Draws only the stage's build stream, never the sim R() */
+export function biomeStage(seg, from) {
+  const G = $.G, b = G.route[seg], v = G.visitNo[seg];
+  rewriteTerrain(seg, b, from);
+  insertScript(biomeScript(seg, b, from, v, stageStream(stageOfSlot(seg))));
 }
 
 // ---------------- the fork ----------------
@@ -246,8 +267,7 @@ function choose(b) {
   G.forkHold = false;
   const from = Math.max(slotRow(seg).x0, G.scroll + W + 10);
   (G.bx ||= Array(nSlots() + 1).fill(null))[seg] = from;
-  rewriteTerrain(seg, b, from);
-  insertScript(biomeScript(seg, b, from, v));
+  biomeStage(seg, from); // the gate is this stage's entry: build it here (stagebuild.ts buildStage)
   G.pend.push({ t: 40, f: () => startStage(stageOfSlot(seg)) });
   flash($.P.x, $.P.y, 80, 18, BIOMES[b].rgb);
   sfx.power();
