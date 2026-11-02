@@ -1,6 +1,8 @@
 // Seeded pacing probe: progression.mjs bot + pick/fork/shop handling, seeded RNG,
 // per-frame pod-pickup timestamps, per-stage pods/min, bio per descent.
 // Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout short]
+// Stage times: `stages[].dur` runs from one stage label to the next (so it includes the tally card, a fork or the
+// shop); `tally_s` is the tally card's own clock, STAGE card to boss kill (spec §3.1's wall-time definition).
 import { chromium } from 'playwright';
 import { useLayout, LAYOUT } from './layout-arg.mjs';
 const [url, SEED = '1', MIN = '12', END = '1'] = process.argv.slice(2);
@@ -33,10 +35,11 @@ const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, 
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
 await p.evaluate(() => { window.__fr = 0; window.__pods.length = 0; });
-let last = '', lastFork = false; const seg = []; let endState = '';
+let last = '', lastFork = false; const tally = {}; const seg = []; let endState = '';
 for (let it = 0; it < MIN * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
-  const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, stage: G.stage, loop: G.loop, lvl: G.lvl, pick: !!G.pick, pt: G.pick ? G.pick.t : 0, fork: !!G.fork, fr: window.__fr, bio: Math.round(G.bio || 0), kills: G.kills }; });
+  const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, stage: G.stage, loop: G.loop, lvl: G.lvl, pick: !!G.pick, pt: G.pick ? G.pick.t : 0, fork: !!G.fork, fr: window.__fr, bio: Math.round(G.bio || 0), kills: G.kills, tally: G.tally ? [G.tally.id, G.tally.secs] : null }; });
+  if (s.tally) tally[s.tally[0]] = s.tally[1];
   if (s.fork && !lastFork) await p.evaluate(() => (window.__gi = (window.__gi ?? 0) + 1));
   lastFork = s.fork;
   const k = `${s.loop + 1}-${(s.stage || 0) + 1}`;
@@ -54,5 +57,5 @@ const stages = seg.slice(0, -1).map((sg, i) => { const f1 = seg[i + 1].f0; const
   return { stage: sg.k, dur: +dur.toFixed(1), pods: n, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
-  stages, finalBio: fin.bio, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
+  stages, tally_s: tally, finalBio: fin.bio, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
 console.error(`pod-probe: ran on ${LAYOUT}`); await b.close();
