@@ -33,7 +33,7 @@ Branch `ls1-e`. Owner role: level-designer.
 | `src/enemies/scripts.ts` | `ORBIT_CELLS` (13), `ORBIT_OPENER`, `DRIVE_CELLS` (13), `pickPlanned`, `placePlanned`, `fillSpawn`. Built on C/B2's `stageScript(i, rs)` (details below) |
 | `src/layout.ts` | `StageRow.plan` / `StagePlan`, `LONG4_ORBIT_PLAN`, `LONG4_DRIVE_PLAN`. D's `long4` Orbit and Drive rows carry them. The Saucer's provisional window is now set: `at` 1080 (D's), `gapEnd` 2100, `exitLead` 60. The Orbit length change is in its own commit |
 | `src/enemies/ufo.ts` | Comment only. The Saucer reads its row; `$.G.eat = ufoGapEnd()` was already in place |
-| `tests/unit/cellpick.test.ts` (new) | 27 tests, reading the rows from `LAYOUTS.long4` |
+| `tests/unit/cellpick.test.ts` (new) | 26 tests, reading the rows from `LAYOUTS.long4` |
 | `tests/unit/layout.test.ts` | D's two pins updated for the 4380 px Orbit: Orbit length, and LEVEL ≤ 15200 |
 | `tools/pod-probe.mjs` | `tally_s`: each stage's time from STAGE card to boss kill (spec §3.1). `dur` still runs label to label, so it includes the tally card, a fork or the shop |
 | `tools/playtest.mjs` | Writes `<outDir>/sig.json`. `--compare <dirs…>` produces the cross-seed signature report. The layout comes from J's `--layout`; stage x0 and the Saucer's x come from `window.__LY` |
