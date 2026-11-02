@@ -50,14 +50,20 @@ describe('no literal world x outside src/layout.ts', () => {
     expect(hits(/\bat\(\s*(\d+)/g).filter((h) => +h.match(/\d+$/)![0] >= orbitLen)).toEqual([]);
   });
 
-  // technical-director condition C1 (LS1-A review): the @deprecated boot-time aliases copy the layout active at import,
-  // so they go stale once a second entry can be activated. Item J deletes them before item D adds one.
-  it('keeps the deprecated layout aliases only while short is the only layout entry', () => {
-    const aliases = hits(/\b(LEVEL|BOSS_AT|SEG|UFO_AT|UFO_GAP_END)\s*=\s*(layout\(\)|bossAt|slotSpans|ufoAt|ufoGapEnd)\(?/g);
+  // technical-director condition C1 (LS1-A review): the boot-time aliases (core LEVEL/BOSS_AT, biomes SEG, ufo
+  // UFO_AT/UFO_GAP_END) copied the layout active at import, so they go stale once a second entry can be activated.
+  // Item J deleted them before item D added one. The pattern is wider than the alias shape (any declaration or
+  // assignment of those names, not only `= layout()`), so they cannot come back under the pre-table names at all.
+  const ALIAS = /\b(LEVEL|BOSS_AT|SEG|UFO_AT|UFO_GAP_END)\s*=(?!=)/g;
+  it('has none of the deleted layout aliases (LEVEL, BOSS_AT, SEG, UFO_AT, UFO_GAP_END)', () => {
+    expect(hits(ALIAS)).toEqual([]);
+  });
+
+  it('trips on a layout alias whenever a second layout entry exists', () => {
     const tripped = (keys: string[], found: string[]) => keys.length > 1 && found.length > 0;
-    expect(tripped(Object.keys(LAYOUTS), aliases)).toBe(false);
-    // the tripwire itself: it fires for a second entry while any alias exists, and not once J has deleted them all
-    expect(tripped(['short', 'long4'], aliases.length ? aliases : ['core.ts: LEVEL = layout()'])).toBe(true);
+    expect(tripped(Object.keys(LAYOUTS), hits(ALIAS))).toBe(false);
+    // the tripwire itself: it fires for a second entry while any alias exists, and not without one
+    expect(tripped(['short', 'long4'], ['core.ts: LEVEL = layout()'])).toBe(true);
     expect(tripped(['short', 'long4'], [])).toBe(false);
   });
 });
