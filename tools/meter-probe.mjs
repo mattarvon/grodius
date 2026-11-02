@@ -28,7 +28,10 @@ async function run(meter) {
       if (i === 0) return P.speed < 2; if (i === 3 || i === 4) return false; return true; };
   }, meter);
   const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
-  await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
+  // any key first drops the audio gate; a cleared save then asks HELL FLASHES before the title's START (menus.ts titleItems)
+  await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
+  for (let i = 0; i < 3 && (await p.evaluate(() => __G().state === 'title')); i++) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); }
+  await key('keydown', 'KeyZ');
   const rows = [];
   for (let s = 30; s <= +SECS; s += 30) {
     await p.evaluate('__tick(1800)');

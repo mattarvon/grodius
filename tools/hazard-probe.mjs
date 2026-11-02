@@ -15,6 +15,8 @@ await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'hazard-probe', { limits: "only biome slot 0 is entered" });
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA'); await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)');
+// a cleared save asks HELL FLASHES first (menus.ts titleItems): that Enter answers it, so press again to start
+if (await p.evaluate(() => __G().state === 'title')) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); }
 // skip to the Maw, kill it, take the gate into <biome>
 await p.evaluate(() => { const G = __G().G, x = __LY.rowOfKind('orbit').warnX + 100; G.scroll = x; G.si = G.script.findIndex((e) => e.x >= x); G.lives = 30; });
 await key('keydown', 'KeyZ');
