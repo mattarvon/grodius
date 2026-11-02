@@ -2,6 +2,7 @@
 import { $ } from './state';
 import { gainXP, pk } from './perks';
 import { FIRE, PH, R, TAU, W, clamp, dist2, pick, ri, rr, swapRm } from './core';
+import { sri } from './srnd';
 import { SET, lv } from './save';
 import { sfx } from './audio';
 import { caps, ceilAt, enemies, eshots, floorAt, shots } from './world';
@@ -73,7 +74,7 @@ export function pyreBoom(x, y, d, lv = 1) {
   for (let i = 0; i < 3; i++) {
     const g = gib(x, y, rr(-2.4, 2.4), rr(-2.8, .6), 'eye', rr(1.8, 2.6));
     if (g) {
-      g.burning = ri(70, 150);
+      g.burning = sri(70, 150); // fx-only, and gib() returns null at its cap: a sim R() here would track the gib pool
       g.iris = '#ff3a10';
     }
   }

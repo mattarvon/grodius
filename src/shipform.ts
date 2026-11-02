@@ -3,7 +3,8 @@
 // drawShip diffs it frame to frame: a key that went up SPROUTS (scale-from-zero with overshoot + gore/sparks/shake),
 // a key that went down WITHERS (falls off as gibs). No hooks into the upgrade code needed.
 import { $ } from './state';
-import { TAU, pick, rr } from './core';
+import { TAU } from './core';
+import { spick, srr } from './srnd';
 import { drop, flash, gib, pop, spark } from './fx/spawn';
 
 /** local (ship-space) anchor of each part, for sprout / wither fx */
@@ -47,21 +48,21 @@ function sproutFX(key, s, big) {
   const [x, y] = wpos(key, s), n = big ? 22 : 12;
   flash(x, y, big ? 16 : 10, big ? 9 : 6, '255,110,70');
   for (let k = 0; k < n; k++) {
-    const a = rr(0, TAU), v = rr(1, big ? 4 : 3);
-    spark(x, y, Math.cos(a) * v, Math.sin(a) * v, rr(10, 24) | 0, pick(['#ffe2b0', '#ff7a3a', '#d8c8a4', '#ff3020']));
+    const a = srr(0, TAU), v = srr(1, big ? 4 : 3);
+    spark(x, y, Math.cos(a) * v, Math.sin(a) * v, srr(10, 24) | 0, spick(['#ffe2b0', '#ff7a3a', '#d8c8a4', '#ff3020']));
   }
   for (let k = 0; k < n; k++) {
-    const a = rr(0, TAU), v = rr(.6, 2.6);
-    drop(x, y, Math.cos(a) * v, Math.sin(a) * v - .8, rr(1, 2), 0, rr(40, 90) | 0);
+    const a = srr(0, TAU), v = srr(.6, 2.6);
+    drop(x, y, Math.cos(a) * v, Math.sin(a) * v - .8, srr(1, 2), 0, srr(40, 90) | 0);
   }
-  gib(x, y, rr(-1.5, 1.5), rr(-2.5, -.5), 'chunk', rr(1.6, 2.6));
-  if (big) gib(x, y, rr(-1.5, 1.5), rr(-2.5, -.5), 'bone', rr(2.5, 4));
+  gib(x, y, srr(-1.5, 1.5), srr(-2.5, -.5), 'chunk', srr(1.6, 2.6));
+  if (big) gib(x, y, srr(-1.5, 1.5), srr(-2.5, -.5), 'bone', srr(2.5, 4));
   if ($.G) $.G.shake = Math.max($.G.shake || 0, big ? 7 : 4);
 }
 function witherFX(key, s, n = 2) {
   const [x, y] = wpos(key, s);
-  for (let k = 0; k < n; k++) gib(x + rr(-2, 2), y + rr(-2, 2), rr(-2.2, .6), rr(-2, .5), k % 2 ? 'bone' : 'chunk', rr(1.8, 3.2));
-  for (let k = 0; k < 8; k++) drop(x, y, rr(-1.5, 1.5), rr(-1.5, .5), rr(1, 1.8), 0, 60);
+  for (let k = 0; k < n; k++) gib(x + srr(-2, 2), y + srr(-2, 2), srr(-2.2, .6), srr(-2, .5), k % 2 ? 'bone' : 'chunk', srr(1.8, 3.2));
+  for (let k = 0; k < 8; k++) drop(x, y, srr(-1.5, 1.5), srr(-1.5, .5), srr(1, 1.8), 0, 60);
   spark(x, y, 0, -.5, 14, '#8a5a40');
 }
 
@@ -102,8 +103,8 @@ export function shipShed(x, y) {
   for (const k in prev) {
     if (!(prev[k] > 0) || k === 'tier' || n > 18) continue;
     const [px, py] = wpos(k, 1), a = Math.atan2(py - y, px - x);
-    const v = rr(1.5, 3.5);
-    gib(px, py, Math.cos(a) * v, Math.sin(a) * v - 1, k[0] === 'r' ? 'metal' : n % 3 ? 'chunk' : 'bone', rr(2.4, 4.2) + (k[0] === 'r' ? 1.5 : 0));
+    const v = srr(1.5, 3.5);
+    gib(px, py, Math.cos(a) * v, Math.sin(a) * v - 1, k[0] === 'r' ? 'metal' : n % 3 ? 'chunk' : 'bone', srr(2.4, 4.2) + (k[0] === 'r' ? 1.5 : 0));
     n++;
   }
   based = false;
