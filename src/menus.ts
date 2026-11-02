@@ -5,6 +5,7 @@ import { auInit, sample, setMute, sfx } from './audio';
 import { I } from './input';
 import { newGame, openShop, shopNext, startLoop } from './flow';
 import { RIG, RIG_BY, SOCKET_COST, rigInit, rigged, sockets } from './contraptions';
+import { activeLayout, applyRunLayout, lab, setLab } from './lab';
 
 // ---------------- menus ----------------
 let titleSub = null, saveMsg = '';
@@ -35,15 +36,16 @@ export function titleItems() {
     }
   }));
   if (titleSub === 'opt') return optionItems();
+  if (titleSub === 'lab') return labItems();
   return [{
     l: 'DESCEND',
     a: () => {
-      newGame();
+      startRun();
     }
   }, ...(lv('deep') ? [{
     l: 'DESCEND DEEPER',
     r: 'DESCENT 2',
-    a: () => newGame(1)
+    a: () => startRun(1)
   }] : []), {
     l: 'INFIRMARY',
     r: fmtBio($.meta.bio),
@@ -51,6 +53,42 @@ export function titleItems() {
   }, {
     l: 'OPTIONS',
     a: sub('opt')
+  }, {
+    // dev row (LS1 D2): kept last so DESCEND stays row 0 for the harness and the probes. Its right column is the
+    // layout a run started now would fly, URL flag included
+    l: 'LAB',
+    r: layoutTag(),
+    a: sub('lab')
+  }];
+}
+/** start a run on the layout the LAB / URL chose (setLayout contract: before newGame()) */
+function startRun(loop?) {
+  applyRunLayout();
+  newGame(loop);
+}
+/** the active layout for the title: LONG / SHORT, marked URL when a ?layout= flag overrides the LAB */
+export function layoutTag() {
+  const c = activeLayout();
+  return c.layout.toUpperCase() + (c.src === 'url' ? ' (URL)' : '');
+}
+function labItems() {
+  const L = lab(), c = activeLayout();
+  return [{
+    l: 'LAYOUT',
+    // the LAB's own setting; when a URL flag overrides it, say what the run will really fly
+    r: L.layout.toUpperCase() + (c.src === 'url' && c.layout !== L.layout ? ' > URL ' + c.layout.toUpperCase() : ''),
+    a: () => setLab({ layout: L.layout === 'long' ? 'short' : 'long' })
+  }, {
+    l: 'MIDBOSSES',
+    r: L.mids === 'wip' ? 'WIP' : 'OFF',
+    a: () => setLab({ mids: L.mids === 'wip' ? '' : 'wip' })
+  }, {
+    l: 'CHECKPOINT',
+    r: L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
+    a: () => setLab({ cp: L.cp === 'b' ? 'a' : 'b' })
+  }, {
+    l: 'BACK',
+    a: sub(null)
   }];
 }
 function optionItems() {
@@ -95,7 +133,7 @@ function optionItems() {
 export function overItems() {
   return [{
     l: 'DESCEND AGAIN',
-    a: () => newGame()
+    a: () => startRun()
   }, {
     l: 'INFIRMARY',
     r: fmtBio($.meta.bio),
