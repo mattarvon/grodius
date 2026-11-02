@@ -1,0 +1,9 @@
+run 1 (seed 1, 2 descents) gates 0111: shop 2, 8 stages, 33523 play frames, deaths 0, errors 0
+run 5 (seed 5, 2 descents) gates 0101: shop 2, 8 stages, 31765 play frames, deaths 0, errors 0
+run 6 (seed 6, 2 descents) gates 1100: shop 2, 8 stages, 33120 play frames, deaths 0, errors 0
+run 7 (seed 7, 2 descents) gates 1010: shop 2, 8 stages, 31008 play frames, deaths 0, errors 0
+run 11 (seed 11, 2 descents) gates 0100: shop 2, 8 stages, 30701 play frames, deaths 0, errors 0
+run 1x3 (seed 1, 3 descents) gates 0111: shop 3, 12 stages, 54104 play frames, deaths 0, errors 0
+run 7m (seed 7, 2 descents, mortal) gates 1010: game over, 2 stages, 7105 play frames, deaths 3, errors 0
+not measured: render-only output (canvas stubbed); deaths after the mortal run's game over; seeds 2 and 3 (their bots cannot kill the Gravity Drive)
+PARITY PASS vs baseline @ sprint-1 merge (A+H0+G0+F0+P0+B1): re-recorded for P0 brood cap/fit and B1 render RNG split: runs 1, 5, 6, 7, 11, 1x3, 7m identical (5 seeds x 2 descents + 1x3 + 7m)
