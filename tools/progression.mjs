@@ -14,7 +14,11 @@ await p.addInitScript(() => { let now = 0; const q = []; performance.now = () =>
 await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'progression');
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
-await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
+await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA'); // drops the audio gate
+await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)');
+// a cleared or partial save asks HELL FLASHES first (menus.ts titleItems): Enter until the run starts
+for (let i = 0; i < 2 && (await p.evaluate(() => __G().state === 'title')); i++) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); }
+await key('keydown', 'KeyZ');
 const SL = ['THR', 'MIS', 'SPL', 'ARC', 'PYR', 'WRA', 'WRD'];
 for (let s = 10; s <= SECS; s += 10) {
   await p.evaluate('__tick(600)');

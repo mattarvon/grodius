@@ -14,6 +14,8 @@ await useLayout(p, 'perk-verify');
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(60)');
+// a cleared or partial save asks HELL FLASHES first (menus.ts titleItems): Enter until the run starts
+for (let i = 0; i < 2 && (await p.evaluate(() => __G().state === 'title')); i++) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); }
 const res = await p.evaluate(async () => {
   const W = await import('/src/world.ts'), PL = await import('/src/player.ts'), SH = await import('/src/shots.ts'), EU = await import('/src/enemies/update.ts'),
     SP = await import('/src/enemies/spawn.ts'), MU = await import('/src/mutations.ts'), PK = await import('/src/perks.ts'), ST = await import('/src/state.ts'), FX = await import('/src/fx/update.ts');

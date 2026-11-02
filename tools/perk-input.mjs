@@ -16,6 +16,8 @@ const st = () => p.evaluate(() => { const G = __G().G; return { open: !!G.pick, 
 const open = async () => { await p.evaluate(() => { const G = __G().G; G.pickQ = 1; G.pickGap = 0; }); await tick(2); };
 await key('keydown', 'KeyA'); await tick(5); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await tick(2); await key('keyup', 'Enter'); await tick(200);
+// a cleared or partial save asks HELL FLASHES first (menus.ts titleItems): Enter until the run starts
+for (let i = 0; i < 2 && (await p.evaluate(() => __G().state === 'title')); i++) { await key('keydown', 'Enter'); await tick(2); await key('keyup', 'Enter'); await tick(200); }
 const R = [];
 // 1. fire held through the opening, kept held for 3 s
 await key('keydown', 'KeyZ'); await open(); await tick(180); R.push(['held fire 3s', (await st()).open ? 'still open (ok)' : 'PICKED (bad)']);

@@ -26,6 +26,8 @@ for (const id of ids.split(',')) {
   const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
   await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
   await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)');
+  // a cleared or partial save asks HELL FLASHES first (menus.ts titleItems): Enter until the run starts
+  for (let i = 0; i < 2 && (await p.evaluate(() => __G().state === 'title')); i++) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); }
   if (id !== 'spine' && id !== 'hook' && id !== 'gut') await key('keydown', 'KeyZ');
   let ok = false;
   for (let f = 0; f < 60 * 50 && !ok; f += 2) {
