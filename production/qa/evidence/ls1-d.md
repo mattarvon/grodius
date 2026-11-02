@@ -1,6 +1,6 @@
 # LS1-D: the long layout and beat template v2, behind `?layout=long` (sprint 2, lane d)
 
-*level-designer + gameplay-programmer, 2026-11-01. Branch `ls1-d`, rebased onto `origin/ls1-s2` at `d3daf63` (J, B1fix and C/B2 merged). All gates below were re-run on that base against its baselines; nothing was re-baselined. Spec: `design/content-expansion.md` §2.2, §3.2-3.4. Plan: `production/content-build-plan.md` §2 sprint 2, row D. Rulings: `production/decision-log.md` D20.*
+*level-designer + gameplay-programmer, 2026-11-01. Branch `ls1-d`, with `origin/ls1-s2` at `d3daf63` (J, B1fix and C/B2) **merged in** (merge commit `e3b910f`). All gates below were re-run on the merged tree against `ls1-s2`'s baselines; nothing was re-baselined. Spec: `design/content-expansion.md` §2.2, §3.2-3.4. Plan: `production/content-build-plan.md` §2 sprint 2, row D. Rulings: `production/decision-log.md` D20.*
 
 ## Commits
 
@@ -12,7 +12,9 @@
 | `c65daeb` | After J: `long4` registered in `LAYOUTS`; `setLayout` own-keys fix; Saucer at 1080; J's `density-probe` reads `beatPlan`; tools on J's `--layout` |
 | `3d392c7` | First report, probe output, screenshots |
 | `cde9216` | After C/B2: the beat and density probes and `biomebeats.test.ts` set a run seed per roll (build rolls now draw the stage stream) |
-| (this commit) | Report refreshed on the `d3daf63` base |
+| `350e38c` | Report refreshed on the `d3daf63` base (the rebased line, pushed as `origin/ls1-d-s2`) |
+| `e3b910f` | **Merge of `origin/ls1-s2` into `ls1-d`** (the coordinator asked for a merge rather than a force-push). Its tree is identical to `350e38c`. The commits above it on the rebased line are the same changes, so they are not in `ls1-d`'s history. `origin/ls1-d-s2` can be deleted |
+| (this commit) | Report notes for the merge |
 
 ## What changed
 
@@ -158,7 +160,13 @@ All three new tools take J's `--layout <id>` (`tools/layout-arg.mjs`).
 
 ## Merge-order notes
 
-- **Base.** Rebased on `ls1-s2` at `d3daf63` (J, B1fix, C/B2). It fast-forwards onto that tip. The `LAYOUTS.long4` registration depends on J's alias deletion.
+- **Base.** `origin/ls1-s2` at `d3daf63` (J, B1fix, C/B2) is merged into `ls1-d` (`e3b910f`). `ls1-d` contains that tip, so `ls1-d` merges into `ls1-s2` with no conflict. The `LAYOUTS.long4` registration depends on J's alias deletion.
+- **Re-checked on the merged tree:**
+  - unit 339/339, typecheck, build;
+  - harness PASS @ 8ff9ba4;
+  - parity PASS (runs 3, 6, 7, 11, 15, 3x3, 7m identical);
+  - long4 biome scroll 59.4 s on all 4 stages clocked;
+  - route-probe 0 bad hazards on all 4 gate combinations × 2 descents (appended to `route-probe-long4.txt` and `stage-clock-long4.txt`).
 - **How the C/B2 conflict was resolved.** Git's auto-merge of `biomes.ts` interleaved `rewriteTerrain` with `remix`. So the file was rebuilt from `ls1-s2`'s version, with D's edits re-applied on top.
   - `biomeScript` keeps B2's `rs` parameter, `remix(..., rs)`, every build roll on `rs()` and the `k` tags on every entry. The release formation is tagged `'pod'`.
   - The short path draws `rs()` in B2's order: the harness and parity pass against B2's baselines.

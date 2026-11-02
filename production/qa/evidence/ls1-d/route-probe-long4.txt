@@ -721,3 +721,9 @@ bad []
 bad []
 bad []
 bad []
+
+=== after the merge (e3b910f, tree identical to the rebased 350e38c): node tools/route-probe.mjs <url> g0 g1 2 --layout long4
+gates 00: 2 shops | minGap 113.6 @8592  slams 0 (max 0.0 at )  hazards 134 {"icicle":37,"geyser":30,"strand":25,"jet":42} bad [] hazHitFrames 0 deaths 0 frames 8199
+gates 01: 2 shops | minGap 117.3 @11876  slams 0 (max 0.0 at )  hazards 127 {"icicle":38,"jet":33,"strand":20,"geyser":36} bad [] hazHitFrames 0 deaths 0 frames 8352
+gates 10: 2 shops | minGap 116.7 @10216  slams 0 (max 0.0 at )  hazards 128 {"icicle":34,"strand":13,"jet":42,"geyser":39} bad [] hazHitFrames 0 deaths 0 frames 8209
+gates 11: 2 shops | minGap 113.6 @8592  slams 0 (max 0.0 at )  hazards 129 {"icicle":40,"jet":77,"strand":12} bad [] hazHitFrames 0 deaths 0 frames 8513
