@@ -1,8 +1,9 @@
 // Meter probe: plays the real flow (invincible pod-grabbing bot) in PODS mode and METER mode and compares the loadout
 // over time, so the classic meter's economy can be checked against typed pods. In METER mode the bot presses POWER
 // whenever the cursor sits on a slot it wants (greedy: THRUST to 2, then MISSILE, SPLIT, WRAITH, WARD; never ARC/PYRE).
-// Needs the VITE DEV server. Usage: node tools/meter-probe.mjs http://localhost:4202/ [seconds=200] [shotDir]
+// Needs the VITE DEV server. Usage: node tools/meter-probe.mjs http://localhost:4202/ [seconds=200] [shotDir] [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, SECS = '200', shotDir] = process.argv.slice(2);
 const b = await chromium.launch();
 const errs = [];
@@ -19,6 +20,7 @@ async function run(meter) {
           if (window.__meter && g.G.cur >= 0 && window.__want(g)) { dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX' })); dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyX' })); window.__buys = (window.__buys || 0) + 1; } }
         q.splice(0).forEach((f) => f(now)); } }; });
   await p.goto(url); await p.waitForFunction(() => window.__started);
+  await useLayout(p, 'meter-probe');
   await p.evaluate(async (m) => {
     const SV = await import('/src/save.ts'); SV.SET.meter = m; window.__meter = m;
     const PL = await import('/src/player.ts');
@@ -26,7 +28,10 @@ async function run(meter) {
       if (i === 0) return P.speed < 2; if (i === 3 || i === 4) return false; return true; };
   }, meter);
   const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
-  await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
+  // any key first drops the audio gate; a cleared save then asks HELL FLASHES before the title's START (menus.ts titleItems)
+  await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
+  for (let i = 0; i < 3 && (await p.evaluate(() => __G().state === 'title')); i++) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); }
+  await key('keydown', 'KeyZ');
   const rows = [];
   for (let s = 30; s <= +SECS; s += 30) {
     await p.evaluate('__tick(1800)');
@@ -44,4 +49,4 @@ for (const m of [false, true]) {
   r.rows.forEach((x) => console.log('  ' + x));
   if (m) console.log('  cursor after death:', r.reset);
 }
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('meter-probe'); await b.close();

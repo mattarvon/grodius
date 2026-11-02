@@ -1,14 +1,17 @@
 // Boss probe: time-to-kill for every boss across loadout tiers, plus Gravity Drive laser lethality.
 // Invincible bot parks at x=90 and tracks the boss's current weak point, holding fire. Needs the VITE DEV server
-// (imports live modules). Usage: node tools/boss-probe.mjs http://localhost:4202/ [capSeconds=150]
+// (imports live modules). Usage: node tools/boss-probe.mjs http://localhost:4202/ [capSeconds=150] [--layout short]
+//  World x comes from src/layout.ts: biome bosses fight at slot 0's x0 + 700 (3000 on short), the Drive at bossAt()
 //  TTK  = seconds from the boss becoming hittable to dead (or "esc" if it escaped / "--" if it outlived the cap)
 //  LASER = per Gravity Drive beam: hits that land on a ship sitting in the beam with a full WARD, and whether it dies
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, CAP = '150'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'boss-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
 // loadouts: what a player plausibly carries into each fight (seals cap you; see stages.ts SEAL_TXT)
 const L = [
   ['NAKED (died)', {}, {}, {}],
@@ -19,7 +22,7 @@ const L = [
 const BOSSES = ['maw', 'crux', 'butcher', 'gravity'];
 const res = await p.evaluate(async ([L, BOSSES, CAP]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
-  const SP = await import('/src/enemies/spawn.ts'), BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts');
+  const SP = await import('/src/enemies/spawn.ts'), BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), LY = await import('/src/layout.ts');
   const IN = await import('/src/input.ts'); const $ = S.$; $.gate = false; IN.K.KeyZ = true;
   const out = {};
   const setup = (pw, gm, pkk, scroll) => {
@@ -37,7 +40,7 @@ const res = await p.evaluate(async ([L, BOSSES, CAP]) => {
   for (const [name, pw, gm, pkk] of L) {
     const row = {};
     for (const k of BOSSES) {
-      setup(pw, gm, pkk, k === 'gravity' ? C.BOSS_AT : 3000);
+      setup(pw, gm, pkk, k === 'gravity' ? LY.bossAt() : LY.slotRow(0).x0 + 700);
       if (k === 'gravity') BU.startBoss(); else if (k === 'maw') SP.maw(true); else SP[k]();
       let f = 0, t0 = -1, r = '--';
       for (; f < CAP * 60 + 600; f++) {
@@ -65,7 +68,7 @@ const res = await p.evaluate(async ([L, BOSSES, CAP]) => {
   }
   // laser lethality: full WARD (3), parked dead in the beam's path for the whole sweep
   const lz = [];
-  setup({ wardLv: 2 }, {}, {}, C.BOSS_AT); BU.startBoss();
+  setup({ wardLv: 2 }, {}, {}, LY.bossAt()); BU.startBoss();
   const B = $.G.boss; for (const q of B.plates) q.hp = 0; // skip to phase 1 (eye open)
   let sweeps = 0, hits0 = 0, inBeam = false, died = false;
   for (let f = 0; f < 60 * 40 && sweeps < 4; f++) {
@@ -86,4 +89,4 @@ console.log('rank per loadout:', JSON.stringify(res.rank));
 console.log('loadout'.padEnd(16), ...['MAW', 'CRUCIFER', 'BUTCHER', 'GRAV DRIVE'].map((s) => s.padStart(11)));
 for (const [n, r] of Object.entries(res.out)) console.log(n.padEnd(16), ...BOSSES.map((k) => String(r[k]).padStart(11)));
 console.log('LASER sweeps vs full WARD (3):', res.lz.map((s) => `${s.hits} hits${s.died ? ' DEAD' : ''}`).join(', ') || 'none observed');
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('boss-probe'); await b.close();

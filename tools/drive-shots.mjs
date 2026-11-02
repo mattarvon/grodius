@@ -1,7 +1,8 @@
 // Gravity Drive look-book: renders the final boss at full HP, ~50%, ~15%, mid-death and the rupture, at 2x.
 // Invincible bot parks at x=90 on the boss's y (firing). Needs the VITE DEV server.
-// Usage: node tools/drive-shots.mjs http://localhost:5203/ <outDir>
+// Usage: node tools/drive-shots.mjs http://localhost:5203/ <outDir> [--layout short]   (the Drive at src/layout.ts bossAt())
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 import { mkdirSync } from 'node:fs';
 const [url, OUT = 'assets-raw/gross/drive'] = process.argv.slice(2);
 mkdirSync(OUT + '/zoom', { recursive: true });
@@ -9,15 +10,16 @@ const b = await chromium.launch(); const p = await b.newPage({ viewport: { width
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'drive-shots');
 await p.waitForTimeout(1500); // textures
 await p.evaluate(async () => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
-  const BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts'), SC = await import('/src/render/screens.ts');
+  const BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), LY = await import('/src/layout.ts'), IN = await import('/src/input.ts'), SC = await import('/src/render/screens.ts');
   const $ = S.$; $.gate = false; IN.K.KeyZ = true;
   F.newGame(0); $.state = 'play';
   for (let i = 0; i < 30; i++) ST.step();
   Object.assign($.P, { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2, shield: 3 });
-  $.G.scroll = C.BOSS_AT; $.G.si = $.G.script.length;
+  $.G.scroll = LY.bossAt(); $.G.si = $.G.script.length;
   W.enemies.length = 0; W.eshots.length = 0; W.caps.length = 0; W.shots.length = 0;
   BU.startBoss();
   window.__d = {
@@ -74,4 +76,4 @@ await p.evaluate(() => window.__d.run(22, false));
 await shot('drive-5-rupture');
 await p.evaluate(() => window.__d.run(50, false));
 await shot('drive-5-after');
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('drive-shots'); await b.close();

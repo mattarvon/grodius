@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
 // spawn.ts pulls in DOM/canvas/audio modules at import time; stub them so the pure pattern helpers load in node
-vi.mock('../../src/core', () => ({ BOSS_AT: 0, PH: 270, R: () => 0, TAU: Math.PI * 2, W: 480, pick: (a: any[]) => a[0], ri: () => 0, rr: () => 0 }));
+vi.mock('../../src/core', () => ({ PH: 270, R: () => 0, TAU: Math.PI * 2, W: 480, pick: (a: any[]) => a[0], ri: () => 0, rr: () => 0 }));
 vi.mock('../../src/audio', () => ({ sfx: {} }));
 vi.mock('../../src/world', () => ({ ceilAt: () => 0, enemies: [], eshots: [], floorAt: () => 0 }));
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
-vi.mock('../../src/enemies/ufo', () => ({ UFO_AT: 0, ufoWarn: () => {} }));
+vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: () => {} }));
 
 const { every, BS } = await import('../../src/enemies/spawn');
 

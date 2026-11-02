@@ -1,6 +1,7 @@
 // Flyer upgrade shots: wasp drones (formation + rear wave), eyeball hatchlings (school + from behind), the frozen corpse
-// variants, a hit flash and a corpse cut in half. Usage: node tools/flyer-shots.mjs <url> <outDir>
+// variants, a hit flash and a corpse cut in half. Usage: node tools/flyer-shots.mjs <url> <outDir> [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
 const [url, OUT] = process.argv.slice(2);
 fs.mkdirSync(OUT, { recursive: true });
@@ -8,6 +9,7 @@ const b = await chromium.launch(); const p = await b.newPage({ viewport: { width
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'flyer-shots');
 await p.evaluate(async () => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts'), RS = await import('/src/render/screens.ts');
@@ -79,4 +81,4 @@ await ev(`(() => { const m = window.__us; window.__clr(); m.SP.corpse(135, { ph:
 await ev(() => { const m = window.__us; for (let i = 0; i < 5; i++) { m.ST.step(); m.W.drops.length = 0; } for (const a of [m.W.mists, m.W.splats, m.W.flashes, m.W.sparks, m.W.texts]) if (a) a.length = 0; m.RS.render(); });
 await shot("corpse-halves-clean", 242, 135, 25);
 console.log(errs.length ? 'page errors:\n' + errs.slice(0, 5).join('\n') : 'no page errors');
-await b.close();
+ranOn('flyer-shots'); await b.close();

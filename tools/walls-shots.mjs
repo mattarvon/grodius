@@ -1,7 +1,8 @@
 // Wall-enemy close-ups for the walls art pass: eye / crawler / womb on floor AND ceiling, in a chosen fork biome, with
 // their tells forced (eye charging + blinking, crawler gaping / airborne, womb about to birth / just birthed).
-// Usage: node tools/walls-shots.mjs <url> <outDir> [biome=ice]       (needs the VITE dev server)
+// Usage: node tools/walls-shots.mjs <url> <outDir> [biome=ice] [--layout short]   (biome slot 0 of src/layout.ts; needs the VITE dev server)
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
 const [url, OUT, BIOME = 'ice'] = process.argv.slice(2);
 fs.mkdirSync(OUT, { recursive: true });
@@ -9,10 +10,11 @@ const b = await chromium.launch(); const p = await b.newPage({ viewport: { width
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'walls-shots');
 await p.evaluate(async (BIOME) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts'), RS = await import('/src/render/screens.ts');
-  const BI = await import('/src/biomes.ts');
+  const BI = await import('/src/biomes.ts'), LY = await import('/src/layout.ts'), X0 = LY.slotRow(0).x0;
   const $ = S.$; $.gate = false; IN.K.KeyZ = false;
   F.newGame(0); $.state = 'play';
   for (let i = 0; i < 30; i++) ST.step();
@@ -22,10 +24,10 @@ await p.evaluate(async (BIOME) => {
     for (const a of [m.W.enemies, m.W.eshots, m.W.caps, m.W.shots, m.W.gibs, m.W.drops]) if (a) a.length = 0;
   };
   window.__usStep = (n) => { const m = window.__us; for (let i = 0; i < n; i++) { Object.assign(m.$.P, { x: 40, y: 135, alive: true, inv: 30 }); m.$.G.pick = null; m.$.G.pickQ = 0; m.ST.step(); } m.RS.render(); };
-  window.__usClear(); $.G.scroll = 2300;
+  window.__usClear(); $.G.scroll = X0;
   BI.openFork(0); $.G.fork.opts = [BIOME, BIOME]; $.G.fork.t = 50;
   Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 });
-  ST.step(); $.G.scroll = 3300;
+  ST.step(); $.G.scroll = X0 + 1000;
   window.__usStep(60);
 }, BIOME);
 const rect = () => p.evaluate(() => { const c = document.getElementById('c').getBoundingClientRect(); return { x: c.x, y: c.y, s: c.width / 480 }; });
@@ -63,4 +65,4 @@ for (const [name, call, k, ov] of CASES) {
   console.log(name, at.x | 0, at.y | 0);
 }
 console.log(errs.length ? 'page errors:\n' + errs.slice(0, 5).join('\n') : 'no page errors');
-await b.close();
+ranOn('walls-shots'); await b.close();

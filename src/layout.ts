@@ -8,7 +8,8 @@
 // (build plan sprint 2 item D, LS3-0). Sim code reads the ACTIVE entry through the accessors below at call time,
 // never a copy taken at import, so a flag can switch the entry before a run starts.
 //
-// Pure data and pure functions: no imports, so tests and core.ts can load it without a DOM.
+// Pure data and pure functions: no imports, so tests, the game and the probes (tools/layout-arg.mjs, in Node and
+// in-page) can load it without a DOM.
 
 export type StageKind = 'orbit' | 'biome' | 'interior' | 'drive';
 
@@ -107,10 +108,10 @@ let active: LayoutEntry = SHORT;
 
 /** the active layout entry */
 export const layout = () => active;
-/** switch the active entry. Contract: only before newGame() (the flag parse, build plan item D); a run in progress
- *  has G.route, G.bx and the terrain arrays sized for the old entry, and the @deprecated boot-time aliases
- *  (core LEVEL/BOSS_AT, biomes SEG, ufo UFO_AT/UFO_GAP_END) keep the entry active at import. Item J deletes the
- *  aliases before item D lets this run with anything but 'short'. */
+/** switch the active entry. Contract: only before newGame() (the flag parse, build plan item D; the probes'
+ *  --layout, tools/layout-arg.mjs): a run in progress has G.route, G.bx and the terrain arrays sized for the old
+ *  entry. Nothing copies the entry at import: item J deleted the boot-time aliases, and layout-literals.test.ts
+ *  keeps them out. */
 export function setLayout(id: string) {
   const L = LAYOUTS[id as LayoutEntry['id']];
   if (!L) throw new Error('unknown layout ' + id);
