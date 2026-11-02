@@ -1,0 +1,39 @@
+playtest: layout long4 (orbit, biome, biome, drive)
+INFIRMARY after descent 1: bought gut socket leech spine hook furnace choir | bolted saw,gut levels {"saw":1,"gut":1,"leech":1,"spine":1,"hook":1,"furnace":1,"choir":1} | bio left 15
+
+== stage 1-1  89s  lvl 1->5  rank 0->0.47  weapons 2,1,1,0,0,1,1  grafts spore1 over1
+   kill: on-screen life median 0.85s p90 2.43s | killed in right quarter 63% | escaped 1% (121 enemies)
+   bosses: THE SQUIDFUCKED SAUCER 9.3s, maw 9.6s
+   variety: 7 kinds {"drone":51,"corpse":16,"sentry":9,"flayer":5,"hatch":51,"ufo":1,"maw":1} | 40 waves, 17 distinct, top dronex4 x7, corpse x5, corpsex2 x4 | music none, ufo
+   drones 39% of 132 | elites 0
+
+== stage 1-2 [fire]  97s  lvl 5->9  rank 0.49->0.54  weapons 2,1,1,0,0,1,1  grafts spore1 cal1
+   kill: on-screen life median 1.37s p90 3.65s | killed in right quarter 45% | escaped 18% (38 enemies)
+   bosses: THE BUTCHER'S APPRENTICE 6.6s, THE BURNING BUTCHER 18.9s
+   variety: 7 kinds {"flayer":17,"hook":9,"drone":12,"mutant":5,"prentice":1,"crawler":5,"butcher":1} | 30 waves, 15 distinct, top hook x7, flayer x4, flayerx2 x4 | music fire
+   drones 25% of 48 | elites 0 | first visit
+
+== stage 1-3 [acid]  79s  lvl 9->11  rank 0.57->0.84  weapons 3,0,0,1,1,2,2  grafts spore2 cal1 over1
+   kill: on-screen life median 0.87s p90 2.65s | killed in right quarter 69% | escaped 0% (49 enemies)
+   bosses: THE DISSOLVING WOMB 5.7s, THE DISSOLVED MAW 5.8s
+   variety: 7 kinds {"crawler":12,"hatch":25,"womb":7,"drone":17,"eye":4,"cyst":1,"maw":1} | 27 waves, 12 distinct, top womb x6, crawler x5, hatchx7 x3 | music acid
+   drones 26% of 65 | elites 0 | first visit
+
+== stage 1-4  106s  lvl 11->14  rank 0.84->0.89  weapons 3,1,0,1,0,2,2  grafts spore2 cal1 pierce1
+   kill: on-screen life median 1.33s p90 4.03s | killed in right quarter 60% | escaped 17% (120 enemies)
+   bosses: drive 51.0s
+   variety: 7 kinds {"mutant":2,"drone":66,"corpse":18,"eye":2,"hatch":31,"sentry":8,"flayer":8} | 30 waves, 15 distinct, top dronex7 x6, corpse x6, mutant x2 | music none
+   drones 49% of 135 | elites 0
+
+== stage 2-1  0s  lvl 14->14  rank 0.96->0.96  weapons 3,1,0,1,0,2,2  grafts spore2 cal1 pierce1
+   kill: on-screen life median nulls p90 nulls | killed in right quarter 0% | escaped 0% (0 enemies)
+   bosses: -
+   variety: 0 kinds {} | 0 waves, 0 distinct, top  | kinds shared with last descent's stage: 0% | music none
+   drones 0% of 0 | elites 0
+
+script signature written to /tmp/claude-1000/-home-matt-Projects-grodius-ls1-e/72b16790-d742-444b-b240-c32db3300c2a/scratchpad/m4380/pt-1/sig.json (layout long4); compare seeds with --compare
+
+biome stages: drones 26% of 113 regular spawns
+
+would-be hits: 2 in 6.2 min (0.3/min) | hype voices 8 | end {"st":"play","k":"2-1","loop":1,"fr":22222,"lvl":14,"rank":0.96,"wep":"3,1,0,1,0,2,2","gm":"spore2 cal1 pierce1","pick":true,"pt":90,"fork":false,"biome":null,"remix":0,"mix":"none","kills":359,"bio":1885} | errors none
+playtest: ran on long4

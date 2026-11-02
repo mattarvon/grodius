@@ -1,0 +1,15 @@
+1 long4 {"1-1":80,"1-2":87,"1-3":73,"1-4":93} 1-1=88.6 1-2=97.1 1-3=78.5 1-4=105.3 2-1=0 err 0
+3 long4 {"1-1":76,"1-2":82,"1-3":67,"1-4":80} 1-1=84.6 1-2=92.1 1-3=72.6 1-4=91.6 2-1=0 err 0
+5 long4 {"1-1":78,"1-2":88,"1-3":70,"1-4":92} 1-1=86.1 1-2=97.6 1-3=76.1 1-4=104 2-1=0 err 0
+7 long4 {"1-1":78,"1-2":79,"1-3":74,"1-4":86} 1-1=87.2 1-2=87.6 1-3=81.1 1-4=98.4 2-1=0 err 0
+11 long4 {"1-1":78,"1-2":71,"1-3":69,"1-4":88} 1-1=87.1 1-2=79.1 1-3=74 1-4=99.5 2-1=0 err 0
+cross-seed signature report: 5 runs (seeds 1, 3, 5, 7, 11), layout long4
+Descent 1 opener (Open Orbit, before the Saucer WARNING at 1080): IDENTICAL across seeds, 9 waves: 180:drone 320:drone 430:corpse 500:sentry 610:corpse 720:flayer 780:hatch 900:drone 1020:sentry
+stage 1-1 after the opener: 5/5 distinct signatures, mean pairwise wave overlap 12%
+stage 1-2: 5/5 distinct signatures, mean pairwise wave overlap 4%
+stage 1-3: 5/5 distinct signatures, mean pairwise wave overlap 10%
+stage 1-4: 5/5 distinct signatures, mean pairwise wave overlap 18%
+stage 2-1: no spawns recorded in any run (not measured)
+not measured: spawn-time rolls (y, side, elite) are left out of the signature on purpose; a stage a run never reached is missing from its row
+
+[exited with code 0]

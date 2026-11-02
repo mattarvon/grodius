@@ -1,233 +1,208 @@
 # LS1-E: long Open Orbit and the Drive approach (sprint 2, lane e)
 
-Branch `ls1-e`, first cut off main `8ff9ba4`, then **rebased onto the integration branch `origin/ls1-s2` (`ddceca7`, which has J)** at the coordinator's request. Owner role: level-designer. Spec: `design/content-expansion.md` §3.4 ("Authoring method"), §3.1 (wall time), §3.2 rule 1. Plan: `production/content-build-plan.md` §2 Sprint 2, row E. Rulings: `production/decision-log.md` D20 and D21.
+Branch `ls1-e`. Owner role: level-designer.
 
-**State: built and measured, not yet wired to a real `long4` entry.** Item D had not landed on `origin/ls1-s2` (or `origin/ls1-d`) when this lane finished, so there was nothing to rebase onto. The generator, cells and rows are done and unit-tested. They are exported for D's entry to place (see "Stubs"). The long numbers below come from a **scratch `long4` entry** that was never committed. It is described under "How long4 was measured".
+- **Spec:** `design/content-expansion.md` §3.4 ("Authoring method"), §3.1 (wall time), §3.2 rule 1.
+- **Plan:** `production/content-build-plan.md` §2 Sprint 2, row E.
+- **Rulings:** `production/decision-log.md` D20, D21.
+
+**State: merged with `origin/ls1-s2` and wired into D's `long4`.**
+- `origin/ls1-s2` at `7f0c775` holds J, B1FIX, C/B2 and D. It came in as a normal merge, with no rebase and no force-push, at the coordinator's request.
+- The cells are wired into D's `long4` Orbit and Drive rows and measured on the real entry with `?layout=long` / `--layout long4`.
+- **One change goes beyond the brief: long Orbit is 4380 px, not D's 3600.** At 3600 px the Orbit missed its wall-time band on every seed. The change is a separate commit, so the coordinator can revert it (see decision 1).
 
 ## Commits
 
 | Commit | What |
 |---|---|
-| `7876c6e` | The generator: `src/cellpick.ts` (new), the cells and `buildPlanned` in `src/enemies/scripts.ts`, `StagePlan`, `LONG4_ORBIT` and `long4Drive` in `src/layout.ts`, and `tests/unit/cellpick.test.ts` |
-| `9ec05f2` | Long Orbit grows from 3600 to 4380 px to reach its wall-time band, plus a 13th Orbit cell. `buildPlanned` is split into `pickPlanned` (draws) and `placePlanned` (no draws), to match lane C's split |
-| `41b626e` | Tools: the `pod-probe` tally clock, and the cross-seed signature report in `playtest.mjs` (`--compare`) |
-| (this file) | Lane report and two retained screenshots |
+| `7876c6e` | The generator. `src/cellpick.ts`, the cells in `src/enemies/scripts.ts`, `StagePlan` in `src/layout.ts`, `tests/unit/cellpick.test.ts` |
+| `9ec05f2` | A 13th Orbit cell. Cell picking (`pickPlanned`) split from placement (`placePlanned`) |
+| `41b626e` | Tools: the `pod-probe` tally clock, and the `playtest.mjs` cross-seed signature report (`--compare`) |
+| `4594a3e`, `0e63df9` | First lane report, written before D existed. Superseded by this file |
+| `c6f4072` | **Merge of `origin/ls1-s2`, plus the wiring** (see below) |
+| `7aee0af` | **Long Orbit 3600 → 4380 px.** Rows and bands after it move +780 |
+| (this file) | Lane report, probe output in `ls1-e/`, two screenshots |
 
 ## What changed
 
+### Files
+
 | File | Change |
 |---|---|
-| `src/cellpick.ts` (new, pure) | `pickCells`/`noteCells` move `pickV`'s rules down to the cell (see the rules below). Also: an optional fixed Descent 1 opener; `genFiller` (a beat every `gap` px, ±15% jitter) over two mix tables. `INTERIOR_MIX` is the spec's table: drones .30, sentry .14, corpse .14, flayer .12, hatch .10, mutant .06, crawler .06, womb .04, eyes .04. `ORBIT_MIX` is the same table without the terrain kinds, because Orbit has no terrain |
-| `src/enemies/scripts.ts` | `ORBIT_CELLS` (13), `ORBIT_OPENER`, `DRIVE_CELLS` (13), `pickPlanned`, `placePlanned`, and `fillSpawn` (filler kind → spawn call). `buildScript` takes the planned path **only when the row has a `plan`**. The `short` rows have none, so their sections, `R()` draws and x values are untouched |
-| `src/layout.ts` | `StageRow.plan` (`StagePlan`: tagged cell slots, filler windows, opener count). `LONG4_ORBIT` and `long4Drive(x0, x1)`. **Neither is registered in `LAYOUTS`**: D owns the entry, and the J tripwire forbids a second entry while the aliases exist |
-| `src/enemies/ufo.ts` | Comment only. The Saucer already read `ufoAt()`/`ufoGapEnd()`/`exitLead` from its row (row A), and `$.G.eat` already follows `ufoGapEnd()` (`ufoWarn`). Nothing in its logic had to change |
-| `tools/pod-probe.mjs` | `tally_s`: each stage's tally clock, from STAGE card to boss kill. This is spec §3.1's wall time. The existing `dur` runs from label to label, so it also counts the tally card and the fork or shop |
-| `tools/playtest.mjs` | Writes `<outDir>/sig.json` per run. `--compare <dirs…>` gives the cross-seed signature report. After the rebase, both tools take the layout from J's `--layout <id>` (`tools/layout-arg.mjs`); the signature reads stage x0 and the Saucer x from `window.__LY` |
-| `tests/unit/cellpick.test.ts` (new) | 25 tests |
-| `production/qa/evidence/ls1-e-*.png` | Retained screenshots (long4, seed 1): the Saucer WARNING on long Orbit, and the long Drive corridor |
+| `src/cellpick.ts` (new, pure) | `pickCells`/`noteCells` (rules below). `genFiller` places a filler beat every `gap` px, ±15% jitter. `INTERIOR_MIX` is the spec's table: drones .30, sentry .14, corpse .14, flayer .12, hatch .10, mutant .06, crawler .06, womb .04, eyes .04. `ORBIT_MIX` drops the terrain kinds, since Orbit has no terrain |
+| `src/enemies/scripts.ts` | `ORBIT_CELLS` (13), `ORBIT_OPENER`, `DRIVE_CELLS` (13), `pickPlanned`, `placePlanned`, `fillSpawn`. Built on C/B2's `stageScript(i, rs)` (details below) |
+| `src/layout.ts` | `StageRow.plan` / `StagePlan`, `LONG4_ORBIT_PLAN`, `LONG4_DRIVE_PLAN`. D's `long4` Orbit and Drive rows carry them. The Saucer's provisional window is now set: `at` 1080 (D's), `gapEnd` 2100, `exitLead` 60. The Orbit length change is in its own commit |
+| `src/enemies/ufo.ts` | Comment only. The Saucer reads its row; `$.G.eat = ufoGapEnd()` was already in place |
+| `tests/unit/cellpick.test.ts` (new) | 27 tests, reading the rows from `LAYOUTS.long4` |
+| `tests/unit/layout.test.ts` | D's two pins updated for the 4380 px Orbit: Orbit length, and LEVEL ≤ 15200 |
+| `tools/pod-probe.mjs` | `tally_s`: each stage's time from STAGE card to boss kill (spec §3.1). `dur` still runs label to label, so it includes the tally card, a fork or the shop |
+| `tools/playtest.mjs` | Writes `<outDir>/sig.json`. `--compare <dirs…>` produces the cross-seed signature report. The layout comes from J's `--layout`; stage x0 and the Saucer's x come from `window.__LY` |
+
+### How the cells sit on C/B2's `stageScript(i, rs)`
+
+- **Stream:** a row with a `plan` picks its cells and filler from `rs`, the stage's own build stream (`stageStream(i)`), never the sim `R()`. B2 was available, so this lane uses it.
+- **Rebuilds:** `pickPlanned` keeps the pick per descent in `G.remixV['c:<kind>']`, the same way `pickV` does for sections. Building the stage again (a resume, item H) places the same cells and filler without drawing. A test covers this.
+- **Tags:** every entry carries `k`, its cell id or `fill:<kind>`.
+- **Short:** rows without a plan go through today's section path, unchanged.
 
 ### The cell rules (spec §3.4: "pickV's rules move down to the cell level")
 
-1. A cell is eligible when it has the slot's tag and `min <= L`.
-2. **Never a cell already placed this descent.** This rule is never relaxed. A slot with no candidate stays empty, the way `midpick` handles it.
+1. A cell is eligible if it has the slot's tag and `min <= L`.
+2. **Never a cell already placed this descent.** This rule is never relaxed: a slot with no candidate stays empty.
 3. Prefer cells that were not in last descent's set.
-4. Among those, prefer cells not seen this run.
-5. Draw uniformly from the best tier that is not empty. `relaxed` counts the picks that fell back past rule 3.
+4. Then prefer cells not yet seen this run.
+5. Draw uniformly from the best tier that is not empty.
 
-Each tag's pool holds at least twice that tag's slots per descent. The test runs the real pools over 8 descents × 200 seeds and asserts `relaxed == 0`, so "never last descent's" holds in practice.
+Each tag's pool holds at least twice its slots per descent. A test runs the real pools over 8 descents × 200 seeds with no fallback.
 
-### Long Open Orbit (`LONG4_ORBIT`; Orbit is stage 0, so stage x = world x)
+### Long Open Orbit (stage x = world x)
 
 | x | Beat |
 |---|---|
-| 200, 500, 800 | 3 intro cells. In Descent 1 these are the **fixed teaching opener** (`o.drones`, `o.sentry`, `o.swarm`: ORBIT_A's classic, one idea per wave, about 15 s) |
-| 1100 | Saucer WARNING (drift `at`) |
-| 1150-2100 | Orbit-mix filler, gap 80. This is the Saucer's window: eaten while it is up |
-| 2040 | The Saucer's forced exit (`gapEnd` 2100 − `exitLead` 60) |
+| 180, 480, 780 | 3 intro cells. **In Descent 1 these are the fixed teaching opener** (`o.drones`, `o.sentry`, `o.swarm`): ORBIT_A's classic, one idea per wave, about 15 s |
+| 1080 | Saucer WARNING |
+| 1150-2100 | Orbit-mix filler (gap 80). The Saucer's window; eaten while it is up. No cell sits in it |
+| 2040 | The Saucer's forced exit |
 | 2100, 2700 | Build cells |
 | 2400-2700, 3000-3300 | Filler, gap 70 |
 | 3300 | Peak cell |
 | 3600-4000 | Filler, gap 55 |
-| 4080 | "SOMETHING IS COMING" (`warnX`) |
-| 4200 | The Maw (`bossX`) |
+| 4080 | SOMETHING IS COMING (the Maw's banner) |
+| 4200 | The Maw |
 | 4380 | `x1` |
 
-- **Cells:** 3 teaching cells (`min` 2, so after Descent 1 they come back only as ordinary intro cells, from Descent 3), plus 3 intro, 4 build and 3 peak.
-- **Where they come from:** ORBIT_A's four variants (split), ORBIT_C's classic, brood, flayer alley and hull breach, and ORBIT_D's run-up.
-- **No cell sits in the Saucer window.** Hand-made cells always play; only generator filler can be eaten.
+**The 13 cells:**
 
-### Long Drive approach (`long4Drive(x0, x1)`, x relative to `x0`)
+| Kind | Count | Notes |
+|---|---|---|
+| Teaching | 3 | `min` 2: from Descent 3 they return as ordinary intro cells |
+| Intro | 3 | |
+| Build | 4 | |
+| Peak | 3 | |
+
+Their content comes from ORBIT_A (four variants, split), ORBIT_C (classic, brood, flayer alley, hull breach) and ORBIT_D (the run-up).
+
+### Long Drive approach (x relative to the row's x0)
 
 | x | Beat |
 |---|---|
 | 130 | Log line |
-| 140 | `floor` cell |
+| 140 | Floor cell |
 | 430 | Wall eyes |
 | 460 | Intro cell |
 | 800, 1120 | Build cells |
 | 1440-1740 | Interior-mix filler, gap 65 |
 | 1760, 2080 | Peak cells |
-| 2460 | WARNING: GRAVITY WELL CRITICAL (`warnX`) |
+| 2460 | WARNING (D's) |
 | 2550 | The drifting crew |
-| 2700 | `startBoss` (`bossX`) |
+| 2700 | `startBoss` |
 
-- **The 13 cells:**
+**The 13 cells:**
 
-  | Tag | Cells | Where they come from |
-  |---|---|---|
-  | floor | 3 | DRIVE_E's three mutant variants. Only the first slot has a corridor floor |
-  | intro | 2 | E3 lockdown, and the new sentinel |
-  | build | 4 | DRIVE_F 0-2, and the new press |
-  | peak | 4 | F3 (Descent 2+), and the new cascade, bulkhead and flood (Descent 2+) |
+| Kind | Count | Notes |
+|---|---|---|
+| Floor | 3 | DRIVE_E's mutant variants. These are the only cells that spawn mutants, crawlers or wombs (test) |
+| Intro | 2 | |
+| Build | 4 | |
+| Peak | 4 | 5 of the Drive cells overall are new |
 
-- A test checks that only the floor cells use mutants, crawlers or wombs.
-- The Drive has no fixed opener: the brief only fixes Orbit's.
-
-## Acceptance checklist
+## Acceptance checklist (measured on D's real long4, `?layout=long --layout long4`, seeds 1, 3, 5, 7, 11)
 
 | Criterion | Result |
 |---|---|
-| Orbit 75-90 s wall time (LS1, Saucer only) | **PASS on scratch long4:** 78, 81, 78, 79, 78 s (seeds 1, 3, 5, 7, 11; tally clock). At the spec's 3600 px it measured 65-67 s (FAIL), so the row is 4380 px. See decision 1 |
-| Drive stage 80-95 s (no midboss) | **3 of 5 seeds in band:** 100, 95, 87, 89, 100 s (mean 94.2). The 2700 px approach is a fixed 45 s. What varies is the bot's Gravity Drive fight: 57.1, 51.9, 43.4, 46.0 and 56.5 s (playtest), against the M3 fight target of 30-45 s. The two 100 s runs are the 57 s fights. The Drive's own tuning is not this lane's; see risk 1 |
-| Descent 1 opener identical across seeds | **PASS.** Unit test over 20 streams, plus the in-game report over 5 seeds: `IDENTICAL across seeds, 9 waves: 200:drone 340:drone 450:corpse 520:sentry 630:corpse 740:flayer 800:hatch 920:drone 1040:sentry` |
-| The rest of the stage differs across seeds | **PASS:** stage 1-1 after the opener has 5/5 distinct signatures, with 8% mean pairwise wave overlap. Drive 1-4: 5/5 distinct, 19% |
-| No cell repeats within a descent | **PASS:** `cellpick.test.ts`. The real Orbit and Drive pools over 8 descents × 200 seeds: no repeat, no cell from last descent, no empty slot |
-| Saucer forced exit ≥ 300 px before the next WARNING the player sees (D20) | **PASS:** the exit is at 2040 and the Maw banner at 4080, a 2040 px gap (unit test). `layout.test.ts` will also check it once D registers `long4`, with no legacy pin |
-| Filler window (`$.G.eat`) follows `ufoGapEnd()` | **PASS:** unchanged code path (`ufoWarn` sets `$.G.eat = ufoGapEnd()`). It reads the row, so on long4 the window is 2100 |
-| Short layout identical | **PASS:** harness byte-identical, and the parity check identical (below) |
-| `npm run test:unit`, `typecheck`, `build` | **PASS:** 234/234 tests on the rebased branch, typecheck clean, build clean (only the existing chunk-size notice) |
+| Orbit 75-90 s wall time (LS1, Saucer only) | **PASS: 80, 76, 78, 78, 78 s.** At D's 3600 px it was 65, 65, 65, 66, 66 s (FAIL) |
+| Drive stage 80-95 s (no midboss) | **PASS: 93, 80, 92, 86, 88 s.** The bot's Drive fight took 51.0, 38.1, 50.7, 44.5 and 45.7 s. At 3600 px (same Drive row): 105, 79, 87, 99, 79 s. The Drive's time is mostly the fight, so it varies by run |
+| Descent 1 opener identical across seeds | **PASS:** `IDENTICAL across seeds, 9 waves: 180:drone 320:drone 430:corpse 500:sentry 610:corpse 720:flayer 780:hatch 900:drone 1020:sentry`. A unit test also covers it over 20 streams |
+| The rest differs across seeds | **PASS:** 5/5 distinct signatures in every stage. Mean pairwise wave overlap: Orbit after the opener 12%, Drive 18% |
+| No cell repeats within a descent | **PASS:** the real pools over 8 descents × 200 seeds, with no repeat, no cell from last descent and no empty slot |
+| Saucer forced exit ≥ 300 px before the next WARNING (D20) | **PASS:** exit at 2040, the Maw banner at 4080. `layout.test.ts` runs its invariants on `long4` with **no legacy pins** |
+| `$.G.eat` follows `ufoGapEnd()` | **PASS** (unchanged code path; reads the row) |
+| Cell picks on B2's stream | **PASS:** `stageScript(i, rs)`; rebuild-safe (test) |
+| Short layout identical to `ls1-s2` | **PASS:** harness and parity (below) |
+| unit, typecheck, build | **PASS:** 365/365 tests, typecheck clean, build clean (the existing chunk-size notice only) |
 
-## Test, probe, harness and parity output
+## Gate output (final source, the 4380 px commit)
 
-**Unit tests:** `cellpick.test.ts` has 25 tests, and the full suite passes 234/234 on the rebased branch.
-
-**Mutation checks** (each mutation was reverted afterwards):
-
-| Mutation | Tests that failed |
-|---|---|
-| Drop rule 2 (`!cur.has`) | 7 |
-| Collapse the tiers to "any eligible" | 5 |
-
-**Harness:** run after each commit's source:
+**Harness:**
 
 ```
-{"st":{"state":"over","score":4885,"scroll":2168,"lives":0,"px":50,"py":173.25,"en":1,"gibs":9,"drops":98,"caps":0},...,"errs":[]}
-PASS vs baseline @ f2f9c03
+{"st":{"state":"over","score":1243,"scroll":3538,"lives":0,...,"errs":[]}
+PASS vs baseline @ 8ff9ba4
 ```
 
-The note "1/6 canvas hashes differ (advisory)" also appears on unmodified code in the lane worktrees (the `@fs` font 403s, see `ls1-a.md`).
-
-**Parity** (`node tools/layout-parity.mjs`; run on `13addc9` and on the pre-rebase final source, both PASS; the rebased result is below):
+**Parity** (`node tools/layout-parity.mjs`, no `--update`):
 
 ```
-run 1 (seed 1, 2 descents) gates 0111: shop 2, 8 stages, 33523 play frames, deaths 0, errors 0
-run 5 (seed 5, 2 descents) gates 0101: shop 2, 8 stages, 31765 play frames, deaths 0, errors 0
-run 6 (seed 6, 2 descents) gates 1100: shop 2, 8 stages, 33120 play frames, deaths 0, errors 0
-run 7 (seed 7, 2 descents) gates 1010: shop 2, 8 stages, 31008 play frames, deaths 0, errors 0
-run 11 (seed 11, 2 descents) gates 0100: shop 2, 8 stages, 30701 play frames, deaths 0, errors 0
-run 1x3 (seed 1, 3 descents) gates 0111: shop 3, 12 stages, 54104 play frames, deaths 0, errors 0
-run 7m (seed 7, 2 descents, mortal) gates 1010: game over, 2 stages, 7105 play frames, deaths 3, errors 0
+run 7m (seed 7, 2 descents, mortal) gates 1010: game over, 2 stages, 5414 play frames, deaths 3, errors 0
 not measured: render-only output (canvas stubbed); deaths after the mortal run's game over; seeds 2 and 3 (their bots cannot kill the Gravity Drive)
-PARITY PASS vs baseline @ sprint-1 merge (A+H0+G0+F0+P0+B1): ... runs 1, 5, 6, 7, 11, 1x3, 7m identical
+PARITY PASS vs baseline @ ls1-s2 after J + B1FIX + C/B2: B2 re-baseline re-taken on top of B1FIX (anchors and terrain unchanged): runs 3, 6, 7, 11, 15, 3x3, 7m identical (5 seeds x 2 descents + 3x3 + 7m)
 ```
 
-**`pod-probe` on scratch long4** (`tally_s`: STAGE card to boss kill, in s; `dur`: label to label):
+**A failed parity run I'm reporting:**
+- An earlier parity run, started on the merge commit `c6f4072`, reported a diff in run `3x3` (stage 2's fired kinds from x 3493 on).
+- That run overlapped my edit of `src/layout.ts`, and the parity tool serves the live worktree through Vite, so the page reloaded mid-run.
+- The run on the settled final source (above) is identical on every run, including `3x3`.
+- I did not re-run parity on `c6f4072` by itself. The final commit's source is a superset of it, and the short path is the same code in both.
+
+## Probe output
+
+The full output is in `production/qa/evidence/ls1-e/`:
+- `long4-4380-probes.txt` and `long4-3600-probes.txt`: pod-probe and the signature report;
+- `playtest-long4-seed*.txt`: per-stage kills, bosses, variety and drones.
+
+**`pod-probe` on long4, 4380 px Orbit.** `tally_s` is STAGE card to boss kill, in s; `dur` in brackets is label to label.
 
 | Seed | 1-1 Orbit | 1-2 biome | 1-3 biome | 1-4 Drive | Errors |
 |---|---|---|---|---|---|
-| 1 | 78 (88.2) | 70 | 79 | 100 (112.6) | 0 |
-| 3 | 81 (89.1) | 63 | 61 | 95 (107.8) | 0 |
-| 5 | 78 (86.6) | 75 | 69 | 87 (98.8) | 0 |
-| 7 | 79 (88.1) | 63 | 60 | 89 (102.4) | 0 |
-| 11 | 78 (87.1) | 75 | 65 | 100 (111.1) | 0 |
+| 1 | 80 (88.6) | 87 | 73 | 93 (105.3) | 0 |
+| 3 | 76 (84.6) | 82 | 67 | 80 (91.6) | 0 |
+| 5 | 78 (86.1) | 88 | 70 | 92 (104.0) | 0 |
+| 7 | 78 (87.2) | 79 | 74 | 86 (98.4) | 0 |
+| 11 | 78 (87.1) | 71 | 69 | 88 (99.5) | 0 |
 
-The same 5 seeds on **short**, for reference, have Orbit at 46-65 s and the Drive at 46-87 s. The biome columns on long4 are short's biome rows shifted (item D's beats are not in), so they say nothing about D.
+The biome columns are D's stages, which this lane did not change. They are listed for completeness only.
 
-**The bot in the long stages** (playtest, 5 seeds):
+**Playtest** (5 seeds, Descent 1):
 
-| Stage | Saucer TTK | Maw TTK | Drones, share of regular spawns |
+| | Saucer TTK | Maw TTK | Drones (share of regular spawns) |
 |---|---|---|---|
-| Orbit | 6.0-10.6 s | 7.7-10.5 s | 35-51% |
-| Drive | — | — | 40-53% |
+| Orbit | 9.3-9.9 s | 5.7-9.6 s | 32-53% |
+| Drive | | | 40-50% |
 
-- **Why drones run above the mix's 30%:** that weight is per beat, and `formation()` adds `round(3·pow)` drones to every wave, so per spawn the share rises with power. The `scripts.ts` header records the same effect for short (35-40%).
-- **Would-be hits:** 0.2-0.9/min.
-- **Page errors:** none.
+- **Drone share:** the mix's 30% weight is per beat. `formation()` adds `round(3·pow)` drones per wave, so per spawn the share rises with power, as the `scripts.ts` header already notes for short (35-40%).
+- **Would-be hits:** 0.2-0.5/min.
+- **Errors:** none.
 
-**Cross-seed signature report** (`node tools/playtest.mjs --compare …`, long4, 1 descent each):
-
-```
-cross-seed signature report: 5 runs (seeds 1, 3, 5, 7, 11), layout long4
-Descent 1 opener (Open Orbit, before the Saucer WARNING at 1100): IDENTICAL across seeds, 9 waves: 200:drone 340:drone 450:corpse 520:sentry 630:corpse 740:flayer 800:hatch 920:drone 1040:sentry
-stage 1-1 after the opener: 5/5 distinct signatures, mean pairwise wave overlap 8%
-stage 1-2: 5/5 distinct signatures, mean pairwise wave overlap 7%
-stage 1-3: 5/5 distinct signatures, mean pairwise wave overlap 12%
-stage 1-4: 5/5 distinct signatures, mean pairwise wave overlap 19%
-stage 2-1: no spawns recorded in any run (not measured)
-not measured: spawn-time rolls (y, side, elite) are left out of the signature on purpose; a stage a run never reached is missing from its row
-```
-
-### How long4 was measured (scratch, not committed)
-
-- **Where:** a temporary detached worktree of this branch (before the rebase onto `ls1-s2`; the tools then took `?layout=long`), served by Vite on its own port.
-- **What was patched in, uncommitted:** a `LAYOUTS.long4` entry, activated at import when `?layout=long` is set.
-- **What the entry holds:**
-  - `LONG4_ORBIT` and `long4Drive(10380, 13780)`;
-  - short's two biome rows, shifted by +2080;
-  - short's bands, terrain and hell bands, shifted by +2080 after Orbit and by +3780 at the Drive chamber.
-- Under that terrain the corridor floor lasts most of the Drive approach. D's terrain may differ (risk 2).
-- **What the Orbit and Drive figures depend on:** only this lane's rows. The scroll to `bossX` is fixed, and the fights are the same code.
+**Screenshots** (long4, seed 3):
+- `ls1-e-long-orbit-saucer-warning.png`: the Saucer WARNING about 20 s into long Orbit.
+- `ls1-e-long-drive-approach.png`: the long Drive corridor.
 
 ## Not measured
 
-- Any of this on **D's real `long4` entry**, because it does not exist yet. That includes the invariant test `layout.test.ts` on `long4` and the route-probe.
-- Descent 2+ in-game. The picker rules for later descents are covered by the unit test only; the in-game runs stopped at the end of Descent 1.
-- Seeds 2 and 3 have a known bot limit in parity (their bots cannot kill the Gravity Drive). On long4, seed 3's bot killed it, in 51.9 s.
-- Phone or Fold timing, and anything render-only.
+- Descent 2+ in game. The picker's rules for later descents are covered by the unit test only.
+- Phone/Fold timing, and render-only output.
+- `route-probe` on long4 with the new content. The Orbit has no terrain hazards; the Drive's terrain is D's, unchanged apart from the +780 shift.
+- A full re-run of D's own biome probes after the +780 shift. The shift moves every row, gate offset and band by the same amount, and `layout.test.ts`'s long4 timing and beat tests pass on the shifted entry.
 
-## Stubs and open risks
+## Decisions this brief did not settle (each took the safest default; the coordinator or Matt may revisit)
 
-**Stubs**
-- **`long4` is not registered.** D's entry should use `LONG4_ORBIT` as stage 0 and `long4Drive(x0, x1)` as the Drive row. Long Orbit is **4380 px**, not 3600, which moves everything after it by 780 px compared with a 3600 px plan (decision 1).
-- **The flag:** `?layout=long` is D's in-game flag; the tools use J's `--layout long4`. This lane did not touch `main.ts`. `buildScript` picks the planned path from `row.plan`, so it needs no flag of its own.
+1. **The long Orbit is 4380 px, and everything after it moves +780** (LEVEL 14370 → 15150).
+   - **Why:** the spec's 3600 px and its LS1 band of 75-90 s can't both hold, because the drift Saucer holds no scroll. On D's real entry, 3600 px measured 65-66 s on all five seeds.
+   - **What it touches:** I shifted D's rows and bands uniformly, so the biome timing relative to each gate is unchanged, and updated D's two test pins. That is outside the Orbit row, which is why it is a separate commit: reverting it restores D's 3600 px exactly.
+   - **LS2:** a slot-B held midboss adds about 10 s, so Orbit would land around 88-92 s, inside the spec's 85-100 s with both midbosses.
+2. **The Saucer window is 1080-2100.** The WARNING stays at D's 1080, because 1100 is a short-script literal and the grep test flags it. The window keeps today's ~1000 px, so the Saucer fight and its tuned pods carry over.
+   - **LS2-orbit's slot-B WARNING must sit at x ≥ 2340** (D20 rule 1). `layout.test.ts` enforces it.
+3. **13 Orbit cells**, one over the spec's 10-12, for the second build slot.
+4. **The opener cells come back from Descent 3** as ordinary intro cells.
+5. **No `$.meta` cross-run memory** (it was optional). `save.ts` is untouched.
 
-**Decisions this brief did not settle (each took the safest default; the coordinator or Matt may revisit)**
-1. **Orbit length is 4380 px, not 3600.**
-   - The spec gives both "3600 px" and "75-90 s" for LS1 Orbit, and at 3600 px the two disagree: the Saucer is a drift midboss and holds no scroll. I took the acceptance band.
-   - In LS2 the slot-B held midboss adds about 10 s, so Orbit would land around 88-92 s, against the spec's 85-100 s with both midbosses.
-   - The alternative is to keep 3600 px and accept 65-67 s until LS2.
-2. **The Saucer window is 1100-2100**, today's 1000 px, so its tuned fight length and pods carry over.
-   - Its forced exit at 2040 means **LS2-orbit's slot-B WARNING must sit at x ≥ 2340**, by D20 rule 1. The beat template's p .62 breath would put it at about 2080 on a 3600 px row.
-   - The `layout.test.ts` invariant will catch a violation automatically.
-3. **13 Orbit cells, one over the spec's 10-12.** The 4380 px Orbit has two build slots, and rule 3 needs 4 build cells.
-4. **Opener cells return in Descent 3+** as ordinary intro cells (`min` 2). The old `pickV` never brought variant 0 back. With 3 intro slots, rule 3 needs 6 intro-capable cells, so I reused the opener rather than writing 3 more.
-5. **No `$.meta` cross-run memory.** It was optional in the brief. `save.ts` is untouched.
+## Open risks
 
-**Risks**
-1. **The Drive stage overshoots 95 s in 2 of 5 seeds** because the bot's Drive fight takes 52-57 s.
-   - Shortening the approach below 2700 px would break the brief's length.
-   - The lever is the Drive fight (M3 target 30-45 s), or a stronger end-of-Descent-1 kit.
-2. **The floor cell assumes the corridor has a floor near Drive x 140, and wall eyes at 430.** The same holds in short.
-   - On long4 that depends on D's `tEnd` and `fT`/`kT` bands.
-   - The spawn helpers skip quietly where there is no floor, but the cell would then lose its mutant.
-   - **D should keep the corridor floor through at least Drive x 400.**
-3. **Rebuilding a stage must not pick again.**
-   - `pickPlanned` commits cell memory on every call, so calling it twice in a descent would shift the picks.
-   - C's `buildStage` and H's checkpoint restore must **call `pickPlanned` once per descent and store the result** (see the merge notes).
-   - `placePlanned` draws nothing and is safe to repeat; a test covers this.
-4. **B2:** `pickPlanned(…, rnd = R)` takes the stream as a parameter, so B2 passes `Rs`. Until then the long path draws the sim `R()` at build time, as `pickV` does. Short is unaffected.
+1. **The Drive's stage time is mostly the Drive fight** (38-51 s here, against the M3 target of 30-45 s). All 5 seeds landed in 80-95 s this time. At 3600 px, with the same Drive row, two seeds ran 99-105 s. Expect occasional runs over 95 s with a weak kit.
+2. **The floor cell assumes the corridor has a floor near Drive x 140, and wall eyes at 430,** as in short. On long4 this holds: mutants and crawlers spawned in the playtests.
+3. **For H (checkpoint):** the cell picks live in `G.remixV['c:orbit' | 'c:drive']` (`used`, `last`, `L`, `pick`), inside `remixV`, which is already on the run-save allowlist. Restore needs no extra field.
 
-## Merge-order notes (C → B2 → D → E)
+## Merge notes
 
-- **C (`origin/ls1-c`, pushed) conflicts in `src/enemies/scripts.ts`.**
-  - C splits `buildScript` into `pickStageVariants(L)` (draws) and `stageScript(i)` (no draws). This lane split the same way, so the resolution is mechanical:
-    - In `pickStageVariants`: for a row with `plan`, set `$.G.cellPick[kind] = pickPlanned(r, cells, opener, L)` instead of the `pickV` calls. Keep short's draw order exactly.
-    - In `stageScript(i)`: for a row with `plan`, call `placePlanned(r, cells, $.G.cellPick[r.kind], at)`. Place the Saucer, banner, Maw, log line, eyes, WARNING, breath and `startBoss` as today.
-  - `G.cellPick` (or wherever C stores picks) should join the run-save allowlist with `remixV`, for H.
-- **B2:** pass `Rs` as `pickPlanned`'s `rnd`.
-- **D:** register `long4` with these rows (see Stubs). Then `layout.test.ts`'s invariants and `layout-kinds.test.ts` cover the rows automatically.
-- **J has landed on `ls1-s2`** and this branch sits on it. This lane adds no `LAYOUTS` entry and no `setLayout` caller.
-- **When E rebases onto D:**
-  1. Re-run `pod-probe` and `playtest --compare` on D's real long4 with `--layout long4`.
-  2. Replace this file's scratch-entry numbers.
-  3. Add a `buildScript` dispatch test on the real entry.
+- `ls1-e` merges `origin/ls1-s2` at `7f0c775` as a normal merge. The branch is pushed with a plain `git push`.
+- **To drop the 4380 px Orbit:** revert the commit "feat: long4 Open Orbit 3600 -> 4380 px". The Orbit plan then needs its 3600 px form: one build slot, peak at 2700, filler to 3220. That is the layout in `c6f4072`.
