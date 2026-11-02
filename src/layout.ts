@@ -42,17 +42,33 @@ export interface StageRow {
   gateLate?: number;
 }
 
-/** biome stage beat fractions, p = progress through the spawn span (biomes.ts biomeScript) */
+/** a breath: an empty window (no spawns) ending at p `end`, `len` of the spawn span long. `mid`: it holds the biome's
+ *  midboss (its WARNING sits `warnLead` before the end). `release`: one guaranteed pod formation and the next log line
+ *  right after it (spec §3.2 "Release") */
+export interface Breath { end: number; len: number; mid?: boolean; release?: boolean }
+/** a tempo band of the spawn loop: it runs until p `until`, or until the end of breath `{ breath: i }`. Slot gap is
+ *  B.gap x `gap`; the double chance is `dbl` (absolute) or B.dbl + `dbl` capped at .85 (`rel`). `sig`: rolls the
+ *  signature 60% of the time. `lead`: the band's first slot is alone, the signature or the biome's second-ranked mix
+ *  kind (intro B). `third`: Descent 2+ adds a third spawn 35% of the time. `stop`: no spawns (the arena run-up) */
+export interface Tempo { until: number | { breath: number }; gap: number; dbl: number; rel?: boolean; sig?: boolean; lead?: 'sig' | 'second'; third?: boolean; stop?: boolean }
+/** biome stage beats, p = progress through the spawn span (biomes.ts biomeScript; spec §3.2) */
 export interface Beats {
-  /** the spawn span is [x0 + pad[0], bossX - pad[1]] (later of x0 + pad[0] and the gate x + 60) */
+  /** the spawn span is [x0 + pad[0], bossX - pad[1]], starting no earlier than the gate x + gateLead (a scroll x: the
+   *  gate x is the right screen edge, so -W + 320 puts the first spawn on fully blended biome terrain) */
   pad: [number, number];
-  /** the breath (no spawns, the midboss): ends at p `end`, `len` of the span long */
-  breath: { end: number; len: number };
+  gateLead: number;
+  /** BREATHS, in p order */
+  breaths: Breath[];
+  tempo: Tempo[];
   /** set pieces, first visit and repeat visit (remix) */
   sets: number[];
   remixSets: number[];
-  /** the midboss WARNING sits this far before the breath's end (it lands ~60 px before, the scroll coasts to a stop) */
+  /** the midboss WARNING sits this far before its breath's end (it lands ~60 px before, the scroll coasts to a stop) */
   warnLead: number;
+  /** the arena run-up: from this p no spawns, the last log line, and terrain movement C (arena) blends in over
+   *  `arenaBlend` px. Absent: the legacy beat (short), two log lines (span start, span midpoint), no movement C */
+  runup?: number;
+  arenaBlend?: number;
 }
 
 export interface LayoutEntry {
@@ -90,7 +106,18 @@ const SHORT: LayoutEntry = {
     { kind: 'drive', x0: 8300, x1: 10000, bossX: 9300, warnX: 9060 },
   ],
   tEnd: [8300, 8600],
-  beats: { pad: [220, 160], breath: { end: .55, len: .1 }, sets: [.3, .75], remixSets: [.22, .62], warnLead: 210 },
+  beats: {
+    pad: [220, 160], gateLead: 60,
+    breaths: [{ end: .55, len: .1, mid: true }],
+    // today's loop: intro (q < .2) sparse with the signature first, build to the breath's end, peak to .9, tail
+    tempo: [
+      { until: .2, gap: 1.4, dbl: .2, sig: true, lead: 'sig', third: true },
+      { until: { breath: 0 }, gap: 1, dbl: 0, rel: true, third: true },
+      { until: .9, gap: .75, dbl: .15, rel: true, third: true },
+      { until: 1, gap: 1, dbl: 0, rel: true, third: true },
+    ],
+    sets: [.3, .75], remixSets: [.22, .62], warnLead: 210,
+  },
   bands: {
     hull: [2200, 2700],
     corr: [5000, 5500, 8900, 9300],
@@ -103,7 +130,77 @@ const SHORT: LayoutEntry = {
   hudMarks: [2400, 5200],
 };
 
+// ---------------- long4: the LS1 long layout (spec §2.2, §3.2-3.4; build plan sprint 2 item D) ----------------
+// Orbit, biome, biome, Drive, each long, behind ?layout=long. Rows are sized by scroll time, not row width: a biome
+// stage is timed from its gate (the scroll holds at the fork ~50 px past the previous Maw, ~200 px past a biome boss:
+// its miniWarn runs 150 f while the scroll coasts) to its boss WARNING at bossX. bossX - gate scroll = 3550 px gives
+// ~60 s of scroll with the fork start and the midboss hold (two ~50 f speed ramps); measured: production/qa/evidence/ls1-d.md.
+// The Orbit and Drive rows' spans, bossX, warnX and the Saucer's entry are D's; their script content is item E's (until
+// E lands they replay today's scripts, placed by these rows: Orbit's filler ends ~1900, the Drive's ~700).
+const LONG4: LayoutEntry = {
+  id: 'long4',
+  level: 14370,
+  stages: [
+    // Open Orbit 3600: the Saucer's WARNING at 1100 (spec §3.4); gapEnd keeps today's 1040 px window and is provisional
+    // (item E owns it: >= 300 px before Orbit's slot B WARNING once LS2-orbit adds one). The Maw at 3420, its
+    // SOMETHING IS COMING 120 px before, as in short
+    { kind: 'orbit', x0: 0, x1: 3600, bossX: 3420, warnX: 3300, drift: [{ k: 'ufo', at: 1100, gapEnd: 2140, exitLead: 60 }] },
+    // gate scroll ~3470 (the Maw holds at ~3420 + 50), so the gate x (scroll + W + 10) is ~3960; gateLate rounds up
+    { kind: 'biome', slot: 0, fork: true, x0: 3600, x1: 7220, end: 7120, bossX: 7020, gateLate: 3970 },
+    // gate scroll ~7220 (the biome boss lands 150 f after its WARNING at 7020, then the scroll coasts ~50 px)
+    { kind: 'biome', slot: 1, fork: true, x0: 7220, x1: 10970, end: 10870, bossX: 10770, gateLate: 7720 },
+    // the Drive approach: 2700 px (45 s) from where slot 1's boss leaves the scroll (~10970) to startBoss; its
+    // WARNING: GRAVITY WELL CRITICAL 240 px before, and today's 700 px of chamber past it
+    { kind: 'drive', x0: 10970, x1: 14370, bossX: 13670, warnX: 13430 },
+  ],
+  // the biome hands back to the ship one screen into the Drive approach, so slot 1's boss arena (scroll ~10970,
+  // screen to ~11450) stays on movement C; biomeExit's look hand-back (G.bx[2] = scroll + W + 10) lands at the same x
+  tEnd: [11450, 11750],
+  beats: {
+    // the span starts 330 px of scroll after the gate (its right-edge x + 320 - W: the terrain has finished blending
+    // in) and ends 60 px before the boss WARNING; the run-up (p .9-1) is the rest of the spec's 6 s of quiet. Late
+    // gate span ~3160 px, so 300 px is p ~.095: every breath/set-piece distance below keeps >= .10
+    pad: [160, 60], gateLead: -160,
+    // breath 1 holds midboss A (its WARNING 210 px before the end stays inside: .075 of the span is ~237 px), then the
+    // release (a pod formation, log line 2). Breath 2 stays EMPTY in sprint 2: slot B's midboss and its miniWarn are
+    // sprint 3 item F. The spec's .30-.36 / .62-.68 moved later and widened: with its S1 at .26 the 300 px rule fails
+    breaths: [{ end: .41, len: .075, mid: true, release: true }, { end: .725, len: .075 }],
+    tempo: [
+      { until: .12, gap: 1.4, dbl: .2, sig: true, lead: 'sig' }, //               intro A: the signature alone, then 60% signature
+      { until: .22, gap: 1.25, dbl: .25, lead: 'second' }, //                     intro B: the second-ranked kind gets its own first slot
+      { until: { breath: 0 }, gap: 1, dbl: 0, rel: true }, //                     build A (S1)
+      { until: { breath: 1 }, gap: 1.1, dbl: -.1, rel: true }, //                 build B (S2), lighter: movement B's slot (later item)
+      { until: .9, gap: .75, dbl: .15, rel: true, third: true }, //               peak (S3), rear waves, Descent 2+ third spawn
+      { until: 1, gap: 1, dbl: 0, stop: true }, //                                arena run-up: no spawns
+    ],
+    // first visit .23/.53/.86, a repeat visit earlier (the spec's -.02..-.04 shift, inside the same 300 px windows)
+    sets: [.23, .53, .86], remixSets: [.2, .515, .83], warnLead: 210,
+    runup: .9, arenaBlend: 200,
+  },
+  // the same shapes as short, re-anchored on the long rows: the hull closes in at the Orbit's end, the corridor rises
+  // where slot 0's boss is and squeezes from slot 1's start, and everything opens into the chamber over the 400 px
+  // before the Drive's bossX
+  bands: {
+    hull: [3500, 4000],
+    corr: [7070, 7570, 13270, 13670],
+    core: [13270, 13720],
+    space: [6870, 7470],
+    inner: [7070, 7470, 13470, 13870],
+  },
+  terrain: { fT: [3550, 4000, 13220, 13570], cT: [4800, 5250, 13220, 13570], kT: [7120, 7570, 13120, 13470], zT: [13270, 13670], blocks: [4100, 7070] },
+  // PROVISIONAL (creative-director condition, LS1-A review): per-kind hell values are authored after art round 2, never
+  // copied from the AMT bands. Until then they are keyed to the stage rows, not to AMT: `corr` rises over slot 1's
+  // first 500 px (the last biome slot) and falls into the Drive chamber; `core` is the chamber
+  hell: { corr: [7220, 7720, 13270, 13670], core: [13270, 13720] },
+  // PROVISIONAL (art-director: the tick design for long rows is an art decision): today's rule, a tick just inside
+  // each biome slot's start
+  hudMarks: [3700, 7270],
+};
+
 export const LAYOUTS: Partial<Record<LayoutEntry['id'], LayoutEntry>> = { short: SHORT };
+/** the long4 entry, not yet registered in LAYOUTS: the second-layout tripwire (layout-literals.test.ts) holds it out
+ *  until item J deletes the boot-time aliases. Tests check its invariants as a fixture */
+export const LONG4_ENTRY = LONG4;
 let active: LayoutEntry = SHORT;
 
 /** the active layout entry */
@@ -177,6 +274,28 @@ export const hellCore = (s: number) => bandAt(active.hell.core, s);
 /** the biome slots as {x0, x1, bossX}: SEG before the table. Careful: x1 here is the slot's nominal content end
  *  (the row's `end`), not the row's x1 */
 export const slotSpans = () => active.stages.filter((r) => r.kind === 'biome').map((r) => ({ x0: r.x0, x1: r.end ?? r.x1, bossX: r.bossX }));
+
+/** the beat plan of biome row r with its gate taken at world x `from` (biomes.ts choose()), in scroll x: the spawn
+ *  span [a, z], p -> x, the breaths, the set pieces, the midboss WARNING and the run-up. biomeScript, rewriteTerrain
+ *  (movement C) and the layout invariant test all read this one function */
+export function beatPlan(r: StageRow, from: number, remix: boolean, L: LayoutEntry = active) {
+  const BT = L.beats, a = Math.max(r.x0 + BT.pad[0], from + BT.gateLead), z = r.bossX - BT.pad[1], mid = Math.round((a + z) / 2);
+  const P = (q: number) => a + (z - a) * q;
+  // short slot 1 (breathAfterMid) shifts its midboss breath to end just past mid + that, where the old mid-stage Maw was
+  const breaths = BT.breaths.map((b) => {
+    const bZ = b.mid && r.breathAfterMid != null ? Math.max(P(b.end), mid + r.breathAfterMid) : P(b.end);
+    return { a: bZ - (z - a) * b.len, z: bZ, mid: !!b.mid, release: !!b.release };
+  });
+  const mb = breaths.find((b) => b.mid);
+  return {
+    a, z, mid, P, breaths,
+    sets: (remix ? BT.remixSets : BT.sets).map(P),
+    /** scroll x of the midboss WARNING (the breath that holds it) */
+    warn: mb ? Math.round(mb.z - BT.warnLead) : null,
+    /** scroll x where the arena run-up starts, or null (legacy beat) */
+    runup: BT.runup != null ? P(BT.runup) : null,
+  };
+}
 
 /** test hook (tools/layout-parity.mjs): the static anchors, under their pre-table names */
 export const parityAnchors = () => ({ level: active.level, bossAt: bossAt(), seg: slotSpans(), tEnd: [...active.tEnd], ufoAt: ufoAt(), ufoGapEnd: ufoGapEnd() });

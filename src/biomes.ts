@@ -17,7 +17,7 @@ import { eliteChance, eliteRoll } from './enemies/elite';
 import { enemies } from './world';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
-import { layout, nSlots, slotRow, stageOfSlot } from './layout';
+import { beatPlan, layout, nSlots, slotRow, stageOfSlot } from './layout';
 import { seedOf, stream } from './rng';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
@@ -35,7 +35,8 @@ export const BIOMES = {
     mix: [['corpse', 4], ['cross', 3], ['mutant', 2.5], ['flayer', 2], ['eye', 2], ['hook', 2], ['sine', 2]],
     // a repeat visit (remix(), below): the hulks lead, crucifixes line the shelves, two kinds wander in from elsewhere
     remix: { sig: 'mutant', set: 'crucify', drop: ['hook', 'eye', 'sine'], add: [['zig', 1]], pool: [['crawler', 2], ['womb', 2], ['slime', 2], ['hatch', 1.2]] },
-    logs: ['TEMPERATURE: -140C. THE BODIES ARE STANDING UP.', 'THE ICE IS FULL OF FACES.'],
+    logs: ['TEMPERATURE: -140C. THE BODIES ARE STANDING UP.', 'THE ICE IS FULL OF FACES.',
+      'SOMEONE SCRATCHED A TALLY INTO THE FROST. IT STOPS AT 2557.', 'THE COLD IS NOT SLOWING THEM DOWN.'],
   },
   acid: {
     name: 'THE DIGESTION TANKS', tag: 'DISSOLVING // MAW', sub: 'EVERYTHING DOWN HERE IS BEING EATEN', col: '#3fe8c8', rgb: '60,230,195',
@@ -47,7 +48,8 @@ export const BIOMES = {
     mix: [['crawler', 4], ['womb', 3], ['eye', 2], ['hatch', 1], ['wall', .7], ['dive', .3]],
     late: [['slime', 2.5]], // Descent 2+: the Sinus's slimes have leaked into the tanks
     remix: { sig: 'womb', set: 'gutter', drop: ['dive', 'hatch'], add: [['sine', .6]], pool: [['mutant', 2], ['hook', 2], ['flayer', 2], ['cross', 2]] },
-    logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'MY HULL PLATING IS SIZZLING.'],
+    logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'MY HULL PLATING IS SIZZLING.',
+      'A BOOT FLOATS PAST. THE FOOT IS STILL IN IT.', 'THE TANK IS NOT FULL. IT IS STILL EATING.'],
   },
   fire: {
     name: 'THE FURNACE', tag: 'BURNING // BUTCHER', sub: 'THEY BURNED THE BODIES. THE BODIES KEPT MOVING', col: '#ff7a1a', rgb: '255,120,30',
@@ -58,7 +60,8 @@ export const BIOMES = {
     gap: 100, dbl: .6, set: 'pincer', sig: 'flayer',
     mix: [['flayer', 3], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
     remix: { sig: 'mutant', set: 'kiln', drop: ['crawler', 'dive'], add: [['zig', .8]], pool: [['cross', 2], ['eye', 2], ['corpse', 2], ['slime', 2]] },
-    logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.'],
+    logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.',
+      'THE ASH HAS FINGERPRINTS.', 'COOLANT LINES CUT BY HAND. SOMEONE WANTED IT HOT.'],
   },
   snot: {
     name: 'THE SINUS', tag: 'MUCUS // MAW', sub: 'THE SHIP HAS A COLD', col: '#ecd25a', rgb: '236,210,90',
@@ -69,7 +72,8 @@ export const BIOMES = {
     gap: 125, dbl: .5, set: 'flood', sig: 'hatch',
     mix: [['slime', 5], ['hatch', 3], ['womb', 3], ['corpse', 2], ['sine', 1.5], ['crawler', 1], ['eye', 1]],
     remix: { sig: 'slime', set: 'drip', drop: ['corpse', 'eye', 'sine'], add: [['zig', 1.2]], pool: [['mutant', 2], ['hook', 2], ['cross', 2], ['flayer', 2]] },
-    logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.'],
+    logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.',
+      'MY INTAKES ARE CLOGGED. THE CLOG IS CHEWING.', 'IT SNEEZED. I AM STILL INSIDE IT.'],
   },
 };
 export const BIOME_KEYS = Object.keys(BIOMES);
@@ -129,15 +133,32 @@ function shape(b, x, o) {
   if (fl - ce < 108) { const m = (fl + ce) / 2; fl = m + 54; ce = m - 54; }
   return [ce, fl];
 }
+// movement C, the boss arena (spec §3.3): today's shape at half its swing around the biome's resting edges, with the
+// gap opened to ARENA_GAP so the boss patterns have room. Rest = shape()'s constant terms per biome
+const REST = { ice: [18, PH - 30], acid: [16, PH - 18], fire: [26, PH - 24], snot: [34, PH - 34] };
+/** the arena gap (spec §3.3 movement C: >= 150 px; route-probe minGap reads it) */
+export const ARENA_GAP = 150;
+function arena(b, ce, fl) {
+  const [c0, f0] = REST[b] || REST.snot;
+  ce = c0 + (ce - c0) * .5;
+  fl = f0 + (fl - f0) * .5;
+  if (fl - ce < ARENA_GAP) { const m = (fl + ce) / 2; fl = m + ARENA_GAP / 2; ce = m - ARENA_GAP / 2; }
+  return [ce, fl];
+}
 /** blend the terrain from world x `from` onward (over 300px, all of it off-screen) into biome b; it stays that
  *  biome until the next rewrite, and always fades back to the untouched level over layout().tEnd, where the biome
  *  terrain hands back to the level's own corridor (the Gravity Drive approach; its chamber band is in world.ts). The biome shape
- *  and the base level both keep a >=104px gap, and a lerp of two such gaps can't be narrower. */
+ *  and the base level both keep a >=104px gap, and a lerp of two such gaps can't be narrower. A layout with a run-up
+ *  beat (long4) blends movement A (shape) into movement C (arena) over arenaBlend px from the run-up's scroll x, so
+ *  the whole screen is arena by the time the run-up starts; a lerp of a >=108 and a >=150 gap stays >=108 */
 function rewriteTerrain(seg, b, from) {
-  const o = ($.G.loop + 1) * 37.1 + seg * 11, [T_END0, T_END1] = layout().tEnd;
+  const o = ($.G.loop + 1) * 37.1 + seg * 11, LY = layout(), [T_END0, T_END1] = LY.tEnd;
+  const xC = LY.beats.runup != null ? beatPlan(slotRow(seg), from, false).runup : null, xC1 = xC != null ? xC + LY.beats.arenaBlend : 0;
   const i0 = Math.max(0, Math.floor(from / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil(T_END1 / TS));
   for (let i = i0; i <= i1; i++) {
-    const x = i * TS, [ce, fl] = shape(b, x, o), w = sstep(from, from + 300, x) * (1 - sstep(T_END0, T_END1, x));
+    const x = i * TS, w = sstep(from, from + 300, x) * (1 - sstep(T_END0, T_END1, x));
+    let [ce, fl] = shape(b, x, o);
+    if (xC != null && x > xC) { const k = sstep(xC, xC1, x), [cc, ff] = arena(b, ce, fl); ce = lerp(ce, cc, k); fl = lerp(fl, ff, k); }
     FLOOR[i] = lerp(FLOOR[i], fl, w);
     CEIL[i] = lerp(CEIL[i], ce, w);
   }
@@ -166,6 +187,8 @@ export function insertScript(entries) {
   const G = $.G, rest = G.script.slice(G.si).concat(entries).sort((a, b) => a.x - b.x);
   G.script = G.script.slice(0, G.si).concat(rest);
 }
+// B.logs is a pool (spec §3.2): short reads lines 1-2 as before; long layouts take three per visit (logPick).
+// Lines 3-4 are drafts for the writer's pass (D8 copy rules)
 // one signature set piece per biome, dropped in twice per slot; a repeat visit swaps in the second one (remix)
 const later = (t, f) => $.G.pend.push({ t, f });
 const FIXED = { fixed: 1 };
@@ -191,10 +214,22 @@ export function remix(b, v, loop, rs) {
   while (cross.length < 2 && pool.length) cross.push(pool.splice(Math.floor(rs() * pool.length), 1)[0]);
   return { sig: X.sig, set: X.set, mix: mix.filter((m) => !X.drop.includes(m[0])).concat(X.add || [], cross), sets: BT.remixSets.slice(), cross: cross.map((c) => c[0]) };
 }
+/** the biome's second-ranked mix kind for this visit: the heaviest kind in the mix that isn't the signature (the
+ *  first listed wins a tie). Intro B gives it its own first slot (spec §3.2: one idea per wave) */
+export function secondKind(X) {
+  let k = null, w = -1;
+  for (const [n, m] of X.mix) if (n !== X.sig && m > w) { k = n; w = m; }
+  return k;
+}
+/** the three log lines of a visit from the biome's pool (B.logs): line 1 at the entrance, 2 at the release, 3 at the
+ *  arena run-up. A repeat visit rotates the pool by three, so it opens on lines a first visit didn't end on. No RNG */
+export const logPick = (B, v) => [0, 1, 2].map((k) => B.logs[(k + 3 * v) % B.logs.length]);
+
 /** biome slot seg's script from world x `from` (the gate), v = earlier visits to b this run. Every build-time roll
  *  (the remix, the kind rolls, extras) comes from rs, the stage's build stream (src/rng.ts; default: this run's stream
  *  for that stage), so the same inputs always give the same x and kind list. Elite rolls stay at spawn time on the sim
- *  R() (el(), below; spec §4). Every entry carries `k`, what it spawns */
+ *  R() (el(), below; spec §4). Every entry carries `k`, what it spawns. The beats are layout().beats through
+ *  beatPlan (src/layout.ts): short's single breath, or long4's beat template v2 (spec §3.2) */
 export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(seg))) {
   const B = BIOMES[b], g = slotRow(seg), BT = layout().beats, S = [], at = (x, f, k) => S.push({ x, f, k }), hard = $.G.loop > 0, X = remix(b, v, $.G.loop, rs), MX = X.mix;
   const tot = MX.reduce((s, m) => s + m[1], 0), roll = () => { let r = rs() * tot, k = 0; while ((r -= MX[k][1]) > 0 && k < MX.length - 1) k++; return MX[k][0]; };
@@ -205,26 +240,38 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     eliteRoll(enemies.slice(n0), ep, R);
     for (let i = p0; i < $.G.pend.length; i++) $.G.pend[i].f = el($.G.pend[i].f);
   };
-  const a = Math.max(g.x0 + BT.pad[0], from + 60), z = g.bossX - BT.pad[1], mid = Math.round((a + z) / 2);
-  at(a - 40, () => logLine(B.logs[0]), 'log');
-  at(mid, () => logLine(B.logs[1]), 'log');
-  // pacing beats by p = (x-a)/(z-a): intro <.2 (sparse, signature first) / build / breath .45-.55 (empty) / peak .55-.9 (dense) / tail
-  const P = (q) => a + (z - a) * q, sig = () => (rs() < .6 ? X.sig : roll()), sets = X.sets.map(P);
-  // the breath (layout().beats); a row with breathAfterMid (short slot 1) shifts it to end just past mid + that, where the old mid-stage Maw was
-  const bZ = g.breathAfterMid != null ? Math.max(P(BT.breath.end), mid + g.breathAfterMid) : P(BT.breath.end), bA = bZ - (z - a) * BT.breath.len;
-  for (let x = a, n = 0; x < z; n++) {
-    const q = (x - a) / (z - a), intro = q < .2, peak = x >= bZ && q < .9, st = Math.round(B.gap * (intro ? 1.4 : peak ? .75 : 1)), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
-    if (x >= bA && x < bZ) { x = bZ; continue; }
+  // the beat plan (layout().beats, src/layout.ts beatPlan): span [a, z], p -> x, the BREATHS, the midboss WARNING
+  const BP = beatPlan(g, from, !!v), { a, z, mid, P, breaths: BR } = BP, legacy = BP.runup == null, logs = legacy ? B.logs : logPick(B, v);
+  at(a - 40, () => logLine(logs[0]), 'log');
+  if (legacy) at(mid, () => logLine(logs[1]), 'log'); // short: line 2 at the span's midpoint
+  else at(BP.runup, () => logLine(logs[2]), 'log'); // arena run-up: line 3 (line 2 is the release, below)
+  const sig = () => (rs() < .6 ? X.sig : roll()), sets = X.sets.map(P), two = secondKind(X);
+  const inBreath = (y) => { for (const r of BR) if (y >= r.a && y < r.z) return r; return null; };
+  const quiet = (y) => inBreath(y) || (!legacy && y >= BP.runup); // where an extra may not land: a breath, the run-up
+  // the tempo band (layout().beats.tempo) for scroll x at progress q: the first whose `until` is still ahead
+  const band = (x, q) => { for (const T of BT.tempo) if (typeof T.until === 'number' ? q < T.until : x < BR[T.until.breath].z) return T; return BT.tempo[BT.tempo.length - 1]; };
+  const led = new Set();
+  for (let x = a; x < z;) {
+    const q = (x - a) / (z - a), T = band(x, q), st = Math.round(B.gap * T.gap), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
+    const br = inBreath(x);
+    if (br) {
+      x = br.z;
+      // the release: one guaranteed pod formation (a drone wave drops a pod when it's wiped out) and log line 2
+      if (br.release) { at(x, () => logLine(logs[1]), 'log'); at(x, el(() => formation('sine', PH / 2, FM)), 'pod'); x += st; }
+      continue;
+    }
+    if (T.stop) break; // the arena run-up: nothing spawns from here to the boss
     if (sets.length && x + st / 2 > sets[0]) { sets.shift(); at(x, el(SET[X.set]), 'set:' + X.set); x += st; continue; }
-    const pk = intro ? sig : roll, dbl = intro ? .2 : peak ? Math.min(.85, B.dbl + .15) : B.dbl;
-    const k1 = n ? pk() : X.sig;
-    at(x, el(SPAWN[k1]), k1); // the very first slot is the signature enemy, alone
-    if (n && rs() < dbl && !(y2 >= bA && y2 < bZ)) { const k = pk(); at(y2, el(SPAWN[k]), k); } // extras never spill into the breath
-    if (n && hard && rs() < .35 && !(y3 >= bA && y3 < bZ)) { const k = pk(); at(y3, el(SPAWN[k]), k); }
+    const pk = T.sig ? sig : roll, dbl = T.rel ? Math.min(.85, B.dbl + T.dbl) : T.dbl;
+    if (T.lead && !led.has(T)) { led.add(T); const k = T.lead === 'sig' || !two ? X.sig : two; at(x, el(SPAWN[k]), k); x += st; continue; } // the band's first slot, alone
+    const k1 = pk();
+    at(x, el(SPAWN[k1]), k1);
+    if (rs() < dbl && !quiet(y2)) { const k = pk(); at(y2, el(SPAWN[k]), k); } // extras never spill into a breath or the run-up
+    if (hard && T.third && rs() < .35 && !quiet(y3)) { const k = pk(); at(y3, el(SPAWN[k]), k); }
     x += st;
   }
-  // the breath's centerpiece: the biome's own midboss. WARNING 150f (~150px) ahead so it lands ~60px before bZ and the scroll coasts to a stop inside the breath
-  at(Math.round(bZ - BT.warnLead), () => miniWarn(B.midName, () => midboss(B.mid, B.midName, b)), 'mid:' + B.mid);
+  // the midboss breath's centerpiece: the biome's own midboss. WARNING 150f (~150px) ahead so it lands ~60px before the breath's end and the scroll coasts to a stop inside it
+  if (BP.warn != null) at(BP.warn, () => miniWarn(B.midName, () => midboss(B.mid, B.midName, b)), 'mid:' + B.mid);
   const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
   at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }), 'boss:' + B.boss);
   return S;
