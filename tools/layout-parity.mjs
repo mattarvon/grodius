@@ -11,15 +11,17 @@
 // 10 px), and route-probe's checks (min on-screen gap, terrain slams, hazards spawned / spawned badly, fork events).
 //
 // Runs: the main set (--seeds x --descents, invincible bot) plus two fixed extra runs that cover what it can't reach:
-//   1x3  seed 1 for 3 descents: Descent 3 is the first where a slot-0 gate can be a repeat visit (forks offer fresh
-//        biomes first); seed 1's Descent 3 takes the revisit
+//   3x3  seed 3 for 3 descents: Descent 3 is the first where a slot-0 gate can be a repeat visit (forks offer fresh
+//        biomes first); seed 3's Descent 3 takes the revisit (acid, first flown in Descent 1)
 //   7m   seed 7 with a MORTAL bot (same pilot, no invincibility) until game over: hits, deaths, BLACK BOX/salvage
 //        pods, respawn, lives and game over
 //
-// Usage: node tools/layout-parity.mjs [url] [--seeds 1,5,6,7,11] [--descents 2] [--update] [--out file]
-//   Seeds 2 and 3 are not in the default set: their bot kits cannot kill the Gravity Drive (no escape clock), so they
-//   time out (seed 3 since P0's brood cap and B1's RNG split moved its run). Seed 6 replaced 3: it covers both gates
-//   at every fork with the others and flies a slot-1 repeat visit in Descent 2.
+// Usage: node tools/layout-parity.mjs [url] [--seeds 3,6,7,11,15] [--descents 2] [--update] [--out file]
+//   A default seed must have a bot kit that kills the Gravity Drive (it has no escape clock, so a seed that can't
+//   times out). Every sim-stream change re-rolls the kits, so the set is re-checked then:
+//   - LS1-B1fix (render-gated draws moved to srnd): seeds 1 and 5 began timing out; 3 (gates 1001) and 15 (0111)
+//     replaced them, and 3 replaced 1 in the 3-descent run. Seed 10 (1111) also times out.
+//   - Seeds 3 and 7 each fly a slot-1 repeat visit in Descent 2 (snot and fire).
 //   The gate taken at each fork is a hash of the seed; over the default seeds every fork position takes both gates.
 //   The url must be a Vite DEV server (the anchors are read by importing /src modules).
 //   Not measured (printed at the end of every run): anything render-only (canvas calls are stubbed;
@@ -34,14 +36,14 @@ import { execSync } from 'node:child_process';
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
 const UPDATE = argv.includes('--update');
-const SEEDS = opt('--seeds', '1,5,6,7,11').split(',').map(Number);
+const SEEDS = opt('--seeds', '3,6,7,11,15').split(',').map(Number);
 const DESCENTS = +opt('--descents', '2');
 const OUT = opt('--out', null);
 let url = argv.find((a, i) => !a.startsWith('--') && !['--seeds', '--descents', '--out'].includes(argv[i - 1]));
 const BASELINE = new URL('./layout-parity.baseline.json', import.meta.url);
 const MAX_FRAMES = (d) => 60 * 60 * 14 * d; // a descent is 4-6 min; 14 min each is a hang, not a slow run
 const RUNS = [...SEEDS.map((seed) => ({ id: String(seed), seed, descents: DESCENTS, mortal: false })),
-  { id: '1x3', seed: 1, descents: 3, mortal: false }, { id: '7m', seed: 7, descents: 2, mortal: true }];
+  { id: '3x3', seed: 3, descents: 3, mortal: false }, { id: '7m', seed: 7, descents: 2, mortal: true }];
 
 let server;
 if (!url) {
@@ -223,4 +225,4 @@ const walk = (a, b, path) => {
 };
 walk(base.runs, runs, 'seed');
 if (diffs.length) { console.error(`PARITY DIFF vs baseline @ ${base.commit}:\n${diffs.join('\n')}`); process.exit(1); }
-console.log(`PARITY PASS vs baseline @ ${base.commit}: runs ${meta.runs.join(', ')} identical (${SEEDS.length} seeds x ${DESCENTS} descents + 1x3 + 7m)`);
+console.log(`PARITY PASS vs baseline @ ${base.commit}: runs ${meta.runs.join(', ')} identical (${SEEDS.length} seeds x ${DESCENTS} descents + 3x3 + 7m)`);

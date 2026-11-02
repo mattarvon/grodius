@@ -28,7 +28,15 @@ final sim state. It only works if the same inputs always produce the same sim.
   - a user setting: `SET.flashes && R()` draws only when flashes are on
   - timing: `setTimeout`/`setInterval` callbacks (stubbed out in the harness)
   - fx state: fx now runs on `srnd()`, so a sim draw gated on a particle (a gib
-    landing, a decal dripping) would pull render timing into the sim
+    landing, a decal dripping, `if (g)` after a `gib()` that returns null at its
+    cap) would pull render timing into the sim
+  - presentation state: `$.G.shake/white/red/glitch/hell/flick` are written by fx
+    and by render (ship sprouts), so a sim draw that reads one is render-gated
+  - render code living outside `src/render`: `src/shipform.ts` (the ship's
+    sprout/wither diff runs inside `drawShip`) is presentation and uses `srnd()`
+- `tests/unit/rng-split.test.ts` also follows every function render or fx
+  imports from another module (and that module's helpers it calls), and fails
+  on the two gated forms above.
 - Still on the sim stream at boot only (fixed count, before the first frame):
   the texture builders in `src/textures.ts`.
 
