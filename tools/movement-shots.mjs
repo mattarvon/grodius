@@ -3,18 +3,20 @@
 // slots, on the layout the page flies. Full frames, empty of enemies, plus a measured gap table:
 //   A     min gap over movement A's span (gate + 300 .. run-up)
 //   C     min gap from the run-up + arenaBlend to the boss arena's right screen edge (bossX + 200 + W)
-// Usage: node tools/movement-shots.mjs <outDir> [url] [--layout long]
-//   No url: starts its own Vite dev server. --layout is appended as ?layout= (src/main.ts flag parse).
+// Usage: node tools/movement-shots.mjs <outDir> [url] [--layout long4]
+//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default short) sets the entry
+//   in-page before the run, like every probe; the game's own ?layout=long flag (src/main.ts) selects the same entry.
 //   Not measured: movement B (a later item), live hazards, Descent 2+ terrain seeds (shots and gaps are Descent 1).
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
-const pos = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--layout');
-const OUT = pos[0], LAYOUT = opt('--layout', null);
+const pos = argv.filter((a) => !a.startsWith('--'));
+const OUT = pos[0];
 let url = pos[1], server;
-if (!OUT) { console.error('usage: node tools/movement-shots.mjs <outDir> [url] [--layout long]'); process.exit(2); }
+if (!OUT) { console.error('usage: node tools/movement-shots.mjs <outDir> [url] [--layout long4]'); process.exit(2); }
 fs.mkdirSync(OUT, { recursive: true });
 if (!url) {
   const { createServer } = await import('vite');
@@ -22,12 +24,12 @@ if (!url) {
   await server.listen();
   url = server.resolvedUrls.local[0];
 }
-if (LAYOUT) url += (url.includes('?') ? '&' : '?') + 'layout=' + LAYOUT;
 
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { window.requestAnimationFrame = () => 1; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'movement-shots');
 await p.waitForTimeout(1500);
 const id = await p.evaluate(async () => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
@@ -69,5 +71,6 @@ for (const s of [0, 1]) for (const bk of ['ice', 'acid', 'fire', 'snot']) {
 console.log(rows.join('\n'));
 console.log(errs.length ? 'page errors:\n' + errs.slice(0, 5).join('\n') : 'no page errors');
 console.log('not measured: movement B (later item); hazards; Descent 2+ terrain seeds');
+ranOn('movement-shots');
 await b.close();
 if (server) await server.close();

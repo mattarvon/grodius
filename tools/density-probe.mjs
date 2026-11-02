@@ -1,7 +1,8 @@
 // Density probe: builds every biome script (4 biomes x every biome slot x loop 0/1, averaged over N rolls) straight from
-// biomeScript and prints spawn calls per pacing beat (intro/build/breath/peak/tail) as count and spawns/s (60px = 1s).
+// biomeScript and prints spawn calls per pacing beat (intro/build/breath/peak/tail around the midboss breath) as count and
+// spawns/s (60px = 1s). On a layout with the v2 beat template (long4) tools/beat-probe.mjs gives its own bands.
 // Each slot is built from where choose() puts it in practice: the row's gateLate in src/layout.ts (fork scroll + W + 10;
-// 2660 / 5640 on short, which the parity bots take at 2658 / 5637). Spans and beats come from layout().beats and slotRow(s).
+// 2660 / 5640 on short, which the parity bots take at 2658 / 5637). Spans and breaths come from layout.ts beatPlan.
 // Set pieces count as one call; logs, the biome midboss (mid p= is where it lands) and the boss don't count.
 // Usage: node tools/density-probe.mjs <url> [N=400] [save.json] [compare.json] [--layout short]
 import { chromium } from 'playwright';
@@ -14,16 +15,17 @@ await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'density-probe');
 const res = await p.evaluate(async (N) => {
   const { biomeScript, BIOMES } = await import('/src/biomes.ts'), { $ } = await import('/src/state.ts'), LY = await import('/src/layout.ts');
-  const BT = LY.layout().beats, out = {}, G0 = $.G;
+  const out = {}, G0 = $.G;
   for (const loop of [0, 1]) for (let seg = 0; seg < LY.nSlots(); seg++) for (const bk of Object.keys(BIOMES)) {
-    const g = LY.slotRow(seg), from = g.gateLate ?? g.x0, a = Math.max(g.x0 + BT.pad[0], from + 60), z = g.bossX - BT.pad[1], mid = Math.round((a + z) / 2);
-    // breath window as biomeScript places it: ending at p beats.breath.end, or (a row with breathAfterMid, short slot 1)
-    // ending just past mid + breathAfterMid, where the old mid-stage Maw was
-    const end = BT.breath.end, qZ = g.breathAfterMid != null ? Math.max(end, (mid + g.breathAfterMid - a) / (z - a)) : end, qA = qZ - BT.breath.len;
+    // span, breaths and beats exactly as biomeScript places them (src/layout.ts beatPlan). Its band set is short's
+    // (intro/build/breath/peak/tail around the midboss breath); tools/beat-probe.mjs reports a layout's own beat bands
+    // (long4: intro A/B, two breaths, the run-up)
+    const g = LY.slotRow(seg), from = g.gateLate ?? g.x0, P = LY.beatPlan(g, from, false), a = P.a, z = P.z;
+    const br = P.breaths.find((b) => b.mid) || P.breaths[0], qA = (br.a - a) / (z - a), qZ = (br.z - a) / (z - a);
     const BK = [['intro', 0, .2], ['build', .2, qA], ['breath', qA, qZ], ['peak', qZ, .9], ['tail', .9, 1]], c = Object.fromEntries(BK.map((k) => [k[0], 0]));
     let tot = 0, maw = null;
     for (let n = 0; n < N; n++) {
-      $.G = { loop, rank: 0 };
+      $.G = { loop, rank: 0, pend: [] };
       for (const e of biomeScript(seg, bk, from)) {
         const s = e.f.toString();
         if (/midboss\(/.test(s)) { maw = ((e.x + 150 - a) / (z - a)).toFixed(3); continue; } // its WARNING; it lands ~150px later

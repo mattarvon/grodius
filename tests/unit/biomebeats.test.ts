@@ -44,7 +44,7 @@ function build(seg: number, b: string, from: number, v = 0, loop = 0) {
 }
 
 describe('beat template v2 on long4', () => {
-  beforeAll(() => { if (!L.LAYOUTS.long4) L.LAYOUTS.long4 = L.LONG4_ENTRY; L.setLayout('long4'); }); // a fixture until item J lets long4 register
+  beforeAll(() => L.setLayout('long4'));
   afterAll(() => L.setLayout('short'));
   beforeEach(() => { calls.length = 0; });
 
