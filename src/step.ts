@@ -5,7 +5,8 @@ import { stepBiome, hazardHit } from './biomes';
 import { stepPerks } from './perks';
 import { powerBudget } from './power';
 import { musicUpdate } from './music';
-import { R, clamp, swapRm } from './core';
+import { clamp, swapRm } from './core';
+import { srnd } from './srnd';
 import { SET, save } from './save';
 import { setMute } from './audio';
 import { I, PR, pollInput } from './input';
@@ -91,8 +92,10 @@ export function step() {
   } else if ($.state === 'title') { if (!$.gate) menuNav(titleItems()); }else if ($.state === 'shop') stepShop();
   if ($.G) {
     const k = Math.min(9, $.G.shake);
-    $.G.shx = k > .3 ? Math.round((R() * 2 - 1) * k) : 0;
-    $.G.shy = k > .3 ? Math.round((R() * 2 - 1) * k * .7) : 0;
+    // render-only offsets (screens.ts, hype.ts translate by them), so srnd: shake is set by fx and by render's ship-sprout
+    // fx, and a sim-stream draw here happened only when render had shaken the screen (LS1-B1fix)
+    $.G.shx = k > .3 ? Math.round((srnd() * 2 - 1) * k) : 0;
+    $.G.shy = k > .3 ? Math.round((srnd() * 2 - 1) * k * .7) : 0;
   }
   PR.clear();
 }

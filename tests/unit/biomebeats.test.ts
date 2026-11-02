@@ -3,7 +3,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
-// a seeded sim RNG (mulberry32) so a script rebuilds the same in every run
+// a seeded sim RNG (mulberry32) for the spawn-time rolls the mocks never make; build rolls draw the stage stream (G.seed)
 let seed = 1;
 const R = () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const calls: string[] = []; // what the script entries spawned when fired
@@ -38,7 +38,7 @@ const { BIOMES, biomeScript, logPick, remix, secondKind } = await import('../../
 const ENEMY = /^(behindWave|corpse|crawler|crossT|eyeT|flayer|formation|hatch|hookE|womb|mutant|slime)$/;
 /** build a slot's script, sorted by x as insertScript does, and fire each entry, recording what it called */
 function build(seg: number, b: string, from: number, v = 0, loop = 0) {
-  $.G = { loop, pend: [], rank: 0 };
+  $.G = { loop, pend: [], rank: 0, seed: 7 + seg * 31 + v }; // the run seed: build rolls draw its stage stream (src/rng.ts)
   seed = 7 + seg * 31 + v;
   return biomeScript(seg, b, from, v).sort((p: { x: number }, q: { x: number }) => p.x - q.x).map((e: { x: number; f: () => void }) => { calls.length = 0; e.f(); return { x: e.x, k: [...calls] }; });
 }
@@ -104,7 +104,7 @@ describe('beat template v2 on long4', () => {
     for (const b of Object.values(BIOMES)) expect(new Set(logPick(b, 0)).size).toBe(3);
   });
 
-  it('builds the same script twice from the same seed (the B2 per-stage stream will own the seed)', () => {
+  it('builds the same script twice from the same run seed (the per-stage build stream, src/rng.ts)', () => {
     const r = L.slotRow(0), a = build(0, 'acid', r.gateLate!, 1, 1), b = build(0, 'acid', r.gateLate!, 1, 1);
     expect(a).toEqual(b);
   });
