@@ -2,14 +2,16 @@
 // and 3. Each trial spawns one enemy, pins its x at 70% of the screen (the scroll keeps running, so terrain moves under
 // it) and steps the game 600 frames (10 s) with an invincible, non-firing player at x=60. Counts enemy bullets created
 // (eshots) and, for the womb, hatchlings. Averaged over N trials. The Descent 2+ revenge shots are not counted (nothing dies).
-// Usage: node tools/fire-probe.mjs <url> [N=30]       (needs the VITE dev server)
+// Usage: node tools/fire-probe.mjs <url> [N=30]       (needs the VITE dev server) [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, N = '30'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage();
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 // seeded Math.random + fake clock like tools/harness.mjs, so before/after runs compare like for like
 await p.addInitScript(() => { let s = 1234567, now = 0; window.__seed = (v) => { s = v; }; Math.random = () => { s |= 0; s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; performance.now = () => now; window.AudioContext = window.webkitAudioContext = undefined; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'fire-probe');
 const KINDS = ['eye', 'cross', 'flayer', 'slime', 'mutant', 'sentry', 'womb'];
 const res = await p.evaluate(async ([N, KINDS]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
@@ -45,4 +47,4 @@ console.log('bullets/s (womb: hatchlings/s)'.padEnd(32) + 'D1'.padStart(7) + 'D2
 for (const k of KINDS) console.log(k.padEnd(32) + [1, 2, 3].map((d) => res[`${k} D${d}`].toFixed(2).padStart(7)).join(''));
 console.log('trials parked at scroll', res.at, '(stage 0 terrain)');
 console.log('trials with no spawn spot (skipped):', res.miss || 'none');
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('fire-probe'); await b.close();

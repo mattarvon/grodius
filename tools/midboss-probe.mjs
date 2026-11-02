@@ -5,14 +5,18 @@
 // Usage: node tools/midboss-probe.mjs <url> [shotsDir] [zoomDir]   (also saves a rendered mid-fight midboss-<biome>.png, and a close-up)
 //        node tools/midboss-probe.mjs <url> matrix [shotsDir]   (LS1 P0 crossovers: each of the 4 biome midbosses in each of
 //        the 4 biomes, STAGE 1 kit; TTK, y range, terrain clipping, render errors, and a mid-fight xmb-<kind>-<biome>.png)
+//        Either form takes [--layout short]. World x comes from src/layout.ts: the biome fights sit in biome slot 0, at
+//        stage-relative x 1000 (matrix: 1000 / 1400 / 1800 / 2200), and the Saucer at ufoAt() + 150.
 //  TTK = seconds from the midboss being on screen to dead; "esc" = it left (escape timer) first
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const argv = process.argv.slice(2), MATRIX = argv[1] === 'matrix';
 const [url, SHOTS, ZOOM] = MATRIX ? [argv[0], argv[2]] : argv;
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: ZOOM ? 2 : 1 });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'midboss-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
 const L = [
   ['NAKED (died)', {}, {}, {}],
   ['STAGE 1 kit', { speed: 2, missile: 1, double: 1, options: 1, wardLv: 1 }, { cal: 1 }, { dmg: 1 }],
@@ -21,20 +25,20 @@ const L = [
 ];
 const MIDS = [['maw', 'acid'], ['choir', 'ice'], ['cyst', 'acid'], ['prentice', 'fire'], ['brood', 'snot'], ['ufo', null]];
 // one loadout + biome, midboss spawned; returns a frame stepper with the bot attached
-const prep = async (pw, gm, pkk, k, biome, host, at = 3300) => p.evaluate(async ([pw, gm, pkk, k, biome, host, at]) => {
+const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => p.evaluate(async ([pw, gm, pkk, k, biome, host, at]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
-  const UF = await import('/src/enemies/ufo.ts');
+  const UF = await import('/src/enemies/ufo.ts'), LY = await import('/src/layout.ts');
   const $ = S.$; $.gate = false; IN.K.KeyZ = true;
   F.newGame(0); $.state = 'play';
   for (let i = 0; i < 30; i++) ST.step();
-  if (!biome) $.G.scroll = UF.UFO_AT + 150; // Open Orbit: where it lands after its WARNING
+  if (!biome) $.G.scroll = LY.ufoAt() + 150; // Open Orbit: where it lands after its WARNING
   else {
-  $.G.scroll = 2300; $.G.si = $.G.script.length; W.enemies.length = 0;
+  $.G.scroll = LY.slotRow(0).x0; $.G.si = $.G.script.length; W.enemies.length = 0;
   BI.openFork(0); $.G.fork.opts = [biome, biome]; $.G.fork.t = 50; $.G.tally = null;
   const gy = $.G.fork.gy[0]; Object.assign($.P, { x: C.W * .74, y: gy, alive: true, inv: 30 });
   ST.step();
-  $.G.scroll = at; // past the rewrite blend, inside the biome; skip its script (matrix: several stage positions)
+  $.G.scroll = LY.slotRow(0).x0 + at; // stage-relative at: past the rewrite blend, inside the biome; skip its script (matrix: several stage positions)
   for (let i = 0; i < 60; i++) { $.P.inv = 30; ST.step(); }
   }
   $.G.si = $.G.script.length; $.G.pick = null; $.G.pickQ = 0; $.G.tally = null;
@@ -45,7 +49,7 @@ const prep = async (pw, gm, pkk, k, biome, host, at = 3300) => p.evaluate(async 
   W.enemies.length = 0; W.eshots.length = 0; W.caps.length = 0; W.shots.length = 0;
   const sv = $.G.scroll; ST.step(); $.G.scroll = sv;
   W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
-  if (k === 'maw') SP.maw(false); else if (k === 'ufo') { $.G.eat = UF.UFO_GAP_END; UF.spawnUfo(); } else SP.midboss(k, Object.values(BI.BIOMES).find((B) => B.mid === k).midName, host); // its own name, wherever it fights
+  if (k === 'maw') SP.maw(false); else if (k === 'ufo') { $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); } else SP.midboss(k, Object.values(BI.BIOMES).find((B) => B.mid === k).midName, host); // its own name, wherever it fights
   window.__mb = { $, ST, C, W, f: 0, t0: -1 };
   window.__mbStep = (n) => {
     const m = window.__mb;
@@ -89,13 +93,13 @@ if (SHOTS) for (const [k, biome] of MIDS.slice(1)) {
   }
   console.log('shot', `midboss-${biome || 'orbit'}.png`, await p.evaluate(() => { const g = window.__mb.$.G.mini; return g ? `${g.k} st=${g.st} hp=${g.hp | 0}/${g.max | 0}` : 'gone'; }));
 }
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('midboss-probe'); await b.close();
 
 // ---- LS1 P0: the 4x4 crossover matrix (home fights on the diagonal) ----
 async function matrix() {
   const KS = [['choir', 'ice'], ['cyst', 'acid'], ['prentice', 'fire'], ['brood', 'snot']], BS = ['ice', 'acid', 'fire', 'snot'];
   const res = {};
-  const AT = [3300, 3700, 4100, 4500]; // stage positions (world x): different terrain under the fight
+  const AT = [1000, 1400, 1800, 2200]; // stage positions (stage-relative x in slot 0): different terrain under the fight
   for (const [k, home] of KS) for (const biome of BS) for (const at of AT) {
     // the midboss is spawned with its host = the biome it is in, as biomes.ts does
     await prep(...L[1].slice(1), k, biome, biome, at);
@@ -188,6 +192,6 @@ async function matrix() {
   console.log(`brood CROWD cap (STRONG kit holding fire, Descent 5, phase 2): max hatchlings alive ${cap.mx} over ${cap.births} litters, rank ${cap.rank} (cap 8)`);
   console.log('render frames sampled:', Object.values(res).reduce((a, r) => a + r.rendered, 0));
   console.log('errors:', errs.slice(0, 5).join(' | ') || 'none');
-  await b.close();
+  ranOn('midboss-probe'); await b.close();
   process.exit(errs.length ? 1 : 0);
 }

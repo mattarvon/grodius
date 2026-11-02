@@ -8,8 +8,9 @@
 //   variety - enemy kinds per stage, wave signatures (kinds spawned together) and how often the top one repeats,
 //            how much of descent N's stage repeats descent N-1's mix, hype voice count, music per stage
 // Screenshots every SHOT seconds of game time go to <outDir>. Needs the VITE dev server (imports live modules).
-// Usage: node tools/playtest.mjs <url> <outDir> [descents=3] [seed=7] [maxMinutes=30]
+// Usage: node tools/playtest.mjs <url> <outDir> [descents=3] [seed=7] [maxMinutes=30] [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
 const [url, OUT, DESC = '3', SEED = '7', MAXM = '30'] = process.argv.slice(2);
 const SHOT = 20;
@@ -49,6 +50,7 @@ await p.addInitScript((seed) => {
       if ((G.hypeCD || 0) > L.lastHype) L.hype++; L.lastHype = G.hypeCD || 0; } };
 }, +SEED);
 await p.goto(url); await p.waitForFunction(() => window.__started);
+await useLayout(p, 'playtest');
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
@@ -80,7 +82,7 @@ const stages = []; let cur = null, lastFork = false, nextShot = SHOT, end = '';
 const snap = () => p.evaluate(() => { const g = __G(), G = g.G, P = g.P, M = window.__music && __music();
   return { st: g.state, k: G ? `${G.loop + 1}-${(G.stage || 0) + 1}` : '', loop: G ? G.loop : 0, fr: __pt.fr, lvl: G && G.lvl, rank: G ? +(G.rank || 0).toFixed(2) : 0,
     wep: P ? [P.speed, P.missile, P.double, P.laser, P.pyre, P.options, P.wardLv || 0].join(',') : '', gm: G ? Object.entries(G.gm || {}).filter(([, v]) => v > 0).map(([k, v]) => k + v).join(' ') : '',
-    pick: !!(G && G.pick), pt: G && G.pick ? G.pick.t : 0, fork: !!(G && G.fork), biome: G && G.route && (G.stage === 1 || G.stage === 2) ? G.route[G.stage - 1] : null, remix: G && G.visitNo && (G.stage === 1 || G.stage === 2) ? G.visitNo[G.stage - 1] : 0, mix: M ? M.mix : '', kills: G ? G.gmk || G.kills : 0, bio: G ? Math.round(G.bio || 0) : 0 }; });
+    pick: !!(G && G.pick), pt: G && G.pick ? G.pick.t : 0, fork: !!(G && G.fork), biome: G && G.route && __LY.slotOf(G.stage) >= 0 ? G.route[__LY.slotOf(G.stage)] : null, remix: G && G.visitNo && __LY.slotOf(G.stage) >= 0 ? G.visitNo[__LY.slotOf(G.stage)] : 0, mix: M ? M.mix : '', kills: G ? G.gmk || G.kills : 0, bio: G ? Math.round(G.bio || 0) : 0 }; });
 for (let it = 0; it < MAXM * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
   const s = await snap();
@@ -122,4 +124,4 @@ for (let i = 0; i < stages.length; i++) {
 }
 console.log(`\nbiome stages: drones ${drn.biome[1] ? Math.round(100 * drn.biome[0] / drn.biome[1]) : 0}% of ${drn.biome[1]} regular spawns`);
 console.log(`\nwould-be hits: ${L.hits} in ${(L.fr / 3600).toFixed(1)} min (${(L.hits / (L.fr / 3600)).toFixed(1)}/min) | hype voices ${L.hype} | end ${end} | errors ${errs.slice(0, 3).join(' / ') || 'none'}`);
-await b.close();
+ranOn('playtest'); await b.close();

@@ -10,6 +10,7 @@ import { buzz } from './platform';
 import { BIOMES, openFork, holdForFork, biomeExit } from './biomes';
 import { forkAfter, lastStage, row } from './layout';
 import { gradeKey } from './gradekey';
+import { buildStage } from './stagebuild';
 
 /** stage names by stage kind; a biome stage is named by the biome you fly into once its gate is taken */
 export const STAGE_NAMES = {
@@ -39,6 +40,7 @@ export function stageInfo(i = $.G.stage || 0) {
 
 export function startStage(i) {
   $.G.stage = i;
+  if (row(i).kind !== 'biome') buildStage(i); // a stage is built on entry; a biome stage was built at its gate (choose)
   $.G.st = { kills: 0, spawned: 0, hits: 0, deaths: 0, chain: 0, t0: $.G.t };
   if ($.G.tally) $.G.tally.t = Math.min($.G.tally.t, 30); // last stage's card makes way for this stage's banner
   const s = stageInfo(i);

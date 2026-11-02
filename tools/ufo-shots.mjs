@@ -1,23 +1,26 @@
 // UFO shots: THE SQUIDFUCKED SAUCER (Open Orbit midboss, enemies/ufo.ts + render/gross/ufo.ts) at 2x: the WARNING, idle, each
 // attack's telegraph and release, wounded (last damage sheet + hull cracks), and the death (hull split, tentacle flood).
 // Saves full-frame + close-up PNGs.
-// Usage: node tools/ufo-shots.mjs <url> <outDir>      (needs the VITE dev server: imports live modules)
+// Usage: node tools/ufo-shots.mjs <url> <outDir> [--layout short]   (WARNING at src/layout.ts ufoAt(); needs the VITE dev server: imports live modules)
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, OUT] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: 2 });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'ufo-shots');
 await p.waitForTimeout(800); // sprites load
 await p.evaluate(async () => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const UF = await import('/src/enemies/ufo.ts'), IN = await import('/src/input.ts'), U = await import('/src/enemies/update.ts'), RS = await import('/src/render/screens.ts');
+  const LY = await import('/src/layout.ts');
   const $ = S.$; $.gate = false; IN.K.KeyZ = false;
   F.newGame(0); $.state = 'play';
   for (let i = 0; i < 30; i++) ST.step();
-  $.G.scroll = UF.UFO_AT - 1; $.G.si = $.G.script.length; W.enemies.length = 0; W.eshots.length = 0;
+  $.G.scroll = LY.ufoAt() - 1; $.G.si = $.G.script.length; W.enemies.length = 0; W.eshots.length = 0;
   for (let i = 0; i < 300; i++) ST.step(); // past the stage card
-  $.G.scroll = UF.UFO_AT - 1; $.G.si = $.G.script.length; W.enemies.length = 0; W.eshots.length = 0;
+  $.G.scroll = LY.ufoAt() - 1; $.G.si = $.G.script.length; W.enemies.length = 0; W.eshots.length = 0;
   UF.ufoWarn();
   window.__ms = { $, ST, W, U, RS };
   window.__msStep = (n, hpf, rend = n <= 40) => {
@@ -56,4 +59,4 @@ await p.evaluate(() => { const m = window.__ms, g = m.$.G.mini; g.hp = 0; m.U.ki
 await shot('ufo-death', true);
 await p.evaluate(() => window.__msStep(30)); await shot('ufo-death2', true);
 await p.evaluate(() => window.__msStep(40)); await shot('ufo-death3', true);
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('ufo-shots'); await b.close();

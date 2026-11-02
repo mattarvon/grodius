@@ -1,7 +1,8 @@
 // Seeded pacing probe: progression.mjs bot + pick/fork/shop handling, seeded RNG,
 // per-frame pod-pickup timestamps, per-stage pods/min, bio per descent.
-// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1]
+// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, LAYOUT } from './layout-arg.mjs';
 const [url, SEED = '1', MIN = '12', END = '1'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
@@ -27,6 +28,7 @@ await p.addInitScript((seed) => { let now = 0; const q = []; performance.now = (
           if (kind === 'choice') { if (chosen) continue; chosen = true; }
           window.__pods.push({ f: window.__fr, kind, st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, +SEED);
 await p.goto(url); await p.waitForFunction(() => window.__started);
+await useLayout(p, 'pod-probe', { quiet: true }); // stdout stays one JSON object; it carries the layout
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
@@ -50,7 +52,7 @@ const podsOnly = fin.pods.filter((x) => x.kind === 'pod' || x.kind === 'choice')
 const first = podsOnly[0];
 const stages = seg.slice(0, -1).map((sg, i) => { const f1 = seg[i + 1].f0; const n = podsOnly.filter((x) => x.f >= sg.f0 && x.f < f1).length; const dur = (f1 - sg.f0) / 60;
   return { stage: sg.k, dur: +dur.toFixed(1), pods: n, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
-console.log(JSON.stringify({ seed: +SEED, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
+console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
   stages, finalBio: fin.bio, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
-await b.close();
+console.error(`pod-probe: ran on ${LAYOUT}`); await b.close();

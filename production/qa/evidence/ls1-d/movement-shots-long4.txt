@@ -1,0 +1,13 @@
+movement-shots: layout long4 (orbit, biome, biome, drive)
+layout long4
+slot 0 ice   gate 3961  A min gap 146.8 @6628  C min gap 179.8 @6992
+slot 0 acid  gate 3961  A min gap 188.7 @4740  C min gap 203.4 @7044
+slot 0 fire  gate 3961  A min gap 150.0 @4276  C min gap 172.0 @7516
+slot 0 snot  gate 3961  A min gap 129.6 @4280  C min gap 155.8 @6988
+slot 1 ice   gate 7711  A min gap 145.7 @9128  C min gap 187.3 @11156
+slot 1 acid  gate 7711  A min gap 177.9 @10336  C min gap 203.4 @10712
+slot 1 fire  gate 7711  A min gap 119.4 @9252  C min gap 165.7 @10712
+slot 1 snot  gate 7711  A min gap 116.7 @10216  C min gap 154.6 @10708
+no page errors
+not measured: movement B (later item); hazards; Descent 2+ terrain seeds
+movement-shots: ran on long4

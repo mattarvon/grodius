@@ -1,14 +1,17 @@
 // Perf probe: real-clock cost of step() and render() per frame in the heaviest scenes: a crowded Open Orbit with a
 // strong kit, every boss / midboss in its own biome, and each boss's death + aftermath. The game's own rAF loop is
 // disabled; frames are driven by hand. CPU is throttled (default 4x) to approximate a phone.
-// Usage: node tools/perf-probe.mjs <url> [throttle=4] [scenes=all|maw,crux,...] [prof]   (WARM_MS=20000 env: wait for the idle art warm-up first, like the title screen; fairer for boss scenes)
+// Usage: node tools/perf-probe.mjs <url> [throttle=4] [scenes=all|maw,crux,...] [prof] [--layout short]   (WARM_MS=20000 env: wait for the idle art warm-up first, like the title screen; fairer for boss scenes)
 //   prints avg / p95 / max ms for step and render, and the share of frames whose step+render blows the 16.7 ms budget.
 //   prof: also samples the JS profiler per scene and prints the top self-time functions.
 //   ELITE=1 env: in biome scenes, a crowd of elites (enemies/elite.ts) keeps streaming in alongside the fight (~8 alive);
 //   ELITE=2: the same crowd, not elite (the control: what the elite visuals and attacks cost on top).
 //   XHOST=ice|acid|fire|snot env: the four biome midboss scenes run as crossovers in that biome (host tint and terrain fit, LS1 P0).
+//   World x comes from src/layout.ts: biome scenes at biome slot 0 (stage-relative x 1000), the Saucer at ufoAt() + 150,
+//   the Drive at bossAt(), the crowded orbit at Open Orbit x 600.
 // Needs the VITE DEV server (imports live modules). Restart vite after edits before trusting numbers.
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, THR = '4', SC = 'all', PROF = ''] = process.argv.slice(2);
 const SCENES = ['orbit', 'maw', 'ufo', 'choir', 'cyst', 'prentice', 'brood', 'crux', 'butcher', 'gravity'];
 const want = SC === 'all' ? SCENES : SC.split(',');
@@ -17,6 +20,7 @@ const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { window.requestAnimationFrame = () => 1; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'perf-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
 await p.waitForTimeout(+(process.env.WARM_MS || 1500)); // images / patterns load (WARM_MS: let the idle warm-up finish, like the title screen does)
 const cdp = await p.context().newCDPSession(p);
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: +THR });
@@ -31,26 +35,26 @@ async function scene(k) {
   return p.evaluate(async ([k, biome, kit, elite, xhost]) => {
     const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
     const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
-    const BU = await import('/src/boss/update.ts'), SCR = await import('/src/render/screens.ts');
+    const BU = await import('/src/boss/update.ts'), SCR = await import('/src/render/screens.ts'), LY = await import('/src/layout.ts');
     const $ = S.$; $.gate = false; IN.K.KeyZ = true;
     F.newGame(0); $.state = 'play';
     for (let i = 0; i < 30; i++) ST.step();
     const [pw, gm, pkk] = kit;
     const arm = () => { Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw); $.P.shield = 3; $.G.gm = { ...gm }; $.G.pk = { ...pkk }; $.G.lvl = 10; };
     if (biome) {
-      $.G.scroll = 2300; $.G.si = $.G.script.length; W.enemies.length = 0;
+      const x0 = LY.slotRow(0).x0; $.G.scroll = x0; $.G.si = $.G.script.length; W.enemies.length = 0;
       BI.openFork(0); $.G.fork.opts = [biome, biome]; $.G.fork.t = 50; $.G.tally = null;
       Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 });
-      ST.step(); $.G.scroll = 3300;
+      ST.step(); $.G.scroll = x0 + 1000;
       for (let i = 0; i < 60; i++) { $.P.inv = 30; ST.step(); }
     }
     arm();
-    if (k === 'orbit') { $.G.scroll = 600; $.G.si = 0; while ($.G.si < $.G.script.length && $.G.script[$.G.si].at < 600) $.G.si++; }
+    if (k === 'orbit') { const o = LY.row(0).x0 + 600; $.G.scroll = o; $.G.si = 0; while ($.G.si < $.G.script.length && $.G.script[$.G.si].at < o) $.G.si++; }
     else {
       $.G.si = $.G.script.length; W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
-      if (k === 'gravity') { $.G.scroll = C.BOSS_AT; BU.startBoss(); }
+      if (k === 'gravity') { $.G.scroll = LY.bossAt(); BU.startBoss(); }
       else if (k === 'maw') SP.maw(true);
-      else if (k === 'ufo') { const UF = await import('/src/enemies/ufo.ts'); $.G.scroll = UF.UFO_AT + 150; $.G.eat = UF.UFO_GAP_END; UF.spawnUfo(); } // Open Orbit midboss
+      else if (k === 'ufo') { const UF = await import('/src/enemies/ufo.ts'); $.G.scroll = LY.ufoAt() + 150; $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); } // Open Orbit midboss
       else if (k === 'crux' || k === 'butcher') { SP[k](); if ($.G.mini) $.G.mini.biome = biome; }
       else SP.midboss(k, BI.BIOMES[biome].midName, xhost || undefined);
     }
@@ -104,4 +108,4 @@ for (const k of want) {
 }
 if (PROF) for (const [k, lines] of Object.entries(prof)) console.log(`\n-- ${k}: top self time\n` + lines.join('\n'));
 console.log(errs.length ? 'errors:\n' + errs.join('\n') : 'errors: none');
-await b.close();
+ranOn('perf-probe'); await b.close();

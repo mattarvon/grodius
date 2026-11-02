@@ -1,8 +1,9 @@
 // XP pacing probe: invincible bot plays the real flow (takes forks, grabs pods), logs ship level per stage,
 // every level-up time, and any pick screen that opens during a fork / tally / death (must never happen).
-// Usage: node tools/perk-pace.mjs <url> [minutes=20] [mode=pick|none] [endLoop=1]
+// Usage: node tools/perk-pace.mjs <url> [minutes=20] [mode=pick|none] [endLoop=1] [--layout short]
 //   mode none: pick screens are dismissed without taking a perk (baseline for balance comparison)
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, MIN = '20', MODE = 'pick', END = '1'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
@@ -17,6 +18,7 @@ await p.addInitScript(() => { let now = 0; const q = []; performance.now = () =>
         if (tx != null) { g.P.x += Math.sign(tx - g.P.x) * Math.min(12, Math.abs(tx - g.P.x)); g.P.y += Math.sign(ty - g.P.y) * Math.min(12, Math.abs(ty - g.P.y)); } }
       q.splice(0).forEach((f) => f(now)); const h = window.__G && window.__G(); if (h && h.G && h.G.pick && h.G.pick !== window.__lp) { window.__lp = h.G.pick; if (h.G.fork || h.G.tally || !h.P.alive || h.state !== 'play') window.__bad.push({ fork: !!h.G.fork, tally: !!h.G.tally, t: h.G.pick.t }); } } }; });
 await p.goto(url); await p.waitForFunction(() => window.__started);
+await useLayout(p, 'perk-pace');
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
@@ -40,4 +42,4 @@ while (f < 60 * 60 * +MIN || console.log('time up')) {
 const s = await p.evaluate(() => { const g = __G(), G = g.G; return { lvl: G.lvl, pk: G.pk, kills: G.kills, score: G.score, bad: window.__bad }; });
 console.log('final', JSON.stringify(s));
 console.log('level-up times (s):', lvT.join(' '));
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('perk-pace'); await b.close();
