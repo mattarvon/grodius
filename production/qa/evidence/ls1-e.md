@@ -1,16 +1,16 @@
 # LS1-E: long Open Orbit and the Drive approach (sprint 2, lane e)
 
-Branch `ls1-e`, off main `8ff9ba4`. Owner role: level-designer. Spec: `design/content-expansion.md` §3.4 ("Authoring method"), §3.1 (wall time), §3.2 rule 1. Plan: `production/content-build-plan.md` §2 Sprint 2, row E. Rulings: `production/decision-log.md` D20 and D21.
+Branch `ls1-e`, first cut off main `8ff9ba4`, then **rebased onto the integration branch `origin/ls1-s2` (`ddceca7`, which has J)** at the coordinator's request. Owner role: level-designer. Spec: `design/content-expansion.md` §3.4 ("Authoring method"), §3.1 (wall time), §3.2 rule 1. Plan: `production/content-build-plan.md` §2 Sprint 2, row E. Rulings: `production/decision-log.md` D20 and D21.
 
-**State: built and measured, not yet wired to a real `long4` entry.** Item D (`origin/ls1-d`) had not been pushed when this lane finished, so there was nothing to rebase onto. The generator, cells and rows are done and unit-tested. They are exported for D's entry to place (see "Stubs"). The long numbers below come from a **scratch `long4` entry** that was never committed. It is described under "How long4 was measured".
+**State: built and measured, not yet wired to a real `long4` entry.** Item D had not landed on `origin/ls1-s2` (or `origin/ls1-d`) when this lane finished, so there was nothing to rebase onto. The generator, cells and rows are done and unit-tested. They are exported for D's entry to place (see "Stubs"). The long numbers below come from a **scratch `long4` entry** that was never committed. It is described under "How long4 was measured".
 
 ## Commits
 
 | Commit | What |
 |---|---|
-| `13addc9` | The generator: `src/cellpick.ts` (new), the cells and `buildPlanned` in `src/enemies/scripts.ts`, `StagePlan`, `LONG4_ORBIT` and `long4Drive` in `src/layout.ts`, and `tests/unit/cellpick.test.ts` |
-| `77258c7` | Long Orbit grows from 3600 to 4380 px to reach its wall-time band, plus a 13th Orbit cell. `buildPlanned` is split into `pickPlanned` (draws) and `placePlanned` (no draws), to match lane C's split |
-| `df28905` | Tools: the `pod-probe` tally clock, and the cross-seed signature report in `playtest.mjs` (`--compare`) |
+| `7876c6e` | The generator: `src/cellpick.ts` (new), the cells and `buildPlanned` in `src/enemies/scripts.ts`, `StagePlan`, `LONG4_ORBIT` and `long4Drive` in `src/layout.ts`, and `tests/unit/cellpick.test.ts` |
+| `9ec05f2` | Long Orbit grows from 3600 to 4380 px to reach its wall-time band, plus a 13th Orbit cell. `buildPlanned` is split into `pickPlanned` (draws) and `placePlanned` (no draws), to match lane C's split |
+| `41b626e` | Tools: the `pod-probe` tally clock, and the cross-seed signature report in `playtest.mjs` (`--compare`) |
 | (this file) | Lane report and two retained screenshots |
 
 ## What changed
@@ -22,7 +22,7 @@ Branch `ls1-e`, off main `8ff9ba4`. Owner role: level-designer. Spec: `design/co
 | `src/layout.ts` | `StageRow.plan` (`StagePlan`: tagged cell slots, filler windows, opener count). `LONG4_ORBIT` and `long4Drive(x0, x1)`. **Neither is registered in `LAYOUTS`**: D owns the entry, and the J tripwire forbids a second entry while the aliases exist |
 | `src/enemies/ufo.ts` | Comment only. The Saucer already read `ufoAt()`/`ufoGapEnd()`/`exitLead` from its row (row A), and `$.G.eat` already follows `ufoGapEnd()` (`ufoWarn`). Nothing in its logic had to change |
 | `tools/pod-probe.mjs` | `tally_s`: each stage's tally clock, from STAGE card to boss kill. This is spec §3.1's wall time. The existing `dur` runs from label to label, so it also counts the tally card and the fork or shop |
-| `tools/playtest.mjs` | Writes `<outDir>/sig.json` per run. `--compare <dirs…>` gives the cross-seed signature report |
+| `tools/playtest.mjs` | Writes `<outDir>/sig.json` per run. `--compare <dirs…>` gives the cross-seed signature report. After the rebase, both tools take the layout from J's `--layout <id>` (`tools/layout-arg.mjs`); the signature reads stage x0 and the Saucer x from `window.__LY` |
 | `tests/unit/cellpick.test.ts` (new) | 25 tests |
 | `production/qa/evidence/ls1-e-*.png` | Retained screenshots (long4, seed 1): the Saucer WARNING on long Orbit, and the long Drive corridor |
 
@@ -95,11 +95,11 @@ Each tag's pool holds at least twice that tag's slots per descent. The test runs
 | Saucer forced exit ≥ 300 px before the next WARNING the player sees (D20) | **PASS:** the exit is at 2040 and the Maw banner at 4080, a 2040 px gap (unit test). `layout.test.ts` will also check it once D registers `long4`, with no legacy pin |
 | Filler window (`$.G.eat`) follows `ufoGapEnd()` | **PASS:** unchanged code path (`ufoWarn` sets `$.G.eat = ufoGapEnd()`). It reads the row, so on long4 the window is 2100 |
 | Short layout identical | **PASS:** harness byte-identical, and the parity check identical (below) |
-| `npm run test:unit`, `typecheck`, `build` | **PASS:** 233/233 tests, typecheck clean, build clean (only the existing chunk-size notice) |
+| `npm run test:unit`, `typecheck`, `build` | **PASS:** 234/234 tests on the rebased branch, typecheck clean, build clean (only the existing chunk-size notice) |
 
 ## Test, probe, harness and parity output
 
-**Unit tests:** `cellpick.test.ts` has 25 tests, and the full suite passes 233/233.
+**Unit tests:** `cellpick.test.ts` has 25 tests, and the full suite passes 234/234 on the rebased branch.
 
 **Mutation checks** (each mutation was reverted afterwards):
 
@@ -117,7 +117,7 @@ PASS vs baseline @ f2f9c03
 
 The note "1/6 canvas hashes differ (advisory)" also appears on unmodified code in the lane worktrees (the `@fs` font 403s, see `ls1-a.md`).
 
-**Parity** (`node tools/layout-parity.mjs`, on `13addc9` and again on the final source):
+**Parity** (`node tools/layout-parity.mjs`; run on `13addc9` and on the pre-rebase final source, both PASS; the rebased result is below):
 
 ```
 run 1 (seed 1, 2 descents) gates 0111: shop 2, 8 stages, 33523 play frames, deaths 0, errors 0
@@ -169,7 +169,7 @@ not measured: spawn-time rolls (y, side, elite) are left out of the signature on
 
 ### How long4 was measured (scratch, not committed)
 
-- **Where:** a temporary detached worktree of this branch, served by Vite on its own port.
+- **Where:** a temporary detached worktree of this branch (before the rebase onto `ls1-s2`; the tools then took `?layout=long`), served by Vite on its own port.
 - **What was patched in, uncommitted:** a `LAYOUTS.long4` entry, activated at import when `?layout=long` is set.
 - **What the entry holds:**
   - `LONG4_ORBIT` and `long4Drive(10380, 13780)`;
@@ -189,7 +189,7 @@ not measured: spawn-time rolls (y, side, elite) are left out of the signature on
 
 **Stubs**
 - **`long4` is not registered.** D's entry should use `LONG4_ORBIT` as stage 0 and `long4Drive(x0, x1)` as the Drive row. Long Orbit is **4380 px**, not 3600, which moves everything after it by 780 px compared with a 3600 px plan (decision 1).
-- **`?layout=long` is D's flag.** This lane did not touch `main.ts`. `buildScript` picks the planned path from `row.plan`, so it needs no flag of its own.
+- **The flag:** `?layout=long` is D's in-game flag; the tools use J's `--layout long4`. This lane did not touch `main.ts`. `buildScript` picks the planned path from `row.plan`, so it needs no flag of its own.
 
 **Decisions this brief did not settle (each took the safest default; the coordinator or Matt may revisit)**
 1. **Orbit length is 4380 px, not 3600.**
@@ -226,8 +226,8 @@ not measured: spawn-time rolls (y, side, elite) are left out of the signature on
   - `G.cellPick` (or wherever C stores picks) should join the run-save allowlist with `remixV`, for H.
 - **B2:** pass `Rs` as `pickPlanned`'s `rnd`.
 - **D:** register `long4` with these rows (see Stubs). Then `layout.test.ts`'s invariants and `layout-kinds.test.ts` cover the rows automatically.
-- **J must land before D:** it is the tripwire. This lane adds no `LAYOUTS` entry and no `setLayout` caller.
+- **J has landed on `ls1-s2`** and this branch sits on it. This lane adds no `LAYOUTS` entry and no `setLayout` caller.
 - **When E rebases onto D:**
-  1. Re-run `pod-probe` and `playtest --compare` on D's real long4 with `?layout=long`.
+  1. Re-run `pod-probe` and `playtest --compare` on D's real long4 with `--layout long4`.
   2. Replace this file's scratch-entry numbers.
   3. Add a `buildScript` dispatch test on the real entry.
