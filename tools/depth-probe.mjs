@@ -24,7 +24,7 @@ const L = [
 const FIGHTS = ['ufo', 'choir', 'cyst', 'prentice', 'brood', 'maw0', 'maw', 'crux', 'butcher', 'gravity'];
 const res = await p.evaluate(async ([L, FIGHTS, CAP]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
-  const SP = await import('/src/enemies/spawn.ts'), BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), U = await import('/src/enemies/ufo.ts');
+  const SP = await import('/src/enemies/spawn.ts'), BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), U = await import('/src/enemies/ufo.ts'), LY = await import('/src/layout.ts');
   const IN = await import('/src/input.ts'); const $ = S.$; $.gate = false; IN.K.KeyZ = true;
   const out = {}, info = {};
   const setup = (loop, pw, gm, pkk, rig, scroll, stage) => {
