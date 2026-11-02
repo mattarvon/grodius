@@ -6,6 +6,7 @@
 // Precedence for each setting: URL flag > LAB > default. The choice is a pure function (layoutChoice) so tests can
 // drive it without a DOM; the module keeps a cached copy of the stored LAB so draw code never touches storage.
 import { clearRun } from './runsave';
+import { LAYOUTS, layout, setLayout } from './layout';
 
 export const LAB_KEY = 'grodius.lab';
 
@@ -16,6 +17,8 @@ export const LAB_DEFAULT: Lab = { layout: 'short', mids: '', cp: 'a' };
 
 /** the LAB layout name -> the layout table id it flies (src/layout.ts LAYOUTS) */
 export const LAYOUT_ID = { short: 'short', long: 'long4' } as const;
+/** the ?layout= values and the layout entry each selects; any other value is tried as an entry id (item D) */
+export const LAYOUT_FLAG: Record<string, string> = { long: 'long4', long4: 'long4', short: 'short' };
 
 /** a well-formed LAB from anything (a stored blob, a hand-edited one): unknown values fall back to the default */
 export function labOf(v: unknown): Lab {
@@ -27,19 +30,32 @@ export function labOf(v: unknown): Lab {
   };
 }
 
-/** the ?layout= flag (short | long; long4 is accepted as long), or null when the URL does not set one */
-export function urlLayout(search: string): Lab['layout'] | null {
-  let v: string | null = null;
-  try { v = new URLSearchParams(search).get('layout'); } catch (e) { return null; }
-  return v === 'long' || v === 'long4' ? 'long' : v === 'short' ? 'short' : null;
+/** the raw ?layout= value, or null when the URL does not set one */
+export function urlLayout(search: string): string | null {
+  try { return new URLSearchParams(search).get('layout'); } catch (e) { return null; }
 }
 
-/** which layout a new run flies, and where that came from: the URL flag beats the LAB, the LAB beats `short` */
-export function layoutChoice(search: string, lab: Lab | null): { layout: Lab['layout']; id: string; src: 'url' | 'lab' | 'default' } {
-  const u = urlLayout(search);
-  const layout = u ?? lab?.layout ?? 'short';
-  return { layout, id: LAYOUT_ID[layout], src: u ? 'url' : lab ? 'lab' : 'default' };
+export interface LayoutChoice {
+  /** the layout entry id the next run flies ('short' when nothing chose: the caller keeps the active entry) */
+  id: string;
+  src: 'url' | 'lab' | 'default';
+  /** a ?layout= value that names no registered entry: ignored (warned at boot), the LAB or short applies */
+  bad?: string;
 }
+/** THE layout choice (the boot flag parse and every run start go through it): a registered ?layout= flag beats the
+ *  LAB, the LAB beats `short`. Pure; `has` is the registry check (LAYOUTS own keys) */
+export function layoutChoice(search: string, lab: Lab | null, has: (id: string) => boolean = (id) => Object.hasOwn(LAYOUTS, id)): LayoutChoice {
+  const v = urlLayout(search);
+  if (v != null) {
+    const id = Object.hasOwn(LAYOUT_FLAG, v) ? LAYOUT_FLAG[v] : v;
+    if (has(id)) return { id, src: 'url' };
+    if (lab) return { id: LAYOUT_ID[lab.layout], src: 'lab', bad: v };
+    return { id: 'short', src: 'default', bad: v };
+  }
+  return lab ? { id: LAYOUT_ID[lab.layout], src: 'lab' } : { id: 'short', src: 'default' };
+}
+/** the title's name for a layout id */
+export const layoutName = (id: string) => (id === 'long4' ? 'LONG' : id.toUpperCase());
 
 // ---- storage. Every access is guarded, like save.ts: a private window or blocked storage must still boot.
 /** the stored LAB, or null when there is none (or storage is unreadable) */
@@ -61,8 +77,12 @@ let cur: Lab | null = readLab();
 
 /** the LAB as the title should show it (defaults filled in) */
 export const lab = (): Lab => cur || LAB_DEFAULT;
-/** the layout a run started now would fly (URL > LAB > short), with its source for the title */
-export const activeLayout = () => layoutChoice(search(), cur);
+/** the layout a run started now would fly (URL > LAB > short), with its source for the title. With neither a flag
+ *  nor a LAB key the run keeps the active entry (short at boot; a probe's --layout sets it in-page before Enter) */
+export function activeLayout(): LayoutChoice {
+  const c = layoutChoice(search(), cur);
+  return c.src === 'default' ? { ...c, id: layout().id } : c;
+}
 /** LS2's WIP midboss flag: ?mids=wip, else the LAB */
 export const midsWip = () => /[?&]mids=wip\b/.test(search()) || lab().mids === 'wip';
 /** the checkpoint trigger for item H: 'a' = app kill or quit only (spec §4 default), 'b' = also on death */
@@ -81,9 +101,11 @@ export function setLab(patch: Partial<Lab>): Lab {
   return next;
 }
 
-/** apply the chosen layout before a run starts (the setLayout contract: only before newGame()). Wired to item D's
- *  setLayout when D lands; until then a non-short choice has no layout entry to switch to, so this is a no-op and
- *  every run flies `short`. Returns the id the run actually flies. */
-export function applyRunLayout(): string {
-  return 'short';
+/** apply the chosen layout (the setLayout contract: only before newGame()): at boot (main.ts) and again at every
+ *  run start (menus.ts startRun), so a LAB change on the title takes effect at the next run, never mid-run. With no
+ *  flag and no LAB key it leaves the active entry alone. Returns the choice; the entry flown is layout().id */
+export function applyRunLayout(): LayoutChoice {
+  const c = layoutChoice(search(), cur);
+  if (c.src !== 'default') setLayout(c.id);
+  return c;
 }

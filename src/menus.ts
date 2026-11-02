@@ -5,7 +5,7 @@ import { auInit, sample, setMute, sfx } from './audio';
 import { I } from './input';
 import { newGame, openShop, shopNext, startLoop } from './flow';
 import { RIG, RIG_BY, SOCKET_COST, rigInit, rigged, sockets } from './contraptions';
-import { activeLayout, applyRunLayout, lab, setLab } from './lab';
+import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, setLab } from './lab';
 
 // ---------------- menus ----------------
 let titleSub = null, saveMsg = '';
@@ -69,14 +69,14 @@ function startRun(loop?) {
 /** the active layout for the title: LONG / SHORT, marked URL when a ?layout= flag overrides the LAB */
 export function layoutTag() {
   const c = activeLayout();
-  return c.layout.toUpperCase() + (c.src === 'url' ? ' (URL)' : '');
+  return layoutName(c.id) + (c.src === 'url' ? ' (URL)' : '');
 }
 function labItems() {
   const L = lab(), c = activeLayout();
   return [{
     l: 'LAYOUT',
     // the LAB's own setting; when a URL flag overrides it, say what the run will really fly
-    r: L.layout.toUpperCase() + (c.src === 'url' && c.layout !== L.layout ? ' > URL ' + c.layout.toUpperCase() : ''),
+    r: L.layout.toUpperCase() + (c.src === 'url' && c.id !== LAYOUT_ID[L.layout] ? ' > URL ' + layoutName(c.id) : ''),
     a: () => setLab({ layout: L.layout === 'long' ? 'short' : 'long' })
   }, {
     l: 'MIDBOSSES',

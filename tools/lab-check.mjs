@@ -64,7 +64,7 @@ async function tap(label) {
 // 1. fresh save: short, no LAB key
 await open();
 let s = await state();
-check(s.lab === null && s.active.layout === 'short' && s.active.src === 'default', 'fresh save has no grodius.lab key and flies short');
+check(s.lab === null && s.active.id === 'short' && s.active.src === 'default', 'fresh save has no grodius.lab key and flies short');
 check(s.tag === 'SHORT' && s.rows.at(-1) === 'LAB = SHORT', 'title LAB row shows SHORT: ' + s.rows.join(' | '));
 check(s.rows[0] === 'DESCEND', 'DESCEND is still row 0 (harness and probes press Enter on it)');
 await p.screenshot({ path: `${OUT}/title-lab-short.png` });
@@ -92,19 +92,36 @@ await p.waitForFunction(() => window.__started, null, { timeout: 30000 });
 await p.evaluate(async () => { (await import('/src/state.ts')).$.gate = false; });
 await p.waitForTimeout(400);
 s = await state();
-check(s.active.layout === 'long' && s.active.id === 'long4' && s.active.src === 'lab' && s.tag === 'LONG', 'after a reload the LAB is still LONG (' + s.active.id + ')');
+check(s.active.id === 'long4' && s.active.src === 'lab' && s.tag === 'LONG', 'after a reload the LAB is still LONG (' + s.active.id + ')');
 await p.screenshot({ path: `${OUT}/title-lab-long-reloaded.png` });
+
+// 3b. start a run with the LAB on long: DESCEND (Enter on row 0) flies long4; screenshot the first seconds of Orbit
+await press('Enter');
+await p.waitForFunction(() => window.__G().state === 'play', null, { timeout: 10000 });
+const run = async () => p.evaluate(async () => {
+  const L = await import('/src/layout.ts'), g = window.__G();
+  return { id: L.layout().id, kinds: L.layout().stages.map((r) => r.kind), level: L.layout().level, stage: g.G.stage, scroll: Math.round(g.G.scroll), state: g.state };
+});
+let r = await run();
+check(r.id === 'long4' && r.stage === 0 && r.kinds[0] === 'orbit', `run start flies ${r.id} (${r.kinds.join(', ')}, level ${r.level}), stage ${r.stage}`);
+for (const [n, ms] of [['long-orbit-1s', 1000], ['long-orbit-4s', 3000]]) {
+  await p.waitForTimeout(ms);
+  r = await run();
+  console.log(`  ${n}: state ${r.state}, scroll ${r.scroll}`);
+  await p.screenshot({ path: `${OUT}/${n}.png` });
+}
+check(r.state === 'play' && r.scroll > 0 && r.id === 'long4', 'still flying long4 after ~4 s (scroll ' + r.scroll + ')');
 
 // 4. a URL flag overrides the LAB, and the title says so
 await open('?layout=short');
 s = await state();
-check(s.active.layout === 'short' && s.tag === 'SHORT (URL)', 'URL ?layout=short overrides LAB long: tag ' + s.tag);
+check(s.active.id === 'short' && s.tag === 'SHORT (URL)', 'URL ?layout=short overrides LAB long: tag ' + s.tag);
 await p.screenshot({ path: `${OUT}/title-url-override.png` });
 
 check(!errs.length, 'no page errors' + (errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''));
 await b.close();
 await server.close();
 // what this check does not reach (tools rule: report what was not measured)
-console.log('not measured: a run actually flying long4 (applyRunLayout is a stub until item D lands), the Fold APK app kill (Matt)');
+console.log('not measured: the long run past its first seconds (D\'s stage-clock / beat-probe own that), a LAB change made mid-run (the menu only exists on the title), the Fold APK app kill (Matt)');
 console.log(fails.length ? `lab-check: ${fails.length} FAILED` : 'lab-check: all passed');
 process.exit(fails.length ? 1 : 0);
