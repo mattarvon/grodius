@@ -1,7 +1,9 @@
 // Hazard probe: forces the route into one biome, then for that biome's hazard checks
 //   telegraph length, a hit kills through playerHit (and not while invincible), it can be shot (icicle/strand),
-//   snot slow wears off. Usage: node tools/hazard-probe.mjs <url> <ice|acid|fire|snot>
+//   snot slow wears off. Usage: node tools/hazard-probe.mjs <url> <ice|acid|fire|snot> [--layout short]
+//   Skips to 100 px past the Open Orbit row's warnX (src/layout.ts), kills the Maw and takes biome slot 0's gate.
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, biome = 'ice'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
@@ -10,10 +12,11 @@ await p.addInitScript(() => { let now = 0; const q = []; performance.now = () =>
   { const P = CanvasRenderingContext2D.prototype; for (const m of ['fillRect','strokeRect','drawImage','fill','stroke','fillText','strokeText','putImageData','clearRect','getImageData']) { const o = P[m]; P[m] = function (...a) { return m === 'getImageData' ? { data: new Uint8ClampedArray(a[2] * a[3] * 4), width: a[2], height: a[3] } : undefined; }; } }
   window.__tick = (n, fn) => { for (let i = 0; i < n; i++) { now += 1000 / 60; if (fn) fn(); q.splice(0).forEach((f) => f(now)); } }; });
 await p.goto(url); await p.waitForFunction(() => window.__started);
+await useLayout(p, 'hazard-probe', { limits: "only biome slot 0 is entered" });
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA'); await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)');
 // skip to the Maw, kill it, take the gate into <biome>
-await p.evaluate(() => { const G = __G().G; G.scroll = 2100; G.si = G.script.findIndex((e) => e.x >= 2100); G.lives = 30; });
+await p.evaluate(() => { const G = __G().G, x = __LY.rowOfKind('orbit').warnX + 100; G.scroll = x; G.si = G.script.findIndex((e) => e.x >= x); G.lives = 30; });
 await key('keydown', 'KeyZ');
 for (let k = 0; k < 200; k++) {
   const r = await p.evaluate((biome) => { __tick(10); const g = __G(), G = g.G; g.P.inv = 30; if (G.mini && !G.mini.dead && G.mini.hp > 1) G.mini.hp = .5; if (G.fork) { G.fork.opts[0] = biome; if (G.fork.t > 45) { g.P.x = 355; g.P.y = 71; } } return G.route[0]; }, biome);
@@ -73,4 +76,4 @@ const out = await run(async () => {
   return R;
 });
 console.log(biome, JSON.stringify(out, null, 1));
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('hazard-probe'); await b.close();

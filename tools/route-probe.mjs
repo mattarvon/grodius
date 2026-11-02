@@ -2,8 +2,11 @@
 // fork and g1 at the second fork of every descent, auto-picks perks, leaves the shop, and checks every frame:
 //   forks open after stage 0/1 tallies and close; terrain gap on screen >= 100px; no visible terrain jumps (slams);
 //   hazards never spawn on the ship or during fork/tally/death; biome boss titles; music mix per stage.
-// Usage: node tools/route-probe.mjs <url> [g0=0] [g1=1] [descents=1] [opts: die-fork,escape0,escape1,wait,mortal]
+// Usage: node tools/route-probe.mjs <url> [g0=0] [g1=1] [descents=1] [opts: die-fork,escape0,escape1,wait,mortal] [--layout short]
+//   shots=<dir>: a fly<stage> shot is taken once the scroll is past the stage row's x0 + 1000 (biome), + 200 (Drive) or
+//   1200 (Open Orbit) in src/layout.ts; on short that is 3300 / 6150 / 8500 (stage 2 was 6400 before LS1-J).
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, g0 = '0', g1 = '1', N = '1', OPT = ''] = process.argv.slice(2);
 const b = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const p = await b.newPage({ viewport: { width: 960, height: 540 } });
@@ -90,6 +93,7 @@ await p.addInitScript(([g0, g1, OPT]) => {
 }, [g0, g1, OPT]);
 await p.goto(url);
 await p.waitForFunction(() => window.__started);
+await useLayout(p, 'route-probe');
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await p.evaluate('__tick(40)'); await p.evaluate(() => __ev.push('TITLE music ' + JSON.stringify(__music())));
@@ -98,9 +102,9 @@ let f = 0, shopN = 0, stuck = 0, lastSc = -1;
 const SHOTS = (OPT.split(',').find((o) => o.startsWith('shots=')) || '').slice(6), shotDone = {}, shotWait = {};
 while (f < 60 * 60 * 40) {
   await p.evaluate('__tick(12)'); f += 60;
-  const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, stage: G.stage, loop: G.loop, pick: !!G.pick, pt: G.pick ? G.pick.t : 0, sc: G.scroll | 0, fork: !!G.fork, hold: !!G.forkHold, mini: !!G.mini, boss: !!G.boss, tally: !!G.tally, dead: !g.P.alive, pend: G.pend.length }; });
+  const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, stage: G.stage, loop: G.loop, pick: !!G.pick, pt: G.pick ? G.pick.t : 0, sc: G.scroll | 0, fork: !!G.fork, hold: !!G.forkHold, mini: !!G.mini, boss: !!G.boss, tally: !!G.tally, dead: !g.P.alive, pend: G.pend.length, flyAt: ((r) => r ? r.x0 + ({ orbit: 1200, drive: 200 }[r.kind] ?? 1000) : 1e9)(__LY.row(G.stage)) }; });
   if (SHOTS) {
-    const tag = s.fork ? `fork${s.stage}` : s.mini ? `boss${s.stage}` : s.boss ? 'drive' : s.stage && s.sc > [0, 3300, 6400, 8500][s.stage] ? `fly${s.stage}` : s.st === 'play' && s.sc > 1200 && !s.stage ? 'fly0' : '';
+    const tag = s.fork ? `fork${s.stage}` : s.mini ? `boss${s.stage}` : s.boss ? 'drive' : s.st === 'play' && s.sc > s.flyAt ? `fly${s.stage}` : '';
     if (tag && !shotDone[tag + s.loop] && (!(s.mini || s.fork) || (shotWait[tag] = (shotWait[tag] || 0) + 1) > 3)) {
       shotDone[tag + s.loop] = 1;
       await p.evaluate(() => { window.__nr = 0; __tick(1); });
@@ -125,4 +129,5 @@ const mx = Object.entries(r.st.mixes).filter(([, v]) => v > 30).map(([k, v]) => 
 console.log(`minGap ${r.st.minGap.toFixed(1)} @${r.st.minGapAt}  slams ${r.st.slam} (max ${r.st.slamMax.toFixed(1)} at ${r.st.slamAt})  hazards ${r.st.hazSpawn} ${JSON.stringify(r.st.hazKinds)} bad [${r.st.hazBad.join(',')}] hazHitFrames ${r.st.hazHits} deaths ${r.st.deaths} frames ${r.st.frames}`);
 console.log('music:\n  ' + mx);
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none');
+ranOn('route-probe');
 await b.close();

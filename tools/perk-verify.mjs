@@ -1,6 +1,7 @@
 // Perk verification: against the Vite DEV server (module imports share the game's instances), grants each perk
-// and measures what it actually changes. Usage: node tools/perk-verify.mjs http://localhost:<devport>/
+// and measures what it actually changes. Usage: node tools/perk-verify.mjs http://localhost:<devport>/ [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const url = process.argv[2];
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
@@ -9,6 +10,7 @@ await p.addInitScript(() => { let now = 0; const q = []; performance.now = () =>
   window.__nr = 1; { const P = CanvasRenderingContext2D.prototype; for (const m of ['fillRect','strokeRect','drawImage','fill','stroke','fillText','strokeText','putImageData','clearRect','getImageData']) { const o = P[m]; P[m] = function (...a) { if (window.__nr) return m === 'getImageData' ? { data: new Uint8ClampedArray(a[2] * a[3] * 4), width: a[2], height: a[3] } : undefined; return o.apply(this, a); }; } }
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; q.splice(0).forEach((f) => f(now)); } }; });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 60000 });
+await useLayout(p, 'perk-verify');
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(60)');
@@ -94,4 +96,4 @@ const snot = async (lvl) => p.evaluate(async (l) => { const W = await import('/s
 res.push({ id: 'snot (globs in 600f)', base: await snot(0), with: await snot(2) });
 res.at(-1).ok = res.at(-1).with > res.at(-1).base;
 for (const r of res) console.log(`${r.ok ? 'OK  ' : 'FAIL'} ${r.id.padEnd(34)} ${String(r.base).padEnd(12)} -> ${r.with} ${r.note || ''}`);
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('perk-verify'); await b.close();

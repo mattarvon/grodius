@@ -1,7 +1,8 @@
 // Ship-form probe: starts a run, forces pods / grafts / perks / contraptions straight into state, and
 // screenshots close-ups of the player ship so the growth of the hull can be eyeballed.
-// Usage: node tools/ship-probe.mjs <url> <outdir>
+// Usage: node tools/ship-probe.mjs <url> <outdir> [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url = 'http://localhost:4201/', out = '/tmp/ship-shots'] = process.argv.slice(2);
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1440, height: 810 }, deviceScaleFactor: 3 });
@@ -35,6 +36,7 @@ await p.addInitScript(() => {
 });
 await p.goto(url);
 await p.waitForFunction(() => window.__started);
+await useLayout(p, 'ship-probe');
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter');
@@ -104,4 +106,4 @@ await p.screenshot({ path: `${out}/10-infirmary.png` });
 await p.evaluate(() => { const S = window.__shipS; S.state = 'title'; __tick(30); });
 await p.screenshot({ path: `${out}/11-title.png` });
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none');
-await b.close();
+ranOn('ship-probe'); await b.close();

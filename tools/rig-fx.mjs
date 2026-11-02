@@ -1,6 +1,7 @@
 // Contraption FX shots: plays a seeded bot run per contraption and screenshots (zoomed on the ship) the moment its effect is live.
-// Usage: node tools/rig-fx.mjs <url> <outdir> [ids]
+// Usage: node tools/rig-fx.mjs <url> <outdir> [ids] [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, out, ids = 'saw,gut,spine,hook,furnace,choir,leech'] = process.argv.slice(2);
 const COND = {
   saw: 'R.saw.spin > .5', gut: 'F.slugs > 0', spine: 'F.spines > 3', hook: 'R.hook.st === 1 && R.hook.phase > .3',
@@ -21,6 +22,7 @@ for (const id of ids.split(',')) {
           g.P.x += Math.sign(tx - g.P.x) * Math.min(3, Math.abs(tx - g.P.x)); g.P.y += Math.sign(ty - g.P.y) * Math.min(3, Math.abs(ty - g.P.y)); }
         q.splice(0).forEach((f) => f(now)); } }; }, [save, id === 'saw']);
   await p.goto(url); await p.waitForFunction(() => window.__started);
+  await useLayout(p, 'rig-fx');
   const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
   await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
   await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)');
@@ -40,4 +42,4 @@ for (const id of ids.split(',')) {
   await p.close();
 }
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none');
-await b.close();
+ranOn('rig-fx'); await b.close();

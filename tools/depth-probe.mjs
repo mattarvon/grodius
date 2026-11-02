@@ -2,15 +2,18 @@
 // the one tools/playtest.mjs's bot carries into that descent (guns, grafts, perks AND bolted contraptions). Much faster
 // than a playtest, so use it to turn the src/depth.ts knobs, then confirm with playtest.mjs.
 // Invincible bot parks at x=90 and tracks the target's y (the Gravity Drive: its lowest plate), holding fire.
-// Fights run in open space at scroll 3000 (the Saucer at its real 950, scroll moving; no biome terrain), so they are a little faster than the real ones.
-// Usage: node tools/depth-probe.mjs <url> [capSeconds=90]
+// Fights run in open space at scroll slot 0's x0 + 700 (3000 on short; the Saucer at its real ufoAt() + 150, scroll moving;
+// no biome terrain), so they are a little faster than the real ones. World x and stage indices come from src/layout.ts.
+// Usage: node tools/depth-probe.mjs <url> [capSeconds=90] [--layout short]
 //  TTK = seconds from on screen to dead; "esc" = it left first; "--" = outlived the cap
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, CAP = '90'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'depth-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
 // [name, loop, guns, grafts, perks, bolted contraptions {id: level}]; roughly the playtest bot (seed 11) at each descent's start
 const L = [
   ['D1 mid-run', 0, { speed: 2, missile: 1, double: 1, options: 1, wardLv: 1 }, { cal: 1 }, { dmg: 1 }, {}],
@@ -41,9 +44,10 @@ const res = await p.evaluate(async ([L, FIGHTS, CAP]) => {
   for (const [name, loop, pw, gm, pkk, rig] of L) {
     const row = {};
     for (const k of FIGHTS) {
-      setup(loop, pw, gm, pkk, rig, k === 'gravity' ? C.BOSS_AT : k === 'ufo' ? 950 : 3000, k === 'maw0' || k === 'ufo' ? 0 : k === 'gravity' ? 3 : 1);
+      setup(loop, pw, gm, pkk, rig, k === 'gravity' ? LY.bossAt() : k === 'ufo' ? LY.ufoAt() + 150 : LY.slotRow(0).x0 + 700,
+        k === 'maw0' || k === 'ufo' ? 0 : k === 'gravity' ? LY.lastStage() : LY.stageOfSlot(0));
       if (k === 'gravity') BU.startBoss();
-      else if (k === 'ufo') U.spawnUfo(); // at its real scroll x: it drifts with the scroll and leaves by 1840
+      else if (k === 'ufo') U.spawnUfo(); // at its real scroll x: it drifts with the scroll and leaves by ufoGapEnd()
       else if (k === 'maw' || k === 'maw0') SP.maw(true);
       else if (k === 'crux' || k === 'butcher') SP[k]();
       else SP.midboss(k, k);
@@ -75,4 +79,4 @@ const res = await p.evaluate(async ([L, FIGHTS, CAP]) => {
 console.log('TTK s / HP. maw0 = the Open Orbit Maw, maw = a biome Maw');
 console.log('kit'.padEnd(12), 'rank/pow'.padEnd(10), ...FIGHTS.map((s) => s.padStart(12)));
 for (const [n, r] of Object.entries(res.out)) console.log(n.padEnd(12), `${res.info[n].rank}/${res.info[n].pow}`.padEnd(10), ...FIGHTS.map((k) => String(r[k]).padStart(12)));
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('depth-probe'); await b.close();

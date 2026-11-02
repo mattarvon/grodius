@@ -3,25 +3,27 @@
 // render-side gore (src/render/gross/biomebosses.ts) animates. Saves full frames + 2x close-ups per beat:
 //   crux:    shielded (bars up), exposed (bars broken), half HP, death
 //   butcher: idle, spit, chain snapped (half HP), death
-// Usage: node tools/biomeboss-shots.mjs <url> <outDir>
+// Usage: node tools/biomeboss-shots.mjs <url> <outDir> [--layout short]   (fights in biome slot 0 of src/layout.ts, stage-relative x 1000)
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, OUT = '.', MODE = 'all'] = process.argv.slice(2); // MODE: all | clean | fight
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: 2 });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'biomeboss-shots');
 const prep = (k, biome) => p.evaluate(async ([k, biome]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
-  const { render } = await import('/src/render/screens.ts');
+  const { render } = await import('/src/render/screens.ts'), LY = await import('/src/layout.ts'), X0 = LY.slotRow(0).x0;
   const $ = S.$; $.gate = false; IN.K.KeyZ = true;
   F.newGame(0); $.state = 'play';
   for (let i = 0; i < 30; i++) ST.step();
-  $.G.scroll = 2300; $.G.si = $.G.script.length; W.enemies.length = 0;
+  $.G.scroll = X0; $.G.si = $.G.script.length; W.enemies.length = 0;
   BI.openFork(0); $.G.fork.opts = [biome, biome]; $.G.fork.t = 50; $.G.tally = null;
   Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 });
   ST.step();
-  $.G.scroll = 3300;
+  $.G.scroll = X0 + 1000;
   for (let i = 0; i < 60; i++) { $.P.inv = 30; ST.step(); }
   $.G.si = $.G.script.length; $.G.pick = null; $.G.pickQ = 0; $.G.tally = null;
   Object.assign($.P, { speed: 2, missile: 1, double: 1, options: 1, wardLv: 1, shield: 3 });
@@ -86,4 +88,4 @@ await pose('crux', 'ice', 'clean-crux-broken', 'for (const b of g.bars) { b.dead
 await pose('butcher', 'fire', 'clean-butcher');
 await pose('butcher', 'fire', 'clean-butcher-snapped', 'g.hp = g.max * .45;');
 }
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('biomeboss-shots'); await b.close();

@@ -1,8 +1,9 @@
 // Screen-art shots: the hype-voice comms portrait mid-line in a real play frame (one per voice clip), the game-over
 // screen at two animation moments and the Infirmary. Imports live modules from the VITE dev server and drives $.state
 // directly; rAF is parked so every frame is rendered on purpose.
-// Usage: node tools/screens-shot.mjs <url> <outDir> [only=hype,over,shop,phone]
+// Usage: node tools/screens-shot.mjs <url> <outDir> [only=hype,over,shop,phone] [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
 const [url, OUT, only = 'hype,over,shop,phone'] = process.argv.slice(2);
 const want = new Set(only.split(','));
@@ -15,6 +16,7 @@ async function boot(vp, touch) {
   p.on('pageerror', (e) => errs.push(e.message));
   await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} window.__adv = (ms) => (now += ms); });
   await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 30000 });
+  await useLayout(p, 'screens-shot');
   await p.evaluate(async () => {
     const S = await import('/src/state.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts'), RS = await import('/src/render/screens.ts');
     const W = await import('/src/world.ts'), A = await import('/src/audio.ts'), SP = await import('/src/sprites.ts'), U = await import('/src/fx/update.ts');
@@ -72,4 +74,4 @@ if (want.has('shop')) {
   await p.close();
 }
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none');
-await b.close();
+ranOn('screens-shot'); await b.close();

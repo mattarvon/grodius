@@ -1,6 +1,7 @@
 // Infirmary probe: opens the shop from the title with a given save, drives it with keys / mouse / touch, screenshots each state.
-// Usage: node tools/shop-probe.mjs <url> <outdir>
+// Usage: node tools/shop-probe.mjs <url> <outdir> [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, out] = process.argv.slice(2);
 const b = await chromium.launch();
 const errs = [];
@@ -12,6 +13,7 @@ async function page(meta, opts = {}) {
     try { localStorage.clear(); if (sv) localStorage.setItem('grodius.v1', JSON.stringify(sv)); } catch (e) {}
     window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; q.splice(0).forEach((f) => f(now)); } }; }, meta && { meta, hi: 0, muted: true });
   await p.goto(url); await p.waitForFunction(() => window.__started);
+  await useLayout(p, 'shop-probe');
   const key = async (c, n = 1) => { for (let i = 0; i < n; i++) { await p.evaluate((c) => dispatchEvent(new KeyboardEvent('keydown', { code: c })), c); await p.evaluate('__tick(2)'); await p.evaluate((c) => dispatchEvent(new KeyboardEvent('keyup', { code: c })), c); await p.evaluate('__tick(2)'); } };
   await key('KeyQ'); // title gate
   await key('ArrowDown'); await key('Enter'); await p.evaluate('__tick(50)'); // INFIRMARY
@@ -63,4 +65,4 @@ async function page(meta, opts = {}) {
   const m = await meta2(); console.log('touch', JSON.stringify({ bio: m.bio, own: m.own, rig: m.rig }));
 }
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none');
-await b.close();
+ranOn('shop-probe'); await b.close();

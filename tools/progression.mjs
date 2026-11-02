@@ -1,6 +1,7 @@
 // Progression probe: invincible bot that hoovers up every pod/graft, logs loadout every 10s of game time.
-// Usage: node tools/progression.mjs <url> [seconds]
+// Usage: node tools/progression.mjs <url> [seconds] [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const url = process.argv[2], SECS = +(process.argv[3] || 300);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 await p.addInitScript(() => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
@@ -11,6 +12,7 @@ await p.addInitScript(() => { let now = 0; const q = []; performance.now = () =>
         if (tgt) { const tx = c ? c.x : Math.min(140, tgt.x - 60); g.P.x += Math.sign(tx - g.P.x) * Math.min(3, Math.abs(tx - g.P.x)); g.P.y += Math.sign(tgt.y - g.P.y) * Math.min(3, Math.abs(tgt.y - g.P.y)); } }
       q.splice(0).forEach((f) => f(now)); } }; });
 await p.goto(url); await p.waitForFunction(() => window.__started);
+await useLayout(p, 'progression');
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
 const SL = ['THR', 'MIS', 'SPL', 'ARC', 'PYR', 'WRA', 'WRD'];
@@ -22,4 +24,4 @@ for (let s = 10; s <= SECS; s += 10) {
     return `${state} loop${G.loop} scroll${Math.round(G.scroll)} st${G.loop + 1}-${(G.stage || 0) + 1} seal${G.seal || 0} kills${G.gmk || 0}${G.tally ? " TALLY:" + G.tally.g + "/" + G.tally.pct + "%" : ""} | ${lv.join(',')} | ${gm} | sh${P.shield} rank${(G.rank || 0).toFixed(2)} ${G.mini && !G.mini.dead ? 'MINI:' + G.mini.k : ''}`; });
   console.log(`${String(s).padStart(4)}s ${r}`);
 }
-await b.close();
+ranOn('progression'); await b.close();

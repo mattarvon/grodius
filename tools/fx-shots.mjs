@@ -1,7 +1,8 @@
 // FX shots: hit sparks (Open Orbit, ice, fire, acid, snot), death explosions (small / medium / boss-size, mid-animation),
 // the title eye and a few hi-res EYEQ eyes, for checking the sprite FX in tools/prep_fx.py + src/fx/fxsprites.ts.
-// Usage: node tools/fx-shots.mjs <url> <outDir>      (needs the VITE dev server: imports live modules)
+// Usage: node tools/fx-shots.mjs <url> <outDir> [--layout short]   (biome scenes in slot 0 of src/layout.ts; needs the VITE dev server: imports live modules)
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
 const [url, OUT] = process.argv.slice(2);
 fs.mkdirSync(OUT, { recursive: true });
@@ -9,6 +10,7 @@ const b = await chromium.launch(); const p = await b.newPage({ viewport: { width
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'fx-shots');
 await p.waitForTimeout(1500);
 // the game warms eye textures in idle slots after boot (main.ts warmUp, which needs setTimeout): do it here
 await p.evaluate(async () => {
@@ -19,7 +21,7 @@ await p.evaluate(async () => {
 await p.evaluate(async () => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts'), RS = await import('/src/render/screens.ts');
-  const XS = await import('/src/fx/fxsprites.ts'), PL = await import('/src/player.ts'), FX = await import('/src/fx/spawn.ts'), GF = await import('/src/fx/gunfx.ts'), BI = await import('/src/biomes.ts');
+  const XS = await import('/src/fx/fxsprites.ts'), PL = await import('/src/player.ts'), FX = await import('/src/fx/spawn.ts'), GF = await import('/src/fx/gunfx.ts'), BI = await import('/src/biomes.ts'), LY = await import('/src/layout.ts'), X0 = LY.slotRow(0).x0;
   const $ = S.$; $.gate = false; IN.K.KeyZ = false;
   F.newGame(0); $.state = 'play';
   for (let i = 0; i < 30; i++) ST.step();
@@ -30,10 +32,10 @@ await p.evaluate(async () => {
   };
   window.__fxStep = (n, py = 135) => { for (let i = 0; i < n; i++) { Object.assign(m.$.P, { x: 60, y: py, alive: true, inv: 30 }); m.$.G.pick = null; m.$.G.pickQ = 0; if (m.shoot && m.$.P.cd <= 0) m.PL.fire(); m.ST.step(); } m.RS.render(); };
   window.__fxBiome = (bk) => {
-    window.__fxClear(); m.$.G.scroll = 2300;
+    window.__fxClear(); m.$.G.scroll = X0;
     m.BI.openFork(0); m.$.G.fork.opts = [bk, bk]; m.$.G.fork.t = 50;
     Object.assign(m.$.P, { x: m.C.W * .74, y: m.$.G.fork.gy[0], alive: true, inv: 30 });
-    m.ST.step(); m.$.G.scroll = 3300;
+    m.ST.step(); m.$.G.scroll = X0 + 1000;
     window.__fxStep(60);
   };
   // a fake target soaking hits: a stream of impacts walking along a line, with the spray at all ages
@@ -107,4 +109,4 @@ await p.evaluate(async () => {
 await shot('eye-grid', 240, 110, 100);
 await shot('eye-grid-big', 120, 165, 40);
 console.log(errs.length ? 'page errors:\n' + errs.slice(0, 5).join('\n') : 'no page errors');
-await b.close();
+ranOn('fx-shots'); await b.close();

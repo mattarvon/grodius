@@ -1,14 +1,17 @@
 // DPS probe: holds the ship still at (100,127) firing into fixed immortal dummy targets and measures damage/second
-// per loadout. Needs the VITE DEV server (imports live modules). Usage: node tools/dps-probe.mjs http://localhost:4202/ [frames=600]
+// per loadout. Needs the VITE DEV server (imports live modules). Usage: node tools/dps-probe.mjs http://localhost:4202/ [frames=600] [--layout short]
+//   The targets sit in open space at biome slot 0's x0 + 700 (src/layout.ts; 3000 on short).
 //  FIELD = 12 targets scattered over the right 2/3 of the screen + 2 floor crawlers; ship sweeps up/down (rewards coverage)
 //  ONE   = a single big (r16) target dead ahead at x=250, ship parked level with it (boss-ish: raw focus damage)
 //  eff   = WALL dps / enemy-HP inflation that loadout's power rank causes (what the player actually feels on fodder)
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, FR = '600'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'dps-probe');
 const L = [
   ['base', {}],
   ['SPLIT', { double: 1 }],
@@ -47,7 +50,7 @@ const res = await p.evaluate(async ([L, FR]) => {
     for (let i = 0; i < 30; i++) ST.step();
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw);
     $.G.gm = { ...(gm || {}) };
-    const sc = 3000, fl = (x) => W.floorAt(x + sc);
+    const sc = __LY.slotRow(0).x0 + 700, fl = (x) => W.floorAt(x + sc);
     const r = {};
     for (const set of ['WALL', 'ONE']) {
       W.shots.length = 0; W.enemies.length = 0; $.P.hist.length = 0;
@@ -76,4 +79,4 @@ const base = res[0][1];
 const hm = (rk) => 1 + rk * (globalThis.HPK ?? +(process.env.HPK || .8));
 console.log('loadout'.padEnd(16), 'WALL dps'.padStart(9), 'xBase'.padStart(6), 'ONE dps'.padStart(8), 'xBase'.padStart(6), 'rank'.padStart(5), 'eff'.padStart(6));
 for (const [n, r] of res) console.log(n.padEnd(16), r.WALL.toFixed(1).padStart(9), (r.WALL / base.WALL).toFixed(2).padStart(6), r.ONE.toFixed(1).padStart(8), (r.ONE / base.ONE).toFixed(2).padStart(6), r.rank.toFixed(2).padStart(5), (r.WALL / base.WALL / hm(r.rank)).toFixed(2).padStart(6));
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('dps-probe'); await b.close();

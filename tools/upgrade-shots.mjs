@@ -1,8 +1,9 @@
 // Upgrade shots: renders every regular enemy, the player ship, bullets and a busy gore frame as they look right now, for
 // the upgrade picker (tools/upgrade-picker.mjs). Each enemy is spawned alone through its real spawn function and stepped
 // on screen, so terrain-bound ones sit on their wall. Saves a full frame and a close-up per subject.
-// Usage: node tools/upgrade-shots.mjs <url> <outDir>      (needs the VITE dev server: imports live modules)
+// Usage: node tools/upgrade-shots.mjs <url> <outDir> [--layout short]   (biome scenes in slot 0 of src/layout.ts; needs the VITE dev server: imports live modules)
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
 const [url, OUT] = process.argv.slice(2);
 fs.mkdirSync(OUT, { recursive: true });
@@ -10,6 +11,7 @@ const b = await chromium.launch(); const p = await b.newPage({ viewport: { width
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'upgrade-shots');
 await p.evaluate(async () => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts'), RS = await import('/src/render/screens.ts');
@@ -44,11 +46,11 @@ for (const [name, [call, k]] of Object.entries(KINDS)) {
   await shoot(name, call, k);
 }
 await p.evaluate(async () => {
-  const m = window.__us, BI = await import('/src/biomes.ts');
-  window.__usClear(); m.$.G.scroll = 2300;
+  const m = window.__us, BI = await import('/src/biomes.ts'), LY = await import('/src/layout.ts'), X0 = LY.slotRow(0).x0;
+  window.__usClear(); m.$.G.scroll = X0;
   BI.openFork(0); m.$.G.fork.opts = ['ice', 'ice']; m.$.G.fork.t = 50;
   Object.assign(m.$.P, { x: m.C.W * .74, y: m.$.G.fork.gy[0], alive: true, inv: 30 });
-  m.ST.step(); m.$.G.scroll = 3300;
+  m.ST.step(); m.$.G.scroll = X0 + 1000;
   window.__usStep(60);
 });
 for (const [name, [call, k]] of Object.entries(KINDS)) if (WALLED.has(k)) await shoot(name, call, k);
@@ -75,4 +77,4 @@ for (let i = 0; i < 12; i++) await p.evaluate(() => window.__usStep(10));
 await shot('gore', 140, 230, 70);
 fs.writeFileSync(`${OUT}/meta.json`, JSON.stringify(meta, null, 1));
 console.log(errs.length ? 'page errors:\n' + errs.slice(0, 5).join('\n') : 'no page errors');
-await b.close();
+ranOn('upgrade-shots'); await b.close();

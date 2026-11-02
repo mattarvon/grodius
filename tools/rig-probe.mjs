@@ -1,6 +1,7 @@
 // Rig probe: seeded invincible bot plays a real run with a given Infirmary save; logs kills/biomass/rig damage.
-// Usage: node tools/rig-probe.mjs <url> <rigIds comma|none> [level] [seconds] [fire 1|0] [shotDir] [shotEvery]
+// Usage: node tools/rig-probe.mjs <url> <rigIds comma|none> [level] [seconds] [fire 1|0] [shotDir] [shotEvery] [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, rigArg = 'none', lvl = '1', secs = '60', fireArg = '1', shotDir = '', shotEvery = '0'] = process.argv.slice(2);
 const rig = rigArg === 'none' ? [] : rigArg.split(',');
 const save = { meta: { bio: 0, lv: { socket: 2 }, best: {}, rig, own: rig, cl: Object.fromEntries(rig.map((r) => [r, +lvl])), v: 2 }, hi: 0, muted: true };
@@ -16,6 +17,7 @@ await p.addInitScript((sv) => { let now = 0; const q = []; performance.now = () 
         if (tx != null) { g.P.x += Math.sign(tx - g.P.x) * Math.min(3, Math.abs(tx - g.P.x)); g.P.y += Math.sign(ty - g.P.y) * Math.min(3, Math.abs(ty - g.P.y)); } }
       q.splice(0).forEach((f) => f(now)); } }; }, save);
 await p.goto(url); await p.waitForFunction(() => window.__started);
+await useLayout(p, 'rig-probe');
 if (process.env.RAM) await p.evaluate(() => (window.__ram = 1));
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
@@ -31,4 +33,4 @@ while (f < S) {
 }
 const r = await p.evaluate(() => { const { G } = __G(); return { kills: G.kills, bio: Math.round(G.bio), score: G.score, stage: (G.loop + 1) + '-' + ((G.stage || 0) + 1), rig: window.__rig ? window.__rig() : null }; });
 console.log(rigArg, 'L' + lvl, JSON.stringify(r), 'errors:', errs.slice(0, 3).join(' | ') || 'none');
-await b.close();
+ranOn('rig-probe'); await b.close();

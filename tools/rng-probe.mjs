@@ -6,10 +6,13 @@
 // The sim signature (frames, boss/midboss hp, score, rank, bio, player, enemies, enemy shots, caps, orbs) must be
 // identical across the three. A difference means something outside the sim drew the sim RNG R() (or wrote sim state).
 // Fx-only arrays (gibs, drops, ...) are reported but not signed: they are presentation.
-// Usage: node tools/rng-probe.mjs [url] [--frames N] [--only maw,ufo] [--json out.json] [--trace]
+// Usage: node tools/rng-probe.mjs [url] [--frames N] [--only maw,ufo] [--json out.json] [--trace] [--layout short]
+//   World x comes from src/layout.ts: biome fights at slot 0 (stage-relative x 1000), stage bosses at slot 0 x0 + 700,
+//   the Saucer at ufoAt() + 150, the Drive at bossAt().
 //   --trace records the call site of every Math.random draw made inside render() and prints the top ones
 //   No url: starts its own Vite dev server (like the harness). Exits 1 if any fight's signatures differ.
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 
@@ -28,7 +31,7 @@ if (!url) {
   url = server.resolvedUrls.local[0];
 }
 
-// [id, label, kind, biome]: kind 'boss' = the Gravity Drive (BOSS_AT, $.G.boss); 'stage' = a stage-boss spawner;
+// [id, label, kind, biome]: kind 'boss' = the Gravity Drive (bossAt(), $.G.boss); 'stage' = a stage-boss spawner;
 // 'mid' = a biome midboss in its biome (midboss-probe's setup); 'ufo' = the Open Orbit saucer
 const FIGHTS = [
   ['drive', 'GRAVITY DRIVE', 'boss', null],
@@ -63,6 +66,7 @@ async function run(b, fight, flashes, draw) {
   await p.addInitScript(init, { flashes, trace: TRACE });
   await p.goto(url);
   await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+  await useLayout(p, 'rng-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
   // every sprite and photo decoded first, as in the harness: a late image changes which draw paths run
   for (let i = 0; i < 300; i++) {
     const ok = await p.evaluate(async () => {
@@ -78,20 +82,20 @@ async function run(b, fight, flashes, draw) {
     const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
     const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
     const UF = await import('/src/enemies/ufo.ts'), BU = await import('/src/boss/update.ts'), SV = await import('/src/save.ts');
-    const { render } = await import('/src/render/screens.ts');
+    const { render } = await import('/src/render/screens.ts'), LY = await import('/src/layout.ts');
     const $ = S.$; $.gate = false; IN.K.KeyZ = true;
     const [pw, gm, pkk] = KIT;
     F.newGame(0); $.state = 'play';
     for (let i = 0; i < 30; i++) ST.step();
-    if (kind === 'ufo') $.G.scroll = UF.UFO_AT + 150;
+    if (kind === 'ufo') $.G.scroll = LY.ufoAt() + 150;
     else if (kind === 'mid') {
-      $.G.scroll = 2300; $.G.si = $.G.script.length; W.enemies.length = 0;
+      $.G.scroll = LY.slotRow(0).x0; $.G.si = $.G.script.length; W.enemies.length = 0;
       BI.openFork(0); $.G.fork.opts = [biome, biome]; $.G.fork.t = 50; $.G.tally = null;
       Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 });
       ST.step();
-      $.G.scroll = 3300;
+      $.G.scroll = LY.slotRow(0).x0 + 1000;
       for (let i = 0; i < 60; i++) { $.P.inv = 30; ST.step(); }
-    } else $.G.scroll = kind === 'boss' ? C.BOSS_AT : 3000;
+    } else $.G.scroll = kind === 'boss' ? LY.bossAt() : LY.slotRow(0).x0 + 700;
     $.G.si = $.G.script.length; $.G.pick = null; $.G.pickQ = 0; $.G.tally = null;
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw);
     if ($.P.wardLv) $.P.shield = 3;
@@ -101,7 +105,7 @@ async function run(b, fight, flashes, draw) {
     W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
     if (kind === 'boss') BU.startBoss();
     else if (kind === 'stage') id === 'maw' ? SP.maw(true) : SP[id]();
-    else if (kind === 'ufo') { $.G.eat = UF.UFO_GAP_END; UF.spawnUfo(); }
+    else if (kind === 'ufo') { $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); }
     else id === 'mawmid' ? SP.maw(false) : SP.midboss(id, BI.BIOMES[biome].midName);
     const foe = () => (kind === 'boss' ? $.G.boss : $.G.mini);
     let f = 0, end = 'cap';
@@ -160,5 +164,6 @@ try {
   if (server) await server.close();
 }
 if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify({ frames: FRAMES, rows }, null, 2) + '\n');
+ranOn('rng-probe');
 console.log(bad ? `FAIL: ${bad}/${rows.length} fights differ between ON / OFF / BARE (or errored)` : `PASS: all ${rows.length} fights identical ON / OFF / BARE`);
 process.exit(bad ? 1 : 0);

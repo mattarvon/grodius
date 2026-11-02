@@ -1,6 +1,7 @@
 // Screenshots of the guns at base / mid / max loadouts firing into live meat. Needs the VITE DEV server.
-// Usage: node tools/gun-shots.mjs http://localhost:4202/ <outdir>
+// Usage: node tools/gun-shots.mjs http://localhost:4202/ <outdir> [--layout short]   (open space at biome slot 0's x0 + 700 in src/layout.ts)
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, out = '.'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: 2 });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
@@ -8,6 +9,7 @@ await p.addInitScript(() => { let s = 0x1234567; Math.random = () => { s |= 0; s
   let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {}
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; window.__pre && window.__pre(); q.splice(0).forEach((f) => f(now)); } }; });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await useLayout(p, 'gun-shots');
 await p.evaluate('__tick(3)');
 const L = {
   base: [{}, {}],
@@ -17,10 +19,10 @@ const L = {
 };
 for (const [name, [pw, gm]] of Object.entries(L)) {
   await p.evaluate(async ([pw, gm]) => {
-    const S = await import('/src/state.ts'), W = await import('/src/world.ts'), F = await import('/src/flow.ts'), IN = await import('/src/input.ts'), SP = await import('/src/enemies/spawn.ts');
+    const S = await import('/src/state.ts'), W = await import('/src/world.ts'), F = await import('/src/flow.ts'), IN = await import('/src/input.ts'), SP = await import('/src/enemies/spawn.ts'), LY = await import('/src/layout.ts');
     const $ = S.$; $.gate = false; IN.K.KeyZ = true;
     F.newGame(0); $.state = 'play';
-    $.G.scroll = 3000;
+    $.G.scroll = LY.slotRow(0).x0 + 700;
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw);
     $.G.gm = { ...gm };
     let f = 0;
@@ -41,4 +43,4 @@ for (const [name, [pw, gm]] of Object.entries(L)) {
 await p.evaluate(async () => { const S = await import('/src/state.ts'), PL = await import('/src/player.ts'); Object.assign(S.$.P, { double: 0, missile: 0, options: 0, laser: 0, pyre: 0 }); S.$.G.gm = {}; PL.applyPower(2, true); });
 await p.evaluate('__tick(25)');
 await p.screenshot({ path: `${out}/guns-callout.png` });
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('gun-shots'); await b.close();

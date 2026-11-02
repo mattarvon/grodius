@@ -1,6 +1,7 @@
 // Pick-screen input test: held fire / mashed fire must not pick; release+hold, Enter, arrows, mouse hover + click work.
-// Usage: node tools/perk-input.mjs <url>
+// Usage: node tools/perk-input.mjs <url> [--layout short]
 import { chromium } from 'playwright';
+import { useLayout, ranOn } from './layout-arg.mjs';
 const url = process.argv[2];
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
@@ -8,6 +9,7 @@ await p.addInitScript(() => { let now = 0; const q = []; performance.now = () =>
   try { localStorage.clear(); } catch (e) {}
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const g = window.__G && window.__G(); if (g && g.P && g.state === 'play') { g.P.inv = 30; g.P.alive = true; } q.splice(0).forEach((f) => f(now)); } }; });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 60000 });
+await useLayout(p, 'perk-input');
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 const tick = (n) => p.evaluate((n) => __tick(n), n);
 const st = () => p.evaluate(() => { const G = __G().G; return { open: !!G.pick, sel: G.pick && G.pick.sel, n: Object.values(G.pk).reduce((a, b) => a + b, 0) }; });
@@ -38,4 +40,4 @@ let pt = at(240 - 151, 120); await p.mouse.move(pt.x, pt.y); await tick(2); R.pu
 pt = at(240 + 151, 120); await p.mouse.move(pt.x, pt.y); await tick(2); R.push(['hover right card', 'sel=' + (await st()).sel]);
 n0 = (await st()).n; await p.mouse.down(); await p.mouse.up(); await tick(2); R.push(['click right card', (await st()).open ? 'not picked (bad)' : `picked (+${(await st()).n - n0})`]);
 for (const [a, r] of R) console.log(a.padEnd(22), r);
-console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); await b.close();
+console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('perk-input'); await b.close();
