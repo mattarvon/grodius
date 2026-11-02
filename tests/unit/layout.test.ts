@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BANDS, LAYOUTS, bandAt, bossAt, forkAfter, hellCore, hellCorr, innerBand, kindOf, lastStage, layout, nSlots, row,
-  driftRow, driftsOf, setLayout, slotSpans, slotOf, slotRow, stageOfSlot, ufoAt, ufoGapEnd, type LayoutEntry,
+  LONG4_ENTRY, beatPlan, driftRow, driftsOf, setLayout, slotSpans, slotOf, slotRow, stageOfSlot, ufoAt, ufoGapEnd, type LayoutEntry,
 } from '../../src/layout';
 
 // ---- the invariants every layout entry must keep (design/content-expansion.md §2.2, §3.2) ----
@@ -14,12 +14,12 @@ type Row = LayoutEntry['stages'][number];
 /** the gates a biome row is checked at: earliest (taken by x0, so the span starts at x0 + pad[0]) and latest (gateLate) */
 const gates = (r: Row) => [['early', r.x0], ...(r.gateLate != null ? [['late', r.gateLate]] : [])] as [string, number][];
 
-/** the biome breath, its midboss WARNING and the set-piece x for a biome row and gate, mirroring biomes.ts biomeScript */
-function biomeBeats(L: LayoutEntry, r: Row, from: number, remix: boolean) {
-  const B = L.beats, a = Math.max(r.x0 + B.pad[0], from + 60), z = r.bossX - B.pad[1], mid = Math.round((a + z) / 2), P = (q: number) => a + (z - a) * q;
-  const bZ = r.breathAfterMid != null ? Math.max(P(B.breath.end), mid + r.breathAfterMid) : P(B.breath.end), bA = bZ - (z - a) * B.breath.len;
-  return { bA, bZ, warn: Math.round(bZ - B.warnLead), sets: (remix ? B.remixSets : B.sets).map(P) };
-}
+/** the breaths, the midboss WARNING and the set-piece x for a biome row and gate: src/layout.ts beatPlan, which
+ *  biomes.ts biomeScript builds the script from */
+const biomeBeats = (L: LayoutEntry, r: Row, from: number, remix: boolean) => beatPlan(r, from, remix, L);
+
+/** every entry the invariants run on: the registered ones, plus long4 as a fixture until item J lets it register */
+const ENTRIES: [string, LayoutEntry][] = [...Object.entries(LAYOUTS) as [string, LayoutEntry][], ...(LAYOUTS.long4 ? [] : [['long4', LONG4_ENTRY] as [string, LayoutEntry]])];
 
 /** every invariant violation in a layout entry, as readable strings (empty = clean) */
 function violations(L: LayoutEntry) {
@@ -41,12 +41,13 @@ function violations(L: LayoutEntry) {
     const warns: number[] = [r.warnX ?? r.bossX, ...(r.drift || []).map((d) => r.x0 + d.at)];
     if (r.kind === 'biome') for (const [g, from] of gates(r)) for (const remix of [false, true]) {
       const b = biomeBeats(L, r, from, remix), tag = `stage ${i} ${g} gate${remix ? ' remix' : ''}`;
-      warns.push(b.warn);
+      if (b.warn != null) warns.push(b.warn);
       for (const x of b.sets) {
-        const d = x < b.bA ? b.bA - x : x > b.bZ ? x - b.bZ : 0;
+        const d = Math.min(...b.breaths.map((br) => x < br.a ? br.a - x : x > br.z ? x - br.z : 0));
         if (d < MIN_GAP) out.push(`${tag}: set piece at ${x.toFixed(1)} is ${d.toFixed(1)} px from the breath`);
       }
-      if (r.bossX - b.bZ < MIN_GAP) out.push(`${tag}: breath ends ${(r.bossX - b.bZ).toFixed(1)} px before bossX`);
+      const last = Math.max(...b.breaths.map((br) => br.z));
+      if (r.bossX - last < MIN_GAP) out.push(`${tag}: breath ends ${(r.bossX - last).toFixed(1)} px before bossX`);
     }
     // a DRIFT midboss does not hold the scroll: it must be forced out >= MIN_GAP before the next WARNING (§3.2 rule 1)
     for (const d of r.drift || []) {
@@ -74,7 +75,7 @@ const LEGACY: Partial<Record<string, RegExp[]>> = {
 };
 
 describe('layout invariants, every entry', () => {
-  for (const [id, L] of Object.entries(LAYOUTS)) {
+  for (const [id, L] of ENTRIES) {
     it(`${id}: stages contiguous, breaths >= 300 px from set pieces and bossX at both gates, DRIFT exits >= 300 px before the next WARNING`, () => {
       const v = violations(L!), legacy = LEGACY[id] || [];
       expect(v.filter((s) => !legacy.some((re) => re.test(s)))).toEqual([]);
@@ -151,7 +152,19 @@ describe('short layout reproduces today', () => {
   });
 
   it('has the old beat fractions and script anchors', () => {
-    expect(L.beats).toEqual({ pad: [220, 160], breath: { end: .55, len: .1 }, sets: [.3, .75], remixSets: [.22, .62], warnLead: 210 });
+    // today's single breath and its tempo, as a BREATHS table (beat template v2 keeps short's script byte-identical:
+    // tools/layout-parity.mjs)
+    expect(L.beats).toEqual({
+      pad: [220, 160], gateLead: 60, breaths: [{ end: .55, len: .1, mid: true }],
+      tempo: [
+        { until: .2, gap: 1.4, dbl: .2, sig: true, lead: 'sig', third: true },
+        { until: { breath: 0 }, gap: 1, dbl: 0, rel: true, third: true },
+        { until: .9, gap: .75, dbl: .15, rel: true, third: true },
+        { until: 1, gap: 1, dbl: 0, rel: true, third: true },
+      ],
+      sets: [.3, .75], remixSets: [.22, .62], warnLead: 210,
+    });
+    expect(L.beats.runup).toBeUndefined();
     expect(slotRow(1).breathAfterMid).toBe(260);
     expect(slotRow(0).breathAfterMid).toBeUndefined();
     expect([row(0)!.warnX, row(0)!.bossX]).toEqual([2000, 2120]); // SOMETHING IS COMING, the Maw
@@ -181,5 +194,69 @@ describe('short layout reproduces today', () => {
   it('refuses an unknown layout id', () => {
     expect(() => setLayout('long9')).toThrow(/unknown layout/);
     expect(layout().id).toBe('short');
+  });
+});
+
+// ---- the long layout (build plan sprint 2 item D; spec §2.2, §3.2-3.4) ----
+describe('long4 entry', () => {
+  const L = LAYOUTS.long4 ?? LONG4_ENTRY, biomeRows = L.stages.filter((r) => r.kind === 'biome');
+
+  it('is Orbit, biome slot 0, biome slot 1, Drive, with forks before both biome slots', () => {
+    expect(L.stages.map((r) => r.kind)).toEqual(['orbit', 'biome', 'biome', 'drive']);
+    expect(biomeRows.map((r) => [r.slot, r.fork])).toEqual([[0, true], [1, true]]);
+  });
+
+  it('has long rows: Orbit 3600, a 2700 px Drive approach, LEVEL near the spec estimate', () => {
+    const [o, , , d] = L.stages;
+    expect(o.x1 - o.x0).toBe(3600);
+    expect(d.bossX - d.x0).toBe(2700);
+    expect(d.warnX).toBeLessThan(d.bossX);
+    // spec §2.2: ~13,500-14,000 for four stages; +370 for the 150 f biome-boss WARNING coasts and today's 700 px chamber
+    expect(L.level).toBeGreaterThanOrEqual(13500);
+    expect(L.level).toBeLessThanOrEqual(14400);
+  });
+
+  it('times each biome stage at ~3550 px from its gate scroll (~60 s of scroll) and sets gateLate past that gate', () => {
+    // gate scroll: the fork holds the scroll ~50 px past the Orbit Maw's bossX and ~200 px past a biome boss's
+    const gateScroll = [L.stages[0].bossX + 50, biomeRows[0].bossX + 200];
+    biomeRows.forEach((r, s) => {
+      expect(r.bossX - gateScroll[s]).toBe(3550);
+      expect(r.gateLate).toBeGreaterThanOrEqual(gateScroll[s] + 480 + 10); // choose(): from = scroll + W + 10
+      expect(r.breathAfterMid).toBeUndefined(); // short's legacy hack stays short's
+    });
+  });
+
+  it('has two breaths, only the first holding a midboss in sprint 2, with its WARNING inside it', () => {
+    expect(L.beats.breaths.map((b) => !!b.mid)).toEqual([true, false]);
+    for (const r of biomeRows) for (const from of [r.x0, r.gateLate!]) {
+      const b = beatPlan(r, from, false, L), [b1] = b.breaths;
+      expect(b.warn!).toBeGreaterThanOrEqual(b1.a);
+      expect(b.warn!).toBeLessThan(b1.z);
+    }
+  });
+
+  it('keeps every set piece >= 150 px from every WARNING, breath 2s future one included, at both gates', () => {
+    for (const r of biomeRows) for (const from of [r.x0, r.gateLate!]) for (const remix of [false, true]) {
+      const b = beatPlan(r, from, remix, L);
+      // sprint 3 item F puts slot B's miniWarn in breath 2 the same warnLead before its end
+      const warns = [...b.breaths.map((br) => br.z - L.beats.warnLead), r.bossX];
+      for (const x of b.sets) expect(Math.min(...warns.map((w) => Math.abs(w - x)))).toBeGreaterThanOrEqual(150);
+      expect(b.sets).toHaveLength(3);
+    }
+  });
+
+  it('starts the arena run-up after the last breath and before the boss, at p .9', () => {
+    for (const r of biomeRows) {
+      const b = beatPlan(r, r.gateLate!, false, L);
+      expect(b.runup!).toBeGreaterThan(Math.max(...b.breaths.map((br) => br.z)));
+      expect(b.runup!).toBeLessThan(r.bossX);
+      expect(b.runup!).toBeCloseTo(b.P(.9), 6);
+    }
+  });
+
+  it('flags its hell bands as stage-keyed, not copies of the AMT bands (creative-director condition)', () => {
+    expect(L.hell.corr).not.toEqual(L.bands.corr);
+    expect(L.hell.corr[0]).toBe(biomeRows[1].x0); // rises with the last biome slot
+    expect(L.hudMarks).toHaveLength(biomeRows.length);
   });
 });
