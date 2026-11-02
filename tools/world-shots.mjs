@@ -26,7 +26,7 @@ const shot = (n) => p.screenshot({ path: `${OUT}/${n}.png` });
 await fresh(0);
 for (const sc of [300, 1300, 2000].map((r) => LY.rowOfKind('orbit').x0 + r)) { await p.evaluate((sc) => window.__go(sc, 240, true), sc); await shot(`orbit-d1-${sc}`); }
 await fresh(1);
-await p.evaluate(() => window.__go(LY.rowOfKind('orbit').x0 + 1300, 240, true)); await shot(`orbit-d2-${LY.rowOfKind('orbit').x0 + 1300}`);
+{ const sc = LY.rowOfKind('orbit').x0 + 1300; await p.evaluate((sc) => window.__go(sc, 240, true), sc); await shot(`orbit-d2-${sc}`); }
 // ice: fork into ice twice
 await fresh(0);
 await p.evaluate(() => { const { S, BI, C, ST } = window.__w, $ = S.$; window.__clear(); $.G.scroll = __LY.slotRow(0).x0; BI.openFork(0); $.G.fork.opts = ['ice', 'ice']; $.G.fork.t = 50; Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 }); ST.step(); });

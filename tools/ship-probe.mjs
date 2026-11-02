@@ -41,6 +41,8 @@ const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, 
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter');
 await p.evaluate('__tick(60)');
+// a cleared save asks HELL FLASHES first (menus.ts titleItems): Enter until the run starts
+for (let i = 0; i < 2 && (await p.evaluate(() => __G().state === 'title')); i++) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(60)'); }
 await p.evaluate(() => (window.__hold = { x: 200, y: 127, inv: 40 }));
 await p.evaluate('__tick(400)');
 await p.evaluate('__tick(30)');

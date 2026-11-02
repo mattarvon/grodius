@@ -11,7 +11,7 @@ async function page(meta, opts = {}) {
   p.on('pageerror', (e) => errs.push(e.message));
   await p.addInitScript((sv) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0;
     try { localStorage.clear(); if (sv) localStorage.setItem('grodius.v1', JSON.stringify(sv)); } catch (e) {}
-    window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; q.splice(0).forEach((f) => f(now)); } }; }, meta && { meta, hi: 0, muted: true });
+    window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; q.splice(0).forEach((f) => f(now)); } }; }, meta && { meta, hi: 0, muted: true, asked: true }); // asked: skip the one-time HELL FLASHES question (menus.ts titleItems)
   await p.goto(url); await p.waitForFunction(() => window.__started);
   await useLayout(p, 'shop-probe');
   const key = async (c, n = 1) => { for (let i = 0; i < n; i++) { await p.evaluate((c) => dispatchEvent(new KeyboardEvent('keydown', { code: c })), c); await p.evaluate('__tick(2)'); await p.evaluate((c) => dispatchEvent(new KeyboardEvent('keyup', { code: c })), c); await p.evaluate('__tick(2)'); } };
