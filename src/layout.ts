@@ -40,6 +40,20 @@ export interface StageRow {
    *  the fork opens after the previous stage's boss). Only the layout invariant test reads it: a late gate shortens the
    *  spawn span, so every beat gap is checked at both the earliest (x0) and this latest gate. */
   gateLate?: number;
+  /** long Orbit / Drive rows: the cell-and-filler plan the long script generator builds from (enemies/scripts.ts,
+   *  src/cellpick.ts). The short rows have none: their scripts are today's hand-made sections */
+  plan?: StagePlan;
+}
+
+/** a generated stage (spec §3.4 "Authoring method"; LS1 row E). All x are stage-relative to the row's x0 */
+export interface StagePlan {
+  /** hand-authored cells, about 300 px each: where each starts, and which tagged pool it draws from. `floor` is the
+   *  Drive's first slot, the only stretch of the corridor with a floor and ceiling for mutants, crawlers and wombs */
+  slots: { x: number; tag: 'intro' | 'build' | 'peak' | 'floor' }[];
+  /** generator filler: a beat every `gap` px over [a, b), kinds from the `mix` table (src/cellpick.ts) */
+  fill: { a: number; b: number; gap: number; mix: 'orbit' | 'interior' }[];
+  /** Descent 1 plays the pool's fixed opener in the first `opener` slots (Orbit's teaching cells) */
+  opener?: number;
 }
 
 /** biome stage beat fractions, p = progress through the spawn span (biomes.ts biomeScript) */
@@ -102,6 +116,39 @@ const SHORT: LayoutEntry = {
   hell: { corr: [5000, 5500, 8900, 9300], core: [8900, 9350] },
   hudMarks: [2400, 5200],
 };
+
+// ---------------- long4's Open Orbit and Drive approach rows (LS1 row E) ----------------
+// Item D's long4 entry places these rows; they are not an entry on their own (see the tripwire in
+// tests/integration/layout-literals.test.ts). Pacing at 60 px/s: content runs to the Maw's banner at ~55 s of scroll,
+// the Drive approach is 45 s (spec §3.4; wall-time targets: Orbit 75-90 s with the Saucer only, Drive 80-95 s).
+/** long Open Orbit, world x = stage x (Orbit is always stage 0). The Saucer's WARNING is at 1100 (spec §3.4, the p .30
+ *  breath of the beat template); its filler window runs to 2100 (1000 px, today's window length, so the Saucer fight
+ *  and its pods keep docs/pacing.md 3.2's tuning) and it is forced out at 2040: 1260 px before the Maw's banner, the
+ *  next WARNING in LS1. LS2-orbit's slot-B held midboss must put its WARNING at >= 2340 (D20 rule 1) */
+export const LONG4_ORBIT: StageRow = {
+  kind: 'orbit', x0: 0, x1: 3600, bossX: 3420, warnX: 3300,
+  drift: [{ k: 'ufo', at: 1100, gapEnd: 2100, exitLead: 60 }],
+  plan: {
+    // 3 intro cells = the ~15 s teaching opener in Descent 1 (200..1100), then the Saucer, then build and peak
+    slots: [{ x: 200, tag: 'intro' }, { x: 500, tag: 'intro' }, { x: 800, tag: 'intro' }, { x: 2100, tag: 'build' }, { x: 2700, tag: 'peak' }],
+    fill: [
+      { a: 1150, b: 2100, gap: 80, mix: 'orbit' }, // the Saucer's window: eaten while it is up (runScript, $.G.eat)
+      { a: 2400, b: 2700, gap: 70, mix: 'orbit' }, // build, ~0.9 beats/s
+      { a: 3000, b: 3220, gap: 55, mix: 'orbit' }, // peak, ~1.1 beats/s, ending 80 px before the Maw's banner
+    ],
+    opener: 3,
+  },
+};
+/** long Drive approach, stage-relative: 2700 px from the row's x0 to startBoss (45 s). x0/x1 are the entry's (item D:
+ *  where the last biome hands back, and the chamber after the fight) */
+export const long4Drive = (x0: number, x1: number): StageRow => ({
+  kind: 'drive', x0, x1, bossX: x0 + 2700, warnX: x0 + 2460, // WARNING: GRAVITY WELL CRITICAL, then the drifting crew
+  plan: {
+    // the log line at 130 and the wall eyes at 430 are fixed beats (scripts.ts), as in short
+    slots: [{ x: 140, tag: 'floor' }, { x: 460, tag: 'intro' }, { x: 800, tag: 'build' }, { x: 1120, tag: 'build' }, { x: 1760, tag: 'peak' }, { x: 2080, tag: 'peak' }],
+    fill: [{ a: 1440, b: 1740, gap: 65, mix: 'interior' }],
+  },
+});
 
 export const LAYOUTS: Partial<Record<LayoutEntry['id'], LayoutEntry>> = { short: SHORT };
 let active: LayoutEntry = SHORT;
