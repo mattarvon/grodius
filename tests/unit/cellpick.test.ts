@@ -8,14 +8,15 @@ import { LONG4_ORBIT, long4Drive, type StageRow } from '../../src/layout';
 // scripts.ts pulls in canvas/audio modules through spawn.ts; stub them and record what each cell spawns
 const calls: string[] = [];
 const rec = (k: string) => (..._a: unknown[]) => { calls.push(k); };
-vi.mock('../../src/core', () => ({ PH: 254, W: 480, R: () => 0, ri: (a: number) => a }));
+const simR = vi.hoisted(() => ({ n: 0 })); // counts sim R() draws made through scripts.ts
+vi.mock('../../src/core', () => ({ PH: 254, W: 480, R: () => (simR.n++, 0), ri: (a: number) => (simR.n++, a) }));
 vi.mock('../../src/audio', () => ({ sfx: { dread: () => {}, siren: () => {} } }));
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
 vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: () => {} }));
 vi.mock('../../src/enemies/spawn', () => Object.fromEntries(
   ['banner', 'behindWave', 'corpse', 'crawler', 'eyeT', 'flayer', 'formation', 'hatch', 'logLine', 'maw', 'mutant', 'sentry', 'womb'].map((k) => [k, (...a: unknown[]) => rec(k)(...a)]),
 ));
-const { ORBIT_CELLS, ORBIT_OPENER, DRIVE_CELLS, buildPlanned } = await import('../../src/enemies/scripts');
+const { ORBIT_CELLS, ORBIT_OPENER, DRIVE_CELLS, pickPlanned, placePlanned } = await import('../../src/enemies/scripts');
 
 /** a seeded uniform stream (xorshift32), the shape of the tools' seeded Math.random */
 const stream = (seed: number) => { let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; return () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296); };
@@ -78,8 +79,8 @@ describe('pickCells rules', () => {
 describe('the real cell pools', () => {
   const cases: [string, any[], string[], StageRow][] = [['orbit', ORBIT_CELLS, ORBIT_OPENER, LONG4_ORBIT], ['drive', DRIVE_CELLS, [], DRIVE]];
 
-  it('has 12 Orbit cells (target 10-12) and enough Drive cells for its six slots', () => {
-    expect(ORBIT_CELLS.length).toBe(12);
+  it('has 13 Orbit cells (spec target 10-12, plus one for the long Orbit\'s second build slot) and 12+ Drive cells', () => {
+    expect(ORBIT_CELLS.length).toBe(13);
     expect(DRIVE_CELLS.length).toBeGreaterThanOrEqual(12);
   });
 
@@ -180,14 +181,26 @@ describe('long4 Orbit and Drive rows', () => {
     for (const s of LONG4_ORBIT.plan!.slots) expect(s.x + 280 < d.at || s.x >= d.gapEnd, `slot ${s.x}`).toBe(true);
   });
 
-  it('buildPlanned places the opener cells first in Descent 1 and keeps cell memory per stage kind in G.remixV', () => {
-    const xs: number[] = [];
-    const ids = buildPlanned(LONG4_ORBIT, ORBIT_CELLS, ORBIT_OPENER, 0, (x: number) => xs.push(x), stream(1));
+  it('pickPlanned opens Descent 1 on the opener and keeps cell memory per stage kind in G.remixV', () => {
+    const { ids } = pickPlanned(LONG4_ORBIT, ORBIT_CELLS, ORBIT_OPENER, 0, stream(1));
     expect(ids.slice(0, 3)).toEqual(ORBIT_OPENER);
     expect($.G.remixV['c:orbit'].last).toEqual(ids);
-    expect(Math.min(...xs)).toBe(200);
     // Descent 2 on the same run: none of Descent 1's cells
-    const ids2 = buildPlanned(LONG4_ORBIT, ORBIT_CELLS, ORBIT_OPENER, 1, () => {}, stream(2));
+    const ids2 = pickPlanned(LONG4_ORBIT, ORBIT_CELLS, ORBIT_OPENER, 1, stream(2)).ids;
     expect(ids2.filter((id: string) => ids.includes(id))).toEqual([]);
+  });
+
+  it('placePlanned draws nothing and places the same entries for the same pick (a stage can be rebuilt)', () => {
+    const pick = pickPlanned(LONG4_ORBIT, ORBIT_CELLS, ORBIT_OPENER, 0, stream(4));
+    const xs1: number[] = [], xs2: number[] = [];
+    simR.n = 0;
+    placePlanned(LONG4_ORBIT, ORBIT_CELLS, pick, (x: number) => xs1.push(x));
+    placePlanned(LONG4_ORBIT, ORBIT_CELLS, pick, (x: number) => xs2.push(x));
+    expect(xs1).toEqual(xs2);
+    expect(simR.n).toBe(0);
+    pickPlanned(LONG4_ORBIT, ORBIT_CELLS, ORBIT_OPENER, 1); // the counter does count: picking draws the sim R()
+    expect(simR.n).toBeGreaterThan(0);
+    expect(Math.min(...xs1)).toBe(200);
+    expect(Math.max(...xs1)).toBeLessThanOrEqual(LONG4_ORBIT.warnX! - 60);
   });
 });

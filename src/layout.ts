@@ -119,22 +119,26 @@ const SHORT: LayoutEntry = {
 
 // ---------------- long4's Open Orbit and Drive approach rows (LS1 row E) ----------------
 // Item D's long4 entry places these rows; they are not an entry on their own (see the tripwire in
-// tests/integration/layout-literals.test.ts). Pacing at 60 px/s: content runs to the Maw's banner at ~55 s of scroll,
-// the Drive approach is 45 s (spec §3.4; wall-time targets: Orbit 75-90 s with the Saucer only, Drive 80-95 s).
-/** long Open Orbit, world x = stage x (Orbit is always stage 0). The Saucer's WARNING is at 1100 (spec §3.4, the p .30
- *  breath of the beat template); its filler window runs to 2100 (1000 px, today's window length, so the Saucer fight
- *  and its pods keep docs/pacing.md 3.2's tuning) and it is forced out at 2040: 1260 px before the Maw's banner, the
- *  next WARNING in LS1. LS2-orbit's slot-B held midboss must put its WARNING at >= 2340 (D20 rule 1) */
+// tests/integration/layout-literals.test.ts). Wall-time targets (spec §3.4, LS1): Orbit 75-90 s with the Saucer only,
+// Drive 80-95 s. Measured on a scratch long4 (production/qa/evidence/ls1-e.md): a stage's wall time is its scroll to
+// bossX plus ~9 s (STAGE card, the Maw), and the Saucer adds none because it does not hold the scroll.
+/** long Open Orbit, world x = stage x (Orbit is always stage 0). 4380 px, not the spec's 3600: at 3600 (Maw at 3420)
+ *  the stage measured 65-67 s, under the band, because the drift Saucer holds nothing; the Maw at 4200 (70 s of
+ *  scroll) aims at ~79 s. The Saucer's WARNING is at 1100 (spec §3.4, the p .30 breath of the beat template); its
+ *  filler window runs to 2100 (1000 px, today's window length, so the Saucer fight and its pods keep docs/pacing.md
+ *  3.2's tuning) and it is forced out at 2040, 2040 px before the Maw's banner, the next WARNING in LS1. LS2-orbit's
+ *  slot-B held midboss must put its WARNING at >= 2340 (D20 rule 1) */
 export const LONG4_ORBIT: StageRow = {
-  kind: 'orbit', x0: 0, x1: 3600, bossX: 3420, warnX: 3300,
+  kind: 'orbit', x0: 0, x1: 4380, bossX: 4200, warnX: 4080,
   drift: [{ k: 'ufo', at: 1100, gapEnd: 2100, exitLead: 60 }],
   plan: {
-    // 3 intro cells = the ~15 s teaching opener in Descent 1 (200..1100), then the Saucer, then build and peak
-    slots: [{ x: 200, tag: 'intro' }, { x: 500, tag: 'intro' }, { x: 800, tag: 'intro' }, { x: 2100, tag: 'build' }, { x: 2700, tag: 'peak' }],
+    // 3 intro cells = the ~15 s teaching opener in Descent 1 (200..1100), then the Saucer, then build, build, peak
+    slots: [{ x: 200, tag: 'intro' }, { x: 500, tag: 'intro' }, { x: 800, tag: 'intro' }, { x: 2100, tag: 'build' }, { x: 2700, tag: 'build' }, { x: 3300, tag: 'peak' }],
     fill: [
       { a: 1150, b: 2100, gap: 80, mix: 'orbit' }, // the Saucer's window: eaten while it is up (runScript, $.G.eat)
       { a: 2400, b: 2700, gap: 70, mix: 'orbit' }, // build, ~0.9 beats/s
-      { a: 3000, b: 3220, gap: 55, mix: 'orbit' }, // peak, ~1.1 beats/s, ending 80 px before the Maw's banner
+      { a: 3000, b: 3300, gap: 70, mix: 'orbit' },
+      { a: 3600, b: 4000, gap: 55, mix: 'orbit' }, // peak, ~1.1 beats/s, ending 80 px before the Maw's banner
     ],
     opener: 3,
   },

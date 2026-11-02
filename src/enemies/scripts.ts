@@ -224,8 +224,8 @@ const DRIVE_F = [
 // always holds (tests/unit/cellpick.test.ts runs the real pools).
 const C = (id, tag, min, f) => Object.assign(f, { id, tags: [tag], min });
 
-/** Open Orbit: 3 teaching cells (the Descent 1 opener, back as ordinary intro cells from Descent 3), 3 intro, 3 build,
- *  3 peak. Open space: no terrain kinds */
+/** Open Orbit: 3 teaching cells (the Descent 1 opener, back as ordinary intro cells from Descent 3), 3 intro, 4 build,
+ *  3 peak (13: one over the spec's 10-12, for the second build slot of the 4380 px Orbit). Open space: no terrain kinds */
 export const ORBIT_CELLS = [
   // the teaching opener, ~15 s: ORBIT_A's classic, one idea per wave, spread over three cells
   C('o.drones', 'intro', 2, (at) => { at(0, () => formation('sine', 80)); at(140, () => formation('sine', 175, 4)); at(250, () => crew(60, 200)); }),
@@ -242,9 +242,12 @@ export const ORBIT_CELLS = [
     at(0, () => sentry(PH * .22, W * .78)); at(50, () => sentry(PH * .78, W * .7));
     at(130, () => formation('zig', PH / 2, 3)); at(270, () => crew(50, 135, 220));
   }),
-  // build: ORBIT_A's second halves and ORBIT_C's brood swarm
+  // build: ORBIT_A's second halves, ORBIT_D's run-up and ORBIT_C's brood swarm
   C('o.alley', 'build', 0, (at) => { at(0, () => flayer(PH * .6)); at(90, () => hatch(6, false)); at(160, () => crew(70, 190)); at(240, () => formation('dive', PH - 60, 3)); }),
   C('o.watch', 'build', 0, (at) => { at(0, () => sentry(PH * .66)); at(80, () => flayer(PH * .35)); at(180, () => { sentry(PH * .25, W * .8); corpse(PH * .8); }); at(260, () => formation('sine', 70, 3)); }),
+  // the run-up: ORBIT_D's sentry over a zig and its flayer + corpse, then a big swarm (a fourth build cell: long Orbit
+  // has two build slots, and "never last descent's" needs twice that many)
+  C('o.runup', 'build', 0, (at) => { at(0, () => { sentry(PH * .5, W * .75); formation('zig', PH * .8, 3); }); at(90, () => { flayer(PH * .4); corpse(PH * .8); }); at(170, () => hatch(8, false)); at(250, () => flayer(PH * .6)); }),
   C('o.brood', 'build', 0, (at) => { at(0, () => hatch(6, false)); at(120, () => { sentry(PH * .25, W * .78); sentry(PH * .72, W * .64); }); at(200, () => hatch(6, true)); }),
   // peak: ORBIT_C's classic, flayer alley and hull breach (still Descent 3+)
   C('o.wall', 'peak', 0, (at) => { at(0, () => formation('wall', PH / 2)); at(60, () => { sentry(PH * .22, W * .8); sentry(PH * .74, W * .66); }); at(120, () => hatch(6, true)); at(240, () => { crew(60); corpse(150); }); }),
@@ -312,19 +315,24 @@ function fillSpawn(k, u, nDrone) {
 }
 const MIXES = { orbit: ORBIT_MIX, interior: INTERIOR_MIX };
 
-/** build a planned (long) stage row's cells and filler into `at` (stage-relative x). Cell picks and filler draw the
- *  sim R() at build time, as pickV does (B2 moves them to the per-stage build stream). Returns the picked cell ids */
-export function buildPlanned(r, cells, opener, L, at, rnd = R) {
+/** a planned (long) stage row's build-time draws for descent L: its cells (pickV's rules, src/cellpick.ts) and its
+ *  filler beats. Draws the sim R() at build time, as pickV does (B2 moves it to the per-stage build stream), and commits
+ *  the cell memory to G.remixV['c:<kind>']. Pure placement is placePlanned: call this once per descent per row */
+export function pickPlanned(r, cells, opener, L, rnd = R) {
   const P = r.plan, m = ($.G.remixV ||= {}), mem = (m['c:' + r.kind] ||= { used: [], last: [] });
   const { ids } = pickCells(cells, P.slots.map((s) => s.tag), L, mem, rnd, opener);
   noteCells(mem, ids);
-  ids.forEach((id, i) => {
-    const c = id && cells.find((x) => x.id === id), x0 = P.slots[i].x;
+  const fill = P.fill.flatMap((w) => genFiller(w.a, w.b, w.gap, MIXES[w.mix], rnd));
+  return { ids, fill };
+}
+/** place a planned row's picks into `at` (stage-relative x). Draws nothing */
+export function placePlanned(r, cells, pick, at) {
+  pick.ids.forEach((id, i) => {
+    const c = id && cells.find((x) => x.id === id), x0 = r.plan.slots[i].x;
     if (c) c((x, f) => at(x0 + x, f));
   });
   const nDrone = r.kind === 'orbit' ? 3 : 4;
-  for (const w of P.fill) for (const b of genFiller(w.a, w.b, w.gap, MIXES[w.mix], rnd)) at(b.x, () => fillSpawn(b.k, b.u, nDrone));
-  return ids;
+  for (const b of pick.fill) at(b.x, () => fillSpawn(b.k, b.u, nDrone));
 }
 
 export function buildScript(L) {
@@ -334,7 +342,7 @@ export function buildScript(L) {
   // PHASE 1: open orbit, the derelict looming
   const O = rowOfKind('orbit'), oAt = stageAt(O);
   if (O.plan) { // long Orbit (long4): cells + generator; the Saucer, the banner and the Maw stay where the row puts them
-    buildPlanned(O, ORBIT_CELLS, ORBIT_OPENER, L, oAt);
+    placePlanned(O, ORBIT_CELLS, pickPlanned(O, ORBIT_CELLS, ORBIT_OPENER, L), oAt);
     stageAt(ufoRow())(ufoDrift().at, ufoWarn);
   } else {
     pickV('oA', ORBIT_A, L)(oAt);
@@ -352,7 +360,7 @@ export function buildScript(L) {
   dAt(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
   if (D.plan) { // long Drive approach (long4): the floor cell, the wall eyes, then cells and filler up to the WARNING
     dAt(430, () => { eyeT(1); eyeT(-1); });
-    buildPlanned(D, DRIVE_CELLS, [], L, dAt);
+    placePlanned(D, DRIVE_CELLS, pickPlanned(D, DRIVE_CELLS, [], L), dAt);
   } else {
     pickV('dE', DRIVE_E, L)(dAt);
     dAt(430, () => { eyeT(1); eyeT(-1); });

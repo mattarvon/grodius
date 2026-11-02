@@ -11,9 +11,10 @@
 //  PACING (docs/pacing.md 3.2): unlike the biome midbosses it does NOT hold the scroll. Open Orbit is open space, so
 //  the wreck drifts alongside you and the stage clock keeps running. While it's up (from its WARNING on) the Open Orbit
 //  script's filler is eaten ($.G.eat, see runScript): kill it fast and the waves pick up where the scroll is; take
-//  your time and it eats them. It leaves at scroll 1840 whatever happens (the last filler and the Maw's run-up always
-//  come), so the stage is the same length in scroll and time; the cost is the eaten filler's kills and pods, which the
-//  pods above stand in for (measured: docs/pacing.md 3.2).
+//  your time and it eats them. It is forced out at its row's gapEnd - exitLead whatever happens (short: 1780; long4:
+//  2040, src/layout.ts), so the last filler and the Maw's run-up always come and the stage is the same length in scroll
+//  and time. On long4 only generator filler sits in its window, never a hand-made cell (enemies/scripts.ts). The cost
+//  is the eaten filler's kills and pods, which the pods above stand in for (measured: docs/pacing.md 3.2).
 // =====================================================================
 import { $ } from '../state';
 import { PH, R, TAU, W, clamp, dist2, lerp, rr } from '../core';
