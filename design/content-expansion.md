@@ -69,7 +69,7 @@ DESCENT_LONG5 = [
   {kind:'biome',    slot:1, len:3600, mids:2, fork:true, end:'biomeBoss'},
   {kind:'drive',    len:2700, mids:1, end:'drive'},
 ]
-// long4 = the same rows without the interior; in LS1 its Orbit row has mids:['drift'] and its Drive row mids:0
+// long4 = the same rows without the interior (its Orbit is 4380 px in LS1, D22; long5's Orbit is re-derived at LS3-0); in LS1 its Orbit row has mids:['drift'] and its Drive row mids:0
 // until LS2-orbit and LS2-ship land (§6.3)
 ```
 
@@ -104,13 +104,14 @@ If Matt means scroll time only, every content number in this spec roughly double
 | 0-.12 | 0-7 | Intro A | ×1.4 / .2 | Signature enemy alone in the first slot; 60% signature after that (existing rule) |
 | .12-.22 | 7-13 | Intro B | ×1.25 / .25 | The biome's second-ranked mix kind gets its first slot on its own: one idea per wave (pacing §1, Taisei) |
 | .22-.30 | 13-18 | Build A | base | Set piece S1 at .26 |
-| .30-.36 | 18-22 | **Breath 1** | none | WARNING at bZ1 − 210, then **midboss A** (scroll held) |
+| .30-.36 (built: .335-.41) | 18-22 | **Breath 1** | none | WARNING at bZ1 − 210, then **midboss A** (scroll held) |
 | — | — | Release | none | One guaranteed pod formation, log line 2. **CP1 is written here** (§4) |
 | .36-.62 | 22-37 | Terrain movement B (the gimmick) + Build B | ×1.1 / base − .1 | Lighter spawns, so the terrain is the threat. S2 at .48. Crossover kinds come in here on a remix |
-| .62-.68 | 37-41 | **Breath 2** | none | WARNING, then **midboss B** (scroll held) |
+| .62-.68 (built: .65-.725) | 37-41 | **Breath 2** | none | WARNING, then **midboss B** (scroll held) |
 | .68-.90 | 41-54 | Peak | ×.75 / base + .15 | S3 at .80. Rear waves. Descent 2+ adds a third spawn 35% of the time (existing) |
 | .90-1 | 54-60 | Arena run-up | none | Terrain widens to the boss arena. Log line 3. WARNING, then the stage boss at `bossX` |
 
+- **As built (LS1-D, D22):** the breaths sit at .335-.41 and .65-.725. With S1 at .26, the spec's .30-.36 and .62-.68 break D20's 300 px rule.
 - **On a remix,** the set pieces move to p .22, .46 and .76.
 - **Spawn rates** stay at today's measured values: about 0.5/s in the intro, about 1.0/s in the builds, 1.0-1.7/s in the peak (pacing.md §3.1).
   - A biome stage then spawns about 55-70 enemies, against 30-40 today.
@@ -153,7 +154,7 @@ One noise function over 60 s reads as wallpaper. Each biome stage therefore has 
 
 | Stage | Scroll | Midbosses | End | Wall time |
 |---|---|---|---|---|
-| **Open Orbit** | 3600 px | A: the Saucer (drift: it does not hold the scroll, and it eats the filler). B: a held midboss from the Orbit pool | Maw (`maw(true)`), unchanged | 85-100 s with both midbosses. **LS1 (Saucer only): 75-90 s** |
+| **Open Orbit** | 3600 px (**`long4` in LS1: 4380 px**, D22) | A: the Saucer (drift: it does not hold the scroll, and it eats the filler). B: a held midboss from the Orbit pool | Maw (`maw(true)`), unchanged | 85-100 s with both midbosses. **LS1 (Saucer only): 75-90 s** |
 | **Ship interior** | 3600 px | 2 from the ship pool | **Core lock** (§5.3) | 100-120 s |
 | **Gravity Drive** | 2700 px (45 s) | 1 from the ship pool, at p ~.5 | Existing WARNING, drifting crew, then `startBoss` | 90-110 s with its midboss (fight target 30-45 s, M3). **LS1 (no midboss): 80-95 s** |
 

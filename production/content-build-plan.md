@@ -107,8 +107,19 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
 | **J** | **Repoint every probe with a hard-coded x to `layout()`:** density, route:103, midboss, perf, biomeboss/walls/maw/fx/upgrade/newenemy shots, world-shots:32, hazard, depth, gun | tools-programmer | `tools/*.mjs` | Every probe runs on both layouts and says which one it ran on; **the `@deprecated` boot-time aliases (`core` LEVEL/BOSS_AT, `biomes` SEG, `ufo` UFO_AT/UFO_GAP_END) are deleted** (a tripwire test in `layout-literals.test.ts` fails if a second layout entry exists while they do) | Probe output for both layouts | S-M |
 
 - **Merge order:** C → B2 → D → E. **J goes in after A and before D** (D must not activate a non-`short` entry or add a `setLayout` caller while the aliases exist; technical-director condition, LS1-A review). D2 goes in any time after D's flag parse.
-- **Coverage before D/E merge:** done in row A: the parity check runs a third descent (`1x3`, a slot-0 repeat visit) and a mortal bot to game over (`7m`: hits, deaths, respawn, lives). Deaths after Descent 1's second stage remain unmeasured.
+- **Coverage before D/E merge:** done in row A: the parity check runs a third descent (`3x3` since B1FIX, a slot-0 repeat visit) and a mortal bot to game over (`7m`: hits, deaths, respawn, lives). Deaths after Descent 1's second stage remain unmeasured.
 - **Parallel lanes:** C/B2 (one lane, sequential), D, E (rebases on D's `biomes.ts` only where needed; mostly `scripts.ts`), J, D2.
+
+- **Carry-forward from the sprint 2 studio review (2026-11-02):**
+  1. **H:** call `setLayout(blob.layout)` before `readRun` validates `bx`/`route` against `nSlots()`; a failed decode calls `clearRun()`, so the wrong order silently deletes a valid long4 save. Test that a long4 blob survives a read. Matt's Fold APK persistence check (D2 row) gates H.
+  2. A long4 rebuild-stability test in `stagebuild.test.ts`: the same `G.visitNo`/`G.remixV`/`G.bx`/`G.loop` gives the same script.
+  3. A test that each row's first entry sits clear of its stage start (the Drive margin is 62 px today).
+  4. **F:** pin the midboss pick's stream position (always after `biomeScript`) before wiring it.
+  5. **G:** biome spawns are built at about 1.3x against the spec's 1.7x; the Drive fight runs 38-51 s against 30-45 s; re-measure wall times with a mortal bot.
+  6. Art: re-shoot the HUD frame at 4480/8050 of 15,150; finalise `hell` and `hudMarks`.
+  7. Audio: listen through the Orbit and Drive loop seams (stages are now 76-93 s).
+  8. Writer's pass (D8) on the 8 draft log lines and the LAB labels before long becomes the default; settle "ON DEATH" vs "checkpoint RESTART".
+  9. LS3-0: re-derive the `long5` Orbit length (D22).
 
 ### Sprint 3: midbosses ×2, economy, resume, measurement (5 lanes)
 

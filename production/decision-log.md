@@ -92,6 +92,20 @@ localization), D16-D18, and the signing keystore half of D6.
 **Reason:** Matt, 2026-11-01: "no".
 **Category:** design_rules
 
+### D22 long4 Open Orbit length — 2026-11-02 (Matt)
+
+**Decision point:** Lane E measured long4's Open Orbit at 3600 px on 65-66 s for every seed, under the LS1 band of 75-90 s: the drifting Saucer never holds the scroll. Lengthen it, or keep the spec's 3600?
+**Chosen:** 4380 px (`src/layout.ts:186`). With E's content it measures 76-80 s. The spec's §2.2/§3.4 lengths and §3.2 breaths are amended to match. The `long5` Orbit is re-derived at LS3-0, not assumed to be 4380: a held midboss there holds the scroll.
+**Reason:** Matt accepted the recommendation (sprint 2 studio review).
+**Category:** design_rules
+
+### D23 LAB row ships visible — 2026-11-02 (Matt)
+
+**Decision point:** The LAB row on the title screen (`src/menus.ts:58-61`) lets any Pages or APK player switch to the unfinished `long4`. Hide it, or ship it visible?
+**Chosen:** Ship it visible. The default stays `short`, and the LAB is how the APK reaches `long4` for playtests (`src/lab.ts`). Its labels are dev copy, not reviewed copy (D8).
+**Reason:** Matt, sprint 2 studio review.
+**Category:** release
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path
