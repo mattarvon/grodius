@@ -58,7 +58,8 @@ export function spawnUfo(exitX = ufoGapEnd() - ufoDrift().exitLead, maxLeave = 1
   $.G.mini = e;
   meetMid('ufo');
 }
-// a DRIFT midboss: biomes.ts can put it in a biome slot (the stub DRIFT member of LS1-F's tests) through midslot.ts
+// a DRIFT midboss: through midslot.ts, biomes.ts can put it in a biome slot without importing this module. No biome pool
+// has it today; tools/midslot-shots.mjs `drift` runs it there to check the forced exit (spec §3.2 rule 1)
 registerDrift('ufo', UFO_NAME, spawnUfo);
 /** lash tentacle: origin (world) and whether the ship is on it */
 const lashO = (e) => [e.x + LASH_O[0], e.y + LASH_O[1]];

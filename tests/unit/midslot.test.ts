@@ -320,6 +320,15 @@ describe('midboss tables', () => {
     expect(slotClock('solvent', 1, defs)).toBe(900);
   });
 
+  it('refuses to build a midboss beat whose kind has no name, so a WARNING never shows a raw key', () => {
+    L.setLayout('long4');
+    try {
+      $.G = run();
+      const r = L.slotRow(0);
+      expect(() => biomeScript(0, 'ice', r.gateLate!, 0, undefined, ['nobody', 'choir'])).toThrow(/midboss 'nobody' has no name/);
+    } finally { L.setLayout('short'); }
+  });
+
   it('counts a meeting in meta.mb', () => {
     $.meta = {};
     meetMid('choir');

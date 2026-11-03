@@ -19,7 +19,7 @@ import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 import { beatPlan, layout, nSlots, slotRow, stageOfSlot } from './layout';
 import { midSeedOf, seedOf, stream } from './rng';
-import { forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
+import { MIDS, forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
 import { driftOf, whenNoMini } from './midslot';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
@@ -279,19 +279,26 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     if (hard && T.third && rs() < .35 && !quiet(y3)) { const k = pk(); at(y3, el(SPAWN[k]), k); }
     x += st;
   }
-  // the midboss breaths' centerpieces. WARNING 150f (~150px) ahead so it lands ~60px before the breath's end and the scroll coasts to a stop inside it
+  midBeats(B, b, BP, mids, at);
+  const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
+  at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }), 'boss:' + B.boss);
+  return S;
+}
+
+/** the midboss breaths' centerpieces, placed through at(x, f, k). Each WARNING sits 150 f (~150 px) ahead, so the
+ *  midboss lands ~60 px before its breath's end and the scroll coasts to a stop inside it */
+function midBeats(B, b, BP, mids, at) {
   if (!mids) { // short (no picker): the biome's own midboss, as before
     const M = B.mids[0];
     if (BP.warn != null) at(BP.warn, () => miniWarn(M.name, () => midboss(M.k, M.name, b)), 'mid:' + M.k);
-  } else mids.forEach((k, s) => { // picker layouts (item F): the stage's picks (stageMids), slot A then slot B
+    return;
+  }
+  mids.forEach((k, s) => { // picker layouts (item F): the stage's picks (stageMids), slot A then slot B
     if (BP.warns[s] == null) return;
     const name = midName(k), go = () => midSlot(k, b, s, BP);
     // slot B's WARNING and its spawn wait while G.mini is up (spec §3.2 rule 2): midboss() would overwrite slot A
     at(BP.warns[s], s ? () => whenNoMini(() => miniWarn(name, () => whenNoMini(go))) : () => miniWarn(name, go), 'mid:' + k);
   });
-  const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
-  at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }), 'boss:' + B.boss);
-  return S;
 }
 
 /** stage i's build stream for this run and descent (src/rng.ts): Rs = stream(seedOf(G.seed, G.loop, i)), fresh
@@ -330,11 +337,18 @@ export function fixedMids(i, kind, kinds) {
   G.mb[i] = kinds.slice();
   noteMids(G, kind, kinds);
 }
-/** a midboss's name: a biome midboss's own, or a DRIFT midboss's registered one (midslot.ts) */
-const midName = (k) => MID_NAMES[k] || (driftOf(k) && driftOf(k).name) || k;
+/** a midboss's name: a biome midboss's own, or a DRIFT midboss's registered one (midslot.ts). A kind with neither
+ *  throws: the WARNING banner must never show a raw internal key */
+function midName(k) {
+  const n = MID_NAMES[k] || (driftOf(k) && driftOf(k).name);
+  if (!n) throw new Error(`midboss '${k}' has no name (biomes.ts B.mids, or a registerDrift in its module)`);
+  return n;
+}
 /** spawn slot s's midboss k in biome b on its slot clock; a DRIFT kind is forced out at the breath plan's driftExit */
 function midSlot(k, b, s, BP) {
   const D = driftOf(k), leave = slotClock(k, s);
+  // a DRIFT kind must come through its registered spawner: midboss() would make it a held midboss
+  if (!D && MIDS[k] && MIDS[k].tag === 'DRIFT') throw new Error(`DRIFT midboss '${k}' is not registered (midslot.ts registerDrift)`);
   if (D) {
     const x = BP.driftExit[s];
     // a DRIFT midboss needs its stage-relative forced exit (spec §3.2 rule 1): a layout with DRIFT biome slots sets beats.driftLead

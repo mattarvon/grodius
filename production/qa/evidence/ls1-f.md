@@ -136,3 +136,38 @@ Seed 5's Drive timed out (691 s): this is the known Gravity Drive the bot cannot
   - The silent `driftExit` fallback should throw. **Fixed:** `midSlot` now throws if `driftLead` is missing.
   - `meta.mb` counts meetings, so §6.4's first-kill +100 needs its own kill record (`meta.mbK`). It is owned by neither F nor G: assign it.
   - **TTK recommendation:** replace the per-slot bands with one band per kind, 8-11 s at the stage-1 kit, tuned through each kind's base HP (D1 allows this). The Apprentice to ~200 HP (6.8 s → ~9.1 s) is the only one out of band; DRIFT members are exempt. This is a game-designer spec amendment plus a decision-log entry; the HP change goes to G or a P0 follow-up, not F.
+
+## Studio review, round 2 (leads)
+
+All 8 leads approve with notes; none blocks.
+
+- **game-designer: APPROVE WITH NOTES.** Accepts the systems-designer TTK recommendation as **D27** (`production/decision-log.md`): one 8-11 s band per kind, the Apprentice ~200 HP via G, spec §3.1's slot-B median to ~10 s. Owners:
+  - the boss-WARNING rule-2 extension: spec fix by the game-designer, code by the gameplay-programmer, before any DRIFT biome kind or LS2-orbit;
+  - first-kill +100: G (it is about +35% of Descent 1's biomass target).
+- **lead-programmer: APPROVE WITH NOTES.**
+  - `meetMid` is not behind `picker`. This is kept on purpose: a meeting counts on any layout, save v3 already cleans `meta.mb`, and nothing on short reads it.
+  - The DRIFT registry fell back silently. **Fixed:** `midSlot` throws for an unregistered DRIFT kind.
+  - H must save `G.mb`/`G.mbUsed`/`G.mbLast`. **Recorded** in the build plan carry-forward.
+  - `biomeScript` length. **Fixed:** extracted `midBeats()`.
+  - Stale ufo comment. **Fixed.**
+- **qa-lead: APPROVE WITH NOTES**, on condition that parity passes on the fixed tree. **Met** on 69b7110 (`PARITY PASS ... runs 3, 6, 7, 11, 15, 3x3, 7m identical`) and re-run on the round-2 tree (below). Follow-ups: the D27 deviation, mortal wall times (G), long4 harness coverage past Orbit (raise its priority), H saving `G.mb*`, and keeping the `driftLead` pin.
+- **release-manager: APPROVE WITH NOTES.**
+  - The fast-forward of `origin/main` is clean.
+  - Push the latest commit before the merge.
+  - Add a CHANGELOG entry. **Done:** 2026-11-02, covering long stages, two midbosses, the clocks, the acid/snot rule and the splat removal (Matt asked for it).
+  - Save compatibility is low risk.
+- **art-director: APPROVE WITH NOTES.** Crossovers read correctly in their host biomes. The WARNING banner and the midboss name are low-contrast on warm biomes (existing render; follow-up).
+- **audio-director: APPROVE (no impact).** Nothing keys on one midboss per stage. There is one stinger clip for twice as many WARNINGs (follow-up).
+- **narrative-director: APPROVE WITH NOTES.** Crossovers fit the world (creatures already move between biomes). Optional crossover log lines for the writer's pass.
+- **localization-lead: APPROVE WITH NOTES.** No strings added or changed. The `|| k` raw-key fallback in `midName`: **fixed**, it now throws (new test).
+
+All follow-ups are in `production/content-build-plan.md`, "Carry-forward from the LS1-F studio review".
+- Round-2 tree gates: vitest **425 passed**, typecheck 0 errors, build OK, harness **short PASS @ 8ff9ba4, long4 PASS @ 88d9525** (no re-baseline), **PARITY PASS** (runs 3, 6, 7, 11, 15, 3x3, 7m identical).
+
+## Studio review, round 3 (directors)
+
+- **technical-director: SIGN OFF WITH NOTES**, on condition that the round-2 gates pass on this tree with no re-baseline. **Met** (above). The new throws can't fire in production today: they are tripwires for whoever adds a DRIFT kind or a picker layout. Move long4 harness coverage past Orbit up to the next sprint. H must not merge without `G.mb*`.
+- **creative-director: SIGN OFF WITH NOTES.** This delivers D19's two different midbosses per stage and keeps Pillar 4's no-repeat half. Fix the WARNING banner on warm biomes before LS2. Add a second stinger. The game-brief's protected core and Pillar 4 text are stale (row M, Matt's wording).
+- **producer: SIGN OFF WITH NOTES.** The merge order is consistent with the plan. Commit round 2 and re-run the gates (done: 425 tests). Tell G and H about the carry-forwards (done; G took first-kill +100 and declined D27). D27 is confirmed by Matt and owned by an F follow-up.
+
+**Outcome: no block at any tier. Merged to main at Matt's instruction ("if it passes, merge it into main").**
