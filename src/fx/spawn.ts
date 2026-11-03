@@ -158,7 +158,11 @@ export function mist(x, y, r, l, ov = 0) {
     ov
   });
 }
+/** Screen-space blood on the lens. Off: Matt, 2026-11-02, "it disturbs gameplay". Callers stay so their sim rr()
+ *  arguments still draw R() (harness unchanged); the body is kept for a future opt-in setting. */
+const SPLATS_ON = false;
 export function splat(x, y, sz) {
+  if (!SPLATS_ON) return;
   if (splats.length > 24) splats.shift();
   const b = [],
     dr = [];

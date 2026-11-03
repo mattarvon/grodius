@@ -238,7 +238,7 @@ export function drawHUD() {
   }
 }
 export function drawEShots() {
-  // enemy fire: its own colour family (toxic green), outlined, drawn above gore, darkness and lens splats
+  // enemy fire: its own colour family (toxic green), outlined, drawn above gore and darkness
   drawPerkFX();
   const pul = .75 + .25 * Math.sin($.T * .5);
   ctx.lineCap = 'round';

@@ -65,6 +65,7 @@ const snd = (bank, o, ms = 90) => { if (GX > 0 && !thr('gb_' + bank, ms)) sample
 //  PARTICLES (render-side, capped)
 // =====================================================================
 const PS = [], LENS = [], MAXP = 240;
+const LENS_ON = false;
 const add = (p) => {
   if (GX <= 0) return null;
   if (PS.length >= MAXP) PS.splice(0, 1 + (PS.length - MAXP));
@@ -90,7 +91,7 @@ const links = (x, y, vx, vy, n = 4) => add({ k: 'links', x, y, vx, vy, n, vr: gr
 const heart = (x, y, vx, vy) => add({ k: 'heart', x, y, vx, vy, l: 320, g: .1, vr: .05 });
 const eyeball = (x, y, vx, vy) => add({ k: 'eyeball', x, y, vx, vy, l: 220, vr: grr(-.3, .3) });
 const lens = (col, hi) => {
-  if (GX <= 0) return;
+  if (GX <= 0 || !LENS_ON) return; // lens splats off with the fx splats (src/fx/spawn.ts SPLATS_ON, Matt 2026-11-02)
   if (LENS.length >= 6) LENS.shift();
   const s = seeded(1 + (gr() * 1e6 | 0)), d = [];
   for (let i = 0; i < 3; i++) d.push({ dx: (s() - .5) * 1.4, len: 0, v: .25 + s() * .5, w: .25 + s() * .25 });
