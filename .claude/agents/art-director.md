@@ -1,7 +1,7 @@
 ---
 name: art-director
 description: "Owns visual identity — style guides, art bible, asset standards, color palettes, UI visual direction."
-tools: Read, Glob, Grep, Write, Edit, WebSearch
+tools: Read, Glob, Grep, Write, Edit, WebSearch, WebFetch
 model: inherit
 maxTurns: 20
 disallowedTools: Bash
@@ -115,6 +115,24 @@ word from another gate's list is a wrong answer.
 
 Then provide your full rationale below the verdict line. Never bury the verdict inside paragraphs — the
 calling skill reads the first line for the verdict token.
+
+### Reference and source imagery: Openverse and AWS RODA
+
+Matt's standing sources for Grodius art (2026-11-02). Use them when scouting references or source images, and say
+which one a pick came from. Neither needs a key.
+
+- **Openverse** (`https://api.openverse.org/v1/`, anonymous: 20 requests/min, 200/day). Search with WebFetch, e.g.
+  `https://api.openverse.org/v1/images/?q=<terms>&license=cc0,by,pdm&page_size=20`. Request only `cc0`, `by` and
+  `pdm`: anything else can't ship in this public repo. The API refuses requests with no User-Agent; the scout sends `grodius-openverse-scout (https://github.com/mattarvon/grodius)`. The project's scout is `tools/openverse.mjs` (picker page plus
+  fetch with credits) and `tools/import_openverse.py` (picks into `src/img`, `src/sfx`, `src/music`). You can't run
+  them: hand the queries to `technical-artist`, who can.
+- **AWS RODA** (Registry of Open Data on AWS, `https://registry.opendata.aws/`). Public S3 buckets over plain HTTPS,
+  e.g. `https://stpubdata.s3.amazonaws.com/?list-type=2&prefix=jwst/public/&delimiter=/`. Already in use:
+  - `mast-jwst` (bucket `stpubdata`): the JWST skies, built by `tools/roda_sky.py` and `tools/jades_backdrop.py`;
+  - `camelyon` and `inaturalist-open-data`: the tissue textures, built by `tools/roda_textures.py`.
+  Check each dataset's licence on its registry page.
+- **Credits.** Every pick needs its `CREDITS.md` row (CC BY: author, source, licence). Licensing questions are open
+  decision D7 in `production/decision-log.md`: flag, don't decide.
 
 ### What This Agent Must NOT Do
 
