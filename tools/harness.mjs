@@ -1,11 +1,13 @@
 // Deterministic regression gate: seeded RNG, fake clock, manual rAF, scripted input.
-// Usage: node tools/harness.mjs [url] [--frames N] [--flashes off] [--update]
+// Usage: node tools/harness.mjs [url] [--layout short|long4] [--frames N] [--flashes off] [--update]
 //   No url: starts its own Vite dev server. Compares sim state + page errors against
 //   tools/harness.baseline.json and exits 1 on any difference. Canvas hashes are
 //   advisory only (they also move with sprite decode order and the HELL FLASHES setting).
 //   --flashes off runs with HELL FLASHES off; `st` must still match the (flashes-on) baseline, which proves the
 //   setting cannot reach the sim (render/fx draw srnd(), never the sim R()). Never combine it with --update.
 //   --update rewrites the baseline from this run.
+//   --layout long4 flies ?layout=long4 (the game default since D24) against tools/harness.long4.baseline.json.
+//   No --layout: ?layout=short against tools/harness.baseline.json, exactly as before.
 import { chromium } from 'playwright';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -19,8 +21,11 @@ const FRAMES = fi >= 0 ? +argv[fi + 1] : 3600;
 const fl = argv.indexOf('--flashes');
 const FLASHES = fl >= 0 ? argv[fl + 1] !== 'off' : true;
 if (UPDATE && !FLASHES) { console.error('--update records the flashes-on baseline: drop --flashes off'); process.exit(1); }
-let url = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--frames' && argv[i - 1] !== '--flashes');
-const BASELINE = new URL('./harness.baseline.json', import.meta.url);
+const li = argv.indexOf('--layout');
+const LAYOUT = li >= 0 ? argv[li + 1] : 'short';
+if (!['short', 'long4'].includes(LAYOUT)) { console.error(`--layout must be short or long4, got ${LAYOUT}`); process.exit(1); }
+let url = argv.find((a, i) => !a.startsWith('--') && !['--frames', '--flashes', '--layout'].includes(argv[i - 1]));
+const BASELINE = new URL(LAYOUT === 'short' ? './harness.baseline.json' : `./harness.${LAYOUT}.baseline.json`, import.meta.url);
 
 let server;
 if (!url) {
@@ -63,7 +68,7 @@ async function runOnce(b) {
   let loads = 0; p.on('load', () => loads++);
   await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
   await p.addInitScript(init, FLASHES);
-  await p.goto(url + (url.includes('?') ? '&' : '?') + 'layout=short'); // the baseline is the short layout (long is the game default since D24)
+  await p.goto(url + (url.includes('?') ? '&' : '?') + 'layout=' + LAYOUT); // pinned either way: the short baseline stays short although long4 is the default (D24)
   let ok = false;
   for (let i = 0; i < 300 && !ok; i++) { ok = await ready().catch(() => false); if (!ok) await sleep(50); }
   if (!ok) errs.push('harness: game not ready after 15 s (boot, fonts or images)');
@@ -116,7 +121,7 @@ try {
 if (UPDATE) {
   let commit = 'unknown';
   try { commit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch {}
-  writeFileSync(BASELINE, JSON.stringify({ frames: FRAMES, commit, os: `${platform()} ${release()}`, ...result }, null, 2) + '\n');
+  writeFileSync(BASELINE, JSON.stringify({ frames: FRAMES, commit, os: `${platform()} ${release()}`, ...(LAYOUT === 'short' ? {} : { layout: LAYOUT }), ...result }, null, 2) + '\n');
   console.log(`baseline updated (${FRAMES} frames @ ${commit})`);
   process.exit(0);
 }
@@ -129,4 +134,4 @@ const hashMoves = final.hashes.filter((h, i) => h !== base.hashes[i]).length;
 if (hashMoves) console.log(`note: ${hashMoves}/${final.hashes.length} canvas hashes differ (advisory)`);
 if (diffs.length) { console.error(`REGRESSION vs baseline @ ${base.commit}:\n${diffs.join('\n')}`); process.exit(1); }
 if (retry) console.warn(`FLAKY: first run differed, the retry matched. Nondeterminism to track down:\n${first.join('\n')}`);
-console.log(`PASS vs baseline @ ${base.commit}`);
+console.log(LAYOUT === 'short' ? `PASS vs baseline @ ${base.commit}` : `PASS (${LAYOUT}) vs baseline @ ${base.commit}`);

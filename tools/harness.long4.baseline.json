@@ -1,0 +1,27 @@
+{
+  "frames": 3600,
+  "commit": "88d9525",
+  "os": "linux 6.18.42-1-cachyos-lts",
+  "layout": "long4",
+  "st": {
+    "state": "over",
+    "score": 6096,
+    "scroll": 3538,
+    "lives": 0,
+    "px": 50,
+    "py": 153.25,
+    "en": 2,
+    "gibs": 0,
+    "drops": 13,
+    "caps": 0
+  },
+  "hashes": [
+    "5039b6c4fb",
+    "3f9f49dc3a",
+    "cd5c56feed",
+    "7312639c61",
+    "8bedeb37be",
+    "3f5bc6fd97"
+  ],
+  "errs": []
+}
