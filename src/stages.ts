@@ -11,6 +11,7 @@ import { BIOMES, openFork, holdForFork, biomeExit } from './biomes';
 import { forkAfter, lastStage, row } from './layout';
 import { gradeKey } from './gradekey';
 import { buildStage } from './stagebuild';
+import { econId, gradeOf, sealAt } from './economy';
 
 /** stage names by stage kind; a biome stage is named by the biome you fly into once its gate is taken */
 export const STAGE_NAMES = {
@@ -18,13 +19,14 @@ export const STAGE_NAMES = {
   biome: { name: 'THE SPLIT', sub: 'CHOOSE A WOUND' },
   drive: { name: 'THE GRAVITY DRIVE', sub: 'IT IS STILL RUNNING' },
 };
-/** seals break on the 2nd, 4th and 6th stage cleared in a run (end of the first biome, end of Descent 1, Descent 2's first biome) */
-const SEAL_AT = { 2: 1, 4: 2, 6: 3 };
+// seals break on the clears the layout's economy entry schedules (src/economy.ts sealAt; short and long4: the 2nd, 4th
+// and 6th stage cleared in a run, i.e. end of the first biome, end of Descent 1, Descent 2's first biome)
 /** the highest seal tier `cleared` stage clears have earned (a checkpoint stores this, so a seal still queued in a
  *  closure, G.sealQ or G.pend, is never lost by a resume: H entry criterion 1) */
 export function sealFor(cleared) {
+  const id = econId();
   let t = 0;
-  for (const k in SEAL_AT) if (cleared >= +k && SEAL_AT[k] > t) t = SEAL_AT[k];
+  for (let k = 1; k <= cleared; k++) t = Math.max(t, sealAt(id, k));
   return t;
 }
 export const SEAL_TXT = ['', 'MISSILE II, ARC, PYRE, WRAITH II, MIRROR, 2 GRAFTS', 'PYRE II, WRAITH III, AEGIS, 3 GRAFTS', 'EVERYTHING UNSEALED'];
@@ -61,22 +63,17 @@ export function stageBanner(i) {
   $.G.pend.push({ t: 70, f: () => banner(`STAGE ${stageLabel()}`, s.name + ' // ' + s.sub, '#c8d4e0', 190) });
 }
 
-function grade(st, escaped) {
-  const pct = st.kills / Math.max(1, st.spawned);
-  if (escaped) return 'C';
-  const pts = pct * 100 - st.hits * 10 - st.deaths * 30;
-  if (pts >= 70 && !st.hits && !st.deaths) return 'S';
-  if (pts >= 50) return 'A';
-  if (pts >= 30) return 'B';
-  return 'C';
-}
+/** a stage's scroll seconds for grade normalisation (spec §7 Ts): its world span at the nominal 1 px/frame scroll
+ *  (flow.ts newGame scrollSpeed = 1), so it is fixed per row and never depends on how the fight went. Only the
+ *  normalised entries read it (short has gradeRef null) */
+export const stageTs = (i = $.G.stage || 0) => { const r = row(i); return r ? (r.x1 - r.x0) / 60 : 0; };
 
 /** call when the stage's boss dies (or escapes). Returns the seal tier broken, or 0. */
 export function clearStage(escaped = false) {
   const G = $.G, st = G.st;
   if (!st || st.done) return 0;
   st.done = true;
-  const g = grade(st, escaped), R = GRADE[g], perfect = !st.hits && !st.deaths && !escaped;
+  const g = gradeOf(econId(), st, stageTs(G.stage), escaped), R = GRADE[g], perfect = !st.hits && !st.deaths && !escaped;
   const bonus = R.score * (G.loop + 1) + (perfect ? 10000 * (G.loop + 1) : 0);
   const bio = escaped ? 0 : R.bio * deepPay(); // IT GOT AWAY / NO REWARD: no biomass (D5b)
   G.score += bonus;
@@ -87,7 +84,7 @@ export function clearStage(escaped = false) {
   const prev = best[key];
   if (newBest) best[key] = g;
   G.cleared = (G.cleared || 0) + 1;
-  const seal = SEAL_AT[G.cleared] && SEAL_AT[G.cleared] > (G.seal || 0) ? SEAL_AT[G.cleared] : 0;
+  const at = sealAt(econId(), G.cleared), seal = at > (G.seal || 0) ? at : 0;
   G.tally = {
     id, name: stageInfo(G.stage).name, g, col: R.col, perfect, escaped, bonus, bio, deep: bio > 0 && deepPay() > 1,
     kills: st.kills, pct: Math.round((st.kills / Math.max(1, st.spawned)) * 100),

@@ -1,8 +1,9 @@
 // @ts-nocheck
 // =====================================================================
 //  DEPTH SCALING (docs/pacing.md 3.9, design/progression.md). From Descent 2 on, enemy toughness and aggression climb
-//  with the descent (G.loop) so bosses keep a clock and fodder lives long enough to shoot. In Descent 1 every factor
-//  here is exactly 1 (it's the tuned, fresh-player game).
+//  with the descent (G.loop) so bosses keep a clock and fodder lives long enough to shoot. On the short layout every
+//  factor here is exactly 1 in Descent 1 (it's the tuned, fresh-player game). A long layout also climbs within a descent
+//  (dep(), spec §7 intra-descent depth, LS1 item G): long4's Descent 1 runs 1x at Open Orbit up to loop .35 on the Drive.
 //
 //  The power rule (D1): player power (G.pow, src/power.ts) shows up ONLY as enemy fire and density (every(), BS(),
 //  formation() in src/enemies/spawn.ts). HP comes from depth and loop alone. The one exception is the Gravity Drive
@@ -15,6 +16,7 @@
 // =====================================================================
 import { $ } from './state';
 import { kindOf } from './layout';
+import { descDepth, econId } from './economy';
 
 export const DEPTH = {
   fod: 1.12, //  regular enemies (a boss's parts take the boss's factor)
@@ -35,21 +37,27 @@ export const DEPTH = {
 
 /** raw power past the rank cap, 0..2. Only the Gravity Drive's HP reads it (the D1 exception) */
 export const over = () => Math.max(0, Math.min(2, ($.G.pow || 0) - 1));
-const f = (k) => { const L = $.G.loop || 0; return L > 0 ? 1 + k * L : 1; };
+/** depth for regular enemies and midbosses: the descent plus the layout's intra-descent share at the current stage
+ *  (src/economy.ts descDepth; spec §7). short: exactly G.loop. long4: G.loop + .35 * stage/3, so Open Orbit in Descent 1
+ *  stays at 1x and the Drive stage's fodder reads loop + .35. Stage bosses and the Drive's own HP keep the integer loop */
+export const dep = () => descDepth(econId(), $.G.loop || 0, $.G.stage || 0);
+const f = (k, L) => (L > 0 ? 1 + k * L : 1);
 /** HP multiplier for a fresh enemy of kind k, stats b (its ET row); o = mk()'s options */
 export function depthHP(k, b, o) {
-  if (!($.G.loop > 0)) return 1;
+  const D = dep();
+  if (!(D > 0)) return 1;
   if (o.par && o.par.dm) return o.par.dm; // a boss's parts (the Crucifer's nailbars, the Choir's) are as tough as it is
-  if (!b.mini) return f(DEPTH.fod);
+  if (!b.mini) return f(DEPTH.fod, D);
   // the Open Orbit Maw and the mid-stage Maw count as midbosses: they escape on a clock and must stay killable
-  const mid = b.mid || (k === 'maw' && (!o.stageBoss || kindOf($.G.stage || 0) === 'orbit')), m = mid ? f(DEPTH.mid) : f(DEPTH.boss);
+  const mid = b.mid || (k === 'maw' && (!o.stageBoss || kindOf($.G.stage || 0) === 'orbit')), m = mid ? f(DEPTH.mid, D) : f(DEPTH.boss, $.G.loop || 0);
   return 1 + (DEPTH.w[k === 'maw' && mid ? 'maw0' : k] ?? 1) * (m - 1);
 }
 /** the Gravity Drive's HP multiplier (x560 HP, x48 per plate): loop and, as the one D1 exception, rank and over() */
 export const driveMul = () => { const L = $.G.loop || 0; return (1 + DEPTH.driveL * L) * (1 + DEPTH.driveRank * ($.G.rank || 0)) * (L > 0 ? 1 + DEPTH.driveO * over() : 1); };
-/** enemy cooldown multiplier (<= 1): shorter waits between telegraphed attacks from Descent 2 on */
-export const cdm = () => 1 / (1 + DEPTH.fire * ($.G.loop || 0));
-/** enemy fire-chance multiplier (>= 1) */
-export const firem = () => 1 + DEPTH.fire * ($.G.loop || 0);
+/** enemy cooldown multiplier (<= 1): shorter waits between telegraphed attacks with depth (dep(): from Descent 2 on, and
+ *  within a long descent). Its callers are regular enemies, midbosses and the Saucer; stage bosses do not read it */
+export const cdm = () => 1 / (1 + DEPTH.fire * dep());
+/** enemy fire-chance multiplier (>= 1), on dep() like cdm() */
+export const firem = () => 1 + DEPTH.fire * dep();
 /** one more bullet in a burst from Descent 3 on */
 export const xtra = () => (($.G.loop || 0) >= 2 ? 1 : 0);

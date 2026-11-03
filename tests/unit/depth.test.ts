@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { $ } from '../../src/state';
-import { DEPTH, cdm, depthHP, driveMul, firem, over, xtra } from '../../src/depth';
+import { DEPTH, cdm, dep, depthHP, driveMul, firem, over, xtra } from '../../src/depth';
+import { setLayout } from '../../src/layout';
 
 const fresh = (loop: number, pow = 0) => {
   $.G = { loop, pow, rank: Math.max(0, Math.min(1, pow)) };
@@ -96,5 +97,64 @@ describe('pinned depth HP weights', () => {
     $.G.pow = 3;
     expect(depthHP('drone', {}, {})).toBe(weak);
     expect(weak).toBeCloseTo(1 + 1.12 * 2, 10);
+  });
+});
+
+// LS1 item G (spec §7): long4 adds intra-descent depth dep = loop + .35 * stage / 3 for regular enemies and midbosses.
+// Stage bosses and the Drive keep the integer loop; the short layout is the loop alone (the suites above run on short)
+describe('intra-descent depth on long4', () => {
+  const at = (loop: number, stage: number, pow = 0) => {
+    $.G = { loop, stage, pow, rank: Math.max(0, Math.min(1, pow)) };
+    $.meta = { rig: [], cl: {} };
+  };
+  beforeEach(() => setLayout('long4'));
+  afterEach(() => setLayout('short'));
+
+  it('keeps Open Orbit in Descent 1 at exactly 1x', () => {
+    at(0, 0, 3);
+    expect(dep()).toBe(0);
+    expect(depthHP('drone', { hp: 1 }, {})).toBe(1);
+    expect(cdm()).toBe(1);
+    expect(firem()).toBe(1);
+  });
+
+  it('climbs to loop + .35 by the Drive stage, for fodder HP, midboss HP, cooldowns and fire chance', () => {
+    at(0, 3);
+    expect(dep()).toBeCloseTo(.35);
+    expect(depthHP('drone', { hp: 1 }, {})).toBeCloseTo(1 + DEPTH.fod * .35);
+    expect(depthHP('choir', { mini: 1, mid: 1 }, {})).toBeCloseTo(1 + DEPTH.mid * .35);
+    expect(cdm()).toBeCloseTo(1 / (1 + DEPTH.fire * .35));
+    expect(firem()).toBeCloseTo(1 + DEPTH.fire * .35);
+    at(1, 1);
+    expect(dep()).toBeCloseTo(1 + .35 / 3);
+    expect(depthHP('drone', { hp: 1 }, {})).toBeCloseTo(1 + DEPTH.fod * (1 + .35 / 3));
+  });
+
+  it('leaves stage bosses, the burst bullet and the Drive on the integer loop', () => {
+    at(0, 2);
+    expect(depthHP('crux', { mini: 1 }, { stageBoss: true })).toBe(1);
+    expect(xtra()).toBe(0);
+    expect(driveMul()).toBe(1);
+    at(1, 2);
+    expect(depthHP('crux', { mini: 1 }, { stageBoss: true })).toBeCloseTo(1 + DEPTH.w.crux * DEPTH.boss);
+    at(1, 3, 0);
+    expect(driveMul()).toBeCloseTo(1 + DEPTH.driveL);
+  });
+
+  it('gives no enemy more HP for more player power at any stage (D1)', () => {
+    for (const stage of [0, 1, 2, 3]) {
+      at(1, stage, 0);
+      const weak = depthHP('drone', { hp: 1 }, {});
+      at(1, stage, 3);
+      expect(depthHP('drone', { hp: 1 }, {})).toBe(weak);
+    }
+  });
+
+  it('is exactly G.loop on the short layout at every stage', () => {
+    setLayout('short');
+    for (const stage of [0, 1, 2, 3]) {
+      at(1, stage);
+      expect(dep()).toBe(1);
+    }
   });
 });

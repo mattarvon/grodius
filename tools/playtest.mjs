@@ -4,7 +4,7 @@
 //   power  - level, power rank (0..1; enemy HP scales with it), weapon levels, grafts, contraptions, per stage
 //   kill   - how long regular enemies live once on screen (median / p90 s), % killed in the right quarter of the screen,
 //            % that escape; boss / midboss kill times
-//   danger - would-be hits per minute (enemy shot or body overlapping the ship while it's invincible)
+//   danger - would-be hits per minute (enemy shot or body overlapping the ship while it's invincible), per stage and for the run
 //   variety - enemy kinds per stage, wave signatures (kinds spawned together) and how often the top one repeats,
 //            how much of descent N's stage repeats descent N-1's mix, hype voice count, music per stage
 // Screenshots every SHOT seconds of game time go to <outDir>. Needs the VITE dev server (imports live modules).
@@ -46,7 +46,7 @@ await p.addInitScript((seed) => {
   let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);
   try { localStorage.clear(); } catch (e) {}
-  const L = (window.__pt = { fr: 0, seen: new Map(), life: [], spawns: [], hits: 0, hitCD: 0, bosses: [], hype: 0, lastHype: 0 });
+  const L = (window.__pt = { fr: 0, seen: new Map(), life: [], spawns: [], hits: 0, hitsBy: {}, frBy: {}, hitCD: 0, bosses: [], hype: 0, lastHype: 0 });
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const g = window.__G && window.__G();
       if (g && g.P && g.state === 'play') { g.P.inv = 30; g.P.alive = true; const G = g.G; let tx, ty;
         if (G.fork && G.fork.t > 45) { tx = 480 * .74; ty = (window.__gi ?? 0) % 2 ? 254 * .72 : 254 * .28; }
@@ -58,7 +58,7 @@ await p.addInitScript((seed) => {
       q.splice(0).forEach((f) => f(now));
       const h = window.__G && window.__G();
       if (!h || !h.G || h.state !== 'play') continue;
-      L.fr++; const G = h.G, P = h.P, st = `${G.loop + 1}-${(G.stage || 0) + 1}`;
+      L.fr++; const G = h.G, P = h.P, st = `${G.loop + 1}-${(G.stage || 0) + 1}`; L.frBy[st] = (L.frBy[st] || 0) + 1;
       // enemy lifetimes: from first on screen to removal; killed if removed while still on screen
       const alive = new Set();
       for (const e of h.enemies) { alive.add(e);
@@ -68,7 +68,7 @@ await p.addInitScript((seed) => {
         if (r.f0 != null && !r.big) L.life.push({ k: r.k, st: r.st, s: (L.fr - r.f0) / 60, killed: r.x > -8 && r.x < 490, right: r.x > 360 }); }
       // would-be hits (ship hitbox ~4 px), at most one per 30 frames like real i-frames
       if (L.hitCD > 0) L.hitCD--;
-      else if (h.eshots && h.eshots.some((s) => (s.x - P.x) ** 2 + (s.y - P.y) ** 2 < 36) || h.enemies.some((e) => !e.dead && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < ((e.r || 6) + 2) ** 2)) { L.hits++; L.hitCD = 30; }
+      else if (h.eshots && h.eshots.some((s) => (s.x - P.x) ** 2 + (s.y - P.y) ** 2 < 36) || h.enemies.some((e) => !e.dead && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < ((e.r || 6) + 2) ** 2)) { L.hits++; L.hitsBy[st] = (L.hitsBy[st] || 0) + 1; L.hitCD = 30; }
       // bosses
       for (const m of [G.mini, G.boss]) if (m && !m.__pt) { m.__pt = 1; L.bosses.push({ k: m.k || 'drive', title: m.title || '', st, f0: L.fr, m }); }
       for (const bo of L.bosses) if (bo.f1 == null && (bo.m.dead || (bo.m !== G.mini && bo.m !== G.boss))) { bo.f1 = L.fr; bo.killed = !!bo.m.dead || (bo.m.hp != null && bo.m.hp <= 0); }
@@ -123,7 +123,7 @@ for (let it = 0; it < MAXM * 60 * 2; it++) {
     await p.evaluate(async () => (await import('/src/menus.ts')).leaveShop()); await p.evaluate('__tick(60)'); continue; }
   if (s.st !== 'play' || s.loop >= +DESC) { end = JSON.stringify(s); break; }
 }
-const L = await p.evaluate(() => { const L = __pt; return { fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r) }; });
+const L = await p.evaluate(() => { const L = __pt; return { fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r) }; });
 const q = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(f * s.length))].toFixed(2) : null; };
 const prev = {}, prevB = {}, drn = { biome: [0, 0] };
 for (let i = 0; i < stages.length; i++) {
@@ -146,6 +146,8 @@ for (let i = 0; i < stages.length; i++) {
   console.log(`\n== stage ${S.k}${S.biome ? ' [' + S.biome + ']' : ''}  ${dur.toFixed(0)}s  lvl ${S.start.lvl}->${S.end.lvl}  rank ${S.start.rank}->${S.end.rank}  weapons ${S.end.wep}  grafts ${S.end.gm || '-'}`);
   console.log(`   kill: on-screen life median ${q(kl.map((x) => x.s), .5)}s p90 ${q(kl.map((x) => x.s), .9)}s | killed in right quarter ${kl.length ? Math.round(100 * kl.filter((x) => x.right).length / kl.length) : 0}% | escaped ${life.length ? Math.round(100 * (life.length - kl.length) / life.length) : 0}% (${life.length} enemies)`);
   console.log(`   bosses: ${bos.join(', ') || '-'}`);
+  { const hb = L.hitsBy[S.k] || 0, fb = L.frBy[S.k] || 0; // per stage (spec §8 targets are by stage kind and biome slot)
+    console.log(`   danger: ${hb} would-be hits in ${(fb / 60).toFixed(0)}s of play (${fb ? (hb / (fb / 3600)).toFixed(2) : '-'}/min) | regular spawns ${reg.length}`); }
   console.log(`   variety: ${Object.keys(kinds).length} kinds ${JSON.stringify(kinds)} | ${waves.length} waves, ${Object.keys(sig).length} distinct, top ${top.map(([k, n]) => k + ' x' + n).join(', ')}${overlap != null ? ` | kinds shared with last descent's stage: ${Math.round(overlap * 100)}%` : ''} | music ${[...S.music].join(', ')}`);
   console.log(`   drones ${reg.length ? Math.round(100 * (kinds.drone || 0) / reg.length) : 0}% of ${reg.length} | elites ${els}${S.biome ? ` | ${S.remix ? 'REMIX (visit ' + (S.remix + 1) + ')' : 'first visit'}` : ''}${bo != null ? ` | vs last ${S.biome} visit: kinds shared ${Math.round(bo * 100)}%, wave signatures shared ${Math.round(so * 100)}%` : ''}`);
 }

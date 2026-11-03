@@ -9,6 +9,7 @@ import { buzz } from './platform';
 import { PR } from './input';
 import { enemies } from './world';
 import { flash, spark, drop, pop } from './fx/spawn';
+import { econId, stageXP as econXP } from './economy';
 
 /** perk table. d(l): what level l does. c: the price (trade-off perks). req: biome that unlocks it. */
 export const PERKS = [
@@ -44,8 +45,9 @@ const BYID = Object.fromEntries(PERKS.map((p) => [p.id, p]));
 export const pk = (id) => ($.G && $.G.pk && $.G.pk[id]) || 0;
 /** XP to go from lvl to lvl+1: ~2-3 levels in stage 1, ~11 by the end of descent 1, then it drags (quadratic past 10) */
 export const xpNeed = (lvl) => Math.round(48 + lvl * 9.6 + Math.max(0, lvl - 10) ** 2 * 6);
-/** lump XP for clearing a stage (stage index 0..3, descent loop) */
-export const stageXP = (stage, loop) => 30 + 45 * stage + 40 * loop;
+/** lump XP for clearing a stage (stage index, descent loop): the active layout's economy entry (src/economy.ts;
+ *  short and long4: 30 + 45 * stage + 40 * loop) */
+export const stageXP = (stage, loop) => econXP(econId(), stage, loop);
 const LOCK = 30, HOLD = 26;
 
 export function perksReset() {

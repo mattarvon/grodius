@@ -6,6 +6,7 @@ import { sfx } from './audio';
 import { arcs, caps, enemies, shots } from './world';
 import { drop, flash, gore, pop, spark } from './fx/spawn';
 import { hurt } from './enemies/update';
+import { econId, gluttonyN } from './economy';
 
 // ---------------- mutations: you become what you kill ----------------
 export const GM = [{
@@ -76,7 +77,11 @@ export const GM = [{
   c: 'GLT',
   k: 'maw',
   w: 'MAWS+MIDS',
-  n: [2, 4],
+  // Maw + midboss kills per level: the layout's economy entry (src/economy.ts; short [2, 4], long4 [3, 6]: more
+  // midbosses per descent). A getter, so countKill, graftTake and the graft screen all read the active entry
+  get n() {
+    return gluttonyN(econId());
+  },
   name: 'GLUTTONY',
   d: 'crits hit x3',
   dl: l => `${[0, 15, 30][l]}% crits for x3`
