@@ -120,6 +120,13 @@ localization), D16-D18, and the signing keystore half of D6.
 **Reason:** Matt: "it disturbs gameplay".
 **Category:** art
 
+### D26 S grade and extra lives for long4 — 2026-11-02 (Matt)
+
+**Decision point:** Spec Q9 (S grade on ~2-minute stages) and Q11 (extra lives), before LS1 item G wires the `long4` economy while long is the default (D24).
+**Chosen:** Q9: S needs ≤ 1 hit and 0 deaths, with a length-normalised hit penalty clamped so a stage shorter than 35 s never grades harder than today. Q11: not on `long4`; Q10-Q12 stay with `long5` at LS3-0.
+**Reason:** Matt took both recommendations (sprint 3 kickoff).
+**Category:** design_rules
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path
