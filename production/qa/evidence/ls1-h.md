@@ -163,6 +163,26 @@ resume-check (F + H), all PASS, 0 px terrain diff, identical script lists, mb/mb
   - The JSON reports are in `production/qa/evidence/ls1-h/with-f/`.
 - **`meta.mb` on a replay:** accepted, not deduplicated (spec §4 "As built"). A resume or option-b restart from CP0 meets midboss A again and counts it again.
 
+## On origin/main 9a62927 (F merged, with its review fixes 69b7110 and dc29d0a)
+
+- **Setup.** H's diff (`61197f6..ls1-h`, code, tests, tools and docs) applied to `origin/main` in a scratch worktree with `git apply -3`. There was no rebase or force-push: rebasing `ls1-h` is the parent's or Matt's call.
+- **Conflict.** The same single import-only conflict in `src/stagebuild.ts`, resolved as above.
+
+```
+tsc                    clean
+vitest                 24 files, 459 passed, 0 skipped (both picker cases ran)
+npm run build          built
+test:regress           PASS (short) vs 8ff9ba4 / PASS (long4) vs 88d9525, st identical, no re-baseline
+layout-parity          PARITY PASS (3, 6, 7, 11, 15, 3x3, 7m)
+resume-check, 7 runs, all PASS (0 px terrain diff, identical script lists, mb/mbUsed/mbLast identical, 0 RESUME draws):
+  long4 s0 CP1 (Orbit, mb {0:[ufo]})       long4 s1 CP0 / CP1 (ice: choir+cyst)
+  long4 s2 CP1 option b (fire: prentice+brood; restarted at cpX-120, lives 2->1)
+  long4 s3 CP1 (Drive)                     long4 s2 CP0 seed 3 (acid: cyst+prentice)
+  short s2 CP0 (mb {}: the short layout keeps its home midbosses)
+```
+
+JSON reports: `production/qa/evidence/ls1-h/on-main/`.
+
 ## Stubs and open risks
 
 - **F (midboss picker) + H:** resolved, see "F carry-forward" above. The parent's F→H merge must take the `stagebuild.ts` import union shown there.
