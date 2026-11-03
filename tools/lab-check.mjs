@@ -61,13 +61,18 @@ async function tap(label) {
   await p.waitForTimeout(200);
 }
 
-// 1. fresh save: short, no LAB key
+// 1. fresh save: long4 (the default since D24), no LAB key
 await open();
 let s = await state();
-check(s.lab === null && s.active.id === 'short' && s.active.src === 'default', 'fresh save has no grodius.lab key and flies short');
-check(s.tag === 'SHORT' && s.rows.at(-1) === 'LAB = SHORT', 'title LAB row shows SHORT: ' + s.rows.join(' | '));
+check(s.lab === null && s.active.id === 'long4' && s.active.src === 'default', 'fresh save has no grodius.lab key and flies long4 (D24)');
+check(s.tag === 'LONG' && s.rows.at(-1) === 'LAB = LONG', 'title LAB row shows LONG: ' + s.rows.join(' | '));
 check(s.rows[0] === 'DESCEND', 'DESCEND is still row 0 (harness and probes press Enter on it)');
-await p.screenshot({ path: `${OUT}/title-lab-short.png` });
+await p.screenshot({ path: `${OUT}/title-lab-default-long.png` });
+// a player who picked SHORT before D24: the rest of the check toggles from there (short -> long)
+await p.evaluate(() => { localStorage.setItem('grodius.lab', '{"layout":"short","mids":"","cp":"a"}'); localStorage.setItem('grodius.run', '{"v":1}'); });
+await open();
+s = await state();
+check(s.active.id === 'short' && s.active.src === 'lab' && s.rows.at(-1) === 'LAB = SHORT', 'a stored LAB short still flies short: ' + s.rows.at(-1));
 
 // 2. keys: down to LAB, open it, toggle LAYOUT; touch: tap MIDBOSSES twice (on, off) and CHECKPOINT once
 await press('ArrowDown', s.rows.length - 1);
