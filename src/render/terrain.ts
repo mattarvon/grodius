@@ -7,6 +7,7 @@ import { DERE, GROSS, PIC, STARS, fleshPat, metalPat, ready, texPat } from '../t
 import { drawChain, drawHookTip, drawSkull, glow, glowSpr, hangSpine, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
 import { innerBand } from '../layout';
+import { SET } from '../save';
 
 // --- terrain & backgrounds ---
 export function drawTerrain() {
@@ -279,45 +280,229 @@ export function drawTriton(a, sc) {
   ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(y - im.height / 2));
   ctx.globalAlpha = 1;
 }
-export function drawDerelict(a, sc) {
-  if (a <= 0) return;
-  ctx.globalAlpha = a;
-  const off = W * .55 - sc * .12,
-    base = PH * .72;
-  for (const s of DERE) {
-    const x = off + s.x;
-    if (x > W + 80 || x + s.w < -80) continue;
-    ctx.fillStyle = '#0d1116';
-    ctx.fillRect(x, base - s.h, s.w + 1, s.h + 18);
-    ctx.fillStyle = '#1d252e';
-    ctx.fillRect(x, base - s.h, s.w, 1);
-    if (s.sp) {
-      ctx.fillStyle = '#0d1116';
-      poly(ctx, [[x + s.w / 2 - 3, base - s.h], [x + s.w / 2, base - s.h - s.sp], [x + s.w / 2 + 3, base - s.h]]);
-      ctx.fillRect(x + s.w / 2 - 6, base - s.h - s.sp * .4, 12, 1);
+// --- the derelict skyline: "the MERIDIAN's dead mall" (art-director direction, art-derelict-vapor) ---
+// 8-bit vaporwave: dithered gradient bodies, 1 px neon roof/side edges, sun-stripe windows, stepped chrome spires,
+// dead half-lit signs and a sliced sunset disc where the ring was. Palette is the art-director's, nothing else:
+// no greens or teals, because enemy fire is round toxic lime and must stay the only green on screen.
+const VP = {
+  void: '#0b0716', body: '#160c2c', band: '#2a1450', rim: '#5a2a8c',
+  mag: '#ff3fa4', cyan: '#3fd8ff', orange: '#ff8a3d', sun: '#ffd36b', chrome: '#ffb3e6',
+};
+/** skyline tuning: every live light stays at or under half the layer fade (readability over bullets) */
+const DV = {
+  neonA: .5, // roof/side neon and sign tubes, x a (direction: neon <= .5a)
+  lightA: .45, // windows and spire highlights, x a: dimmer than neon so the edges carry the silhouette
+  discA: .6, // the sunset disc's drawImage, x a: background, never brighter than the bullets in front of it
+  discR: 46, // inside the old ring's 48 px radius, same centre (off+1560, base-10)
+  top: 62, // bake rows above the base line: tallest block (26) + tallest spire (34) + mast
+  foot: 18, // body rows below the base line (the old fillRect's +18), dissolving to the sky
+  flickP: [100, 240], // frames between a flickering edge's drop-outs
+};
+// 4x4 Bayer thresholds: every gradient and dissolve is an ordered dither, never alpha (8-bit rule)
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + .5) / 16);
+const bay = (x, y) => BAYER[(y & 3) * 4 + (x & 3)];
+const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+let DBAKE = null; // { cv, disc, lit, live[] }: built once, on the first frame the skyline is drawn
+/** bake the static skyline (bodies, dither, spires, sign frames) and the disc into offscreen canvases, once.
+ *  Variety is hash() of the block index only: DERE itself (boot, sim RNG) is read, never re-rolled */
+function bakeDerelict() {
+  const last = DERE[DERE.length - 1],
+    cw = last.x + last.w + 2,
+    ch = DV.top + DV.foot,
+    cv = document.createElement('canvas');
+  cv.width = cw;
+  cv.height = ch;
+  const c = cv.getContext('2d'),
+    img = c.createImageData(cw, ch),
+    px = img.data;
+  const put = (x, y, col) => {
+    if (x < 0 || y < 0 || x >= cw || y >= ch) return;
+    const o = (y * cw + x) * 4;
+    px[o] = col[0]; px[o + 1] = col[1]; px[o + 2] = col[2]; px[o + 3] = 255;
+  };
+  const BAND = rgb(VP.band), BODY = rgb(VP.body), RIM = rgb(VP.rim);
+  const B = DV.top, // the base line's row in the bake
+    live = [];
+  DERE.forEach((s, i) => {
+    const t = B - s.h, // roof row
+      H = s.h + DV.foot,
+      L = { n: hash(i * 12.9) < .5 ? VP.mag : VP.cyan, side: hash(i * 3.7 + .2) < .5 ? 0 : s.w - 1, win: [], heart: [], hi: [], sign: [], lc: VP.orange, fl: null };
+    // body: 3 solid rows of the band, a Bayer ramp into the body colour, then the last 10 rows dissolve into the sky
+    const D = Math.max(4, Math.min(8, s.h - 3));
+    for (let yy = 0; yy < H; yy++) {
+      const f = (yy - 3) / D,
+        q = (yy - (H - 10)) / 10;
+      for (let x = s.x; x <= s.x + s.w; x++) {
+        const y = t + yy;
+        if (q > 0 && q > bay(x, y)) continue;
+        put(x, y, yy < 3 || f < bay(x, y) ? BAND : BODY);
+      }
     }
-    for (const w of s.win) {
-      if (($.T >> 5) % 7 === w.dx % 7 && w.dx % 5 === 0) continue;
-      ctx.fillStyle = w.dx % 3 ? '#a8d4ff' : '#ffcf7a';
-      ctx.fillRect(x + w.dx, base - s.h + 2 + w.dy * .7, 1, 1);
+    const sign = !s.sp && s.w >= 22 && hash(i * 3.1 + .7) < .125;
+    if (s.sp) {
+      // stepped spire: stacked rows, 1 px narrower each side per step, a 1 px mast above the last step
+      L.lc = VP.chrome;
+      const cx = s.x + Math.round(s.w / 2),
+        hw0 = Math.max(2, Math.round(s.sp / 6)),
+        st = Math.max(1, Math.floor(s.sp * .7 / hw0));
+      let y = t;
+      for (let hw = hw0; hw >= 1; hw--)
+        for (let k = 0; k < st; k++, y--) {
+          for (let x = cx - hw; x <= cx + hw; x++) put(x, y - 1, BAND);
+          L.hi.push([cx - hw - s.x, y - 1 - B]); // the chrome left highlight, drawn live
+        }
+      for (; y > t - s.sp; y--) put(cx, y - 1, BAND);
+    } else if (hash(i * 5.3) < .15) L.lc = VP.sun; // sun yellow, sparingly
+    if (sign) {
+      // dead billboard on the roof: a rim-coloured frame, glyph mush of 3x5 cells, about half its tubes lit (live)
+      const sw = Math.min(s.w - 6, 26) & ~1,
+        bx = s.x + Math.round((s.w - sw) / 2),
+        by = t - 10; // panel top: 7 rows tall, 3 px of posts under it
+      for (let x = bx; x < bx + sw; x++) for (let y = by; y < by + 7; y++) put(x, y, x === bx || x === bx + sw - 1 || y === by || y === by + 6 ? RIM : BODY);
+      for (let y = by + 7; y < t; y++) { put(bx + 2, y, BAND); put(bx + sw - 3, y, BAND); }
+      // five strokes per cell (top, middle, bottom, left, right): never a letter, just the shape of one
+      const seg = [[0, 0, 3, 1], [0, 2, 3, 1], [0, 4, 3, 1], [0, 0, 1, 5], [2, 0, 1, 5]];
+      for (let g = 0, gx = bx + 2; gx + 3 <= bx + sw - 2; g++, gx += 4)
+        seg.forEach((sg, k) => {
+          if (hash(i * 9.7 + g * 1.31 + k * .37) < .45) return;
+          if (hash(i * 4.1 + g * 2.9 + k * .61) < .5) L.sign.push([gx + sg[0] - s.x, by + 1 + sg[1] - B, sg[2], sg[3]]);
+          else for (let x = 0; x < sg[2]; x++) for (let y = 0; y < sg[3]; y++) put(gx + sg[0] + x, by + 1 + sg[1] + y, RIM);
+        });
+    } else {
+      // sun-stripe windows: rows every 3 px down to just under the base line; 2x1 dashes or full-width 1 px stripes.
+      // About 1 in 10 windows overall beats magenta: 1 in 5 on the magenta-edged half, so a block keeps 4 colours
+      const stripe = hash(i * 7.9 + .4) < .35;
+      for (let r = 0, y = t + 3; y < B + 4; r++, y += 3) {
+        if (hash(i * 1.7 + r * 9.1) < .3) continue; // a dark floor
+        const ry = y - B;
+        if (stripe) {
+          if (hash(i * 2.2 + r * 5.3) < .55) (L.n === VP.mag && hash(i * 6.1 + r * 3.3) < .2 ? L.heart : L.win).push([2, ry, s.w - 4]);
+        } else
+          for (let k = 0, x = 2; x + 2 <= s.w - 2; k++, x += 4) {
+            if (hash(i * 7.31 + r * 3.7 + k * .913) > .45) continue;
+            (L.n === VP.mag && hash(i * 8.3 + r * 1.9 + k * .71) < .2 ? L.heart : L.win).push([x, ry, 2]);
+          }
+      }
+    }
+    // about 1 in 6 neon edges flicker: period, phase and a 2-4 frame drop-out from the block's hash
+    if (hash(i * 4.7 + .3) < 1 / 6) {
+      const P = DV.flickP[0] + Math.floor(hash(i * 8.1) * (DV.flickP[1] - DV.flickP[0]));
+      L.fl = { P, o: Math.floor(hash(i * 2.3) * P), d: 2 + Math.floor(hash(i * 6.6) * 3), dbl: hash(i * 1.1) < .5 };
+    }
+    live.push(L);
+  });
+  c.putImageData(img, 0, 0);
+  // the sliced sunset disc: yellow -> orange -> magenta stripe fill, Bayer at the hand-offs, gaps widening downward
+  const r = DV.discR,
+    n = r * 2 + 1,
+    dc = document.createElement('canvas');
+  dc.width = dc.height = n;
+  const d = dc.getContext('2d'),
+    di = d.createImageData(n, n),
+    dp = di.data,
+    SUN = rgb(VP.sun), OR = rgb(VP.orange), MAG = rgb(VP.mag),
+    lit = new Uint8Array(n).fill(1);
+  // slices start just above centre: the solid run shrinks 6 -> 2 while the gap grows 1 -> 5
+  for (let y = r - 4, k = 0; y < n; k++) {
+    const gap = 1 + Math.floor(k / 1.6), run = Math.max(2, 6 - k);
+    for (let g = 0; g < gap && y < n; g++, y++) lit[y] = 0;
+    y += run;
+  }
+  for (let y = 0; y < n; y++) {
+    if (!lit[y]) continue;
+    const hw = Math.round(Math.sqrt(r * r - (y - r) * (y - r))),
+      u = y / (n - 1);
+    for (let x = r - hw; x <= r + hw; x++) {
+      const b = bay(x, y),
+        col = u < .26 ? SUN : u < .34 ? ((u - .26) / .08 > b ? OR : SUN) : u < .56 ? OR : u < .64 ? ((u - .56) / .08 > b ? MAG : OR) : MAG;
+      const o = (y * n + x) * 4;
+      dp[o] = col[0]; dp[o + 1] = col[1]; dp[o + 2] = col[2]; dp[o + 3] = 255;
     }
   }
-  const rx = off + 1560,
-    ry = base - 10;
-  if (rx < W + 120 && rx > -140) {
-    ctx.strokeStyle = '#141a21';
-    ctx.lineWidth = 7;
-    ctx.beginPath();
-    ctx.arc(rx, ry, 48, 0, TAU);
-    ctx.stroke();
-    ctx.strokeStyle = '#29313b';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(rx, ry, 52, 0, TAU);
-    ctx.stroke();
-    ctx.fillStyle = '#0d1116';
-    ctx.fillRect(rx - 3, ry - 58, 6, 116);
-    ctx.fillRect(rx - 58, ry - 3, 116, 6);
+  d.putImageData(di, 0, 0);
+  return { cv, disc: dc, lit, live };
+}
+// 1 Hz double beat (60 frames): a strong pulse, a weaker one 14 frames later, each falling off over 9 frames
+const beat = t => {
+  const p = k => k >= 0 && k < 9 ? 1 - k / 9 : 0;
+  return Math.max(p(t % 60), .65 * p((t % 60) - 14));
+};
+/** the derelict skyline behind Open Orbit: one blit of the baked blocks plus the live neon, windows and disc shimmer */
+export function drawDerelict(a, sc) {
+  if (a <= 0) return;
+  if (!DBAKE) DBAKE = bakeDerelict();
+  const off = W * .55 - sc * .12,
+    base = PH * .72,
+    B = Math.round(base),
+    ix = Math.round(off),
+    T = $.T,
+    { cv, live } = DBAKE;
+  // the sunset disc sits behind the blocks (a sun on the horizon), at the old ring's centre
+  const rx = Math.round(off + 1560),
+    ry = Math.round(base - 10),
+    r = DV.discR,
+    disc = rx < W + 120 && rx > -140;
+  if (disc) {
+    ctx.globalAlpha = a * DV.discA;
+    ctx.drawImage(DBAKE.disc, rx - r, ry - r);
+    // 1 px chrome scanline running down the disc, one pass per 90 frames, skipped where it crosses a slice gap
+    const sy = Math.floor((T % 90) / 90 * (r * 2 + 1));
+    if (DBAKE.lit[sy]) {
+      const hw = Math.round(Math.sqrt(r * r - (sy - r) * (sy - r)));
+      ctx.globalAlpha = a * DV.neonA * .6;
+      ctx.fillStyle = VP.chrome;
+      ctx.fillRect(rx - hw, ry - r + sy, hw * 2 + 1, 1);
+    }
+  }
+  // static blocks: one blit of the visible slice of the bake, at a whole-pixel x
+  const s0 = Math.max(0, -ix),
+    s1 = Math.min(cv.width, W - ix);
+  ctx.globalAlpha = a;
+  if (s1 > s0) ctx.drawImage(cv, s0, 0, s1 - s0, cv.height, ix + s0, B - DV.top, s1 - s0, cv.height);
+  // live lights: one path per colour, whole-pixel rects only (crisp, no anti-aliasing)
+  const paths = {}, solo = [];
+  const P = col => paths[col] || (paths[col] = new Path2D());
+  const hb = beat(T);
+  for (let i = 0; i < DERE.length; i++) {
+    const s = DERE[i],
+      x = ix + s.x;
+    if (x > W || x + s.w < 0) continue;
+    const L = live[i],
+      t = B - s.h;
+    // neon edge: roof + one side. A flickering edge drops out for 2-4 frames (HELL FLASHES off: a slow fade instead)
+    let m = 1;
+    if (L.fl) {
+      const k = (T + L.fl.o) % L.fl.P;
+      if (SET.flashes) m = k < L.fl.d || (L.fl.dbl && k >= L.fl.d + 3 && k < L.fl.d + 5) ? 0 : 1;
+      else m = .25 + .75 * (.5 + .5 * Math.cos(k / L.fl.P * TAU));
+    }
+    if (m > 0) {
+      const p = m === 1 ? P(L.n) : new Path2D();
+      p.rect(x, t, s.w, 1);
+      p.rect(x + L.side, t + 1, 1, s.h + 4);
+      // the dead sign's lit tubes share the edge's colour and its drop-outs, plus their own buzz (none with flashes off)
+      if (L.sign.length && (!SET.flashes || hash(i * 5.9 + Math.floor(T / 5)) > .12))
+        for (const g of L.sign) p.rect(x + g[0], B + g[1], g[2], g[3]);
+      if (m !== 1) solo.push([p, L.n, m]);
+    }
+    for (const w of L.win) P(L.lc).rect(x + w[0], B + w[1], w[2], 1);
+    for (const h of L.hi) P(VP.chrome).rect(x + h[0], B + h[1], 1, 1);
+    for (const w of L.heart) P('heart').rect(x + w[0], B + w[1], w[2], 1);
+  }
+  for (const col in paths) {
+    const neon = col === VP.mag || col === VP.cyan;
+    // heart cells never go fully dark between beats, so a window stays a window
+    ctx.globalAlpha = a * (col === 'heart' ? DV.neonA * (.3 + .7 * hb) : neon ? DV.neonA : DV.lightA);
+    ctx.fillStyle = col === 'heart' ? VP.mag : col;
+    ctx.fill(paths[col]);
+  }
+  for (const [p, col, m] of solo) {
+    ctx.globalAlpha = a * DV.neonA * m;
+    ctx.fillStyle = col;
+    ctx.fill(p);
+  }
+  if (disc) {
+    ctx.globalAlpha = a;
     ctx.globalCompositeOperation = 'lighter';
     glow(rx, ry, 40, '200,20,30', .25 + .1 * Math.sin($.T * .03));
     ctx.globalCompositeOperation = 'source-over';
