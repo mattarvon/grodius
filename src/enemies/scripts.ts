@@ -380,11 +380,15 @@ export function stageScript(i, rs) {
   } else if (r.kind === 'drive') {
     // PHASE 4: the Gravity Drive approach: corridor gauntlet, rising pressure, WARNING, a breath
     const warn = r.warnX - r.x0;
-    at('log')(130, () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.'));
+    const gravLog = () => logLine('GRAVITY RISING. THE HULL IS BEING PULLED AFT.');
     if (planned) {
+      // long4: the Drive starts at scroll ~x0 + 148 (slot 1's boss leaves the scroll late), so its first beats sit at
+      // 230 to clear the start by the 60 px the stagebuild test enforces (at 130 they fired on the stage's first frame)
+      at('log')(230, gravLog);
       at('eyes')(430, () => { eyeT(1); eyeT(-1); });
       placePlanned(r, planned[0], pick, at);
     } else {
+      at('log')(130, gravLog); // short: unchanged (its Drive starts 61 px before this)
       play('dE', DRIVE_E);
       at('eyes')(430, () => { eyeT(1); eyeT(-1); });
       play('dF', DRIVE_F);

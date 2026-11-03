@@ -160,9 +160,9 @@ const LONG4_ORBIT_PLAN: StagePlan = {
   opener: 3,
 };
 /** long Drive approach (x relative to the row's x0): the floor cell where the corridor still has a floor, the wall eyes
- *  at 430 and the log line at 130 (fixed beats, enemies/scripts.ts), then cells and filler up to the WARNING */
+ *  at 430 and the log line at 230 (both first beats clear the stage start, which is ~x0 + 148) (fixed beats, enemies/scripts.ts), then cells and filler up to the WARNING */
 const LONG4_DRIVE_PLAN: StagePlan = {
-  slots: [{ x: 140, tag: 'floor' }, { x: 460, tag: 'intro' }, { x: 800, tag: 'build' }, { x: 1120, tag: 'build' }, { x: 1760, tag: 'peak' }, { x: 2080, tag: 'peak' }],
+  slots: [{ x: 230, tag: 'floor' }, { x: 520, tag: 'intro' }, { x: 830, tag: 'build' }, { x: 1140, tag: 'build' }, { x: 1760, tag: 'peak' }, { x: 2080, tag: 'peak' }],
   fill: [{ a: 1440, b: 1740, gap: 65, mix: 'interior' }],
 };
 

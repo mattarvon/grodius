@@ -222,7 +222,7 @@ function entryScroll(i: number, gate?: number) {
  *  src/layout.ts LONG4_DRIVE_PLAN), so both fire on the Drive's first frame; measured with a long4 parity run (stage
  *  0-3 scroll0 11897.916, script head 11880, 11890, 11970). it.fails keeps the rule in force: when the row or the
  *  script moves clear, this case turns red and the marker must go */
-const knownFail = (id: string, kind: string) => id === 'long4' && kind === 'drive';
+const knownFail = (_id: string, _kind: string) => false; // long4's Drive fixed: its first beats moved to x0 + 230
 
 describe('every layout row: the first entry clears the stage start', () => {
   beforeEach(() => {
