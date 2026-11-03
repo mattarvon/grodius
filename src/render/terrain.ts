@@ -290,10 +290,20 @@ const VP = {
 };
 /** skyline tuning: every live light stays at or under half the layer fade (readability over bullets) */
 const DV = {
-  neonA: .5, // roof/side neon and sign tubes, x a (direction: neon <= .5a)
-  lightA: .45, // windows and spire highlights, x a: dimmer than neon so the edges carry the silhouette
-  discA: .6, // the sunset disc's drawImage, x a: background, never brighter than the bullets in front of it
-  discR: 46, // inside the old ring's 48 px radius, same centre (off+1560, base-10)
+  neonA: .75, // roof/side neon and sign tubes, x a (Matt, round 2: push the vaporwave; lime orbs still read on top)
+  lightA: .6, // windows and spire highlights, x a: a step under the neon so the edges carry the silhouette
+  magK: .7, // share of blocks edged magenta rather than cyan (round 2: more magenta)
+  discA: .7, // the sunset disc's drawImage, x a: background, never brighter than the bullets in front of it
+  discR: 46, // inside the old ring's 48 px radius, centre at base-10 like the ring
+  // disc x relative to `off`. The old ring's +1560 was never on screen: Open Orbit ends at off = -12 (short, x1 2300)
+  // and -262 (long4, x1 4380), and space fades out long before +1560 comes round. At +100 the whole disc is on screen
+  // from the first frame of Open Orbit (rx 364) through all of short's orbit (rx 88 at its end) and 78% of long4's
+  // (gone at scroll ~3420), near screen centre mid-stage on both (short rx 226 at 1150, long4 rx 240 at ~1030).
+  // Anything past ~+103 overlaps Triton (x W*.9 - sc*.028, y 132) as the faster disc overtakes it; +100 never does,
+  // and Neptune (y 62, r 48) ends above the disc's top row (127)
+  discX: 100,
+  hazeA: .45, // the horizon haze's drawImage, x a: faint, the dither carries the ramp
+  hazeH: 30, // haze rows above the base line: low and short, behind the blocks only (tallest roof is 26)
   top: 62, // bake rows above the base line: tallest block (26) + tallest spire (34) + mast
   foot: 18, // body rows below the base line (the old fillRect's +18), dissolving to the sky
   flickP: [100, 240], // frames between a flickering edge's drop-outs
@@ -326,7 +336,7 @@ function bakeDerelict() {
   DERE.forEach((s, i) => {
     const t = B - s.h, // roof row
       H = s.h + DV.foot,
-      L = { n: hash(i * 12.9) < .5 ? VP.mag : VP.cyan, side: hash(i * 3.7 + .2) < .5 ? 0 : s.w - 1, win: [], heart: [], hi: [], sign: [], lc: VP.orange, fl: null };
+      L = { n: hash(i * 12.9) < DV.magK ? VP.mag : VP.cyan, side: hash(i * 3.7 + .2) < .5 ? 0 : s.w - 1, win: [], heart: [], hi: [], sign: [], lc: VP.orange, fl: null };
     // body: 3 solid rows of the band, a Bayer ramp into the body colour, then the last 10 rows dissolve into the sky
     const D = Math.max(4, Math.min(8, s.h - 3));
     for (let yy = 0; yy < H; yy++) {
@@ -353,6 +363,7 @@ function bakeDerelict() {
         }
       for (; y > t - s.sp; y--) put(cx, y - 1, BAND);
     } else if (hash(i * 5.3) < .15) L.lc = VP.sun; // sun yellow, sparingly
+    else if (L.n === VP.mag && hash(i * 2.7 + .9) < .3) L.lc = VP.mag; // magenta-lit floors: still 4 colours a block
     if (sign) {
       // dead billboard on the roof: a rim-coloured frame, glyph mush of 3x5 cells, about half its tubes lit (live)
       const sw = Math.min(s.w - 6, 26) & ~1,
@@ -370,17 +381,17 @@ function bakeDerelict() {
         });
     } else {
       // sun-stripe windows: rows every 3 px down to just under the base line; 2x1 dashes or full-width 1 px stripes.
-      // About 1 in 10 windows overall beats magenta: 1 in 5 on the magenta-edged half, so a block keeps 4 colours
+      // About 1 in 10 windows overall beats magenta: 15% on the magenta-edged 70%, so a block keeps 4 colours
       const stripe = hash(i * 7.9 + .4) < .35;
       for (let r = 0, y = t + 3; y < B + 4; r++, y += 3) {
         if (hash(i * 1.7 + r * 9.1) < .3) continue; // a dark floor
         const ry = y - B;
         if (stripe) {
-          if (hash(i * 2.2 + r * 5.3) < .55) (L.n === VP.mag && hash(i * 6.1 + r * 3.3) < .2 ? L.heart : L.win).push([2, ry, s.w - 4]);
+          if (hash(i * 2.2 + r * 5.3) < .55) (L.n === VP.mag && hash(i * 6.1 + r * 3.3) < .15 ? L.heart : L.win).push([2, ry, s.w - 4]);
         } else
           for (let k = 0, x = 2; x + 2 <= s.w - 2; k++, x += 4) {
             if (hash(i * 7.31 + r * 3.7 + k * .913) > .45) continue;
-            (L.n === VP.mag && hash(i * 8.3 + r * 1.9 + k * .71) < .2 ? L.heart : L.win).push([x, ry, 2]);
+            (L.n === VP.mag && hash(i * 8.3 + r * 1.9 + k * .71) < .15 ? L.heart : L.win).push([x, ry, 2]);
           }
       }
     }
@@ -402,25 +413,49 @@ function bakeDerelict() {
     dp = di.data,
     SUN = rgb(VP.sun), OR = rgb(VP.orange), MAG = rgb(VP.mag),
     lit = new Uint8Array(n).fill(1);
-  // slices start just above centre: the solid run shrinks 6 -> 2 while the gap grows 1 -> 5
-  for (let y = r - 4, k = 0; y < n; k++) {
+  // the slices start 20 rows above centre, where they still clear the roofs (roof rows sit 16 above to 4 below the
+  // centre): the solid run shrinks 6 -> 2 while the gap grows 1 -> 5
+  for (let y = r - 20, k = 0; y < n; k++) {
     const gap = 1 + Math.floor(k / 1.6), run = Math.max(2, 6 - k);
     for (let g = 0; g < gap && y < n; g++, y++) lit[y] = 0;
     y += run;
   }
+  // nothing below where the block bodies start dissolving (base+8 = centre+18): no slices floating under the skyline
+  lit.fill(0, r + 18);
   for (let y = 0; y < n; y++) {
     if (!lit[y]) continue;
     const hw = Math.round(Math.sqrt(r * r - (y - r) * (y - r))),
       u = y / (n - 1);
     for (let x = r - hw; x <= r + hw; x++) {
       const b = bay(x, y),
-        col = u < .26 ? SUN : u < .34 ? ((u - .26) / .08 > b ? OR : SUN) : u < .56 ? OR : u < .64 ? ((u - .56) / .08 > b ? MAG : OR) : MAG;
+        col = u < .18 ? SUN : u < .26 ? ((u - .18) / .08 > b ? OR : SUN) : u < .36 ? OR : u < .44 ? ((u - .36) / .08 > b ? MAG : OR) : MAG;
       const o = (y * n + x) * 4;
       dp[o] = col[0]; dp[o + 1] = col[1]; dp[o + 2] = col[2]; dp[o + 3] = 255;
     }
   }
   d.putImageData(di, 0, 0);
-  return { cv, disc: dc, lit, live };
+  // horizon haze behind the skyline only (DERE's span, hazeH rows up from the base line): #ff3fa4 stepped into
+  // #2a1450 then dissolved, every step a Bayer density in 3-row bands (dithered, never an alpha gradient)
+  const hh = DV.hazeH,
+    hz = document.createElement('canvas');
+  hz.width = cw;
+  hz.height = hh;
+  const hc = hz.getContext('2d'),
+    hi = hc.createImageData(cw, hh),
+    hp = hi.data,
+    PINK = rgb(VP.mag), BAND2 = rgb(VP.band);
+  for (let y = 0; y < hh; y++) {
+    const up = Math.floor((hh - 1 - y) / 3) * 3 / hh; // 0 at the base line, ~1 at the top; stepped every 3 rows
+    for (let x = 0; x < cw; x++) {
+      const b = bay(x, y);
+      if (up > .55 && (up - .55) / .45 > b) continue; // the top rows dissolve into the sky
+      const col = up < .5 && up / .5 < b ? PINK : BAND2;
+      const o = (y * cw + x) * 4;
+      hp[o] = col[0]; hp[o + 1] = col[1]; hp[o + 2] = col[2]; hp[o + 3] = 255;
+    }
+  }
+  hc.putImageData(hi, 0, 0);
+  return { cv, disc: dc, haze: hz, lit, live };
 }
 // 1 Hz double beat (60 frames): a strong pulse, a weaker one 14 frames later, each falling off over 9 frames
 const beat = t => {
@@ -437,8 +472,8 @@ export function drawDerelict(a, sc) {
     ix = Math.round(off),
     T = $.T,
     { cv, live } = DBAKE;
-  // the sunset disc sits behind the blocks (a sun on the horizon), at the old ring's centre
-  const rx = Math.round(off + 1560),
+  // the sunset disc sits behind the haze and the blocks (a sun on the horizon); DV.discX says why it sits where it does
+  const rx = Math.round(off + DV.discX),
     ry = Math.round(base - 10),
     r = DV.discR,
     disc = rx < W + 120 && rx > -140;
@@ -454,11 +489,15 @@ export function drawDerelict(a, sc) {
       ctx.fillRect(rx - hw, ry - r + sy, hw * 2 + 1, 1);
     }
   }
-  // static blocks: one blit of the visible slice of the bake, at a whole-pixel x
+  // horizon haze, then the static blocks: one blit each of the visible slice of the bake, at a whole-pixel x
   const s0 = Math.max(0, -ix),
     s1 = Math.min(cv.width, W - ix);
-  ctx.globalAlpha = a;
-  if (s1 > s0) ctx.drawImage(cv, s0, 0, s1 - s0, cv.height, ix + s0, B - DV.top, s1 - s0, cv.height);
+  if (s1 > s0) {
+    ctx.globalAlpha = a * DV.hazeA;
+    ctx.drawImage(DBAKE.haze, s0, 0, s1 - s0, DV.hazeH, ix + s0, B - DV.hazeH, s1 - s0, DV.hazeH);
+    ctx.globalAlpha = a;
+    ctx.drawImage(cv, s0, 0, s1 - s0, cv.height, ix + s0, B - DV.top, s1 - s0, cv.height);
+  }
   // live lights: one path per colour, whole-pixel rects only (crisp, no anti-aliasing)
   const paths = {}, solo = [];
   const P = col => paths[col] || (paths[col] = new Path2D());

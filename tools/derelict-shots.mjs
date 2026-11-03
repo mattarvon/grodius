@@ -1,8 +1,8 @@
 // Derelict skyline shots (art-derelict-vapor): the "city blocks that float by" behind Open Orbit, on the live loop.
 // Full frames at three scroll positions (one with enemy fire over the skyline), plus isolated 3x strips of
-// drawDerelict alone (no sky, no post-FX) so the blocks, neon and windows can be judged pixel by pixel. The sunset
-// disc sits at off+1560, which no layout's Open Orbit scrolls to (space fades out first), so its strip draws
-// drawDerelict straight at a scroll past the fade: a preview of the art, not a reachable game state.
+// drawDerelict alone (no sky, no post-FX) so the blocks, neon and windows can be judged pixel by pixel, plus
+// (with --inplay) one frame of untouched real play: newGame, the stage script running, ~7 s of live frames.
+// (Strip 06 at scroll 13100 was the disc preview while the disc sat at the unreachable off+1560.)
 // Usage: node tools/derelict-shots.mjs <outDir> [prefix] [--layout long4]   (starts its own Vite dev server)
 import { chromium } from 'playwright';
 import { useLayout, ranOn, LY } from './layout-arg.mjs';
@@ -46,7 +46,7 @@ for (const [n, sc, fire] of [['01-orbit-early', o + 300, 0], ['02-orbit-fire', o
   await at(sc, fire); await shot(`${n}-sc${sc}`);
 }
 // isolated strips: drawDerelict on a plain void, read back from the low-res canvas and scaled 3x (nearest)
-for (const [n, sc] of [['04-strip-early', 300], ['05-strip-late', 3600], ['06-strip-disc-preview', 13100]]) {
+for (const [n, sc] of [['04-strip-early', 300], ['05-strip-late', 3600], PRE === 'before' ? ['06-strip-disc-preview', 13100] : ['06-strip-disc', 1100]]) {
   const png = await p.evaluate((sc) => {
     const { C, T, S } = window.__d, x = C.ctx, k = 3, y0 = 100, h = 130;
     x.save(); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
@@ -59,6 +59,13 @@ for (const [n, sc] of [['04-strip-early', 300], ['05-strip-late', 3600], ['06-st
     return c.toDataURL('image/png').split(',')[1];
   }, sc);
   fs.writeFileSync(`${OUT}/${PRE}-${n}-sc${sc}.png`, Buffer.from(png, 'base64'));
+}
+// real play: a fresh run with its script and spawns untouched; the ship is only made invulnerable so it lives
+if (process.argv.includes('--inplay')) {
+  await p.evaluate(() => { const { S, F } = window.__d; F.newGame(0); S.$.state = 'play'; S.$.P.inv = 99999; });
+  await p.waitForTimeout(7000);
+  const sc = await p.evaluate(() => Math.round(window.__d.S.$.G.scroll));
+  await shot(`07-inplay-disc-sc${sc}`);
 }
 console.log(errs.length ? 'page errors:\n' + errs.slice(0, 5).join('\n') : 'no page errors');
 ranOn('derelict-shots'); await b.close(); await server.close();
