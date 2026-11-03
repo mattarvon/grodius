@@ -362,7 +362,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 
 ### 6.3 Selection rules (`pickMids`)
 
-**When it runs:** at stage build time (inside `choose()` for biomes, in `buildStage()` for the others). It draws from the per-stage build stream `Rs`, never from settings or device state.
+**When it runs:** at stage build time (inside `choose()` for biomes, in `buildStage()` for the others). It draws from its own per-stage stream, `midStream(i)` (`src/biomes.ts`, seeded by `midSeedOf` from the same stage seed as `Rs`; LS1 F prep), never from `Rs` itself, settings or device state, so script tuning can never move a pick.
 
 **Steps:**
 1. **Descent gate:** keep members with `min ≤ L`. ANGLE and RACE members are `min: 1`, so Descent 1 shows only LINE, SPACE, RANGE, CROWD, WINDOW and the Saucer.
