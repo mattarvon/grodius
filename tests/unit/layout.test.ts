@@ -41,7 +41,7 @@ function violations(L: LayoutEntry) {
     const warns: number[] = [r.warnX ?? r.bossX, ...(r.drift || []).map((d) => r.x0 + d.at)];
     if (r.kind === 'biome') for (const [g, from] of gates(r)) for (const remix of [false, true]) {
       const b = biomeBeats(L, r, from, remix), tag = `stage ${i} ${g} gate${remix ? ' remix' : ''}`;
-      if (b.warn != null) warns.push(b.warn);
+      warns.push(...b.warns); // every midboss WARNING (slot A, and slot B on a picker layout)
       for (const x of b.sets) {
         const d = Math.min(...b.breaths.map((br) => x < br.a ? br.a - x : x > br.z ? x - br.z : 0));
         if (d < MIN_GAP) out.push(`${tag}: set piece at ${x.toFixed(1)} is ${d.toFixed(1)} px from the breath`);
@@ -229,20 +229,47 @@ describe('long4 entry', () => {
     });
   });
 
-  it('has two breaths, only the first holding a midboss in sprint 2, with its WARNING inside it', () => {
-    expect(L.beats.breaths.map((b) => !!b.mid)).toEqual([true, false]);
-    for (const r of biomeRows) for (const from of [r.x0, r.gateLate!]) {
-      const b = beatPlan(r, from, false, L), [b1] = b.breaths;
-      expect(b.warn!).toBeGreaterThanOrEqual(b1.a);
-      expect(b.warn!).toBeLessThan(b1.z);
+  it('has two breaths, each holding a midboss (slot A, slot B: item F), with its WARNING inside it', () => {
+    expect(L.beats.breaths.map((b) => !!b.mid)).toEqual([true, true]);
+    for (const r of biomeRows) for (const from of [r.x0, r.gateLate!]) for (const remix of [false, true]) {
+      const b = beatPlan(r, from, remix, L);
+      expect(b.warns).toHaveLength(2);
+      expect(b.warn).toBe(b.warns[0]);
+      b.breaths.forEach((br, s) => {
+        expect(b.warns[s]).toBeGreaterThanOrEqual(br.a);
+        expect(b.warns[s]).toBeLessThan(br.z);
+      });
     }
+  });
+
+  // spec §3.2 rule 1 for biome slots: a DRIFT midboss in slot A (none in phase 1; the Calving Shelf in wave 2, the
+  // Saucer as LS1-F's stub) is forced out >= 300 px before slot B's WARNING, and slot B's before the boss WARNING
+  it('forces a DRIFT midboss in either biome slot out >= 300 px before the next WARNING, after it has landed', () => {
+    expect(L.beats.driftLead).toBeGreaterThanOrEqual(300);
+    for (const r of biomeRows) for (const from of [r.x0, r.gateLate!]) for (const remix of [false, true]) {
+      const b = beatPlan(r, from, remix, L), next = [...b.warns.slice(1), r.bossX];
+      b.warns.forEach((w, s) => {
+        const exit = b.driftExit[s]!;
+        expect(next[s] - exit).toBeGreaterThanOrEqual(300);
+        // it lands 150 f (~150 px of scroll: a DRIFT midboss holds nothing) after its WARNING; leave it >= 5 s of fight
+        expect(exit - (w + 150)).toBeGreaterThanOrEqual(300);
+      });
+    }
+  });
+
+  it('has no DRIFT biome-slot exits on the short layout (it has no picker)', () => {
+    const S = LAYOUTS.short!;
+    expect(S.picker).toBeUndefined();
+    expect(S.beats.driftLead).toBeUndefined();
+    const r = S.stages.find((x) => x.kind === 'biome')!;
+    expect(beatPlan(r, r.x0, false, S).driftExit).toEqual([null]);
   });
 
   it('keeps every set piece >= 150 px from every WARNING, breath 2s future one included, at both gates', () => {
     for (const r of biomeRows) for (const from of [r.x0, r.gateLate!]) for (const remix of [false, true]) {
       const b = beatPlan(r, from, remix, L);
-      // sprint 3 item F puts slot B's miniWarn in breath 2 the same warnLead before its end
-      const warns = [...b.breaths.map((br) => br.z - L.beats.warnLead), r.bossX];
+      // item F's slot B miniWarn sits in breath 2 the same warnLead before its end
+      const warns = [...b.warns, r.bossX];
       for (const x of b.sets) expect(Math.min(...warns.map((w) => Math.abs(w - x)))).toBeGreaterThanOrEqual(150);
       expect(b.sets).toHaveLength(3);
     }

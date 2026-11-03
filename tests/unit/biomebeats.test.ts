@@ -35,12 +35,14 @@ vi.mock('../../src/enemies/spawn', () => {
 const L = await import('../../src/layout');
 const { BIOMES, biomeScript, logPick, remix, secondKind } = await import('../../src/biomes');
 
+/** a stage's midboss pair as biomeStage passes it on long4 (G.mb[stage], picked by stageMids) */
+const PAIR = ['choir', 'cyst'];
 const ENEMY = /^(behindWave|corpse|crawler|crossT|eyeT|flayer|formation|hatch|hookE|womb|mutant|slime)$/;
 /** build a slot's script, sorted by x as insertScript does, and fire each entry, recording what it called */
-function build(seg: number, b: string, from: number, v = 0, loop = 0) {
+function build(seg: number, b: string, from: number, v = 0, loop = 0, mids: string[] | null = PAIR) {
   $.G = { loop, pend: [], rank: 0, seed: 7 + seg * 31 + v }; // the run seed: build rolls draw its stage stream (src/rng.ts)
   seed = 7 + seg * 31 + v;
-  return biomeScript(seg, b, from, v).sort((p: { x: number }, q: { x: number }) => p.x - q.x).map((e: { x: number; f: () => void }) => { calls.length = 0; e.f(); return { x: e.x, k: [...calls] }; });
+  return biomeScript(seg, b, from, v, undefined, mids).sort((p: { x: number }, q: { x: number }) => p.x - q.x).map((e: { x: number; f: () => void }) => { calls.length = 0; e.f(); return { x: e.x, k: [...calls] }; });
 }
 
 describe('beat template v2 on long4', () => {
@@ -58,10 +60,12 @@ describe('beat template v2 on long4', () => {
     }
   });
 
-  it.each(cases)('$b slot $seg visit $v descent $loop: one midboss WARNING (breath 1), the boss WARNING at bossX, three log lines', ({ b, seg, v, loop }) => {
+  it.each(cases)('$b slot $seg visit $v descent $loop: two midboss WARNINGs (breaths 1 and 2), the boss WARNING at bossX, three log lines', ({ b, seg, v, loop }) => {
     const r = L.slotRow(seg), P = L.beatPlan(r, r.gateLate!, !!v), S = build(seg, b, r.gateLate!, v, loop);
     const warns = S.filter((e) => e.k.includes('miniWarn'));
-    expect(warns.map((e) => e.x)).toEqual([P.warn, r.bossX]);
+    expect(warns.map((e) => e.x)).toEqual([...P.warns, r.bossX]);
+    // with no picks (a direct call, as on short) it is the biome's own midboss alone
+    expect(build(seg, b, r.gateLate!, v, loop, null).filter((e) => e.k.includes('miniWarn')).map((e) => e.x)).toEqual([P.warn, r.bossX]);
     const logs = S.filter((e) => e.k.includes('logLine')).map((e) => e.x);
     expect(logs).toEqual([P.a - 40, P.breaths[0].z, P.runup]); // entrance, release, run-up
   });

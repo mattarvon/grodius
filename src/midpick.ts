@@ -1,10 +1,10 @@
 // =====================================================================
 //  MIDBOSS PICKER (design/content-expansion.md §6.3, build plan row LS1-F0). Pure: no $, no G, no R().
 //  The caller passes the descent, the run's midboss state and a random stream, and gets the picks back.
-//  NOT WIRED YET: biomes.ts choose() still spawns B.mid. LS1-F (sprint 3) calls pickMids() from choose()/buildStage()
-//  with rng = midStream(i) (biomes.ts; seed src/rng.ts midSeedOf), NEVER stageStream(i): the pick has its own stream
+//  WIRED (LS1-F) on layouts with `picker` set (long4): biomes.ts choose() calls pickBiomeMids() with
+//  rng = midStream(i) (biomes.ts; seed src/rng.ts midSeedOf), NEVER stageStream(i): the pick has its own stream
 //  per stage, so it is the same whatever the script drew and wherever in the build it runs. It stores the result in
-//  G.mb, and keeps G.mbUsed / G.mbLast with noteMids().
+//  G.mb[stage], and keeps G.mbUsed / G.mbLast with noteMids(). The short layout keeps one home midboss per biome stage.
 //
 //  Steps, in order (spec §6.3):
 //    1. descent gate     keep members with min <= L (L = G.loop, 0-based: Descent 1 is L 0)
@@ -39,7 +39,7 @@ export const MIDS: Record<string, MidDef> = {
   ufo: { body: 'ufo', tag: 'DRIFT', min: 0 }, //          THE SQUIDFUCKED SAUCER, Open Orbit slot A
 };
 
-/** each biome's own midboss; must match BIOMES[b].mid in biomes.ts (biomes.ts imports canvas/audio, so LS1-F wiring asserts this when it reads both) */
+/** each biome's own midboss; must match BIOMES[b].mids[0] in biomes.ts (tests/unit/midslot.test.ts asserts it) */
 export const HOME: Record<string, string> = { ice: 'choir', acid: 'cyst', fire: 'prentice', snot: 'brood' };
 
 /** phase 1: a biome stage draws from all four existing biome midbosses (home + crossovers) */
@@ -147,3 +147,23 @@ export function pickBiomeMids(st: MidState, b: string, L: number, rng: () => num
   noteMids(st, b, out.picks);
   return out;
 }
+
+// ---------------- slot clocks and the fork rule (spec §6.4, §6.5; LS1-F) ----------------
+/** midboss leave clocks in frames (spec §6.4; was 1400 f for every midboss, which the short layout keeps). Slot A is
+ *  shorter than B: B comes later in the stage with more kit, and its TTK band is 10-15 s against A's 8-11 s
+ *  (midboss-probe, STAGE 1 kit). A DRIFT member also has its forced-exit x (layout beats.driftLead): whichever first */
+export const MID_CLOCK = {
+  slot: [1080, 1260] as readonly number[], // slot A 18 s, slot B 21 s: caps the worst-case stage (spec §3.1 table)
+  race: 900, //                              RACE members (wave 2): they escalate, so the fight is kept short
+};
+/** the leave clock of midboss k in slot s (0 = A, 1 = B) */
+export function slotClock(k: string, s: number, defs: Readonly<Record<string, MidDef>> = MIDS): number {
+  const c = MID_CLOCK.slot[Math.min(s, MID_CLOCK.slot.length - 1)];
+  return defs[k] && defs[k].tag === 'RACE' ? Math.min(c, MID_CLOCK.race) : c;
+}
+
+/** biomes whose stage boss is the Maw body: the interim rule of spec §6.5 keeps them out of the same descent (with
+ *  the Orbit Maw that would be three Maws in one descent, against Pillar 4) */
+export const MAW_BIOMES: readonly string[] = ['acid', 'snot'];
+/** may biome b be offered at a fork, given the descent's route so far (G.route)? */
+export const forkAllows = (b: string, route: readonly (string | null)[]) => !MAW_BIOMES.includes(b) || !route.some((r) => r !== b && r != null && MAW_BIOMES.includes(r));
