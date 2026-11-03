@@ -120,6 +120,8 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   7. Audio: listen through the Orbit and Drive loop seams (stages are now 76-93 s).
   8. Writer's pass (D8) on the 8 draft log lines and the LAB labels before long becomes the default; settle "ON DEATH" vs "checkpoint RESTART".
   9. LS3-0: re-derive the `long5` Orbit length (D22).
+  10. *(integ-polish review, 2026-11-02)* The long4 harness pass (`node tools/harness.mjs --layout long4`) covers ~23% of the level (the bot dies in Orbit): the Maw, biomes and the Drive fix have no harness coverage. Needs a longer or survivable run. `test:regress` now takes ~33 s (was ~13 s); refresh a baseline with `--update` (plus `--layout long4` for the long one) and explain the move in the commit.
+  11. The derelict skyline bakes on its first drawn frame (a one-off hitch on phones): move the bake to the idle boot slices. `drawDerelict`/`bakeDerelict` exceed the 40-line function standard.
 
 ### Sprint 3: midbosses ×2, economy, resume, measurement (5 lanes)
 
