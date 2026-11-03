@@ -38,11 +38,11 @@ import { render } from './render/screens';
 import { applyRunLayout } from './lab';
 
 // ---------------- layout flag (build plan sprint 2 items D, D2) ----------------
-// ?layout=long flies the long4 entry (src/layout.ts); the default stays short. The parse is lab.ts layoutChoice
-// (URL > LAB > short), applied here at boot, before any newGame() (setLayout's contract), and again at each run start.
+// ?layout=long flies the long4 entry (src/layout.ts); the default is long4 (D24). The parse is lab.ts layoutChoice
+// (URL > LAB > DEFAULT_LAYOUT), applied here at boot, before any newGame() (setLayout's contract), and again at each run start.
 // An unknown or unregistered value is ignored with a warning (the LAB or short applies), never a crash
 {
-  const c = applyRunLayout();
+  const c = applyRunLayout(true);
   if (c.bad != null) console.warn(`?layout=${c.bad}: unknown layout; flying ${c.id}`);
 }
 

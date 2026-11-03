@@ -106,6 +106,20 @@ localization), D16-D18, and the signing keystore half of D6.
 **Reason:** Matt, sprint 2 studio review.
 **Category:** release
 
+### D24 Long is the default layout — 2026-11-02 (Matt)
+
+**Decision point:** Flip the default from `short` to `long4` now, ahead of the sprint 3 closeout?
+**Chosen:** Yes. With no `?layout=` flag and no LAB key, a run flies `long4` (`src/lab.ts` `DEFAULT_LAYOUT`, applied at boot). `short` stays reachable through the LAB and `?layout=short` until it is deleted. The harness and the parity tool pin `?layout=short`, so their baselines stay the short layout's.
+**Accepted open items** (Matt chose this over waiting): one midboss per stage (slot B and the held Orbit midboss are sprint 3 F / LS2); biome spawns about 1.3x against the spec's 1.7x and the Drive fight 38-51 s (item G); 8 draft log lines and dev-copy LAB labels (D8 writer's pass); provisional `hell` and `hudMarks` art. The creative-director's sprint 2 note (not acceptable "once long becomes the default") is overridden by Matt.
+**Reason:** Matt, 2026-11-02: "this long looks good to merge into the main".
+**Category:** design_rules
+
+### D25 Screen-space blood splats removed — 2026-11-02 (Matt)
+
+**Chosen:** `splat()` and the biome bosses' lens splats are off (`src/fx/spawn.ts` `SPLATS_ON`, `src/render/gross/biomebosses.ts` `LENS_ON`). World gore stays.
+**Reason:** Matt: "it disturbs gameplay".
+**Category:** art
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path

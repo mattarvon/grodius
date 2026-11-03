@@ -63,7 +63,7 @@ async function runOnce(b) {
   let loads = 0; p.on('load', () => loads++);
   await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
   await p.addInitScript(init, FLASHES);
-  await p.goto(url);
+  await p.goto(url + (url.includes('?') ? '&' : '?') + 'layout=short'); // the baseline is the short layout (long is the game default since D24)
   let ok = false;
   for (let i = 0; i < 300 && !ok; i++) { ok = await ready().catch(() => false); if (!ok) await sleep(50); }
   if (!ok) errs.push('harness: game not ready after 15 s (boot, fonts or images)');

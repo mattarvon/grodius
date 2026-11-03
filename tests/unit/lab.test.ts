@@ -1,8 +1,9 @@
-// LS1 sprint 2 item D2: the LAB row's storage and the layout choice (URL flag > LAB > short).
+// LS1 sprint 2 item D2: the LAB row's storage and the layout choice (URL flag > LAB > DEFAULT_LAYOUT, long4 since D24).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LAB_DEFAULT, labOf, layoutChoice, urlLayout, type Lab } from '../../src/lab';
+import { DEFAULT_LAYOUT, LAB_DEFAULT, labOf, layoutChoice, urlLayout, type Lab } from '../../src/lab';
 
 const LONG: Lab = { ...LAB_DEFAULT, layout: 'long' };
+const SHORT: Lab = { ...LAB_DEFAULT, layout: 'short' };
 
 // lab.ts reads storage at import time, so each storage test stubs localStorage (and location) and imports a fresh copy
 function storage(init: Record<string, string>, broken = false) {
@@ -23,16 +24,17 @@ async function load(init: Record<string, string>, search = '', broken = false) {
   return { ls, ...(await import('../../src/lab')) };
 }
 
-describe('layoutChoice: URL flag > LAB > short', () => {
-  it('flies short with no flag and no LAB key', () => {
-    expect(layoutChoice('', null)).toEqual({ id: 'short', src: 'default' });
+describe('layoutChoice: URL flag > LAB > default (long4)', () => {
+  it('flies long4 with no flag and no LAB key (D24)', () => {
+    expect(DEFAULT_LAYOUT).toBe('long4');
+    expect(layoutChoice('', null)).toEqual({ id: 'long4', src: 'default' });
   });
   it('flies the LAB setting when the URL sets nothing', () => {
     expect(layoutChoice('?perf', LONG)).toEqual({ id: 'long4', src: 'lab' });
   });
   it('lets a URL flag override the LAB both ways', () => {
     expect(layoutChoice('?layout=short', LONG)).toEqual({ id: 'short', src: 'url' });
-    expect(layoutChoice('?dk=2&layout=long', LAB_DEFAULT)).toEqual({ id: 'long4', src: 'url' });
+    expect(layoutChoice('?dk=2&layout=long', SHORT)).toEqual({ id: 'long4', src: 'url' });
   });
   it('accepts the table id long4 as the flag value', () => {
     expect(layoutChoice('?layout=long4', null)).toEqual({ id: 'long4', src: 'url' });
@@ -40,12 +42,12 @@ describe('layoutChoice: URL flag > LAB > short', () => {
   it('tries any other flag value as a registered entry id (item D)', () => {
     expect(layoutChoice('?layout=long5', null, (id) => id === 'long5')).toEqual({ id: 'long5', src: 'url' });
   });
-  it('ignores an unknown flag value: the LAB applies, else short, and the value is reported', () => {
+  it('ignores an unknown flag value: the LAB applies, else the default, and the value is reported', () => {
     expect(layoutChoice('?layout=long9', LONG)).toEqual({ id: 'long4', src: 'lab', bad: 'long9' });
-    expect(layoutChoice('?layout=long9', null)).toEqual({ id: 'short', src: 'default', bad: 'long9' });
+    expect(layoutChoice('?layout=long9', null)).toEqual({ id: 'long4', src: 'default', bad: 'long9' });
   });
   it('never resolves an inherited name such as constructor to an entry', () => {
-    expect(layoutChoice('?layout=constructor', null)).toEqual({ id: 'short', src: 'default', bad: 'constructor' });
+    expect(layoutChoice('?layout=constructor', null)).toEqual({ id: 'long4', src: 'default', bad: 'constructor' });
     expect(urlLayout('?layout=__proto__')).toBe('__proto__');
   });
 });
@@ -61,7 +63,7 @@ describe('labOf', () => {
 describe('LAB storage', () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  it('defaults to short with no grodius.lab key (the harness fresh save)', async () => {
+  it('with no grodius.lab key the title shows the active entry and the LAB defaults (the harness fresh save)', async () => {
     const { activeLayout, lab, cpTrigger, midsWip } = await load({ 'grodius.v1': '{}' });
     expect(activeLayout()).toEqual({ id: 'short', src: 'default' });
     expect(lab()).toEqual(LAB_DEFAULT);
@@ -83,7 +85,7 @@ describe('LAB storage', () => {
     const { ls, setLab } = await load({ 'grodius.run': '{"v":1}' });
     setLab({ cp: 'b' });
     expect(ls.map.has('grodius.run')).toBe(true);
-    setLab({ layout: 'long' });
+    setLab({ layout: 'short' });
     expect(ls.map.has('grodius.run')).toBe(false);
   });
 
@@ -132,8 +134,16 @@ describe('applyRunLayout', () => {
     const { applyRunLayout, activeLayout } = await load({});
     const L = await import('../../src/layout');
     L.setLayout('long4');
-    expect(applyRunLayout()).toEqual({ id: 'short', src: 'default' });
+    expect(applyRunLayout()).toEqual({ id: 'long4', src: 'default' });
     expect(L.layout().id).toBe('long4');
     expect(activeLayout().id).toBe('long4'); // the title shows what the run will fly
+  });
+
+  it('applies the default at boot, even over an entry already active', async () => {
+    const { applyRunLayout } = await load({});
+    const L = await import('../../src/layout');
+    L.setLayout('short');
+    expect(applyRunLayout(true)).toEqual({ id: 'long4', src: 'default' });
+    expect(L.layout().id).toBe('long4');
   });
 });

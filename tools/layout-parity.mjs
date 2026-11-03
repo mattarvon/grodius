@@ -182,7 +182,7 @@ try {
     const errs = []; p.on('pageerror', (e) => errs.push(e.message));
     await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
     await p.addInitScript(init, [seed, gates, descents, mortal]);
-    await p.goto(url);
+    await p.goto(url + (url.includes('?') ? '&' : '?') + 'layout=short'); // the baseline is the short layout (long is the game default since D24)
     await p.waitForFunction(() => window.__started, null, { timeout: 30000 });
     const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c, key: c })), [t, c]);
     // the title gate (no audio) swallows the first key: open it, start, hold fire (tools/harness.mjs)
