@@ -3,7 +3,8 @@
 //   - the terrain: FLOOR/CEIL hashes, and terrain-only renders (render/terrain.ts drawTerrain on a cleared frame) at
 //     several scroll x from the lead-in to the stage's boss, compared pixel for pixel (PNGs kept with --out);
 //   - the script x and kind list still to fire (every entry past cpX: filler, set pieces, log lines, midboss, boss);
-//   - the stored rebuild recipe (seed, loop, stage, route, bx, visitNo, remixV) and where the scroll restarts
+//   - the stored rebuild recipe (seed, loop, stage, route, bx, visitNo, remixV) and the midboss picks (G.mb, G.mbUsed,
+//     G.mbLast: item F), and where the scroll restarts
 //     (cpX - CP.lead);
 //   - sim RNG draws made by the RESUME press (must be 0: the rebuild draws only the stage build streams).
 // With --death it first flies checkpoint option b (LAB CHECKPOINT: ON DEATH): after the checkpoint the ship is killed,
@@ -124,7 +125,7 @@ const snap = (p, xs) => p.evaluate(async (xs) => {
   }
   return {
     state: g.state, stage: G.stage, loop: G.loop, lives: G.lives, scroll: G.scroll, cpX: cp.cpX, cpN: cp.cpN, seed: G.seed,
-    route: G.route, bx: G.bx, visitNo: G.visitNo, remixV: G.remixV, deaths: G.st && G.st.deaths,
+    route: G.route, bx: G.bx, visitNo: G.visitNo, remixV: G.remixV, deaths: G.st && G.st.deaths, mb: G.mb, mbUsed: G.mbUsed, mbLast: G.mbLast,
     script: G.script.slice(G.si).filter((e) => e.x > cp.cpX).map((e) => `${e.x}:${e.k}`),
     floor: fnv(B.F), ceil: fnv(B.C), imgs, bossX: (await import('/src/layout.ts')).row(G.stage).bossX,
   };
@@ -159,7 +160,7 @@ try {
   const xs = [pre.cpX - 120, pre.cpX, pre.cpX + 240, pre.cpX + 600, (pre.cpX + pre.bossX) / 2, pre.bossX - 200].map(Math.round);
   const orig = await snap(p, xs);
   report.reachedAt = f; report.cpX = orig.cpX; report.scriptLeft = orig.script.length; report.xs = xs;
-  console.log(`checkpoint: stage ${orig.stage} CP${orig.cpN} at cpX ${orig.cpX.toFixed(1)} after ${f} frames; ${orig.script.length} entries still to fire; route ${orig.route.join('/')}; bx ${orig.bx.map((x) => x == null ? '-' : x.toFixed(1)).join('/')}`);
+  console.log(`checkpoint: stage ${orig.stage} CP${orig.cpN} at cpX ${orig.cpX.toFixed(1)} after ${f} frames; ${orig.script.length} entries still to fire; route ${orig.route.join('/')}; midbosses ${JSON.stringify(orig.mb || null)}; bx ${orig.bx.map((x) => x == null ? '-' : x.toFixed(1)).join('/')}`);
   await p.evaluate('__tick(300)'); // fly on past the checkpoint: the reload lands mid-stage
   let lives = orig.lives;
   if (DEATH) {
@@ -197,7 +198,8 @@ try {
   report.resumeDraws = d1 - d0;
   if (d1 !== d0) fails.push(`the RESUME press drew the sim RNG ${d1 - d0} times, want 0`);
   eq('state', 'play', res.state);
-  for (const k of ['stage', 'loop', 'seed', 'cpX', 'route', 'bx', 'visitNo', 'remixV']) eq(k, orig[k], res[k]);
+  // mb / mbUsed / mbLast: the midboss picker's state (item F); a resume must place the same pair, never re-pick
+  for (const k of ['stage', 'loop', 'seed', 'cpX', 'route', 'bx', 'visitNo', 'remixV', 'mb', 'mbUsed', 'mbLast']) eq(k, orig[k], res[k]);
   eq('lives', lives, res.lives);
   eq('scroll at resume', Math.max(0, orig.cpX - 120), res.scroll);
   eq('script x and kind list still to fire', orig.script, res.script);

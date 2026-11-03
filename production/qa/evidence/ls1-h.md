@@ -50,7 +50,7 @@ Sprint 2 carry-forward 1 (`setLayout(blob.layout)` before validation) is done.
 
 ```
 npm run typecheck      clean
-npx vitest run         23 files, 429 tests passed (402 before H; +27)
+npx vitest run         23 files, 434 passed + 2 skipped until F merges (402 before H)
 npm run build          built (the existing chunk-size notice only)
 npm run test:regress   PASS vs baseline @ 8ff9ba4; PASS (long4) vs baseline @ 88d9525. st byte-identical, no re-baseline.
                        6/6 canvas hashes differ (advisory): clean main 61197f6 in a temporary worktree gives the
@@ -123,13 +123,50 @@ Evidence: `production/qa/evidence/ls1-h/`.
 7. **RESUME flies the checkpoint's layout** even when the URL or LAB names another (the LAB layout toggle already discards the checkpoint). The next DESCEND flies the chosen layout again.
 8. **`RUN_V` 2**: the allowlist gained fields and `seal` changed meaning. No v1 blob was ever written in production (H0 was not wired).
 
+## F carry-forward (LS1-F studio review, technical-director condition: H must store G.mb, G.mbUsed, G.mbLast)
+
+Done in the follow-up commit on `ls1-h`.
+- **Allowlist (`runsave.ts`), typed:**
+  - `mb`: a `{stage: string[]}` table;
+  - `mbUsed`: `string[]`;
+  - `mbLast`: a `{biome: string[]}` table, own `__proto__` refused.
+- **`runsave.test.ts`:** the lossless round trip now carries all three (watched failing with them removed: the round trip and one bad-blob case fail), plus 4 bad-blob cases.
+- **`resume.test.ts`:**
+  - the stored picks survive the resume's `biomeReset()`-then-`applyRun()` order;
+  - `it.runIf(stageMids)`: a resumed stage reads its pair back without re-picking or re-noting;
+  - `it.runIf(stageMids)`: the next descent's `biomeReset()` clears `mb`/`mbUsed` and keeps `mbLast`.
+
+  The two `runIf` cases need F's `stageMids`. They are **skipped on `ls1-h`** (434 passed, 2 skipped) and run once F is merged.
+- **`resume-check.mjs`:** also diffs `G.mb`, `G.mbUsed` and `G.mbLast`.
+
+**Integration on F + H, checked without merging:**
+- **Setup.** A scratch worktree at `origin/ls1-f` (`f06d0dc`), with H's diff applied by `git apply -3`.
+- **Conflict.** One conflict, in `src/stagebuild.ts`: imports only. The resolution is the union of both import lists: `import { $ } from './state'; import { layout, row, stageOfSlot } from './layout'; import { biomeStage, fixedMids, insertScript, stageStream } from './biomes'; import { buildTerrain } from './world';`. F's `fixedMids` is idempotent, so `rebuildAt → buildStage(Orbit)` is safe.
+- **Gates:**
+
+```
+tsc                    clean
+vitest                 24 files, 458 passed (0 skipped: both picker cases ran)
+test:regress           PASS (short) / PASS (long4), st identical
+layout-parity          PARITY PASS (3, 6, 7, 11, 15, 3x3, 7m)
+resume-check (F + H), all PASS, 0 px terrain diff, identical script lists, mb/mbUsed/mbLast identical, 0 RESUME draws:
+  long4 s0 CP1   mb {0:[ufo]}
+  long4 s1 CP0   mb {0:[ufo],1:[choir,cyst]}                 37 entries
+  long4 s1 CP1   mb {0:[ufo],1:[choir,cyst]}                 22 entries
+  long4 s2 CP0   seed 3, mb {...,1:[choir,brood],2:[cyst,prentice]}  33 entries
+  long4 s2 CP1   option b, mb {...,2:[prentice,brood]}       21 entries
+  long4 s3 CP1   (Drive)                                     18 entries
+```
+
+- **The gate fails as it should.** With the three fields removed from the allowlist on the F + H tree, `long4 s1 CP1` FAILS: `mb` lost `{0:[ufo]}`, `mbUsed` lost `ufo`, `mbLast` lost `orbit`.
+  - That run's ice pair happened to re-pick the same (choir+cyst), so only the state diff caught it, not the script list.
+  - The JSON reports are in `production/qa/evidence/ls1-h/with-f/`.
+- **`meta.mb` on a replay:** accepted, not deduplicated (spec §4 "As built"). A resume or option-b restart from CP0 meets midboss A again and counts it again.
+
 ## Stubs and open risks
 
-- **F (midboss picker) + H: the pick must be stored, not re-rolled.**
-  - Today a biome stage's midboss is its own (`mid:<kind>` in the script), so the rebuild is exact.
-  - F weights the pick by `meta.mb`, which changes when a midboss is met. A rebuild that re-runs `pickMids` after a resume could therefore pick a different pair.
-  - F should write the pair into `G.picks` (already allowlisted in `runsave.ts`) at build time, and `biomeStage` should read `G.picks` when it is set. Alternatively, F can pick with `ignoreMeta` on a rebuild. The end-to-end check's script-list diff (`mid:*`) will catch a mismatch.
-- **`mbUsed`/`mbSeen`/`spUsed`/`intRot`** are reserved in the allowlist and stored once their owners (F, D, LS3) create them.
+- **F (midboss picker) + H:** resolved, see "F carry-forward" above. The parent's F→H merge must take the `stagebuild.ts` import union shown there.
+- **`mbSeen`/`spUsed`/`intRot`/`picks`** stay reserved in the allowlist and are stored once their owners create them.
 - **Biomass farming.** `$.meta.bio` is persisted live, so biomass from kills between a checkpoint and an app kill (option a) or a death (option b) is earned again on the replay. This is the spec's accepted "known exploit" in a small form; Matt may want it mitigated (Q2).
 - **Hi score.** It updates at game over, descent end or abandon, so an app kill keeps the run's score but not a new hi until the resumed run ends. Unchanged behaviour.
 - **Descent end clears the checkpoint** (spec). An app kill in the Infirmary between descents loses the run. Open for Matt. The fix is a checkpoint at the shop.
@@ -149,5 +186,5 @@ Evidence: `production/qa/evidence/ls1-h/`.
   - F's filler suppression doesn't touch these.
 - `src/runsave.ts` is H's.
 - `src/menus.ts` touches only the title items and `startRun`.
-- If F merges first, add `G.picks` to the rebuild as above before H merges, or as an H follow-up.
+- **F → H:** expect one textual conflict in `src/stagebuild.ts` (imports); resolve as in "F carry-forward". After the merge, `resume.test.ts`'s two picker cases run (they are skipped on `ls1-h`).
 - The Studio Hierarchy review is the parent's (not run here).

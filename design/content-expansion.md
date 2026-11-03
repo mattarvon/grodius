@@ -226,6 +226,8 @@ One noise function over 60 s reads as wallpaper. Each biome stage therefore has 
 - **Layout.** The blob is validated under its own layout: `bx`/`route` against that layout's slot count, and `stage` against its last stage. RESUME flies that layout; the next DESCEND flies the chosen one.
 - **Quit.** ABANDON SHIP keeps the checkpoint (RESUME shows on the title). DESCEND drops it.
 - **Option b.** A death restarts only at the current stage's checkpoint, with one life spent. The stage's deaths still count toward its grade, and the checkpoint is re-written with the life gone. A death before the stage's CP0 respawns in place.
+- **Midboss picks (item F).** `G.mb` (each stage's pair, picked once), `G.mbUsed` and `G.mbLast` are stored. A rebuild reads `G.mb` back and never re-picks: the pick is weighted by `meta.mb`, which meeting the pair changed. The resume calls `biomeReset()` before restoring, so the stored state stands; the next descent's `biomeReset()` clears `mb`/`mbUsed` and keeps `mbLast`.
+- **`meta.mb` on a replay.** A resume or option-b restart from CP0 meets midboss A again, and `meta.mb` counts that meeting again. Accepted: it is a fight the player really flew. It only weights later picks away from that body, and a CP1 restart, after midboss A, does not repeat it.
 - **Open (Matt).** "Cleared at descent end" means an app kill in the Infirmary between descents loses the run. The alternative is to write a checkpoint at the shop.
 
 ## 5. New places

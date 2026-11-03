@@ -22,6 +22,9 @@ const isNat = (v) => isInt(v) && v >= 0; // counts, levels, indices: a negative 
 // table would swap that copy's prototype
 const isNumMap = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.values(v).every(isNum);
 const plain = (v) => isObj(v) || Array.isArray(v); // JSON-able container (deep-cloned on the way in and out)
+const isStrArr = (v) => Array.isArray(v) && v.every(isStr);
+// {key: string[]} tables: the midboss picks by stage (G.mb) and each biome's previous pair (G.mbLast)
+const isStrArrMap = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.values(v).every(isStrArr);
 
 // $.G fields. A field that is absent on G is simply not written (and not restored), so fields owned by lanes not
 // merged yet (layout, seed, remixV, visitNo, the midboss/set-piece sets, picks) cost nothing until they exist.
@@ -53,7 +56,11 @@ const G_FIELDS = {
   seenV: isNat,
   remix: plain, // today one object shared by pickV (per-section {used,last}) and choose() (slot -> visit no.)
   remixV: plain, visitNo: plain, // LS1-A splits remix into these two
-  mbUsed: plain, mbSeen: plain, spUsed: plain, intRot: plain, // midboss used/seen, set-piece used, interior rotation
+  // the midboss picker (item F, src/biomes.ts stageMids): each stage's pair, picked ONCE from midStream(i) and read
+  // back on a rebuild, so a resume places the same pair (re-picking would follow meta.mb, which meeting it changed);
+  // what this descent has met (spec §6.3 step 2); each biome's previous pair (step 3, kept across descents)
+  mb: isStrArrMap, mbUsed: isStrArr, mbLast: isStrArrMap,
+  mbSeen: plain, spUsed: plain, intRot: plain, // midboss seen, set-piece used, interior rotation (reserved)
   picks: isObj, // this stage's picks: midboss pair, set-piece ids, movement-B variant (items F, D, H)
   st: isObj, // stage stats as they stood at the checkpoint (grade inputs)
 };

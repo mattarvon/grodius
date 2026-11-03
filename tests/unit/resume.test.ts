@@ -28,7 +28,8 @@ vi.mock('../../src/render/biomeart', () => ({ drawFX: noop, biomePat: noop, biom
 vi.mock('../../src/boss/update', () => ({ startBoss: noop }));
 vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: noop }));
 
-const { biomeStage } = await import('../../src/biomes');
+const biomes: any = await import('../../src/biomes');
+const { biomeReset, biomeStage } = biomes;
 const { buildStage, rebuildAt } = await import('../../src/stagebuild');
 const { setLayout, layout, stageOfSlot } = await import('../../src/layout');
 const { applyRun, decodeRun, serializeRun } = await import('../../src/runsave');
@@ -98,6 +99,47 @@ describe('the resume rebuild', () => {
     const G1 = resumed({ ...G0 }, cpX); // route[1] and bx[1] are set, but stage 1 is slot 0
     const s1 = layout().stages[stageOfSlot(1)];
     expect(G1.script.some((e: Entry) => e.x >= s1.x0 + 300)).toBe(false);
+    setLayout('short');
+  });
+});
+
+// item F's midboss state (sprint 3 F review carry-forward 1): G.mb (each stage's pair, picked once), G.mbUsed (met
+// this descent), G.mbLast (each biome's previous pair, kept across descents). The resume calls biomeReset() BEFORE
+// applyRun() (flow.ts resumeRun), so the restored state must stand; a new descent's biomeReset then forgets mb and
+// mbUsed but keeps mbLast. The picker cases run once F's stageMids is in src/biomes.ts (skipped before that merge).
+describe('the midboss picks across a resume', () => {
+  const MB = { 0: ['ufo'], 1: ['choir', 'cyst'] }, USED = ['ufo', 'choir', 'cyst'], LAST = { ice: ['choir', 'cyst'], fire: ['prentice', 'brood'] };
+  /** a run save taken at stage 1 CP1 holding the picker's state, restored the way resumeRun does */
+  function restore() {
+    const d = decodeRun(JSON.stringify(serializeRun({ ...run(0, 1), mb: MB, mbUsed: USED, mbLast: LAST, cpX: 6000, cpN: 1, layout: 'long4' }, {})))!;
+    $.G = { script: [], si: 0, pend: [] } as any;
+    biomeReset();
+    applyRun(d, $.G, null);
+    return $.G;
+  }
+  beforeEach(() => setLayout('long4'));
+
+  it('keeps the stored picks, the met list and the previous pairs through the resume order', () => {
+    const G = restore();
+    expect(G.mb).toEqual(MB);
+    expect(G.mbUsed).toEqual(USED);
+    expect(G.mbLast).toEqual(LAST);
+    setLayout('short');
+  });
+
+  it.runIf(typeof biomes.stageMids === 'function')('reads a resumed stage pair back instead of picking again', () => {
+    const G = restore();
+    expect(biomes.stageMids(1, 'ice')).toEqual(['choir', 'cyst']);
+    expect(G.mbUsed).toEqual(USED); // not met a second time
+    setLayout('short');
+  });
+
+  it.runIf(typeof biomes.stageMids === 'function')('forgets this descent picks at the next descent but keeps each biome previous pair', () => {
+    const G = restore();
+    biomeReset(); // startLoop's, for the next descent
+    expect(G.mb).toEqual({});
+    expect(G.mbUsed).toEqual([]);
+    expect(G.mbLast).toEqual(LAST);
     setLayout('short');
   });
 });

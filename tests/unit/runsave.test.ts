@@ -24,6 +24,8 @@ function midRun(bx: (number | null)[]) {
     lives: 2, score: 123450, bio: 812.4, kills: 410, maxCombo: 37, seal: 2, cleared: 5,
     route: ['ice', 'fire'], bvis: { ice: 2, fire: 1 }, visited: ['ice', 'acid', 'fire'], seenV: 3,
     remix: { 0: 1, 1: 0, orbitA: { used: [0, 2], last: 2 } },
+    // the midboss picker's state (item F): this descent's picks by stage, met this descent, each biome's last pair
+    mb: { 0: ['ufo'], 1: ['choir', 'cyst'], 2: ['prentice', 'brood'] }, mbUsed: ['ufo', 'choir', 'cyst', 'prentice', 'brood'], mbLast: { ice: ['choir', 'cyst'], fire: ['prentice', 'brood'], acid: ['cyst', 'choir'] },
     st: { kills: 12, spawned: 20, hits: 1, deaths: 0, chain: 9, t0: 5400 },
     // live state: never stored
     scroll: 6000, t: 9001, pend: [{ t: 40, f: () => 0 }], boss: { hp: 3 }, script: [{ x: 1, f: () => 0 }], tally: null, fork: null,
@@ -141,6 +143,10 @@ describe('a bad or old run save', () => {
     ['a graft table with an own __proto__', '{"v":' + RUN_V + ',"g":{"loop":0,"stage":0,"bx":[null,null,null],"route":[null,null],"gm":{"__proto__":{"x":1}}},"p":{}}'],
     ['a fractional loop', JSON.stringify({ ...ok(), g: { ...ok().g, loop: 1.5 } })],
     ['a bad loadout', JSON.stringify({ ...ok(), p: { missile: 'lots' } })],
+    ['a midboss pick that is not a kind list', JSON.stringify({ ...ok(), g: { ...ok().g, mb: { 1: 'choir' } } })],
+    ['a midboss pick holding a number', JSON.stringify({ ...ok(), g: { ...ok().g, mb: { 1: ['choir', 3] } } })],
+    ['midbosses met that is not a list', JSON.stringify({ ...ok(), g: { ...ok().g, mbUsed: { choir: 1 } } })],
+    ['a previous pair table with an own __proto__', '{"v":' + RUN_V + ',"g":{"loop":0,"stage":0,"bx":[null,null,null],"route":[null,null],"mbLast":{"__proto__":["x"]}},"p":{}}'],
   ])('is discarded without throwing: %s', (_, s) => {
     expect(() => decodeRun(s)).not.toThrow();
     expect(decodeRun(s)).toBeNull();
