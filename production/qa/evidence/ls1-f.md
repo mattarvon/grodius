@@ -98,7 +98,7 @@ Seed 5's Drive timed out (691 s): this is the known Gravity Drive the bot cannot
 
 - No mortal-bot wall times (`playtest.mjs`) and no hits/min with two midbosses per stage: G's measurement.
 - Slot B in play on biome slot 1 or on a repeat visit, other than in the unit tests and the stage-clock text. The rig shots are slot 0, first visit.
-- The DRIFT-in-a-biome-slot path in the real game: no phase-1 biome pool member is DRIFT. It is exercised in unit tests with the Saucer as a stub spawner, not in-page.
+- The DRIFT-in-a-biome-slot path in normal play: no phase-1 biome pool member is DRIFT. **Checked in-page after the review** with the real `enemies/ufo.ts` spawner and pre-set picks (`node tools/midslot-shots.mjs <url> production/qa/evidence/ls1-f fire 3 drift`): `ufo@5892 leave=495 exitX=6397 (driftExit 6397) withdrew@6387 gone@6496`, slot B WARNING at 6697 with `G.mini` clear, then the Apprentice on 1260 f. Shots `ls1-f-fire-drift-slotB-*.png`.
 - Perf with two midboss warm-ups per stage: item K.
 - The first-kill +100 biomass (spec §6.4) is **not** wired. It is economy (G or LS2) and is not in F's row.
 - Fold APK: not run.
@@ -107,7 +107,7 @@ Seed 5's Drive timed out (691 s): this is the known Gravity Drive the bot cannot
 
 1. **Slot B TTK band:** see the finding above.
 2. **Run save (H):** `G.mb`, `G.mbUsed` and `G.mbLast` are new run state. `stageMids` picks once and reads `G.mb[i]` back, so H must serialize all three for "the same midboss pair" on resume, or re-picking will see a different `mbUsed`/`mbLast`.
-3. **`fillerQuiet` treats a withdrawing midboss as not up.** This is deliberate (the long Orbit build cell at 2100 sits right after the Saucer's forced exit at 2040). K may want withdrawals counted for perf.
+3. **`fillerQuiet` treats a withdrawing midboss as not up.** It only matters for DRIFT midbosses: a held one holds the scroll anyway. Cells are never filler, so this choice does not affect them (systems-designer review corrected an earlier reason given here). K decides whether withdrawals should count for perf; it is a one-token change in `miniUp`.
 4. **The Orbit pick is fixed, not drawn.** The Saucer is the row's drift entry. When LS2-orbit adds the tug, Orbit needs a real `pickMids` call (pool of 2, Saucer forced in Descent 1).
 5. **The short layout keeps a 1400 f clock and no guards,** by design (brief: behaviour-identical).
 6. `layout().picker` gates the fork rule. If D24's short fallback is deleted (row M), the flag can go.
@@ -118,3 +118,21 @@ Seed 5's Drive timed out (691 s): this is the known Gravity Drive the bot cannot
 - Files G is likely to touch alongside F: none that I know of. `midpick.ts` and `layout.ts` are F's; G edits `depth.ts`, `perks.ts` and `mutations.ts`.
 - K's precondition (filler suppression while `G.mini` is up) lands with F.
 - H must add `G.mb` / `G.mbUsed` / `G.mbLast` to the run save (risk 2).
+
+## Studio review, round 1 (specialists)
+
+- **web-specialist: APPROVE WITH NOTES.** No change to ESM order (midslot/midpick are leaf modules, as are their imports state/layout); the Orbit `spawnUfo` arithmetic is bit-identical; short paths are unchanged. Notes:
+  - `whenNoMini` allocates one closure per frame while it waits (only in the backstop case).
+  - If the scroll ever reached `bossX` while slot B was still waiting, slot B could follow the boss. That is unreachable today.
+  - Suites that mock `ufo.ts` see no DRIFT registration.
+  - `meta.mb` is now written on short too; harmless, and save v3 already cleans it.
+- **qa-tester: APPROVE WITH NOTES.**
+  - The slot-A DRIFT clock test checked the stub, not `ufo.ts`. Addressed with the in-page drift run above.
+  - The stripped `play()` loop is a simplification: the scroll stops instantly, and the held case is constructed.
+  - The sweep copies `choose()` by hand, and `mbLast` carries over across runs.
+  - Not covered: no mortal wall times, no shots of slot 1 or a repeat visit, and H must save `G.mb`/`G.mbUsed`/`G.mbLast`.
+- **systems-designer: APPROVE WITH NOTES.** Picks, clocks, the forced exit and the fork rule all match the spec. Notes:
+  - Rule 2 covers slot B but not the stage boss WARNING (safe today; follow-up).
+  - The silent `driftExit` fallback should throw. **Fixed:** `midSlot` now throws if `driftLead` is missing.
+  - `meta.mb` counts meetings, so §6.4's first-kill +100 needs its own kill record (`meta.mbK`). It is owned by neither F nor G: assign it.
+  - **TTK recommendation:** replace the per-slot bands with one band per kind, 8-11 s at the stage-1 kit, tuned through each kind's base HP (D1 allows this). The Apprentice to ~200 HP (6.8 s → ~9.1 s) is the only one out of band; DRIFT members are exempt. This is a game-designer spec amendment plus a decision-log entry; the HP change goes to G or a P0 follow-up, not F.

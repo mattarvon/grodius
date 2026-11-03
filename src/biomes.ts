@@ -335,7 +335,12 @@ const midName = (k) => MID_NAMES[k] || (driftOf(k) && driftOf(k).name) || k;
 /** spawn slot s's midboss k in biome b on its slot clock; a DRIFT kind is forced out at the breath plan's driftExit */
 function midSlot(k, b, s, BP) {
   const D = driftOf(k), leave = slotClock(k, s);
-  if (D) D.spawn(BP.driftExit[s] ?? BP.warns[s] + 150, leave);
+  if (D) {
+    const x = BP.driftExit[s];
+    // a DRIFT midboss needs its stage-relative forced exit (spec §3.2 rule 1): a layout with DRIFT biome slots sets beats.driftLead
+    if (x == null) throw new Error(`layout ${layout().id}: DRIFT midboss '${k}' in a biome slot but no beats.driftLead`);
+    D.spawn(x, leave);
+  }
   else midboss(k, midName(k), b, leave);
 }
 
