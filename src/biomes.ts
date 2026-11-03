@@ -18,7 +18,7 @@ import { enemies } from './world';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 import { beatPlan, layout, nSlots, slotRow, stageOfSlot } from './layout';
-import { seedOf, stream } from './rng';
+import { midSeedOf, seedOf, stream } from './rng';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -280,6 +280,10 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
 /** stage i's build stream for this run and descent (src/rng.ts): Rs = stream(seedOf(G.seed, G.loop, i)), fresh
  *  each call, so every build of a stage replays the same draws */
 export const stageStream = (i) => stream(seedOf(($.G && $.G.seed) || 0, ($.G && $.G.loop) || 0, i));
+/** stage i's midboss-pick stream (src/rng.ts midSeedOf): the ONLY stream midpick.ts pickMids/pickBiomeMids may be
+ *  given (item F). Never pass stageStream(i) to the picker: the pick would then depend on how many draws the script
+ *  made. Fresh each call, independent of stageStream(i), so the pick and the script can run in either order */
+export const midStream = (i) => stream(midSeedOf(($.G && $.G.seed) || 0, ($.G && $.G.loop) || 0, i));
 
 /** build biome slot seg's stage from world x `from` (its gate, G.bx[seg]): blend its terrain in and script it.
  *  Reads the biome and visit number choose() stored (G.route[seg], G.visitNo[seg]), so a resume can call it again

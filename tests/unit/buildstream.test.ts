@@ -26,14 +26,17 @@ vi.mock('../../src/render/biomeart', () => ({ drawFX: noop, biomePat: noop, biom
 vi.mock('../../src/boss/update', () => ({ startBoss: noop }));
 vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: noop }));
 
-const { BIOME_KEYS, biomeScript } = await import('../../src/biomes');
+const { BIOME_KEYS, biomeScript, midStream, stageStream } = await import('../../src/biomes');
 const { stageScript } = await import('../../src/enemies/scripts');
-const { seedOf, stream, newRunSeed } = await import('../../src/rng');
+const { MID_SALT, midSeedOf, seedOf, stream, newRunSeed } = await import('../../src/rng');
+const { PHASE1_BIOME_POOL, pickMids } = await import('../../src/midpick');
 const { applyRun, decodeRun, serializeRun } = await import('../../src/runsave');
 
 type Entry = { x: number; k?: string };
 const list = (S: Entry[]) => S.map((e) => `${e.x}:${e.k}`);
 const SEED = 0xc0ffee;
+/** midSeedOf(SEED, 1, 1), recorded when the midboss stream landed */
+const PINNED = 821404455;
 /** the run state a stage build reads */
 const run = (loop: number) => ({ loop, seed: SEED, script: [], si: 0, pend: [], route: [null, null], visitNo: [0, 0] });
 /** build a biome stage the way biomes.ts biomeStage does: its own stream, from the gate x */
@@ -123,5 +126,59 @@ describe('the run seed in the run save', () => {
     expect($.G.seed).toBe(3141592653);
     expect($.G.loop).toBe(1);
     expect(list(buildBiome(0, $.G.route[0], $.G.bx[0], $.G.visitNo[0]))).toEqual(before);
+  });
+});
+
+// Sprint 2 review, carry-forward 4: the midboss pick (item F) must sit at a fixed place in each stage's build, or a
+// rebuild differs. It has its own stream per stage (midStream(i), seed midSeedOf), not a position in the script's Rs,
+// so the pick and the script are independent: either may run first, and either may change its draw count.
+describe("the midboss pick's stream", () => {
+  beforeEach(() => { $.G = run(1); });
+  /** a two-slot pick with no home preference, so it draws twice (the most sensitive case) */
+  const pick = (rng: () => number) => pickMids({ pool: PHASE1_BIOME_POOL, L: 1, used: [], rng }).picks;
+  /** biome slot seg's script on its own stream (biomeScript's default rs is stageStream(stageOfSlot(seg))) */
+  const script = (seg: number, b: string, v: number) => list(biomeScript(seg, b, [2658.007, 5637.022][seg], v));
+
+  it('leaves every biome script unchanged when a midboss pick runs before it, after it, or not at all', () => {
+    for (const b of BIOME_KEYS) for (const v of [0, 1]) for (const seg of [0, 1]) {
+      const alone = script(seg, b, v);
+      pick(midStream(seg + 1));
+      const afterPick = script(seg, b, v);
+      expect(afterPick).toEqual(alone);
+    }
+  });
+
+  it('gives the same pick across rebuilds, whatever the script drew first', () => {
+    for (const i of [1, 2]) {
+      const first = pick(midStream(i));
+      expect(first).toHaveLength(2);
+      script(i - 1, 'fire', 1); // a remix visit: more script draws than a first visit
+      expect(pick(midStream(i))).toEqual(first);
+      script(i - 1, 'ice', 0);
+      expect(pick(midStream(i))).toEqual(first);
+    }
+  });
+
+  it('shows the hazard it removes: a pick drawn from the script stream after the script moves with the script', () => {
+    // the shape F must not use: one Rs shared by biomeScript and the picker. Over these seeds the pick follows the
+    // script's draw count (first visit vs remix), which is why the pick has midStream instead
+    let moved = 0;
+    for (let seed = 1; seed <= 16; seed++) {
+      $.G = { ...run(1), seed };
+      const after = (v: number) => { const rs = stageStream(1); biomeScript(0, 'fire', 2658.007, v, rs); return pick(rs).join(); };
+      if (after(0) !== after(1)) moved++;
+    }
+    expect(moved).toBeGreaterThan(0);
+  });
+
+  it("is a different stream from the script's, for every run seed, loop and stage", () => {
+    for (const r of [0, 1, SEED]) for (const L of [0, 1, 2]) for (const i of [0, 1, 2, 3]) expect(midSeedOf(r, L, i)).not.toBe(seedOf(r, L, i));
+    const m = midStream(1), s = stageStream(1);
+    expect(Array.from({ length: 8 }, () => m())).not.toEqual(Array.from({ length: 8 }, () => s()));
+  });
+
+  it('pins the salt and the seed, so a code change cannot silently re-roll every run', () => {
+    expect(MID_SALT).toBe(0x4d1db055);
+    expect(midSeedOf(SEED, 1, 1)).toBe(PINNED);
   });
 });

@@ -2,7 +2,9 @@
 //  MIDBOSS PICKER (design/content-expansion.md §6.3, build plan row LS1-F0). Pure: no $, no G, no R().
 //  The caller passes the descent, the run's midboss state and a random stream, and gets the picks back.
 //  NOT WIRED YET: biomes.ts choose() still spawns B.mid. LS1-F (sprint 3) calls pickMids() from choose()/buildStage()
-//  with the per-stage build stream Rs, stores the result in G.mb, and keeps G.mbUsed / G.mbLast with noteMids().
+//  with rng = midStream(i) (biomes.ts; seed src/rng.ts midSeedOf), NEVER stageStream(i): the pick has its own stream
+//  per stage, so it is the same whatever the script drew and wherever in the build it runs. It stores the result in
+//  G.mb, and keeps G.mbUsed / G.mbLast with noteMids().
 //
 //  Steps, in order (spec §6.3):
 //    1. descent gate     keep members with min <= L (L = G.loop, 0-based: Descent 1 is L 0)
@@ -63,7 +65,7 @@ export interface PickIn {
   ignoreMeta?: boolean;
   /** phase 1: the home midboss, taken as slot A whenever it survives the rules */
   prefer?: string;
-  /** the per-stage build stream (Rs), a [0, 1) generator */
+  /** the stage's midboss-pick stream, biomes.ts midStream(i) (never the script's stageStream(i)), a [0, 1) generator */
   rng: () => number;
   /** roster override for tests and future pools; defaults to MIDS */
   defs?: Readonly<Record<string, MidDef>>;
