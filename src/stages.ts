@@ -20,6 +20,13 @@ export const STAGE_NAMES = {
 };
 /** seals break on the 2nd, 4th and 6th stage cleared in a run (end of the first biome, end of Descent 1, Descent 2's first biome) */
 const SEAL_AT = { 2: 1, 4: 2, 6: 3 };
+/** the highest seal tier `cleared` stage clears have earned (a checkpoint stores this, so a seal still queued in a
+ *  closure, G.sealQ or G.pend, is never lost by a resume: H entry criterion 1) */
+export function sealFor(cleared) {
+  let t = 0;
+  for (const k in SEAL_AT) if (cleared >= +k && SEAL_AT[k] > t) t = SEAL_AT[k];
+  return t;
+}
 export const SEAL_TXT = ['', 'MISSILE II, ARC, PYRE, WRAITH II, MIRROR, 2 GRAFTS', 'PYRE II, WRAITH III, AEGIS, 3 GRAFTS', 'EVERYTHING UNSEALED'];
 const GRADE = {
   S: { score: 20000, bio: 40, col: '#ffd23a' },
@@ -42,10 +49,16 @@ export function startStage(i) {
   $.G.stage = i;
   if (row(i).kind !== 'biome') buildStage(i); // a stage is built on entry; a biome stage was built at its gate (choose)
   $.G.st = { kills: 0, spawned: 0, hits: 0, deaths: 0, chain: 0, t0: $.G.t };
+  $.G.cpWant = 0; // CP0 is written at the first safe step of the stage (src/checkpoint.ts cpStep)
   if ($.G.tally) $.G.tally.t = Math.min($.G.tally.t, 30); // last stage's card makes way for this stage's banner
+  stageBanner(i);
+  if ($.G.sealQ) { const f = $.G.sealQ; $.G.sealQ = null; $.G.pend.push({ t: 270, f }); }
+}
+
+/** queue the STAGE n-m banner of stage i (a stage start, and a resume) */
+export function stageBanner(i) {
   const s = stageInfo(i);
   $.G.pend.push({ t: 70, f: () => banner(`STAGE ${stageLabel()}`, s.name + ' // ' + s.sub, '#c8d4e0', 190) });
-  if ($.G.sealQ) { const f = $.G.sealQ; $.G.sealQ = null; $.G.pend.push({ t: 270, f }); }
 }
 
 function grade(st, escaped) {

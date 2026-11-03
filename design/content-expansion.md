@@ -219,6 +219,15 @@ One noise function over 60 s reads as wallpaper. Each biome stage therefore has 
 - A version mismatch discards the checkpoint safely and never crashes.
 - **Known exploit (option a only):** killing the app rewinds you to the last checkpoint. Default: accept it, since the game is single-player with no leaderboards. A mitigation is offered to Matt (Q2). Under (b) the rewind costs nothing extra over dying, so it is moot.
 
+**As built (LS1-H, 2026-11-02; `src/checkpoint.ts`, `flow.ts resumeRun`, `stagebuild.ts rebuildAt`):**
+- **Pending rewards (H entry criterion 1).** The seal is stored as earned, `max(seal, seal earned by cleared)`, so a seal still queued in `G.sealQ`/`G.pend` is kept (its banner is not replayed). Queued level-up picks (`G.pickQ`) and the boost offer (`G.boostReq`) are stored as fields. No checkpoint is written while a pick is open; it waits for the pick to close.
+- **When.** Each checkpoint is written at the first step where it is safe: no midboss or boss, fork, scroll hold, tally, open pick, death or descent end. So CP0 lands about 30 frames into a stage that follows a tally. CP1 also waits until `G.pend` is empty, so a queued WARNING or set piece is never lost. Orbit's CP1 is at `x0 + gapEnd + 150` (after the Saucer's window). The Drive's CP1 is at the midpoint of `x0`-`warnX`.
+- **Where it resumes.** `cpX` is the scroll at the checkpoint. A resume skips script entries with `x <= cpX`, matching `runScript`'s `x <= scroll`, so nothing that had fired fires again. Scroll restarts at `cpX - 120`: a 120 f empty lead-in at full speed. The ship gets 280 f of i-frames.
+- **Layout.** The blob is validated under its own layout: `bx`/`route` against that layout's slot count, and `stage` against its last stage. RESUME flies that layout; the next DESCEND flies the chosen one.
+- **Quit.** ABANDON SHIP keeps the checkpoint (RESUME shows on the title). DESCEND drops it.
+- **Option b.** A death restarts only at the current stage's checkpoint, with one life spent. The stage's deaths still count toward its grade, and the checkpoint is re-written with the life gone. A death before the stage's CP0 respawns in place.
+- **Open (Matt).** "Cleared at descent end" means an app kill in the Infirmary between descents loses the run. The alternative is to write a checkpoint at the shop.
+
 ## 5. New places
 
 Each new place is written with **two readings**: a ship function (the name on the stage card) and an organ reading. How much meat sits on the steel is left to round-2 **meridian**, and the two-reading device itself depends on it:

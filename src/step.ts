@@ -19,6 +19,7 @@ import { updateCaps, updateEShots, updateEnemies, updateShots } from './shots';
 import { decayFX, updateAmbient, updateCombo, updateFX } from './fx/update';
 import { stepContraptions } from './contraptions';
 import { menuNav, overItems, pauseItems, stepShop, titleItems } from './menus';
+import { cpStep } from './checkpoint';
 
 // ---------------- main step ----------------
 export function stepWorld() {
@@ -56,6 +57,7 @@ export function stepWorld() {
       p.f();
     }
   }
+  if ($.state === 'play') cpStep(); // CP0 / CP1 at the first safe step past each (src/checkpoint.ts); reads the sim, never draws
   for (let i = $.G.warn.length - 1; i >= 0; i--) if (--$.G.warn[i].t <= 0) $.G.warn.splice(i, 1);
   if ($.G.feed && --$.G.feed.t <= 0) $.G.feed = null;
   for (let i = arcs.length - 1; i >= 0; i--) if (--arcs[i].l <= 0) swapRm(arcs, i);
