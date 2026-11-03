@@ -12,8 +12,8 @@ const BIOME_KEYS = ['ice', 'acid', 'fire', 'snot'] as const;
 const MIN_CORRIDOR = 108;
 
 describe('midboss home and host', () => {
-  it('matches each biome midboss to the biome that lists it as mid in biomes.ts', () => {
-    for (const k of KINDS) expect(BIOMES_SRC).toMatch(new RegExp(`${MID_HOME[k]}: \\{[\\s\\S]*?mid: '${k}'`));
+  it('matches each biome midboss to the biome that lists it first in its mids in biomes.ts', () => {
+    for (const k of KINDS) expect(BIOMES_SRC).toMatch(new RegExp(`${MID_HOME[k]}: \\{[\\s\\S]*?mids: \\[\\{ k: '${k}'`));
   });
 
   it('treats a midboss with no host, or its home host, as a home fight', () => {

@@ -19,6 +19,8 @@ import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 import { beatPlan, layout, nSlots, slotRow, stageOfSlot } from './layout';
 import { midSeedOf, seedOf, stream } from './rng';
+import { forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
+import { driftOf, whenNoMini } from './midslot';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -29,7 +31,7 @@ export const BIOMES = {
     name: 'THE CRYOVAULT', tag: 'FROZEN // BLOATED BITCH', sub: 'THE CREW IS STILL IN HERE. FROZEN MID-SCREAM', col: '#9fd8ff', rgb: '160,215,255',
     dark: .55, mist: '90,10,26', bg: ['#02060e', '#0e2840'], edge: '#f2fbff', fog: '120,180,230',
     gore: ['#7a1222', '#300610', '#d8efff', '#0c0809', '#8cc4ee', '#ffffff'], blood: ['#7a1222', '#300610', '#c8506a'],
-    boss: 'crux', bossName: 'THE BLOATED BITCH', mid: 'choir', midName: 'THE NAIL CHOIR', haz: 'icicle', hazEvery: 110,
+    boss: 'crux', bossName: 'THE BLOATED BITCH', mids: [{ k: 'choir', name: 'THE NAIL CHOIR', tag: 'LINE' }], haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
     gap: 115, dbl: .55, set: 'morgue', sig: 'corpse',
     mix: [['corpse', 4], ['cross', 3], ['mutant', 2.5], ['flayer', 2], ['eye', 2], ['hook', 2], ['sine', 2]],
@@ -42,7 +44,7 @@ export const BIOMES = {
     name: 'THE DIGESTION TANKS', tag: 'DISSOLVING // MAW', sub: 'EVERYTHING DOWN HERE IS BEING EATEN', col: '#3fe8c8', rgb: '60,230,195',
     dark: .6, mist: '18,120,100', bg: ['#010605', '#081a15'], edge: '#7ff0d8', fog: '40,200,170',
     gore: ['#8a4630', '#2e140c', '#46e0c0', '#0c0809', '#ddd27a', '#c8f4e8'], blood: ['#1c9a80', '#0a3a32', '#6ff0d4'],
-    boss: 'maw', bossName: 'THE DISSOLVED MAW', mid: 'cyst', midName: 'THE DISSOLVING WOMB', haz: 'geyser', hazEvery: 135,
+    boss: 'maw', bossName: 'THE DISSOLVED MAW', mids: [{ k: 'cyst', name: 'THE DISSOLVING WOMB', tag: 'SPACE' }], haz: 'geyser', hazEvery: 135,
     // wall swarms over a floor full of crawlers and wombs
     gap: 125, dbl: .55, set: 'walls', sig: 'crawler',
     mix: [['crawler', 4], ['womb', 3], ['eye', 2], ['hatch', 1], ['wall', .7], ['dive', .3]],
@@ -55,7 +57,7 @@ export const BIOMES = {
     name: 'THE FURNACE', tag: 'BURNING // BUTCHER', sub: 'THEY BURNED THE BODIES. THE BODIES KEPT MOVING', col: '#ff7a1a', rgb: '255,120,30',
     dark: .6, mist: '50,12,6', bg: ['#040000', '#300702'], edge: '#ffb347', fog: '255,90,20',
     gore: ['#4a0a06', '#120202', '#ff6a1a', '#050303', '#ffb347', '#ff3a10'], blood: ['#6a0a08', '#240303', '#ff4a1a'],
-    boss: 'butcher', bossName: 'THE BURNING BUTCHER', mid: 'prentice', midName: "THE BUTCHER'S APPRENTICE", haz: 'jet', hazEvery: 125,
+    boss: 'butcher', bossName: 'THE BURNING BUTCHER', mids: [{ k: 'prentice', name: "THE BUTCHER'S APPRENTICE", tag: 'RANGE' }], haz: 'jet', hazEvery: 125,
     // aggressive: tight spacing, divers and flayers, things coming from behind
     gap: 100, dbl: .6, set: 'pincer', sig: 'flayer',
     mix: [['flayer', 3], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
@@ -67,7 +69,7 @@ export const BIOMES = {
     name: 'THE SINUS', tag: 'MUCUS // MAW', sub: 'THE SHIP HAS A COLD', col: '#ecd25a', rgb: '236,210,90',
     dark: .4, mist: '160,140,40', bg: ['#0a0503', '#2a1c08'], edge: '#f4e49a', fog: '200,180,70',
     gore: ['#d0b840', '#7a4a18', '#f4e6a0', '#3a1a0a', '#fff4c8', '#a83a24'], blood: ['#c8ac3a', '#6a4a14', '#f2e08a'],
-    boss: 'maw', bossName: 'THE MUCUS MAW', mid: 'brood', midName: 'THE BROOD MOTHER', haz: 'strand', hazEvery: 150,
+    boss: 'maw', bossName: 'THE MUCUS MAW', mids: [{ k: 'brood', name: 'THE BROOD MOTHER', tag: 'CROWD' }], haz: 'strand', hazEvery: 150,
     // hatchling floods out of wombs and the walls
     gap: 125, dbl: .5, set: 'flood', sig: 'hatch',
     mix: [['slime', 5], ['hatch', 3], ['womb', 3], ['corpse', 2], ['sine', 1.5], ['crawler', 1], ['eye', 1]],
@@ -77,6 +79,11 @@ export const BIOMES = {
   },
 };
 export const BIOME_KEYS = Object.keys(BIOMES);
+// B.mids: the biome's own midboss pool, home first, each with its skill tag (spec §6.1-6.2; the picker's roster and
+// tags are src/midpick.ts MIDS, and tests/unit/midslot.test.ts keeps the two in step). Phase 1 has one member per
+// biome; a biome stage on a picker layout draws home plus a crossover from all four (midpick.ts PHASE1_BIOME_POOL)
+/** every biome midboss's name by kind, wherever it fights (a crossover keeps its own name) */
+export const MID_NAMES = Object.fromEntries(Object.values(BIOMES).flatMap((B) => B.mids.map((m) => [m.k, m.name])));
 
 // ---------------- where are we ----------------
 // LS3: G.bx assumes the biome slots follow each other (slot s ends where slot s + 1 starts, the last one at
@@ -181,6 +188,8 @@ const SPAWN = {
   hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
 };
 Object.assign(SPAWN, { slime: () => slime(R() < .65 ? 1 : -1), mutant: () => mutant() }); // new enemies: snot slime (floor or ceiling), hulking mutant (floor)
+/** the spawn-roll kinds (test hook: midslot.ts BIOME_FILL must list exactly these as filler) */
+export const SPAWN_KINDS = Object.keys(SPAWN);
 /** merge script entries into the unplayed part of G.script, kept sorted by x (a stable sort: equal x keep their
  *  order, entries already there first) */
 export function insertScript(entries) {
@@ -230,7 +239,7 @@ export const logPick = (B, v) => [0, 1, 2].map((k) => B.logs[(k + 3 * v) % B.log
  *  for that stage), so the same inputs always give the same x and kind list. Elite rolls stay at spawn time on the sim
  *  R() (el(), below; spec §4). Every entry carries `k`, what it spawns. The beats are layout().beats through
  *  beatPlan (src/layout.ts): short's single breath, or long4's beat template v2 (spec §3.2) */
-export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(seg))) {
+export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(seg)), mids = null) {
   const B = BIOMES[b], g = slotRow(seg), BT = layout().beats, S = [], at = (x, f, k) => S.push({ x, f, k }), hard = $.G.loop > 0, X = remix(b, v, $.G.loop, rs), MX = X.mix;
   const tot = MX.reduce((s, m) => s + m[1], 0), roll = () => { let r = rs() * tot, k = 0; while ((r -= MX[k][1]) > 0 && k < MX.length - 1) k++; return MX[k][0]; };
   // elites: every spawn this slot makes (rear waves and staggered set pieces included) rolls eliteChance once
@@ -270,8 +279,16 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     if (hard && T.third && rs() < .35 && !quiet(y3)) { const k = pk(); at(y3, el(SPAWN[k]), k); }
     x += st;
   }
-  // the midboss breath's centerpiece: the biome's own midboss. WARNING 150f (~150px) ahead so it lands ~60px before the breath's end and the scroll coasts to a stop inside it
-  if (BP.warn != null) at(BP.warn, () => miniWarn(B.midName, () => midboss(B.mid, B.midName, b)), 'mid:' + B.mid);
+  // the midboss breaths' centerpieces. WARNING 150f (~150px) ahead so it lands ~60px before the breath's end and the scroll coasts to a stop inside it
+  if (!mids) { // short (no picker): the biome's own midboss, as before
+    const M = B.mids[0];
+    if (BP.warn != null) at(BP.warn, () => miniWarn(M.name, () => midboss(M.k, M.name, b)), 'mid:' + M.k);
+  } else mids.forEach((k, s) => { // picker layouts (item F): the stage's picks (stageMids), slot A then slot B
+    if (BP.warns[s] == null) return;
+    const name = midName(k), go = () => midSlot(k, b, s, BP);
+    // slot B's WARNING and its spawn wait while G.mini is up (spec §3.2 rule 2): midboss() would overwrite slot A
+    at(BP.warns[s], s ? () => whenNoMini(() => miniWarn(name, () => whenNoMini(go))) : () => miniWarn(name, go), 'mid:' + k);
+  });
   const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
   at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }), 'boss:' + B.boss);
   return S;
@@ -287,18 +304,47 @@ export const midStream = (i) => stream(midSeedOf(($.G && $.G.seed) || 0, ($.G &&
 
 /** build biome slot seg's stage from world x `from` (its gate, G.bx[seg]): blend its terrain in and script it.
  *  Reads the biome and visit number choose() stored (G.route[seg], G.visitNo[seg]), so a resume can call it again
- *  with the stored bx. Draws only the stage's build stream, never the sim R() */
+ *  with the stored bx (and the stored G.mb: the picks are made once). Draws only the stage's build stream and, on a
+ *  picker layout, its midboss stream; never the sim R() */
 export function biomeStage(seg, from) {
-  const G = $.G, b = G.route[seg], v = G.visitNo[seg];
+  const G = $.G, b = G.route[seg], v = G.visitNo[seg], i = stageOfSlot(seg);
   rewriteTerrain(seg, b, from);
-  insertScript(biomeScript(seg, b, from, v, stageStream(stageOfSlot(seg))));
+  insertScript(biomeScript(seg, b, from, v, stageStream(i), layout().picker ? stageMids(i, b) : null));
+}
+
+// ---------------- midbosses (picker layouts: build plan LS1 row F, spec §6.3-6.4) ----------------
+/** the midboss state of the run: G.mb[stage] = that stage's picks, G.mbUsed = met this descent, G.mbLast[key] = a
+ *  stage's previous pair (whole run). A stage is picked once: a rebuild (resume, item H) reads G.mb back */
+const midState = () => { const G = $.G; G.mb ||= {}; G.mbUsed ||= []; G.mbLast ||= {}; return G; };
+/** biome stage i's midbosses (biome b): picked on first call from midStream(i), never stageStream(i) */
+export function stageMids(i, b) {
+  const G = midState();
+  if (!G.mb[i]) G.mb[i] = pickBiomeMids(G, b, G.loop, midStream(i), $.meta && $.meta.mb).picks;
+  return G.mb[i];
+}
+/** a non-biome stage whose midbosses are fixed by its layout row (Open Orbit's Saucer, the row's drift entry, in every
+ *  descent: so Descent 1 always meets it, spec §6.2): record them as met so no biome stage repeats their body */
+export function fixedMids(i, kind, kinds) {
+  const G = midState();
+  if (G.mb[i] || !kinds.length) return;
+  G.mb[i] = kinds.slice();
+  noteMids(G, kind, kinds);
+}
+/** a midboss's name: a biome midboss's own, or a DRIFT midboss's registered one (midslot.ts) */
+const midName = (k) => MID_NAMES[k] || (driftOf(k) && driftOf(k).name) || k;
+/** spawn slot s's midboss k in biome b on its slot clock; a DRIFT kind is forced out at the breath plan's driftExit */
+function midSlot(k, b, s, BP) {
+  const D = driftOf(k), leave = slotClock(k, s);
+  if (D) D.spawn(BP.driftExit[s] ?? BP.warns[s] + 150, leave);
+  else midboss(k, midName(k), b, leave);
 }
 
 // ---------------- the fork ----------------
 export function holdForFork() { $.G.forkHold = true; }
 export function openFork(seg) {
-  const G = $.G, fresh = BIOME_KEYS.filter((k) => !G.route.includes(k) && !(G.visited || []).includes(k));
-  const rest = BIOME_KEYS.filter((k) => !G.route.includes(k) && !fresh.includes(k)).sort(() => R() - .5);
+  // picker layouts: acid and snot never in the same descent (spec §6.5 interim, midpick.ts forkAllows); short: all four
+  const G = $.G, ok = layout().picker ? (k) => forkAllows(k, G.route) : () => true, fresh = BIOME_KEYS.filter((k) => ok(k) && !G.route.includes(k) && !(G.visited || []).includes(k));
+  const rest = BIOME_KEYS.filter((k) => ok(k) && !G.route.includes(k) && !fresh.includes(k)).sort(() => R() - .5);
   const pool = [...fresh.sort(() => R() - .5), ...rest].slice(0, 2).sort(() => R() - .5);
   G.fork = { seg, opts: pool, t: 0 };
   G.fork.gy = gateYs();
@@ -341,7 +387,7 @@ const haz = [], amb = [];
 export function biomeReset() {
   haz.length = amb.length = 0;
   applyPalette(null);
-  if ($.G) { $.G.bx = Array(nSlots() + 1).fill(null); $.G.hazT = 90; $.G.hazHit = 0; }
+  if ($.G) { $.G.bx = Array(nSlots() + 1).fill(null); $.G.hazT = 90; $.G.hazHit = 0; $.G.mb = {}; $.G.mbUsed = []; } // a new descent forgets what it met (spec §6.3 step 2); G.mbLast is kept
 }
 
 function spawnHazard(b) {

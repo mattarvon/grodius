@@ -56,7 +56,7 @@ async function scene(k) {
       else if (k === 'maw') SP.maw(true);
       else if (k === 'ufo') { const UF = await import('/src/enemies/ufo.ts'); $.G.scroll = LY.ufoAt() + 150; $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); } // Open Orbit midboss
       else if (k === 'crux' || k === 'butcher') { SP[k](); if ($.G.mini) $.G.mini.biome = biome; }
-      else SP.midboss(k, BI.BIOMES[biome].midName, xhost || undefined);
+      else SP.midboss(k, BI.MID_NAMES[k], xhost || undefined);
     }
     $.G.pick = null; $.G.pickQ = 0; $.G.tally = null;
     const st = [], rt = [];
