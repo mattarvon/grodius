@@ -12,6 +12,8 @@
 //   gains no import of this module and the boot-time module order, which textures.ts's R() draws depend on, is unchanged.
 // - Open Orbit and the Drive approach are built at their own entry (stages.ts startStage). Every draw a build makes
 //   comes from the stage's own stream (B2), never the sim R(), so when a stage is built no longer moves the sim.
+// - The midboss pick (item F) draws its own stream, biomes.ts midStream(i), not stageStream(i): it is independent of
+//   the script's draws, so it may run before or after the script without changing either.
 import { row } from './layout';
 import { stageScript } from './enemies/scripts';
 import { biomeStage, insertScript, stageStream } from './biomes';

@@ -1,6 +1,7 @@
 // Per-stage build streams and the run seed (D19 build plan LS1 row B2; spec design/content-expansion.md §4).
-// Everything a stage BUILD draws (the Orbit/Drive section variants, a biome's remix, its script rolls, and from item
-// F the midboss pick) comes from Rs = stream(seedOf(runSeed, loop, stageIdx)), never from the sim R(). So building
+// Everything a stage BUILD draws comes from that stage's seed, never from the sim R(): the Orbit/Drive section
+// variants, a biome's remix and its script rolls from Rs = stream(seedOf(runSeed, loop, stageIdx)), and (from item F)
+// the midboss pick from its own sibling stream Rm = stream(midSeedOf(runSeed, loop, stageIdx)). So building
 // stage i again from the same run seed gives the same script x and kind list, whenever and however often it runs:
 // what a resume (item H) needs. Spawn-time rolls (side, y, formation size, elite status, in-flight behaviour) stay on
 // the sim R() (spec §4 "What is not reproduced").
@@ -21,6 +22,17 @@ export function seedOf(runSeed: number, loop: number, stageIdx: number) {
   h = fmix(h ^ Math.imul((loop | 0) + 1, 0x27d4eb2f));
   h = fmix(h ^ Math.imul((stageIdx | 0) + 1, 0x165667b1));
   return h || 0x6d2b79f5; // xorshift's one forbidden state
+}
+
+/** salt of the midboss pick's stream. Changing it re-rolls every run's midbosses, so it is pinned by a test */
+export const MID_SALT = 0x4d1db055;
+
+/** the 32-bit seed of one stage's midboss-pick stream (Rm): the stage seed hashed with MID_SALT. The pick gets its
+ *  own stream, not a position in Rs, so its draws can't drift when the script's draw count changes (a tuned beat
+ *  plan, a new tempo band, a repeat visit's remix), and adding, moving or removing the pick never shifts the script.
+ *  The two are independent: build them in either order (sprint 2 review, carry-forward 4) */
+export function midSeedOf(runSeed: number, loop: number, stageIdx: number) {
+  return fmix(seedOf(runSeed, loop, stageIdx) ^ MID_SALT) || 0x6d2b79f5;
 }
 
 /** a seeded uniform [0, 1) generator (xorshift32): the same seed always gives the same sequence */
