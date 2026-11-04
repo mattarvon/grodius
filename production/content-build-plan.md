@@ -153,7 +153,7 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   8. **Writer (D8):** optional crossover log lines; some midboss names read oddly outside their home biome (to settle when Matt names the wave-1 roster).
   9. **Design record (row M, needs Matt's wording):** `design/game-brief.md`'s protected core still says "one midboss per biome stage", and Pillar 4 still says "35 s stages". Amend both to match D19, or later reviews will flag F as a regression. creative-director: raise the WARNING-banner contrast (item 6) in the next polish pass, before LS2, and decide D27 before G closes.
 - **Carry-forward from the LS1-H studio review (2026-11-03):**
-  1. **Matt (Q2, decision log):** the quit-to-resume free undo under both options a and b, and the ABANDON SHIP wording now that it keeps the run.
+  1. **Matt (Q2, decision log):** the ABANDON SHIP wording now that it keeps the run. The quit-to-resume undo under options a and b is **accepted as known (D28, Matt, 2026-11-03)**.
   2. **Matt:** the Fold APK app-kill check (row H acceptance, exit criterion "Resume"). **Still open after the merge**; the Playwright resume-check (7/7) stands in until then.
   3. **gameplay-programmer:** `meetMid` counts `meta.mb` again when a midboss is replayed after a resume. Spec §4 accepts this; fix it before anything grades or unlocks from `meta.mb`.
   4. **web-specialist:** `gunfx.ts` `critGoreT`/`stopT` aren't reset when `G.t` resets (pre-existing with `newGame`). Fix with one reset hook called from `newGame` and `resumeRun`.
@@ -309,5 +309,5 @@ With the recommended Q20 answer, M lands early in LS2 rather than at LS1 closeou
 | Content bill (18+ midbosses, interiors, biomes) outruns capacity | High | Schedule | Variety from the crossover rule first; waves; greybox mechanics ahead of art; v1.0 scope fixed at Q18 |
 | Round-2 answers invalidate concepts (hell-bleeding) | Low-Medium | LS4 rework | Biome code waits for meridian; LS1-LS3 systems are answer-independent |
 | M3 rebases on moved Drive x | High if M3 starts first | Rework | M3 shape work starts after LS1 merges |
-| Resume exploit (app-kill / quit rewind: a free undo under option b, and lives back under option a) | Certain | Low (single player) | **Pending Matt (Q2, decision log, 2026-11-03).** Options: accept as known, a resume after a quit costs a life, or the dirty-flag mitigation |
+| Resume exploit (app-kill / quit rewind: a free undo under option b, and lives back under option a) | Certain | Low (single player) | **Accepted as known (D28, Matt, 2026-11-03)**; revisit if playtests show players using it. Fallbacks: a resume after a quit costs a life, or the dirty-flag mitigation |
 | Third unplayed milestone | High | Provisional calls stack up | LS1 stays behind a flag until Matt plays M1 + M2 + long |

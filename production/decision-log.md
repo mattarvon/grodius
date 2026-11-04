@@ -135,6 +135,13 @@ localization), D16-D18, and the signing keystore half of D6.
 **Done 2026-11-03 (branch `ls1-f-d27`):** `src/midslot.ts` `MID_HP` sets the Apprentice to 200 base HP on picker layouts only, so `short` keeps 150 and layout parity holds. midboss-probe (long4, `--leave 1080`, STAGE 1 kit) puts it at 10.2 s, in the band. Spec §3.1 and §6.2 are updated to match.
 **Category:** balance
 
+### D28 Quit-to-resume undo accepted as known — 2026-11-03 (Matt; from the LS1-H studio review)
+
+**Decision point:** with H's resume point, quitting (ABANDON SHIP or an app kill) and pressing RESUME puts you back at the last checkpoint. Under option a, the default (and long is the default layout, D24), that gives back the checkpoint's lives. Under LAB option b, it is a free undo, cheaper than a death. An app kill and a rage-quit can't be told apart.
+**Chosen:** accept it as a known exploit for now. No resume cost and no dirty flag. Revisit if playtests show players doing it. The fallback options stay on record: a resume after a quit costs a life, or the spec §4 dirty-flag mitigation.
+**Reason:** single-player, no leaderboards; surviving an app kill matters more on a phone (creative-director). **Confirmed by Matt 2026-11-03.** Q2 itself (a or b) and the ABANDON SHIP wording stay open.
+**Category:** design
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path
@@ -149,10 +156,7 @@ localization), D16-D18, and the signing keystore half of D6.
 
 - *(delegated 2026-10-31, see the batch above)* **D5b Economy.** What DESCEND DEEPER gives (`deepPay` ignores `lv('deep')`, `src/stages.ts:28`; pinned as current behaviour in `tests/unit/stages.test.ts`). Does an escaped boss pay and count toward seals? Should grade pay more? Which biomass sink?
 - **D19 economy defaults (spec `design/content-expansion.md` §12 Q9-Q12).** `src/economy.ts` (LS1 G0) carries the recommended defaults, unwired. **Q9 S grade** (≤ 1 hit, no deaths, length-normalised penalty, or keep no-hit S) is player-visible in `long4` and needs an answer **before LS1 item G wires it**; with it: should the normalised hit penalty be clamped so a stage shorter than 35 s never grades harder than today (game-designer review, recommended clamp)? **Q10 seals** `{1,3,5}` at `long5`, **Q11 lives** +1 per Drive kill capped at 5, **Q12 biomass** kill bio x0.6 affect `long5` only and can wait for LS3-0. Also for LS3-0's playtest: the spec's optional `long5` Descent 1 elite (.05 from stage 4). Before item G ships `long4` even behind the flag, Matt also approves the spec §13 Pillar 4 text, since `design/game-brief.md` still says "phone-sized, about 35 s stages" (creative-director, G0 sign-off).
-- **Q2 Checkpoint and the quit-to-resume undo (LS1-H studio review, 2026-11-03).** H shipped the resume point; the LAB row switches between option a (resume only after an app kill or quit, the default) and option b (also restart from the checkpoint on death). The review found a free undo:
-  - **Under b:** ABANDON SHIP + RESUME, or an app kill, puts you back at the checkpoint with no life spent. That is cheaper than a death (game-designer).
-  - **Under a (the default, and long is the default layout, D24):** a player about to die, or who just lost a life, can quit and RESUME to get back the checkpoint's lives (creative-director). An app kill and a rage-quit can't be told apart.
-  Options: (1) accept it as known for single-player and revisit if playtests show players doing it (creative-director's call); (2) resuming from a quit costs a life; (3) the spec's dirty-flag mitigation. Also open: does ABANDON SHIP need different wording or a separate run-ending path, now that it keeps the run? Matt's call at the Q2 playtest (build plan §6).
+- **Q2 Checkpoint (still open; the undo part is decided, D28).** Option a (resume point only, the default) or b (also restart from the checkpoint on death)? Answered at the LS1 playtest (build plan §6). Also open: does ABANDON SHIP need different wording, or a separate path that ends the run, now that it keeps the run?
 - **D6 Saves.** One final save-wiping uninstall for stable signing, or ship save export first (recommended)?
 - **D7 Licensing.** Licence for code, art, voice; second voice performer's consent and credit; CC BY credits vs CC0 swap; which README asset rule is current.
 - **D8 Copy rules.** No-crosses scope; deadpan logs and stage cards; one noun per progression system; banner and spelling fixes.
