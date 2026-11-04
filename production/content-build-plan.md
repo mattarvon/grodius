@@ -136,6 +136,22 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
 - **Merge order:** F → G (both touch `stages.ts`); H after C, B2 and D2; I after H; K after P0 and F.
 - **H entry criteria (from the LS1-H0 Studio review, 2026-11-01):** (1) decide in H's spec whether CP0 stores the rewards still pending when it is written after the tally: queued level-up picks (`G.pickQ`, plus 1 if `G.pick` is open), the boost offer (`G.boostReq`; `seenV` is stored already advanced) and a pending seal (a closure in `G.sealQ`/`G.pend`, while `cleared` is stored already incremented). Store them as fields, or serialize `seal = max(seal, SEAL_AT[cleared])`; a resume must not lose an earned reward. (2) Bound the restored `stage` by the restored layout's stage count (`runsave.ts` checks only ≥ 0). (3) The restore calls `resetPlayer()` before `applyRun()`, or the loadout is skipped. (The fourth review item belongs to the LS1-A + H0 merge, not to H: `kindOf` returns `'biome'` for both biome rows, so `stageKind()` must map it to `G.route[row(i).slot]` and keep the `orbit`/`drive`/biome-id strings pinned in `save.test.ts`.)
 
+- **Carry-forward from the LS1-F studio review (2026-11-02):**
+  1. **H:** the run save must store `G.mb`, `G.mbUsed` and `G.mbLast` (and test that `biomeReset` clears `mb`/`mbUsed` and keeps `mbLast`). Without them, a resume re-picks a different midboss pair. Add this to H's acceptance.
+  2. **G:** owns spec §6.4's first-kill +100 biomass. It needs its own kill record (`meta.mbK`; `meta.mb` counts meetings, not kills), with economy-designer review. It can add up to ~+500 biomass in Descent 1 against the 1.3-1.5k target, so `killBio` tuning must include it.
+  3. **D27 TTK amendment, owned by an LS1-F follow-up (Matt confirmed D27, 2026-11-02; G declined it as not economy):**
+     - one 8-11 s band per kind;
+     - the Apprentice to ~200 HP, re-measured with `midboss-probe`;
+     - spec §3.1 and §6.2 edits.
+     It moves short parity unless it is gated per layout. It is its own story with its own studio review, after F merges.
+     G took item 2 (first-kill +100) as a per-profile payout in its own `meta.mbK`. It is gated per economy entry, so short pays 0, and `killBio` stays tuned on the steady-state run. G reports wall times with an invincible bot only: its new mortal bot game-overs in long4's first biome on all 5 seeds. Invincible long4 D1 tallies: Orbit 77-80 s, biome A 76-89 s, biome B 69-82 s, Drive 77-93 s. Both biome stages are under the 90-120 s exit band.
+  4. **gameplay-programmer follow-up:** extend §3.2 rule 2 to the stage boss's WARNING (it must wait while `G.mini` is up). Must land before any DRIFT kind enters a biome pool (the Calving Shelf) or LS2-orbit, whichever comes first.
+  5. **QA:** raise carry-forward 10 (long4 harness coverage past Orbit). F is the first large sim change past Orbit on the default layout, and the harness cannot see it. It should land before G stacks on top.
+  6. **Art/UX:** the WARNING banner and the midboss name over the HP bar are low-contrast on warm biomes (the Furnace, the Sinus). F doubles how often players see them. Give them a dark backing or outline.
+  7. **Audio:** `src/sfx/stinger/` has one clip, and there are now two midboss WARNINGs per biome stage. Add variants or listen for fatigue in playtest.
+  8. **Writer (D8):** optional crossover log lines; some midboss names read oddly outside their home biome (to settle when Matt names the wave-1 roster).
+  9. **Design record (row M, needs Matt's wording):** `design/game-brief.md`'s protected core still says "one midboss per biome stage", and Pillar 4 still says "35 s stages". Amend both to match D19, or later reviews will flag F as a regression. creative-director: raise the WARNING-banner contrast (item 6) in the next polish pass, before LS2, and decide D27 before G closes.
+
 ### Sprint 3 closeout: flip the default
 
 | ID | Item | Owner | Acceptance | Size |

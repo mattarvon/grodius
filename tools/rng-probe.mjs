@@ -109,7 +109,7 @@ async function run(b, fight, flashes, draw) {
     if (kind === 'boss') BU.startBoss();
     else if (kind === 'stage') spawn === 'maw' ? SP.maw(true) : SP[spawn]();
     else if (kind === 'ufo') { $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); }
-    else id === 'mawmid' ? SP.maw(false) : SP.midboss(id, BI.BIOMES[biome].midName);
+    else id === 'mawmid' ? SP.maw(false) : SP.midboss(id, BI.MID_NAMES[id]);
     const foe = () => (kind === 'boss' ? $.G.boss : $.G.mini);
     let f = 0, end = 'cap';
     for (; f < FRAMES; f++) {

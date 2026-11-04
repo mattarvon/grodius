@@ -127,6 +127,13 @@ localization), D16-D18, and the signing keystore half of D6.
 **Reason:** Matt took both recommendations (sprint 3 kickoff).
 **Category:** design_rules
 
+### D27 Midboss TTK bands per kind, not per slot — 2026-11-02 (Matt; from the LS1-F studio review)
+
+**Decision point:** LS1-F's `midboss-probe` evidence (STAGE 1 kit: Choir 10.0, Womb 8.7, Apprentice 6.8, Brood 9.4 s) meets spec §6.2's slot-B band (10-15 s) only for the Choir. With D1 (HP only from depth) and the picker putting any kind in either slot, slot B can never be slower than slot A at the same kit.
+**Chosen:** Replace the per-slot bands with one band per kind, **8-11 s at the stage-1 kit**, tuned by each kind's base HP. DRIFT kinds are exempt (their forced exit sets the fight length). Spec §3.1's median "Midboss B 12 s" becomes ~10 s; slot B's longer 1260 f clock is its only slot difference. The Apprentice (6.8 s) moves to ~200 HP (~9.1 s), in G or a P0 follow-up, not F. If base HP is shared with `short`, that change either is gated per layout or moves the parity baseline with the reason given.
+**Reason:** systems-designer recommendation, accepted by the game-designer lead, **confirmed by Matt 2026-11-02**. No per-slot HP term, so D1 needs no new ruling. Owner: an LS1-F follow-up (Matt); G declined it as not economy.
+**Category:** balance
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path

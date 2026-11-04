@@ -2,6 +2,16 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-02 (long stages, two midbosses per biome)
+
+- Stages are long now, closer to classic Gradius length. Open Orbit runs about 80 s, each biome stage about a minute of flying plus its fights, and the Gravity Drive approach about 45 s. The old short descent is still in the LAB row on the title screen (and `?layout=short` on the web) while the long one is tested.
+- Every biome stage now has two midbosses, and they are always two different ones. One is usually the biome's own; the other wanders in from another biome and takes on this biome's colours. You won't meet the same midboss twice in one descent, and the ones you haven't met yet come up first in later runs.
+- The first midboss leaves after 18 s, the second after 21 s (was 23 s for every midboss). Letting one go still costs nothing.
+- The second midboss never arrives while the first is still on screen.
+- While a midboss is fighting, the stage's regular waves hold off. Set pieces still come.
+- The Digestion Tanks and the Sinus are never both offered in one descent, so you don't fight a Maw three times in a row.
+- The screen-space blood splats over the view are gone; gore in the world stays.
+
 ## 2026-11-01 (best grades by place)
 
 - Best stage grades are now kept per place: Open Orbit, the Gravity Drive, and each biome by name. Before, both biome stages shared a slot number whatever biome you flew. Your Orbit and Drive bests carry over; biome-stage bests start fresh, so your next clear of each biome reads FIRST CLEAR. The old biome-slot grades are still in your save, not deleted.

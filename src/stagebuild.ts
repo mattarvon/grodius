@@ -15,9 +15,9 @@
 // - The midboss pick (item F) draws its own stream, biomes.ts midStream(i), not stageStream(i): it is independent of
 //   the script's draws, so it may run before or after the script without changing either.
 import { $ } from './state';
-import { row, stageOfSlot } from './layout';
+import { layout, row, stageOfSlot } from './layout';
 import { stageScript } from './enemies/scripts';
-import { biomeStage, insertScript, stageStream } from './biomes';
+import { biomeStage, fixedMids, insertScript, stageStream } from './biomes';
 import { buildTerrain } from './world';
 
 /** build stage i of the active layout into the live descent. fromX: where its content may start (a biome stage: the
@@ -26,6 +26,8 @@ import { buildTerrain } from './world';
 export function buildStage(i, fromX = row(i).x0) {
   const r = row(i);
   if (r.kind === 'biome') return biomeStage(r.slot, fromX);
+  // picker layouts: the row's DRIFT midbosses (Open Orbit's Saucer) count as met this descent (item F; no draws)
+  if (layout().picker) fixedMids(i, r.kind, (r.drift || []).map((d) => d.k));
   insertScript(stageScript(i, stageStream(i)));
 }
 

@@ -25,7 +25,9 @@ import { aimA, banner, every, fan, miniWarn, mk, ring, wrapA } from './spawn';
 import { playerHit } from '../player';
 import { dropCap } from './update';
 import { cdm } from '../depth';
-import { ufoDrift, ufoGapEnd } from '../layout';
+import { layout, ufoDrift, ufoGapEnd } from '../layout';
+import { slotClock } from '../midpick';
+import { meetMid, registerDrift } from '../midslot';
 
 export const UFO_NAME = 'THE SQUIDFUCKED SAUCER';
 // Where its WARNING is (it lands ~150 px later, ~45% through the stage) and where it must be gone by (the last of the
@@ -38,17 +40,27 @@ const LASH_LEN = 220;
 /** the WARNING beat (buildScript): the filler stops here, a breath, then the wreck drifts in */
 export function ufoWarn() {
   $.G.eat = ufoGapEnd();
-  miniWarn(UFO_NAME, spawnUfo);
+  // picker layouts (long4): Open Orbit's slot A clock, 1080 f (spec §6.4); its forced exit comes first (~800 f) today
+  if (layout().picker) miniWarn(UFO_NAME, () => spawnUfo(undefined, slotClock('ufo', 0)));
+  else miniWarn(UFO_NAME, spawnUfo);
 }
-export function spawnUfo() {
+/** exitX: the scroll x it is forced out at (default: its Open Orbit row's gapEnd - exitLead; a biome slot passes its
+ *  breath plan's driftExit, layout.ts beatPlan). maxLeave: its slot clock (spec §6.4: whichever comes first) */
+export function spawnUfo(exitX = ufoGapEnd() - ufoDrift().exitLead, maxLeave = 1400) {
   const e = mk('ufo', W + 70, PH * .45, {
     title: UFO_NAME, tx: W - 96, st: 'idle', wt: 0, cool: 100, att: 0, drift: 1,
-    la: Math.PI, ll: 0, lash2: 0, burst: 0, hb: [[-34, 2, 10], [32, 0, 9]],
+    la: Math.PI, ll: 0, lash2: 0, burst: 0, hb: [[-34, 2, 10], [32, 0, 9]], exitX,
   });
-  // it has to be gone before the Maw's run-up: the scroll keeps moving (1 px/f) while it's up
-  e.leave = clamp(Math.round(ufoGapEnd() - $.G.scroll - 70), 420, 1400);
+  // it has to be gone before the next WARNING: the scroll keeps moving (1 px/f) while it's up. Its clock runs out 10 px
+  // short of the forced exit, and the exit check in updUfo is the backstop. Written as (exitX + exitLead) - scroll - 70
+  // so the Orbit case is gapEnd - scroll - 70 to the bit, as before (all integers until the scroll)
+  e.leave = clamp(Math.round(exitX + ufoDrift().exitLead - $.G.scroll - 70), 420, maxLeave);
   $.G.mini = e;
+  meetMid('ufo');
 }
+// a DRIFT midboss: through midslot.ts, biomes.ts can put it in a biome slot without importing this module. No biome pool
+// has it today; tools/midslot-shots.mjs `drift` runs it there to check the forced exit (spec §3.2 rule 1)
+registerDrift('ufo', UFO_NAME, spawnUfo);
 /** lash tentacle: origin (world) and whether the ship is on it */
 const lashO = (e) => [e.x + LASH_O[0], e.y + LASH_O[1]];
 function onLash(e) {
@@ -64,7 +76,7 @@ export function updUfo(e) {
   // leave: on its timer, or when the scroll reaches the Maw's run-up (escape costs nothing, like the other midbosses)
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);
-  if (e.t < e.leave && $.G.scroll > ufoGapEnd() - ufoDrift().exitLead) e.leave = e.t; // the forced exit (layout invariant, spec §3.2 rule 1: >= 300 px before the next WARNING; short is a pinned 220 px exception)
+  if (e.t < e.leave && $.G.scroll > e.exitX) e.leave = e.t; // the forced exit (layout invariant, spec §3.2 rule 1: >= 300 px before the next WARNING; short is a pinned 220 px exception)
   const go = e.t >= e.leave;
   if (go) {
     if (!e.gone) { e.gone = 1; e.st = 'idle'; e.ll = 0; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); }

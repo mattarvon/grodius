@@ -83,6 +83,10 @@ export interface Beats {
    *  `arenaBlend` px. Absent: the legacy beat (short), two log lines (span start, span midpoint), no movement C */
   runup?: number;
   arenaBlend?: number;
+  /** a DRIFT midboss in a midboss breath (it does not hold the scroll) is forced out this far before the next
+   *  WARNING in its stage: the next midboss breath's WARNING, else the boss WARNING at bossX (spec §3.2 rule 1, the
+   *  UFO_GAP_END pattern made stage-relative through beatPlan; >= 300 px, layout.test.ts). Absent: no DRIFT biome slots */
+  driftLead?: number;
 }
 
 export interface LayoutEntry {
@@ -103,6 +107,11 @@ export interface LayoutEntry {
   hell: { corr: number[]; core: number[] };
   /** world x of the tick marks on the HUD depth bar */
   hudMarks: number[];
+  /** the stages' midbosses come from the picker (src/midpick.ts, spec §6.3; build plan LS1 row F): one per midboss
+   *  breath (two per long biome stage) with the slot leave clocks, slot B held back while a midboss is up, filler
+   *  suppressed while one is up, and the fork's acid/snot rule (§6.5). Absent (short): each biome stage gets its own
+   *  home midboss on today's 1400 f clock, and nothing else changes */
+  picker?: boolean;
 }
 
 // ---------------- the short layout: today's descent ----------------
@@ -201,9 +210,9 @@ const LONG4: LayoutEntry = {
     // gate span ~3160 px, so 300 px is p ~.095: every breath/set-piece distance below keeps >= .10
     pad: [160, 60], gateLead: -160,
     // breath 1 holds midboss A (its WARNING 210 px before the end stays inside: .075 of the span is ~237 px), then the
-    // release (a pod formation, log line 2). Breath 2 stays EMPTY in sprint 2: slot B's midboss and its miniWarn are
-    // sprint 3 item F. The spec's .30-.36 / .62-.68 moved later and widened: with its S1 at .26 the 300 px rule fails
-    breaths: [{ end: .41, len: .075, mid: true, release: true }, { end: .725, len: .075 }],
+    // release (a pod formation, log line 2). Breath 2 holds midboss B (item F), its WARNING the same 210 px before the
+    // end. The spec's .30-.36 / .62-.68 moved later and widened: with its S1 at .26 the 300 px rule fails
+    breaths: [{ end: .41, len: .075, mid: true, release: true }, { end: .725, len: .075, mid: true }],
     tempo: [
       { until: .12, gap: 1.4, dbl: .2, sig: true, lead: 'sig' }, //               intro A: the signature alone, then 60% signature
       { until: .22, gap: 1.25, dbl: .25, lead: 'second' }, //                     intro B: the second-ranked kind gets its own first slot
@@ -215,6 +224,9 @@ const LONG4: LayoutEntry = {
     // first visit .23/.53/.86, a repeat visit earlier (the spec's -.02..-.04 shift, inside the same 300 px windows)
     sets: [.23, .53, .86], remixSets: [.2, .515, .83], warnLead: 210,
     runup: .9, arenaBlend: 200,
+    // a DRIFT slot-A midboss (none in phase 1; the Calving Shelf in wave 2) is gone 300 px before slot B's WARNING:
+    // ~545 px (~9 s) of fight after it lands, under the 1080 f slot clock
+    driftLead: 300,
   },
   // the same shapes as short, re-anchored on the long rows: the hull closes in at the Orbit's end, the corridor rises
   // where slot 0's boss is and squeezes from slot 1's start, and everything opens into the chamber over the 400 px
@@ -234,6 +246,7 @@ const LONG4: LayoutEntry = {
   // PROVISIONAL (art-director: the tick design for long rows is an art decision): today's rule, a tick just inside
   // each biome slot's start
   hudMarks: [4480, 8050],
+  picker: true,
 };
 
 export const LAYOUTS: Partial<Record<LayoutEntry['id'], LayoutEntry>> = { short: SHORT, long4: LONG4 };
@@ -323,12 +336,17 @@ export function beatPlan(r: StageRow, from: number, remix: boolean, L: LayoutEnt
     const bZ = b.mid && r.breathAfterMid != null ? Math.max(P(b.end), mid + r.breathAfterMid) : P(b.end);
     return { a: bZ - (z - a) * b.len, z: bZ, mid: !!b.mid, release: !!b.release };
   });
-  const mb = breaths.find((b) => b.mid);
+  const warns = breaths.filter((b) => b.mid).map((b) => Math.round(b.z - BT.warnLead));
   return {
     a, z, mid, P, breaths,
     sets: (remix ? BT.remixSets : BT.sets).map(P),
-    /** scroll x of the midboss WARNING (the breath that holds it) */
-    warn: mb ? Math.round(mb.z - BT.warnLead) : null,
+    /** scroll x of the first midboss WARNING (slot A's breath) */
+    warn: warns.length ? warns[0] : null,
+    /** scroll x of every midboss WARNING, by slot (slot A, slot B) */
+    warns,
+    /** by slot: the scroll x a DRIFT midboss there is forced out at (driftLead before the next WARNING, spec §3.2 rule
+     *  1), or null when the layout has no DRIFT biome slots */
+    driftExit: warns.map((_, s) => (BT.driftLead == null ? null : (s + 1 < warns.length ? warns[s + 1] : r.bossX) - BT.driftLead)),
     /** scroll x where the arena run-up starts, or null (legacy beat) */
     runup: BT.runup != null ? P(BT.runup) : null,
   };
