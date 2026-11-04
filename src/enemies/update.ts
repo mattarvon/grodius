@@ -703,8 +703,8 @@ export function killEnemy(e, dir = 1) {
   });
   const sc = Math.round(e.score * mult() * (1 + $.G.loop * .5));
   $.G.score += sc;
-  // per-kill XP and kill biomass scale by the layout's economy entry (src/economy.ts; short x1, long4 x.75: LV 13±1
-  // and 1.3-1.5k biomass at the end of Descent 1 over the longer stages, pod-probe, LS1 item G)
+  // per-kill XP and kill biomass scale by the layout's economy entry (src/economy.ts; short x1, long4 killXP .85 and
+  // killBio .65: LV 13±1 and 1.3-1.5k biomass at the end of Descent 1 over the longer stages, pod-probe, LS1 item G)
   if (!e.par) gainXP(killXP(econId(), e.mini ? 30 : Math.max(1, e.score / 100)));
   const vo = pk('volatile');
   // VOLATILE MEAT: one burst per kill, and meat killed BY a burst doesn't burst again (no screen-wide chains)
@@ -778,6 +778,8 @@ export function killEnemy(e, dir = 1) {
     splat(rr(150, 330), rr(60, 160), 3);
     banner({ choir: 'SILENCED', cyst: 'BURST', prentice: 'CLEAVED', brood: 'STILLBORN', ufo: 'CALAMARI SERVED' }[e.k], '', undefined, 90);
     if (e.k === 'ufo') ufoKilled(e);
+    // first-kill pay is for the midboss kinds (e.mid: the biome midbosses and the Saucer), the ones a player discovers
+    // (spec §6.4, the meta.mb kinds). Maws don't pay: one recurs every Open Orbit, so it is never a kind to discover
     firstKill(e);
     $.G.hitstop = Math.max($.G.hitstop || 0, 10);
     sfx.roar();
@@ -901,7 +903,7 @@ function firstKill(e) {
   (m.mbK ||= {})[e.k] = 1;
   $.G.bio += pay;
   m.bio += pay;
-  pop(e.x, e.y - 28, 'FIRST KILL +' + pay, '#9effa0', 9, 70);
+  pop(e.x, e.y - 48, `FIRST KILL +${pay}`, '#9effa0', 9, 70); // y-48: clear of the graft pop and the death burst
 }
 export function dropCap(x, y) {
   const blue = R() < .07;

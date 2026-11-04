@@ -118,7 +118,9 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // second midboss landed
     killBio: .65,
     intra: .35, // late Descent 1 would otherwise stay soft over a longer descent (depth-probe, playtest.mjs hits/min)
-    glut: [3, 6], // ~5 midbosses per descent in LS1
+    // GLUTTONY counts Maw + midboss kills: per long4 descent the Saucer + 2 + 2 biome midbosses, the Open Orbit Maw and
+    // 0-2 biome Maw stage bosses, so 6-8 when every one is killed (short: 2-4)
+    glut: [3, 6],
     d1Elite: null,
     driveLife: null,
     hpm: HPM_LONG4,

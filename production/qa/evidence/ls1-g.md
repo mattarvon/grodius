@@ -11,8 +11,10 @@ Branch `ls1-g`, rebased onto main `aad830e` (F, H, D27, D28 and D29 merged). G's
 - `tune: long4 kill biomass x0.65 after F's second midboss`
 - `D29, midboss HP is exempt from intra-descent depth`
 - this report, the CHANGELOG lines and the midboss-probe `--ord` flag
+- `fix: LS1-G Studio review fixes` (comments, the FIRST KILL pop, CHANGELOG wording, `firstkill.test.ts`)
 
-**The Studio Hierarchy review has not been run.** The brief says G does not run it.
+The Studio Hierarchy review was run by lane F, not by G (the brief says G does not run it). Its required fixes are in
+the last commit, and F records the carry-forwards in the merge commit and build plan.
 
 ## 1. What changed
 
@@ -21,7 +23,7 @@ Branch `ls1-g`, rebased onto main `aad830e` (F, H, D27, D28 and D29 merged). G's
 | `src/economy.ts` | `econOf(id)` / `econId()` map the active layout to its entry; unknown or prototype ids map to short. `gradePts` is length-normalised with a **D26 clamp**: `hitW = min(1, ref/Ts)`, so a stage under 35 s never grades harder than today. long4 `killXP` .85 (spec start .75), `killBio` .65 (spec start .75). New field `firstKill` (short 0, long4 100, long5 100) and pure `firstKillPay(id, rec, k)`. |
 | `src/stages.ts` | `clearStage` grades through `gradeOf(econId(), st, stageTs(), escaped)` and seals through `sealAt(econId(), cleared)`. `stageTs(i)` = the row's scroll seconds. The local `SEAL_AT` and `grade()` are gone. H's `sealFor()` reads the entry's seal schedule (same {2,4,6} on short and long4). Best grades by kind come from H0's `gradeKey()`, unchanged. |
 | `src/perks.ts` | `stageXP` reads the entry's lump (long4 = today's). |
-| `src/enemies/update.ts` | Kill XP ×`killXP`, kill orb value ×`killBio` (orb count unchanged). New `firstKill(e)` in the `e.mid` branch: it pays `G.bio`/`meta.bio` once per kind, writes `meta.mbK[k] = 1` and pops "FIRST KILL +100". No `R()`. `miniReward`'s 30 biomass and grade pay are not scaled. |
+| `src/enemies/update.ts` | Kill XP ×`killXP`, kill orb value ×`killBio` (orb count unchanged). New `firstKill(e)` in the `e.mid` branch: it pays `G.bio`/`meta.bio` once per kind, writes `meta.mbK[k] = 1` and pops `FIRST KILL +${pay}` at y-48, clear of the graft pop and the death burst. No `R()`. Maws don't pay: one recurs every Orbit, so it is not a kind to discover. `miniReward`'s 30 biomass and grade pay are not scaled. |
 | `src/depth.ts` | `dep()` = `descDepth(econId(), loop, stage)`: short = `loop`; long4 = `loop + .35·stage/3`. It feeds **regular-enemy HP**, `cdm()` and `firem()` (all enemy fire, midbosses included). **D29:** midboss HP (biome midbosses, the Saucer, the Orbit and mid-stage Maws) takes the integer loop. Stage-boss HP, `xtra()` and `driveMul()` were already on the integer loop. G applies no intra-depth to stage bosses. The per-kind fire curves (`cadence.ts`) and the depth HP rule are untouched. |
 | `src/mutations.ts` | The GLUTTONY thresholds are a getter on `gluttonyN(econId())`: short [2,4], long4 [3,6]. |
 | `src/save.ts` | `meta.mbK` default `{}`, cleaned on every load like `meta.mb` (finite numbers ≥ 1 kept, stored as 1). |
@@ -29,6 +31,7 @@ Branch `ls1-g`, rebased onto main `aad830e` (F, H, D27, D28 and D29 merged). G's
 | `tests/unit/stages.test.ts` | long4 `clearStage`: `stageTs` per row; 1-hit Drive = S on long4 / A on short; 2 hits or 1 death = A; 60% / 4 hits = B on long4 / C on short; seal schedule unchanged. |
 | `tests/unit/depth.test.ts` | Intra-descent depth on long4: Orbit D1 = 1×; the Drive stage reads .35 for fodder HP, `cdm`, `firem`. D29: midboss HP is 1× at Descent 1 stages 1-3 while `cdm()` < 1 and fodder takes the intra term. Stage bosses, `xtra` and `driveMul` stay on the integer loop. Also D1 power-independence, and short `dep()` = loop. |
 | `tests/unit/save.test.ts` | `meta.mbK` default and malformed-input cleaning. |
+| `tests/unit/firstkill.test.ts` | The real `killEnemy()` on a midboss: long4 pays 100 to `G.bio` and `meta.bio` and records `mbK`; a second kill pays 0; a recorded kind pays 0; short pays 0 and writes nothing. Watched failing with the `firstKill(e)` call removed. |
 | `tests/unit/midboss-hp.test.ts` (D27's) | D29: the Apprentice is exactly 200 on long4 and 150 on short at stages 1 and 2 in Descent 1. `meet()` takes a stage. D27's own assertions are unchanged. |
 | `tools/pod-probe.mjs` | `--mortal`; per-tally `grades` (grade, hits, deaths, kill%, spawns, LV, biomass, first-kill count); `bossFight_s` (Drive up-time); `firstKills`. |
 | `tools/playtest.mjs` | Per-stage `danger:` line: would-be hits, hits/min, regular spawns. |
@@ -184,17 +187,17 @@ long4: dG/dM = 100/100, 0/0, 100/100; meta.mbK = {cyst:1, brood:1}
 short: dG/dM = 0/0, 0/0, 0/0;          meta.mbK = {}
 ```
 
-Screenshot: `ls1-g-long4-first-kill.png`. The pop overlaps a graft pop at the same kill point. It reads, but the two
-stack (minor; see §7).
+Screenshot: `ls1-g-long4-first-kill.png`, retaken after the review: the pop sits at y-48, clear of the graft pop and
+the burst. `tests/unit/firstkill.test.ts` now drives the same path under Vitest.
 
 The harness does not reach this code: the long4 harness run dies in Open Orbit before the Saucer is killed. The unit
-tests and this in-page check cover it.
+tests (including `firstkill.test.ts`) and this in-page check cover it.
 
-## 5. Gates (final build: D29 commit)
+## 5. Gates (final build: after the Studio review fixes; also checked merged with main 7e06c44)
 
 ```
 npm run typecheck          OK
-npx vitest run             26 files, 495 tests passed
+npx vitest run             27 files, 499 tests passed
 npm run build              OK
 npm run test:regress       PASS vs baseline @ 8ff9ba4 (short)
                            PASS (long4) vs baseline @ 88d9525
@@ -230,7 +233,6 @@ killed, so neither intra depth, D29 nor first-kill pay reaches it.
   as known.
 - **Not scaled by `killBio`:** `miniReward`'s 30 biomass per stage boss, grade pay, and Infirmary pay (by design: spec
   §7 scales kill pods only).
-- **The FIRST KILL pop** stacks with graft and level pops at the kill point (minor UI).
 - **Seeds:** five per measurement, invincible bot. The LV and biomass medians are in band, but the per-seed spread
   (LV 13-15, biomass 1310-1613) touches or crosses both edges.
 
