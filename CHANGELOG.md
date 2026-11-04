@@ -2,12 +2,18 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
-## 2026-11-03 (resume a run, a tougher Apprentice)
+## 2026-11-03 (resume a run, a tougher Apprentice, the long-stage economy)
 
 - Your run now survives closing the game. RESUME at the top of the title screen puts you back at your last checkpoint: the start of the stage, or just after its first midboss. You get the same terrain, the same midbosses, and your build, score and lives as they were at that checkpoint.
 - On Android the game saves when it goes to the background, so swiping it away doesn't lose the run.
 - The save is cleared when the run ends (game over, or the end of a descent) or when you start a new one.
 - On the long stages, THE BUTCHER'S APPRENTICE is tougher (150 → 200 HP), so its fight lasts about as long as the other midbosses' (about 10 s with a first-stage build, was about 7 s). The short descent in the LAB row is unchanged.
+- Stage grades on the long stages are scaled to the stage's length, so a two-minute stage doesn't punish hits more than a short one did. An S now allows one hit (still no deaths).
+- On the long stages, kills give a little less XP (×0.85) and noticeably less biomass (×0.65). Over a whole descent you end up at about the same ship level and biomass as before: about LV 13 and 1,300-1,500 biomass at the end of Descent 1.
+- Enemies get a little tougher and fire a little faster as a descent goes on, not only from one descent to the next. Open Orbit in Descent 1 is unchanged.
+- GLUTTONY now asks for 3 and then 6 Maw or midboss kills (was 2 and 4), because the long stages have more midbosses.
+- On the long stages, the first time you ever kill each midboss, it pays +100 biomass (once per profile).
+- None of this changes the short descent.
 
 ## 2026-11-02 (long stages, two midbosses per biome)
 

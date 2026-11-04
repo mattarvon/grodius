@@ -20,7 +20,7 @@ vi.mock('../../src/boss/update', () => ({ bossHitByShot: () => {} }));
 vi.mock('../../src/render/util', () => ({ drawChain: () => {}, drawHookTip: () => {}, light: () => {} }));
 
 const econ = await import('../../src/economy');
-const { ECON, HPM_TOL, d1EliteChance, descDepth, gluttonyN, gradeOf, gradePts, hpmCol, hpmTarget, killBio, killXP, livesAfterDrive, sealAt, stageXP } = econ;
+const { ECON, HPM_TOL, d1EliteChance, descDepth, firstKillPay, gluttonyN, gradeOf, gradePts, hpmCol, hpmTarget, killBio, killXP, livesAfterDrive, sealAt, stageXP } = econ;
 const { clearStage } = await import('../../src/stages');
 const perks = await import('../../src/perks');
 const { GM } = await import('../../src/mutations');
@@ -120,10 +120,10 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(gradeOf('long4', st(10, 10), 60, true)).toBe('C');
   });
 
-  it("pays today's stage XP lump and cuts kill XP and kill biomass to x0.75", () => {
+  it("pays today's stage XP lump, cuts kill XP to x0.85 (item G's tune) and kill biomass to x0.65 (item G's tune)", () => {
     for (let loop = 0; loop < 3; loop++) for (let ord = 0; ord < 4; ord++) expect(stageXP('long4', ord, loop)).toBe(perks.stageXP(ord, loop));
-    expect(killXP('long4', 30)).toBe(22.5);
-    expect(killBio('long4', 100)).toBe(75);
+    expect(killXP('long4', 30)).toBeCloseTo(25.5);
+    expect(killBio('long4', 100)).toBeCloseTo(65);
   });
 
   it('adds .35 of a descent of depth across 4 stages', () => {
@@ -133,6 +133,18 @@ describe('long4 matches spec §7 (LS1)', () => {
   });
 
   it('uses GLUTTONY [3, 6]', () => expect(gluttonyN('long4')).toEqual([3, 6]));
+
+  it("feeds the live GLUTTONY graft the active layout's thresholds", async () => {
+    const { setLayout } = await import('../../src/layout');
+    const over = GM.find((m: any) => m.id === 'over');
+    setLayout('long4');
+    try {
+      expect(over.n).toEqual([3, 6]);
+    } finally {
+      setLayout('short');
+    }
+    expect(over.n).toEqual([2, 4]);
+  });
 
   it('changes neither Descent 1 elites nor lives', () => {
     for (let ord = 0; ord < 4; ord++) expect(d1EliteChance('long4', ord)).toBe(0);
@@ -159,8 +171,23 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(gradeOf('long4', st(39, 100, 3), 105)).toBe('C');
   });
 
-  it('grades a stage shorter than 35 s harder per hit, as the spec formula does', () => {
-    expect(gradePts('long4', st(10, 10, 1), 17.5)).toBe(80);
+  it('never grades a stage shorter than 35 s harder per hit than today (D26 clamp)', () => {
+    // the unclamped spec formula would charge 20 points for this hit
+    expect(gradePts('long4', st(10, 10, 1), 17.5)).toBe(90);
+    expect(gradePts('long4', st(10, 10, 1), 17.5)).toBe(gradePts('short', st(10, 10, 1)));
+    expect(gradePts('long4', st(10, 10, 2), 34.9)).toBe(80);
+  });
+
+  it('agrees with src/layout.ts on stages per descent for every registered layout entry', async () => {
+    const { LAYOUTS } = await import('../../src/layout');
+    for (const [id, L] of Object.entries(LAYOUTS)) expect(ECON[id as keyof typeof ECON].n, id).toBe(L!.stages.length);
+  });
+
+  it('maps a layout id to its economy entry, and an unknown id to short', () => {
+    expect(econ.econOf('long4')).toBe('long4');
+    expect(econ.econOf('short')).toBe('short');
+    expect(econ.econOf('nope')).toBe('short');
+    expect(econ.econOf('__proto__')).toBe('short');
   });
 
   it('bands only the biome slots in LS1, measuring Orbit and the Drive', () => {
@@ -220,6 +247,21 @@ describe('long5 matches spec §7 (LS3-0)', () => {
   it('targets LV 4 / 8 after stages 1 / 2 and LV 14±1 at the end of Descent 1', () => {
     expect(ECON.long5.targets!.lvStage).toEqual({ 0: 4, 1: 8 });
     expect(ECON.long5.targets!.lvD1).toEqual([13, 15]);
+  });
+});
+
+describe('first-kill biomass (spec §6.4, LS1 item G)', () => {
+  it('pays 100 once per midboss kind on the long entries and nothing on short', () => {
+    expect(firstKillPay('short', {}, 'cyst')).toBe(0);
+    expect(firstKillPay('long4', {}, 'cyst')).toBe(100);
+    expect(firstKillPay('long5', undefined, 'brood')).toBe(100);
+  });
+  it('pays nothing for a kind already in the kill record, so a kill replayed after a resume cannot pay twice', () => {
+    expect(firstKillPay('long4', { cyst: 1 }, 'cyst')).toBe(0);
+    expect(firstKillPay('long4', { cyst: 1 }, 'brood')).toBe(100);
+  });
+  it('does not read an inherited key as a recorded kill', () => {
+    expect(firstKillPay('long4', {}, 'toString')).toBe(100);
   });
 });
 

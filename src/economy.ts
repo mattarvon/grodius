@@ -2,16 +2,19 @@
 //  ECONOMY TABLES PER LAYOUT ENTRY (design/content-expansion.md §7 and §8; build plan LS1 item G0).
 //  Each layout entry (`short`, `long4`, `long5`, spec §2.2) carries its own seals, grade normalisation, S-grade rule,
 //  stage XP, per-kill XP and biomass factors, intra-descent depth, GLUTTONY thresholds, Descent 1 elites, Drive lives
-//  and would-be hits/min targets. The functions below are pure: they take the entry id and plain numbers, read no
-//  module state and draw no RNG, so they can be unit tested and wired later.
+//  and would-be hits/min targets. The functions below (all but econId) are pure: they take the entry id and plain numbers, read no
+//  module state and draw no RNG, so they can be unit tested.
 //
-//  NOT WIRED YET (G0). stages.ts, perks.ts, depth.ts, mutations.ts still hold today's literals. LS1 item G wires the
-//  `long4` entry; the `short` entry reproduces those literals exactly (pinned in tests/unit/economy.test.ts against the
-//  live code), so wiring it changes nothing.
+//  WIRED (LS1 item G) for the active layout entry (`econId()`): stages.ts (seals, grades), perks.ts (stage XP),
+//  enemies/update.ts (kill XP, kill biomass), depth.ts (intra-descent depth) and mutations.ts (GLUTTONY) read it. The
+//  `short` entry reproduces today's literals exactly (frozen golden copy in tests/unit/economy.test.ts), so the short
+//  layout is unchanged. Descent 1 elites and Drive lives are not wired: both are null on short and long4 (D26), and
+//  `long5` wires them at LS3-0.
 //
 //  Values marked *start* are the spec's starting points; item G tunes them against pod-probe until the targets in
 //  `targets` are met. Values marked Q<n> wait on Matt's answer to spec §12 question n (the recommended default is here).
 // =====================================================================
+import { layout } from './layout';
 
 /** a layout entry (spec §2.2) */
 export type EntryId = 'short' | 'long4' | 'long5';
@@ -27,7 +30,7 @@ type Band = readonly [number, number];
 export interface EconEntry {
   /** stages per descent; must match lane A's layout entry */
   n: number;
-  /** clears-in-a-run -> seal tier broken (stages.ts SEAL_AT) */
+  /** clears-in-a-run -> seal tier broken (stages.ts clearStage) */
   seals: Readonly<Record<number, number>>;
   /** grade normalisation reference seconds: the hit penalty is scaled by ref/Ts (Ts = the stage's scroll seconds).
    *  null = no normalisation (today's absolute penalty) */
@@ -40,6 +43,8 @@ export interface EconEntry {
   killXP: number;
   /** kill biomass multiplier (the pods that kills drop; grade pay and Infirmary pay are not scaled) */
   killBio: number;
+  /** biomass paid once per profile for the first kill of each midboss kind (spec §6.4), recorded in meta.mbK; 0 = none */
+  firstKill: number;
   /** intra-descent depth: dep = loop + intra * ord / (n - 1) */
   intra: number;
   /** GLUTTONY graft thresholds (mutations.ts GM 'over' n: Maw + midboss kills) */
@@ -86,6 +91,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     xp: { a: 30, b: 45, c: 40 },
     killXP: 1,
     killBio: 1,
+    firstKill: 0, // today's game pays nothing and writes no kill record
     intra: 0, // depth is per descent only
     glut: [2, 4],
     d1Elite: null,
@@ -103,10 +109,18 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     gradeRef: 35, // today's ~35 s of scroll, so a 35 s stage grades exactly as today; without it grades collapse on 1.75x the exposure
     sHits: 1, // Q9: a two-minute no-hit stage is a different ask
     xp: { a: 30, b: 45, c: 40 }, // today's lump; the per-kill cut below does the work
-    killXP: .75, // *start*: LV 13±1 at the end of Descent 1 (pod-probe, item G)
-    killBio: .75, // *start*: one fewer long stage than long5 needs a smaller cut (pod-probe D1-D3 biomass, item G)
+    // LV 13±1 at the end of Descent 1 (pod-probe, item G). The spec's .75 start measured LV 12/14/12/12 (seeds 1-4,
+    // the low edge of the band); x1 measured 13-14 (seeds 1-5)
+    killXP: .85,
+    firstKill: 100, // spec §6.4; once per profile, so it is not in the steady-state D1 biomass bands
+    // D1 biomass 1300-1500 steady state (pod-probe, item G; run biomass minus the once-per-profile first-kill pay).
+    // The spec's .75 start measured 1311-1681 with one midboss per biome stage, then 1412-1834 (median 1627) once F's
+    // second midboss landed
+    killBio: .65,
     intra: .35, // late Descent 1 would otherwise stay soft over a longer descent (depth-probe, playtest.mjs hits/min)
-    glut: [3, 6], // ~5 midbosses per descent in LS1
+    // GLUTTONY counts Maw + midboss kills: per long4 descent the Saucer + 2 + 2 biome midbosses, the Open Orbit Maw and
+    // 0-2 biome Maw stage bosses, so 6-8 when every one is killed (short: 2-4)
+    glut: [3, 6],
     d1Elite: null,
     driveLife: null,
     hpm: HPM_LONG4,
@@ -123,6 +137,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     xp: { a: 40, b: 35, c: 40 },
     killXP: .75, // LV 4 / 8 after stages 1 / 2, LV 14±1 at the end of Descent 1 (pod-probe, LS3-0)
     killBio: .6, // Q12: holds purchases per Infirmary visit at 2-4 items
+    firstKill: 100, // spec §6.4
     intra: .35,
     glut: [3, 7], // ~9 Maw + midboss kills per descent
     d1Elite: { ord: 3, p: .05 }, // optional in spec §7: teaches elites before Descent 2 (stage 4 = biome slot 1)
@@ -138,17 +153,23 @@ export const HPM_TOL = .3;
 
 const E = (id: EntryId): EconEntry => ECON[id];
 
+/** the economy entry a layout id reads: its own entry, or `short` for an id with none */
+export const econOf = (layoutId: string): EntryId => (Object.hasOwn(ECON, layoutId) ? (layoutId as EntryId) : 'short');
+/** the active layout's economy entry: the one impure helper here (it reads src/layout.ts at call time, so a run
+ *  started after setLayout() reads the new entry) */
+export const econId = (): EntryId => econOf(layout().id);
+
 /** seal tier scheduled for the `cleared`-th stage clear of the run, or 0. The caller keeps clearStage's guard that a
  *  tier only breaks if it is above G.seal */
 export const sealAt = (id: EntryId, cleared: number): number => E(id).seals[cleared] || 0;
 
-/** grade points: kill% x100 - 10 x hits (x ref/Ts on a normalised entry) - 30 x deaths. Ts = the stage's scroll seconds.
- *  A stage shorter than the reference grades its hits harder (the spec formula, uncapped; no long stage is under 35 s.
- *  Whether to clamp at 1 is open with Q9 in production/decision-log.md). Wiring must pass Ts on the long entries */
+/** grade points: kill% x100 - 10 x hits (x min(1, ref/Ts) on a normalised entry) - 30 x deaths. Ts = the stage's scroll
+ *  seconds (stages.ts stageTs). Clamped at 1 (D26, Matt): a stage shorter than the reference never grades its hits
+ *  harder than today; a longer one weighs each hit less. Wiring must pass Ts on the long entries */
 export function gradePts(id: EntryId, st: StageCounts, Ts?: number): number {
   const ref = E(id).gradeRef, pct = st.kills / Math.max(1, st.spawned);
   // no usable Ts (missing, 0, negative, NaN): grade as a reference-length stage rather than divide by it
-  const hitW = ref == null || !(Ts > 0) ? 1 : ref / Ts;
+  const hitW = ref == null || !(Ts > 0) ? 1 : Math.min(1, ref / Ts);
   return pct * 100 - st.hits * 10 * hitW - st.deaths * 30;
 }
 
@@ -173,6 +194,12 @@ export const killXP = (id: EntryId, base: number): number => base * E(id).killXP
 
 /** biomass for a kill pod worth `v` */
 export const killBio = (id: EntryId, v: number): number => v * E(id).killBio;
+
+/** first-kill biomass for midboss kind `k` given the profile's kill record `rec` (meta.mbK): the entry's pay, or 0
+ *  when the entry pays none or the kind is already recorded. The record is the guard against paying twice, so a kill
+ *  replayed after a resume (H) pays nothing */
+export const firstKillPay = (id: EntryId, rec: Readonly<Record<string, number>> | null | undefined, k: string): number =>
+  E(id).firstKill > 0 && !(rec && Object.hasOwn(rec, k) && rec[k]) ? E(id).firstKill : 0;
 
 /** depth for regular enemies and midbosses at stage ordinal `ord` of descent `loop`: equals `loop` at each descent's
  *  first stage (so Open Orbit in Descent 1 stays at 1x) and reaches loop + intra at its last. The Drive's own HP keeps

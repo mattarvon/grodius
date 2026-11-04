@@ -147,7 +147,7 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
      **Done 2026-11-03 (branch `ls1-f-d27`):** gated per layout (`src/midslot.ts` `MID_HP`, picker layouts only), so short parity holds. The Apprentice is 200 on long4 and measures 10.2 s. Spec §3.1 and §6.2 are edited. Full studio review passed.
      G took item 2 (first-kill +100) as a per-profile payout in its own `meta.mbK`. It is gated per economy entry, so short pays 0, and `killBio` stays tuned on the steady-state run. G reports wall times with an invincible bot only: its new mortal bot game-overs in long4's first biome on all 5 seeds. Invincible long4 D1 tallies: Orbit 77-80 s, biome A 76-89 s, biome B 69-82 s, Drive 77-93 s. Both biome stages are under the 90-120 s exit band.
   4. **gameplay-programmer follow-up:** extend §3.2 rule 2 to the stage boss's WARNING (it must wait while `G.mini` is up). Must land before any DRIFT kind enters a biome pool (the Calving Shelf) or LS2-orbit, whichever comes first.
-  5. **QA:** raise carry-forward 10 (long4 harness coverage past Orbit). F is the first large sim change past Orbit on the default layout, and the harness cannot see it. It should land before G stacks on top. D27 (the Apprentice at 200 on long4) is now tuning that rests only on `midboss-probe` and unit tests for the same reason.
+  5. **QA:** raise carry-forward 10 (long4 harness coverage past Orbit). F is the first large sim change past Orbit on the default layout, and the harness cannot see it. It should land before G stacks on top. D27 (the Apprentice at 200 on long4) is now tuning that rests only on `midboss-probe` and unit tests for the same reason. The harness also can't reach G's intra-descent depth, D29's midboss HP exemption or the first-kill pay (LS1-G review); unit tests and probes cover them.
   6. **Art/UX:** the WARNING banner and the midboss name over the HP bar are low-contrast on warm biomes (the Furnace, the Sinus). F doubles how often players see them. Give them a dark backing or outline.
   7. **Audio:** `src/sfx/stinger/` has one clip, and there are now two midboss WARNINGs per biome stage. Add variants or listen for fatigue in playtest.
   8. **Writer (D8):** optional crossover log lines; some midboss names read oddly outside their home biome (to settle when Matt names the wave-1 roster).
@@ -164,6 +164,22 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   7. **sound-designer:** `deathRestart` has no arrival cue (`sfx.die`, then a hard cut).
   8. **Localization:** build the RESUME row's value (stage + layout) as one pattern.
   9. **Writer (D8):** RESUME is a plain-UI word among diegetic rows; take a diegetic option (e.g. REVIVE) to the copy pass.
+- **Carry-forward from the LS1-G studio review (2026-11-03):**
+  1. **systems-designer + qa-lead:** the hits/min exit criterion (±30% of spec §8 per biome slot, row G evidence and LS1 exit "Difficulty") is **not demonstrated**: 2 of 8 cells in band, 0-3 hits per cell, 2 seeds. The cause is the instrument: G's mortal bot game-overs in long4's first biome on all 5 seeds (the same gap as sprint 2 carry-forward 10). Both biome stages also run under the 90-120 s wall band, which lowers hits/min. **Carried forward, not waived** (decision log). Gates LS2 banding and the LS1 exit; needs a mortal bot that survives the biomes, or ≥ 10 seeds per kind. Row G closes with this attached.
+  2. **qa-lead:** the long4 economy figures (LV median 14, D1 biomass median 1434, spread 15 / 1613) come from an invincible bot, so they are an upper bound. Re-measure with a mortal bot before the LS1 exit.
+  3. **Matt:** a brand-new profile earns ~1934 biomass in Descent 1 (five first kills × +100), ~30% over the band. This is by design per spec §6.4 and onboarding-friendly; the band is read at steady state.
+  4. **economy-designer:** the LV median sits at the top edge of `lvD1 [12,14]`. Trial `killXP` .80 in LS2.
+  5. **qa-tester:** mutate-check the economy and stages tests. Only the D29 and first-kill tests were watched failing.
+  6. **Note (D28 class):** a resume to a checkpoint before a first kill loses that +100 from the run's `G.bio`; the profile's `meta.bio` keeps it, and the replayed kill pays nothing.
+  7. **ui-programmer (S4, pre-existing, not G's):** on the pause screen the MUTATIONS panel overprints ABANDON SHIP and MUSIC (art-director, seen in `ls1-g-long4-pause-gluttony.png`).
+  8. **audio (optional):** the FIRST KILL payout has no sound of its own; the midboss roar covers it.
+  9. **systems-designer + qa-lead, the other LS1 exit gaps G measured (producer):**
+     - **Grades:** only Open Orbit is shown with a mortal bot (A vs A). Biome and Drive grades need the same mortal-bot fix as item 1.
+     - **Wall time:** the 90-120 s biome band is an LS1 exit criterion, and biome B misses it (76-82 s; biome A 76-89 s). This is its own gap, not only a cause in item 1.
+     - **D2/D3 biomass bands** (2100-2400 / 2600-3600) were never measured (economy-designer).
+     - **Drive fight:** 37-53 s against 30-45 s. Measured only; a risk for LS2 banding.
+     - **Spawn density:** biome stages land at 47-62 against 55-70, with one 114 outlier.
+  10. **gameplay-programmer (technical-director):** `econId()` is the one impure call in `economy.ts`: it reads `layout()` at call time, so a `setLayout()` mid-run would change the economy entry mid-descent. `setLayout`'s contract already forbids that (only before `newGame()`). Add an assert or a comment at `econId()`.
 
 ### Sprint 3 closeout: flip the default
 
@@ -283,6 +299,7 @@ With the recommended Q20 answer, M lands early in LS2 rather than at LS1 closeou
 - [ ] Set LAB → layout LONG on the title screen (D2), one descent. Does a stage feel like a Gradius stage or like padding? Two midbosses per biome stage: too many fights? (Orbit has only the Saucer and the Drive approach none in this build.)
 - [ ] Kill the app after the first midboss, then reopen and RESUME. Did you land where you expected?
 - [ ] **Q2, the checkpoint:** optionally set LAB → checkpoint RESTART and die once. Resume point only (a), or Gradius restart on death (b)? While there, pause and ABANDON SHIP once: the run is kept and RESUME appears on the title. Does the name ABANDON SHIP still fit, or does it need new wording or a separate path that ends the run? (The quit-to-resume undo is already accepted as known, D28.)
+- [ ] **Long-stage economy (LS1-G, creative-director):** on a returning profile at the Descent 1 Infirmary, can you afford one meaningful buy per visit at the long stages' ×0.65 biomass? And on the phone, does the green FIRST KILL +100 pop read in motion over the gore burst?
 - [ ] **Q20:** flip long to the default now with one Orbit midboss, or wait for the derelict tug?
 - [ ] Answer the spec's Q1, Q3, Q7, Q9-Q12 and Q17. Approve or edit the Pillar 4 text.
 
