@@ -12,7 +12,7 @@ import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
-import { econId, killBio, killXP } from '../economy';
+import { econId, firstKillPay, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { ufoKilled, updUfo } from './ufo';
@@ -778,6 +778,7 @@ export function killEnemy(e, dir = 1) {
     splat(rr(150, 330), rr(60, 160), 3);
     banner({ choir: 'SILENCED', cyst: 'BURST', prentice: 'CLEAVED', brood: 'STILLBORN', ufo: 'CALAMARI SERVED' }[e.k], '', undefined, 90);
     if (e.k === 'ufo') ufoKilled(e);
+    firstKill(e);
     $.G.hitstop = Math.max($.G.hitstop || 0, 10);
     sfx.roar();
   }
@@ -891,6 +892,16 @@ export function miniReward(e) {
   });
   $.G.bio += 30 * deepPay();
   $.meta.bio += 30 * deepPay();
+}
+/** spec §6.4: the first kill of each midboss kind ever pays the entry's firstKill biomass once, recorded in meta.mbK
+ *  (saved with the meta at the next save()). short pays 0 and writes nothing, so today's game is unchanged. No R() */
+function firstKill(e) {
+  const m = $.meta, pay = firstKillPay(econId(), m.mbK, e.k);
+  if (!pay) return;
+  (m.mbK ||= {})[e.k] = 1;
+  $.G.bio += pay;
+  m.bio += pay;
+  pop(e.x, e.y - 28, 'FIRST KILL +' + pay, '#9effa0', 9, 70);
 }
 export function dropCap(x, y) {
   const blue = R() < .07;

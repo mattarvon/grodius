@@ -131,7 +131,16 @@ describe('save v3', () => {
     expect($.meta.v).toBe(3);
     expect($.meta.best).toEqual({});
     expect($.meta.mb).toEqual({});
+    expect($.meta.mbK).toEqual({});
     expect($.meta.bestV2).toBeUndefined();
+  });
+
+  it('keeps the first-kill record meta.mbK and cleans a malformed one', async () => {
+    const blob = JSON.stringify({ meta: { bio: 1, lv: {}, v: 3, mbK: { cyst: 1, brood: '1', maw: 0, choir: 3 } } });
+    const { $ } = await load({ 'grodius.v1': blob });
+    expect($.meta.mbK).toEqual({ cyst: 1, choir: 1 });
+    const arr = await load({ 'grodius.v1': JSON.stringify({ meta: { bio: 1, lv: {}, v: 3, mbK: [1] } }) });
+    expect(arr.$.meta.mbK).toEqual({});
   });
 
   it('cleans a malformed meta.mb instead of throwing', async () => {

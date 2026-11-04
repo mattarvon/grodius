@@ -18,6 +18,7 @@ $.meta = {
   rig: [],
   own: [],
   cl: {},
+  mbK: {}, // midboss kinds killed: {kind: 1} (spec §6.4 first-kill pay, once per profile); written by item G on long layouts
   mb: {}, // midbosses met: {kind: timesMet} (spec §6.3 weighting, §6.4 first-kill pay); written by item F
   v: 3
 };
@@ -85,6 +86,12 @@ try {
       const mb = d.meta && d.meta.mb, ok = mb && typeof mb === 'object' && !Array.isArray(mb) ? mb : {};
       $.meta.mb = {};
       for (const [k, n] of Object.entries(ok)) if (typeof n === 'number' && Number.isFinite(n) && n >= 1) $.meta.mb[k] = Math.floor(n);
+    }
+    {
+      // the first-kill record (LS1 item G): same cleaning as mb, stored as 1
+      const mk = d.meta && d.meta.mbK, ok = mk && typeof mk === 'object' && !Array.isArray(mk) ? mk : {};
+      $.meta.mbK = {};
+      for (const [k, n] of Object.entries(ok)) if (typeof n === 'number' && Number.isFinite(n) && n >= 1) $.meta.mbK[k] = 1;
     }
     $.hi = +d.hi || 0;
     SET.flashes = d.flashes !== false;

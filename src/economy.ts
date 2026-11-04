@@ -43,6 +43,8 @@ export interface EconEntry {
   killXP: number;
   /** kill biomass multiplier (the pods that kills drop; grade pay and Infirmary pay are not scaled) */
   killBio: number;
+  /** biomass paid once per profile for the first kill of each midboss kind (spec §6.4), recorded in meta.mbK; 0 = none */
+  firstKill: number;
   /** intra-descent depth: dep = loop + intra * ord / (n - 1) */
   intra: number;
   /** GLUTTONY graft thresholds (mutations.ts GM 'over' n: Maw + midboss kills) */
@@ -89,6 +91,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     xp: { a: 30, b: 45, c: 40 },
     killXP: 1,
     killBio: 1,
+    firstKill: 0, // today's game pays nothing and writes no kill record
     intra: 0, // depth is per descent only
     glut: [2, 4],
     d1Elite: null,
@@ -109,6 +112,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // LV 13±1 at the end of Descent 1 (pod-probe, item G). The spec's .75 start measured LV 12/14/12/12 (seeds 1-4,
     // the low edge of the band); x1 measured 13-14 (seeds 1-5)
     killXP: .85,
+    firstKill: 100, // spec §6.4; once per profile, so it is not in the steady-state D1 biomass bands
     killBio: .75, // *start*: one fewer long stage than long5 needs a smaller cut (pod-probe D1-D3 biomass, item G)
     intra: .35, // late Descent 1 would otherwise stay soft over a longer descent (depth-probe, playtest.mjs hits/min)
     glut: [3, 6], // ~5 midbosses per descent in LS1
@@ -128,6 +132,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     xp: { a: 40, b: 35, c: 40 },
     killXP: .75, // LV 4 / 8 after stages 1 / 2, LV 14±1 at the end of Descent 1 (pod-probe, LS3-0)
     killBio: .6, // Q12: holds purchases per Infirmary visit at 2-4 items
+    firstKill: 100, // spec §6.4
     intra: .35,
     glut: [3, 7], // ~9 Maw + midboss kills per descent
     d1Elite: { ord: 3, p: .05 }, // optional in spec §7: teaches elites before Descent 2 (stage 4 = biome slot 1)
@@ -184,6 +189,12 @@ export const killXP = (id: EntryId, base: number): number => base * E(id).killXP
 
 /** biomass for a kill pod worth `v` */
 export const killBio = (id: EntryId, v: number): number => v * E(id).killBio;
+
+/** first-kill biomass for midboss kind `k` given the profile's kill record `rec` (meta.mbK): the entry's pay, or 0
+ *  when the entry pays none or the kind is already recorded. The record is the guard against paying twice, so a kill
+ *  replayed after a resume (H) pays nothing */
+export const firstKillPay = (id: EntryId, rec: Readonly<Record<string, number>> | null | undefined, k: string): number =>
+  E(id).firstKill > 0 && !(rec && Object.hasOwn(rec, k) && rec[k]) ? E(id).firstKill : 0;
 
 /** depth for regular enemies and midbosses at stage ordinal `ord` of descent `loop`: equals `loop` at each descent's
  *  first stage (so Open Orbit in Descent 1 stays at 1x) and reaches loop + intra at its last. The Drive's own HP keeps

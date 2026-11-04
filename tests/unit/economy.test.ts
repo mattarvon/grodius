@@ -20,7 +20,7 @@ vi.mock('../../src/boss/update', () => ({ bossHitByShot: () => {} }));
 vi.mock('../../src/render/util', () => ({ drawChain: () => {}, drawHookTip: () => {}, light: () => {} }));
 
 const econ = await import('../../src/economy');
-const { ECON, HPM_TOL, d1EliteChance, descDepth, gluttonyN, gradeOf, gradePts, hpmCol, hpmTarget, killBio, killXP, livesAfterDrive, sealAt, stageXP } = econ;
+const { ECON, HPM_TOL, d1EliteChance, descDepth, firstKillPay, gluttonyN, gradeOf, gradePts, hpmCol, hpmTarget, killBio, killXP, livesAfterDrive, sealAt, stageXP } = econ;
 const { clearStage } = await import('../../src/stages');
 const perks = await import('../../src/perks');
 const { GM } = await import('../../src/mutations');
@@ -247,6 +247,21 @@ describe('long5 matches spec §7 (LS3-0)', () => {
   it('targets LV 4 / 8 after stages 1 / 2 and LV 14±1 at the end of Descent 1', () => {
     expect(ECON.long5.targets!.lvStage).toEqual({ 0: 4, 1: 8 });
     expect(ECON.long5.targets!.lvD1).toEqual([13, 15]);
+  });
+});
+
+describe('first-kill biomass (spec §6.4, LS1 item G)', () => {
+  it('pays 100 once per midboss kind on the long entries and nothing on short', () => {
+    expect(firstKillPay('short', {}, 'cyst')).toBe(0);
+    expect(firstKillPay('long4', {}, 'cyst')).toBe(100);
+    expect(firstKillPay('long5', undefined, 'brood')).toBe(100);
+  });
+  it('pays nothing for a kind already in the kill record, so a kill replayed after a resume cannot pay twice', () => {
+    expect(firstKillPay('long4', { cyst: 1 }, 'cyst')).toBe(0);
+    expect(firstKillPay('long4', { cyst: 1 }, 'brood')).toBe(100);
+  });
+  it('does not read an inherited key as a recorded kill', () => {
+    expect(firstKillPay('long4', {}, 'toString')).toBe(100);
   });
 });
 
