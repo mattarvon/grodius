@@ -282,7 +282,7 @@ With the recommended Q20 answer, M lands early in LS2 rather than at LS1 closeou
 - [ ] M1 + M2 on the short layout: the existing M2 questions (fire fun or mean, Drive length, hell-flash A/B).
 - [ ] Set LAB → layout LONG on the title screen (D2), one descent. Does a stage feel like a Gradius stage or like padding? Two midbosses per biome stage: too many fights? (Orbit has only the Saucer and the Drive approach none in this build.)
 - [ ] Kill the app after the first midboss, then reopen and RESUME. Did you land where you expected?
-- [ ] **Q2, the checkpoint:** optionally set LAB → checkpoint RESTART and die once. Resume point only (a), or Gradius restart on death (b)?
+- [ ] **Q2, the checkpoint:** optionally set LAB → checkpoint RESTART and die once. Resume point only (a), or Gradius restart on death (b)? While there, pause and ABANDON SHIP once: the run is kept and RESUME appears on the title. Does the name ABANDON SHIP still fit, or does it need new wording or a separate path that ends the run? (The quit-to-resume undo is already accepted as known, D28.)
 - [ ] **Q20:** flip long to the default now with one Orbit midboss, or wait for the derelict tug?
 - [ ] Answer the spec's Q1, Q3, Q7, Q9-Q12 and Q17. Approve or edit the Pillar 4 text.
 
