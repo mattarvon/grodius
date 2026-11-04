@@ -34,7 +34,7 @@ Screenshots: `ls1-f-d27/apprentice-long4-200hp.png`, `ls1-f-d27/apprentice-short
 ## Gates
 
 - `npm run typecheck`: clean.
-- `npx vitest run`: **431 passed** (midslot: 3 new; midboss-hp: 3 new, review round 1).
+- `npx vitest run`: **432 passed** (midslot: 3 new; midboss-hp: 4 new, review rounds 1-2).
 - `npm run build`: built.
 - `npm run test:regress`: **short PASS vs baseline @ 8ff9ba4; long4 PASS vs baseline @ 88d9525. No re-baseline.** The long4 bot dies in Open Orbit at scroll 3538, before any biome midboss, so the harness doesn't reach this change. The probe and the unit tests cover it.
 - `node tools/layout-parity.mjs`: **PARITY PASS**, short layout identical (runs 3, 6, 7, 11, 15, 3x3, 7m).
@@ -43,3 +43,14 @@ Screenshots: `ls1-f-d27/apprentice-long4-200hp.png`, `ls1-f-d27/apprentice-short
 
 - **systems-designer: APPROVE WITH NOTES.** Keep 200: the band is measured at the stage-1 kit, later kits only shorten fights, and depth HP scales the base, so the band holds at depth. The 9.1 s prediction scaled the TTK in proportion to HP, which ignores time the midboss can't be hit. The measured slope (+50 HP → +3.4 s, ~14.7 HP/s) matches spec §6.2's DPS. **Fixed:** the stale "near 9.1 s" comment in `MID_HP` now gives the measurement and the per-HP rate.
 - **gameplay-programmer: APPROVE WITH NOTES.** Correctness, determinism and short are fine: phase thresholds read `e.max` only in later steps, elites skip minis, the Choir's nailbars aren't affected, and a crossover Apprentice also gets 200. **Fixed:** the only unit test covered the pure helper. The new `tests/unit/midboss-hp.test.ts` calls the real `midboss()`: 200 on long4, 150 on short, an unlisted kind unchanged. **Watched failing** with the scale in `midboss()` removed (1 of 3 fails). Not taken: having `midHpMul` look up `ET` itself. `midslot.ts` imports only state and layout, to keep the boot-time module order, so the caller passes the base.
+
+## Review round 2 (leads and directors)
+
+- Leads: game-designer, lead-programmer, qa-lead, release-manager: APPROVE / APPROVE WITH NOTES. Art, audio and localization: no impact. Narrative: APPROVE.
+  - **Fixed:** spec §6.2's P0 DPS anchors are marked historical; tune from the probe (game-designer).
+  - Checked: `music.ts` has no fixed-length midboss cue, so a longer fight is fine (audio's caveat).
+- Directors:
+  - creative-director: SIGN OFF. Check the Apprentice's feel at the M2 playtest.
+  - technical-director: SIGN OFF WITH NOTES. **Fixed:** a Descent 3 test (`midboss-hp.test.ts`) checks the 200/150 ratio holds with depth HP on top.
+  - producer: SIGN OFF WITH NOTES. **Fixed:** build-plan carry-forward 3 is marked done, and carry-forward 5 notes that D27's long4 evidence is probe-only.
+- No formal `smoke-2026-11-03.md`: at `rigor: minimal` the gates section above is the smoke pass (qa-lead).

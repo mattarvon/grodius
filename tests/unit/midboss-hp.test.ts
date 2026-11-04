@@ -14,10 +14,10 @@ vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: () => {} }));
 const { midboss, ET } = await import('../../src/enemies/spawn');
 const L = await import('../../src/layout');
 
-/** spawn kind k as a midboss in Descent 1 (no depth HP) on layout id; returns the enemy */
-function meet(id: 'short' | 'long4', k: string) {
+/** spawn kind k as a midboss in Descent loop+1 (Descent 1: no depth HP) on layout id; returns the enemy */
+function meet(id: 'short' | 'long4', k: string, loop = 0) {
   L.setLayout(id);
-  $.G = { loop: 0, st: { spawned: 0 }, mini: null };
+  $.G = { loop, stage: 1, st: { spawned: 0 }, mini: null };
   $.meta = {};
   enemies.length = 0;
   midboss(k, 'TEST');
@@ -43,5 +43,12 @@ describe('midboss() base HP per layout (D27)', () => {
   it('leaves a kind outside MID_HP at its ET HP on long4', () => {
     const e = meet('long4', 'cyst');
     expect(e.hp).toBe(ET.cyst.hp);
+  });
+
+  it('keeps the 200 / 150 ratio in Descent 3, so depth HP still multiplies on top', () => {
+    const short = meet('short', 'prentice', 2), long = meet('long4', 'prentice', 2);
+    expect(short.hp).toBeGreaterThan(150); // depth (and loop) HP applied
+    expect(long.hp / short.hp).toBeCloseTo(200 / 150, 9);
+    expect(long.max).toBe(long.hp);
   });
 });

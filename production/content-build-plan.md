@@ -144,9 +144,10 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
      - the Apprentice to ~200 HP, re-measured with `midboss-probe`;
      - spec §3.1 and §6.2 edits.
      It moves short parity unless it is gated per layout. It is its own story with its own studio review, after F merges.
+     **Done 2026-11-03 (branch `ls1-f-d27`):** gated per layout (`src/midslot.ts` `MID_HP`, picker layouts only), so short parity holds. The Apprentice is 200 on long4 and measures 10.2 s. Spec §3.1 and §6.2 are edited. Full studio review passed.
      G took item 2 (first-kill +100) as a per-profile payout in its own `meta.mbK`. It is gated per economy entry, so short pays 0, and `killBio` stays tuned on the steady-state run. G reports wall times with an invincible bot only: its new mortal bot game-overs in long4's first biome on all 5 seeds. Invincible long4 D1 tallies: Orbit 77-80 s, biome A 76-89 s, biome B 69-82 s, Drive 77-93 s. Both biome stages are under the 90-120 s exit band.
   4. **gameplay-programmer follow-up:** extend §3.2 rule 2 to the stage boss's WARNING (it must wait while `G.mini` is up). Must land before any DRIFT kind enters a biome pool (the Calving Shelf) or LS2-orbit, whichever comes first.
-  5. **QA:** raise carry-forward 10 (long4 harness coverage past Orbit). F is the first large sim change past Orbit on the default layout, and the harness cannot see it. It should land before G stacks on top.
+  5. **QA:** raise carry-forward 10 (long4 harness coverage past Orbit). F is the first large sim change past Orbit on the default layout, and the harness cannot see it. It should land before G stacks on top. D27 (the Apprentice at 200 on long4) is now tuning that rests only on `midboss-probe` and unit tests for the same reason.
   6. **Art/UX:** the WARNING banner and the midboss name over the HP bar are low-contrast on warm biomes (the Furnace, the Sinus). F doubles how often players see them. Give them a dark backing or outline.
   7. **Audio:** `src/sfx/stinger/` has one clip, and there are now two midboss WARNINGs per biome stage. Add variants or listen for fatigue in playtest.
   8. **Writer (D8):** optional crossover log lines; some midboss names read oddly outside their home biome (to settle when Matt names the wave-1 roster).
