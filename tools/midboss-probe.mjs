@@ -9,10 +9,14 @@
 //        stage-relative x 1000 (matrix: 1000 / 1400 / 1800 / 2200), and the Saucer at ufoAt() + 150.
 //        --leave <frames> spawns every midboss on that leave clock instead of today's 1400 f (LS1-F: the long4 slot
 //        clocks are 1080 for slot A and 1260 for slot B, src/midpick.ts MID_CLOCK); the Saucer keeps its forced exit.
+//        --ord <stage> sets G.stage to that stage ordinal just before the spawn, so depth HP and fire cadence read it
+//        (LS1-G: long4's intra-descent depth; --ord 2 = biome slot B's depth on slot A's terrain). Off: the fight's own stage.
 //  TTK = seconds from the midboss being on screen to dead; "esc" = it left (escape timer) first
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const li = process.argv.indexOf('--leave'), LEAVE = li >= 0 ? +process.argv.splice(li, 2)[1] : 1400;
+const oi = process.argv.indexOf('--ord'), ORD = oi >= 0 ? +process.argv.splice(oi, 2)[1] : null;
+if (ORD != null && !(ORD >= 0)) { console.error('--ord needs a stage ordinal, e.g. --ord 2'); process.exit(2); }
 if (!(LEAVE > 0)) { console.error('--leave needs a frame count, e.g. --leave 1080'); process.exit(2); }
 const argv = process.argv.slice(2), MATRIX = argv[1] === 'matrix';
 const [url, SHOTS, ZOOM] = MATRIX ? [argv[0], argv[2]] : argv;
@@ -29,7 +33,7 @@ const L = [
 ];
 const MIDS = [['maw', 'acid'], ['choir', 'ice'], ['cyst', 'acid'], ['prentice', 'fire'], ['brood', 'snot'], ['ufo', null]];
 // one loadout + biome, midboss spawned; returns a frame stepper with the bot attached
-const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => p.evaluate(async ([pw, gm, pkk, k, biome, host, at, LEAVE]) => {
+const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => p.evaluate(async ([pw, gm, pkk, k, biome, host, at, LEAVE, ORD]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
   const UF = await import('/src/enemies/ufo.ts'), LY = await import('/src/layout.ts');
@@ -53,6 +57,7 @@ const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => p.evaluate(async 
   W.enemies.length = 0; W.eshots.length = 0; W.caps.length = 0; W.shots.length = 0;
   const sv = $.G.scroll; ST.step(); $.G.scroll = sv;
   W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
+  if (ORD != null) $.G.stage = ORD;
   if (k === 'maw') SP.maw(false); else if (k === 'ufo') { $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(undefined, LEAVE); } else SP.midboss(k, BI.MID_NAMES[k], host, LEAVE); // its own name, wherever it fights
   window.__mb = { $, ST, C, W, f: 0, t0: -1 };
   window.__mbStep = (n) => {
@@ -69,7 +74,7 @@ const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => p.evaluate(async 
     return null;
   };
   return +$.G.rank.toFixed(2);
-}, [pw, gm, pkk, k, biome, host, at, LEAVE]);
+}, [pw, gm, pkk, k, biome, host, at, LEAVE, ORD]);
 if (MATRIX) await matrix();
 const out = {}, rank = {};
 for (const [name, pw, gm, pkk] of L) {
