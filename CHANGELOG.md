@@ -2,6 +2,10 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-03 (a tougher Apprentice)
+
+- On the long stages, THE BUTCHER'S APPRENTICE is tougher (150 → 200 HP), so its fight lasts about as long as the other midbosses' (about 10 s with a first-stage build, was about 7 s). The short descent in the LAB row is unchanged.
+
 ## 2026-11-02 (long stages, two midbosses per biome)
 
 - Stages are long now, closer to classic Gradius length. Open Orbit runs about 80 s, each biome stage about a minute of flying plus its fights, and the Gravity Drive approach about 45 s. The old short descent is still in the LAB row on the title screen (and `?layout=short` on the web) while the long one is tested.

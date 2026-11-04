@@ -8,7 +8,7 @@ import { startBoss } from '../boss/update';
 // not the bundle, so a removal that breaks the built game would pass every gate.
 import { ufoWarn } from './ufo';
 import { depthHP } from '../depth';
-import { fillerQuiet, meetMid } from '../midslot';
+import { fillerQuiet, meetMid, midHpMul } from '../midslot';
 
 // ---------------- enemies ----------------
 export const ET = {
@@ -324,6 +324,8 @@ export function maw(stageBoss = false) {
  *  leave clock in frames: the short layout's 1400, or the picker's slot clock (midpick.ts MID_CLOCK, spec §6.4) */
 export function midboss(k, title, host?, leave = 1400) {
   const e = mk(k, W + 50, k === 'prentice' ? PH * .42 : PH / 2, { title, tx: W - 92, st: 'idle', wt: 0, cool: 110, att: 0, ba: -2.3, leave, host });
+  const hm = midHpMul(k, ET[k].hp); // D27: long4's per-kind TTK band (midslot.ts MID_HP); 1 on short
+  if (hm !== 1) { e.hp *= hm; e.max = e.hp; }
   meetMid(k);
   if (k === 'choir') e.bars = [0, 1].map(i => mk('nailbar', e.x, e.y, { par: e, ox: 0, oy: 0, i, hpm: 1.6 }));
   $.G.mini = e;
