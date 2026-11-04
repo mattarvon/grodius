@@ -1,0 +1,113 @@
+{
+  "layout": "long4",
+  "stage": 1,
+  "cp": 0,
+  "seed": 7,
+  "death": false,
+  "reachedAt": 5190,
+  "cpX": 4260.29229581533,
+  "scriptLeft": 37,
+  "xs": [
+    4140,
+    4260,
+    4500,
+    4860,
+    6030,
+    7600
+  ],
+  "reloadAt": 4538.059255553703,
+  "resumeDraws": 0,
+  "checked": {
+    "lives": 2,
+    "prog": {
+      "score": 129080,
+      "lvl": 5,
+      "xp": 76,
+      "xpTot": 364,
+      "pk": {
+        "reload": 1,
+        "tiny": 2,
+        "inv": 1
+      },
+      "gm": {
+        "spore": 1,
+        "rapid": 0,
+        "pierce": 0,
+        "serr": 0,
+        "cal": 0,
+        "over": 1
+      },
+      "kk": {
+        "drone": 47,
+        "corpse": 15,
+        "sentry": 9,
+        "hatch": 38,
+        "flayer": 9,
+        "maw": 2
+      },
+      "gmk": 120,
+      "bio": 563,
+      "kills": 120,
+      "maxCombo": 88,
+      "seal": 0,
+      "cleared": 1
+    },
+    "load": {
+      "speed": 2,
+      "missile": 1,
+      "double": 1,
+      "laser": 0,
+      "pyre": 0,
+      "options": 1,
+      "shield": 1.9800000000000002,
+      "wardLv": 1,
+      "aegis": 0,
+      "frag": [
+        0,
+        0,
+        0,
+        null,
+        null,
+        0,
+        0
+      ]
+    },
+    "mb": {
+      "0": [
+        "ufo"
+      ],
+      "1": [
+        "choir",
+        "cyst"
+      ]
+    },
+    "mbUsed": [
+      "ufo",
+      "choir",
+      "cyst"
+    ],
+    "mbLast": {
+      "orbit": [
+        "ufo"
+      ],
+      "ice": [
+        "choir",
+        "cyst"
+      ]
+    }
+  },
+  "terrainDiff": [
+    "4140: 0 px",
+    "4260: 0 px",
+    "4500: 0 px",
+    "4860: 0 px",
+    "6030: 0 px",
+    "7600: 0 px"
+  ],
+  "after": {
+    "state": "play",
+    "scroll": 4339.29229581533,
+    "alive": true
+  },
+  "fails": []
+}

@@ -1,0 +1,34 @@
+{
+  "layout": "long4",
+  "stage": 1,
+  "cp": 0,
+  "seed": 7,
+  "death": false,
+  "reachedAt": 5190,
+  "cpX": 4260.29229581533,
+  "scriptLeft": 36,
+  "xs": [
+    4140,
+    4260,
+    4500,
+    4860,
+    6030,
+    7600
+  ],
+  "reloadAt": 4538.059255553703,
+  "resumeDraws": 0,
+  "terrainDiff": [
+    "4140: 0 px",
+    "4260: 0 px",
+    "4500: 0 px",
+    "4860: 0 px",
+    "6030: 0 px",
+    "7600: 0 px"
+  ],
+  "after": {
+    "state": "play",
+    "scroll": 4339.29229581533,
+    "alive": true
+  },
+  "fails": []
+}

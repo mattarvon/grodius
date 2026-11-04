@@ -1,0 +1,132 @@
+{
+  "layout": "long4",
+  "stage": 2,
+  "cp": 0,
+  "seed": 3,
+  "death": false,
+  "reachedAt": 10320,
+  "cpX": 8009.314122670578,
+  "scriptLeft": 33,
+  "xs": [
+    7889,
+    8009,
+    8249,
+    8609,
+    9780,
+    11350
+  ],
+  "reloadAt": 8287.08108240895,
+  "resumeDraws": 0,
+  "checked": {
+    "lives": 2,
+    "prog": {
+      "score": 221215,
+      "lvl": 9,
+      "xp": 65,
+      "xpTot": 795,
+      "pk": {
+        "greed": 1,
+        "glass": 1,
+        "pierce": 1,
+        "crit": 2,
+        "magnet": 1,
+        "spd": 1,
+        "rof": 1
+      },
+      "gm": {
+        "spore": 1,
+        "rapid": 0,
+        "cal": 1,
+        "over": 0,
+        "serr": 0,
+        "pierce": 0
+      },
+      "kk": {
+        "drone": 79,
+        "corpse": 21,
+        "sentry": 11,
+        "hatch": 34,
+        "flayer": 11,
+        "maw": 4,
+        "mutant": 8,
+        "cross": 6,
+        "eye": 3,
+        "nailbar": 6,
+        "crux": 1
+      },
+      "gmk": 184,
+      "bio": 1356.1500000000003,
+      "kills": 184,
+      "maxCombo": 61,
+      "seal": 1,
+      "cleared": 2
+    },
+    "load": {
+      "speed": 2,
+      "missile": 1,
+      "double": 1,
+      "laser": 0,
+      "pyre": 0,
+      "options": 1,
+      "shield": 1,
+      "wardLv": 1,
+      "aegis": 0,
+      "frag": [
+        0,
+        0,
+        0,
+        null,
+        null,
+        0,
+        0
+      ]
+    },
+    "mb": {
+      "0": [
+        "ufo"
+      ],
+      "1": [
+        "choir",
+        "brood"
+      ],
+      "2": [
+        "cyst",
+        "prentice"
+      ]
+    },
+    "mbUsed": [
+      "ufo",
+      "choir",
+      "brood",
+      "cyst",
+      "prentice"
+    ],
+    "mbLast": {
+      "orbit": [
+        "ufo"
+      ],
+      "ice": [
+        "choir",
+        "brood"
+      ],
+      "acid": [
+        "cyst",
+        "prentice"
+      ]
+    }
+  },
+  "terrainDiff": [
+    "7889: 0 px",
+    "8009: 0 px",
+    "8249: 0 px",
+    "8609: 0 px",
+    "9780: 0 px",
+    "11350: 0 px"
+  ],
+  "after": {
+    "state": "play",
+    "scroll": 8088.314122670578,
+    "alive": true
+  },
+  "fails": []
+}

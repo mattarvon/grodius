@@ -3,7 +3,9 @@ import { $ } from './state';
 import { SET, UPG, exportSave, importSave, lv, save } from './save';
 import { auInit, sample, setMute, sfx } from './audio';
 import { I } from './input';
-import { newGame, openShop, shopNext, startLoop } from './flow';
+import { newGame, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
+import { runInfo } from './runsave';
+import { setLayout } from './layout';
 import { RIG, RIG_BY, SOCKET_COST, rigInit, rigged, sockets } from './contraptions';
 import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, setLab } from './lab';
 
@@ -37,7 +39,14 @@ export function titleItems() {
   }));
   if (titleSub === 'opt') return optionItems();
   if (titleSub === 'lab') return labItems();
-  return [{
+  const ri = runInfo();
+  return [...(ri ? [{
+    // item H: the last checkpoint (one slot). First while it exists; the harness and probes clear storage at boot,
+    // so DESCEND stays row 0 for them
+    l: 'RESUME',
+    r: `STAGE ${ri.loop + 1}-${ri.stage + 1}` + (ri.layout && ri.layout !== activeLayout().id ? ' ' + layoutName(ri.layout) : ''),
+    a: () => { resumeLast(); }
+  }] : []), {
     l: 'DESCEND',
     a: () => {
       startRun();
@@ -63,6 +72,7 @@ export function titleItems() {
 }
 /** start a run on the layout the LAB / URL chose (setLayout contract: before newGame()) */
 function startRun(loop?) {
+  if (resumedFrom != null) setLayout(resumedFrom); // a RESUME flew the checkpoint's layout: a new run flies the chosen one
   applyRunLayout();
   newGame(loop);
 }

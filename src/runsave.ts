@@ -5,11 +5,12 @@
 // fields. Nothing here is wired to a trigger yet: H adds CP0/CP1, the Android pause re-write and RESUME.
 // One slot, under its own key, separate from the meta save (grodius.v1) so a bad run blob can never cost meta.
 import { $ } from './state';
-import { nSlots } from './layout';
+import { LAYOUTS, lastStage, layout, nSlots, setLayout } from './layout';
+import { HOME, MIDS } from './midpick';
 
 export const RUN_KEY = 'grodius.run';
 /** bump when the allowlist changes meaning; a blob with any other version is discarded, never migrated */
-export const RUN_V = 1;
+export const RUN_V = 2; // 2: item H wired it (pickQ, boostReq, cpN, stT; seal stored as earned)
 
 const isInt = (v) => Number.isInteger(v);
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -22,6 +23,16 @@ const isNat = (v) => isInt(v) && v >= 0; // counts, levels, indices: a negative 
 // table would swap that copy's prototype
 const isNumMap = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.values(v).every(isNum);
 const plain = (v) => isObj(v) || Array.isArray(v); // JSON-able container (deep-cloned on the way in and out)
+// Kinds the restore indexes by name, checked here so a save that decodes always rebuilds (sprint 3 H review,
+// lead-programmer): an unknown biome would throw at BIOMES[b].remix, an unknown midboss at biomes.ts midName. The
+// tables are midpick.ts's (no imports, so the boot-time module order is unchanged); tests/unit/midslot.test.ts keeps
+// MIDS and HOME in step with biomes.ts BIOMES and its mids, and runsave.test.ts checks HOME covers BIOME_KEYS
+const isBiome = (v) => isStr(v) && Object.hasOwn(HOME, v);
+const isMid = (v) => isStr(v) && Object.hasOwn(MIDS, v);
+const isMidArr = (v) => Array.isArray(v) && v.every(isMid);
+// {key: kind[]} tables: the midboss picks by stage (G.mb) and each stage's previous pair (G.mbLast).
+// An own __proto__ key is refused (as isNumMap)
+const isMidMap = (v, key = (k) => true) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entries(v).every(([k, a]) => key(k) && isMidArr(a));
 
 // $.G fields. A field that is absent on G is simply not written (and not restored), so fields owned by lanes not
 // merged yet (layout, seed, remixV, visitNo, the midboss/set-piece sets, picks) cost nothing until they exist.
@@ -29,8 +40,10 @@ const plain = (v) => isObj(v) || Array.isArray(v); // JSON-able container (deep-
 const G_FIELDS = {
   // position in the run
   loop: isNat,
-  stage: isNat, // upper bound is the layout's stage count, checked by item H against the restored layout (LS1-A)
-  cpX: isNum, // checkpoint world x (item H sets it)
+  stage: isNat, // upper bound: the blob's own layout's last stage (decodeRun, under decodeRunAs's layout switch)
+  cpX: isNum, // checkpoint scroll x: the resume skips script entries up to it (src/checkpoint.ts)
+  cpN: (v) => v === 0 || v === 1, // which checkpoint of the stage: CP0 (stage start) or CP1 (after midboss A)
+  stT: isNum, // frames into the stage at the checkpoint (G.t - st.t0): the resume rebases st.t0 on its own G.t
   layout: isStr, // layout id; a blob from another layout is discarded by H (spec §4, D2)
   seed: isNum, // production run seed (item B2)
   // bx: where each biome's terrain/script starts and where the second biome hands back. Player-timed, so it cannot
@@ -41,15 +54,21 @@ const G_FIELDS = {
   gm: isNumMap, kk: isNumMap, gmk: isNat,
   cur: (v) => isInt(v) && v >= -1, // classic POWER meter cursor (player.ts:105); -1 = nothing lit
   lives: isNat, score: isNum, bio: isNum, kills: isNat, maxCombo: isNat,
-  seal: isNat, cleared: isNat,
+  seal: isNat, cleared: isNat, // seal is written as earned by `cleared` (checkpoint.ts): a queued seal closure is not lost
+  // rewards still pending at the checkpoint (H entry criterion 1): queued level-up picks, the biome boost offer
+  pickQ: isNat, boostReq: isStrOrNull,
   // route and freshness
-  route: (v) => Array.isArray(v) && v.length === nSlots() && v.every(isStrOrNull), // one per biome slot (layout.ts)
+  route: (v) => Array.isArray(v) && v.length === nSlots() && v.every((b) => b === null || isBiome(b)), // one per biome slot (layout.ts)
   bvis: isNumMap,
   visited: (v) => Array.isArray(v) && v.every(isStr),
   seenV: isNat,
   remix: plain, // today one object shared by pickV (per-section {used,last}) and choose() (slot -> visit no.)
   remixV: plain, visitNo: plain, // LS1-A splits remix into these two
-  mbUsed: plain, mbSeen: plain, spUsed: plain, intRot: plain, // midboss used/seen, set-piece used, interior rotation
+  // the midboss picker (item F, src/biomes.ts stageMids): each stage's pair, picked ONCE from midStream(i) and read
+  // back on a rebuild, so a resume places the same pair (re-picking would follow meta.mb, which meeting it changed);
+  // what this descent has met (spec §6.3 step 2); each biome's previous pair (step 3, kept across descents)
+  mb: (v) => isMidMap(v, (k) => /^\d+$/.test(k)), mbUsed: isMidArr, mbLast: isMidMap, // keyed by biome or by a fixed row's kind (fixedMids): only the kinds are checked
+  mbSeen: plain, spUsed: plain, intRot: plain, // midboss seen, set-piece used, interior rotation (reserved)
   picks: isObj, // this stage's picks: midboss pair, set-piece ids, movement-B variant (items F, D, H)
   st: isObj, // stage stats as they stood at the checkpoint (grade inputs)
 };
@@ -95,6 +114,7 @@ export function decodeRun(s) {
     const d = typeof s === 'string' ? JSON.parse(s) : s;
     if (!isObj(d) || d.v !== RUN_V || !valid(G_FIELDS, d.g) || !valid(P_FIELDS, d.p || {})) return null;
     if (!REQUIRED_G.every((k) => d.g[k] !== undefined)) return null;
+    if (d.g.stage > lastStage()) return null; // H entry criterion 2: a stage the (blob's) layout doesn't have
     return { v: d.v, g: d.g, p: d.p || {} };
   } catch (e) {
     return null;
@@ -109,28 +129,74 @@ export function applyRun(d, G = $.G, P = $.P) {
 }
 
 // ---- the one slot in localStorage. Every access is guarded: a missing or full storage never throws into the game.
-/** store the current run state under grodius.run; false if storage refused it or the state would not read back
- *  (JSON turns NaN/Infinity into null), in which case the previous checkpoint is left standing */
-export function writeRun(G = $.G, P = $.P) {
+// `last` is the slot's in-memory copy (the JSON last stored or read): the title's RESUME row and the Android pause
+// re-write read it, never storage, so no draw code touches localStorage
+let last = null, info = null;
+const remember = (s, d) => { last = s; info = s && d ? { loop: d.g.loop, stage: d.g.stage, layout: d.g.layout } : null; };
+
+/** decodeRun under the blob's OWN layout: route and bx are sized by nSlots() and stage is bounded by lastStage(), so
+ *  the active entry is switched to the blob's layout before the check (a long4 save read on a short boot must not be
+ *  discarded, nor the reverse). It is switched back afterwards unless `keep` (the resume flies that layout). A layout
+ *  id that names no entry discards the blob. Never throws */
+export function decodeRunAs(s, keep = false) {
+  let raw;
+  try { raw = typeof s === 'string' ? JSON.parse(s) : s; } catch (e) { return null; }
+  const id = isObj(raw) && isObj(raw.g) ? raw.g.layout : undefined, prev = layout().id;
+  if (id !== undefined && !(isStr(id) && Object.hasOwn(LAYOUTS, id))) return null;
+  if (id !== undefined) setLayout(id);
+  const d = decodeRun(raw);
+  if (!keep || !d) setLayout(prev);
+  return d;
+}
+
+/** the run state as the JSON writeRun would store, or null when it would not read back (JSON turns NaN/Infinity
+ *  into null) */
+export function encodeRun(G = $.G, P = $.P) {
   try {
-    const s = JSON.stringify(serializeRun(G, P));
-    if (!decodeRun(s)) return false;
+    const s = JSON.stringify(serializeRun(G, P)), d = decodeRun(s);
+    return d ? s : null;
+  } catch (e) {
+    return null;
+  }
+}
+/** store an encoded run under grodius.run (and as the in-memory copy); false if storage refused it */
+export function storeRun(s) {
+  remember(s, decodeRun(s));
+  try {
     localStorage.setItem(RUN_KEY, s);
     return true;
   } catch (e) {
     return false;
   }
 }
-/** the stored run save, or null. A bad or old-version blob is removed so RESUME never offers it again */
+/** store the current run state under grodius.run; false if storage refused it or the state would not read back,
+ *  in which case the previous checkpoint is left standing */
+export function writeRun(G = $.G, P = $.P) {
+  const s = encodeRun(G, P);
+  return s ? storeRun(s) : false;
+}
+/** the stored run save, or null. Validated under its own layout (decodeRunAs). A bad or old-version blob is removed
+ *  so RESUME never offers it again */
 export function readRun() {
   let s = null;
   try { s = localStorage.getItem(RUN_KEY); } catch (e) { return null; }
-  if (s == null) return null;
-  const d = decodeRun(s);
+  if (s == null) { remember(null); return null; }
+  const d = decodeRunAs(s);
   if (!d) clearRun();
+  else remember(s, d);
   return d;
+}
+/** the last checkpoint's JSON (stored or read this session), or null */
+export const lastRun = () => last;
+/** what RESUME would rebuild: { loop, stage, layout } of the last checkpoint, or null (no storage access) */
+export const runInfo = () => info;
+/** Android pause: write the LAST CHECKPOINT again, never live state (spec §4) */
+export function rewriteRun() {
+  if (!last) return false;
+  try { localStorage.setItem(RUN_KEY, last); return true; } catch (e) { return false; }
 }
 /** drop the run save (game over, descent end, new game) */
 export function clearRun() {
+  remember(null);
   try { localStorage.removeItem(RUN_KEY); } catch (e) {}
 }

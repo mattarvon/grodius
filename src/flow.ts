@@ -2,6 +2,7 @@
 import { $ } from './state';
 import { PH, R, clamp, dist2, pick, ri, rr, swapRm } from './core';
 import { lv, save } from './save';
+import { applyRun } from './runsave';
 import { sfx } from './audio';
 import { buzz } from './platform';
 import { ALL, buildTerrain, ceilAt, eshots, floorAt } from './world';
@@ -15,12 +16,17 @@ import { resetContraptions, rigFresh } from './contraptions';
 import { shipShed } from './shipform';
 import { nSlots } from './layout';
 import { newRunSeed } from './rng';
+import { setLayout, layout } from './layout';
+import { clearRun, decodeRunAs, lastRun } from './runsave';
+import { stageBanner } from './stages';
+import { CP, cp1X, writeCp } from './checkpoint';
+import { rebuildAt } from './stagebuild';
+import { cpTrigger } from './lab';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
-export function newGame(startL = 0) {
-  $.P = null;
-  $.G = {
+/** a fresh run's G before the run seed (newGame adds it; a resume restores the stored one) */
+const baseG = () => ({
     score: 0,
     loop: 0,
     lives: 2 + lv('hull'),
@@ -51,11 +57,94 @@ export function newGame(startL = 0) {
     gmk: 0,
     pend: [],
     warn: [],
-    feed: null,
+    feed: null
+  });
+export function newGame(startL = 0) {
+  clearRun(); // a new game drops the old checkpoint (spec §4); this run's CP0 replaces it at its first safe step
+  resumedFrom = null;
+  $.P = null;
+  $.G = {
+    ...baseG(),
     seed: newRunSeed(R) // the run seed (B2): every stage build draws from a stream hashed from it (src/rng.ts); kept in the run save
   };
   perksReset();
   startLoop(startL);
+}
+/** the layout that was active before RESUME switched to the checkpoint's (menus.ts restores it at the next DESCEND) */
+export let resumedFrom = null;
+/** the last checkpoint, decoded under its own layout, which is left ACTIVE (a resume flies it), or null */
+function lastCp() {
+  const s = lastRun();
+  const d = s && decodeRunAs(s, true);
+  return d && typeof d.g.seed === 'number' && typeof d.g.cpX === 'number' && typeof d.g.layout === 'string' && (d.g.cpN === 0 || d.g.cpN === 1) ? d : null;
+}
+/** RESUME on the title: rebuild the run at its last checkpoint. False (and the slot dropped) if it isn't resumable */
+export function resumeLast() {
+  const prev = layout().id, d = lastCp();
+  if (!d) { setLayout(prev); clearRun(); return false; }
+  const from = resumedFrom;
+  if (resumedFrom == null) resumedFrom = prev;
+  if (tryResume(d)) return true;
+  setLayout(prev); // a failed resume leaves the title as it was, on the layout it had, with no RESUME row
+  resumedFrom = from;
+  $.menuSel = 0;
+  return false;
+}
+/** resumeRun, but a throw never wedges the title or the death restart (sprint 3 H review, lead-programmer): a save
+ *  decodeRun accepts should always rebuild, so a throw means a bad save or a bug; the slot is dropped and $.G, $.P
+ *  and the screen are put back as they were. runsave.ts validates the kinds the rebuild indexes; this is the backstop */
+function tryResume(d) {
+  const G0 = $.G, P0 = $.P, st0 = $.state;
+  try {
+    resumeRun(d);
+    return true;
+  } catch (e) {
+    console.error('resume failed; checkpoint dropped', e);
+    clearRun();
+    $.G = G0;
+    $.P = P0;
+    $.state = st0;
+    return false;
+  }
+}
+/** rebuild the run from a decoded checkpoint whose layout is active (spec §4 "How it restores"): a fresh G and ship,
+ *  the stored fields over them, the terrain and this stage's script rebuilt from the stored seed, loop, route,
+ *  visitNo, remixV and bx (stagebuild.ts rebuildAt), entries up to cpX skipped, and the scroll CP.lead before cpX.
+ *  Live enemies, shots, pods, timers and spawn-time rolls are not reproduced. Draws no sim R() */
+export function resumeRun(d) {
+  $.P = null;
+  $.G = baseG();
+  perksReset();
+  biomeReset(); // before applyRun: it resets G.bx
+  resetPlayer(false); // before applyRun, or the stored loadout has no ship to land on (H entry criterion 3)
+  applyRun(d);
+  const G = $.G, P = $.P;
+  G.pend = [];
+  G.warn = [];
+  G.scrollSpeed = 1;
+  G.bossStarted = false;
+  G.boss = null;
+  G.clearT = 0;
+  G.t = 0;
+  G.st = { kills: 0, spawned: 0, hits: 0, deaths: 0, chain: 0, ...(G.st || {}), t0: -(G.stT || 0) }; // the stage clock as it stood
+  G.logQ = [];
+  G.tally = null;
+  G.fork = null;
+  G.forkHold = false;
+  G.sealQ = null;
+  for (const a of ALL) a.length = 0;
+  resetContraptions();
+  rebuildAt(G.cpX);
+  G.scroll = Math.max(0, G.cpX - CP.lead);
+  // the next checkpoint of this stage: CP1 after a CP0, none after a CP1. CP0 is never re-written from here: its
+  // cpX would move back by the lead-in on every resume
+  G.cp1X = G.cpN === 0 ? cp1X(G.stage, G) : null;
+  G.cpWant = G.cp1X != null ? 1 : 2;
+  const wx = P.x + G.scroll;
+  P.y = clamp((floorAt(wx) + ceilAt(wx)) / 2, 30, PH - 30);
+  P.inv = CP.inv;
+  stageBanner(G.stage);
+  $.state = 'play';
 }
 export function startLoop(L) {
   $.G.loop = L;
@@ -186,6 +275,7 @@ export function respawn() {
     gameOver();
     return;
   }
+  if (cpTrigger() === 'b' && deathRestart()) return;
   $.G.lives--;
   resetPlayer(true);
   const wx = $.P.x + $.G.scroll;
@@ -205,7 +295,20 @@ export function respawn() {
   }
   $.G.recover = null;
 }
+/** checkpoint option b (spec §4; LAB CHECKPOINT: ON DEATH): a death restarts the run at its last checkpoint with one
+ *  life spent; the stage's deaths still count against its grade. The checkpoint is re-written with the life gone, so
+ *  an app kill can't give it back. False when there is no checkpoint (respawn in place, as option a) */
+function deathRestart() {
+  const G0 = $.G, lives = G0.lives - 1, deaths = G0.st ? G0.st.deaths : 0, d = lastCp();
+  if (!d || d.g.loop !== G0.loop || d.g.stage !== G0.stage) return false; // only this stage's checkpoint
+  if (!tryResume(d)) return false; // the ordinary respawn then runs on the untouched run
+  $.G.lives = lives;
+  $.G.st.deaths = Math.max($.G.st.deaths || 0, deaths);
+  writeCp($.G.cpN, $.G.cpX);
+  return true;
+}
 export function gameOver() {
+  clearRun(); // spec §4: game over clears the checkpoint
   $.state = 'over';
   $.G.overT = 0;
   $.menuSel = 0;
@@ -215,6 +318,7 @@ export function gameOver() {
   if ($.G.newHi) setTimeout(() => sfx.hype(), 900);
 }
 export function endLoop() {
+  clearRun(); // spec §4: cleared at descent end; the next descent's CP0 writes a new one
   const bonus = ($.G.lives + 1) * 5000 * ($.G.loop + 1);
   $.G.score += bonus;
   if ($.G.score > $.hi) $.hi = $.G.score;

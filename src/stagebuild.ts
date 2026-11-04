@@ -14,9 +14,11 @@
 //   comes from the stage's own stream (B2), never the sim R(), so when a stage is built no longer moves the sim.
 // - The midboss pick (item F) draws its own stream, biomes.ts midStream(i), not stageStream(i): it is independent of
 //   the script's draws, so it may run before or after the script without changing either.
-import { layout, row } from './layout';
+import { $ } from './state';
+import { layout, row, stageOfSlot } from './layout';
 import { stageScript } from './enemies/scripts';
 import { biomeStage, fixedMids, insertScript, stageStream } from './biomes';
+import { buildTerrain } from './world';
 
 /** build stage i of the active layout into the live descent. fromX: where its content may start (a biome stage: the
  *  gate x, G.bx[slot]; other kinds start at their row's x0 and ignore it). A biome stage needs G.route[slot] and
@@ -27,4 +29,21 @@ export function buildStage(i, fromX = row(i).x0) {
   // picker layouts: the row's DRIFT midbosses (Open Orbit's Saucer) count as met this descent (item F; no draws)
   if (layout().picker) fixedMids(i, r.kind, (r.drift || []).map((d) => d.k));
   insertScript(stageScript(i, stageStream(i)));
+}
+
+/** the resume's rebuild (item H; spec §4 "How it restores"), from restored G: the descent's base terrain from the
+ *  loop, each biome slot committed up to this stage re-blended and re-scripted from its STORED gate x G.bx[slot]
+ *  (never a recomputed one) in slot order, as the run built them, then stage G.stage itself when it is not a biome
+ *  stage. Entries up to cpX are skipped (they had fired by the checkpoint: runScript fires x <= scroll), the G.eat
+ *  pattern done once by index. Draws only the stages' build streams, never the sim R() */
+export function rebuildAt(cpX) {
+  const G = $.G;
+  buildTerrain(G.loop);
+  G.script = [];
+  G.si = 0;
+  for (let s = 0; s < G.route.length; s++) if (G.route[s] && G.bx[s] != null && stageOfSlot(s) <= G.stage) biomeStage(s, G.bx[s]);
+  if (row(G.stage).kind !== 'biome') buildStage(G.stage);
+  let i = 0;
+  while (i < G.script.length && G.script[i].x <= cpX) i++;
+  G.si = i;
 }

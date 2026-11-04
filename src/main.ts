@@ -36,6 +36,7 @@ import { $ } from './state';
 import { step } from './step';
 import { render } from './render/screens';
 import { applyRunLayout } from './lab';
+import { lastRun, readRun, rewriteRun, runInfo } from './runsave';
 
 // ---------------- layout flag (build plan sprint 2 items D, D2) ----------------
 // ?layout=long flies the long4 entry (src/layout.ts); the default is long4 (D24). The parse is lab.ts layoutChoice
@@ -45,6 +46,9 @@ import { applyRunLayout } from './lab';
   const c = applyRunLayout(true);
   if (c.bad != null) console.warn(`?layout=${c.bad}: unknown layout; flying ${c.id}`);
 }
+// the run save (item H): read once at boot, validated under its own layout (the active one is left as chosen above);
+// the title offers RESUME from the in-memory copy
+readRun();
 
 // ---------------- loop ----------------
 export let acc = 0,
@@ -101,6 +105,7 @@ import { musicNow, musicPlan } from './music';
 (window as any).__musicPlan = musicPlan;
 import { RST, rigFX, rigged } from './contraptions';
 (window as any).__rig = () => ({ ...RST, rigged: rigged(), fx: rigFX() });
+(window as any).__cp = () => ({ last: lastRun(), info: runInfo(), want: $.G && $.G.cpWant, cp1X: $.G && $.G.cp1X, cpX: $.G && $.G.cpX, cpN: $.G && $.G.cpN }); // tools/resume-check.mjs
 (window as any).__mb = () => ($.menuBoxes || []).map(({ x, y, w, h, i, now }) => ({ x, y, w, h, i, now }));
 import { AU as __AU } from './audio';
 (window as any).__au = () => ({ state: __AU.c && __AU.c.state, last: __AU.lastCat, gate: $.gate });
@@ -117,6 +122,7 @@ if (NATIVE) {
   KeepAwake.keepAwake().catch(() => {});
   App.addListener('pause', () => {
     save();
+    rewriteRun(); // the LAST CHECKPOINT again, never live state (spec §4)
     if ($.state === 'play') openPause();
   });
   // hardware back: pause in play, otherwise acts like Esc (menu back); exits from the title screen
