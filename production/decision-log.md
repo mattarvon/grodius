@@ -142,6 +142,14 @@ localization), D16-D18, and the signing keystore half of D6.
 **Reason:** single-player, no leaderboards; surviving an app kill matters more on a phone (creative-director). **Confirmed by Matt 2026-11-03.** Q2 itself (a or b) and the ABANDON SHIP wording stay open.
 **Category:** design
 
+### D29 Midboss HP is exempt from intra-descent depth — 2026-11-03 (Matt; raised by lane G)
+
+**Decision point:** G wires spec §7's intra-descent depth (`dep = loop + 0.35 × ord/(N−1)`, N = 4 on long4) into `depthHP`. Applied to midbosses, it adds ×~1.13 HP in a biome stage's slot A and ×~1.26 in slot B, even in Descent 1. That pushes D27's single 8-11 s band out: an estimated Choir 11.3 / 12.6 s, the Apprentice ~226 / ~252 HP, and the Womb and the Brood long in slot B.
+**Chosen:** option (a). **Midboss HP uses the integer loop only**; the intra-descent term doesn't apply to it. D27's one band per kind holds in either slot. Not chosen: (b) re-band per slot, which reintroduces the slot difference D27 removed; (c) lower the base HPs.
+**Scope:** midboss HP (`depthHP` for `mid` kinds) only. Regular enemies keep intra-descent depth. Midboss fire rate and cooldowns (`firem`, `cdm`) are unchanged by this ruling. Stage bosses aren't covered.
+**Reason:** keeps D27 (Matt, 2026-11-02) intact with no re-tuning; the probe figures stay valid. **Confirmed by Matt 2026-11-03.** Owner: lane G (it implements intra-descent depth), with a midboss-probe check of slots A and B on its branch.
+**Category:** balance
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path
