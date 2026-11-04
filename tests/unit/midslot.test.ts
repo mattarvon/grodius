@@ -4,6 +4,7 @@
 // - the picks: two different bodies per long biome stage, none repeated in a descent, made once per stage from
 //   midStream(i); the Orbit's Saucer counted as met; the fork's acid/snot rule; a 200-descent route sweep
 // - filler suppression while a midboss is up, the slot clocks, meta.mb on meet
+// - D27: long4's per-kind base HP (the Apprentice at 200), short unchanged
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
@@ -47,7 +48,7 @@ vi.mock('../../src/enemies/spawn', () => {
 const L = await import('../../src/layout');
 const { BIOMES, BIOME_KEYS, MID_NAMES, SPAWN_KINDS, biomeReset, biomeScript, fixedMids, midStream, openFork, stageMids } = await import('../../src/biomes');
 const { HOME, MIDS, MID_CLOCK, forkAllows, slotClock } = await import('../../src/midpick');
-const { BIOME_FILL, fillerQuiet, isFiller, meetMid, miniUp, registerDrift, whenNoMini } = await import('../../src/midslot');
+const { BIOME_FILL, MID_HP, fillerQuiet, isFiller, meetMid, midHpMul, miniUp, registerDrift, whenNoMini } = await import('../../src/midslot');
 
 /** the stub DRIFT member: the Saucer's spawner as enemies/ufo.ts registers it (a drift mini forced out at exitX) */
 const UFO_EXIT_SPEED = 1.6, UFO_OFF = 180; // ufo.ts: it slides off at 1.6 px/f from about tx (W - 96) to W + 80
@@ -342,5 +343,28 @@ describe('midboss tables', () => {
     meetMid('choir');
     meetMid('ufo');
     expect($.meta.mb).toEqual({ choir: 2, ufo: 1 });
+  });
+});
+
+describe('midHpMul (D27 per-kind TTK band)', () => {
+  // the Apprentice's ET base HP (enemies/spawn.ts); the real ET is mocked out of this file
+  const PRENTICE_ET = 150;
+
+  it('raises the Apprentice from its ET 150 to 200 base HP on long4', () => {
+    L.setLayout('long4');
+    try { expect(PRENTICE_ET * midHpMul('prentice', PRENTICE_ET)).toBe(200); } finally { L.setLayout('short'); }
+  });
+
+  it('leaves every kind at its ET base HP on short, so layout parity holds', () => {
+    L.setLayout('short');
+    for (const k of Object.keys(MID_HP)) expect(midHpMul(k, PRENTICE_ET)).toBe(1);
+  });
+
+  it('leaves an unlisted kind, such as the DRIFT Saucer, at 1 on long4', () => {
+    L.setLayout('long4');
+    try {
+      expect(midHpMul('choir', 80)).toBe(1);
+      expect(midHpMul('ufo', 80)).toBe(1);
+    } finally { L.setLayout('short'); }
   });
 });

@@ -90,11 +90,12 @@ If Matt means scroll time only, every content number in this spec roughly double
 | Player | Scroll | WARNINGs (3 × 2.5 s) | Midboss A | Midboss B | Boss | Total |
 |---|---|---|---|---|---|---|
 | Fast (strong kit) | 60 s | 7 s | 6 s | 8 s | 12 s | **~93 s** |
-| Median (stage-1 kit) | 60 s | 7 s | 10 s | 12 s | 20 s | **~109 s** |
+| Median (stage-1 kit) | 60 s | 7 s | 10 s | 10 s | 20 s | **~107 s** |
 | Worst case (both midbosses withdraw; boss runs both `PHASE_F` halves) | 60 s | 7 s | 18 s | 21 s | 50 s | ~156 s |
 
 - The worst case ends in an escape, graded C, so running over 120 s there is acceptable.
 - The midboss leave clocks (§6.4) cap the worst case.
+- Midboss B's median is ~10 s, the same band as A (D27): with HP only from depth (D1) and any kind in either slot, B cannot be slower than A at the same kit. Its longer 1260 f clock is its only slot difference.
 
 ### 3.2 Biome stage beats (3600 px; p is progress through the spawn span)
 
@@ -341,7 +342,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 | | The Reclaimer | WINDOW | The lid opens for 80 f with a 60° sweep; the core can only be hit then | 120 | W1 |
 | | The Floater | ANGLE | Armoured front ×0.2; only its back and top above the lake take damage | 100 | W1 |
 | | The Solvent | RACE | The lake rises 10 px every 360 f (5 steps max), with +10% fire per rise; resets on death or exit | 90 | W2 |
-| **Fire** | THE BUTCHER'S APPRENTICE | RANGE | Sweep cone, then a cleaver lunge; ember fans | 150 | E |
+| **Fire** | THE BUTCHER'S APPRENTICE | RANGE | Sweep cone, then a cleaver lunge; ember fans | 200 on long4 (D27; `short` keeps 150) | E |
 | | The Kindling | CROWD | Throws burning bodies (max 6 alive, tagged `kid`); a dead body leaves a 60 f fire patch | 110 | W1 |
 | | The Spit | LINE | Two rotating flame jets, .012 rad/f (.018 in phase 2), 44 f ignition telegraph | 120 | W1 |
 | | The Kiln Door | WINDOW | The door opens for 70 f with a 3-lane fire wall (one safe lane); the core can only be hit then | 130 | W2 (reuses the `SET kiln` art) |
@@ -369,7 +370,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
   - Wave 1 is 8 biome midbosses + 2 Orbit + 2 ship = **12**.
   - Wave 2 is 4 biome + 2 ship = **6**.
   - Each new biome adds 3-4.
-- **HP and time to kill.** Base HP is anchored to measured stage-1 DPS (Womb ≈ 10.7 HP/s, Apprentice ≈ 14.4, Choir ≈ 8.3, Brood ≈ 7.4). The targets are 8-11 s for slot A and 10-15 s for slot B, measured with `midboss-probe`. There is no per-slot HP multiplier: D1 says HP comes only from depth.
+- **HP and time to kill.** Base HP was first anchored to P0's stage-1 DPS estimates (Womb ≈ 10.7 HP/s, Apprentice ≈ 14.4, Choir ≈ 8.3, Brood ≈ 7.4). These are historical: they don't reproduce today's probe times (135 / 10.7 = 12.6 s against the Womb's measured 8.7 s), so tune from the probe, not from these. The current per-HP rate for the Apprentice, measured 2026-11-03, is ~14.7 HP/s (+50 HP → +3.4 s). The target is one band per kind, **8-11 s at the stage-1 kit in either slot** (D27; it replaced the per-slot bands, 8-11 s for A and 10-15 s for B), measured with `midboss-probe --layout long4`. There is no per-slot HP multiplier: D1 says HP comes only from depth. A kind outside the band is moved by its base HP on picker layouts (`src/midslot.ts` `MID_HP`; `short` keeps `ET`'s values). DRIFT kinds are exempt, because their forced exit sets the fight's length. Measured 2026-11-03 (long4, `--leave 1080`, STAGE 1 kit): Choir 10.0, Womb 8.7, Apprentice 10.2 (at 200 HP), Brood 9.5 s.
 
 ### 6.3 Selection rules (`pickMids`)
 

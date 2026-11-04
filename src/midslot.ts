@@ -40,6 +40,17 @@ export function meetMid(k: string): void {
   mb[k] = (mb[k] || 0) + 1;
 }
 
+/** D27 (production/decision-log.md): on picker layouts every held midboss kind aims at one TTK band, 8-11 s at the
+ *  stage-1 kit (tools/midboss-probe.mjs --layout long4), set by its base HP. Kinds listed here override spawn.ts ET's
+ *  base HP; the rest already sit in the band (Choir 10.0, Womb 8.7, Brood 9.4 s). DRIFT kinds are exempt: their
+ *  forced exit sets the fight's length. `short` has no picker and keeps ET's values, so layout parity holds */
+export const MID_HP: Readonly<Record<string, number>> = {
+  prentice: 200, // was 150: 6.8 s, under the band. Measured 10.2 s at 200 (midboss-probe --layout long4 --leave 1080);
+  // the +50 HP added 3.4 s, ~14.7 HP/s, matching spec §6.2's stage-1 DPS. Predict the next kind from that per-HP rate
+};
+/** midboss(): the HP multiplier for kind k (base = its ET base HP); 1 off picker layouts or for an unlisted kind */
+export const midHpMul = (k: string, base: number) => (layout().picker && MID_HP[k] ? MID_HP[k] / base : 1);
+
 /** a DRIFT midboss's spawner: exitX = the scroll x it is forced out at, leave = its slot clock (frames) */
 export type DriftSpawn = (exitX: number, leave: number) => void;
 const DRIFT: Record<string, { name: string; spawn: DriftSpawn }> = {};

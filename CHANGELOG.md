@@ -2,11 +2,12 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
-## 2026-11-03 (resume a run)
+## 2026-11-03 (resume a run, a tougher Apprentice)
 
 - Your run now survives closing the game. RESUME at the top of the title screen puts you back at your last checkpoint: the start of the stage, or just after its first midboss. You get the same terrain, the same midbosses, and your build, score and lives as they were at that checkpoint.
 - On Android the game saves when it goes to the background, so swiping it away doesn't lose the run.
 - The save is cleared when the run ends (game over, or the end of a descent) or when you start a new one.
+- On the long stages, THE BUTCHER'S APPRENTICE is tougher (150 → 200 HP), so its fight lasts about as long as the other midbosses' (about 10 s with a first-stage build, was about 7 s). The short descent in the LAB row is unchanged.
 
 ## 2026-11-02 (long stages, two midbosses per biome)
 
