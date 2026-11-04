@@ -113,7 +113,10 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // the low edge of the band); x1 measured 13-14 (seeds 1-5)
     killXP: .85,
     firstKill: 100, // spec §6.4; once per profile, so it is not in the steady-state D1 biomass bands
-    killBio: .75, // *start*: one fewer long stage than long5 needs a smaller cut (pod-probe D1-D3 biomass, item G)
+    // D1 biomass 1300-1500 steady state (pod-probe, item G; run biomass minus the once-per-profile first-kill pay).
+    // The spec's .75 start measured 1311-1681 with one midboss per biome stage, then 1412-1834 (median 1627) once F's
+    // second midboss landed
+    killBio: .65,
     intra: .35, // late Descent 1 would otherwise stay soft over a longer descent (depth-probe, playtest.mjs hits/min)
     glut: [3, 6], // ~5 midbosses per descent in LS1
     d1Elite: null,

@@ -120,10 +120,10 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(gradeOf('long4', st(10, 10), 60, true)).toBe('C');
   });
 
-  it("pays today's stage XP lump, cuts kill XP to x0.85 (item G's tune) and kill biomass to x0.75", () => {
+  it("pays today's stage XP lump, cuts kill XP to x0.85 (item G's tune) and kill biomass to x0.65 (item G's tune)", () => {
     for (let loop = 0; loop < 3; loop++) for (let ord = 0; ord < 4; ord++) expect(stageXP('long4', ord, loop)).toBe(perks.stageXP(ord, loop));
     expect(killXP('long4', 30)).toBeCloseTo(25.5);
-    expect(killBio('long4', 100)).toBe(75);
+    expect(killBio('long4', 100)).toBeCloseTo(65);
   });
 
   it('adds .35 of a descent of depth across 4 stages', () => {

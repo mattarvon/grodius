@@ -3,7 +3,9 @@
 // Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout short] [--mortal]
 // --mortal: the bot is not kept invincible, so it takes real hits, loses ships and can game over (the run then ends
 // early and `endState` says so). Without it, hits stay 0 and every tally grades on kill% alone.
-// Per stage `grades` keeps each tally's grade, hits, deaths, kill% and the stage's regular spawns (G.st.spawned), and
+// `firstKills` lists the midboss kinds paid the first-kill biomass (meta.mbK; the probe starts on a fresh profile, so
+// every kind killed pays once: subtract 100 per kind on long entries for the steady-state figure). `grades[].fk` counts
+// them at each tally. Per stage `grades` keeps each tally's grade, hits, deaths, kill% and the stage's regular spawns (G.st.spawned), and
 // `bossFight_s` the seconds the Gravity Drive (G.boss; biome bosses are enemies) was up and not dying, per stage.
 // Stage times: `stages[].dur` runs from one stage label to the next (so it includes the tally card, a fork or the
 // shop); `tally_s` is the tally card's own clock, STAGE card to boss kill (spec §3.1's wall-time definition).
@@ -39,11 +41,11 @@ await useLayout(p, 'pod-probe', { quiet: true }); // stdout stays one JSON objec
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
-await p.evaluate(() => { window.__fr = 0; window.__pods.length = 0; });
+await p.evaluate(async () => { window.__fr = 0; window.__pods.length = 0; window.__S = (await import('/src/state.ts')).$; });
 let last = '', lastFork = false; const tally = {}, grades = {}; const seg = []; let endState = '';
 for (let it = 0; it < MIN * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
-  const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, stage: G.stage, loop: G.loop, lvl: G.lvl, pick: !!G.pick, pt: G.pick ? G.pick.t : 0, fork: !!G.fork, fr: window.__fr, bio: Math.round(G.bio || 0), kills: G.kills, tally: G.tally ? [G.tally.id, G.tally.secs] : null, gr: G.tally ? { g: G.tally.g, hits: G.tally.hits, deaths: G.tally.deaths, pct: G.tally.pct, spawned: G.st ? G.st.spawned : null, lvl: G.lvl, bio: Math.round(G.bio || 0) } : null, lives: G.lives }; });
+  const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, stage: G.stage, loop: G.loop, lvl: G.lvl, pick: !!G.pick, pt: G.pick ? G.pick.t : 0, fork: !!G.fork, fr: window.__fr, bio: Math.round(G.bio || 0), kills: G.kills, tally: G.tally ? [G.tally.id, G.tally.secs] : null, gr: G.tally ? { g: G.tally.g, hits: G.tally.hits, deaths: G.tally.deaths, pct: G.tally.pct, spawned: G.st ? G.st.spawned : null, lvl: G.lvl, bio: Math.round(G.bio || 0), fk: Object.keys(window.__S.meta.mbK || {}).length } : null, lives: G.lives }; });
   if (s.tally) { tally[s.tally[0]] = s.tally[1]; grades[s.tally[0]] ||= s.gr; }
   if (s.fork && !lastFork) await p.evaluate(() => (window.__gi = (window.__gi ?? 0) + 1));
   lastFork = s.fork;
@@ -54,7 +56,7 @@ for (let it = 0; it < MIN * 60 * 2; it++) {
   if (s.st === 'shop') { await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(40)'); continue; }
   if (s.st !== 'play' || s.loop >= +END) { endState = JSON.stringify(s); break; }
 }
-const fin = await p.evaluate(() => { const g = __G(), G = g.G; return { fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), metaBio: Math.round((g.G && window.__G && 0) || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf }; });
+const fin = await p.evaluate(() => { const g = __G(), G = g.G; return { fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), metaBio: Math.round((g.G && window.__G && 0) || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf, fk: Object.keys(window.__S.meta.mbK || {}) }; });
 seg.push({ k: 'END', f0: fin.fr });
 const podsOnly = fin.pods.filter((x) => x.kind === 'pod' || x.kind === 'choice');
 const first = podsOnly[0];
@@ -62,5 +64,5 @@ const stages = seg.slice(0, -1).map((sg, i) => { const f1 = seg[i + 1].f0; const
   return { stage: sg.k, dur: +dur.toFixed(1), pods: n, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
-  mortal: MORTAL, stages, tally_s: tally, grades, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
+  mortal: MORTAL, stages, tally_s: tally, grades, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
 console.error(`pod-probe: ran on ${LAYOUT}`); await b.close();
