@@ -106,7 +106,7 @@ describe('the resume rebuild', () => {
 // item F's midboss state (sprint 3 F review carry-forward 1): G.mb (each stage's pair, picked once), G.mbUsed (met
 // this descent), G.mbLast (each biome's previous pair, kept across descents). The resume calls biomeReset() BEFORE
 // applyRun() (flow.ts resumeRun), so the restored state must stand; a new descent's biomeReset then forgets mb and
-// mbUsed but keeps mbLast. The picker cases run once F's stageMids is in src/biomes.ts (skipped before that merge).
+// mbUsed but keeps mbLast.
 describe('the midboss picks across a resume', () => {
   const MB = { 0: ['ufo'], 1: ['choir', 'cyst'] }, USED = ['ufo', 'choir', 'cyst'], LAST = { ice: ['choir', 'cyst'], fire: ['prentice', 'brood'] };
   /** a run save taken at stage 1 CP1 holding the picker's state, restored the way resumeRun does */
@@ -127,14 +127,14 @@ describe('the midboss picks across a resume', () => {
     setLayout('short');
   });
 
-  it.runIf(typeof biomes.stageMids === 'function')('reads a resumed stage pair back instead of picking again', () => {
+  it('reads a resumed stage pair back instead of picking again', () => {
     const G = restore();
     expect(biomes.stageMids(1, 'ice')).toEqual(['choir', 'cyst']);
     expect(G.mbUsed).toEqual(USED); // not met a second time
     setLayout('short');
   });
 
-  it.runIf(typeof biomes.stageMids === 'function')('forgets this descent picks at the next descent but keeps each biome previous pair', () => {
+  it('forgets this descent picks at the next descent but keeps each biome previous pair', () => {
     const G = restore();
     biomeReset(); // startLoop's, for the next descent
     expect(G.mb).toEqual({});

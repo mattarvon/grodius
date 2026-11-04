@@ -28,7 +28,7 @@ Lane h of LS1 sprint 3 (`production/content-build-plan.md` §2, row H; spec `des
    - No checkpoint is written while a pick is open: `cpSafe` waits for it to close, so the open pick's guaranteed card is never stranded.
    - Tests: "stores the seal the clears have earned…" (both the fork and non-fork queues) and "stores queued level-up picks and the biome boost offer".
 2. **`stage` is bounded by the restored layout's stage count.** `decodeRun` runs under `decodeRunAs`'s layout switch. Test: "discards … one whose stage that layout lacks".
-3. **`resetPlayer()` runs before `applyRun()`** in `resumeRun`. The end-to-end check confirms the loadout, lives and level come back.
+3. **`resetPlayer()` runs before `applyRun()`** in `resumeRun`. The end-to-end check compares lives, and (since the review round) the score, level/xp and the rest of the stored progression, and the ship's loadout, against the stored checkpoint. See "Studio review fixes".
 
 Sprint 2 carry-forward 1 (`setLayout(blob.layout)` before validation) is done.
 - Tests: "keeps a long4 checkpoint read on a short boot", "keeps a short checkpoint read on a long4 boot", and "keeps a checkpoint from a layout with more biome slots and stages".
@@ -50,7 +50,7 @@ Sprint 2 carry-forward 1 (`setLayout(blob.layout)` before validation) is done.
 
 ```
 npm run typecheck      clean
-npx vitest run         23 files, 434 passed + 2 skipped until F merges (402 before H)
+npx vitest run         pre-F: 23 files, 434 passed + 2 skipped (402 before H). Current (main + H + review fixes): 25 files, 469 passed, 0 skipped
 npm run build          built (the existing chunk-size notice only)
 npm run test:regress   PASS vs baseline @ 8ff9ba4; PASS (long4) vs baseline @ 88d9525. st byte-identical, no re-baseline.
                        6/6 canvas hashes differ (advisory): clean main 61197f6 in a temporary worktree gives the
@@ -136,7 +136,7 @@ Done in the follow-up commit on `ls1-h`.
   - `it.runIf(stageMids)`: a resumed stage reads its pair back without re-picking or re-noting;
   - `it.runIf(stageMids)`: the next descent's `biomeReset()` clears `mb`/`mbUsed` and keeps `mbLast`.
 
-  The two `runIf` cases need F's `stageMids`. They are **skipped on `ls1-h`** (434 passed, 2 skipped) and run once F is merged.
+  The two `runIf` cases need F's `stageMids`. Before F merged they were skipped on `ls1-h` (434 passed, 2 skipped, pre-F). Since the review round `ls1-h` contains main, and they are plain `it` cases that always run.
 - **`resume-check.mjs`:** also diffs `G.mb`, `G.mbUsed` and `G.mbLast`.
 
 **Integration on F + H, checked without merging:**
@@ -183,6 +183,49 @@ resume-check, 7 runs, all PASS (0 px terrain diff, identical script lists, mb/mb
 
 JSON reports: `production/qa/evidence/ls1-h/on-main/`.
 
+## Studio review fixes (requested by lead-programmer and qa-lead, via the F session's review)
+
+`ls1-h` merged `origin/main` 9a62927 (`1eabe8c`; the `stagebuild.ts` import union) so the fixes could validate against F's roster. It was a normal merge, not a rebase or force-push.
+
+1. **A failed resume never wedges RESUME.**
+   - *Validation (`runsave.ts`).* Each `route` entry must be a biome (an own key of `midpick.ts HOME`). Each kind in `mb`, `mbUsed` and `mbLast` must be an own key of `midpick.ts MIDS`, and `mb` keys must be stage indices. `midpick.ts` has no imports, so the boot-time module order is unchanged (the harness confirms this). A new `midslot.test.ts` case checks that `HOME` covers `BIOME_KEYS`, and that `MIDS` covers `MID_NAMES` plus the DRIFT `ufo`.
+   - *Backstop (`flow.ts tryResume`).* It wraps `resumeRun` in `resumeLast` and in `deathRestart`. On a throw it clears the run (`clearRun()`), puts `$.G`, `$.P` and `$.state` back, and restores the previous layout and `resumedFrom`. RESUME then returns to a clean title with no RESUME row, and an option-b death falls back to the ordinary respawn on the same run.
+   - *Tests (watched failing first).*
+     - `runsave.test.ts` has 6 new bad-blob cases: an unknown biome, an inherited name in the route, an unknown midboss in `mb`, a non-stage `mb` key, an unknown kind in `mbUsed`, and an unknown kind in `mbLast`. Each now also asserts `runInfo()` is null (no RESUME row) and the slot is removed. All 6 failed on the unfixed `runsave.ts`.
+     - `resumeguard.test.ts` (new) makes the rebuild throw, for RESUME and for the option-b death. In both, nothing throws and the slot is dropped. RESUME leaves the title on `short` with `$.G`/`$.P` untouched; the death respawns the same run with a life spent. Both failed on the unfixed `flow.ts`. A third case checks a working resume still resumes.
+2. **`resume.test.ts`:** the two picker cases are plain `it` now, so a rename of `stageMids` fails them instead of skipping them.
+3. **`resume-check.mjs`** compares the stored checkpoint blob (`lastRun()`, read before the reload) with the resumed run:
+   - progression: `score`, `lvl`, `xp`, `xpTot`, `pk`, `gm`, `kk`, `gmk`, `cur`, `bio`, `kills`, `maxCombo`, `seal`, `cleared`;
+   - loadout: `speed`, `missile`, `double`, `laser`, `pyre`, `options`, `shield`, `wardLv`, `aegis`, `frag`;
+   - lives, as before.
+
+   The reference is the stored blob, not the live original, because the original flies a few more steps after writing it. Each JSON report now records `checked` (lives, progression, loadout, `mb`, `mbUsed`, `mbLast`). Watched failing: with `resumeRun` zeroing the score, `long4 s0 CP1` FAILS with `progression score: 18170 -> 0`.
+
+```
+tsc                    clean
+vitest                 25 files, 469 passed, 0 skipped
+npm run build          built
+test:regress           PASS (short) vs 8ff9ba4 / PASS (long4) vs 88d9525, st identical, no re-baseline
+layout-parity          PARITY PASS (3, 6, 7, 11, 15, 3x3, 7m)
+resume-check, 7 runs, all PASS (0 px terrain, identical scripts, mb/mbUsed/mbLast, progression and loadout identical,
+  0 RESUME draws): long4 s0 CP1, s1 CP0, s1 CP1, s2 CP1 option b (lives 2->1), s3 CP1 (Drive), s2 CP0 seed 3;
+  short s2 CP0
+```
+
+JSON reports: `production/qa/evidence/ls1-h/review/*/`. For example, the option-b run's report records lives 1, score 264618, lvl 10, guns missile 1 / double 1, options 1, and mb `{0:[ufo],1:[choir,cyst],2:[prentice,brood]}`.
+
+### Carry-forwards from the review (logged here, not fixed in this merge)
+
+- `meetMid` counts `meta.mb` again on a post-resume replay (spec-accepted; see above).
+- `gunfx.ts` `critGoreT`/`stopT` are not reset when `G.t` resets. This is pre-existing. The fix is one reset hook for `newGame` and `resumeRun`.
+- **Under option b, ABANDON SHIP + RESUME (or an app kill) is a free undo**, cheaper than a death. The spec's "moot" line is wrong. For Matt with Q2: one option is that resuming from a quit costs a life.
+- `deathRestart` has no arrival sfx.
+- There are no unit tests yet for `clearRun` on gameOver/newGame/endLoop, for a working `resumeRun`/`deathRestart` beyond the guard file, or for option a after a death.
+- The Fold app-kill check is still Matt's.
+- Localization: build the RESUME value (stage + layout) as one pattern.
+- ABANDON SHIP copy: it now keeps the run. Narrative to check the wording.
+- On a failed option-b restart, `resumeRun` may already have cleared the entity arrays and contraptions before the throw, so the fallback respawn continues on an empty field. It can only happen on a bug, since validation refuses the known bad saves.
+
 ## Stubs and open risks
 
 - **F (midboss picker) + H:** resolved, see "F carry-forward" above. The parent's F→H merge must take the `stagebuild.ts` import union shown there.
@@ -206,5 +249,5 @@ JSON reports: `production/qa/evidence/ls1-h/on-main/`.
   - F's filler suppression doesn't touch these.
 - `src/runsave.ts` is H's.
 - `src/menus.ts` touches only the title items and `startRun`.
-- **F → H:** expect one textual conflict in `src/stagebuild.ts` (imports); resolve as in "F carry-forward". After the merge, `resume.test.ts`'s two picker cases run (they are skipped on `ls1-h`).
+- **F → H:** expect one textual conflict in `src/stagebuild.ts` (imports); resolve as in "F carry-forward". Done: `ls1-h` merged `origin/main` 9a62927 in `1eabe8c` with that resolution, so H now merges into main without a conflict.
 - The Studio Hierarchy review is the parent's (not run here).

@@ -1,0 +1,93 @@
+{
+  "layout": "short",
+  "stage": 2,
+  "cp": 0,
+  "seed": 7,
+  "death": false,
+  "reachedAt": 7350,
+  "cpX": 5159.3068470509115,
+  "scriptLeft": 31,
+  "xs": [
+    5039,
+    5159,
+    5399,
+    5759,
+    6590,
+    7820
+  ],
+  "reloadAt": 5437.073806789284,
+  "resumeDraws": 0,
+  "checked": {
+    "lives": 2,
+    "prog": {
+      "score": 128721,
+      "lvl": 6,
+      "xp": 73.80000000000001,
+      "xpTot": 457.80000000000007,
+      "pk": {
+        "volatile": 1,
+        "graze": 1,
+        "pierce": 2,
+        "spd": 1
+      },
+      "gm": {
+        "over": 2,
+        "spore": 2
+      },
+      "kk": {
+        "drone": 23,
+        "corpse": 8,
+        "sentry": 1,
+        "hatch": 61,
+        "maw": 4,
+        "flayer": 2,
+        "slime": 9,
+        "womb": 4,
+        "eye": 2,
+        "crawler": 1
+      },
+      "gmk": 115,
+      "bio": 687.6,
+      "kills": 123,
+      "maxCombo": 31,
+      "seal": 1,
+      "cleared": 2
+    },
+    "load": {
+      "speed": 2,
+      "missile": 1,
+      "double": 1,
+      "laser": 0,
+      "pyre": 0,
+      "options": 1,
+      "shield": 3,
+      "wardLv": 1,
+      "aegis": 0,
+      "frag": [
+        0,
+        0,
+        0,
+        null,
+        null,
+        0,
+        0
+      ]
+    },
+    "mb": {},
+    "mbUsed": []
+  },
+  "terrainDiff": [
+    "5039: 0 px",
+    "5159: 0 px",
+    "5399: 0 px",
+    "5759: 0 px",
+    "6590: 0 px",
+    "7820: 0 px"
+  ],
+  "after": {
+    "state": "play",
+    "scroll": 5238.3068470509115,
+    "alive": true
+  },
+  "fails": []
+}

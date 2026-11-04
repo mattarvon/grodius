@@ -312,6 +312,13 @@ describe('midboss tables', () => {
     }
   });
 
+  it('names every biome in HOME and every midboss kind in MIDS, so the run save validates against the real roster', () => {
+    // runsave.ts checks a stored route and midboss state against midpick.ts HOME and MIDS (sprint 3 H review)
+    expect(Object.keys(HOME).sort()).toEqual([...BIOME_KEYS].sort());
+    for (const k of Object.keys(MID_NAMES)) expect(Object.hasOwn(MIDS, k)).toBe(true);
+    for (const k of Object.keys(MIDS)) expect(Object.hasOwn(MID_NAMES, k) || k === 'ufo').toBe(true); // ufo: the DRIFT Saucer, named by enemies/ufo.ts
+  });
+
   it('gives slot A 1080 f, slot B 1260 f, and caps a RACE member at 900 f (spec §6.4)', () => {
     expect(slotClock('choir', 0)).toBe(1080);
     expect(slotClock('choir', 1)).toBe(1260);

@@ -4,8 +4,9 @@
 //     several scroll x from the lead-in to the stage's boss, compared pixel for pixel (PNGs kept with --out);
 //   - the script x and kind list still to fire (every entry past cpX: filler, set pieces, log lines, midboss, boss);
 //   - the stored rebuild recipe (seed, loop, stage, route, bx, visitNo, remixV) and the midboss picks (G.mb, G.mbUsed,
-//     G.mbLast: item F), and where the scroll restarts
-//     (cpX - CP.lead);
+//     G.mbLast: item F), and where the scroll restarts (cpX - CP.lead);
+//   - lives, and the progression and loadout the checkpoint stored: score, level/xp, perks, grafts, the POWER cursor,
+//     seal, and the ship's guns, options, shield and pods (H entry criterion 3);
 //   - sim RNG draws made by the RESUME press (must be 0: the rebuild draws only the stage build streams).
 // With --death it first flies checkpoint option b (LAB CHECKPOINT: ON DEATH): after the checkpoint the ship is killed,
 // and the run must restart at the checkpoint with one life spent; the reload then resumes with that life still gone.
@@ -106,7 +107,7 @@ async function ready(p) {
 const press = async (p, code) => { await p.evaluate((c) => window.__key('keydown', c), code); await p.evaluate('__tick(2)'); await p.evaluate((c) => window.__key('keyup', c), code); await p.evaluate('__tick(2)'); };
 
 /** everything the rebuild must reproduce, read in-page. xs: the scroll x of each terrain-only render */
-const snap = (p, xs) => p.evaluate(async (xs) => {
+const snap = (p, xs) => p.evaluate(async ([xs, PROG_G, LOAD_P]) => {
   const g = window.__G(), G = g.G, B = window.__biome(), cp = window.__cp();
   const fnv = (a) => { let h = 2166136261; for (let i = 0; i < a.length; i++) { const s = a[i].toFixed(3) + ','; for (let k = 0; k < s.length; k++) { h ^= s.charCodeAt(k); h = Math.imul(h, 16777619); } } return (h >>> 0).toString(16); };
   const core = await import('/src/core.ts'), T = await import('/src/render/terrain.ts'), st = await import('/src/state.ts');
@@ -126,10 +127,16 @@ const snap = (p, xs) => p.evaluate(async (xs) => {
   return {
     state: g.state, stage: G.stage, loop: G.loop, lives: G.lives, scroll: G.scroll, cpX: cp.cpX, cpN: cp.cpN, seed: G.seed,
     route: G.route, bx: G.bx, visitNo: G.visitNo, remixV: G.remixV, deaths: G.st && G.st.deaths, mb: G.mb, mbUsed: G.mbUsed, mbLast: G.mbLast,
+    // progression and loadout (H entry criterion 3), compared with what the checkpoint stored
+    prog: Object.fromEntries(PROG_G.map((k) => [k, G[k]])), load: g.P ? Object.fromEntries(LOAD_P.map((k) => [k, g.P[k]])) : null,
+    stored: JSON.parse((await import('/src/runsave.ts')).lastRun() || 'null'),
     script: G.script.slice(G.si).filter((e) => e.x > cp.cpX).map((e) => `${e.x}:${e.k}`),
     floor: fnv(B.F), ceil: fnv(B.C), imgs, bossX: (await import('/src/layout.ts')).row(G.stage).bossX,
   };
-}, xs);
+}, [xs, PROG_G, LOAD_P]);
+// the run state a resume restores beyond the recipe: G's progression and the ship's loadout (runsave.ts G/P_FIELDS)
+const PROG_G = ['score', 'lvl', 'xp', 'xpTot', 'pk', 'gm', 'kk', 'gmk', 'cur', 'bio', 'kills', 'maxCombo', 'seal', 'cleared'];
+const LOAD_P = ['speed', 'missile', 'double', 'laser', 'pyre', 'options', 'shield', 'wardLv', 'aegis', 'frag'];
 
 const fails = [], notes = [];
 const eq = (what, a, b) => { const A = JSON.stringify(a), Bv = JSON.stringify(b); if (A !== Bv) fails.push(`${what}: ${A.slice(0, 300)} -> ${Bv.slice(0, 300)}`); };
@@ -201,6 +208,16 @@ try {
   // mb / mbUsed / mbLast: the midboss picker's state (item F); a resume must place the same pair, never re-pick
   for (const k of ['stage', 'loop', 'seed', 'cpX', 'route', 'bx', 'visitNo', 'remixV', 'mb', 'mbUsed', 'mbLast']) eq(k, orig[k], res[k]);
   eq('lives', lives, res.lives);
+  // loadout, level/xp and score: the resumed run carries exactly what the checkpoint stored (the original flew on for
+  // a few steps after writing it, so the stored blob, not the live original, is the reference)
+  const ck = orig.stored;
+  if (!ck) fails.push('no stored checkpoint read back before the reload');
+  else {
+    for (const k of PROG_G) if (ck.g[k] !== undefined) eq(`progression ${k}`, ck.g[k], res.prog[k]);
+    for (const k of LOAD_P) if (ck.p[k] !== undefined) eq(`loadout ${k}`, ck.p[k], res.load && res.load[k]);
+    eq('lives stored', ck.g.lives, DEATH ? lives + 1 : lives);
+  }
+  report.checked = { lives: res.lives, prog: res.prog, load: res.load, mb: res.mb, mbUsed: res.mbUsed, mbLast: res.mbLast };
   eq('scroll at resume', Math.max(0, orig.cpX - 120), res.scroll);
   eq('script x and kind list still to fire', orig.script, res.script);
   eq('terrain FLOOR hash', orig.floor, res.floor);

@@ -82,9 +82,30 @@ function lastCp() {
 export function resumeLast() {
   const prev = layout().id, d = lastCp();
   if (!d) { setLayout(prev); clearRun(); return false; }
+  const from = resumedFrom;
   if (resumedFrom == null) resumedFrom = prev;
-  resumeRun(d);
-  return true;
+  if (tryResume(d)) return true;
+  setLayout(prev); // a failed resume leaves the title as it was, on the layout it had, with no RESUME row
+  resumedFrom = from;
+  $.menuSel = 0;
+  return false;
+}
+/** resumeRun, but a throw never wedges the title or the death restart (sprint 3 H review, lead-programmer): a save
+ *  decodeRun accepts should always rebuild, so a throw means a bad save or a bug; the slot is dropped and $.G, $.P
+ *  and the screen are put back as they were. runsave.ts validates the kinds the rebuild indexes; this is the backstop */
+function tryResume(d) {
+  const G0 = $.G, P0 = $.P, st0 = $.state;
+  try {
+    resumeRun(d);
+    return true;
+  } catch (e) {
+    console.error('resume failed; checkpoint dropped', e);
+    clearRun();
+    $.G = G0;
+    $.P = P0;
+    $.state = st0;
+    return false;
+  }
 }
 /** rebuild the run from a decoded checkpoint whose layout is active (spec §4 "How it restores"): a fresh G and ship,
  *  the stored fields over them, the terrain and this stage's script rebuilt from the stored seed, loop, route,
@@ -280,7 +301,7 @@ export function respawn() {
 function deathRestart() {
   const G0 = $.G, lives = G0.lives - 1, deaths = G0.st ? G0.st.deaths : 0, d = lastCp();
   if (!d || d.g.loop !== G0.loop || d.g.stage !== G0.stage) return false; // only this stage's checkpoint
-  resumeRun(d);
+  if (!tryResume(d)) return false; // the ordinary respawn then runs on the untouched run
   $.G.lives = lives;
   $.G.st.deaths = Math.max($.G.st.deaths || 0, deaths);
   writeCp($.G.cpN, $.G.cpX);

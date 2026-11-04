@@ -1,0 +1,137 @@
+{
+  "layout": "long4",
+  "stage": 3,
+  "cp": 1,
+  "seed": 7,
+  "death": false,
+  "reachedAt": 17790,
+  "cpX": 12989.050929328514,
+  "scriptLeft": 18,
+  "xs": [
+    12869,
+    12989,
+    13229,
+    13589,
+    13720,
+    14250
+  ],
+  "reloadAt": 13287.050929328316,
+  "resumeDraws": 0,
+  "checked": {
+    "lives": 2,
+    "prog": {
+      "score": 367415,
+      "lvl": 13,
+      "xp": 20.899999999999977,
+      "xpTot": 1375.9000000000003,
+      "pk": {
+        "reload": 1,
+        "tiny": 2,
+        "inv": 1,
+        "graze": 1,
+        "rof": 2,
+        "gasp": 1,
+        "glass": 1,
+        "scab": 2,
+        "dmg": 1
+      },
+      "gm": {
+        "spore": 1,
+        "rapid": 0,
+        "pierce": 1,
+        "serr": 0,
+        "cal": 1,
+        "over": 0
+      },
+      "kk": {
+        "drone": 97,
+        "corpse": 32,
+        "sentry": 11,
+        "hatch": 47,
+        "flayer": 28,
+        "maw": 6,
+        "mutant": 14,
+        "cross": 3,
+        "hook": 8,
+        "eye": 3,
+        "nailbar": 6,
+        "crux": 1,
+        "crawler": 1,
+        "butcher": 1
+      },
+      "gmk": 258,
+      "bio": 1897.7500000000036,
+      "kills": 258,
+      "maxCombo": 88,
+      "seal": 1,
+      "cleared": 3
+    },
+    "load": {
+      "speed": 3,
+      "missile": 1,
+      "double": 1,
+      "laser": 0,
+      "pyre": 0,
+      "options": 1,
+      "shield": 1,
+      "wardLv": 2,
+      "aegis": 0,
+      "frag": [
+        0,
+        0,
+        0,
+        null,
+        0,
+        2,
+        0
+      ]
+    },
+    "mb": {
+      "0": [
+        "ufo"
+      ],
+      "1": [
+        "choir",
+        "cyst"
+      ],
+      "2": [
+        "prentice",
+        "brood"
+      ]
+    },
+    "mbUsed": [
+      "ufo",
+      "choir",
+      "cyst",
+      "prentice",
+      "brood"
+    ],
+    "mbLast": {
+      "orbit": [
+        "ufo"
+      ],
+      "ice": [
+        "choir",
+        "cyst"
+      ],
+      "fire": [
+        "prentice",
+        "brood"
+      ]
+    }
+  },
+  "terrainDiff": [
+    "12869: 0 px",
+    "12989: 0 px",
+    "13229: 0 px",
+    "13589: 0 px",
+    "13720: 0 px",
+    "14250: 0 px"
+  ],
+  "after": {
+    "state": "play",
+    "scroll": 13068.050929328514,
+    "alive": true
+  },
+  "fails": []
+}

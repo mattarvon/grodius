@@ -1,0 +1,93 @@
+{
+  "layout": "long4",
+  "stage": 0,
+  "cp": 1,
+  "seed": 7,
+  "death": false,
+  "reachedAt": 2280,
+  "cpX": 2250,
+  "scriptLeft": 30,
+  "xs": [
+    2130,
+    2250,
+    2490,
+    2850,
+    3225,
+    4000
+  ],
+  "reloadAt": 2517,
+  "resumeDraws": 0,
+  "checked": {
+    "lives": 2,
+    "prog": {
+      "score": 18170,
+      "lvl": 2,
+      "xp": 41,
+      "xpTot": 99,
+      "pk": {
+        "reload": 1
+      },
+      "gm": {},
+      "kk": {
+        "drone": 17,
+        "corpse": 5,
+        "sentry": 2,
+        "hatch": 5,
+        "flayer": 2,
+        "maw": 1
+      },
+      "gmk": 32,
+      "bio": 145,
+      "kills": 32,
+      "maxCombo": 14,
+      "seal": 0
+    },
+    "load": {
+      "speed": 2,
+      "missile": 0,
+      "double": 1,
+      "laser": 0,
+      "pyre": 0,
+      "options": 1,
+      "shield": 3,
+      "wardLv": 1,
+      "aegis": 0,
+      "frag": [
+        0,
+        null,
+        0,
+        null,
+        null,
+        0,
+        0
+      ]
+    },
+    "mb": {
+      "0": [
+        "ufo"
+      ]
+    },
+    "mbUsed": [
+      "ufo"
+    ],
+    "mbLast": {
+      "orbit": [
+        "ufo"
+      ]
+    }
+  },
+  "terrainDiff": [
+    "2130: 0 px",
+    "2250: 0 px",
+    "2490: 0 px",
+    "2850: 0 px",
+    "3225: 0 px",
+    "4000: 0 px"
+  ],
+  "after": {
+    "state": "play",
+    "scroll": 2329,
+    "alive": true
+  },
+  "fails": []
+}

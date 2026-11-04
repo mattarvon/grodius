@@ -6,6 +6,7 @@
 // One slot, under its own key, separate from the meta save (grodius.v1) so a bad run blob can never cost meta.
 import { $ } from './state';
 import { LAYOUTS, lastStage, layout, nSlots, setLayout } from './layout';
+import { HOME, MIDS } from './midpick';
 
 export const RUN_KEY = 'grodius.run';
 /** bump when the allowlist changes meaning; a blob with any other version is discarded, never migrated */
@@ -22,9 +23,16 @@ const isNat = (v) => isInt(v) && v >= 0; // counts, levels, indices: a negative 
 // table would swap that copy's prototype
 const isNumMap = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.values(v).every(isNum);
 const plain = (v) => isObj(v) || Array.isArray(v); // JSON-able container (deep-cloned on the way in and out)
-const isStrArr = (v) => Array.isArray(v) && v.every(isStr);
-// {key: string[]} tables: the midboss picks by stage (G.mb) and each biome's previous pair (G.mbLast)
-const isStrArrMap = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.values(v).every(isStrArr);
+// Kinds the restore indexes by name, checked here so a save that decodes always rebuilds (sprint 3 H review,
+// lead-programmer): an unknown biome would throw at BIOMES[b].remix, an unknown midboss at biomes.ts midName. The
+// tables are midpick.ts's (no imports, so the boot-time module order is unchanged); tests/unit/midslot.test.ts keeps
+// MIDS and HOME in step with biomes.ts BIOMES and its mids, and runsave.test.ts checks HOME covers BIOME_KEYS
+const isBiome = (v) => isStr(v) && Object.hasOwn(HOME, v);
+const isMid = (v) => isStr(v) && Object.hasOwn(MIDS, v);
+const isMidArr = (v) => Array.isArray(v) && v.every(isMid);
+// {key: kind[]} tables: the midboss picks by stage (G.mb) and each stage's previous pair (G.mbLast).
+// An own __proto__ key is refused (as isNumMap)
+const isMidMap = (v, key = (k) => true) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entries(v).every(([k, a]) => key(k) && isMidArr(a));
 
 // $.G fields. A field that is absent on G is simply not written (and not restored), so fields owned by lanes not
 // merged yet (layout, seed, remixV, visitNo, the midboss/set-piece sets, picks) cost nothing until they exist.
@@ -50,7 +58,7 @@ const G_FIELDS = {
   // rewards still pending at the checkpoint (H entry criterion 1): queued level-up picks, the biome boost offer
   pickQ: isNat, boostReq: isStrOrNull,
   // route and freshness
-  route: (v) => Array.isArray(v) && v.length === nSlots() && v.every(isStrOrNull), // one per biome slot (layout.ts)
+  route: (v) => Array.isArray(v) && v.length === nSlots() && v.every((b) => b === null || isBiome(b)), // one per biome slot (layout.ts)
   bvis: isNumMap,
   visited: (v) => Array.isArray(v) && v.every(isStr),
   seenV: isNat,
@@ -59,7 +67,7 @@ const G_FIELDS = {
   // the midboss picker (item F, src/biomes.ts stageMids): each stage's pair, picked ONCE from midStream(i) and read
   // back on a rebuild, so a resume places the same pair (re-picking would follow meta.mb, which meeting it changed);
   // what this descent has met (spec §6.3 step 2); each biome's previous pair (step 3, kept across descents)
-  mb: isStrArrMap, mbUsed: isStrArr, mbLast: isStrArrMap,
+  mb: (v) => isMidMap(v, (k) => /^\d+$/.test(k)), mbUsed: isMidArr, mbLast: isMidMap, // keyed by biome or by a fixed row's kind (fixedMids): only the kinds are checked
   mbSeen: plain, spUsed: plain, intRot: plain, // midboss seen, set-piece used, interior rotation (reserved)
   picks: isObj, // this stage's picks: midboss pair, set-piece ids, movement-B variant (items F, D, H)
   st: isObj, // stage stats as they stood at the checkpoint (grade inputs)

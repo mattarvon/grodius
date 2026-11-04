@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RUN_KEY, RUN_V, applyRun, clearRun, decodeRun, readRun, serializeRun, writeRun } from '../../src/runsave';
+import { RUN_KEY, RUN_V, applyRun, clearRun, decodeRun, readRun, runInfo, serializeRun, writeRun } from '../../src/runsave';
 
 function storage() {
   const m = new Map<string, string>();
@@ -147,12 +147,20 @@ describe('a bad or old run save', () => {
     ['a midboss pick holding a number', JSON.stringify({ ...ok(), g: { ...ok().g, mb: { 1: ['choir', 3] } } })],
     ['midbosses met that is not a list', JSON.stringify({ ...ok(), g: { ...ok().g, mbUsed: { choir: 1 } } })],
     ['a previous pair table with an own __proto__', '{"v":' + RUN_V + ',"g":{"loop":0,"stage":0,"bx":[null,null,null],"route":[null,null],"mbLast":{"__proto__":["x"]}},"p":{}}'],
+    // kinds the rebuild indexes by name (sprint 3 H review): a save that decodes must rebuild, never throw on RESUME
+    ['a route naming an unknown biome', JSON.stringify({ ...ok(), g: { ...ok().g, route: ['ice', 'lava'] } })],
+    ['a route naming an inherited name', JSON.stringify({ ...ok(), g: { ...ok().g, route: ['constructor', null] } })],
+    ['a stage pick naming an unknown midboss', JSON.stringify({ ...ok(), g: { ...ok().g, mb: { 1: ['choir', 'gorgon'] } } })],
+    ['a stage pick keyed by something other than a stage', JSON.stringify({ ...ok(), g: { ...ok().g, mb: { x: ['choir'] } } })],
+    ['midbosses met naming an unknown one', JSON.stringify({ ...ok(), g: { ...ok().g, mbUsed: ['ufo', 'toString'] } })],
+    ['a previous pair naming an unknown midboss', JSON.stringify({ ...ok(), g: { ...ok().g, mbLast: { ice: ['gorgon'] } } })],
   ])('is discarded without throwing: %s', (_, s) => {
     expect(() => decodeRun(s)).not.toThrow();
     expect(decodeRun(s)).toBeNull();
     (localStorage as any).setItem(RUN_KEY, s);
     expect(readRun()).toBeNull();
     expect((localStorage as any).map.has(RUN_KEY)).toBe(false); // removed, so RESUME never offers it
+    expect(runInfo()).toBeNull(); // and the title has no RESUME row
   });
 
   it('survives storage that throws', () => {
