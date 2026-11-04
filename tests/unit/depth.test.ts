@@ -100,8 +100,9 @@ describe('pinned depth HP weights', () => {
   });
 });
 
-// LS1 item G (spec §7): long4 adds intra-descent depth dep = loop + .35 * stage / 3 for regular enemies and midbosses.
-// Stage bosses and the Drive keep the integer loop; the short layout is the loop alone (the suites above run on short)
+// LS1 item G (spec §7): long4 adds intra-descent depth dep = loop + .35 * stage / 3 to regular enemies' HP and to all
+// enemy fire. Midboss HP (D29), stage bosses and the Drive keep the integer loop; short is the loop alone (the suites
+// above run on short)
 describe('intra-descent depth on long4', () => {
   const at = (loop: number, stage: number, pow = 0) => {
     $.G = { loop, stage, pow, rank: Math.max(0, Math.min(1, pow)) };
@@ -118,16 +119,28 @@ describe('intra-descent depth on long4', () => {
     expect(firem()).toBe(1);
   });
 
-  it('climbs to loop + .35 by the Drive stage, for fodder HP, midboss HP, cooldowns and fire chance', () => {
+  it('climbs to loop + .35 by the Drive stage, for fodder HP, cooldowns and fire chance', () => {
     at(0, 3);
     expect(dep()).toBeCloseTo(.35);
     expect(depthHP('drone', { hp: 1 }, {})).toBeCloseTo(1 + DEPTH.fod * .35);
-    expect(depthHP('choir', { mini: 1, mid: 1 }, {})).toBeCloseTo(1 + DEPTH.mid * .35);
     expect(cdm()).toBeCloseTo(1 / (1 + DEPTH.fire * .35));
     expect(firem()).toBeCloseTo(1 + DEPTH.fire * .35);
     at(1, 1);
     expect(dep()).toBeCloseTo(1 + .35 / 3);
     expect(depthHP('drone', { hp: 1 }, {})).toBeCloseTo(1 + DEPTH.fod * (1 + .35 / 3));
+  });
+
+  it('keeps midboss HP on the integer loop at every stage (D29), while their fire still reads dep()', () => {
+    for (const stage of [1, 2, 3]) {
+      at(0, stage);
+      expect(depthHP('choir', { mini: 1, mid: 1 }, {})).toBe(1);
+      expect(depthHP('prentice', { mini: 1, mid: 1 }, {})).toBe(1);
+      expect(depthHP('maw', { mini: 1 }, {})).toBe(1); // the mid-stage Maw is a midboss here
+      expect(cdm()).toBeLessThan(1);
+      at(1, stage);
+      expect(depthHP('choir', { mini: 1, mid: 1 }, {})).toBeCloseTo(1 + DEPTH.mid); // Descent 2: the loop term only (no DEPTH.w weight for the Choir)
+      expect(depthHP('drone', { hp: 1 }, {})).toBeGreaterThan(1 + DEPTH.fod); // regular enemies do take the intra term
+    }
   });
 
   it('leaves stage bosses, the burst bullet and the Drive on the integer loop', () => {

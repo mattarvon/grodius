@@ -13,10 +13,10 @@ vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: () => {} }));
 
 const { midboss, ET } = await import('../../src/enemies/spawn');
 const L = await import('../../src/layout');
-const DEP = await import('../../src/depth');
 
 /** spawn kind k as a midboss in Descent loop+1 at stage ordinal `stage` on layout id; returns the enemy. Stage 0 keeps
- *  depth at the integer loop on every layout (Descent 1: no depth HP); long4's later stages add intra-descent depth (G) */
+ *  depth at the integer loop on every layout (Descent 1: no depth HP); midboss HP ignores long4's intra-descent depth
+ *  at every stage (D29) */
 function meet(id: 'short' | 'long4', k: string, loop = 0, stage = 0) {
   L.setLayout(id);
   $.G = { loop, stage, st: { spawned: 0 }, mini: null };
@@ -54,11 +54,12 @@ describe('midboss() base HP per layout (D27)', () => {
     expect(long.max).toBe(long.hp);
   });
 
-  it('stacks long4 intra-descent depth (LS1 item G) on the 200 base at a biome stage in Descent 1', () => {
-    // stage 1 of 4: dep = .35 * 1/3, so the midboss factor is 1 + DEPTH.mid * dep (depth.test.ts covers dep itself)
-    const e = meet('long4', 'prentice', 0, 1);
-    expect(e.hp).toBeCloseTo(200 * (1 + DEP.DEPTH.mid * .35 / 3), 9);
-    expect(e.max).toBe(e.hp);
-    expect(meet('short', 'prentice', 0, 1).hp).toBe(150); // short: Descent 1 stays at 1x on every stage
+  it('spawns the Apprentice at exactly 200 on long4 and 150 on short at biome slots A and B in Descent 1 (D29)', () => {
+    for (const stage of [1, 2]) {
+      const e = meet('long4', 'prentice', 0, stage);
+      expect(e.hp).toBe(200);
+      expect(e.max).toBe(200);
+      expect(meet('short', 'prentice', 0, stage).hp).toBe(150);
+    }
   });
 });
