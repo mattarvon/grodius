@@ -166,7 +166,9 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   9. **Writer (D8):** RESUME is a plain-UI word among diegetic rows; take a diegetic option (e.g. REVIVE) to the copy pass.
 - **Carry-forward from the LS1-G studio review (2026-11-03):**
   1. **systems-designer + qa-lead:** the hits/min exit criterion (±30% of spec §8 per biome slot, row G evidence and LS1 exit "Difficulty") is **not demonstrated**: 2 of 8 cells in band, 0-3 hits per cell, 2 seeds. The cause is the instrument: G's mortal bot game-overs in long4's first biome on all 5 seeds (the same gap as sprint 2 carry-forward 10). Both biome stages also run under the 90-120 s wall band, which lowers hits/min. **Carried forward, not waived** (decision log). Gates LS2 banding and the LS1 exit; needs a mortal bot that survives the biomes, or ≥ 10 seeds per kind. Row G closes with this attached.
+     - **LS1-bot (2026-11-05):** the mortal pilot (`pod-probe --pilot`, `production/qa/evidence/ls1-bot.md`) clears long4's Descent 1 on 5 of 5 seeds, and 3 of 5 survive two descents (post-fix runs). It does not close this item. §8 targets are would-be hits for the *invincible* bot, so what is left is a ≥ 10-seed `playtest.mjs` sweep (or a waiver).
   2. **qa-lead:** the long4 economy figures (LV median 14, D1 biomass median 1434, spread 15 / 1613) come from an invincible bot, so they are an upper bound. Re-measure with a mortal bot before the LS1 exit.
+     - **Measured, LS1-bot (post-fix pilot):** the D1 LV median is 13 (13-15). The D1 steady biomass median is 1213 (1169-1413), under the 1.3-1.5k target; the cause is unmeasured. **Owner: economy-designer, before the LS1 exit; find the cause first, then tune `killBio`.** It is a tuning signal for LS2, not a verdict (creative-director).
   3. **Matt:** a brand-new profile earns ~1934 biomass in Descent 1 (five first kills × +100), ~30% over the band. This is by design per spec §6.4 and onboarding-friendly; the band is read at steady state.
   4. **economy-designer:** the LV median sits at the top edge of `lvD1 [12,14]`. Trial `killXP` .80 in LS2.
   5. **qa-tester:** mutate-check the economy and stages tests. Only the D29 and first-kill tests were watched failing.
@@ -175,9 +177,10 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   8. **audio (optional):** the FIRST KILL payout has no sound of its own; the midboss roar covers it.
   9. **systems-designer + qa-lead, the other LS1 exit gaps G measured (producer):**
      - **Grades:** only Open Orbit is shown with a mortal bot (A vs A). Biome and Drive grades need the same mortal-bot fix as item 1.
-     - **Wall time:** the 90-120 s biome band is an LS1 exit criterion, and biome B misses it (76-82 s; biome A 76-89 s). This is its own gap, not only a cause in item 1.
-     - **D2/D3 biomass bands** (2100-2400 / 2600-3600) were never measured (economy-designer).
-     - **Drive fight:** 37-53 s against 30-45 s. Measured only; a risk for LS2 banding.
+       - **Measured, LS1-bot (post-fix pilot; 5 seeds in D1, 3 of them through D2):** biome and Drive grades run S-C, mostly S/A, as an upper bound for a strong player. D1 wall times: biome A 85-115 s and biome B 73-95 s against 90-120 s; the Drive stage 86-100 s against 80-95 s; Orbit 76-100 s against 75-90 s. The D1 Drive fight runs 40-55 s against 30-45 s. D2 biomass earned is 1618-2351 against 2.1-2.4k (D3 still unmeasured). The pilot copies enemy geometry from `src/` as literals, so re-check `tools/pilot.mjs` when the lash, cleaver, hook, laser or tentacle numbers are retuned.
+     - **Wall time:** the 90-120 s biome band is an LS1 exit criterion, and biome B misses it (76-82 s; biome A 76-89 s; G-era figures from the invincible bot, superseded by the LS1-bot line below). This is its own gap, not only a cause in item 1.
+     - **D2/D3 biomass bands** (2100-2400 / 2600-3600) were never measured (economy-designer). D2 has now been measured by LS1-bot (1618-2351, 3 seeds); D3 is still unmeasured.
+     - **Drive fight:** 37-53 s against 30-45 s (G-era, invincible bot; LS1-bot measures 40-55 s). Measured only; a risk for LS2 banding.
      - **Spawn density:** biome stages land at 47-62 against 55-70, with one 114 outlier.
   10. **gameplay-programmer (technical-director):** `econId()` is the one impure call in `economy.ts`: it reads `layout()` at call time, so a `setLayout()` mid-run would change the economy entry mid-descent. `setLayout`'s contract already forbids that (only before `newGame()`). Add an assert or a comment at `econId()`.
 
