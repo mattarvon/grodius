@@ -1,6 +1,8 @@
 // Seeded pacing probe: progression.mjs bot + pick/fork/shop handling, seeded RNG,
 // per-frame pod-pickup timestamps, per-stage pods/min, bio per descent.
-// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout short] [--mortal]
+// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout short] [--mortal] [--pilot]
+// --pilot: steer with the dodging autopilot (tools/pilot.mjs) instead of the plain target-seeker; use it with --mortal
+// (the plain bot game-overs in long4's first biome). Its frames with no safe move are reported as `pilot.trapped`.
 // --mortal: the bot is not kept invincible, so it takes real hits, loses ships and can game over (the run then ends
 // early and `endState` says so). Without it, hits stay 0 and every tally grades on kill% alone.
 // `firstKills` lists the midboss kinds paid the first-kill biomass (meta.mbK; the probe starts on a fresh profile, so
@@ -11,11 +13,14 @@
 // shop); `tally_s` is the tally card's own clock, STAGE card to boss kill (spec §3.1's wall-time definition).
 import { chromium } from 'playwright';
 import { useLayout, LAYOUT } from './layout-arg.mjs';
+import { PILOT } from './pilot.mjs';
 const mi = process.argv.indexOf('--mortal'), MORTAL = mi >= 0; if (MORTAL) process.argv.splice(mi, 1);
+const pli = process.argv.indexOf('--pilot'), PIL = pli >= 0; if (PIL) process.argv.splice(pli, 1);
 const [url, SEED = '1', MIN = '12', END = '1'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-await p.addInitScript(([seed, mortal]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
+if (PIL) await p.addInitScript(PILOT);
+await p.addInitScript(([seed, mortal, pil]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);
   try { localStorage.clear(); } catch (e) {}
   window.__pods = []; window.__fr = 0; window.__bf = {};
@@ -26,7 +31,8 @@ await p.addInitScript(([seed, mortal]) => { let now = 0; const q = []; performan
           const t = c || g.enemies.filter((e) => !e.dead && e.x > g.P.x + 20 && e.x < 480 && (e.hp || 1) > 0).sort((a, b) => (a.k === 'heart' || a.k === 'nailbar' ? -1 : 0) || Math.abs(a.y - g.P.y) - Math.abs(b.y - g.P.y))[0];
           if (t) { tx = c ? c.x : Math.min(140, t.x - 60); ty = t.y; }
           else { const m = (G.mini && !G.mini.dead && G.mini) || G.boss || g.enemies.find((e) => !e.dead); tx = 90; ty = m ? m.y : g.P.y; } }
-        if (tx != null) { g.P.x += Math.sign(tx - g.P.x) * Math.min(3, Math.abs(tx - g.P.x)); g.P.y += Math.sign(ty - g.P.y) * Math.min(3, Math.abs(ty - g.P.y)); }
+        if (pil) window.__pilotStep(g, tx, ty);
+        else if (tx != null) { g.P.x += Math.sign(tx - g.P.x) * Math.min(3, Math.abs(tx - g.P.x)); g.P.y += Math.sign(ty - g.P.y) * Math.min(3, Math.abs(ty - g.P.y)); }
         before = g.caps.slice(); }
       q.splice(0).forEach((f) => f(now));
       const h = window.__G && window.__G();
@@ -35,13 +41,13 @@ await p.addInitScript(([seed, mortal]) => { let now = 0; const q = []; performan
         for (const c of before) if (!seen.has(c) && c.x >= -12 && (c.x - h.P.x) ** 2 + (c.y - h.P.y) ** 2 < 20 * 20) {
           const kind = c.graft ? 'graft' : c.blue ? 'blue' : c.choice ? 'choice' : c.salv ? 'salv' : 'pod';
           if (kind === 'choice') { if (chosen) continue; chosen = true; }
-          window.__pods.push({ f: window.__fr, kind, st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, [+SEED, MORTAL]);
+          window.__pods.push({ f: window.__fr, kind, st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, [+SEED, MORTAL, PIL]);
 await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'pod-probe', { quiet: true }); // stdout stays one JSON object; it carries the layout
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
-await p.evaluate(async () => { window.__fr = 0; window.__pods.length = 0; window.__S = (await import('/src/state.ts')).$; });
+await p.evaluate(async () => { window.__fr = 0; window.__pods.length = 0; window.__S = (await import('/src/state.ts')).$; window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); });
 let last = '', lastFork = false; const tally = {}, grades = {}; const seg = []; let endState = '';
 for (let it = 0; it < MIN * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
@@ -64,5 +70,5 @@ const stages = seg.slice(0, -1).map((sg, i) => { const f1 = seg[i + 1].f0; const
   return { stage: sg.k, dur: +dur.toFixed(1), pods: n, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
-  mortal: MORTAL, stages, tally_s: tally, grades, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
+  mortal: MORTAL, pilot: PIL ? await p.evaluate(() => window.__pilotLog) : null, stages, tally_s: tally, grades, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
 console.error(`pod-probe: ran on ${LAYOUT}`); await b.close();
