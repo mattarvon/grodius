@@ -36,7 +36,9 @@ import { $ } from './state';
 import { step } from './step';
 import { render } from './render/screens';
 import { applyRunLayout } from './lab';
-import { lastRun, readRun, rewriteRun, runInfo } from './runsave';
+import { lastRun, readRun, rewriteRun, runInfo, sealRun } from './runsave';
+import { jumpBoot } from './jump';
+import { jumpRun } from './flow';
 
 // ---------------- layout flag (build plan sprint 2 items D, D2) ----------------
 // ?layout=long flies the long4 entry (src/layout.ts); the default is long4 (D24). The parse is lab.ts layoutChoice
@@ -46,6 +48,9 @@ import { lastRun, readRun, rewriteRun, runInfo } from './runsave';
   const c = applyRunLayout(true);
   if (c.bad != null) console.warn(`?layout=${c.bad}: unknown layout; flying ${c.id}`);
 }
+// the jump switch (build plan LS1 row I, src/jump.ts): dev server only, so a deployed page ignores ?stage=. Parsed
+// here, after the layout flag and before the run save is read: a valid jump seals the slot first. Started below
+const jump = import.meta.env.DEV ? jumpBoot(location.search) : null;
 // the run save (item H): read once at boot, validated under its own layout (the active one is left as chosen above);
 // the title offers RESUME from the in-memory copy
 readRun();
@@ -157,5 +162,6 @@ Promise.all(['8px Silkscreen', '28px "Grenze Gotisch"'].map((f) => document.font
   .then(() => {
     fit();
     start({});
+    if (jump && !jumpRun(jump)) sealRun(false); // a jump that didn't start is a normal boot, with a normal slot
     (window as any).__started = true;
   });

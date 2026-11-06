@@ -1,0 +1,36 @@
+{
+  "frames": 1200,
+  "commit": "5c8c3eb",
+  "os": "linux 6.18.42-1-cachyos-lts",
+  "layout": "long4",
+  "scenario": "crux-d1",
+  "q": "stage=ice&x=3390&loop=0&kit=mid&rank=.5&seed=7",
+  "st": {
+    "state": "play",
+    "score": 1000,
+    "scroll": 7997,
+    "lives": 0,
+    "px": 50,
+    "py": 114.954,
+    "en": 5,
+    "gibs": 15,
+    "drops": 56,
+    "caps": 0,
+    "jump": true,
+    "stage": 1,
+    "pair": "choir+cyst",
+    "loop": 0,
+    "pow": 0.5,
+    "rank": 0.5,
+    "lvl": 6,
+    "kills": 0,
+    "t": 1180,
+    "seen": "mini:crux",
+    "sig": "c57a935344"
+  },
+  "hashes": [
+    "d2033d9e3a",
+    "983f3feed3"
+  ],
+  "errs": []
+}

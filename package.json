@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:regress",
     "test:unit": "vitest run",
-    "test:regress": "node tools/harness.mjs && node tools/harness.mjs --layout long4",
+    "test:regress": "node tools/harness.mjs && node tools/harness.mjs --layout long4 && node tools/harness.mjs --scenario all",
     "android": "vite build && cap sync android"
   },
   "devDependencies": {

@@ -26,7 +26,8 @@ export function stepWorld() {
   $.G.t++;
   // one power budget (src/power.ts): every gun, graft, perk and bolted contraption. Difficulty reads it only as enemy
   // fire and density (D1); uncapped here, every()/BS()/formation() cap it at 2
-  $.G.pow = powerBudget();
+  // G.powPin: the jump switch's fixed rank (src/jump.ts; harness boss scenarios). Unset on every real run
+  $.G.pow = $.G.powPin ?? powerBudget();
   $.G.rank = clamp($.G.pow, 0, 1);
   if ($.G.mini && $.G.mini.dead) $.G.mini = null;
   const tgt = $.G.bossStarted || ($.G.mini && !$.G.mini.drift) || $.G.forkHold ? 0 : 1; // drift: the Open Orbit midboss doesn't hold the scroll

@@ -132,6 +132,11 @@ export function applyRun(d, G = $.G, P = $.P) {
 // `last` is the slot's in-memory copy (the JSON last stored or read): the title's RESUME row and the Android pause
 // re-write read it, never storage, so no draw code touches localStorage
 let last = null, info = null;
+// the jump switch (src/jump.ts) seals the slot for the page's life: a dev jump never stores, re-writes or clears the
+// player's checkpoint, whatever the run does (checkpoints, game over, a new game). Reads still work
+let sealed = false;
+/** seal (or, after a jump that failed to start, unseal) the slot */
+export const sealRun = (on = true) => { sealed = on; };
 const remember = (s, d) => { last = s; info = s && d ? { loop: d.g.loop, stage: d.g.stage, layout: d.g.layout } : null; };
 
 /** decodeRun under the blob's OWN layout: route and bx are sized by nSlots() and stage is bounded by lastStage(), so
@@ -161,6 +166,7 @@ export function encodeRun(G = $.G, P = $.P) {
 }
 /** store an encoded run under grodius.run (and as the in-memory copy); false if storage refused it */
 export function storeRun(s) {
+  if (sealed) return false;
   remember(s, decodeRun(s));
   try {
     localStorage.setItem(RUN_KEY, s);
@@ -192,11 +198,12 @@ export const lastRun = () => last;
 export const runInfo = () => info;
 /** Android pause: write the LAST CHECKPOINT again, never live state (spec §4) */
 export function rewriteRun() {
-  if (!last) return false;
+  if (!last || sealed) return false;
   try { localStorage.setItem(RUN_KEY, last); return true; } catch (e) { return false; }
 }
 /** drop the run save (game over, descent end, new game) */
 export function clearRun() {
+  if (sealed) return;
   remember(null);
   try { localStorage.removeItem(RUN_KEY); } catch (e) {}
 }
