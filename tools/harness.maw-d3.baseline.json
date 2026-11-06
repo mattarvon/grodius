@@ -1,0 +1,36 @@
+{
+  "frames": 1200,
+  "commit": "5c8c3eb",
+  "os": "linux 6.18.42-1-cachyos-lts",
+  "layout": "long4",
+  "scenario": "maw-d3",
+  "q": "stage=orbit&x=4170&loop=2&kit=full&rank=1&seed=7",
+  "st": {
+    "state": "play",
+    "score": 0,
+    "scroll": 4248,
+    "lives": 5,
+    "px": 50,
+    "py": 47.02,
+    "en": 1,
+    "gibs": 27,
+    "drops": 292,
+    "caps": 0,
+    "jump": true,
+    "stage": 0,
+    "pair": "ufo",
+    "loop": 2,
+    "pow": 1,
+    "rank": 1,
+    "lvl": 12,
+    "kills": 0,
+    "t": 1200,
+    "seen": "mini:maw",
+    "sig": "5398ce1a7d"
+  },
+  "hashes": [
+    "1724c6bd66",
+    "4ba01916ff"
+  ],
+  "errs": []
+}

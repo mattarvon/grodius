@@ -1,0 +1,36 @@
+{
+  "frames": 1200,
+  "commit": "5c8c3eb",
+  "os": "linux 6.18.42-1-cachyos-lts",
+  "layout": "long4",
+  "scenario": "saucer",
+  "q": "stage=orbit&x=1050&kit=mid&seed=7",
+  "st": {
+    "state": "play",
+    "score": 784,
+    "scroll": 2130,
+    "lives": 2,
+    "px": 50,
+    "py": 60.12,
+    "en": 3,
+    "gibs": 37,
+    "drops": 440,
+    "caps": 1,
+    "jump": true,
+    "stage": 0,
+    "pair": "ufo",
+    "loop": 0,
+    "pow": 0.26,
+    "rank": 0.26,
+    "lvl": 6,
+    "kills": 9,
+    "t": 1200,
+    "seen": "mini:ufo",
+    "sig": "bac7aa5a7b"
+  },
+  "hashes": [
+    "74f5956310",
+    "000584f436"
+  ],
+  "errs": []
+}
