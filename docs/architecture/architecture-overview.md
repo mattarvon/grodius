@@ -25,7 +25,7 @@ The modules form a flat ES-module graph. `main.ts` imports almost every module p
 
 | Area | Modules | Role |
 |---|---|---|
-| Entry / loop | `main.ts` | Fixed-step loop, auto-quality, idle-time warm-up of boss art, Android lifecycle, debug hooks `window.__G/__rig/__mb/__au/__sfx/__music` |
+| Entry / loop | `main.ts` | Fixed-step loop, auto-quality, per-route idle warm-up of boss art (`render/warmup.ts`, plan in `warmplan.ts`), Android lifecycle, debug hooks `window.__G/__rig/__mb/__au/__sfx/__music` |
 | Shared state | `state.ts` (`export const $: any = {}`), `world.ts` | `$` holds state, `G` (run), `P` (player), `T`, `DK`, `meta`, menu state. `world.ts` holds the entity/particle pools (`shots, eshots, enemies, drops, gibs, mists, sparks, flashes, decals, geysers, splats, caps, orbs, texts, arcs`) and terrain arrays |
 | Core utils | `core.ts` | Constants (`W=480,H=270`, `LEVEL`, `BOSS_AT`), canvases (`cv/dctx` display, `lo/ctx` 480x270 world, `lc`, `hc`), RNG `R = Math.random` and `rr/ri/pick`, `swapRm`, palette `C` |
 | Sim step | `step.ts` | `step()` handles state dispatch, input and music. `stepWorld()` computes `G.pow/G.rank`, then runs the per-system updates in a fixed order, the deferred `G.pend` queue and the periodic `save()` |

@@ -422,6 +422,7 @@ export function banner(text, sub, col = '#d4141e', t = 200) {
     t,
     ml: t
   };
+  if (text === 'WARNING') $.G.warnEnd = $.G.t + t; // the warm-up holds until this step (warmplan.ts). Write-only for the sim
 }
 // the Open Orbit and Gravity Drive approach scripts, remixed per descent, live in enemies/scripts.ts
 export { stageScript } from './scripts';

@@ -934,7 +934,8 @@ function buildButcherCracks() { // glowing fissures in the char, pulsed with 'li
 }
 export function drawButcherGross(c, e) {
   const t = e.t, s = stOf(e), T = $.T || 0;
-  if (!BUT) { BUT = buildButcher(); BUTC = buildButcherCracks(); }
+  if (!BUT) BUT = buildButcher();
+  if (!BUTC) BUTC = buildButcherCracks();
   // ---- events ----
   if (e.hp < s.hp - .001) {
     const w = wound(s, [[-2, -2, 16, 14], [-4, 12, 16, 4], [-12, -8, 6, 10]], 10);
@@ -1197,8 +1198,13 @@ export function drawBiomeBossFX() {
 }
 
 /** pre-build the Crucifer's and Butcher's static art (idle time after boot); false when done */
-export function warmBiomeBosses() {
-  if (!CRUX) { CRUX = buildCrux(); return true; }
-  if (!BUT) { BUT = buildButcher(); BUTC = buildButcherCracks(); return true; }
+/** build one more piece of boss k (per-route warm-up, render/warmup.ts); false: nothing left to build */
+export function warmBiomeBoss(k) {
+  if (k === 'crux') { if (!CRUX) CRUX = buildCrux(); frozenEyes(); return false; } // frozenEyes: was paid on her first frame
+  if (!BUT) { BUT = buildButcher(); return true; }
+  if (!BUTC) BUTC = buildButcherCracks();
   return false;
 }
+export const biomeBossBuilt = (k) => (k === 'crux' ? !!CRUX : !!BUT && !!BUTC);
+/** free boss k's body; its next draw rebuilds it (seeded, so the same art) */
+export function dropBiomeBoss(k) { if (k === 'crux') CRUX = null; else BUT = BUTC = null; }
