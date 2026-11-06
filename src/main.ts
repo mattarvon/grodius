@@ -36,7 +36,9 @@ import { $ } from './state';
 import { step } from './step';
 import { render } from './render/screens';
 import { applyRunLayout } from './lab';
-import { lastRun, readRun, rewriteRun, runInfo } from './runsave';
+import { lastRun, readRun, rewriteRun, runInfo, sealRun } from './runsave';
+import { jumpBoot } from './jump';
+import { jumpRun } from './flow';
 
 // ---------------- layout flag (build plan sprint 2 items D, D2) ----------------
 // ?layout=long flies the long4 entry (src/layout.ts); the default is long4 (D24). The parse is lab.ts layoutChoice
@@ -46,6 +48,9 @@ import { lastRun, readRun, rewriteRun, runInfo } from './runsave';
   const c = applyRunLayout(true);
   if (c.bad != null) console.warn(`?layout=${c.bad}: unknown layout; flying ${c.id}`);
 }
+// the jump switch (build plan LS1 row I, src/jump.ts): dev server only, so a deployed page ignores ?stage=. Parsed
+// here, after the layout flag and before the run save is read: a valid jump seals the slot first. Started below
+const jump = import.meta.env.DEV ? jumpBoot(location.search) : null;
 // the run save (item H): read once at boot, validated under its own layout (the active one is left as chosen above);
 // the title offers RESUME from the in-memory copy
 readRun();
@@ -82,14 +87,8 @@ function autoQuality(now) {
   if (qSum / qN > 19.2 && lowerDK()) qHold = now + 3000; // let the new size settle before judging again
   qN = qSum = 0;
 }
-// pre-build the bosses' static art one piece per idle slot after boot, so no fight opens on a build hitch
-const WARM = [warmHeroEye, warmEyes, warmMaw, warmMidbosses, warmUfo, warmBiomeBosses, warmDrive];
-function warmUp() {
-  while (WARM.length && !WARM[0]()) WARM.shift();
-  if (WARM.length) (window.requestIdleCallback || ((f) => setTimeout(f, 50)))(warmUp, { timeout: 1000 });
-}
 export function start(data) {
-  setTimeout(warmUp, 1500);
+  startWarm(); // pre-build the art per route, one piece per idle slot, so no fight opens on a build hitch (render/warmup.ts)
   if (data && data.meta && data.meta.lv) {
     $.meta = data.meta;
     $.hi = Math.max($.hi, data.hi || 0);
@@ -137,13 +136,8 @@ screen.orientation?.addEventListener?.('change', fit);
 
 // canvas text needs the bundled fonts before the first frame
 import { auInit, audioRunning } from './audio';
-import { warmMaw } from './render/gross/maw';
-import { warmMidbosses } from './render/gross/midbosses';
-import { warmUfo } from './render/gross/ufo';
-import { warmBiomeBosses } from './render/gross/biomebosses';
-import { warmDrive } from './render/gross/drive';
-import { warmEyes } from './render/eyes';
-import { warmHeroEye } from './render/heroeye';
+import { startWarm, warmLog } from './render/warmup';
+(window as any).__warm = () => warmLog; // tools/perf-probe.mjs
 import { pFrame, pIn, pOut } from './perf';
 auInit();
 $.gate = !audioRunning();
@@ -157,5 +151,6 @@ Promise.all(['8px Silkscreen', '28px "Grenze Gotisch"'].map((f) => document.font
   .then(() => {
     fit();
     start({});
+    if (jump && !jumpRun(jump)) sealRun(false); // a jump that didn't start is a normal boot, with a normal slot
     (window as any).__started = true;
   });

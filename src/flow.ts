@@ -17,11 +17,12 @@ import { shipShed } from './shipform';
 import { nSlots } from './layout';
 import { newRunSeed } from './rng';
 import { setLayout, layout } from './layout';
-import { clearRun, decodeRunAs, lastRun } from './runsave';
-import { stageBanner } from './stages';
+import { clearRun, decodeRun, decodeRunAs, lastRun } from './runsave';
+import { sealFor, stageBanner } from './stages';
 import { CP, cp1X, writeCp } from './checkpoint';
 import { rebuildAt } from './stagebuild';
 import { cpTrigger } from './lab';
+import { jumpBlob } from './jump';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
@@ -146,6 +147,19 @@ export function resumeRun(d) {
   stageBanner(G.stage);
   $.state = 'play';
 }
+/** the jump switch (src/jump.ts): start a run from a parsed jump through the resume's own path, a checkpoint blob
+ *  built from the URL instead of read from the slot, so there is no second way to fast-forward. False, with the title
+ *  left as it was, if it doesn't start. The caller has sealed the run-save slot */
+export function jumpRun(j) {
+  const b = jumpBlob(j, j.seed ?? newRunSeed(R));
+  b.g.seal = sealFor(b.g.cleared);
+  const d = decodeRun(b);
+  if (!d) { console.error(`?stage=${j.kind}: the jump built a checkpoint that doesn't decode; normal boot`); return false; }
+  if (!tryResume(d)) return false;
+  $.G.jump = true;
+  if (j.rank != null) $.G.powPin = j.rank;
+  return true;
+}
 export function startLoop(L) {
   $.G.loop = L;
   $.G.pend = [];
@@ -158,6 +172,7 @@ export function startLoop(L) {
   $.G.boss = null;
   $.G.clearT = 0;
   $.G.t = 0;
+  $.G.warnEnd = 0; // banner() wrote it on the last descent's clock; left set, it holds the warm-up for most of the next descent (the render-side warm-up gate)
   buildTerrain(L);
   for (const a of ALL) a.length = 0;
   resetContraptions();
@@ -275,7 +290,7 @@ export function respawn() {
     gameOver();
     return;
   }
-  if (cpTrigger() === 'b' && deathRestart()) return;
+  if (cpTrigger() === 'b' && !$.G.jump && deathRestart()) return; // a jump run has no checkpoint: the slot is the player's
   $.G.lives--;
   resetPlayer(true);
   const wx = $.P.x + $.G.scroll;

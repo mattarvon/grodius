@@ -22,7 +22,9 @@ vi.mock('../../src/rng', () => ({ newRunSeed: () => 1 }));
 vi.mock('../../src/stagebuild', () => ({ rebuildAt: (x: number) => rebuild(x) }));
 vi.mock('../../src/lab', () => ({ cpTrigger: () => trigger }));
 
-const { resumeLast, respawn } = await import('../../src/flow');
+const { jumpRun, resumeLast, respawn, startLoop } = await import('../../src/flow');
+const { warmBlocked } = await import('../../src/warmplan');
+const { parseJump } = await import('../../src/jump');
 const { RUN_KEY, RUN_V, lastRun, readRun, runInfo } = await import('../../src/runsave');
 const { LAYOUTS, layout, setLayout } = await import('../../src/layout');
 
@@ -93,5 +95,62 @@ describe('the option-b death restart when the rebuild throws', () => {
     expect($.P.alive).toBe(true);
     expect(lastRun()).toBeNull();
     setLayout('short');
+  });
+});
+
+// the jump switch (build plan LS1 row I) flies the same tryResume path: same rebuild, same backstop
+describe('jumpRun', () => {
+  const jump = (q: string) => (parseJump(q) as any).jump;
+  beforeEach(() => { setLayout('long4'); $.state = 'title'; $.G = null as any; $.P = null as any; });
+
+  it('starts the run through the rebuild at the URL x, marked as a jump', () => {
+    expect(jumpRun(jump('?stage=ice&x=900&kit=mid&seed=7'))).toBe(true);
+    expect(rebuild).toHaveBeenCalledExactlyOnceWith(LAYOUTS.long4!.stages[1].x0 + 900);
+    expect($.state).toBe('play');
+    expect($.G).toMatchObject({ jump: true, seed: 7, stage: 1, loop: 0 });
+    expect($.P.options).toBe(1);
+    setLayout('short');
+  });
+
+  it('pins G.powPin only when the URL names a rank, including rank 0', () => {
+    jumpRun(jump('?stage=orbit&seed=7'));
+    expect($.G.powPin).toBeUndefined();
+    jumpRun(jump('?stage=orbit&rank=0&seed=7'));
+    expect($.G.powPin).toBe(0);
+    setLayout('short');
+  });
+
+  it('returns false and leaves the title as it was when the rebuild throws', () => {
+    rebuild.mockImplementation(() => { throw new Error('bad build'); });
+    expect(jumpRun(jump('?stage=orbit&seed=7'))).toBe(false);
+    expect($.state).toBe('title');
+    expect($.G).toBeNull();
+    setLayout('short');
+  });
+
+  it('never restarts a jump run at the player\'s stored checkpoint, even under option b', () => {
+    trigger = 'b';
+    stored();
+    jumpRun(jump('?stage=biome&seed=7'));
+    $.G.stage = 2;
+    rebuild.mockClear();
+    const G = $.G;
+    respawn();
+    expect(rebuild).not.toHaveBeenCalled();
+    expect($.G).toBe(G);
+    setLayout('short');
+  });
+});
+
+// sprint 3 I+K studio review (web-specialist): the Drive's WARNING writes warnEnd on the descent clock. startLoop resets
+// G.t to 0 for the next descent, so a stale warnEnd would hold the per-route warm-up for most of Descent 2+
+describe('the warm-up gate across a descent', () => {
+  it('starts the next descent with no WARNING window held over from the last one', () => {
+    $.G = { t: 15000, warnEnd: 15200, loop: 0, stage: 4 } as any;
+    $.P = { alive: true, hist: [] } as any;
+    expect(warmBlocked('play', $.G as any)).toBe(true);
+    startLoop(1);
+    expect($.G.t).toBe(0);
+    expect(warmBlocked('play', $.G as any)).toBe(false);
   });
 });

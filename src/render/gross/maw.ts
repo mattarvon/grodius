@@ -273,7 +273,7 @@ const STOM = { orbit: [13, 2, 6.5, 9], acid: [11, 3, 9.5, 12.5], snot: [13, 2, 6
 
 export function drawGrossMaw(c, e) {
   const t = e.t, v = VK(e), P = PAL[v], s = st(e), T = bodyTex(v);
-  live.add(e);
+  if (!e.dead) live.add(e); // a dead Maw's split halves draw through here (gore.ts): re-adding it would rupture it again every frame
   s.x = e.x;
   s.y = e.y;
   s.v = v;
@@ -1111,9 +1111,8 @@ function drawRupture(c, r) {
 (globalThis as any).__mawFx = () => ({ pt: PT.length, rup: RUP.length, live: live.size });
 
 /** pre-build the three Maw body textures (idle time after boot); false when done */
-export function warmMaw() {
-  const v = ['orbit', 'acid', 'snot'].find((k) => !TEX[k]);
-  if (!v) return false;
-  bodyTex(v);
-  return true;
-}
+/** build variant v's body (per-route warm-up, render/warmup.ts); false: nothing left to build */
+export function warmMawVariant(v) { bodyTex(v); return false; }
+export const mawVariantBuilt = (v) => !!TEX[v];
+/** free variant v's body; its next draw rebuilds it (srng is seeded by variant, so it is the same art) */
+export function dropMawVariant(v) { delete TEX[v]; }

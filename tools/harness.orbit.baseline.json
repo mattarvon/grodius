@@ -1,0 +1,36 @@
+{
+  "frames": 1200,
+  "commit": "5c8c3eb",
+  "os": "linux 6.18.42-1-cachyos-lts",
+  "layout": "long4",
+  "scenario": "orbit",
+  "q": "stage=orbit&x=0&seed=7",
+  "st": {
+    "state": "play",
+    "score": 2639,
+    "scroll": 1190,
+    "lives": 1,
+    "px": 50,
+    "py": 92.87,
+    "en": 2,
+    "gibs": 28,
+    "drops": 25,
+    "caps": 1,
+    "jump": true,
+    "stage": 0,
+    "pair": "ufo",
+    "loop": 0,
+    "pow": 0.032,
+    "rank": 0.032,
+    "lvl": 1,
+    "kills": 15,
+    "t": 1190,
+    "seen": "",
+    "sig": "e55e70a51d"
+  },
+  "hashes": [
+    "ee66ff491c",
+    "b3aa94385a"
+  ],
+  "errs": []
+}

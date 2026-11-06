@@ -462,6 +462,8 @@ const beat = t => {
   const p = k => k >= 0 && k < 9 ? 1 - k / 9 : 0;
   return Math.max(p(t % 60), .65 * p((t % 60) - 14));
 };
+/** bake the skyline in an idle boot slot, so Orbit's first frame doesn't pay for it (render/warmup.ts); false: done */
+export function warmDerelict() { if (!DBAKE) DBAKE = bakeDerelict(); return false; }
 /** the derelict skyline behind Open Orbit: one blit of the baked blocks plus the live neon, windows and disc shimmer */
 export function drawDerelict(a, sc) {
   if (a <= 0) return;

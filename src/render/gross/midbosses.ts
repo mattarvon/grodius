@@ -937,10 +937,10 @@ export function grossBrood(c, e) {
   }
 }
 
-/** pre-build the midbosses' static layers (idle time after boot); false when done */
-export function warmMidbosses() {
-  const k = [['choir', choirCrust], ['wveins', wombVeins], ['burn', burnTex], ['mucus', mucusTex]].find(([q]) => !lay[q]);
-  if (!k) return false;
-  k[1]();
-  return true;
-}
+// each midboss kind's static layer, for the per-route warm-up (render/warmup.ts)
+const MID_LAY = { choir: ['choir', choirCrust], cyst: ['wveins', wombVeins], prentice: ['burn', burnTex], brood: ['mucus', mucusTex] };
+/** build kind k's layer; false: nothing left to build */
+export function warmMid(k) { MID_LAY[k][1](); return false; }
+export const midBuilt = (k) => !!lay[MID_LAY[k][0]];
+/** free kind k's layer; its next draw rebuilds it (hn is hashed, so it is the same art) */
+export function dropMid(k) { delete lay[MID_LAY[k][0]]; }
