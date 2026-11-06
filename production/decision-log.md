@@ -150,6 +150,12 @@ localization), D16-D18, and the signing keystore half of D6.
 **Reason:** keeps D27 (Matt, 2026-11-02) intact with no re-tuning; the probe figures stay valid. **Confirmed by Matt 2026-11-03.** Owner: lane G (it implements intra-descent depth), with a midboss-probe check of slots A and B on its branch.
 **Category:** balance
 
+### D30 S2-K1 perf: carry into LS2, judged by the Fold reading — 2026-11-06 (Matt; from the LS1 I+K studio review)
+
+**Decision point:** p95 at 4× throttle misses 16.7 ms in every "midboss + 8" scene (24.8-36.2 ms) and on real long4 flights (30.1 / 37.4 ms). The cost is CPU-side: `drawGibs` 22%, `flushLo` 15%, `drawBG` 7% (`production/qa/evidence/ls1-k.md`). Row K and the LS1 exit allowed a miss as an S2 bug only "while the long layout is behind the flag", and since D24 it isn't.
+**Chosen:** option (a). S2-K1 stays an open S2 bug carried into LS2. It is judged by Matt's Fold reading against the short-layout Fold baseline, not by the absolute 16.7 ms, which stays with D15/M6. The named fix (bake gibs to sprites, then cut `drawBG`/`flushLo`) is LS2 work. Not chosen: (b) make the fix an LS1 exit requirement; (c) revert the default to short until the Fold reading.
+**Reason:** recommended by the leads and directors. The merge improved WARNING worst frames (81.9 to 61.0 and 94.0 to 71.0 ms), and 4× on this laptop is not a measured stand-in for the Fold. **Owner:** performance-analyst + engine-programmer in LS2. Matt takes the Fold reading (`ls1-k.md`, Fold steps). S3-K2, the Drive's 504 ms `buildMass` boot slice, goes with it.
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path
@@ -168,11 +174,6 @@ localization), D16-D18, and the signing keystore half of D6.
 - **LS1 exit, hits/min (from the LS1-G studio review, 2026-11-03): carried forward, not waived.** G could not show hits/min within ±30% of spec §8 per biome slot, because its mortal bot dies in long4's first biome. Owner: systems-designer + qa-lead, before LS2 banding and the LS1 exit. Matt may waive it instead. Build plan: LS1-G carry-forward 1. **LS1-bot (2026-11-06):** the pilot now survives (`pod-probe --pilot`), but the §8 targets are defined on the invincible bot, so this still needs a ≥ 10-seed-per-kind `playtest.mjs` sweep. Matt: fund it (systems-designer + qa-lead) or waive it. The creative-director recommends funding it in LS2 rather than waiving.
 - **LS1 exit, band instrument (LS1-bot, 2026-11-06; game-designer).** Which instrument owns the economy, grade and wall-time bands: the mortal pilot (`pod-probe --pilot`), the invincible bot or `playtest.mjs`? The two bots disagree: D1 biomass 1213 against 1434, and the Drive fight 40-55 s against 37-53 s. The creative-director recommends the invincible bot keep the economy and time bands, and the pilot own survival and grades. Owner: Matt. Build plan: LS1-G carry-forwards 2 and 9.
 - **LS1 exit, biomass baseline (LS1-bot, 2026-11-06; game-designer).** Are the D1-D3 biomass targets read on a steady-state profile (first-kill pay removed) or a fresh one? This decides whether the D1 median of 1213 is a miss. The creative-director recommends writing both targets down. Owner: Matt, before the economy-designer tunes `killBio`.
-- **LS1 exit, perf: S2-K1 (LS1-K studio review, 2026-11-06).** p95 misses 16.7 ms at 4× throttle in every "midboss + 8" scene (24.8-36.2 ms) and on real long4 flights (30.1 / 37.4 ms). The cost is CPU-side: `drawGibs` 22%, `flushLo` 15%, `drawBG` 7%. Row K and the LS1 exit allowed a miss as an S2 bug only "while the long layout is behind the flag"; since D24 it no longer is, and D24's accepted open items don't cover perf. Matt chooses one:
-  - (a) accept S2-K1 as an open item carried into LS2 and gated by the Fold reading against the short-layout baseline (leads recommend this);
-  - (b) make the named fix an LS1 exit requirement: bake gibs to sprites, then cut `drawBG`/`flushLo`;
-  - (c) revert the default to short until the Fold reading.
-  Also S3-K2: the Drive's `buildMass` runs as one 504 ms boot slice, so it can land in Orbit if the player starts within seconds of boot. Fix: split it into slices. Report: `production/qa/evidence/ls1-k.md`.
 - **Maw death sound (LS1-K, 2026-11-06; audio-director, art-director).** K fixed a dead Maw rupturing every frame. A death is now one rupture, one `splat_l` and one `fart_ok`, where before it was stacked splats up to the voice cap. Is that the intended death, or should a layered death sound be authored on purpose? Matt listens on the deployed build.
 - **Row I scope (LS1-I, 2026-11-06; qa-lead).** The jump scenarios cover fight arrivals and openings, not forks or kills. Accept that row I closes only the midboss and biome parts of M6's goal, with fork coverage carried forward (recommended)?
 - **D6 Saves.** One final save-wiping uninstall for stable signing, or ship save export first (recommended)?

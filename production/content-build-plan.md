@@ -185,7 +185,7 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   10. **gameplay-programmer (technical-director):** `econId()` is the one impure call in `economy.ts`: it reads `layout()` at call time, so a `setLayout()` mid-run would change the economy entry mid-descent. `setLayout`'s contract already forbids that (only before `newGame()`). Add an assert or a comment at `econId()`.
 
 **Carry-forward from the sprint 3 I+K studio review (2026-11-06):**
-1. **Matt:** pick an S2-K1 option before the LS1 exit (decision log, Open). The leads and directors recommend (a).
+1. **Done (D30):** S2-K1 is carried into LS2 and judged by the Fold reading against the short-layout baseline.
 2. **Matt:** listen to the Maw death on the deployed build, and rule on whether to author a death sound on purpose.
 3. **devops:** measure `verify` time on the first CI run with `--scenario all` (about 191 s locally). If it hurts, propose a PR subset under D4.
 4. **LS2 backlog:**
