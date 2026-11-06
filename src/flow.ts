@@ -172,6 +172,7 @@ export function startLoop(L) {
   $.G.boss = null;
   $.G.clearT = 0;
   $.G.t = 0;
+  $.G.warnEnd = 0; // banner() wrote it on the last descent's clock; left set, it holds the warm-up for most of the next descent (the render-side warm-up gate)
   buildTerrain(L);
   for (const a of ALL) a.length = 0;
   resetContraptions();

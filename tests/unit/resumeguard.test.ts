@@ -22,7 +22,8 @@ vi.mock('../../src/rng', () => ({ newRunSeed: () => 1 }));
 vi.mock('../../src/stagebuild', () => ({ rebuildAt: (x: number) => rebuild(x) }));
 vi.mock('../../src/lab', () => ({ cpTrigger: () => trigger }));
 
-const { jumpRun, resumeLast, respawn } = await import('../../src/flow');
+const { jumpRun, resumeLast, respawn, startLoop } = await import('../../src/flow');
+const { warmBlocked } = await import('../../src/warmplan');
 const { parseJump } = await import('../../src/jump');
 const { RUN_KEY, RUN_V, lastRun, readRun, runInfo } = await import('../../src/runsave');
 const { LAYOUTS, layout, setLayout } = await import('../../src/layout');
@@ -138,5 +139,18 @@ describe('jumpRun', () => {
     expect(rebuild).not.toHaveBeenCalled();
     expect($.G).toBe(G);
     setLayout('short');
+  });
+});
+
+// sprint 3 I+K studio review (web-specialist): the Drive's WARNING writes warnEnd on the descent clock. startLoop resets
+// G.t to 0 for the next descent, so a stale warnEnd would hold the per-route warm-up for most of Descent 2+
+describe('the warm-up gate across a descent', () => {
+  it('starts the next descent with no WARNING window held over from the last one', () => {
+    $.G = { t: 15000, warnEnd: 15200, loop: 0, stage: 4 } as any;
+    $.P = { alive: true, hist: [] } as any;
+    expect(warmBlocked('play', $.G as any)).toBe(true);
+    startLoop(1);
+    expect($.G.t).toBe(0);
+    expect(warmBlocked('play', $.G as any)).toBe(false);
   });
 });
