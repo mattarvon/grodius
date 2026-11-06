@@ -107,7 +107,7 @@ export const PILOT = `(() => {
       return d;
     };
     // candidates: stay, or move in one of T.dirs directions at each speed, held for the look-ahead
-    let best = null, bestS = Infinity, safe = false;
+    let best = [0, 0], bestS = Infinity, safe = false; // [0, 0] = stay: if every score is NaN (bad terrain read), hold still rather than throw
     for (const f of T.speeds) for (let k = 0; k < (f ? T.dirs : 1); k++) {
       const a = (k / T.dirs) * Math.PI * 2, vx = Math.cos(a) * sp * f, vy = Math.sin(a) * sp * f;
       let s = 0, x = P.x, y = P.y, hit = false;
