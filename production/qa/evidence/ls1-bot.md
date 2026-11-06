@@ -3,7 +3,7 @@
 This work comes from LS1-G carry-forwards 1, 2 and 9. Under `--mortal`, G's bot steered straight at targets 3 px a frame. On
 every seed it game-overed in long4's first biome, so nothing past Open Orbit could be graded on a bot that takes real hits.
 The fix is a probe-side autopilot, `tools/pilot.mjs`, enabled by `pod-probe.mjs --pilot`. It is a tools-only change: no
-`src/` file changes, the harness and layout parity are not affected, and without `--pilot` pod-probe behaves exactly as before.
+`src/` file changes, the harness and layout parity are not affected. Without `--pilot`, pod-probe's behaviour is unchanged; the only difference is that its JSON gains `"pilot": null`.
 
 ## 1. The pilot
 
@@ -61,13 +61,31 @@ How to read the table:
 
 **Drive fight time** (`bossFight_s`): 36.5-63.5 s in D1 (seeds 3-5 above 60 s), and 19-33 s in D2.
 
-**Deaths.** There were 6 deaths in 10 long4 descents:
+**Deaths.** There were 5 logged deaths in 9 full long4 descents, plus seed 4's partial D2:
 
-- 5 to the flayer, all logged with `safe: true`. The pilot does not yet model the flayer whip, which has a 34-frame `tel`,
-  then a `strike` along `whipPts`. That is the next model to add if more survival is wanted.
+- 4 with a flayer nearest or second-nearest, all logged with `safe: true`: seed 1 at 1-3; seed 4 at 1-2; and seed 4 twice at
+  2-4, once beside a glob and once in the Drive fight. The pilot does not yet model the flayer whip, which has a 34-frame
+  `tel`, then a `strike` along `whipPts`. That is the next model to add if more survival is wanted.
 - 1 to the Apprentice cleaver: seed 4, stage 1-2, already in a no-safe-move frame (`safe: false`).
 
-The cleaver and hook models removed the Apprentice deaths that had ended seed 5's earlier run.
+The cleaver and hook models removed the Apprentice deaths that had ended seed 5's earlier run. Seed 5 ends with one ship
+fewer than seeds 2 and 3, with no death logged. No tally saw a death either, so the likeliest cause is a perk:
+the `tape` perk sets `lives = max(1, lives - 1)` (`src/perks.ts`). The probe does not log picks, so this is not confirmed. The D2 Drive figures leave out seed 4's 4.2 s, because that fight ended in
+the game over.
+
+### Re-run after the review fix
+
+The tools review found that the pilot treated a stopped scroll as 1 px a frame (`G.scrollSpeed || 1`). The scroll is
+exactly 0 during held midbosses and the Drive, so terrain and hazards were predicted up to 24 px off in those fights. It
+is now `?? 1`. Seed 4, the worst run above, was re-run on its own afterwards:
+
+| run | end | ships left | logged deaths | trapped | D1 LV | D1 steady biomass | D2 earned | D1 / D2 Drive fight |
+|---|---|---|---|---|---|---|---|---|
+| long4 s4, after the fix | survived 2 descents | 1 | 1 (Apprentice cleaver, 1-2, `safe: false`) | 99 | 13 | 1213 | 1618 | 44.4 / 26 s |
+
+Grades: A/2, C d/4, S/0, A/1, S/0, S/1, S/0, S/1. The three flayer-adjacent deaths, two of them in the D2 Drive stage,
+are gone, so 5 of 5 long4 seeds now survive two descents. The other four seeds were not re-run, so the tables above are
+from the pre-fix pilot. The fix touches only predictions while the scroll is stopped, and most of their run is unaffected.
 
 ## 3. What this answers, and what it doesn't
 

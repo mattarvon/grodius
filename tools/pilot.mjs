@@ -43,7 +43,7 @@ export const PILOT = `(() => {
     alive = !!(P && P.alive); if (!P || !P.alive || !Wm) return;
     window.__pilotLog.frames++;
     const sp = (1.25 + (P.speed || 0) * .42) * (P.slow > 0 ? .45 : 1);
-    const ss = G.scrollSpeed || 1, sc = G.scroll;
+    const ss = G.scrollSpeed ?? 1, sc = G.scroll; // ?? not ||: the scroll is exactly 0 during held midbosses and the Drive (step.ts)
     // threats, each { x, y, vx, vy, r } in screen space; terrain and hazards are checked separately
     const th = [];
     for (const s of Wm.eshots) th.push({ x: s.x, y: s.y, vx: s.vx || 0, vy: s.vy || 0, r: (s.r || 2) + 2.6, k: 'shot:' + s.k });

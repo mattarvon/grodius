@@ -166,7 +166,7 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   9. **Writer (D8):** RESUME is a plain-UI word among diegetic rows; take a diegetic option (e.g. REVIVE) to the copy pass.
 - **Carry-forward from the LS1-G studio review (2026-11-03):**
   1. **systems-designer + qa-lead:** the hits/min exit criterion (±30% of spec §8 per biome slot, row G evidence and LS1 exit "Difficulty") is **not demonstrated**: 2 of 8 cells in band, 0-3 hits per cell, 2 seeds. The cause is the instrument: G's mortal bot game-overs in long4's first biome on all 5 seeds (the same gap as sprint 2 carry-forward 10). Both biome stages also run under the 90-120 s wall band, which lowers hits/min. **Carried forward, not waived** (decision log). Gates LS2 banding and the LS1 exit; needs a mortal bot that survives the biomes, or ≥ 10 seeds per kind. Row G closes with this attached.
-     - **LS1-bot (2026-11-05):** the mortal pilot (`pod-probe --pilot`, `production/qa/evidence/ls1-bot.md`) now survives long4: 4 of 5 seeds over 2 descents. It does not close this item. §8 targets are would-be hits for the *invincible* bot, so what is left is a ≥ 10-seed `playtest.mjs` sweep (or a waiver).
+     - **LS1-bot (2026-11-05):** the mortal pilot (`pod-probe --pilot`, `production/qa/evidence/ls1-bot.md`) now survives long4: 4 of 5 seeds over 2 descents, and 5 of 5 after the review's scroll fix (seed 4 re-run). It does not close this item. §8 targets are would-be hits for the *invincible* bot, so what is left is a ≥ 10-seed `playtest.mjs` sweep (or a waiver).
   2. **qa-lead:** the long4 economy figures (LV median 14, D1 biomass median 1434, spread 15 / 1613) come from an invincible bot, so they are an upper bound. Re-measure with a mortal bot before the LS1 exit.
      - **Done, LS1-bot:** the mortal-pilot D1 LV median is 13 (11-15); D1 steady biomass median is 1252 (1031-1440), under the 1.3-1.5k target.
   3. **Matt:** a brand-new profile earns ~1934 biomass in Descent 1 (five first kills × +100), ~30% over the band. This is by design per spec §6.4 and onboarding-friendly; the band is read at steady state.
@@ -177,7 +177,7 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   8. **audio (optional):** the FIRST KILL payout has no sound of its own; the midboss roar covers it.
   9. **systems-designer + qa-lead, the other LS1 exit gaps G measured (producer):**
      - **Grades:** only Open Orbit is shown with a mortal bot (A vs A). Biome and Drive grades need the same mortal-bot fix as item 1.
-       - **Done, LS1-bot:** biome and Drive grades are measured on 5 seeds × 2 descents (S-C, mostly S/A). Wall time with the pilot: D1 biomes 79-119 s. D2 biomass earned is 1724-1918 against 2.1-2.4k (D3 still unmeasured). The D1 Drive fight runs 36-64 s.
+       - **Done, LS1-bot:** biome and Drive grades are measured on 5 seeds × 2 descents (seed 4 game-overed in D2) (S-C, mostly S/A). Wall time with the pilot: D1 biomes 79-119 s. D2 biomass earned is 1724-1918 against 2.1-2.4k (D3 still unmeasured). The D1 Drive fight runs 36-64 s.
      - **Wall time:** the 90-120 s biome band is an LS1 exit criterion, and biome B misses it (76-82 s; biome A 76-89 s). This is its own gap, not only a cause in item 1.
      - **D2/D3 biomass bands** (2100-2400 / 2600-3600) were never measured (economy-designer).
      - **Drive fight:** 37-53 s against 30-45 s. Measured only; a risk for LS2 banding.
