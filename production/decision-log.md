@@ -162,6 +162,39 @@ localization), D16-D18, and the signing keystore half of D6.
 **Chosen:** (1) **moderate power-up cut.** Fewer pod drops, so the median run ends Descent 1 at about LV 10-11 and the strongest kit arrives in Descent 2. Not chosen: a light cut to LV 12-13, or a heavy cut to LV 8-9. (2) **Stretch each long4 stage** to about 120-150 s, with more scroll and more spawn sections, in `src/layout.ts`. Four stages stay. Not chosen: a fifth stage, both changes, or leaving length alone.
 **Reason:** Matt's playtest. Long4 only; short is untouched. Both changes move the long4 harness on purpose. Owner: an LS2 tune lane after wave 1 merges, because it shares `layout.ts` and the terrain with ls2-mv. Measure with pod-probe, midboss-probe and route-probe, and keep the D20 and D27 bands.
 
+**Amended 2026-11-07 (Matt, after the studio D31 plans in the audit):**
+- **The cut is kill XP and pods.** Pods don't drive LV; only kill XP does.
+  - Kill XP is cut to land the median at LV 10-11.
+  - Formation and carrier pods drop about 30-40% fewer pickups.
+  - Midboss, Maw and stage-boss reward pods stay as they are.
+  - The cut is fitted on the stretched build.
+- **The stretch uses the recommended defaults:**
+  - a rest breath before each biome climax (amends spec §3.2's two breaths);
+  - movement B grows to about 18 s;
+  - biome CP1 stays after midboss A;
+  - a long4-only layout revision drops old long4 resume saves, and short saves survive.
+- **Each Orbit and Drive stage gets 4 new cells,** so a pool holds twice its slots.
+
+### D32 Option-b death costs the normal death penalty — 2026-11-07 (Matt; from the LS1 studio audit)
+
+**Decision point:** the game-designer audit found that under checkpoint option b (restart at the checkpoint), a death restores the checkpoint's full loadout. That makes b gentler than option a, the reverse of spec §4's "harder, more Gradius", so Q2 would be judged on a false premise. The audit also found that an option-b restart keeps the stage's deaths but drops its hits from the grade.
+**Chosen:** an option-b death restarts at the checkpoint and then applies the normal death cost:
+- guns stripped;
+- grafts down one level;
+- the power cursor reset;
+- the stage keeps the higher hit count for its grade.
+
+**Reason:** keeps option b honest for the Q2 playtest. Owner: the LS1 fix lane.
+
+### D33 Studio audit approvals — 2026-11-07 (Matt)
+
+- **The LAB LAYOUT toggle keeps the run save:** remove its `clearRun()`, since RESUME flies the save's own layout. This reverses one line of the D2 plan.
+- **Probe tools default to long4,** matching D24. `--layout short` is still available.
+- **Typecheck blocks CI:** remove `continue-on-error` from `verify`.
+- **A FLAKY harness result fails CI,** instead of passing with a warning.
+
+Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `production/qa/evidence/ls1-audit.md`, written by the fix lane.
+
 ## Open
 
 ### Now — blocks sprint 1 or the critical path
