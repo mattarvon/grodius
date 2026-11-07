@@ -47,7 +47,7 @@ vi.mock('../../src/enemies/spawn', () => {
 
 const L = await import('../../src/layout');
 const { BIOMES, BIOME_KEYS, MID_NAMES, SPAWN_KINDS, biomeReset, biomeScript, fixedMids, midStream, openFork, stageMids } = await import('../../src/biomes');
-const { HOME, MIDS, MID_CLOCK, forkAllows, slotClock } = await import('../../src/midpick');
+const { HOME, MIDS, MID_CLOCK, PHASE1_BIOME_POOL, forkAllows, slotClock } = await import('../../src/midpick');
 const { BIOME_FILL, MID_HP, fillerQuiet, isFiller, meetMid, midHpMul, miniUp, registerDrift, whenNoMini } = await import('../../src/midslot');
 
 /** the stub DRIFT member: the Saucer's spawner as enemies/mid/ufo.ts registers it (a drift mini forced out at exitX) */
@@ -253,7 +253,7 @@ describe('midboss slots on long4 (item F)', () => {
       expect(maws).toBe(0);
       expect(homes.size).toBe(4); // every biome gets its home midboss on some routes
       // the weighting saw every midboss met: four biome midbosses x 400 slots, and the Orbit's Saucer is counted at spawn in play
-      expect(Object.keys($.meta.mb).sort()).toEqual(['brood', 'choir', 'cyst', 'prentice']);
+      expect(Object.keys($.meta.mb).sort()).toEqual([...PHASE1_BIOME_POOL].sort()); // the finished biome kinds (a wip one is never met)
     });
   });
 

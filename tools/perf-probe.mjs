@@ -46,7 +46,7 @@ await p.addInitScript(() => {
   window.__canvasMB = () => made.reduce((n, r) => { const c = r.deref(); return n + (c ? c.width * c.height * 4 : 0); }, 0) / 1048576;
 });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
-await useLayout(p, 'perf-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
+await useLayout(p, 'perf-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not. Orbit and ship-pool midbosses fight in Open Orbit, not the ship interior' });
 await p.waitForTimeout(+(process.env.WARM_MS || 1500)); // images / patterns load (WARM_MS: let the idle warm-up finish, like the title screen does)
 const cdp = await p.context().newCDPSession(p);
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: +THR });

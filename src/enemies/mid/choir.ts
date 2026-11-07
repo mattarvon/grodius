@@ -8,13 +8,13 @@ import { drop, flash, spark } from '../../fx/spawn';
 import { cdm } from '../../depth';
 import { aimA, every, fan, mk, ring, wrapA } from '../spawn';
 import { bandFit, midLeave } from '../update';
-import { HOST_SPARK, isCross } from '../midhost';
+import { HOST_SPARK, isCross, midPh2 } from '../midhost';
 import { defineMid } from './roster';
 
 function updChoir(e) {
   // THE NAIL CHOIR: a frozen eye in two orbiting nailbars. Glares 40f down a fan line, then a spike fan; the nails "sing" (glint 36f) and spit spikes at you
   // nLive: a counted loop rather than filtering e.bars into a new array, so the update allocates nothing per frame (build plan LS1 P0)
-  const go = midLeave(e), ph2 = e.hp < e.max * .5, cx = isCross(e);
+  const go = midLeave(e), ph2 = midPh2(e), cx = isCross(e);
   let nLive = 0;
   for (const b of e.bars) if (!b.dead) nLive++;
   e.y = PH / 2 + Math.sin(e.t * .014) * (PH * .16);

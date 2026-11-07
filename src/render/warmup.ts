@@ -6,7 +6,7 @@
 // =====================================================================
 import { $ } from '../state';
 import { gibs } from '../world';
-import { BOOT_ART, routeArt, warmBlocked } from '../warmplan';
+import { BOOT_ART, routeArt, routeKeys, warmBlocked } from '../warmplan';
 import { warmHeroEye } from './heroeye';
 import { warmEyes } from './eyes';
 import { warmDerelict } from './terrain';
@@ -26,8 +26,8 @@ const UNITS: Record<string, Unit> = {
   crux: bb('crux'), butcher: bb('butcher'), 'maw:acid': mawV('acid'), 'maw:snot': mawV('snot'),
 };
 
-/** the art the route owns: everything but the boot art, which stays built all session */
-const ROUTE_KEYS = Object.keys(UNITS).filter((k) => !BOOT_ART.includes(k));
+/** the art the route owns and can drop: not the boot art, which stays built all session (warmplan.ts routeKeys) */
+const ROUTE_KEYS = routeKeys(UNITS);
 const boot = [...BOOT_ART];
 
 /** the slice log the probes read (window.__warm): bounded, and slices are rare, so it costs nothing in play */

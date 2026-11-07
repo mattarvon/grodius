@@ -9,12 +9,12 @@ import { cdm } from '../../depth';
 import { aimA, every, fan, ring } from '../spawn';
 import { playerHit } from '../../player';
 import { bandFit, midLeave } from '../update';
-import { HOST_SPARK, isCross } from '../midhost';
+import { HOST_SPARK, isCross, midPh2 } from '../midhost';
 import { defineMid } from './roster';
 
 function updPrentice(e) {
   // THE BUTCHER'S APPRENTICE: a small carcass on one chain with a cleaver. Lunges in behind a red sweep cone (50f to get out), or spits ember fans
-  const go = midLeave(e, e.st === 'tel' ? .06 : .03), ph2 = e.hp < e.max * .5, cx = isCross(e), sp = cx ? HOST_SPARK[e.host] : FIRE; // its embers burn in the host's colours
+  const go = midLeave(e, e.st === 'tel' ? .06 : .03), ph2 = midPh2(e), cx = isCross(e), sp = cx ? HOST_SPARK[e.host] : FIRE; // its embers burn in the host's colours
   e.sw = (e.sw || 0) + (ph2 ? .028 : .018);
   if (e.st === 'tel' && e.wt < 25) e.y = lerp(e.y, clamp($.P.y + 6, 50, PH - 40), .06);
   else if (e.st !== 'tel' && e.st !== 'cut') e.y = lerp(e.y, PH * .42 + Math.sin(e.sw) * 34, .05);

@@ -28,6 +28,7 @@ import { cdm } from '../../depth';
 import { layout, ufoDrift, ufoGapEnd } from '../../layout';
 import { slotClock } from '../../midpick';
 import { meetMid, registerDrift } from '../../midslot';
+import { midPh2 } from '../midhost';
 import { MID_NAMES, defineMid } from './roster';
 
 export const UFO_NAME = MID_NAMES.ufo;
@@ -73,7 +74,7 @@ function onLash(e) {
 const cd = (e, ph2) => Math.round((ph2 ? 52 : 78) * (1 - .3 * ($.G.rank || 0)) * cdm()); // cdm: depth, src/depth.ts
 
 function updUfo(e) {
-  const ph2 = e.hp < e.max * .5;
+  const ph2 = midPh2(e);
   // leave: on its timer, or when the scroll reaches the Maw's run-up (escape costs nothing, like the other midbosses)
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);

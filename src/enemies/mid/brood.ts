@@ -9,12 +9,12 @@ import { drop } from '../../fx/spawn';
 import { cdm } from '../../depth';
 import { aimA, fan, mk } from '../spawn';
 import { bandFit, midLeave } from '../update';
-import { BROOD_CAP, fitsTerrain } from '../midhost';
+import { BROOD_CAP, fitsTerrain, midPh2 } from '../midhost';
 import { defineMid } from './roster';
 
 function updBrood(e) {
   // THE BROOD MOTHER: a swollen mucus sac. Heaves 44f, then births a litter of hatchlings; or flares 26f and sneezes snot globs
-  const go = midLeave(e), ph2 = e.hp < e.max * .5;
+  const go = midLeave(e), ph2 = midPh2(e);
   e.y = PH / 2 + Math.sin(e.t * .013) * (PH * .2);
   if (fitsTerrain(e)) bandFit(e);
   if (!go && e.t > 120 && $.P.alive) {

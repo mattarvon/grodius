@@ -8,13 +8,13 @@
 //  TTK = seconds from on screen to dead; "esc" = it left first; "--" = outlived the cap
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
-import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
+import { BIOME_POOLS, MID_NAMES, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
 const [url, CAP = '90'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
-await useLayout(p, 'depth-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
+await useLayout(p, 'depth-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not. Orbit and ship-pool midbosses fight in Open Orbit, not the ship interior' });
 // [name, loop, guns, grafts, perks, bolted contraptions {id: level}]; roughly the playtest bot (seed 11) at each descent's start
 const L = [
   ['D1 mid-run', 0, { speed: 2, missile: 1, double: 1, options: 1, wardLv: 1 }, { cal: 1 }, { dmg: 1 }, {}],
@@ -24,7 +24,7 @@ const L = [
 ];
 const isB = (r) => BIOME_POOLS.includes(r.pool); // the registry, WIP kinds too
 const FIGHTS = [...ROSTER.filter((r) => !isB(r)).map((r) => r.k), ...ROSTER.filter(isB).map((r) => r.k), 'maw0', 'maw', 'crux', 'butcher', 'gravity'];
-const res = await p.evaluate(async ([L, FIGHTS, CAP]) => {
+const res = await p.evaluate(async ([L, FIGHTS, CAP, MID_NAMES]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), U = await import('/src/enemies/mid/ufo.ts'), LY = await import('/src/layout.ts');
   const IN = await import('/src/input.ts'); const $ = S.$; $.gate = false; IN.K.KeyZ = true;
@@ -52,7 +52,7 @@ const res = await p.evaluate(async ([L, FIGHTS, CAP]) => {
       else if (k === 'ufo') U.spawnUfo(); // at its real scroll x: it drifts with the scroll and leaves by ufoGapEnd()
       else if (k === 'maw' || k === 'maw0') SP.maw(true);
       else if (k === 'crux' || k === 'butcher') SP[k]();
-      else SP.midboss(k, k);
+      else SP.midboss(k, MID_NAMES[k] || k);
       const hp0 = Math.round(k === 'gravity' ? $.G.boss.max : $.G.mini.max);
       let f = 0, t0 = -1, r = '--';
       for (; f < CAP * 60 + 600; f++) {
@@ -77,7 +77,7 @@ const res = await p.evaluate(async ([L, FIGHTS, CAP]) => {
     out[name] = row; info[name] = { rank: +$.G.rank.toFixed(2), pow: +($.G.pow || 0).toFixed(2) };
   }
   return { out, info };
-}, [L, FIGHTS, +CAP]);
+}, [L, FIGHTS, +CAP, MID_NAMES]);
 console.log('TTK s / HP. maw0 = the Open Orbit Maw, maw = a biome Maw');
 console.log('kit'.padEnd(12), 'rank/pow'.padEnd(10), ...FIGHTS.map((s) => s.padStart(12)));
 for (const [n, r] of Object.entries(res.out)) console.log(n.padEnd(12), `${res.info[n].rank}/${res.info[n].pow}`.padEnd(10), ...FIGHTS.map((k) => String(r[k]).padStart(12)));

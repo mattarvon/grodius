@@ -38,16 +38,24 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
    biome-pool kind, and **`wip: true`** until its art and name are approved. Each kind in
    a pool needs a different tag (spec §6.1), and ANGLE and RACE need `min: 1` (§6.3);
    `midreg.test.ts` checks both. Never reorder finished rows: the picker walks them in order.
-2. **`src/enemies/mid/<kind>.ts`**: the update function and one
-   `defineMid('<kind>', { et, word, update })`. Optional: `spawnY`, `onSpawn`, `kill`, and
-   `hurt(e, d, hx, hy)`, which returns the damage multiplier for a hit (1 full, .15 a closed
-   WINDOW, 0 a tink), so a WINDOW or ANGLE kind never edits `hurt()` in `update.ts`.
-   Copy `cyst.ts`. `midLeave`, `bandFit` and `lob` come from `../update`.
+2. **`src/enemies/mid/<kind>.ts`**: `function upd<Kind>(e)` (that name: `midhost.test.ts`
+   finds it) and one `defineMid('<kind>', { et, word, update })`. Copy `cyst.ts`. `midLeave`,
+   `bandFit` and `lob` come from `../update`; `midPh2(e)` from `../midhost` is phase 2. Optional hooks,
+   so no kind edits a shared file:
+   - `spawnY`, `onSpawn`, `kill`: the spawn height, after the spawn, after the kill word.
+   - `hurt(e, d, hx, hy, dir)`: the damage multiplier (1 full, .15 a closed WINDOW, 0 a tink).
+     Every damage path asks it, burn, acid and the slick included. Area damage arrives at
+     exactly `(e.x, e.y)` with `dir` 0: decide what an area hit does. Shots still collide on
+     `e.r`, so a small hittable part (the Spine's eye) also needs `e.hb` or a 0 off the part.
+   - `leave(e)`: once, when the withdraw clock runs out (reset a lake, a counter).
+   - `kidKill(kid, owner)`: a child spawned with `own: e` (and `kid: 1`) died. Count your
+     own children by `own`, not `kid`, once two kinds can spawn them.
 3. **`src/render/gross/mid/<kind>.ts`**: in pass 1, one line:
    `export default greybox({ col, r, tell })` from `./_greybox` (a wobbling blob in the
-   biome tint with one eye; `tell(e)` returns the telegraph strength from 0 to 1). In
+   biome tint with one eye; `tell(e)` returns the telegraph strength from 0 to 1; it has no
+   cached layer, so no `built` or `drop`, and the warm-up skips it). In
    pass 2, `export default { draw, warm, built, drop }`, plus `under` for a telegraph or
-   chain beneath the body. Copy `cyst.ts`; the shared particles, layers and crossover
+   chain beneath the body. Keep each `warm()` slice under about 4 ms on the phone. Copy `cyst.ts`; the shared particles, layers and crossover
    tint are in `../midbosses.ts`.
 
 Both folders are loaded by file name (`import.meta.glob`), so there is no import
@@ -86,8 +94,13 @@ line to add. Every `.ts` there is a kind, except `_name.ts`, which is a shared h
 - **A new part kind** (the nailbar pattern) is not a midboss: it needs its own `ET` row
   in `spawn.ts`, an `updEnemy` arm, a `DRAW` entry, the off-screen cull in `updEnemy`
   and the check in `contraptions.ts`. Reusing `nailbar` through `onSpawn` needs none.
-- **Silent defaults:** a kind unlisted in `DEPTH.w` takes weight 1 (cyst and brood are
-  .6), and `music.ts` `ufoMix` is the Saucer's alone.
+- **Defaults:** a kind unlisted in `DEPTH.w` takes its tag's weight (`depth.ts` `TAG_W`:
+  WINDOW and ANGLE .6, RACE .5, the rest 1). `music.ts` `ufoMix` and `hud.ts` `drawUfoFx` are
+  the Saucer's alone.
+- **Unit tests load every kind file** (`midboss-hp`, `midhooks`, `firstkill`) against partial
+  mocks. A kind file that uses an import at its top level, outside a function, can fail them.
+- **Not yet shared:** a DRIFT kind repeats the Saucer's spawn and forced exit (`ufo.ts`);
+  a shared helper is due before the first wave-2 DRIFT kind (the Calving Shelf).
 
 ## Specialist
 

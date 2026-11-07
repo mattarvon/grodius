@@ -14,7 +14,8 @@ export interface Greybox {
   /** body radius, px. Draw it the size of the kind's fit, so the terrain fit and the hitbox read true */
   r: number;
   /** telegraph strength 0..1 from the sim's own fields: the rim brightens and a glow grows. Make it readable at
-   *  phone size (spec §9): it is the only cue a greybox gives */
+   *  phone size (spec §9): it is the only cue a greybox gives. Called every frame: no allocation. In a crossover the
+   *  host tint washes it too (drawMidCross), like every kind's art */
   tell?: (e: any) => number;
 }
 
@@ -53,8 +54,7 @@ export function greybox(g: Greybox): MidArt {
       c.arc(-g.r * .3 - er * .3, -g.r * .15, er * (.45 + .25 * k), 0, TAU);
       c.fill();
     },
-    warm: () => false, // nothing cached: no layer to build or drop
-    built: () => true,
-    drop() {},
+    // nothing cached, so no built or drop: the warm-up leaves it out of the drop pass (warmplan.ts routeKeys)
+    warm: () => false,
   };
 }

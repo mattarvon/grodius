@@ -33,7 +33,8 @@ if (!url) {
 }
 
 // [id, label, kind, biome]: kind 'boss' = the Gravity Drive (bossAt(), $.G.boss); 'stage' = a stage-boss spawner;
-// 'mid' = a biome midboss in its biome (midboss-probe's setup); 'ufo' = the Open Orbit saucer
+// 'mid' = a biome midboss in its biome (midboss-probe's setup); 'ufo' = the Open Orbit saucer; 'rest' = another Orbit or
+// ship-pool midboss, spawned in Open Orbit where the Saucer fights (no biome, so no fork)
 const FIGHTS = [
   ['drive', 'GRAVITY DRIVE', 'boss', null],
   ['maw', 'MAW (stage)', 'stage', null],
@@ -41,7 +42,7 @@ const FIGHTS = [
   ['butcher', 'BUTCHER', 'stage', null],
   ['mawmid', 'MAW (mid)', 'mid', 'acid'],
   ...ROSTER.filter((r) => BIOME_POOLS.includes(r.pool)).map((r) => [r.k, r.label, 'mid', r.pool]), // the registry, WIP kinds too
-  ...ROSTER.filter((r) => !BIOME_POOLS.includes(r.pool)).map((r) => [r.k, r.label, r.k === 'ufo' ? 'ufo' : 'mid', null]),
+  ...ROSTER.filter((r) => !BIOME_POOLS.includes(r.pool)).map((r) => [r.k, r.label, r.k === 'ufo' ? 'ufo' : 'rest', null]),
   // the Crucifer again, with the ship's form changing mid-fight (pods grow at 1, 3 and 5 s; a pod withers at 7 s): render's
   // trackForm sprouts and withers parts as particles, which the fixed-kit fights above never exercise (LS1-B1fix)
   ['grow', 'FORM CHANGE', 'stage', null, 'crux'],
@@ -67,7 +68,7 @@ async function run(b, fight, flashes, draw) {
   await p.addInitScript(init, { flashes, trace: TRACE });
   await p.goto(url);
   await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
-  await useLayout(p, 'rng-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
+  await useLayout(p, 'rng-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not. Orbit and ship-pool midbosses fight in Open Orbit, not the ship interior' });
   // every sprite and photo decoded first, as in the harness: a late image changes which draw paths run
   for (let i = 0; i < 300; i++) {
     const ok = await p.evaluate(async () => {
@@ -88,7 +89,7 @@ async function run(b, fight, flashes, draw) {
     const [pw, gm, pkk] = KIT;
     F.newGame(0); $.state = 'play';
     for (let i = 0; i < 30; i++) ST.step();
-    if (kind === 'ufo') $.G.scroll = LY.ufoAt() + 150;
+    if (kind === 'ufo' || kind === 'rest') $.G.scroll = LY.ufoAt() + 150;
     else if (kind === 'mid') {
       $.G.scroll = LY.slotRow(0).x0; $.G.si = $.G.script.length; W.enemies.length = 0;
       BI.openFork(0); $.G.fork.opts = [biome, biome]; $.G.fork.t = 50; $.G.tally = null;

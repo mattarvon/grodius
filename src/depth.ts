@@ -16,8 +16,13 @@
 //  Measured with tools/depth-probe.mjs and tools/playtest.mjs (seeds 11 and 7).
 // =====================================================================
 import { $ } from './state';
+import { midRow } from './enemies/mid/roster';
 import { kindOf } from './layout';
 import { descDepth, econId } from './economy';
+
+/** a midboss kind not named in DEPTH.w takes its tag's share (spec §6.4: WINDOW and ANGLE .6, RACE .5; the rest 1),
+ *  so a pool lane's new kind needs no line here */
+export const TAG_W: Readonly<Record<string, number>> = { WINDOW: .6, ANGLE: .6, RACE: .5 };
 
 export const DEPTH = {
   fod: 1.12, //  regular enemies (a boss's parts take the boss's factor)
@@ -55,7 +60,7 @@ export function depthHP(k, b, o) {
   // were already on the integer loop. So within a descent, intra-depth HP reaches regular enemies only
   const L = $.G.loop || 0;
   const mid = b.mid || (k === 'maw' && (!o.stageBoss || kindOf($.G.stage || 0) === 'orbit')), m = mid ? f(DEPTH.mid, L) : f(DEPTH.boss, L);
-  return 1 + (DEPTH.w[k === 'maw' && mid ? 'maw0' : k] ?? 1) * (m - 1);
+  return 1 + (DEPTH.w[k === 'maw' && mid ? 'maw0' : k] ?? TAG_W[midRow(k)?.tag ?? ''] ?? 1) * (m - 1);
 }
 /** the Gravity Drive's HP multiplier (x560 HP, x48 per plate): loop and, as the one D1 exception, rank and over() */
 export const driveMul = () => { const L = $.G.loop || 0; return (1 + DEPTH.driveL * L) * (1 + DEPTH.driveRank * ($.G.rank || 0)) * (L > 0 ? 1 + DEPTH.driveO * over() : 1); };

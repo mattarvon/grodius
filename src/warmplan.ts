@@ -57,3 +57,9 @@ export function warmBlocked(state: string, G: WarmGate | null | undefined): bool
   if (!G || (state !== 'play' && state !== 'pause')) return false;
   return G.t < (G.warnEnd || 0) || !!G.mini || !!G.boss || !!G.bossStarted;
 }
+
+/** the units the drop pass may free: route art (not boot art) that can say it is built and can drop. A unit with neither
+ *  (a greybox, nothing cached; a wip boot kind, built on first draw) never enters it: a no-op drop would read as work
+ *  done, so the warm-up would spin and never reach the boss art behind it */
+export const routeKeys = (units: Readonly<Record<string, { built?: () => boolean; drop?: () => void }>>, boot: readonly string[] = BOOT_ART): string[] =>
+  Object.keys(units).filter((k) => !boot.includes(k) && !!units[k].built && !!units[k].drop);

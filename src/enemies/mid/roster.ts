@@ -99,14 +99,37 @@ export interface MidSim {
   onSpawn?: (e: any) => void;
   /** killEnemy, after the kill word */
   kill?: (e: any) => void;
-  /** hurt(), before the damage lands: the multiplier for a hit of d at (hx, hy), world px. 1 full, .15 a closed WINDOW,
-   *  0 a tink (no damage, a spark). For the WINDOW and ANGLE kinds (spec §6.2). No allocation, no R() */
-  hurt?: (e: any, d: number, hx: number, hy: number) => number;
+  /** the multiplier for d damage landing at (hx, hy), screen px like e.x, travelling dir (+1 rightward). 1 full, .15 a
+   *  closed WINDOW, 0 a tink. For WINDOW and ANGLE kinds (spec §6.2). Every damage path asks it: shots, beams, blasts,
+   *  burn, acid, the slick. Area damage (blasts, the nuke, burn, acid, the slick) arrives at exactly (e.x, e.y) with
+   *  dir 0: decide what an area hit does on purpose. Pure: no allocation, no R(), no state written */
+  hurt?: (e: any, d: number, hx: number, hy: number, dir: number) => number;
+  /** midLeave, once, on the frame the withdraw clock runs out (before it slides off): reset what the fight changed */
+  leave?: (e: any) => void;
+  /** killEnemy, when a child it spawned with `own: e` (and kid: 1) dies: a fire patch, a split, a count */
+  kidKill?: (kid: any, owner: any) => void;
 }
 /** kind -> its sim side, filled as the kinds' files load (enemies/mid/index.ts loads them). Read at call time only */
 export const MID_SIM: Record<string, MidSim> = Object.create(null); // no prototype: a kind is never `constructor`
 /** the midboss rows of spawn.ts ET; ET is this same object, so a row lands whichever module the boot reaches first */
 export const MID_ET: Record<string, any> = {};
+
+/** the damage share a hit on e takes (MidSim.hurt): 1 for anything that isn't a midboss with a hurt hook. Every damage
+ *  path multiplies by this, so armour never needs a shared-file edit */
+export function midMul(e: any, d: number, hx: number, hy: number, dir: number): number {
+  const h = e.mid ? MID_SIM[e.k]?.hurt : undefined;
+  return h ? Math.max(0, h(e, d, hx, hy, dir)) : 1;
+}
+
+/** what is wrong with the registry: a row with no sim file (no defineMid), a row with no art file, an art file with no
+ *  row. Empty when sound. main.ts refuses to boot on any (render/gross/mid/index.ts checkMids) */
+export function midProblems(rows: readonly MidRow[], sim: Readonly<Record<string, unknown>>, art: readonly string[]): string[] {
+  return [
+    ...rows.filter((r) => !sim[r.k]).map((r) => `${r.k} (no enemies/mid/${r.k}.ts defineMid)`),
+    ...rows.filter((r) => !art.includes(r.k)).map((r) => `${r.k} (no render/gross/mid/${r.k}.ts)`),
+    ...art.filter((k) => !rows.some((r) => r.k === k)).map((k) => `${k} (art with no roster row)`),
+  ];
+}
 
 /** register a kind's sim side (each file in enemies/mid/ does, at load). A kind with no roster row is a bug: fail now */
 export function defineMid(k: string, sim: MidSim): void {

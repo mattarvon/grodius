@@ -86,3 +86,7 @@ export const HOST_TINT: Record<Biome, { rgb: string; a: number }> = {
 
 /** the Brood Mother's alive cap on her hatchlings (the CROWD cap, spec §6.2; was 10). perf-probe brood scene */
 export const BROOD_CAP = 8;
+
+/** a midboss's phase 2: below half its HP. Spec §6.4 later sets the line per descent (50/65/80%); every kind reads it
+ *  here, so that change is one line */
+export const midPh2 = (e: { hp: number; max: number }) => e.hp < e.max * .5;

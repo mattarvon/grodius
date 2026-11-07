@@ -10,6 +10,7 @@ import { PR } from './input';
 import { enemies } from './world';
 import { flash, spark, drop, pop } from './fx/spawn';
 import { econId, stageXP as econXP } from './economy';
+import { midMul } from './enemies/mid/roster';
 
 /** perk table. d(l): what level l does. c: the price (trade-off perks). req: biome that unlocks it. */
 export const PERKS = [
@@ -212,7 +213,7 @@ export function perkTick(hurt) {
       if (e.dead || e.ghost > 0) continue;
       const r = s.r + (e.r || 6) * .6;
       if ((e.x - s.x) ** 2 + ((e.y - s.y) * 1.6) ** 2 < r * r) {
-        e.hp -= (e.big || e.mini ? .08 : .25) * s.lv;
+        e.hp -= (e.big || e.mini ? .08 : .25) * s.lv * midMul(e, .08, e.x, e.y, 0); // area: MidSim.hurt decides
         e.flash = 2;
         if (R() < .4) drop(e.x, e.y, rr(-.6, .6), rr(-1, .2), 1, 0, 40);
         if (e.hp <= 0) hurt(e, 0, e.x, e.y, 1);

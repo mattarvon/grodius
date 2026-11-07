@@ -67,3 +67,9 @@ describe('midboss() base HP per layout (D27)', () => {
     }
   });
 });
+
+describe('midboss() on a kind with no registry entry', () => {
+  it('throws, naming the kind and the file it needs', () => {
+    expect(() => midboss('nobody', 'NOBODY', 'ice')).toThrow(/midboss 'nobody' is not registered \(enemies\/mid\/nobody\.ts/);
+  });
+});

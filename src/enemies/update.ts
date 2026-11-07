@@ -17,7 +17,7 @@ import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
-import { MID_SIM, midRow } from './mid/roster';
+import { MID_SIM, midMul, midRow } from './mid/roster';
 import { eliteKill, eliteTick } from './elite';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
 
@@ -487,7 +487,7 @@ export function midLeave(e, k = .03) {
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);
   if (e.t < e.leave) { e.x = lerp(e.x, e.tx, k); return false; }
-  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); }
+  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); }
   e.x += 1.6;
   if (e.x > W + 60) e.dead = true;
   return true;
@@ -542,27 +542,24 @@ export function hurt(e, d, hx, hy, dir) {
     sfx.tink();
     return;
   }
-  if (e.mid) { // a WINDOW or ANGLE midboss scales its own hits (enemies/mid/<kind>.ts hurt)
-    const h = MID_SIM[e.k]?.hurt;
-    if (h) {
-      const m = h(e, d, hx, hy);
-      if (m <= 0) {
-        e.flash = 1;
-        if (R() < .4) spark(hx, hy, rr(-2, 0), rr(-1, 1), 6, '#cfe6ff');
-        sfx.tink();
-        return;
-      }
-      d *= m;
-    }
+  // a WINDOW or ANGLE midboss scales its own hits (MidSim.hurt). d 0 is a kill already paid (the slick): never armoured
+  const m = d > 0 ? midMul(e, d, hx, hy, dir) : 1;
+  if (m <= 0) { // a tink: no damage
+    e.flash = 1;
+    if (R() < .4) spark(hx, hy, rr(-2, 0), rr(-1, 1), 6, '#cfe6ff');
+    sfx.tink();
+    return;
   }
+  d *= m;
   e.hp -= d;
-  e.flash = 3;
+  e.flash = m < 1 ? 2 : 3; // an armoured hit flashes dimmer and tinks (below), so the player reads it
   if (e.k === 'hook') e.kick = (e.kick || 0) + .12;
   const n = 4 + Math.min(14, d * 4 | 0);
   for (let k = 0; k < n; k++) drop(hx, hy, dir * rr(.6, 2.8) + rr(-.8, .8), rr(-1.5, 1.3), rr(1, 1.9), R() < .3 ? 2 : 0, ri(50, 110));
   if (R() < .3) mist(hx, hy, rr(3, 5), 20);
   if (e.big && R() < .2) gib(hx, hy, dir * rr(.5, 2), rr(-1.5, 1), 'chunk', rr(1.5, 2.5));
-  sfx.hit();
+  if (m < 1) sfx.tink();
+  else sfx.hit();
   if (e.hp <= 0) killEnemy(e, dir);
 }
 export const mult = () => 1 + Math.min(4, $.G.combo * .05);
@@ -649,6 +646,7 @@ export function killEnemy(e, dir = 1) {
     for (const s of eshots) for (let k = 0; k < 2; k++) drop(s.x, s.y, rr(-1, 1), rr(-1, 1), 1.4, 0, 90);
     eshots.length = 0;
   }
+  if (e.own && e.own.mid) MID_SIM[e.own.k]?.kidKill?.(e, e.own); // a midboss's child (spawned with own: the parent)
   if (e.mid) { // biome midboss: two pods, the stage goes on
     for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);
     dropCap(e.x - 20, e.y - 16);
@@ -656,8 +654,8 @@ export function killEnemy(e, dir = 1) {
     splat(rr(150, 330), rr(60, 160), 4);
     splat(rr(150, 330), rr(60, 160), 3);
     const M = MID_SIM[e.k];
-    banner(M.word, '', undefined, 90);
-    if (M.kill) M.kill(e);
+    banner(M?.word, '', undefined, 90);
+    if (M?.kill) M.kill(e);
     // first-kill pay is for the midboss kinds (e.mid: the biome midbosses and the Saucer), the ones a player discovers
     // (spec §6.4, the meta.mb kinds). Maws don't pay: one recurs every Open Orbit, so it is never a kind to discover
     firstKill(e);

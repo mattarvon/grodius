@@ -3,10 +3,10 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BIOME_POOLS, MID_ET, MID_NAMES, MID_SIM, ROSTER, biomePool, defineMid, midRow, type MidRow } from '../../src/enemies/mid/roster';
+import { BIOME_POOLS, MID_ET, MID_NAMES, MID_SIM, ROSTER, biomePool, defineMid, midProblems, midRow, type MidRow } from '../../src/enemies/mid/roster';
 import { HOME, MIDS, PHASE1_BIOME_POOL, pickBiomeMids, pickMids, slotClock } from '../../src/midpick';
 import { HOME_FIT, MID_BODY, MID_HOME } from '../../src/enemies/midhost';
-import { BOOT_ART } from '../../src/warmplan';
+import { BOOT_ART, routeKeys } from '../../src/warmplan';
 
 const src = (p: string) => readFileSync('src/' + p, 'utf8');
 /** the kind files in a registry folder: `_name.ts` is a shared helper, which both globs skip */
@@ -78,8 +78,20 @@ describe('one file per kind', () => {
     }
   });
 
-  it('gives route art built and drop too, which only a boot kind may leave out', () => {
+  it('gives route art built and drop too, which only a boot kind or a greybox may leave out', () => {
     for (const r of ROSTER) if (!r.boot) expect(src(`render/gross/mid/${r.k}.ts`).split('export default')[1], r.k).toMatch(/built[\s\S]*drop|^ greybox\(/);
+  });
+
+  it('keeps a unit with no built or drop out of the warm-up drop pass, so the warm-up never spins on a no-op drop', () => {
+    const units = { boot: { built: () => true, drop: () => {} }, art: { built: () => true, drop: () => {} }, grey: {}, half: { built: () => true } };
+    expect(routeKeys(units, ['boot'])).toEqual(['art']);
+  });
+
+  it('names every registry problem checkMids would refuse to boot on, and none for the real registry', () => {
+    const sim = Object.fromEntries(KINDS.map((k) => [k, {}]));
+    expect(midProblems(ROSTER, sim, KINDS)).toEqual([]);
+    expect(midProblems([...ROSTER, GREY], sim, KINDS)).toEqual(['greybox (no enemies/mid/greybox.ts defineMid)', 'greybox (no render/gross/mid/greybox.ts)']);
+    expect(midProblems(ROSTER, sim, [...KINDS, 'stray'])).toEqual(['stray (art with no roster row)']);
   });
 
   it('checks both sides at boot', () => {
@@ -105,14 +117,16 @@ describe('defineMid', () => {
 });
 
 describe('no hand-kept kind list survives', () => {
-  const KIND_KEY = /\b(choir|cyst|prentice|brood): *['"{]/;
+  // built from the roster, so a pool lane's kind is caught the same as the five that moved
+  const ANY = KINDS.join('|');
+  const KIND_KEY = new RegExp(`\\b(${ANY}): *['"{]`);
 
   it('has no kind table left in the files that used to hold one', () => {
     for (const f of ['biomes.ts', 'midpick.ts', 'enemies/midhost.ts', 'warmplan.ts', 'render/warmup.ts', 'render/hud.ts', 'enemies/spawn.ts', 'enemies/update.ts', 'render/gross/midbosses.ts']) expect(src(f), f).not.toMatch(KIND_KEY);
   });
 
   it('has no switch arm or per-kind branch left in the sim or the draw', () => {
-    expect(src('enemies/update.ts')).not.toMatch(/case '(choir|cyst|prentice|brood|ufo)'/);
+    expect(src('enemies/update.ts')).not.toMatch(new RegExp(`case '(${ANY})'`));
     expect(src('enemies/update.ts')).not.toMatch(/e\.k === 'ufo'/);
     expect(src('enemies/spawn.ts')).not.toMatch(/k === '(choir|prentice)'/);
     expect(src('render/enemies.ts')).not.toMatch(/e\.k === '(choir|prentice)'/);
@@ -141,7 +155,8 @@ describe('module order', () => {
   });
 
   it('keeps the pure modules off the kinds\' files', () => {
-    for (const f of ['midpick.ts', 'warmplan.ts', 'runsave.ts', 'enemies/midhost.ts']) expect(src(f), f).not.toMatch(/enemies\/mid'|mid\/(choir|cyst|prentice|brood|ufo)'/);
+    const kindFile = new RegExp(`enemies/mid'|mid/(${KINDS.join('|')})'`);
+    for (const f of ['midpick.ts', 'warmplan.ts', 'runsave.ts', 'enemies/midhost.ts', 'depth.ts', 'midslot.ts']) expect(src(f), f).not.toMatch(kindFile);
   });
 
   it('keeps the load edge that fixes the spawn <-> kinds init order in the built game', () => {
@@ -172,11 +187,12 @@ describe('the WIP flag', () => {
     expect(met(biomePool(true, rows))).toBeGreaterThan(0);
   });
 
-  it('draws the same picks with the flag on while no row is WIP, so the flag alone never moves a run', () => {
+  // only meaningful while the roster has no wip row: once a lane adds one, the flag is meant to move picks
+  it.skipIf(ROSTER.some((r) => r.wip))('draws the same picks with the flag on while no row is WIP, so the flag alone never moves a run', () => {
     for (let s = 1; s <= 200; s++) {
       const a = pickBiomeMids({ mbUsed: [], mbLast: {} }, 'ice', 0, stream(s), undefined, false, false);
       const b = pickBiomeMids({ mbUsed: [], mbLast: {} }, 'ice', 0, stream(s), undefined, false, true);
-      if (!ROSTER.some((r) => r.wip)) expect(b).toEqual(a);
+      expect(b).toEqual(a);
     }
   });
 
@@ -184,7 +200,5 @@ describe('the WIP flag', () => {
     for (const b of BIOME_POOLS) expect(midRow(HOME[b])!.wip).toBeFalsy();
   });
 
-  it('wires the flag into the stage pick', () => {
-    expect(src('biomes.ts')).toMatch(/pickBiomeMids\(G, b, G\.loop, midStream\(i\), \$\.meta && \$\.meta\.mb, false, midsWip\(\)\)/);
-  });
+  // the flag's wiring into biomes.ts stageMids is proved by behaviour in midwip-stage.test.ts
 });

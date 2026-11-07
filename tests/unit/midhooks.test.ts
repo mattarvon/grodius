@@ -32,15 +32,23 @@ vi.mock('../../src/contraptions', () => ({ onKillContraptions: () => {} }));
 vi.mock('../../src/enemies/mid/ufo', () => ({ ufoKilled: () => {}, updUfo: () => {} }));
 vi.mock('../../src/enemies/elite', () => ({ eliteKill: () => {}, eliteTick: () => {} }));
 
-const { hurt, killEnemy } = await import('../../src/enemies/update');
-const { defineMid } = await import('../../src/enemies/mid/roster');
+const { hurt, killEnemy, midLeave } = await import('../../src/enemies/update');
+const { MID_SIM, defineMid, midMul } = await import('../../src/enemies/mid/roster');
+const { TAG_W, depthHP } = await import('../../src/depth');
+const { midPh2 } = await import('../../src/enemies/midhost');
 const { meetMid } = await import('../../src/midslot');
 const L = await import('../../src/layout');
 
 /** the shell: closed (e.shut) it takes x0.15, and its front (hx < e.x) only tinks */
-let calls = 0;
+let calls = 0, left = 0;
+const kids: any[] = [];
 defineMid('greybox', { et: { hp: 100, r: 20, mid: 1 }, word: 'X', update: () => {} });
-defineMid('shell', { et: { hp: 100, r: 20, mid: 1 }, word: 'X', update: () => {}, hurt: (e, _d, hx) => (calls++, hx < e.x ? 0 : e.shut ? .15 : 1) });
+defineMid('shell', {
+  et: { hp: 100, r: 20, mid: 1 }, word: 'X', update: () => {},
+  hurt: (e, _d, hx) => (calls++, hx < e.x ? 0 : e.shut ? .15 : 1),
+  leave: () => { left++; },
+  kidKill: (kid, owner) => { kids.push([kid.k, owner.k]); },
+});
 
 const run = () => {
   L.setLayout('long4');
@@ -82,6 +90,77 @@ describe('MidSim.hurt', () => {
     hurt(d, 10, 290, 135, 1);
     expect(d.hp).toBe(90);
     expect(calls).toBe(0);
+  });
+});
+
+describe('the hook seen from the rest of the game', () => {
+  afterEach(() => L.setLayout('short'));
+
+  it('still kills a midboss the slick already took below 0, even where its hook would tink (hurt with d 0)', () => {
+    run();
+    const e = mid('shell');
+    e.hp = -1; // perks.ts: the slick takes hp directly, then calls hurt(e, 0, e.x, e.y, 1) to finish it
+    calls = 0;
+    hurt(e, 0, e.x - 10, e.y, 1);
+    expect(e.dead).toBe(true);
+    expect(calls).toBe(0);
+  });
+
+  it('flashes an armoured hit dimmer than a full one', () => {
+    run();
+    const e = mid('shell');
+    hurt(e, 10, 310, 135, 1);
+    expect(e.flash).toBe(3);
+    e.shut = 1;
+    hurt(e, 10, 310, 135, 1);
+    expect(e.flash).toBe(2);
+  });
+
+  it('gives area damage and damage over time the same share through midMul, at the centre with dir 0', () => {
+    const e = mid('shell');
+    expect(midMul(e, 1, e.x, e.y, 0)).toBe(1);
+    e.shut = 1;
+    expect(midMul(e, 1, e.x, e.y, 0)).toBe(.15);
+    expect(midMul(mid('cyst'), 1, 300, 135, 0)).toBe(1); // no hook
+    expect(midMul({ k: 'shell', x: 300, y: 135 }, 1, 0, 0, 0)).toBe(1); // not a midboss
+  });
+
+  it('calls leave once, on the first withdraw frame', () => {
+    run();
+    left = 0;
+    const e = mid('shell');
+    Object.assign(e, { t: 100, leave: 100, tx: 380 });
+    midLeave(e);
+    midLeave(e);
+    expect(left).toBe(1);
+    expect(e.gone).toBe(1);
+  });
+
+  it('calls kidKill when a child spawned with own dies, and not for an ordinary enemy', () => {
+    run();
+    kids.length = 0;
+    const owner = mid('shell');
+    killEnemy({ k: 'hatch', x: 300, y: 135, kid: 1, own: owner, score: 0, bio: 0, gsz: 1 } as any);
+    killEnemy({ k: 'hatch', x: 300, y: 135, score: 0, bio: 0, gsz: 1 } as any);
+    expect(kids).toEqual([['hatch', 'shell']]);
+  });
+
+  it('weighs the depth HP of an unlisted midboss kind by its tag (spec §6.4), so a lane edits no depth.ts line', () => {
+    $.G = { loop: 2, stage: 1 };
+    const share = (k: string) => depthHP(k, { mid: 1, mini: 1 }, {}) - 1;
+    expect(share('shell') / share('choir')).toBeCloseTo(TAG_W.WINDOW); // choir: LINE, unlisted, 1
+    expect(share('greybox') / share('choir')).toBeCloseTo(TAG_W.ANGLE);
+    expect(share('cyst') / share('choir')).toBeCloseTo(.6); // listed in DEPTH.w
+  });
+
+  it('puts every kind into phase 2 below half its HP, through one shared line', () => {
+    expect(midPh2({ hp: 49, max: 100 })).toBe(true);
+    expect(midPh2({ hp: 50, max: 100 })).toBe(false);
+  });
+
+  it('keeps MID_SIM free of a prototype, so no inherited name reads as a kind', () => {
+    expect(MID_SIM.constructor).toBeUndefined();
+    expect(MID_SIM.toString).toBeUndefined();
   });
 });
 

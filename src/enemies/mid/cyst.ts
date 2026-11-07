@@ -9,12 +9,12 @@ import { drop, spark } from '../../fx/spawn';
 import { cdm } from '../../depth';
 import { ring } from '../spawn';
 import { bandFit, lob, midLeave } from '../update';
-import { HOST_SPARK, isCross } from '../midhost';
+import { HOST_SPARK, isCross, midPh2 } from '../midhost';
 import { defineMid } from './roster';
 
 function updCyst(e) {
   // THE DISSOLVING WOMB: a melting sac on the lake. Bubbles 45f, then geysers a rain of globs lobbed onto you; or bloats 30f and bursts a ring
-  const go = midLeave(e), ph2 = e.hp < e.max * .5, cx = isCross(e);
+  const go = midLeave(e), ph2 = midPh2(e), cx = isCross(e);
   e.y = PH * .6 + Math.sin(e.t * .016) * (PH * .13); // tuned to sit on the acid lake; a crossover fits the host's cave
   if (cx) bandFit(e);
   if (!go && e.t > 120 && $.P.alive) {
