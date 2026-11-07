@@ -47,7 +47,7 @@ Each pillar comes with a design test. A change that fails its test needs Matt's 
 ## Protected core (the shipped MVP — do not regress)
 - Gradius rules: exclusive SPLIT/ARC and MISSILE/PYRE, WRAITH options, WARD, the fragment economy, and the alternative POWER: METER mode.
 - The four-stage descent with biome forks, two different midbosses per biome stage (Open Orbit has one, the Saucer, until LS2; `short` has one per stage), and timed bosses.
-- The mid-stage resume point: two checkpoints per stage, RESUME on the title, saved when the app goes to the background (on-device check still open: the Fold app-kill test).
+- The mid-stage resume point: two checkpoints per stage, RE-ENTER on the title, saved when the app goes to the background (on-device check still open: the Fold app-kill test).
 - Midboss fairness: the second midboss never arrives while the first is up, and the fork never offers both the Digestion Tanks and the Sinus in one descent (no three Maws in a row).
 - The mutating ship and kill-type grafts.
 - Readable enemy fire on top of all gore.
@@ -63,7 +63,7 @@ Each pillar comes with a design test. A change that fails its test needs Matt's 
 - No store-release work (AAB, ratings, store copy) until Matt decides whether the game ever leaves sideload and Pages.
 - No upside-down crosses or other religious iconography as decor or text (Grodius.md:84). [PENDING: the scope of this rule.]
 - No per-mechanic GDD ceremony. This brief is the design record, plus a short formulas note for progression.
-- No leaderboards or anti-cheat. Quitting and pressing RESUME to undo damage is a known, accepted exploit (D28).
+- No leaderboards or anti-cheat. Quitting and pressing RE-ENTER to undo damage is a known, accepted exploit (D28).
 
 ## Build order (current priorities, in vision order)
 Content phases only. M3 (fights change shape) and M4 (biome Maws) run alongside LS2 and LS3 (production/content-build-plan.md).

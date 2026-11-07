@@ -216,9 +216,9 @@ One noise function over 60 s reads as wallpaper. Each biome stage therefore has 
 **Integrity:**
 - One slot only.
 - Cleared on game over, at descent end and on a new game.
-- The title screen shows RESUME only while a valid checkpoint exists.
+- The title screen shows RE-ENTER (was RESUME, D34) only while a valid checkpoint exists.
 - A version mismatch discards the checkpoint safely and never crashes.
-- **Known exploit, accepted (D28, Matt, 2026-11-03):** quitting (ABANDON SHIP or an app kill) and pressing RESUME rewinds you to the last checkpoint. Under (a), that gives back the checkpoint's lives. Under (b), it is a free undo that is cheaper than a death; this line used to call it moot under (b), which the LS1-H review found wrong. Accepted because the game is single-player with no leaderboards. Revisit if playtests show players using it. The fallbacks are a resume after a quit costing a life, or a dirty flag.
+- **Known exploit, accepted (D28, Matt, 2026-11-03):** quitting (SURFACE, was ABANDON SHIP, or an app kill) and pressing RE-ENTER rewinds you to the last checkpoint. Under (a), that gives back the checkpoint's lives. Under (b), it is a free undo that is cheaper than a death; this line used to call it moot under (b), which the LS1-H review found wrong. Accepted because the game is single-player with no leaderboards. Revisit if playtests show players using it. The fallbacks are a resume after a quit costing a life, or a dirty flag.
 
 **As built (LS1-H, 2026-11-02; `src/checkpoint.ts`, `flow.ts resumeRun`, `stagebuild.ts rebuildAt`):**
 - **Pending rewards (H entry criterion 1).** The seal is stored as earned, `max(seal, seal earned by cleared)`, so a seal still queued in `G.sealQ`/`G.pend` is kept (its banner is not replayed). Queued level-up picks (`G.pickQ`) and the boost offer (`G.boostReq`) are stored as fields. No checkpoint is written while a pick is open; it waits for the pick to close.

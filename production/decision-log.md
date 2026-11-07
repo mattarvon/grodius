@@ -139,7 +139,7 @@ localization), D16-D18, and the signing keystore half of D6.
 
 **Decision point:** with H's resume point, quitting (ABANDON SHIP or an app kill) and pressing RESUME puts you back at the last checkpoint. Under option a, the default (and long is the default layout, D24), that gives back the checkpoint's lives. Under LAB option b, it is a free undo, cheaper than a death. An app kill and a rage-quit can't be told apart.
 **Chosen:** accept it as a known exploit for now. No resume cost and no dirty flag. Revisit if playtests show players doing it. The fallback options stay on record: a resume after a quit costs a life, or the spec §4 dirty-flag mitigation.
-**Reason:** single-player, no leaderboards; surviving an app kill matters more on a phone (creative-director). **Confirmed by Matt 2026-11-03.** Q2 itself (a or b) and the ABANDON SHIP wording stay open. Same class, noted at the LS1-G review: a resume to before a first kill loses that +100 from the run's `G.bio` (the profile keeps it).
+**Reason:** single-player, no leaderboards; surviving an app kill matters more on a phone (creative-director). **Confirmed by Matt 2026-11-03.** Q2 itself (a or b) stays open; the ABANDON SHIP wording was settled by D34 (SURFACE). Same class, noted at the LS1-G review: a resume to before a first kill loses that +100 from the run's `G.bio` (the profile keeps it).
 **Category:** design
 
 ### D29 Midboss HP is exempt from intra-descent depth — 2026-11-03 (Matt; raised by lane G)
