@@ -11,9 +11,10 @@
 // =====================================================================
 import { HOME } from './midpick';
 import { row, stageOfSlot } from './layout';
+import { ROSTER } from './enemies/mid/roster';
 
 /** built at boot and never dropped, in build order: what the title's idle time should reach first */
-export const BOOT_ART: readonly string[] = ['hero', 'eyes', 'derelict', 'maw:orbit', 'ufo', 'drive'];
+export const BOOT_ART: readonly string[] = ['hero', 'eyes', 'derelict', 'maw:orbit', ...ROSTER.filter((r) => r.boot && !r.wip).map((r) => r.k), 'drive'];
 
 /** each biome's stage boss art; must match BIOMES[b].boss in biomes.ts (tests/unit/warmplan.test.ts asserts it).
  *  The Maw's art is per variant: acid and snot are separate canvases */
@@ -56,3 +57,9 @@ export function warmBlocked(state: string, G: WarmGate | null | undefined): bool
   if (!G || (state !== 'play' && state !== 'pause')) return false;
   return G.t < (G.warnEnd || 0) || !!G.mini || !!G.boss || !!G.bossStarted;
 }
+
+/** the units the drop pass may free: route art (not boot art) that can say it is built and can drop. A unit with neither
+ *  (a greybox, nothing cached; a wip boot kind, built on first draw) never enters it: a no-op drop would read as work
+ *  done, so the warm-up would spin and never reach the boss art behind it */
+export const routeKeys = (units: Readonly<Record<string, { built?: () => boolean; drop?: () => void }>>, boot: readonly string[] = BOOT_ART): string[] =>
+  Object.keys(units).filter((k) => !boot.includes(k) && !!units[k].built && !!units[k].drop);

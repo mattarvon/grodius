@@ -161,7 +161,7 @@ const init = ([seed, gates, descents, mortal]) => {
 // ---- static anchors: read from the live modules (src/layout.ts once it exists, else the pre-refactor homes) ----
 const anchors = (p) => p.evaluate(async () => {
   const imp = async (m) => { try { return await import(m); } catch (e) { return null; } };
-  const LY = await imp('/src/layout.ts'), C = await imp('/src/core.ts'), BI = await imp('/src/biomes.ts'), UF = await imp('/src/enemies/ufo.ts'), WO = await imp('/src/world.ts');
+  const LY = await imp('/src/layout.ts'), C = await imp('/src/core.ts'), BI = await imp('/src/biomes.ts'), UF = await imp('/src/enemies/mid/ufo.ts'), WO = await imp('/src/world.ts');
   let a;
   if (LY && LY.parityAnchors) a = LY.parityAnchors();
   else {

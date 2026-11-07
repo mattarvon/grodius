@@ -24,7 +24,7 @@ vi.mock('../../src/render/util', () => ({ glow: noop, light: noop }));
 vi.mock('../../src/stages', () => ({ startStage: noop }));
 vi.mock('../../src/render/biomeart', () => ({ drawFX: noop, biomePat: noop, biomeTerrainFill: noop, biomeEdge: noop, drawBiomeBG: noop, drawBiomeDecor: noop, splatCols: noop, biomeDark: noop, biomeMist: noop }));
 vi.mock('../../src/boss/update', () => ({ startBoss: noop }));
-vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: noop }));
+vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: noop }));
 
 const { BIOME_KEYS, biomeScript, midStream, stageStream } = await import('../../src/biomes');
 const { stageScript } = await import('../../src/enemies/scripts');

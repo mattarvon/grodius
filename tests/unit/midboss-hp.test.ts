@@ -9,7 +9,11 @@ vi.mock('../../src/core', () => ({ PH: 270, R: () => .99, TAU: Math.PI * 2, W: 4
 vi.mock('../../src/audio', () => ({ sfx: {} }));
 vi.mock('../../src/world', () => ({ ceilAt: () => 0, enemies, eshots: [], floorAt: () => 0 }));
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
-vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: () => {} }));
+vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: () => {} }));
+// the real kinds load (their ET rows and spawn hooks are under test); these are only what their updates call
+vi.mock('../../src/enemies/update', () => ({ bandFit: () => {}, lob: () => {}, midLeave: () => false }));
+vi.mock('../../src/player', () => ({ playerHit: () => {} }));
+vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, spark: () => {} }));
 
 const { midboss, ET } = await import('../../src/enemies/spawn');
 const L = await import('../../src/layout');
@@ -61,5 +65,11 @@ describe('midboss() base HP per layout (D27)', () => {
       expect(e.max).toBe(200);
       expect(meet('short', 'prentice', 0, stage).hp).toBe(150);
     }
+  });
+});
+
+describe('midboss() on a kind with no registry entry', () => {
+  it('throws, naming the kind and the file it needs', () => {
+    expect(() => midboss('nobody', 'NOBODY', 'ice')).toThrow(/midboss 'nobody' is not registered \(enemies\/mid\/nobody\.ts/);
   });
 });

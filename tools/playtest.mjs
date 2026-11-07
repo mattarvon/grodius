@@ -17,6 +17,7 @@
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
+import { ROSTER } from '../src/enemies/mid/roster.ts'; // the midboss kinds, from the registry
 if (process.argv[2] === '--compare') { compare(process.argv.slice(3)); process.exit(0); }
 /** the cross-seed signature report over sig.json files */
 function compare(dirs) {
@@ -140,7 +141,7 @@ for (let i = 0; i < stages.length; i++) {
   const pb = S.biome && prevB[S.biome], bo = pb ? Object.keys(kinds).filter((k) => pb.k.has(k)).length / Math.max(1, Object.keys(kinds).length) : null;
   const sigB = new Set(Object.keys(sig)), so = pb ? [...sigB].filter((k) => pb.s.has(k)).length / Math.max(1, sigB.size) : null;
   if (S.biome) prevB[S.biome] = { k: new Set(Object.keys(kinds)), s: sigB };
-  const els = sp.filter((x) => x.el).length, big = new Set(['maw', 'crux', 'butcher', 'choir', 'cyst', 'prentice', 'brood', 'nailbar', 'ufo']), reg = sp.filter((x) => !big.has(x.k));
+  const els = sp.filter((x) => x.el).length, big = new Set(['maw', 'crux', 'butcher', 'nailbar', ...ROSTER.map((r) => r.k)]), reg = sp.filter((x) => !big.has(x.k));
   if (S.biome) { drn.biome[0] += reg.filter((x) => x.k === 'drone').length; drn.biome[1] += reg.length; }
   const bos = L.bosses.filter((x) => x.st === S.k).map((x) => `${x.title || x.k} ${x.f1 ? ((x.f1 - x.f0) / 60).toFixed(1) + 's' + (x.killed ? '' : ' (left)') : 'unfinished'}`);
   console.log(`\n== stage ${S.k}${S.biome ? ' [' + S.biome + ']' : ''}  ${dur.toFixed(0)}s  lvl ${S.start.lvl}->${S.end.lvl}  rank ${S.start.rank}->${S.end.rank}  weapons ${S.end.wep}  grafts ${S.end.gm || '-'}`);

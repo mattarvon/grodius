@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
+import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
@@ -32,18 +33,16 @@ if (!url) {
 }
 
 // [id, label, kind, biome]: kind 'boss' = the Gravity Drive (bossAt(), $.G.boss); 'stage' = a stage-boss spawner;
-// 'mid' = a biome midboss in its biome (midboss-probe's setup); 'ufo' = the Open Orbit saucer
+// 'mid' = a biome midboss in its biome (midboss-probe's setup); 'ufo' = the Open Orbit saucer; 'rest' = another Orbit or
+// ship-pool midboss, spawned in Open Orbit where the Saucer fights (no biome, so no fork)
 const FIGHTS = [
   ['drive', 'GRAVITY DRIVE', 'boss', null],
   ['maw', 'MAW (stage)', 'stage', null],
   ['crux', 'CRUCIFER', 'stage', null],
   ['butcher', 'BUTCHER', 'stage', null],
   ['mawmid', 'MAW (mid)', 'mid', 'acid'],
-  ['choir', 'NAIL CHOIR', 'mid', 'ice'],
-  ['cyst', 'DISS. WOMB', 'mid', 'acid'],
-  ['prentice', 'APPRENTICE', 'mid', 'fire'],
-  ['brood', 'BROOD MOM', 'mid', 'snot'],
-  ['ufo', 'SQUID SAUCER', 'ufo', null],
+  ...ROSTER.filter((r) => BIOME_POOLS.includes(r.pool)).map((r) => [r.k, r.label, 'mid', r.pool]), // the registry, WIP kinds too
+  ...ROSTER.filter((r) => !BIOME_POOLS.includes(r.pool)).map((r) => [r.k, r.label, r.k === 'ufo' ? 'ufo' : 'rest', null]),
   // the Crucifer again, with the ship's form changing mid-fight (pods grow at 1, 3 and 5 s; a pod withers at 7 s): render's
   // trackForm sprouts and withers parts as particles, which the fixed-kit fights above never exercise (LS1-B1fix)
   ['grow', 'FORM CHANGE', 'stage', null, 'crux'],
@@ -69,7 +68,7 @@ async function run(b, fight, flashes, draw) {
   await p.addInitScript(init, { flashes, trace: TRACE });
   await p.goto(url);
   await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
-  await useLayout(p, 'rng-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
+  await useLayout(p, 'rng-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not. Orbit and ship-pool midbosses fight in Open Orbit, not the ship interior' });
   // every sprite and photo decoded first, as in the harness: a late image changes which draw paths run
   for (let i = 0; i < 300; i++) {
     const ok = await p.evaluate(async () => {
@@ -84,13 +83,13 @@ async function run(b, fight, flashes, draw) {
     const [id, , kind, biome, spawn = id] = fight;
     const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
     const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
-    const UF = await import('/src/enemies/ufo.ts'), BU = await import('/src/boss/update.ts'), SV = await import('/src/save.ts');
+    const UF = await import('/src/enemies/mid/ufo.ts'), BU = await import('/src/boss/update.ts'), SV = await import('/src/save.ts');
     const { render } = await import('/src/render/screens.ts'), LY = await import('/src/layout.ts');
     const $ = S.$; $.gate = false; IN.K.KeyZ = true;
     const [pw, gm, pkk] = KIT;
     F.newGame(0); $.state = 'play';
     for (let i = 0; i < 30; i++) ST.step();
-    if (kind === 'ufo') $.G.scroll = LY.ufoAt() + 150;
+    if (kind === 'ufo' || kind === 'rest') $.G.scroll = LY.ufoAt() + 150;
     else if (kind === 'mid') {
       $.G.scroll = LY.slotRow(0).x0; $.G.si = $.G.script.length; W.enemies.length = 0;
       BI.openFork(0); $.G.fork.opts = [biome, biome]; $.G.fork.t = 50; $.G.tally = null;

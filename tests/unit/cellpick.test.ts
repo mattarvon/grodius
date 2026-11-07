@@ -11,7 +11,7 @@ const rec = (k: string) => (..._a: unknown[]) => { calls.push(k); };
 vi.mock('../../src/core', () => ({ PH: 254, W: 480 }));
 vi.mock('../../src/audio', () => ({ sfx: { dread: () => {}, siren: () => {} } }));
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
-vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: () => {} }));
+vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: () => {} }));
 vi.mock('../../src/enemies/spawn', () => Object.fromEntries(
   ['banner', 'behindWave', 'corpse', 'crawler', 'eyeT', 'flayer', 'formation', 'hatch', 'logLine', 'maw', 'mutant', 'sentry', 'womb'].map((k) => [k, (...a: unknown[]) => rec(k)(...a)]),
 ));

@@ -25,7 +25,7 @@ const isNumMap = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.val
 const plain = (v) => isObj(v) || Array.isArray(v); // JSON-able container (deep-cloned on the way in and out)
 // Kinds the restore indexes by name, checked here so a save that decodes always rebuilds (sprint 3 H review,
 // lead-programmer): an unknown biome would throw at BIOMES[b].remix, an unknown midboss at biomes.ts midName. The
-// tables are midpick.ts's (no imports, so the boot-time module order is unchanged); tests/unit/midslot.test.ts keeps
+// tables are midpick.ts's, from the roster (a leaf, so the boot-time module order is unchanged); tests/unit/midslot.test.ts keeps
 // MIDS and HOME in step with biomes.ts BIOMES and its mids, and runsave.test.ts checks HOME covers BIOME_KEYS
 const isBiome = (v) => isStr(v) && Object.hasOwn(HOME, v);
 const isMid = (v) => isStr(v) && Object.hasOwn(MIDS, v);

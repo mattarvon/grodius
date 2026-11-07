@@ -19,8 +19,8 @@
 //  earlier stage this descent took it as a crossover, body exclusion removes it and the stage gets two crossovers.
 // =====================================================================
 
-/** the skill a midboss tests (spec §6.1); a pool never holds two members with the same tag */
-export type MidTag = 'LINE' | 'SPACE' | 'RANGE' | 'CROWD' | 'WINDOW' | 'ANGLE' | 'RACE' | 'DRIFT';
+import { BIOME_POOLS, ROSTER, biomePool, type MidRow, type MidTag } from './enemies/mid/roster';
+export type { MidTag };
 
 export interface MidDef {
   /** the art and hitbox it uses; a recolour or crossover shares its parent's body, and step 2 excludes by body too */
@@ -30,20 +30,18 @@ export interface MidDef {
   min: number;
 }
 
-/** the midbosses that exist today, keyed by the kind midboss()/ufoWarn() spawn. LS2 lanes add rows here */
-export const MIDS: Record<string, MidDef> = {
-  choir: { body: 'choir', tag: 'LINE', min: 0 }, //       THE NAIL CHOIR, ice home
-  cyst: { body: 'cyst', tag: 'SPACE', min: 0 }, //        THE DISSOLVING WOMB, acid home
-  prentice: { body: 'prentice', tag: 'RANGE', min: 0 }, // THE BUTCHER'S APPRENTICE, fire home
-  brood: { body: 'brood', tag: 'CROWD', min: 0 }, //      THE BROOD MOTHER, snot home
-  ufo: { body: 'ufo', tag: 'DRIFT', min: 0 }, //          THE SQUIDFUCKED SAUCER, Open Orbit slot A
-};
+/** every midboss by kind, WIP ones too (a run saved under the flag must still load): enemies/mid/roster.ts is the list */
+export const MIDS: Record<string, MidDef> = Object.fromEntries(ROSTER.map((r: MidRow) => [r.k, { body: r.body ?? r.k, tag: r.tag, min: r.min }]));
 
-/** each biome's own midboss; must match BIOMES[b].mids[0] in biomes.ts (tests/unit/midslot.test.ts asserts it) */
-export const HOME: Record<string, string> = { ice: 'choir', acid: 'cyst', fire: 'prentice', snot: 'brood' };
+/** each biome's own midboss: the first finished row of its pool. Its keys are the biome list runsave.ts and jump.ts read */
+export const HOME: Record<string, string> = Object.fromEntries(BIOME_POOLS.map((b) => {
+  const r = ROSTER.find((r) => r.pool === b && !r.wip);
+  if (!r) throw new Error(`midboss roster: pool '${b}' has no finished row, so the biome has no home midboss`);
+  return [b, r.k];
+}));
 
-/** phase 1: a biome stage draws from all four existing biome midbosses (home + crossovers) */
-export const PHASE1_BIOME_POOL: readonly string[] = ['choir', 'cyst', 'prentice', 'brood'];
+/** phase 1: a biome stage draws from every finished biome-pool midboss (home + crossovers) */
+export const PHASE1_BIOME_POOL: readonly string[] = biomePool();
 
 /** which relaxations the fallback needed: 0 none, 1 step 3 relaxed, 2 steps 3 and 1 relaxed. Step 2 has no level */
 export type Relaxed = 0 | 1 | 2;
@@ -141,9 +139,10 @@ export function newDescentMids(st: MidState): void {
   st.mbUsed = [];
 }
 
-/** phase 1 biome stage: home preferred, crossovers from the other three existing biome midbosses */
-export function pickBiomeMids(st: MidState, b: string, L: number, rng: () => number, met?: Readonly<Record<string, number>>, ignoreMeta = false): PickOut {
-  const out = pickMids({ pool: PHASE1_BIOME_POOL, L, used: st.mbUsed, last: st.mbLast[b], met, ignoreMeta, prefer: HOME[b], rng });
+/** phase 1 biome stage: home preferred, crossovers from the other biome midbosses. wip: the ?mids=wip flag (src/lab.ts
+ *  midsWip), which lets the unfinished kinds in */
+export function pickBiomeMids(st: MidState, b: string, L: number, rng: () => number, met?: Readonly<Record<string, number>>, ignoreMeta = false, wip = false): PickOut {
+  const out = pickMids({ pool: biomePool(wip), L, used: st.mbUsed, last: st.mbLast[b], met, ignoreMeta, prefer: HOME[b], rng });
   noteMids(st, b, out.picks);
   return out;
 }

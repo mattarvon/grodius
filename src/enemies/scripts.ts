@@ -20,7 +20,7 @@ import { row, ufoDrift, ufoRow } from '../layout';
 import { INTERIOR_MIX, ORBIT_MIX, genFiller, noteCells, pickCells } from '../cellpick';
 import { sfx } from '../audio';
 import { startBoss } from '../boss/update';
-import { ufoWarn } from './ufo';
+import { ufoWarn } from './mid/ufo';
 import { banner, behindWave, corpse, crawler, eyeT, flayer, formation, hatch, logLine, maw, mutant, sentry, womb } from './spawn';
 
 const crew = (...ys) => ys.forEach(y => corpse(y));
@@ -368,7 +368,7 @@ export function stageScript(i, rs) {
       if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // the Saucer: only generator filler sits in its window
     } else {
       play('oA', ORBIT_A);
-      if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/ufo.ts): eats the filler while it's up
+      if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/mid/ufo.ts): eats the filler while it's up
       play('oC', ORBIT_C);
       play('oD', ORBIT_D);
     }

@@ -7,10 +7,10 @@ import { whipPts } from '../enemies/update';
 import { drawChain, drawHookTip, drawSkull, glow, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
 import { spr, sprAt, sprN, sprReady } from '../sprites';
-import { drawMidCross, grossBrood, grossChoir, grossCyst, grossPrentice } from './gross/midbosses';
+import { drawMidCross } from './gross/midbosses';
+import { MID_ART, MID_DRAW } from './gross/mid';
 import { HOST_TINT, isCross } from '../enemies/midhost';
 import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'; // flyers: wasp / eyeball / corpse
-import { drawUfoGross } from './gross/ufo';
 import { drawEliteAura, drawElitePus } from '../enemies/elite';
 
 // --- enemies ---
@@ -920,11 +920,7 @@ export const DRAW = {
   hatch: drawHatch,
   womb: drawWomb,
   maw: drawMaw,
-  ufo: drawUfoGross, // THE SQUIDFUCKED SAUCER, the Open Orbit midboss: src/render/gross/ufo.ts
-  choir: drawChoir,
-  cyst: drawCyst,
-  prentice: drawPrentice,
-  brood: drawBrood
+  ...MID_DRAW // the midbosses: one file per kind (render/gross/mid/)
 };
 export function drawEnemy(e) {
   if (e.k === 'hook') {
@@ -934,54 +930,12 @@ export function drawEnemy(e) {
     drawHookTip(ctx, fx, fy - 3, -e.rot + Math.PI, 1.1);
   }
   if (e.k === 'flayer') drawWhip(e);
-  if (e.k === 'choir' && e.st === 'tel') { // the fan it's about to throw, as frost lines
-    let n = 7; // 5 while a nailbar lives (a loop, not .some(): no per-frame closure)
-    for (const b of e.bars) if (!b.dead) { n = 5; break; }
-    const k = e.wt / 40;
-    ctx.save();
-    ctx.setLineDash([2, 4]);
-    ctx.lineDashOffset = -$.T;
-    ctx.strokeStyle = `rgba(170,220,255,${.15 + .45 * k})`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < n; i++) { const a = e.ha + (i - (n - 1) / 2) * .16; ctx.moveTo(e.x - 10, e.y); ctx.lineTo(e.x - 10 + Math.cos(a) * 150, e.y + Math.sin(a) * 150); }
-    ctx.stroke();
-    ctx.restore();
-  }
+  const art = MID_ART[e.k];
+  if (art && art.under) art.under(e); // a midboss's telegraph or chain, under its body
   if (e.k === 'nailbar' && e.sing > 0) {
     ctx.globalCompositeOperation = 'lighter';
     glow(e.x, e.y, 10 + (36 - e.sing) * .4, '170,220,255', .2 + .6 * (1 - e.sing / 36) * (($.T >> 2) % 2 ? 1 : .6));
     ctx.globalCompositeOperation = 'source-over';
-  }
-  if (e.k === 'prentice') {
-    drawChain(ctx, e.x, e.y - 20, e.x + 4, Math.max(-8, ceilAt(e.x + $.G.scroll)), 1.4);
-    const sx = e.x - 8, sy = e.y - 6;
-    if (e.st === 'tel') { // same sweep cone as the Butcher's, shorter
-      const k = e.wt / 50;
-      ctx.fillStyle = `rgba(255,60,20,${.08 + .22 * k * (($.T >> 2) % 2 ? 1 : .6)})`;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.arc(sx, sy, 84, 2.3, 3.99);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = `rgba(255,120,60,${.4 + .5 * k})`;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.arc(sx, sy, 84, 2.3, 3.99);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-    if (e.st === 'cut' && e.wt <= 12) {
-      let cur = e.ba;
-      if (cur < 0) cur += TAU;
-      ctx.fillStyle = 'rgba(255,220,180,.35)';
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.arc(sx, sy, 84, cur, 3.99);
-      ctx.closePath();
-      ctx.fill();
-    }
   }
   if (e.k === 'butcher') {
     const cy = Math.max(-8, ceilAt(e.x + $.G.scroll));
@@ -1099,18 +1053,6 @@ export function drawButcher(c, e) {
 }
 // --- biome midbosses ---
 const blob = (c, n, r0, f) => { c.beginPath(); for (let i = 0; i <= n; i++) { const a = i / n * TAU, r = f(a, i % n) * r0; i ? c.lineTo(Math.cos(a) * r, Math.sin(a) * r) : c.moveTo(Math.cos(a) * r, Math.sin(a) * r); } c.closePath(); };
-export function drawChoir(c, e) {
-  grossChoir(c, e); // src/render/gross/midbosses.ts
-}
-export function drawCyst(c, e) {
-  grossCyst(c, e); // src/render/gross/midbosses.ts
-}
-export function drawPrentice(c, e) {
-  grossPrentice(c, e); // src/render/gross/midbosses.ts
-}
-export function drawBrood(c, e) {
-  grossBrood(c, e); // src/render/gross/midbosses.ts
-}
 // --- boss ---
 
 // ---------------- new enemies: snot slime, hulking mutant, MERIDIAN security drone ----------------

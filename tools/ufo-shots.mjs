@@ -1,4 +1,4 @@
-// UFO shots: THE SQUIDFUCKED SAUCER (Open Orbit midboss, enemies/ufo.ts + render/gross/ufo.ts) at 2x: the WARNING, idle, each
+// UFO shots: THE SQUIDFUCKED SAUCER (Open Orbit midboss, enemies/mid/ufo.ts + render/gross/mid/ufo.ts) at 2x: the WARNING, idle, each
 // attack's telegraph and release, wounded (last damage sheet + hull cracks), and the death (hull split, tentacle flood).
 // Saves full-frame + close-up PNGs.
 // Usage: node tools/ufo-shots.mjs <url> <outDir> [--layout short]   (WARNING at src/layout.ts ufoAt(); needs the VITE dev server: imports live modules)
@@ -13,7 +13,7 @@ await useLayout(p, 'ufo-shots');
 await p.waitForTimeout(800); // sprites load
 await p.evaluate(async () => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
-  const UF = await import('/src/enemies/ufo.ts'), IN = await import('/src/input.ts'), U = await import('/src/enemies/update.ts'), RS = await import('/src/render/screens.ts');
+  const UF = await import('/src/enemies/mid/ufo.ts'), IN = await import('/src/input.ts'), U = await import('/src/enemies/update.ts'), RS = await import('/src/render/screens.ts');
   const LY = await import('/src/layout.ts');
   const $ = S.$; $.gate = false; IN.K.KeyZ = false;
   F.newGame(0); $.state = 'play';

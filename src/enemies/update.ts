@@ -15,9 +15,11 @@ import { countKill } from '../mutations';
 import { econId, firstKillPay, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
-import { ufoKilled, updUfo } from './ufo';
+// the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
+import './mid';
+import { MID_SIM, midMul, midRow } from './mid/roster';
 import { eliteKill, eliteTick } from './elite';
-import { BAND_EASE, BROOD_CAP, HOST_SPARK, MID_BODY, bodyBand, fitY, fitsTerrain, isCross } from './midhost';
+import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
 
 // --- enemy behaviour ---
 export function updEnemy(e) {
@@ -379,146 +381,6 @@ export function updEnemy(e) {
         if (R() < .35) drop(e.x + rr(-14, 14), e.y + rr(0, 24), rr(-.3, .3), rr(.2, .8), 1.4, R() < .5 ? 0 : 1, 90);
         break;
       }
-    case 'choir':
-      {
-        // THE NAIL CHOIR: a frozen eye in two orbiting nailbars. Glares 40f down a fan line, then a spike fan; the nails "sing" (glint 36f) and spit spikes at you
-        // nLive: a counted loop rather than filtering e.bars into a new array, so the update allocates nothing per frame (build plan LS1 P0)
-        const go = midLeave(e), ph2 = e.hp < e.max * .5, cx = isCross(e);
-        let nLive = 0;
-        for (const b of e.bars) if (!b.dead) nLive++;
-        e.y = PH / 2 + Math.sin(e.t * .014) * (PH * .16);
-        if (cx) bandFit(e);
-        e.spin = (e.spin || 0) + (nLive < 2 ? .034 : .022);
-        for (const b of e.bars) { const a = e.spin + b.i * Math.PI; b.ox = Math.cos(a) * 31; b.oy = Math.sin(a) * 31; }
-        if (!go && e.t > 120 && $.P.alive) {
-          e.wt++;
-          if (e.st === 'idle' && e.wt >= e.cool) { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 10, e.y); sfx.tele(); }
-          else if (e.st === 'tel') {
-            e.ha += wrapA(aimA(e.x - 10, e.y) - e.ha) * .04;
-            if (e.wt >= 40) {
-              fan(e.x - 10, e.y, e.ha, nLive ? 5 : 7, .16, 1.8, 'spike');
-              flash(e.x - 10, e.y, 16, 6, '200,235,255');
-              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm());
-            }
-          }
-          if (every(e, ph2 ? 110 : 150)) for (const b of e.bars) if (!b.dead && !(b.sing > 0)) b.sing = 36;
-          for (const b of e.bars) if (!b.dead && b.sing > 0 && --b.sing === 0) { fan(b.x, b.y, aimA(b.x, b.y), 3, .22, 1.35, 'spike'); sfx.tink(); }
-          if (ph2 && every(e, 130)) ring(e.x, e.y, 10, e.t * .05, 1.05);
-        }
-        if (R() < .25) spark(e.x + rr(-12, 12), e.y + rr(-10, 12), rr(-.3, .3), rr(.2, .6), 14, cx ? pick(HOST_SPARK[e.host]) : R() < .5 ? '#d8efff' : '#8cc4ee');
-        if (R() < .15) drop(e.x + rr(-6, 6), e.y + 10, 0, .4, 1.2, 0, 80);
-        break;
-      }
-    case 'cyst':
-      {
-        // THE DISSOLVING WOMB: a melting sac on the lake. Bubbles 45f, then geysers a rain of globs lobbed onto you; or bloats 30f and bursts a ring
-        const go = midLeave(e), ph2 = e.hp < e.max * .5, cx = isCross(e);
-        e.y = PH * .6 + Math.sin(e.t * .016) * (PH * .13); // tuned to sit on the acid lake; a crossover fits the host's cave
-        if (cx) bandFit(e);
-        if (!go && e.t > 120 && $.P.alive) {
-          e.wt++;
-          if (e.st === 'idle') {
-            e.sw = Math.max(0, (e.sw || 0) - 1.5);
-            if (e.wt >= e.cool) { e.att++; e.st = e.att % 3 ? 'tel' : 'swell'; e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.squish(); }
-          } else if (e.st === 'tel') {
-            if (R() < .6) spark(e.x + rr(-6, 6), e.y - 18, rr(-.3, .3), -rr(.8, 2), 14, '#7ff0d8');
-            if (e.wt >= 45) { e.st = 'spray'; e.wt = 0; geysers.push({ wx: 0, y: 0, att: e, ox: -2, oy: -19, a: -Math.PI / 2, l: ph2 ? 44 : 32, rate: 4, c: 2 }); }
-          } else if (e.st === 'spray') {
-            if (e.wt % 5 === 0) lob(e.x - 2, e.y - 20, $.P.x + rr(-36, 36), $.P.y + rr(-20, 20), rr(1.3, 1.8));
-            if (e.wt >= (ph2 ? 40 : 28)) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 55 : 80) * (1 - .3 * ($.G.rank || 0)) * cdm()); }
-          } else if (e.st === 'swell') {
-            e.sw = e.wt;
-            if (e.wt >= 30) {
-              ring(e.x, e.y, ph2 ? 14 : 10, e.t * .07, 1.05);
-              for (let k = 0; k < 20; k++) drop(e.x, e.y, rr(-2, 2), rr(-2, 2), 1.5, 2, 70);
-              sfx.glob();
-              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 55 : 80) * (1 - .3 * ($.G.rank || 0)) * cdm());
-            }
-          }
-        }
-        if (R() < .35) drop(e.x + rr(-14, 14), e.y + rr(8, 20), rr(-.2, .2), rr(.3, .9), 1.3, R() < .6 ? 2 : 4, 80);
-        if (R() < .08) spark(e.x + rr(-16, 16), e.y - rr(0, 14), 0, -rr(.3, .8), 20, cx ? HOST_SPARK[e.host][e.t % HOST_SPARK[e.host].length] : '#a6ff2a'); // no extra R() for the colour
-        break;
-      }
-    case 'prentice':
-      {
-        // THE BUTCHER'S APPRENTICE: a small carcass on one chain with a cleaver. Lunges in behind a red sweep cone (50f to get out), or spits ember fans
-        const go = midLeave(e, e.st === 'tel' ? .06 : .03), ph2 = e.hp < e.max * .5, cx = isCross(e), sp = cx ? HOST_SPARK[e.host] : FIRE; // its embers burn in the host's colours
-        e.sw = (e.sw || 0) + (ph2 ? .028 : .018);
-        if (e.st === 'tel' && e.wt < 25) e.y = lerp(e.y, clamp($.P.y + 6, 50, PH - 40), .06);
-        else if (e.st !== 'tel' && e.st !== 'cut') e.y = lerp(e.y, PH * .42 + Math.sin(e.sw) * 34, .05);
-        if (cx) bandFit(e);
-        const sx = e.x - 8, sy = e.y - 6;
-        if (!go && e.t > 120 && $.P.alive) {
-          e.wt++;
-          if (e.st === 'idle') {
-            e.ba = lerp(e.ba, -2.3, .1);
-            e.tx = W - 92;
-            if (e.wt >= e.cool) { e.att++; e.st = e.att % 3 && $.P.x < W - 160 ? 'tel' : 'spit'; e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.chain(); }
-          } else if (e.st === 'tel') {
-            e.tx = clamp($.P.x + 64, 130, W - 70);
-            e.ba = lerp(e.ba, -2.4, .2);
-            if (e.wt >= 50) { e.st = 'cut'; e.wt = 0; sfx.lash(); }
-          } else if (e.st === 'cut') {
-            const p = Math.min(1, e.wt / 12);
-            e.ba = -2.3 - p * (TAU - 4.6);
-            if (e.wt === 6) {
-              $.G.shake += 3;
-              for (let k = 0; k < 24; k++) spark(sx - 50, sy + rr(-30, 30), rr(-3, 0), rr(-2, 2), ri(8, 16), pick(sp));
-              fan(sx, sy, aimA(sx, sy), 3, .3, 1.5);
-            }
-            if ($.P.alive && e.wt <= 12) {
-              const d = Math.sqrt(dist2($.P.x, $.P.y, sx, sy));
-              let pa = Math.atan2($.P.y - sy, $.P.x - sx), cur = e.ba;
-              if (pa < 0) pa += TAU;
-              if (cur < 0) cur += TAU;
-              if (d > 14 && d < 84 && pa <= 3.99 && pa >= cur) playerHit();
-            }
-            if (e.wt >= 30) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0)) * cdm()); }
-          } else if (e.st === 'spit') {
-            if (e.wt === 24 || e.wt === 38) fan(e.x - 4, e.y - 24, aimA(e.x - 4, e.y - 24), ph2 ? 7 : 5, .19, 1.7);
-            if (e.wt >= 50) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0)) * cdm()); }
-          }
-          if (ph2 && every(e, 120)) ring(e.x, e.y, 10, e.t * .06, 1.05);
-        }
-        if (R() < .5) spark(e.x + rr(-12, 12), e.y + rr(-10, 24), rr(-.4, .3), -rr(.4, 1.4), ri(8, 16), pick(sp));
-        if (R() < .25) drop(e.x + rr(-10, 10), e.y + rr(0, 20), rr(-.3, .3), rr(.2, .8), 1.3, R() < .5 ? 0 : 1, 90);
-        break;
-      }
-    case 'brood':
-      {
-        // THE BROOD MOTHER: a swollen mucus sac. Heaves 44f, then births a litter of hatchlings; or flares 26f and sneezes snot globs
-        const go = midLeave(e), ph2 = e.hp < e.max * .5;
-        e.y = PH / 2 + Math.sin(e.t * .013) * (PH * .2);
-        if (fitsTerrain(e)) bandFit(e);
-        if (!go && e.t > 120 && $.P.alive) {
-          e.wt++;
-          if (e.st === 'idle') {
-            e.bul = Math.max(0, (e.bul || 0) - .05);
-            if (e.wt >= e.cool) { e.att++; e.st = e.att % 2 ? 'birth' : 'sneeze'; e.wt = 0; sfx.squish(); }
-          } else if (e.st === 'birth') {
-            e.bul = e.wt / 44;
-            if (R() < .3) drop(e.x - 8 + rr(-4, 4), e.y + 14, rr(-.5, .5), rr(.3, 1), 1.2, 4, 60);
-            if (e.wt >= 44) {
-              let kids = 0;
-              for (const q of enemies) if (q.kid && !q.dead) kids++;
-              const n = Math.min(BROOD_CAP - kids, 3 + Math.round(($.G.rank || 0) * 2) + (ph2 ? 2 : 0));
-              for (let i = 0; i < n; i++) mk('hatch', e.x - 16 - i * 7, e.y + 6 + rr(-8, 8), { kid: 1, ph: R() * TAU, vy: rr(-1.4, 1.4) });
-              for (let k = 0; k < 18; k++) drop(e.x - 14, e.y + 6, rr(-2.5, 0), rr(-1.5, 1.5), 1.5, R() < .5 ? 4 : 0, 80);
-              sfx.squish();
-              e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm());
-            }
-          } else if (e.st === 'sneeze') {
-            if (e.wt >= 26 && e.wt <= 38 && e.wt % 6 === 2) fan(e.x - 18, e.y - 4, aimA(e.x - 18, e.y - 4), ph2 ? 5 : 3, .22, 1.8, 'glob');
-            if (e.wt >= 50) { e.st = 'idle'; e.wt = 0; e.cool = Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm()); }
-          }
-        }
-        if (R() < .3) drop(e.x + rr(-16, 16), e.y + rr(10, 20), rr(-.2, .2), rr(.2, .6), 1.4, R() < .5 ? 0 : 4, 90);
-        break;
-      }
-    case 'ufo':
-      updUfo(e); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss: enemies/ufo.ts
-      break;
     case 'maw':
       {
         const tx = W - 82;
@@ -569,6 +431,10 @@ export function updEnemy(e) {
         }
         break;
       }
+    default: { // the midbosses: one file per kind (enemies/mid/)
+      const m = MID_SIM[e.k];
+      if (m) m.update(e);
+    }
   }
   if (!e.mini && e.k !== 'nailbar' && e.t > 90 && (e.x < -50 || e.x > W + 70 || e.y < -60 || e.y > PH + 60)) e.dead = true;
   if (e.k === 'drone' && e.pat === 'behind' && e.x > W + 40) e.dead = true;
@@ -607,7 +473,7 @@ const BAND = [0, 0];
 /** a crossover midboss, or a home one fitsTerrain() names (enemies/midhost.ts): fit e.y into the terrain band under its body. The band tightens at once
  *  (terrain under a moving body must never swallow it) and relaxes eased, so a spire leaving the sample window
  *  doesn't drop the body back with a snap */
-function bandFit(e) {
+export function bandFit(e) {
   const wx = e.x + $.G.scroll, hw = MID_BODY[e.k].hw;
   let ce = -1e9, fl = 1e9;
   for (let d = -hw; d <= hw; d += hw / 2) { ce = Math.max(ce, ceilAt(wx + d)); fl = Math.min(fl, floorAt(wx + d)); }
@@ -617,17 +483,17 @@ function bandFit(e) {
   e.y = fitY(e.y, e.blo, e.bhi);
 }
 // biome midbosses: settle at e.tx, and once e.t passes e.leave slide off right (escape costs nothing). The HUD fuse shows the time left.
-function midLeave(e, k = .03) {
+export function midLeave(e, k = .03) {
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);
   if (e.t < e.leave) { e.x = lerp(e.x, e.tx, k); return false; }
-  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); }
+  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); }
   e.x += 1.6;
   if (e.x > W + 60) e.dead = true;
   return true;
 }
 /** a lobbed glob (falls .025/f) that comes down through (tx, ty) */
-function lob(x, y, tx, ty, vy) {
+export function lob(x, y, tx, ty, vy) {
   const bs = BS(), u = vy * bs, t = (u + Math.sqrt(Math.max(0, u * u + .05 * (ty - y)))) / .025, vx = (tx - x) / (bs * t);
   eshoot(x, y, Math.atan2(-vy, vx), Math.hypot(vx, vy), 'glob');
 }
@@ -676,14 +542,24 @@ export function hurt(e, d, hx, hy, dir) {
     sfx.tink();
     return;
   }
+  // a WINDOW or ANGLE midboss scales its own hits (MidSim.hurt). d 0 is a kill already paid (the slick): never armoured
+  const m = d > 0 ? midMul(e, d, hx, hy, dir) : 1;
+  if (m <= 0) { // a tink: no damage
+    e.flash = 1;
+    if (R() < .4) spark(hx, hy, rr(-2, 0), rr(-1, 1), 6, '#cfe6ff');
+    sfx.tink();
+    return;
+  }
+  d *= m;
   e.hp -= d;
-  e.flash = 3;
+  e.flash = m < 1 ? 2 : 3; // an armoured hit flashes dimmer and tinks (below), so the player reads it
   if (e.k === 'hook') e.kick = (e.kick || 0) + .12;
   const n = 4 + Math.min(14, d * 4 | 0);
   for (let k = 0; k < n; k++) drop(hx, hy, dir * rr(.6, 2.8) + rr(-.8, .8), rr(-1.5, 1.3), rr(1, 1.9), R() < .3 ? 2 : 0, ri(50, 110));
   if (R() < .3) mist(hx, hy, rr(3, 5), 20);
   if (e.big && R() < .2) gib(hx, hy, dir * rr(.5, 2), rr(-1.5, 1), 'chunk', rr(1.5, 2.5));
-  sfx.hit();
+  if (m < 1) sfx.tink();
+  else sfx.hit();
   if (e.hp <= 0) killEnemy(e, dir);
 }
 export const mult = () => 1 + Math.min(4, $.G.combo * .05);
@@ -770,14 +646,16 @@ export function killEnemy(e, dir = 1) {
     for (const s of eshots) for (let k = 0; k < 2; k++) drop(s.x, s.y, rr(-1, 1), rr(-1, 1), 1.4, 0, 90);
     eshots.length = 0;
   }
+  if (e.own && e.own.mid) MID_SIM[e.own.k]?.kidKill?.(e, e.own); // a midboss's child (spawned with own: the parent)
   if (e.mid) { // biome midboss: two pods, the stage goes on
     for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);
     dropCap(e.x - 20, e.y - 16);
     dropCap(e.x - 20, e.y + 16);
     splat(rr(150, 330), rr(60, 160), 4);
     splat(rr(150, 330), rr(60, 160), 3);
-    banner({ choir: 'SILENCED', cyst: 'BURST', prentice: 'CLEAVED', brood: 'STILLBORN', ufo: 'CALAMARI SERVED' }[e.k], '', undefined, 90);
-    if (e.k === 'ufo') ufoKilled(e);
+    const M = MID_SIM[e.k];
+    banner(M?.word, '', undefined, 90);
+    if (M?.kill) M.kill(e);
     // first-kill pay is for the midboss kinds (e.mid: the biome midbosses and the Saucer), the ones a player discovers
     // (spec §6.4, the meta.mb kinds). Maws don't pay: one recurs every Open Orbit, so it is never a kind to discover
     firstKill(e);
@@ -898,6 +776,7 @@ export function miniReward(e) {
 /** spec §6.4: the first kill of each midboss kind ever pays the entry's firstKill biomass once, recorded in meta.mbK
  *  (saved with the meta at the next save()). short pays 0 and writes nothing, so today's game is unchanged. No R() */
 function firstKill(e) {
+  if (midRow(e.k)?.wip) return; // an unfinished kind (?mids=wip) never spends its one-time pay on the real profile
   const m = $.meta, pay = firstKillPay(econId(), m.mbK, e.k);
   if (!pay) return;
   (m.mbK ||= {})[e.k] = 1;

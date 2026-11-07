@@ -9,6 +9,7 @@ import { caps, ceilAt, enemies, eshots, floorAt, shots } from './world';
 import { addDecal, drop, flash, gib, gore, mist, pop, spark, splat } from './fx/spawn';
 import { banner, wrapA } from './enemies/spawn';
 import { METER_CAP, hurt, killEnemy, podType, updEnemy } from './enemies/update';
+import { midMul } from './enemies/mid/roster';
 import { bossHitByShot } from './boss/update';
 import { chainArc, critMul, gmL, graftTake } from './mutations';
 import { applyPower, meterAdvance, playerHit, slotMaxed } from './player';
@@ -295,14 +296,14 @@ export function updateEnemies() {
     const e = enemies[i];
     if (!e.dead && e.burn > 0) {
       e.burn--;
-      e.hp -= .05;
+      e.hp -= .05 * midMul(e, .05, e.x, e.y, 0); // area damage: an armoured midboss decides (MidSim.hurt)
       if (R() < .7) spark(e.x + rr(-e.r, e.r), e.y + rr(-e.r, e.r * .5), rr(-.4, .4), -rr(.5, 1.6), ri(8, 16), pick(FIRE));
       if (R() < .15) drop(e.x + rr(-e.r, e.r), e.y, rr(-.5, .5), -rr(.2, 1), 1, 5, 40);
       if (e.hp <= 0) killEnemy(e, 1);
     }
     if (!e.dead && e.acid > 0) {
       e.acid--;
-      e.hp -= .02 * (1 + pk('corrode'));
+      e.hp -= .02 * (1 + pk('corrode')) * midMul(e, .02, e.x, e.y, 0);
       if (R() < .25) drop(e.x + rr(-e.r, e.r), e.y + rr(-e.r, e.r), rr(-.3, .3), rr(0, .6), 1, 2, 40);
       if (e.hp <= 0) killEnemy(e, 1);
     }

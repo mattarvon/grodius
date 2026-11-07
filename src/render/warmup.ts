@@ -6,30 +6,28 @@
 // =====================================================================
 import { $ } from '../state';
 import { gibs } from '../world';
-import { BOOT_ART, routeArt, warmBlocked } from '../warmplan';
+import { BOOT_ART, routeArt, routeKeys, warmBlocked } from '../warmplan';
 import { warmHeroEye } from './heroeye';
 import { warmEyes } from './eyes';
 import { warmDerelict } from './terrain';
 import { dropMawVariant, mawVariantBuilt, warmMawVariant } from './gross/maw';
-import { warmUfo } from './gross/ufo';
 import { warmDrive } from './gross/drive';
-import { dropMid, midBuilt, warmMid } from './gross/midbosses';
+import { MID_ART } from './gross/mid';
 import { dropBiomeBoss, biomeBossBuilt, warmBiomeBoss } from './gross/biomebosses';
 
 /** one piece of art. warm: build one slice, true while more slices remain. drop: free it (route art only) */
 interface Unit { warm: () => boolean; drop?: () => void; built?: () => boolean }
-const mid = (k: string): Unit => ({ warm: () => warmMid(k), drop: () => dropMid(k), built: () => midBuilt(k) });
 const mawV = (v: string): Unit => ({ warm: () => warmMawVariant(v), drop: () => dropMawVariant(v), built: () => mawVariantBuilt(v) });
 const bb = (k: string): Unit => ({ warm: () => warmBiomeBoss(k), drop: () => dropBiomeBoss(k), built: () => biomeBossBuilt(k) });
 const UNITS: Record<string, Unit> = {
   hero: { warm: warmHeroEye }, eyes: { warm: warmEyes }, derelict: { warm: warmDerelict },
-  'maw:orbit': mawV('orbit'), ufo: { warm: warmUfo }, drive: { warm: warmDrive },
-  choir: mid('choir'), cyst: mid('cyst'), prentice: mid('prentice'), brood: mid('brood'),
+  'maw:orbit': mawV('orbit'), drive: { warm: warmDrive },
+  ...MID_ART, // every midboss (render/gross/mid/): its art carries warm, built and drop
   crux: bb('crux'), butcher: bb('butcher'), 'maw:acid': mawV('acid'), 'maw:snot': mawV('snot'),
 };
 
-/** the art the route owns: everything but the boot art, which stays built all session */
-const ROUTE_KEYS = Object.keys(UNITS).filter((k) => !BOOT_ART.includes(k));
+/** the art the route owns and can drop: not the boot art, which stays built all session (warmplan.ts routeKeys) */
+const ROUTE_KEYS = routeKeys(UNITS);
 const boot = [...BOOT_ART];
 
 /** the slice log the probes read (window.__warm): bounded, and slices are rare, so it costs nothing in play */
