@@ -35,12 +35,14 @@ describe('the roster', () => {
 
   it('feeds every table that used to be kept by hand', () => {
     expect(Object.keys(MIDS)).toEqual(KINDS);
+    // toMatchObject and slices: a pool lane's new row must not need an edit here
     expect(HOME).toEqual({ ice: 'choir', acid: 'cyst', fire: 'prentice', snot: 'brood' });
-    expect(MID_HOME).toEqual({ choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot' });
-    expect(Object.keys(MID_BODY)).toEqual(['choir', 'cyst', 'prentice', 'brood']);
-    expect(HOME_FIT).toEqual(['brood']);
+    expect(MID_HOME).toMatchObject({ choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot' });
+    expect(Object.keys(MID_BODY).slice(0, 4)).toEqual(['choir', 'cyst', 'prentice', 'brood']);
+    expect(HOME_FIT).toContain('brood');
     expect(MID_NAMES.ufo).toBe('THE SQUIDFUCKED SAUCER');
-    expect(BOOT_ART).toEqual(['hero', 'eyes', 'derelict', 'maw:orbit', 'ufo', 'drive']);
+    expect(BOOT_ART).toEqual(['hero', 'eyes', 'derelict', 'maw:orbit', ...ROSTER.filter((r) => r.boot).map((r) => r.k), 'drive']);
+    expect(BOOT_ART).toContain('ufo');
   });
 
   it('keeps the picker values of the five kinds it moved', () => {

@@ -26,10 +26,10 @@ describe('midboss home and host', () => {
     }
   });
 
-  it('treats every other host as a crossover, 12 pairs in all', () => {
+  it('treats every other host as a crossover, three per kind', () => {
     let n = 0;
     for (const k of KINDS) for (const b of BIOME_KEYS) if (b !== MID_HOME[k]) { expect(isCross({ k, host: b })).toBe(true); expect(midHost({ k, host: b })).toBe(b); n++; }
-    expect(n).toBe(12);
+    expect(n).toBe(KINDS.length * 3); // 12 with the first four; a pool lane's kind adds three
   });
 
   it('never calls a non-midboss a crossover', () => {
