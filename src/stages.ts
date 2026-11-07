@@ -94,7 +94,7 @@ export function clearStage(escaped = false) {
   };
   sfx.power();
   buzz('heavy');
-  // boss-kill reward line (src/sfx/bossreward/, random pick if there are several); waits out the death roar
+  // boss-kill reward line (src/sfx/bossreward/, random pick if there are several; none loaded since Matt shelved THE KEYSTER, see src/sfx-shelved/README.md, so sample() returns false and nothing plays); waits out the death roar
   if (!escaped) G.pend.push({ t: 50, f: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) });
   const breakSeal = () => { if (seal > (G.seal || 0)) { G.seal = seal; banner('SEAL BROKEN', 'UNLOCKED: ' + SEAL_TXT[seal], '#ffd23a', 230); sfx.alarm(); } };
   const r = row(G.stage), seg = forkAfter(G.stage); // seg: the biome slot whose fork this clear opens, or -1
