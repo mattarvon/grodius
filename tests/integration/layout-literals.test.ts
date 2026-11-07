@@ -21,7 +21,7 @@ for (const L of Object.values(LAYOUTS)) {
 // the files that held world-x anchors before the table (build plan row A's list, plus the HUD depth bar); any anchor
 // number in their code is a leftover. Other files are only checked for the world-x shapes below: their numbers are
 // scores and filter Hz (stages.ts pays 5000 for a B, music.ts filters at 2400 Hz), not x values
-const ANCHOR_FILES = ['core.ts', 'world.ts', 'biomes.ts', 'enemies/scripts.ts', 'enemies/ufo.ts', 'render/terrain.ts', 'render/hud.ts', 'fx/update.ts'];
+const ANCHOR_FILES = ['core.ts', 'world.ts', 'biomes.ts', 'enemies/scripts.ts', 'enemies/mid/ufo.ts', 'render/terrain.ts', 'render/hud.ts', 'fx/update.ts'];
 
 const hits = (re: RegExp, only?: string[]) => SRC.filter((x) => !only || only.includes(x.f)).flatMap(({ f, s }) => [...s.matchAll(re)].map((m) => `${f}: ${m[0].trim()}`));
 

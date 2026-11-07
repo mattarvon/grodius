@@ -6,7 +6,8 @@ vi.mock('../../src/core', () => ({ PH: 270, R: () => 0, TAU: Math.PI * 2, W: 480
 vi.mock('../../src/audio', () => ({ sfx: {} }));
 vi.mock('../../src/world', () => ({ ceilAt: () => 0, enemies: [], eshots: [], floorAt: () => 0 }));
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
-vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: () => {} }));
+vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: () => {} }));
+vi.mock('../../src/enemies/mid', () => ({})); // the midboss kinds pull in the rest of the sim; nothing here spawns one
 
 const { every, BS } = await import('../../src/enemies/spawn');
 

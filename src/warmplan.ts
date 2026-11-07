@@ -11,9 +11,10 @@
 // =====================================================================
 import { HOME } from './midpick';
 import { row, stageOfSlot } from './layout';
+import { ROSTER } from './enemies/mid/roster';
 
 /** built at boot and never dropped, in build order: what the title's idle time should reach first */
-export const BOOT_ART: readonly string[] = ['hero', 'eyes', 'derelict', 'maw:orbit', 'ufo', 'drive'];
+export const BOOT_ART: readonly string[] = ['hero', 'eyes', 'derelict', 'maw:orbit', ...ROSTER.filter((r) => r.boot).map((r) => r.k), 'drive'];
 
 /** each biome's stage boss art; must match BIOMES[b].boss in biomes.ts (tests/unit/warmplan.test.ts asserts it).
  *  The Maw's art is per variant: acid and snot are separate canvases */

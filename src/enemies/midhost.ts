@@ -7,11 +7,13 @@
 // for the HOME_FIT kinds (the Brood Mother), whose home bob clipped her own biome's walls.
 // Pure tables and formulas only (no DOM, no world access) so tests/unit/midhost.test.ts can drive them.
 
-export type Biome = 'ice' | 'acid' | 'fire' | 'snot';
-export type MidKind = 'choir' | 'cyst' | 'prentice' | 'brood';
+import { BIOME_POOLS, ROSTER } from './mid/roster';
 
-/** each biome midboss's home biome (mirrors BIOMES[b].mid in src/biomes.ts; the test checks they agree) */
-export const MID_HOME: Record<MidKind, Biome> = { choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot' };
+export type Biome = 'ice' | 'acid' | 'fire' | 'snot';
+export type MidKind = string;
+
+/** each biome-pool midboss's home biome (enemies/mid/roster.ts); the Orbit and ship kinds have none, so never cross over */
+export const MID_HOME: Record<MidKind, Biome> = Object.fromEntries(ROSTER.filter((r) => BIOME_POOLS.includes(r.pool)).map((r) => [r.k, r.pool as Biome]));
 
 /** the biome a midboss is fighting in: its spawn host, else its home */
 export function midHost(e: { k: string; host?: string }): string | undefined {
@@ -24,25 +26,12 @@ export function isCross(e: { k: string; host?: string }): boolean {
   return !!home && !!e.host && e.host !== home;
 }
 
-/**
- * Body clearance for the terrain fit, in px from e.y: `up` above, `dn` below, `hw` half-width sampled for terrain.
- * Measured off the gross art (src/render/gross/midbosses.ts) at its largest pulse, hittable parts only (hanging
- * strands and drips may touch the terrain). up + dn stays under the 108 px minimum biome corridor
- * (shape() in src/biomes.ts) so a band always exists. Checked by `node tools/midboss-probe.mjs <url> matrix`.
- */
-export const MID_BODY: Record<MidKind, { up: number; dn: number; hw: number }> = {
-  choir: { up: 46, dn: 46, hw: 34 }, //   nailbars orbit at 31 px and are 15 px half-long: the bars must stay shootable
-  cyst: { up: 28, dn: 30, hw: 28 }, //    membrane rim 22 px x 1.25 swell; the crown sits at -23
-  prentice: { up: 30, dn: 30, hw: 18 }, // carcass ellipse -18..24, head and spit point to -24, cleaver arm below
-  brood: { up: 28, dn: 28, hw: 26 }, //   sac rim 21-24 px x 1.16 heave; eyes at -16
-};
+/** body clearance for the terrain fit, in px from e.y: `up` above, `dn` below, `hw` half-width sampled for terrain
+ *  (each kind's `fit` in enemies/mid/roster.ts, which says how it is measured) */
+export const MID_BODY: Record<MidKind, { up: number; dn: number; hw: number }> = Object.fromEntries(ROSTER.filter((r) => r.fit).map((r) => [r.k, r.fit!]));
 
-/**
- * Midbosses whose HOME fight is also fitted to the terrain band. The Brood Mother's +-20% PH bob predates the Sinus
- * walls and put a hittable part of her inside them on 28% of on-screen frames (LS1 P0 matrix); the other three never
- * clip at home, so their home fights stay untouched.
- */
-export const HOME_FIT: readonly MidKind[] = ['brood'];
+/** midbosses whose HOME fight is also fitted to the terrain band (`homeFit` in the roster, which says why) */
+export const HOME_FIT: readonly MidKind[] = ROSTER.filter((r) => r.homeFit).map((r) => r.k);
 
 /** true when a midboss's y is fitted into the terrain band this frame: every crossover, plus the HOME_FIT kinds */
 export function fitsTerrain(e: { k: string; host?: string }): boolean {
@@ -72,7 +61,7 @@ export function fitY(y: number, lo: number, hi: number): number {
 
 /**
  * Ambient sim sparks for a crossover, in the host's palette. Each list replaces the home colours one for one, and
- * update.ts draws exactly as many R() values for a crossover as for a home fight (a pick() where the home colour
+ * a kind's update draws exactly as many R() values for a crossover as for a home fight (a pick() where the home colour
  * was already a draw, a frame-indexed entry where it was a constant), so a crossover adds no RNG draws. Telegraph-cue sparks (the Womb's crown fizz) keep their own colour for readability.
  */
 export const HOST_SPARK: Record<Biome, readonly string[]> = {

@@ -3,7 +3,7 @@
 // forced), then the scroll runs on into breath 2: a shot 40 f into slot B's WARNING and one of midboss B in the fight.
 // Prints the stage's picks, the WARNING x, each midboss's leave clock and host, and whether G.mini was clear at B's WARNING.
 // Usage: node tools/midslot-shots.mjs <url> <outDir> [biome=ice] [seed=3] [drift]   (a Vite DEV server url; flies ?layout=long4)
-//   drift: slot A is THE SQUIDFUCKED SAUCER (the real enemies/ufo.ts spawner, a DRIFT midboss in a biome slot: no phase-1
+//   drift: slot A is THE SQUIDFUCKED SAUCER (the real enemies/mid/ufo.ts spawner, a DRIFT midboss in a biome slot: no phase-1
 //   pool has one, so the stage's picks are pre-set) and is left to run out on its own forced exit / clock, not sent off.
 // Not measured: fight length (midboss-probe does that), slot 1 (the second biome stage), a repeat visit (remix).
 import { chromium } from 'playwright';

@@ -24,9 +24,11 @@
 // Needs the VITE DEV server (imports live modules). Restart vite after edits before trusting numbers.
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
 const [url, THR = '4', SC = 'all', PROF = ''] = process.argv.slice(2);
-const SCENES = ['orbit', 'maw', 'ufo', 'choir', 'cyst', 'prentice', 'brood', 'crux', 'butcher', 'gravity'];
-const KINDS = ['choir', 'cyst', 'prentice', 'brood'], HOSTS = ['ice', 'acid', 'fire', 'snot'];
+const HELD = ROSTER.filter((r) => BIOME_POOLS.includes(r.pool)), REST = ROSTER.filter((r) => !BIOME_POOLS.includes(r.pool)); // the registry, WIP kinds too
+const KINDS = HELD.map((r) => r.k), HOSTS = BIOME_POOLS;
+const SCENES = ['orbit', 'maw', ...REST.map((r) => r.k), ...KINDS, 'crux', 'butcher', 'gravity'];
 const cells = (pre) => KINDS.flatMap((k) => HOSTS.map((h) => `${pre}:${k}@${h}`));
 const GROUPS = { mid8: cells('mid8'), cold: cells('cold'), peak: HOSTS.map((h) => `peak:${h}`), floor: HOSTS.map((h) => `floor:${h}`), route: ['route:ice+acid', 'route:fire+snot'] };
 const want = SC === 'all' ? SCENES : SC.split(',').flatMap((s) => GROUPS[s] || [s]);
@@ -59,9 +61,9 @@ async function reloadCold() {
 if (PROF) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 200 }); }
 
 const STRONG = [{ speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }];
-const BIOME = { choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot', crux: 'ice', butcher: 'fire', maw: null, ufo: null, orbit: null, gravity: null };
+const BIOME = { ...Object.fromEntries(HELD.map((r) => [r.k, r.pool])), crux: 'ice', butcher: 'fire', maw: null, ufo: null, orbit: null, gravity: null };
 const XHOST = process.env.XHOST || '';
-if (XHOST) for (const k of ['choir', 'cyst', 'prentice', 'brood']) BIOME[k] = XHOST;
+if (XHOST) for (const k of KINDS) BIOME[k] = XHOST;
 
 async function scene(k, { biome = BIOME[k], elite = +(process.env.ELITE || 0), xhost = XHOST, wantTot = false } = {}) {
   return p.evaluate(async ([k, biome, kit, elite, xhost, wantTot]) => {
@@ -86,7 +88,7 @@ async function scene(k, { biome = BIOME[k], elite = +(process.env.ELITE || 0), x
       $.G.si = $.G.script.length; W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
       if (k === 'gravity') { $.G.scroll = LY.bossAt(); BU.startBoss(); }
       else if (k === 'maw') SP.maw(true);
-      else if (k === 'ufo') { const UF = await import('/src/enemies/ufo.ts'); $.G.scroll = LY.ufoAt() + 150; $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); } // Open Orbit midboss
+      else if (k === 'ufo') { const UF = await import('/src/enemies/mid/ufo.ts'); $.G.scroll = LY.ufoAt() + 150; $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); } // Open Orbit midboss
       else if (k === 'crux' || k === 'butcher') { SP[k](); if ($.G.mini) $.G.mini.biome = biome; }
       else SP.midboss(k, BI.MID_NAMES[k], xhost || undefined);
     }

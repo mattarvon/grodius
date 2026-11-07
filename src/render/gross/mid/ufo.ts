@@ -1,7 +1,7 @@
 // @ts-nocheck
 // =====================================================================
 //  THE SQUIDFUCKED SAUCER, the Open Orbit midboss: a wrecked saucer gone to meat under a skin of tentacles.
-//  Render-only. Gameplay (HP, attacks, hitboxes, timing) is enemies/ufo.ts; everything here reads entity fields
+//  Render-only. Gameplay (HP, attacks, hitboxes, timing) is enemies/mid/ufo.ts; everything here reads entity fields
 //  (e.t, e.st, e.wt, e.la, e.ll, e.burst, e.hp) and never calls the gameplay RNG (core R / rr / pick).
 //
 //  Base art: The_Scientist___'s CC0 "Infested UFO Boss" (three damage sheets, 17 frames each), repainted by
@@ -11,15 +11,15 @@
 //  Its own particles and the death (hull bursts in two, a flood of tentacles) live in a private list ticked by
 //  drawUfoFx(), called once per render after the enemies.
 // =====================================================================
-import { $ } from '../../state';
-import { TAU, W, ctx, hash } from '../../core';
-import { floorAt } from '../../world';
-import { SET } from '../../save';
-import { sample } from '../../audio';
-import { drawSkull, glow } from '../util';
-import { eye, lowEye } from '../eyes';
-import { spr, sprAt, sprReady } from '../../sprites';
-import { HATCH_O, LASH_O, TUMOURS } from '../../enemies/ufo';
+import { $ } from '../../../state';
+import { TAU, W, ctx, hash } from '../../../core';
+import { floorAt } from '../../../world';
+import { SET } from '../../../save';
+import { sample } from '../../../audio';
+import { drawSkull, glow } from '../../util';
+import { eye, lowEye } from '../../eyes';
+import { spr, sprAt, sprReady } from '../../../sprites';
+import { HATCH_O, LASH_O, TUMOURS } from '../../../enemies/mid/ufo';
 
 /** how gross: 0 = the repainted sprite and its attacks only, 1 = everything, >1 = more particles / drips / tentacles */
 export const GROSS = 1;
@@ -689,3 +689,6 @@ export function warmUfo() {
   }
   return false; // done (or the sheets haven't loaded yet: they decode on first use then, no worse than before)
 }
+
+/** the kind's art for the registry (./index.ts). A boot kind: built once and held, so no built or drop */
+export default { draw: drawUfoGross, warm: warmUfo };

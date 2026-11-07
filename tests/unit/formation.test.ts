@@ -7,7 +7,8 @@ vi.mock('../../src/core', () => ({ PH: 270, R: () => .99, TAU: Math.PI * 2, W: 4
 vi.mock('../../src/audio', () => ({ sfx: {} }));
 vi.mock('../../src/world', () => ({ ceilAt: () => 0, enemies, eshots: [], floorAt: () => 0 }));
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
-vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: () => {} }));
+vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: () => {} }));
+vi.mock('../../src/enemies/mid', () => ({})); // the midboss kinds pull in the rest of the sim; nothing here spawns one
 
 const { formation, formationExtra } = await import('../../src/enemies/spawn');
 

@@ -8,6 +8,7 @@
 //  TTK = seconds from on screen to dead; "esc" = it left first; "--" = outlived the cap
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
 const [url, CAP = '90'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
@@ -21,10 +22,11 @@ const L = [
   ['D2', 1, { speed: 4, missile: 2, double: 1, options: 3, wardLv: 3 }, { rapid: 2, spore: 1, cal: 2, serr: 1 }, { dmg: 2, rof: 2, crit: 2, pierce: 1 }, { saw: 2, gut: 1 }],
   ['D3', 2, { speed: 5, missile: 1, double: 1, options: 3, wardLv: 3 }, { spore: 2, cal: 3, serr: 2, seek: 1, over: 1 }, { dmg: 3, rof: 3, crit: 2, pierce: 2, volatile: 1 }, { saw: 3, gut: 2, spine: 2 }],
 ];
-const FIGHTS = ['ufo', 'choir', 'cyst', 'prentice', 'brood', 'maw0', 'maw', 'crux', 'butcher', 'gravity'];
+const isB = (r) => BIOME_POOLS.includes(r.pool); // the registry, WIP kinds too
+const FIGHTS = [...ROSTER.filter((r) => !isB(r)).map((r) => r.k), ...ROSTER.filter(isB).map((r) => r.k), 'maw0', 'maw', 'crux', 'butcher', 'gravity'];
 const res = await p.evaluate(async ([L, FIGHTS, CAP]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
-  const SP = await import('/src/enemies/spawn.ts'), BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), U = await import('/src/enemies/ufo.ts'), LY = await import('/src/layout.ts');
+  const SP = await import('/src/enemies/spawn.ts'), BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), U = await import('/src/enemies/mid/ufo.ts'), LY = await import('/src/layout.ts');
   const IN = await import('/src/input.ts'); const $ = S.$; $.gate = false; IN.K.KeyZ = true;
   const out = {}, info = {};
   const setup = (loop, pw, gm, pkk, rig, scroll, stage) => {

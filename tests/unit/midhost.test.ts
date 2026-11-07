@@ -1,19 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { ROSTER } from '../../src/enemies/mid/roster';
 import { BROOD_CAP, HOME_FIT, HOST_SPARK, HOST_TINT, MID_BODY, MID_HOME, bodyBand, fitY, fitsTerrain, isCross, midHost } from '../../src/enemies/midhost';
 
 // Build plan LS1 row P0: the four biome midbosses must work as crossovers in every biome.
-// biomes.ts and update.ts touch the DOM at import time, so their facts are read from the source text.
+// biomes.ts and the kinds' files touch the DOM at import time, so their facts are read from the source text.
 const BIOMES_SRC = readFileSync('src/biomes.ts', 'utf8');
-const UPDATE_SRC = readFileSync('src/enemies/update.ts', 'utf8');
 const KINDS = Object.keys(MID_HOME) as (keyof typeof MID_HOME)[];
+const kindSrc = (k: string) => readFileSync(`src/enemies/mid/${k}.ts`, 'utf8');
 const BIOME_KEYS = ['ice', 'acid', 'fire', 'snot'] as const;
 /** the narrowest corridor biome terrain can make (shape() in src/biomes.ts forces fl - ce >= 108) */
 const MIN_CORRIDOR = 108;
 
 describe('midboss home and host', () => {
-  it('matches each biome midboss to the biome that lists it first in its mids in biomes.ts', () => {
-    for (const k of KINDS) expect(BIOMES_SRC).toMatch(new RegExp(`${MID_HOME[k]}: \\{[\\s\\S]*?mids: \\[\\{ k: '${k}'`));
+  it('takes each midboss home from the roster, with no hand-kept mids table left in biomes.ts', () => {
+    for (const k of KINDS) expect(MID_HOME[k]).toBe(ROSTER.find((r) => r.k === k)!.pool);
+    expect(BIOMES_SRC).not.toMatch(/mids: \[\{/);
   });
 
   it('treats a midboss with no host, or its home host, as a home fight', () => {
@@ -46,7 +48,7 @@ describe('terrain band', () => {
   });
 
   it('gates the Brood Mother fit on fitsTerrain in update.ts', () => {
-    expect(UPDATE_SRC).toContain('if (fitsTerrain(e)) bandFit(e);');
+    expect(kindSrc('brood')).toContain('if (fitsTerrain(e)) bandFit(e);');
   });
 
   it('leaves every body room in the narrowest biome corridor', () => {
@@ -90,14 +92,16 @@ describe('host palettes', () => {
   });
 });
 
-describe('midboss hygiene in update.ts', () => {
-  const cases = UPDATE_SRC.slice(UPDATE_SRC.indexOf("case 'choir':"), UPDATE_SRC.indexOf("case 'ufo':"));
+describe('midboss hygiene in the kinds\' update functions', () => {
+  /** the update function of a kind's file: from `function upd<Kind>` up to its defineMid */
+  const updateOf = (k: string) => { const s = kindSrc(k); return s.slice(s.indexOf('function upd'), s.indexOf('defineMid(\'')); };
+  const cases = KINDS.map(updateOf).join('\n');
 
-  it('finds the four midboss cases', () => {
-    for (const k of KINDS) expect(cases).toContain(`case '${k}':`);
+  it('finds an update function for every biome midboss', () => {
+    for (const k of KINDS) expect(updateOf(k)).toMatch(/^function upd\w+\(e\) \{/);
   });
 
-  it('allocates no arrays or closures in the four midboss update cases', () => {
+  it('allocates no arrays or closures in the biome midboss updates', () => {
     expect(cases).not.toMatch(/\.(filter|map|some|every|slice|concat)\(/);
     expect(cases).not.toMatch(/=>/);
   });

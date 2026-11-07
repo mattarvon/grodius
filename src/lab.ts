@@ -10,7 +10,7 @@ import { LAYOUTS, layout, setLayout } from './layout';
 
 export const LAB_KEY = 'grodius.lab';
 
-/** the LAB's own values. layout: which descent a new run flies; mids: LS2's greybox midbosses (no consumer yet);
+/** the LAB's own values. layout: which descent a new run flies; mids: LS2's unfinished midbosses (`wip` rows in enemies/mid/roster.ts; biomes.ts stageMids reads it);
  *  cp: the checkpoint trigger, spec §4 option a (app kill or quit only, the default) or b (also on death; item H) */
 export interface Lab { layout: 'short' | 'long'; mids: '' | 'wip'; cp: 'a' | 'b' }
 /** the layout a run flies when neither a ?layout= flag nor the LAB chose one. long4 since 2026-11-02 (D24, Matt:

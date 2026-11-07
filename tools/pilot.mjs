@@ -54,7 +54,7 @@ export const PILOT = `(() => {
     // line attacks with no projectile, each { x, y, a, len, w, t0, t1 }: active for look-ahead frames t0 <= t < t1
     const lines = [];
     for (const e of g.enemies) if (!e.dead && e.k === 'ufo' && (e.st === 'lash' || e.st === 'whip')) {
-      // the Saucer's lash (enemies/ufo.ts): telegraph (aims, locks 16 f before), then the whip hits from wt 4 to 20
+      // the Saucer's lash (enemies/mid/ufo.ts): telegraph (aims, locks 16 f before), then the whip hits from wt 4 to 20
       const ox = e.x - 34, oy = e.y + 9, tel = e.lash2 ? 28 : 42, w0 = e.st === 'lash' ? tel - e.wt : -e.wt;
       lines.push({ x: ox, y: oy, a: e.la, len: 238, w: 6, t0: w0 + 4, t1: w0 + 21 });
     }

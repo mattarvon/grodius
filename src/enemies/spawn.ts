@@ -4,14 +4,16 @@ import { PH, R, TAU, W, pick, ri, rr } from '../core';
 import { sfx } from '../audio';
 import { ceilAt, enemies, eshots, floorAt } from '../world';
 import { startBoss } from '../boss/update';
-// DO NOT REMOVE: unused here, but this import fixes the spawn <-> ufo ESM init order. The harness runs the dev server,
-// not the bundle, so a removal that breaks the built game would pass every gate.
-import { ufoWarn } from './ufo';
+// DO NOT REMOVE: unused here, but this import loads the midboss kinds and fixes the spawn <-> ufo ESM init order. The
+// harness runs the dev server, not the bundle, so a removal that breaks the built game would pass every gate.
+import './mid';
+import { MID_ET, MID_SIM } from './mid/roster';
 import { depthHP } from '../depth';
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
 
 // ---------------- enemies ----------------
-export const ET = {
+// the midbosses' rows come from their own files (enemies/mid/): MID_ET is this same object
+export const ET = Object.assign(MID_ET, {
   drone: {
     hp: 1,
     r: 7,
@@ -140,15 +142,8 @@ export const ET = {
     teeth: 10,
     big: 1,
     mini: 1
-  },
-  // biome midbosses (docs/pacing.md 3.2): Maw-sized pools, hold the scroll, leave after ~23 s
-  choir: { hp: 80, r: 13, gsz: 4, score: 6000, bio: 60, skull: 1, eyes: 5, teeth: 4, big: 1, mini: 1, mid: 1 },
-  cyst: { hp: 135, r: 21, gsz: 4, score: 6000, bio: 70, half: 1, amnio: 1, eyes: 2, teeth: 6, big: 1, mini: 1, mid: 1 },
-  prentice: { hp: 150, r: 15, gsz: 4, score: 6000, bio: 70, skull: 1, limbs: 3, eyes: 3, teeth: 6, big: 1, mini: 1, mid: 1 },
-  brood: { hp: 105, r: 20, gsz: 4, score: 6000, bio: 70, half: 1, amnio: 1, eyes: 3, teeth: 8, big: 1, mini: 1, mid: 1 },
-  // the Open Orbit midboss (enemies/ufo.ts): r is the eye-core; the saucer's wings are extra hitboxes (e.hb)
-  ufo: { hp: 80, r: 15, gsz: 5, score: 6000, bio: 70, eyes: 3, teeth: 4, limbs: 4, big: 1, mini: 1, mid: 1 }
-};
+  }
+});
 export function mk(k, x, y, o = {}) {
   const b = ET[k],
     hm = 1 + .4 * $.G.loop;
@@ -319,15 +314,17 @@ export function maw(stageBoss = false) {
     leave: 1700
   });
 }
-/** a biome's midboss (k = choir / cyst / prentice / brood), in from the right edge. host = the biome it fights in;
+/** a held midboss (k = a kind in enemies/mid/roster.ts), in from the right edge. host = the biome it fights in;
  *  outside its home biome it is a crossover (enemies/midhost.ts: terrain-fitted y, host sparks and tint). leave = its
  *  leave clock in frames: the short layout's 1400, or the picker's slot clock (midpick.ts MID_CLOCK, spec §6.4) */
 export function midboss(k, title, host?, leave = 1400) {
-  const e = mk(k, W + 50, k === 'prentice' ? PH * .42 : PH / 2, { title, tx: W - 92, st: 'idle', wt: 0, cool: 110, att: 0, ba: -2.3, leave, host });
+  const M = MID_SIM[k];
+  if (!M) throw new Error(`midboss '${k}' is not registered (enemies/mid/${k}.ts defineMid)`);
+  const e = mk(k, W + 50, PH * (M.spawnY ?? .5), { title, tx: W - 92, st: 'idle', wt: 0, cool: 110, att: 0, ba: -2.3, leave, host });
   const hm = midHpMul(k, ET[k].hp); // D27: long4's per-kind TTK band (midslot.ts MID_HP); 1 on short
   if (hm !== 1) { e.hp *= hm; e.max = e.hp; }
   meetMid(k);
-  if (k === 'choir') e.bars = [0, 1].map(i => mk('nailbar', e.x, e.y, { par: e, ox: 0, oy: 0, i, hpm: 1.6 }));
+  if (M.onSpawn) M.onSpawn(e);
   $.G.mini = e;
 }
 export function crossT(side) {
@@ -429,7 +426,7 @@ export { stageScript } from './scripts';
 export function runScript() {
   while ($.G.si < $.G.script.length && $.G.script[$.G.si].x <= $.G.scroll) {
     const s = $.G.script[$.G.si++];
-    if ($.G.eat && s.x < $.G.eat) continue; // the Open Orbit midboss is up: its stretch of filler is skipped (enemies/ufo.ts)
+    if ($.G.eat && s.x < $.G.eat) continue; // the Open Orbit midboss is up: its stretch of filler is skipped (enemies/mid/ufo.ts)
     if (fillerQuiet(s.k)) continue; // picker layouts: no filler while any midboss is up (midslot.ts; item K's precondition)
     s.f();
   }

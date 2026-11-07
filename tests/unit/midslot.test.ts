@@ -50,7 +50,7 @@ const { BIOMES, BIOME_KEYS, MID_NAMES, SPAWN_KINDS, biomeReset, biomeScript, fix
 const { HOME, MIDS, MID_CLOCK, forkAllows, slotClock } = await import('../../src/midpick');
 const { BIOME_FILL, MID_HP, fillerQuiet, isFiller, meetMid, midHpMul, miniUp, registerDrift, whenNoMini } = await import('../../src/midslot');
 
-/** the stub DRIFT member: the Saucer's spawner as enemies/ufo.ts registers it (a drift mini forced out at exitX) */
+/** the stub DRIFT member: the Saucer's spawner as enemies/mid/ufo.ts registers it (a drift mini forced out at exitX) */
 const UFO_EXIT_SPEED = 1.6, UFO_OFF = 180; // ufo.ts: it slides off at 1.6 px/f from about tx (W - 96) to W + 80
 registerDrift('ufo', 'THE SQUIDFUCKED SAUCER', (exitX: number, leave: number) => { note('mid:ufo'); $.G.mini = { k: 'ufo', drift: 1, exitX, leave, t: 0 }; });
 
@@ -317,7 +317,7 @@ describe('midboss tables', () => {
     // runsave.ts checks a stored route and midboss state against midpick.ts HOME and MIDS (sprint 3 H review)
     expect(Object.keys(HOME).sort()).toEqual([...BIOME_KEYS].sort());
     for (const k of Object.keys(MID_NAMES)) expect(Object.hasOwn(MIDS, k)).toBe(true);
-    for (const k of Object.keys(MIDS)) expect(Object.hasOwn(MID_NAMES, k) || k === 'ufo').toBe(true); // ufo: the DRIFT Saucer, named by enemies/ufo.ts
+    for (const k of Object.keys(MIDS)) expect(Object.hasOwn(MID_NAMES, k) || k === 'ufo').toBe(true); // ufo: the DRIFT Saucer, named by enemies/mid/ufo.ts
   });
 
   it('gives slot A 1080 f, slot B 1260 f, and caps a RACE member at 900 f (spec §6.4)', () => {

@@ -1,7 +1,7 @@
 // @ts-nocheck
 // =====================================================================
 //  THE SQUIDFUCKED SAUCER - the Open Orbit midboss: a wrecked saucer gone to meat, smothered in tentacles.
-//  Gameplay only (art: src/render/gross/ufo.ts). Three telegraphed attacks, cycled lash / volley / lash / brood:
+//  Gameplay only (art: src/render/gross/mid/ufo.ts). Three telegraphed attacks, cycled lash / volley / lash / brood:
 //   LASH   (42f): a tentacle uncoils and a dashed line tracks you, then locks; it whips out ~220 px along it and back
 //   VOLLEY (36f): three tumours on the hull swell and glow, then burst into aimed 3-fans of pus globs
 //   BROOD  (40f): the belly hatch dilates and drops a litter of hatchlings (kid: no stage-count, no grafts)
@@ -16,24 +16,25 @@
 //  and time. On long4 only generator filler sits in its window, never a hand-made cell (enemies/scripts.ts). The cost
 //  is the eaten filler's kills and pods, which the pods above stand in for (measured: docs/pacing.md 3.2).
 // =====================================================================
-import { $ } from '../state';
-import { PH, R, TAU, W, clamp, dist2, lerp, rr } from '../core';
-import { sfx } from '../audio';
-import { enemies } from '../world';
-import { drop, flash, spark } from '../fx/spawn';
-import { aimA, banner, every, fan, miniWarn, mk, ring, wrapA } from './spawn';
-import { playerHit } from '../player';
-import { dropCap } from './update';
-import { cdm } from '../depth';
-import { layout, ufoDrift, ufoGapEnd } from '../layout';
-import { slotClock } from '../midpick';
-import { meetMid, registerDrift } from '../midslot';
+import { $ } from '../../state';
+import { PH, R, TAU, W, clamp, dist2, lerp, rr } from '../../core';
+import { sfx } from '../../audio';
+import { enemies } from '../../world';
+import { drop, flash, spark } from '../../fx/spawn';
+import { aimA, banner, every, fan, miniWarn, mk, ring, wrapA } from '../spawn';
+import { playerHit } from '../../player';
+import { dropCap } from '../update';
+import { cdm } from '../../depth';
+import { layout, ufoDrift, ufoGapEnd } from '../../layout';
+import { slotClock } from '../../midpick';
+import { meetMid, registerDrift } from '../../midslot';
+import { MID_NAMES, defineMid } from './roster';
 
-export const UFO_NAME = 'THE SQUIDFUCKED SAUCER';
+export const UFO_NAME = MID_NAMES.ufo;
 // Where its WARNING is (it lands ~150 px later, ~45% through the stage) and where it must be gone by (the last of the
 // filler, 1880..1900, always comes; the Maw's "SOMETHING IS COMING" is at 2000) are the Open Orbit row's drift entry
 // in src/layout.ts, stage-relative (ufoAt() / ufoGapEnd() give world x).
-/** where the lash, the tumours and the belly hatch sit, relative to its centre (the art in render/gross/ufo.ts uses these) */
+/** where the lash, the tumours and the belly hatch sit, relative to its centre (the art in render/gross/mid/ufo.ts uses these) */
 export const LASH_O = [-34, 9], TUMOURS = [[-24, -7], [6, -10], [30, -5]], HATCH_O = [12, 11];
 const LASH_LEN = 220;
 
@@ -71,7 +72,7 @@ function onLash(e) {
 }
 const cd = (e, ph2) => Math.round((ph2 ? 52 : 78) * (1 - .3 * ($.G.rank || 0)) * cdm()); // cdm: depth, src/depth.ts
 
-export function updUfo(e) {
+function updUfo(e) {
   const ph2 = e.hp < e.max * .5;
   // leave: on its timer, or when the scroll reaches the Maw's run-up (escape costs nothing, like the other midbosses)
   e.pl = e.leave;
@@ -153,9 +154,17 @@ export function updUfo(e) {
   if (R() < .06) spark(e.x + rr(-50, 50), e.y + rr(-8, 8), rr(-.3, .3), -rr(.2, .6), 18, '#d8c860');
 }
 /** killEnemy hook (the e.mid block already drops the pods and banners it): the filler resumes */
-export function ufoKilled(e) {
+function ufoKilled(e) {
   $.G.eat = 0;
   $.G.shake += 6;
   for (let k = 0; k < 40; k++) drop(e.x + rr(-40, 40), e.y + rr(-8, 10), rr(-2.5, 2.5), rr(-3, 1), rr(1.2, 2), R() < .4 ? 0 : R() < .5 ? 2 : 4, 110);
   sfx.groan();
 }
+
+defineMid('ufo', {
+  // r is the eye-core; the saucer's wings are extra hitboxes (e.hb)
+  et: { hp: 80, r: 15, gsz: 5, score: 6000, bio: 70, eyes: 3, teeth: 4, limbs: 4, big: 1, mini: 1, mid: 1 },
+  word: 'CALAMARI SERVED',
+  update: updUfo,
+  kill: ufoKilled,
+});

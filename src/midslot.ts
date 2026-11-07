@@ -8,8 +8,8 @@
 //  - fillerQuiet: on a picker layout the stage's filler is skipped while a midboss is up (the precondition of item K;
 //    the Saucer's G.eat window, generalised). Set pieces, cells, log lines, pods and every WARNING still play.
 //  - meetMid: $.meta.mb[k] += 1 when a midboss arrives (the picker's cross-run weighting, spec §6.3 step 4).
-//  - DRIFT spawners register here (enemies/ufo.ts), so biomes.ts can place a DRIFT midboss in a biome slot without
-//    importing ufo.ts (the boot-time module order, which textures.ts's R() draws depend on, stays as it was).
+//  - DRIFT spawners register here (enemies/mid/ufo.ts), so biomes.ts can place a DRIFT midboss in a biome slot without
+//    importing mid/ufo.ts (the boot-time module order, which textures.ts's R() draws depend on, stays as it was).
 //  Imports only state and layout: no canvas, no audio, so tests drive it directly.
 // =====================================================================
 import { $ } from './state';
@@ -54,7 +54,7 @@ export const midHpMul = (k: string, base: number) => (layout().picker && MID_HP[
 /** a DRIFT midboss's spawner: exitX = the scroll x it is forced out at, leave = its slot clock (frames) */
 export type DriftSpawn = (exitX: number, leave: number) => void;
 const DRIFT: Record<string, { name: string; spawn: DriftSpawn }> = {};
-/** register a DRIFT midboss kind (enemies/ufo.ts does, at load) */
+/** register a DRIFT midboss kind (enemies/mid/ufo.ts does, at load) */
 export function registerDrift(k: string, name: string, spawn: DriftSpawn): void { DRIFT[k] = { name, spawn }; }
 /** the registered DRIFT midboss of kind k, or undefined */
 export const driftOf = (k: string) => DRIFT[k];

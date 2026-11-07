@@ -21,6 +21,8 @@ import { beatPlan, layout, nSlots, slotRow, stageOfSlot } from './layout';
 import { midSeedOf, seedOf, stream } from './rng';
 import { MIDS, forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
 import { driftOf, whenNoMini } from './midslot';
+import { MID_NAMES, ROSTER } from './enemies/mid/roster';
+import { midsWip } from './lab';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -31,7 +33,7 @@ export const BIOMES = {
     name: 'THE CRYOVAULT', tag: 'FROZEN // BLOATED BITCH', sub: 'THE CREW IS STILL IN HERE. FROZEN MID-SCREAM', col: '#9fd8ff', rgb: '160,215,255',
     dark: .55, mist: '90,10,26', bg: ['#02060e', '#0e2840'], edge: '#f2fbff', fog: '120,180,230',
     gore: ['#7a1222', '#300610', '#d8efff', '#0c0809', '#8cc4ee', '#ffffff'], blood: ['#7a1222', '#300610', '#c8506a'],
-    boss: 'crux', bossName: 'THE BLOATED BITCH', mids: [{ k: 'choir', name: 'THE NAIL CHOIR', tag: 'LINE' }], haz: 'icicle', hazEvery: 110,
+    boss: 'crux', bossName: 'THE BLOATED BITCH', haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
     gap: 115, dbl: .55, set: 'morgue', sig: 'corpse',
     mix: [['corpse', 4], ['cross', 3], ['mutant', 2.5], ['flayer', 2], ['eye', 2], ['hook', 2], ['sine', 2]],
@@ -44,7 +46,7 @@ export const BIOMES = {
     name: 'THE DIGESTION TANKS', tag: 'DISSOLVING // MAW', sub: 'EVERYTHING DOWN HERE IS BEING EATEN', col: '#3fe8c8', rgb: '60,230,195',
     dark: .6, mist: '18,120,100', bg: ['#010605', '#081a15'], edge: '#7ff0d8', fog: '40,200,170',
     gore: ['#8a4630', '#2e140c', '#46e0c0', '#0c0809', '#ddd27a', '#c8f4e8'], blood: ['#1c9a80', '#0a3a32', '#6ff0d4'],
-    boss: 'maw', bossName: 'THE DISSOLVED MAW', mids: [{ k: 'cyst', name: 'THE DISSOLVING WOMB', tag: 'SPACE' }], haz: 'geyser', hazEvery: 135,
+    boss: 'maw', bossName: 'THE DISSOLVED MAW', haz: 'geyser', hazEvery: 135,
     // wall swarms over a floor full of crawlers and wombs
     gap: 125, dbl: .55, set: 'walls', sig: 'crawler',
     mix: [['crawler', 4], ['womb', 3], ['eye', 2], ['hatch', 1], ['wall', .7], ['dive', .3]],
@@ -57,7 +59,7 @@ export const BIOMES = {
     name: 'THE FURNACE', tag: 'BURNING // BUTCHER', sub: 'THEY BURNED THE BODIES. THE BODIES KEPT MOVING', col: '#ff7a1a', rgb: '255,120,30',
     dark: .6, mist: '50,12,6', bg: ['#040000', '#300702'], edge: '#ffb347', fog: '255,90,20',
     gore: ['#4a0a06', '#120202', '#ff6a1a', '#050303', '#ffb347', '#ff3a10'], blood: ['#6a0a08', '#240303', '#ff4a1a'],
-    boss: 'butcher', bossName: 'THE BURNING BUTCHER', mids: [{ k: 'prentice', name: "THE BUTCHER'S APPRENTICE", tag: 'RANGE' }], haz: 'jet', hazEvery: 125,
+    boss: 'butcher', bossName: 'THE BURNING BUTCHER', haz: 'jet', hazEvery: 125,
     // aggressive: tight spacing, divers and flayers, things coming from behind
     gap: 100, dbl: .6, set: 'pincer', sig: 'flayer',
     mix: [['flayer', 3], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
@@ -69,7 +71,7 @@ export const BIOMES = {
     name: 'THE SINUS', tag: 'MUCUS // MAW', sub: 'THE SHIP HAS A COLD', col: '#ecd25a', rgb: '236,210,90',
     dark: .4, mist: '160,140,40', bg: ['#0a0503', '#2a1c08'], edge: '#f4e49a', fog: '200,180,70',
     gore: ['#d0b840', '#7a4a18', '#f4e6a0', '#3a1a0a', '#fff4c8', '#a83a24'], blood: ['#c8ac3a', '#6a4a14', '#f2e08a'],
-    boss: 'maw', bossName: 'THE MUCUS MAW', mids: [{ k: 'brood', name: 'THE BROOD MOTHER', tag: 'CROWD' }], haz: 'strand', hazEvery: 150,
+    boss: 'maw', bossName: 'THE MUCUS MAW', haz: 'strand', hazEvery: 150,
     // hatchling floods out of wombs and the walls
     gap: 125, dbl: .5, set: 'flood', sig: 'hatch',
     mix: [['slime', 5], ['hatch', 3], ['womb', 3], ['corpse', 2], ['sine', 1.5], ['crawler', 1], ['eye', 1]],
@@ -79,11 +81,10 @@ export const BIOMES = {
   },
 };
 export const BIOME_KEYS = Object.keys(BIOMES);
-// B.mids: the biome's own midboss pool, home first, each with its skill tag (spec §6.1-6.2; the picker's roster and
-// tags are src/midpick.ts MIDS, and tests/unit/midslot.test.ts keeps the two in step). Phase 1 has one member per
-// biome; a biome stage on a picker layout draws home plus a crossover from all four (midpick.ts PHASE1_BIOME_POOL)
-/** every biome midboss's name by kind, wherever it fights (a crossover keeps its own name) */
-export const MID_NAMES = Object.fromEntries(Object.values(BIOMES).flatMap((B) => B.mids.map((m) => [m.k, m.name])));
+// B.mids: the biome's own midboss pool, home first, each with its skill tag (spec §6.1-6.2), from the registry
+// (enemies/mid/roster.ts). A biome stage on a picker layout draws home plus a crossover from every biome pool
+for (const b of BIOME_KEYS) BIOMES[b].mids = ROSTER.filter((r) => r.pool === b).map(({ k, name, tag }) => ({ k, name, tag }));
+export { MID_NAMES };
 
 // ---------------- where are we ----------------
 // LS3: G.bx assumes the biome slots follow each other (slot s ends where slot s + 1 starts, the last one at
@@ -326,7 +327,7 @@ const midState = () => { const G = $.G; G.mb ||= {}; G.mbUsed ||= []; G.mbLast |
 /** biome stage i's midbosses (biome b): picked on first call from midStream(i), never stageStream(i) */
 export function stageMids(i, b) {
   const G = midState();
-  if (!G.mb[i]) G.mb[i] = pickBiomeMids(G, b, G.loop, midStream(i), $.meta && $.meta.mb).picks;
+  if (!G.mb[i]) G.mb[i] = pickBiomeMids(G, b, G.loop, midStream(i), $.meta && $.meta.mb, false, midsWip()).picks;
   return G.mb[i];
 }
 /** a non-biome stage whose midbosses are fixed by its layout row (Open Orbit's Saucer, the row's drift entry, in every
@@ -337,11 +338,11 @@ export function fixedMids(i, kind, kinds) {
   G.mb[i] = kinds.slice();
   noteMids(G, kind, kinds);
 }
-/** a midboss's name: a biome midboss's own, or a DRIFT midboss's registered one (midslot.ts). A kind with neither
- *  throws: the WARNING banner must never show a raw internal key */
+/** a midboss's name from the registry. An unregistered kind throws: the WARNING banner must never show a raw internal
+ *  key. A DRIFT test stub registers a name with no roster row, so driftOf still counts */
 function midName(k) {
   const n = MID_NAMES[k] || (driftOf(k) && driftOf(k).name);
-  if (!n) throw new Error(`midboss '${k}' has no name (biomes.ts B.mids, or a registerDrift in its module)`);
+  if (!n) throw new Error(`midboss '${k}' has no name (no row in enemies/mid/roster.ts)`);
   return n;
 }
 /** spawn slot s's midboss k in biome b on its slot clock; a DRIFT kind is forced out at the breath plan's driftExit */

@@ -17,7 +17,7 @@ vi.mock('../../src/enemies/spawn', () => ({ BS: () => 1, aimA: () => 0, banner: 
 vi.mock('../../src/mutations', () => ({ countKill: () => {} }));
 vi.mock('../../src/player', () => ({ WARD_MAX: 3, playerHit: () => {}, slotMaxed: () => false }));
 vi.mock('../../src/contraptions', () => ({ onKillContraptions: () => {} }));
-vi.mock('../../src/enemies/ufo', () => ({ ufoKilled: () => {}, updUfo: () => {} }));
+vi.mock('../../src/enemies/mid/ufo', () => ({ ufoKilled: () => {}, updUfo: () => {} }));
 vi.mock('../../src/enemies/elite', () => ({ eliteKill: () => {}, eliteTick: () => {} }));
 
 const { killEnemy } = await import('../../src/enemies/update');

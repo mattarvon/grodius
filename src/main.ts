@@ -137,6 +137,9 @@ screen.orientation?.addEventListener?.('change', fit);
 // canvas text needs the bundled fonts before the first frame
 import { auInit, audioRunning } from './audio';
 import { startWarm, warmLog } from './render/warmup';
+import { checkMids } from './render/gross/mid';
+
+checkMids(); // a roster row with no sim or render file stops the boot here, not at its first WARNING
 (window as any).__warm = () => warmLog; // tools/perf-probe.mjs
 import { pFrame, pIn, pOut } from './perf';
 auInit();

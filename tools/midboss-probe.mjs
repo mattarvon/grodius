@@ -14,15 +14,20 @@
 //  TTK = seconds from the midboss being on screen to dead; "esc" = it left (escape timer) first
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
 const li = process.argv.indexOf('--leave'), LEAVE = li >= 0 ? +process.argv.splice(li, 2)[1] : 1400;
 const oi = process.argv.indexOf('--ord'), ORD = oi >= 0 ? +process.argv.splice(oi, 2)[1] : null;
 if (ORD != null && !(ORD >= 0)) { console.error('--ord needs a stage ordinal, e.g. --ord 2'); process.exit(2); }
 if (!(LEAVE > 0)) { console.error('--leave needs a frame count, e.g. --leave 1080'); process.exit(2); }
+// --seed <n>: seed Math.random as the harness does, so two runs can be compared number for number (unseeded runs drift by
+// a few tenths: the sim's R() is Math.random)
+const si = process.argv.indexOf('--seed'), SEED = si >= 0 ? +process.argv.splice(si, 2)[1] : null;
 const argv = process.argv.slice(2), MATRIX = argv[1] === 'matrix';
 const [url, SHOTS, ZOOM] = MATRIX ? [argv[0], argv[2]] : argv;
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: ZOOM ? 2 : 1 });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
+if (SEED != null) await p.addInitScript((s0) => { let s = s0 | 0; Math.random = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }, SEED);
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
 await useLayout(p, 'midboss-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not' });
 const L = [
@@ -31,12 +36,13 @@ const L = [
   ['END DESCENT 1', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2 }, { cal: 1, rapid: 1 }, { dmg: 2, rof: 1, crit: 2 }],
   ['STRONG D1', { speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }],
 ];
-const MIDS = [['maw', 'acid'], ['choir', 'ice'], ['cyst', 'acid'], ['prentice', 'fire'], ['brood', 'snot'], ['ufo', null]];
+const isBiome = (r) => BIOME_POOLS.includes(r.pool), HELD = ROSTER.filter(isBiome), REST = ROSTER.filter((r) => !isBiome(r)); // the registry, WIP kinds too
+const MIDS = [['maw', 'acid'], ...HELD.map((r) => [r.k, r.pool]), ...REST.map((r) => [r.k, null])];
 // one loadout + biome, midboss spawned; returns a frame stepper with the bot attached
 const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => p.evaluate(async ([pw, gm, pkk, k, biome, host, at, LEAVE, ORD]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
-  const UF = await import('/src/enemies/ufo.ts'), LY = await import('/src/layout.ts');
+  const UF = await import('/src/enemies/mid/ufo.ts'), LY = await import('/src/layout.ts');
   const $ = S.$; $.gate = false; IN.K.KeyZ = true;
   F.newGame(0); $.state = 'play';
   for (let i = 0; i < 30; i++) ST.step();
@@ -88,7 +94,7 @@ for (const [name, pw, gm, pkk] of L) {
 }
 console.log(`leave clock: ${LEAVE} f (${(LEAVE / 60).toFixed(1)} s)`);
 console.log('rank per loadout:', JSON.stringify(rank));
-console.log('loadout'.padEnd(16), ...['MAW(mid)', 'NAIL CHOIR', 'DISS. WOMB', 'APPRENTICE', 'BROOD MOM', 'SQUID SAUCER'].map((s) => s.padStart(11)));
+console.log('loadout'.padEnd(16), ...['MAW(mid)', ...HELD.map((r) => r.label), ...REST.map((r) => r.label)].map((s) => s.padStart(11)));
 for (const [n, r] of Object.entries(out)) console.log(n.padEnd(16), ...MIDS.map(([k]) => String(r[k]).padStart(11)));
 if (SHOTS) for (const [k, biome] of MIDS.slice(1)) {
   await prep(...L[1].slice(1), k, biome);
@@ -107,7 +113,7 @@ console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('midboss-p
 
 // ---- LS1 P0: the 4x4 crossover matrix (home fights on the diagonal) ----
 async function matrix() {
-  const KS = [['choir', 'ice'], ['cyst', 'acid'], ['prentice', 'fire'], ['brood', 'snot']], BS = ['ice', 'acid', 'fire', 'snot'];
+  const KS = HELD.map((r) => [r.k, r.pool]), BS = BIOME_POOLS;
   const res = {};
   const AT = [1000, 1400, 1800, 2200]; // stage positions (stage-relative x in slot 0): different terrain under the fight
   for (const [k, home] of KS) for (const biome of BS) for (const at of AT) {

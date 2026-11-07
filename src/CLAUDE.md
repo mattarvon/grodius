@@ -26,6 +26,39 @@ guess at post-cutoff signatures.
 - Decisions go in `production/decision-log.md` (`rigor: minimal`: no ADRs required)
 - Commits reference the story/task ID or design document
 
+## Adding a midboss
+
+The registry (build plan LS2-0) means a kind touches no shared file but one row.
+`<kind>` below is its key, the same in the row, both file names and `e.k`.
+
+1. **One row, at the end of `ROSTER`** in `src/enemies/mid/roster.ts`: `k`, `name`,
+   `label`, `tag`, `pool`, `min`, a measured `fit` for a biome-pool kind, and
+   **`wip: true`** until its art and name are approved. Never insert above an
+   existing row: the picker walks this order, so that moves every run.
+2. **`src/enemies/mid/<kind>.ts`**: the update function and one
+   `defineMid('<kind>', { et, word, update })`. Optional: `spawnY`, `onSpawn`, `kill`.
+   Copy `cyst.ts`. `midLeave`, `bandFit` and `lob` come from `../update`.
+3. **`src/render/gross/mid/<kind>.ts`**: `export default { draw, warm, built, drop }`,
+   plus `under` for a telegraph or chain beneath the body. Copy `cyst.ts`; the shared
+   particles, layers and crossover tint are in `../midbosses.ts`.
+
+Both folders are loaded by file name (`import.meta.glob`), so there is no import
+line to add. `main.ts` refuses to boot if a row is missing either file, and
+`tests/unit/midreg.test.ts` fails first.
+
+- **The roster row, not the kind's file, holds the picker fields.** `midpick.ts`,
+  `runsave.ts` and `warmplan.ts` are pure and read it at load; a kind's file imports
+  the sim, and through `core.ts` the DOM. `roster.ts` stays a leaf: no imports.
+- **Rules:** sim files never import render. Draw code uses `srnd()`, never `R()`. No
+  allocation in `update`. Telegraphs and `kid: 1` follow `.claude/rules/ai-code.md`.
+- **A DRIFT kind** does not go through `midboss()`: it calls `registerDrift` (see
+  `enemies/mid/ufo.ts`) and needs a forced exit.
+- **See it:** `?mids=wip` or the `mids=wip` LAB row makes a `wip` kind pickable in any
+  biome stage. `midboss-probe`, `perf-probe`, `depth-probe` and `rng-probe` read the
+  roster and include `wip` kinds without being told.
+- **Finish it:** drop `wip: true` in pass 2. That is a behaviour change: it joins the
+  picker's pool, so it moves picks and needs an explained re-baseline.
+
 ## Specialist
 
 `web-specialist` owns the stack (loop, render, input, audio, save, build,
