@@ -107,7 +107,9 @@ export function biomeK(wx) {
 }
 
 // ---------------- gore palette ----------------
-const DC0 = [...DC], C0 = { blood: C.blood, bloodD: C.bloodD, bloodL: C.bloodL };
+const DC0 = [...DC];
+/** the default gore palette, before any biome rewrites C */
+export const C0 = { blood: C.blood, bloodD: C.bloodD, bloodL: C.bloodL };
 let palNow = null;
 function applyPalette(b) {
   if (palNow === b) return;

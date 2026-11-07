@@ -7,7 +7,7 @@
 //  - boot:   BOOT_ART, held for the whole session. Every descent flies Orbit and the Drive, and the eyes are shared.
 //  - route:  once choose() commits a slot, its picked midboss pair and its boss. Art is keyed by stage, so the
 //            previous stage's art leaves the plan at startStage of the next one and gets dropped.
-//  - WARNING: warmBlocked() holds every build and drop from a WARNING banner until its fight is over.
+//  - WARNING: warmBlocked() holds every build and drop from a WARNING banner, or a stage's warnX, until its fight is over.
 // =====================================================================
 import { HOME } from './midpick';
 import { row, stageOfSlot } from './layout';
@@ -43,16 +43,25 @@ export function routeArt(G: WarmRun | null | undefined): string[] {
 /** the run-state fields warmBlocked reads */
 export interface WarmGate {
   t: number;
+  stage?: number;
+  scroll?: number;
   warnEnd?: number;
   mini?: unknown;
   boss?: unknown;
   bossStarted?: boolean;
 }
 
-/** no warm-up work now: a WARNING is showing (G.warnEnd, written by banner()), or a fight is up. Off the run
- *  (title, game over) the G left behind says nothing, so only play and pause count: a pause inside a WARNING still
- *  holds, because the window has to resume where it stopped */
+/** the scroll sits between its stage's banner and its end encounter: Orbit's "SOMETHING IS COMING" to the Maw, and the
+ *  Drive's WARNING to startBoss (about 40 frames outlast the banner). Rows without a warnX open with a miniWarn */
+function inLeadIn(G: WarmGate): boolean {
+  const r = G.stage == null || G.scroll == null ? null : row(G.stage);
+  return !!r && r.warnX != null && G.scroll! >= r.warnX && G.scroll! < r.bossX;
+}
+
+/** no warm-up work now: a WARNING is showing (G.warnEnd, written by banner()), a stage's lead-in is running, or a fight
+ *  is up. Off the run (title, game over) the G left behind says nothing, so only play and pause count: a pause inside
+ *  a WARNING still holds, because the window has to resume where it stopped */
 export function warmBlocked(state: string, G: WarmGate | null | undefined): boolean {
   if (!G || (state !== 'play' && state !== 'pause')) return false;
-  return G.t < (G.warnEnd || 0) || !!G.mini || !!G.boss || !!G.bossStarted;
+  return G.t < (G.warnEnd || 0) || !!G.mini || !!G.boss || !!G.bossStarted || inLeadIn(G);
 }

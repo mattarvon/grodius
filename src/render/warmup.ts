@@ -7,6 +7,7 @@
 import { $ } from '../state';
 import { gibs } from '../world';
 import { BOOT_ART, routeArt, warmBlocked } from '../warmplan';
+import { gibAtlas } from './gibart';
 import { warmHeroEye } from './heroeye';
 import { warmEyes } from './eyes';
 import { warmDerelict } from './terrain';
@@ -76,4 +77,4 @@ function loop() {
   else setTimeout(loop, POLL_MS);
 }
 /** start the warm-up (main.ts start()): the same 1.5 s after boot the old all-at-boot pass waited */
-export function startWarm() { setTimeout(loop, 1500); }
+export function startWarm() { setTimeout(() => { timed('gibs', 'boot', () => { gibAtlas(); }); loop(); }, 1500); }
