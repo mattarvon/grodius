@@ -63,7 +63,10 @@ const init = ([seed, gates, descents, mortal]) => {
   window.setTimeout = () => 0; window.setInterval = () => 0; window.speechSynthesis = undefined;
   window.AudioContext = undefined; window.webkitAudioContext = undefined; // see tools/harness.mjs: audio would draw R()
   try { localStorage.clear(); localStorage.setItem('grodius.v1', '{"meta":{"v":2},"asked":true}'); } catch (e) {}
-  { const P = CanvasRenderingContext2D.prototype; for (const m of ['fillRect', 'strokeRect', 'drawImage', 'fill', 'stroke', 'fillText', 'strokeText', 'putImageData', 'clearRect', 'getImageData']) { const o = P[m]; P[m] = function (...a) { return m === 'getImageData' ? { data: new Uint8ClampedArray(a[2] * a[3] * 4), width: a[2], height: a[3] } : undefined; }; } }
+  // transform and state ops too: with every draw stubbed the canvas recording is never flushed, so they pile up for the
+  // whole run (2.6 GB on base by the 3x3's end, a renderer crash past ~3 GB; LS2-perf). Canvas state never reaches the sim: only
+  // render/fx read getTransform (eyes.ts, gore.ts, fxsprites.ts), and rng-split.test.ts keeps those off the sim RNG
+  { const P = CanvasRenderingContext2D.prototype; for (const m of ['fillRect', 'strokeRect', 'drawImage', 'fill', 'stroke', 'fillText', 'strokeText', 'putImageData', 'clearRect', 'getImageData', 'setTransform', 'save', 'restore', 'translate', 'rotate', 'scale', 'clip', 'transform']) { P[m] = function (...a) { return m === 'getImageData' ? { data: new Uint8ClampedArray(a[2] * a[3] * 4), width: a[2], height: a[3] } : undefined; }; } }
   const fnv = (h, str) => { for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
   const arrHash = (a, i0 = 0, i1 = a.length) => { let h = 2166136261; for (let i = i0; i < i1; i++) h = fnv(h, a[i].toFixed(3) + ','); return h.toString(16); };
   const key = (t, c) => dispatchEvent(new KeyboardEvent(t, { code: c, key: c }));

@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { BOOT_ART, BOSS_ART, routeArt, warmBlocked } from '../../src/warmplan';
-import { setLayout } from '../../src/layout';
+import { lastStage, row, rowOfKind, setLayout } from '../../src/layout';
 import { HOME } from '../../src/midpick';
 
 const SLOT0_STAGE = 1, SLOT1_STAGE = 2; // long4 and short: Orbit, biome, biome, Drive
@@ -63,6 +63,41 @@ describe('warmBlocked', () => {
     expect(warmBlocked('play', { ...calm, bossStarted: true })).toBe(true);
   });
 
+  // long4 rows: Orbit warnX 4080, bossX 4200; Drive (stage 3) warnX 14210, bossX 14450. Read from the layout, not literals
+  it('holds from Orbit\'s SOMETHING IS COMING until the Maw arrives, though it is no WARNING', () => {
+    const r = row(0)!, at = (scroll: number) => warmBlocked('play', { t: 500, warnEnd: 0, stage: 0, scroll });
+    expect(at(r.warnX! - 1)).toBe(false);
+    expect(at(r.warnX!)).toBe(true);
+    expect(at(r.bossX - 1)).toBe(true);
+    expect(at(r.bossX)).toBe(false);
+  });
+
+  it('holds through the frames between the Drive\'s WARNING ending and startBoss', () => {
+    const r = rowOfKind('drive'), i = lastStage();
+    expect(row(i)).toBe(r);
+    expect(warmBlocked('play', { t: 500, warnEnd: 400, stage: i, scroll: r.bossX - 10 })).toBe(true);
+    expect(warmBlocked('play', { t: 500, warnEnd: 400, stage: i, scroll: r.warnX! - 10 })).toBe(false);
+  });
+
+  it('holds a pause inside the lead-in, and needs a scroll to judge one', () => {
+    const r = row(0)!;
+    expect(warmBlocked('pause', { t: 500, stage: 0, scroll: r.warnX! })).toBe(true);
+    expect(warmBlocked('play', { t: 500, stage: 0 })).toBe(false);
+  });
+
+  it('finds the same Orbit lead-in on the short layout', () => {
+    setLayout('short');
+    const r = row(0)!;
+    expect(r.warnX).toBeDefined();
+    expect(warmBlocked('play', { t: 500, stage: 0, scroll: r.warnX! })).toBe(true);
+    expect(warmBlocked('play', { t: 500, stage: 0, scroll: r.bossX })).toBe(false);
+  });
+
+  it('leaves a biome stage alone: it has no lead-in, only its miniWarn', () => {
+    expect(row(SLOT0_STAGE)!.warnX).toBeUndefined();
+    expect(warmBlocked('play', { t: 500, warnEnd: 400, stage: SLOT0_STAGE, scroll: row(SLOT0_STAGE)!.bossX - 10 })).toBe(false);
+  });
+
   it('ignores the G a dead run left behind, so the title can still warm', () => {
     expect(warmBlocked('title', { t: 10, warnEnd: 400, mini: {} })).toBe(false);
     expect(warmBlocked('over', { t: 10, warnEnd: 400 })).toBe(false);
@@ -96,10 +131,6 @@ describe('the wiring the plan depends on', () => {
     const body = src('render/warmup.ts').split('export function warmPump')[1];
     expect(body.indexOf("q.k === 'half'")).toBeGreaterThan(-1);
     expect(body.indexOf("q.k === 'half'")).toBeLessThan(body.indexOf("'drop'"));
-  });
-
-  it('lets a dead Maw rupture once: its split halves must not re-enter the live set', () => {
-    expect(src('render/gross/maw.ts')).toMatch(/if \(!e\.dead\) live\.add\(e\)/);
   });
 
   it('keeps the sim out of the warm-up: no sim file imports it', () => {

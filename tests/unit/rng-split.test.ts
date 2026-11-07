@@ -40,6 +40,7 @@ describe('render, fx and audio never draw the sim RNG', () => {
     expect(files.length).toBeGreaterThan(20);
     expect(files).toContain('src/render/hell.ts');
     expect(files).toContain('src/fx/spawn.ts');
+    expect(files).toContain('src/render/gibart.ts');
     expect(files.some((f) => f.startsWith('src/render/gross/'))).toBe(true);
   });
 

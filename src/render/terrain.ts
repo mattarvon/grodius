@@ -704,6 +704,9 @@ function drawWound(a, sc, L) {
 }
 export function drawBG() {
   const sc = $.G ? $.G.scroll : $.T * .6;
+  // a biome at full strength fills the sky opaque (BIOMES[b].bg), so everything below it would be painted and covered:
+  // stars, nebula, Neptune, the derelict. None of those layers writes lights or other state (S2-K1, D30)
+  if ($.G && biomeK(sc + W / 2)[1] >= 1) { drawBiomeBG(sc); return; }
   const sp = $.G ? AMT.space(sc) : 1;
   const bg = ctx.createLinearGradient(0, 0, 0, PH);
   bg.addColorStop(0, '#020306');

@@ -5,6 +5,7 @@ import { srnd, srr, sri, spick } from '../srnd';
 import { sfx } from '../audio';
 import { buzz } from '../platform';
 import { boom } from './fxsprites';
+import { GIB_FLESH, GIB_METAL } from './gibcols';
 import { decals, drops, flashes, gibs, mists, sparks, splats, texts } from '../world';
 
 // ---------------- helpers: particles ----------------
@@ -99,7 +100,7 @@ export function gib(x, y, vx, vy, k, s, o = {}) {
         r = s * srr(.6, 1.15);
       return [Math.cos(a) * r, Math.sin(a) * r];
     });
-    g.col = k === 'metal' ? spick(['#3a434d', '#56616d', '#2a3038']) : spick([C.flesh, C.fleshD, '#8e3a32', '#a3473c', C.blood]);
+    g.col = k === 'metal' ? spick(GIB_METAL) : spick([...GIB_FLESH, C.blood]);
     g.fat = k === 'chunk' && srnd() < .35;
     g.bn = k === 'chunk' && srnd() < .3;
   }

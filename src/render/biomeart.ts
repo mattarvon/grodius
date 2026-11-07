@@ -309,7 +309,13 @@ export function drawBiomeBG(sc) {
     const y0 = (PH * .45) | 0, hh = PH - y0, SB = SHB || (SHB = cnv(W, hh, () => {}));
     const sx = SB.getContext('2d'); sx.clearRect(0, 0, W, hh); sx.drawImage(ctx.canvas, 0, y0, W, hh, 0, 0, W, hh);
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
-    for (let y = 0; y < hh; y += 5) { const dx = Math.round(Math.sin(t * .17 + (y + y0) * .35) * 1.3); if (dx) ctx.drawImage(SB, 0, y, W, 5, dx, y + y0, W, 5); }
+    // neighbouring 5 px strips often share an offset: one blit per run, same pixels, about a third of the draws (S2-K1)
+    for (let y = 0, run = 0, rdx = 0; y <= hh; y += 5) {
+      const dx = y < hh ? Math.round(Math.sin(t * .17 + (y + y0) * .35) * 1.3) : 0;
+      if (dx === rdx) continue;
+      if (rdx) ctx.drawImage(SB, 0, run, W, y - run, rdx, run + y0, W, y - run);
+      run = y; rdx = dx;
+    }
     ctx.restore();
   } else {
     drawLay(lay('snotFar', L.snotFar), sc, .1);

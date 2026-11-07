@@ -77,7 +77,9 @@ function inMass(lx, ly, pad = 0) {
   const dx = (lx - MX) / (RX - pad), dy = ly / (RY - pad);
   return dx * dx + dy * dy < 1;
 }
-function buildMass() {
+/** mottling rows per warm-up slice: about 16 ms at 4x CPU throttle, one frame's budget (perf-probe bootlog, S3-K2) */
+const MASS_ROWS = 16;
+function* massSteps() {
   // covers boss-local x -80..140, y -125..125; drawn centred on (MX,0) as -110..110
   const [c, x] = can(220, 250);
   x.translate(110, 125); // origin = mass centre
@@ -101,19 +103,22 @@ function buildMass() {
   x.fill();
   // mottling: necrotic green, bruise purple, jaundice
   const im = x.getImageData(0, 0, c.width, c.height), d = im.data;
-  for (let py = 0; py < c.height; py++) for (let px = 0; px < c.width; px++) {
-    const i = (py * c.width + px) * 4;
-    if (d[i + 3] < 8) continue;
-    const u = px / 26, v = py / 26, n1 = fbm(u, v), n2 = fbm(u * .7 + 40, v * .7 + 9), n3 = fbm(u * 1.3 + 77, v * 1.3 + 3);
-    let r = d[i], gg = d[i + 1], b = d[i + 2];
-    const k = .75 + n1 * .5;
-    r *= k; gg *= k; b *= k;
-    if (n2 > .6) { const t = Math.min(1, (n2 - .6) * 3.5); r += (78 - r) * t; gg += (86 - gg) * t; b += (38 - b) * t; }
-    if (n3 > .64) { const t = Math.min(1, (n3 - .64) * 4); r += (70 - r) * t; gg += (26 - gg) * t; b += (80 - b) * t; }
-    if (n1 > .7) { const t = Math.min(1, (n1 - .7) * 4) * .7; r += (190 - r) * t; gg += (160 - gg) * t; b += (70 - b) * t; }
-    const sp = h2(px, py);
-    if (sp > .985) { r *= .5; gg *= .5; b *= .5; }
-    d[i] = r; d[i + 1] = gg; d[i + 2] = b;
+  for (let py = 0; py < c.height; py++) {
+    if (py && py % MASS_ROWS === 0) yield;
+    for (let px = 0; px < c.width; px++) {
+      const i = (py * c.width + px) * 4;
+      if (d[i + 3] < 8) continue;
+      const u = px / 26, v = py / 26, n1 = fbm(u, v), n2 = fbm(u * .7 + 40, v * .7 + 9), n3 = fbm(u * 1.3 + 77, v * 1.3 + 3);
+      let r = d[i], gg = d[i + 1], b = d[i + 2];
+      const k = .75 + n1 * .5;
+      r *= k; gg *= k; b *= k;
+      if (n2 > .6) { const t = Math.min(1, (n2 - .6) * 3.5); r += (78 - r) * t; gg += (86 - gg) * t; b += (38 - b) * t; }
+      if (n3 > .64) { const t = Math.min(1, (n3 - .64) * 4); r += (70 - r) * t; gg += (26 - gg) * t; b += (80 - b) * t; }
+      if (n1 > .7) { const t = Math.min(1, (n1 - .7) * 4) * .7; r += (190 - r) * t; gg += (160 - gg) * t; b += (70 - b) * t; }
+      const sp = h2(px, py);
+      if (sp > .985) { r *= .5; gg *= .5; b *= .5; }
+      d[i] = r; d[i + 1] = gg; d[i + 2] = b;
+    }
   }
   x.putImageData(im, 0, 0);
   x.globalCompositeOperation = 'source-atop';
@@ -188,6 +193,21 @@ function buildMass() {
   nx.lineWidth = 1.4;
   for (let i = 0; i < 14; i++) { const sx = rf(-90, 90), sy = rf(-100, 60); nx.beginPath(); nx.moveTo(sx, sy); nx.quadraticCurveTo(sx + rf(-4, 4), sy + 14, sx + rf(-3, 3), sy + rf(20, 40)); nx.stroke(); }
   return { mass: c, necro: nc };
+}
+let massRun = null, massRs = 0;
+/** one slice of the mass. Its RNG position rides across slices: fresh() and the other parts reseed rs in between */
+function stepMass() {
+  massRun ||= massSteps();
+  const keep = rs;
+  if (massRs) rs = massRs;
+  const r = massRun.next();
+  massRs = rs;
+  rs = keep;
+  if (r.done) PART.mass = r.value;
+}
+function buildMass() {
+  while (!PART.mass) stepMass();
+  return PART.mass;
 }
 function buildRingA() {
   // outer ring (rotates with b.ra): vertebrae fused into the drive's rim, rib-bone spikes, crew impaled on 3 of them
@@ -478,7 +498,7 @@ function buildEyeTex() {
   return { scl: c, iris: ic, cat: cc, shade: sc };
 }
 // pieces are built lazily and can be pre-built one per idle slot (warmDrive) so the fight never opens on a ~200 ms
-// hitch (buildMass's per-pixel mottling is the big one)
+// hitch (the mass's per-pixel mottling is the big one, so it alone comes in slices: massSteps)
 const PART = {};
 const PARTS = { mass: buildMass, ringA: buildRingA, ringB: buildRingB, face: buildFace, eye: buildEyeTex };
 function art() {
@@ -489,6 +509,7 @@ function art() {
 }
 /** pre-build one more piece of the drive's art; false when everything is built */
 export function warmDrive() {
+  if (!PART.mass) { stepMass(); return true; }
   const k = Object.keys(PARTS).find((q) => !PART[q]);
   if (!k) return false;
   PART[k] = PARTS[k]();
