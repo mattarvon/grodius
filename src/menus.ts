@@ -43,7 +43,7 @@ export function titleItems() {
   return [...(ri ? [{
     // item H: the last checkpoint (one slot). First while it exists; the harness and probes clear storage at boot,
     // so DESCEND stays row 0 for them
-    l: 'RESUME',
+    l: 'RE-ENTER', // not RESUME: the pause menu's RESUME means carry on from here (Matt, D34)
     r: `STAGE ${ri.loop + 1}-${ri.stage + 1}` + (ri.layout && ri.layout !== activeLayout().id ? ' ' + layoutName(ri.layout) : ''),
     a: () => { resumeLast(); }
   }] : []), {
@@ -181,7 +181,7 @@ export function pauseItems() {
       save();
     }
   }, {
-    l: 'ABANDON SHIP',
+    l: 'SURFACE', // was ABANDON SHIP; since H it keeps the run (RE-ENTER on the title), so it no longer abandons (Matt, D34)
     a: () => {
       if ($.G.score > $.hi) $.hi = $.G.score;
       save();

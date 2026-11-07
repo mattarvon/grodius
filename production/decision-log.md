@@ -195,6 +195,16 @@ localization), D16-D18, and the signing keystore half of D6.
 
 Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `production/qa/evidence/ls1-audit.md`, written by the fix lane.
 
+### D34 Copy changes from the studio audit — 2026-11-07 (Matt)
+
+**Chosen** (all four from the narrative-director audit):
+1. The game brief's Pillar 4 now gives 120-150 s stages (D31), up from 90-120 s.
+2. The pause menu's ABANDON SHIP is now **SURFACE**. Since H it keeps the run, and SURFACE is already the game-over word for returning to the title.
+3. The title's RESUME is now **RE-ENTER**. The pause menu's RESUME means carry on from here, so the two no longer clash.
+4. The Brood Mother's kill word STILLBORN is now **LANCED**. STILLBORN sat too close to the crude-not-cruel line.
+
+**Not chosen yet:** one style for all kill words, and a smaller WARNING header for midbosses.
+
 ## Open
 
 - **Where to use the shelved voice lines (Matt, 2026-11-07).** BROTHER SHAMALAMA (10-kill hype) and THE KEYSTER (boss reward) are in `src/sfx-shelved/`. Matt will pick rare triggers for them; the audio-director can propose some. Until then a boss kill plays no voice line.

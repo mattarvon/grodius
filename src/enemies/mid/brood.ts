@@ -44,6 +44,6 @@ function updBrood(e) {
 
 defineMid('brood', {
   et: { hp: 105, r: 20, gsz: 4, score: 6000, bio: 70, half: 1, amnio: 1, eyes: 3, teeth: 8, big: 1, mini: 1, mid: 1 },
-  word: 'STILLBORN',
+  word: 'LANCED', // was STILLBORN: too close to the crude-not-cruel line (Matt, D34)
   update: updBrood,
 });
