@@ -17,7 +17,7 @@ import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
-import { MID_SIM } from './mid/roster';
+import { MID_SIM, midRow } from './mid/roster';
 import { eliteKill, eliteTick } from './elite';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
 
@@ -542,6 +542,19 @@ export function hurt(e, d, hx, hy, dir) {
     sfx.tink();
     return;
   }
+  if (e.mid) { // a WINDOW or ANGLE midboss scales its own hits (enemies/mid/<kind>.ts hurt)
+    const h = MID_SIM[e.k]?.hurt;
+    if (h) {
+      const m = h(e, d, hx, hy);
+      if (m <= 0) {
+        e.flash = 1;
+        if (R() < .4) spark(hx, hy, rr(-2, 0), rr(-1, 1), 6, '#cfe6ff');
+        sfx.tink();
+        return;
+      }
+      d *= m;
+    }
+  }
   e.hp -= d;
   e.flash = 3;
   if (e.k === 'hook') e.kick = (e.kick || 0) + .12;
@@ -765,6 +778,7 @@ export function miniReward(e) {
 /** spec §6.4: the first kill of each midboss kind ever pays the entry's firstKill biomass once, recorded in meta.mbK
  *  (saved with the meta at the next save()). short pays 0 and writes nothing, so today's game is unchanged. No R() */
 function firstKill(e) {
+  if (midRow(e.k)?.wip) return; // an unfinished kind (?mids=wip) never spends its one-time pay on the real profile
   const m = $.meta, pay = firstKillPay(econId(), m.mbK, e.k);
   if (!pay) return;
   (m.mbK ||= {})[e.k] = 1;

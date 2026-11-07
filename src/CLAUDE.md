@@ -32,19 +32,26 @@ The registry (build plan LS2-0): a **held biome-pool kind with no new part** tou
 one shared line, its roster row. Other shapes need more; see "Not just a row" below.
 `<kind>` is its key, the same in the row, both file names and `e.k`.
 
-1. **One row, at the end of `ROSTER`** in `src/enemies/mid/roster.ts`: `k`, `name`,
-   `label`, `tag`, `pool`, `min`, a measured `fit` for a biome-pool kind, and
-   **`wip: true`** until its art and name are approved. Never insert above an
-   existing row: the picker walks this order, so that moves every run.
+1. **One row, at the end of your lane's block** in `src/enemies/mid/roster.ts` (`ICE`,
+   `ACID`, `FIRE`, `SNOT`, `ORBIT_SHIP`; each lane edits only its own block, so rebases
+   don't conflict): `k`, `name`, `label`, `tag`, `pool`, `min`, a measured `fit` for a
+   biome-pool kind, and **`wip: true`** until its art and name are approved. Each kind in
+   a pool needs a different tag (spec §6.1), and ANGLE and RACE need `min: 1` (§6.3);
+   `midreg.test.ts` checks both. Never reorder finished rows: the picker walks them in order.
 2. **`src/enemies/mid/<kind>.ts`**: the update function and one
-   `defineMid('<kind>', { et, word, update })`. Optional: `spawnY`, `onSpawn`, `kill`.
+   `defineMid('<kind>', { et, word, update })`. Optional: `spawnY`, `onSpawn`, `kill`, and
+   `hurt(e, d, hx, hy)`, which returns the damage multiplier for a hit (1 full, .15 a closed
+   WINDOW, 0 a tink), so a WINDOW or ANGLE kind never edits `hurt()` in `update.ts`.
    Copy `cyst.ts`. `midLeave`, `bandFit` and `lob` come from `../update`.
-3. **`src/render/gross/mid/<kind>.ts`**: `export default { draw, warm, built, drop }`,
-   plus `under` for a telegraph or chain beneath the body. Copy `cyst.ts`; the shared
-   particles, layers and crossover tint are in `../midbosses.ts`.
+3. **`src/render/gross/mid/<kind>.ts`**: in pass 1, one line:
+   `export default greybox({ col, r, tell })` from `./_greybox` (a wobbling blob in the
+   biome tint with one eye; `tell(e)` returns the telegraph strength from 0 to 1). In
+   pass 2, `export default { draw, warm, built, drop }`, plus `under` for a telegraph or
+   chain beneath the body. Copy `cyst.ts`; the shared particles, layers and crossover
+   tint are in `../midbosses.ts`.
 
 Both folders are loaded by file name (`import.meta.glob`), so there is no import
-line to add. `main.ts` refuses to boot if a row is missing either file, and
+line to add. Every `.ts` there is a kind, except `_name.ts`, which is a shared helper. `main.ts` refuses to boot if a row is missing either file, and
 `tests/unit/midreg.test.ts` fails first.
 
 - **The roster row, not the kind's file, holds the picker fields.** `midpick.ts`,
@@ -59,6 +66,9 @@ line to add. `main.ts` refuses to boot if a row is missing either file, and
   pickable in any biome stage, on picker layouts only (not `short`), and `min` still
   applies: a `min: 1` kind needs Descent 2. `midboss-probe`, `perf-probe`, `depth-probe` and `rng-probe` read the
   roster and include `wip` kinds without being told.
+- **A `wip` kind leaves the real profile alone:** no first-kill pay, no `meta.mbK` and no
+  `meta.mb`. A run saved while it was up still holds it, so renaming a `wip` kind loses that
+  saved run. A `boot: true` `wip` row is not boot art: it builds on first draw until it ships.
 - **Finish it:** drop `wip: true` in pass 2. That is a behaviour change: it joins the
   picker's pool, so it moves picks and needs an explained re-baseline.
 

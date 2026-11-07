@@ -38,9 +38,14 @@ export interface MidRow {
   wip?: boolean;
 }
 
-/** every midboss. The order is load-bearing: the picker's draw walks it, so a new row goes at the end, and within a pool
- *  the first finished row is that biome's home midboss */
-export const ROSTER: readonly MidRow[] = [
+// ---------------- the rows ----------------
+// One block per LS2 lane, so lanes working at once each edit their own lines and rebase without a conflict. Order is
+// load-bearing only among finished rows: the picker's draw walks them in ROSTER order, and within a pool the first
+// finished row is that biome's home midboss. A `wip` row moves nothing (biomePool drops it), and un-wiping one is a
+// re-baseline anyway. So: add a row at the end of your lane's block, and never reorder finished rows.
+
+/** the midbosses that shipped before LS2: the four homes and the Saucer */
+const CORE: readonly MidRow[] = [
   // nailbars orbit at 31 px and are 15 px half-long: the bars must stay shootable
   { k: 'choir', name: 'THE NAIL CHOIR', label: 'NAIL CHOIR', tag: 'LINE', pool: 'ice', min: 0, fit: { up: 46, dn: 46, hw: 34 } },
   // membrane rim 22 px x 1.25 swell; the crown sits at -23
@@ -53,6 +58,19 @@ export const ROSTER: readonly MidRow[] = [
   // Open Orbit slot A, its row's drift entry (src/layout.ts). boot: every descent flies Orbit
   { k: 'ufo', name: 'THE SQUIDFUCKED SAUCER', label: 'SQUID SAUCER', tag: 'DRIFT', pool: 'orbit', min: 0, boot: true },
 ];
+/** LS2-ice: the Cryosleeper, the Hanging Spine */
+const ICE: readonly MidRow[] = [];
+/** LS2-acid */
+const ACID: readonly MidRow[] = [];
+/** LS2-fire */
+const FIRE: readonly MidRow[] = [];
+/** LS2-snot */
+const SNOT: readonly MidRow[] = [];
+/** LS2-orbit+ship: Open Orbit's and the ship's kinds */
+const ORBIT_SHIP: readonly MidRow[] = [];
+
+/** every midboss, in the order the picker walks (see above) */
+export const ROSTER: readonly MidRow[] = [...CORE, ...ICE, ...ACID, ...FIRE, ...SNOT, ...ORBIT_SHIP];
 
 /** the pools a biome stage draws from */
 export const BIOME_POOLS: readonly string[] = ['ice', 'acid', 'fire', 'snot'];
@@ -81,9 +99,12 @@ export interface MidSim {
   onSpawn?: (e: any) => void;
   /** killEnemy, after the kill word */
   kill?: (e: any) => void;
+  /** hurt(), before the damage lands: the multiplier for a hit of d at (hx, hy), world px. 1 full, .15 a closed WINDOW,
+   *  0 a tink (no damage, a spark). For the WINDOW and ANGLE kinds (spec §6.2). No allocation, no R() */
+  hurt?: (e: any, d: number, hx: number, hy: number) => number;
 }
 /** kind -> its sim side, filled as the kinds' files load (enemies/mid/index.ts loads them). Read at call time only */
-export const MID_SIM: Record<string, MidSim> = {};
+export const MID_SIM: Record<string, MidSim> = Object.create(null); // no prototype: a kind is never `constructor`
 /** the midboss rows of spawn.ts ET; ET is this same object, so a row lands whichever module the boot reaches first */
 export const MID_ET: Record<string, any> = {};
 

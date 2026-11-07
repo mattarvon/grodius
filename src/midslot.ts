@@ -14,6 +14,7 @@
 // =====================================================================
 import { $ } from './state';
 import { layout } from './layout';
+import { midRow } from './enemies/mid/roster';
 
 /** run f now if no midboss holds G.mini, else re-check every frame until none does (spec §3.2 rule 2) */
 export function whenNoMini(f: () => void): void {
@@ -36,6 +37,7 @@ export const fillerQuiet = (k: string | undefined) => !!layout().picker && isFil
 
 /** a midboss of kind k has arrived: count the meeting in $.meta.mb (saved with the meta at the next save()) */
 export function meetMid(k: string): void {
+  if (midRow(k)?.wip) return; // an unfinished kind (?mids=wip) leaves the real profile's weights alone
   const mb = ($.meta.mb ||= {});
   mb[k] = (mb[k] || 0) + 1;
 }

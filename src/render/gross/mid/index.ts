@@ -13,7 +13,7 @@ export interface MidArt {
   drop?: () => void;
 }
 
-const files = import.meta.glob<{ default: MidArt }>(['./*.ts', '!./index.ts'], { eager: true });
+const files = import.meta.glob<{ default: MidArt }>(['./*.ts', '!./index.ts', '!./_*.ts'], { eager: true }); // _name.ts: a helper (_greybox.ts)
 /** kind -> its art, in roster order (the warm-up walks it, so a drop pass goes in a fixed order) */
 export const MID_ART: Record<string, MidArt> = {};
 for (const r of ROSTER) if (files[`./${r.k}.ts`]) MID_ART[r.k] = files[`./${r.k}.ts`].default;

@@ -34,7 +34,11 @@ export interface MidDef {
 export const MIDS: Record<string, MidDef> = Object.fromEntries(ROSTER.map((r: MidRow) => [r.k, { body: r.body ?? r.k, tag: r.tag, min: r.min }]));
 
 /** each biome's own midboss: the first finished row of its pool. Its keys are the biome list runsave.ts and jump.ts read */
-export const HOME: Record<string, string> = Object.fromEntries(BIOME_POOLS.map((b) => [b, ROSTER.find((r) => r.pool === b && !r.wip)!.k]));
+export const HOME: Record<string, string> = Object.fromEntries(BIOME_POOLS.map((b) => {
+  const r = ROSTER.find((r) => r.pool === b && !r.wip);
+  if (!r) throw new Error(`midboss roster: pool '${b}' has no finished row, so the biome has no home midboss`);
+  return [b, r.k];
+}));
 
 /** phase 1: a biome stage draws from every finished biome-pool midboss (home + crossovers) */
 export const PHASE1_BIOME_POOL: readonly string[] = biomePool();

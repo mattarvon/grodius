@@ -19,7 +19,7 @@ import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 import { beatPlan, layout, nSlots, slotRow, stageOfSlot } from './layout';
 import { midSeedOf, seedOf, stream } from './rng';
-import { MIDS, forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
+import { HOME, MIDS, forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
 import { driftOf, whenNoMini } from './midslot';
 import { MID_NAMES, ROSTER } from './enemies/mid/roster';
 import { midsWip } from './lab';
@@ -290,8 +290,8 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
  *  midboss lands ~60 px before its breath's end and the scroll coasts to a stop inside it */
 function midBeats(B, b, BP, mids, at) {
   if (!mids) { // short (no picker): the biome's own midboss, as before
-    const M = B.mids[0];
-    if (BP.warn != null) at(BP.warn, () => miniWarn(M.name, () => midboss(M.k, M.name, b)), 'mid:' + M.k);
+    const k = HOME[b], nm = MID_NAMES[k]; // the first finished row of its pool (a wip row may sit above it)
+    if (BP.warn != null) at(BP.warn, () => miniWarn(nm, () => midboss(k, nm, b)), 'mid:' + k);
     return;
   }
   mids.forEach((k, s) => { // picker layouts (item F): the stage's picks (stageMids), slot A then slot B

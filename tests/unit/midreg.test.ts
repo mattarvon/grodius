@@ -1,5 +1,6 @@
 // LS2-0: the midboss registry. Every list of kinds comes from enemies/mid/roster.ts, each kind has its sim and render
 // file, nothing else keeps a list, and the module order holds (sim never imports render; the roster stays a leaf).
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BIOME_POOLS, MID_ET, MID_NAMES, MID_SIM, ROSTER, biomePool, defineMid, midRow, type MidRow } from '../../src/enemies/mid/roster';
@@ -8,7 +9,8 @@ import { HOME_FIT, MID_BODY, MID_HOME } from '../../src/enemies/midhost';
 import { BOOT_ART } from '../../src/warmplan';
 
 const src = (p: string) => readFileSync('src/' + p, 'utf8');
-const kindFiles = (dir: string, not: string[]) => readdirSync('src/' + dir).filter((f) => f.endsWith('.ts') && !not.includes(f)).map((f) => f.slice(0, -3)).sort();
+/** the kind files in a registry folder: `_name.ts` is a shared helper, which both globs skip */
+const kindFiles = (dir: string, not: string[]) => readdirSync('src/' + dir).filter((f) => f.endsWith('.ts') && !f.startsWith('_') && !not.includes(f)).map((f) => f.slice(0, -3)).sort();
 const KINDS = ROSTER.map((r) => r.k);
 /** a greybox row as a pool lane adds one */
 const GREY: MidRow = { k: 'greybox', name: 'THE GREYBOX', label: 'GREYBOX', tag: 'WINDOW', pool: 'ice', min: 0, fit: { up: 20, dn: 20, hw: 20 }, wip: true };
@@ -41,8 +43,19 @@ describe('the roster', () => {
     expect(Object.keys(MID_BODY).slice(0, 4)).toEqual(['choir', 'cyst', 'prentice', 'brood']);
     expect(HOME_FIT).toContain('brood');
     expect(MID_NAMES.ufo).toBe('THE SQUIDFUCKED SAUCER');
-    expect(BOOT_ART).toEqual(['hero', 'eyes', 'derelict', 'maw:orbit', ...ROSTER.filter((r) => r.boot).map((r) => r.k), 'drive']);
+    expect(BOOT_ART).toEqual(['hero', 'eyes', 'derelict', 'maw:orbit', ...ROSTER.filter((r) => r.boot && !r.wip).map((r) => r.k), 'drive']);
     expect(BOOT_ART).toContain('ufo');
+  });
+
+  it('gives every kind in a pool a different tag (spec §6.1), so the two midbosses of a stage test two skills', () => {
+    for (const p of new Set(ROSTER.map((r) => r.pool))) {
+      const tags = ROSTER.filter((r) => r.pool === p).map((r) => r.tag);
+      expect(new Set(tags).size, p).toBe(tags.length);
+    }
+  });
+
+  it('keeps ANGLE and RACE kinds out of Descent 1 (spec §6.3 step 1)', () => {
+    for (const r of ROSTER) if (r.tag === 'ANGLE' || r.tag === 'RACE') expect(r.min, r.k).toBeGreaterThanOrEqual(1);
   });
 
   it('keeps the picker values of the five kinds it moved', () => {
@@ -61,12 +74,12 @@ describe('one file per kind', () => {
     expect(kindFiles('render/gross/mid', ['index.ts'])).toEqual([...KINDS].sort());
     for (const k of KINDS) {
       expect(src(`enemies/mid/${k}.ts`)).toContain(`defineMid('${k}', {`);
-      expect(src(`render/gross/mid/${k}.ts`)).toMatch(/export default \{[\s\S]*draw[\s\S]*warm/);
+      expect(src(`render/gross/mid/${k}.ts`)).toMatch(/export default (\{[\s\S]*draw[\s\S]*warm|greybox\()/);
     }
   });
 
   it('gives route art built and drop too, which only a boot kind may leave out', () => {
-    for (const r of ROSTER) if (!r.boot) expect(src(`render/gross/mid/${r.k}.ts`).split('export default')[1], r.k).toMatch(/built[\s\S]*drop/);
+    for (const r of ROSTER) if (!r.boot) expect(src(`render/gross/mid/${r.k}.ts`).split('export default')[1], r.k).toMatch(/built[\s\S]*drop|^ greybox\(/);
   });
 
   it('checks both sides at boot', () => {
@@ -115,6 +128,12 @@ describe('module order', () => {
 
   it('keeps the roster a leaf: no import, so pure modules and plain Node can read it', () => {
     expect(src('enemies/mid/roster.ts')).not.toMatch(/^import /m);
+  });
+
+  it('loads the roster in plain Node, as the probes do (an enum or a namespace would pass Vite and fail there)', () => {
+    const out = execFileSync(process.execPath, ['--input-type=module', '-e',
+      "const m = await import('./src/enemies/mid/roster.ts'); console.log(m.ROSTER.map((r) => r.k).join())"], { encoding: 'utf8' });
+    expect(out.trim()).toBe(KINDS.join());
   });
 
   it('never imports render from the sim side of the registry', () => {
