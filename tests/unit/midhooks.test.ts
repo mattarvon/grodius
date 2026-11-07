@@ -194,6 +194,7 @@ describe('a wip kind and the real profile', () => {
     expect($.meta.bio).toBe(0);
     expect($.meta.mbK).toBeUndefined();
     killEnemy(mid('shell'));
+    expect($.meta.bio).toBeGreaterThan(0); // the finished kind still pays, so the wip kind's 0 above means something
     expect($.meta.mbK).toEqual({ shell: 1 });
   });
 

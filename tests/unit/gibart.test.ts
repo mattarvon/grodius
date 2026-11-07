@@ -27,6 +27,15 @@ describe('gibCell', () => {
       expect(A.gibCell({ k: 'chunk', s, col, fat, bn, pts }, 0), `${col} ${s}`).toBeTruthy();
   });
 
+  it('bakes each blood and flesh colour into its own cell instead of falling back to the first flesh colour', () => {
+    // gibCell falls back to FLESH[0] for a colour nobody baked, so "truthy" alone passes even if the bake skipped a palette (qa-tester, wave 1 review)
+    const cols = [...COLS.GIB_FLESH.slice(1), C.blood, ...Object.values<any>(BIOMES).map((b) => b.blood[0])];
+    for (const col of cols) for (const s of SIZES) {
+      const q = { k: 'chunk', s, fat: false, bn: false, pts };
+      expect(A.gibCell({ ...q, col }, 0), `${col} ${s}`).not.toBe(A.gibCell({ ...q, col: COLS.GIB_FLESH[0] }, 0));
+    }
+  });
+
   it('rolls its flesh from the shared list, in the order spawn has always used', () => {
     expect(COLS.GIB_FLESH).toEqual([C.flesh, C.fleshD, '#8e3a32', '#a3473c']);
     expect(COLS.GIB_METAL).toEqual(['#3a434d', '#56616d', '#2a3038']);

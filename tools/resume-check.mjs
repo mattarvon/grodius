@@ -194,7 +194,7 @@ try {
   await press(p, 'KeyX');
   const title = await p.evaluate(async () => (await import('/src/menus.ts')).titleItems().map((x) => x.l + (x.r ? ' ' + x.r : '')));
   console.log(`title after reload: ${title.join(' | ')}`);
-  if (!/^RESUME/.test(title[0] || '')) fails.push(`title row 0 is ${title[0]}, want RESUME`);
+  if (!/^RE-ENTER/.test(title[0] || '')) fails.push(`title row 0 is ${title[0]}, want RE-ENTER`); // the title's RESUME row became RE-ENTER (D34)
   if (OUT) { await p.evaluate('__tick(2)'); mkdirSync(OUT, { recursive: true }); writeFileSync(`${OUT}/title-resume.png`, Buffer.from((await p.evaluate(() => document.getElementById('c').toDataURL())).split(',')[1], 'base64')); }
   const d0 = await p.evaluate(() => window.__draws());
   await p.evaluate(() => window.__key('keydown', 'Enter'));
