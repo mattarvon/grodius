@@ -118,7 +118,9 @@ export const MID_ET: Record<string, any> = {};
  *  path multiplies by this, so armour never needs a shared-file edit */
 export function midMul(e: any, d: number, hx: number, hy: number, dir: number): number {
   const h = e.mid ? MID_SIM[e.k]?.hurt : undefined;
-  return h ? Math.max(0, h(e, d, hx, hy, dir)) : 1;
+  if (!h) return 1;
+  const m = h(e, d, hx, hy, dir);
+  return m > 0 ? m : 0; // NaN or undefined (a branch with no return) reads as a tink, never as NaN HP
 }
 
 /** what is wrong with the registry: a row with no sim file (no defineMid), a row with no art file, an art file with no

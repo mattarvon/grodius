@@ -1,7 +1,8 @@
 // LS2-0 studio pass: the registry hooks a pool lane needs on day one, through the real enemies/update.ts.
 // - MidSim.hurt: a WINDOW or ANGLE kind scales its own hits (spec §6.2), 0 a tink, so no lane edits hurt()
 // - a `wip` kind (?mids=wip) never touches the real profile: no first-kill pay, no meta.mbK, no meta.mb
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { $ } from '../../src/state';
 
 /** the roster plus what a pool lane adds: a finished kind with a hurt hook, and a wip one */
@@ -42,6 +43,8 @@ const L = await import('../../src/layout');
 /** the shell: closed (e.shut) it takes x0.15, and its front (hx < e.x) only tinks */
 let calls = 0, left = 0;
 const kids: any[] = [];
+// the mocked defineMid keeps the row check but not the duplicate check (midreg.test.ts covers that). It writes into the
+// real MID_SIM and MID_ET; Vitest isolates each file, so nothing leaks to another suite
 defineMid('greybox', { et: { hp: 100, r: 20, mid: 1 }, word: 'X', update: () => {} });
 defineMid('shell', {
   et: { hp: 100, r: 20, mid: 1 }, word: 'X', update: () => {},
@@ -94,6 +97,7 @@ describe('MidSim.hurt', () => {
 });
 
 describe('the hook seen from the rest of the game', () => {
+  beforeEach(run);
   afterEach(() => L.setLayout('short'));
 
   it('still kills a midboss the slick already took below 0, even where its hook would tink (hurt with d 0)', () => {
@@ -123,6 +127,23 @@ describe('the hook seen from the rest of the game', () => {
     expect(midMul(e, 1, e.x, e.y, 0)).toBe(.15);
     expect(midMul(mid('cyst'), 1, 300, 135, 0)).toBe(1); // no hook
     expect(midMul({ k: 'shell', x: 300, y: 135 }, 1, 0, 0, 0)).toBe(1); // not a midboss
+  });
+
+  it('reads a hook that returns nothing as a tink, never as NaN HP', () => {
+    const e = mid('shell');
+    MID_SIM.shell.hurt = () => undefined as any;
+    try {
+      expect(midMul(e, 1, 310, 135, 1)).toBe(0);
+      hurt(e, 10, 310, 135, 1);
+      expect(e.hp).toBe(100);
+    } finally { MID_SIM.shell.hurt = (e2, _d, hx) => (calls++, hx < e2.x ? 0 : e2.shut ? .15 : 1); }
+  });
+
+  it('wires every other damage path through midMul: burn, acid and the slick', () => {
+    const src = (f: string) => readFileSync('src/' + f, 'utf8');
+    expect(src('shots.ts')).toMatch(/e\.burn--;\s*e\.hp -= \.05 \* midMul\(e,/);
+    expect(src('shots.ts')).toMatch(/e\.acid--;\s*e\.hp -= [^;]*\* midMul\(e,/);
+    expect(src('perks.ts')).toMatch(/e\.hp -= \(e\.big \|\| e\.mini \? \.08 : \.25\) \* s\.lv \* midMul\(e,/);
   });
 
   it('calls leave once, on the first withdraw frame', () => {

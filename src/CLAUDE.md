@@ -44,7 +44,8 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
    so no kind edits a shared file:
    - `spawnY`, `onSpawn`, `kill`: the spawn height, after the spawn, after the kill word.
    - `hurt(e, d, hx, hy, dir)`: the damage multiplier (1 full, .15 a closed WINDOW, 0 a tink).
-     Every damage path asks it, burn, acid and the slick included. Area damage arrives at
+     Every damage path asks it, burn, acid and the slick included; `hurt()` with `d` 0 (a
+     kill the slick already paid) never asks. A 0 < m < 1 hit flashes dimmer and tinks. Area damage arrives at
      exactly `(e.x, e.y)` with `dir` 0: decide what an area hit does. Shots still collide on
      `e.r`, so a small hittable part (the Spine's eye) also needs `e.hb` or a 0 off the part.
    - `leave(e)`: once, when the withdraw clock runs out (reset a lake, a counter).

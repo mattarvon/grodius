@@ -128,8 +128,8 @@ describe('no hand-kept kind list survives', () => {
   it('has no switch arm or per-kind branch left in the sim or the draw', () => {
     expect(src('enemies/update.ts')).not.toMatch(new RegExp(`case '(${ANY})'`));
     expect(src('enemies/update.ts')).not.toMatch(/e\.k === 'ufo'/);
-    expect(src('enemies/spawn.ts')).not.toMatch(/k === '(choir|prentice)'/);
-    expect(src('render/enemies.ts')).not.toMatch(/e\.k === '(choir|prentice)'/);
+    expect(src('enemies/spawn.ts')).not.toMatch(new RegExp(`k === '(${ANY})'`));
+    expect(src('render/enemies.ts')).not.toMatch(new RegExp(`e\\.k === '(${ANY})'`));
   });
 
   it('reads the kinds in the probes from the roster', () => {
