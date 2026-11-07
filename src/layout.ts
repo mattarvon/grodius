@@ -87,6 +87,10 @@ export interface Beats {
    *  WARNING in its stage: the next midboss breath's WARNING, else the boss WARNING at bossX (spec §3.2 rule 1, the
    *  UFO_GAP_END pattern made stage-relative through beatPlan; >= 300 px, layout.test.ts). Absent: no DRIFT biome slots */
   driftLead?: number;
+  /** terrain movement B, the gimmick (spec §3.3). World x band, from breath `between[0]`'s end + `lead[0]` to breath
+   *  `between[1]`'s start + `lead[1]`, blended in and out over `blend` px inside the band. Present on a layout, it also
+   *  turns on the set-piece draw (src/setdraw.ts). Absent (short): movement A throughout and the biome's one set piece */
+  moveB?: { between: [number, number]; lead: [number, number]; blend: number };
 }
 
 export interface LayoutEntry {
@@ -227,6 +231,11 @@ const LONG4: LayoutEntry = {
     // a DRIFT slot-A midboss (none in phase 1; the Calving Shelf in wave 2) is gone 300 px before slot B's WARNING:
     // ~545 px (~9 s) of fight after it lands, under the 1080 f slot clock
     driftLead: 300,
+    // movement B fills build B. Starts 100 px past breath 1's end: that is where the ship is (scroll + ~100) as the
+    // scroll leaves the breath, so midboss A's held screen shows it coming on the right. Ends 200 px into breath 2:
+    // before the left edge of midboss B's held screen (~breath end - 20, ~216 px in at the shortest span), so that
+    // fight is on movement A from edge to edge. Full gimmick ~475 px (~8 s) at the shortest span
+    moveB: { between: [0, 1], lead: [100, 200], blend: 200 },
   },
   // the same shapes as short, re-anchored on the long rows: the hull closes in at the Orbit's end, the corridor rises
   // where slot 0's boss is and squeezes from slot 1's start, and everything opens into the chamber over the 400 px
@@ -349,6 +358,8 @@ export function beatPlan(r: StageRow, from: number, remix: boolean, L: LayoutEnt
     driftExit: warns.map((_, s) => (BT.driftLead == null ? null : (s + 1 < warns.length ? warns[s + 1] : r.bossX) - BT.driftLead)),
     /** scroll x where the arena run-up starts, or null (legacy beat) */
     runup: BT.runup != null ? P(BT.runup) : null,
+    /** terrain movement B's world x band {a, z, blend}, or null when the layout has none */
+    moveB: BT.moveB ? { a: breaths[BT.moveB.between[0]].z + BT.moveB.lead[0], z: breaths[BT.moveB.between[1]].a + BT.moveB.lead[1], blend: BT.moveB.blend } : null,
   };
 }
 

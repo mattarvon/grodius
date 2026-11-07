@@ -1,0 +1,16 @@
+cross-seed signature report: 5 runs (seeds 3, 6, 7, 11, 15), layout long4
+Descent 1 opener (Open Orbit, before the Saucer WARNING at 1080): IDENTICAL across seeds, 9 waves: 180:drone 320:drone 430:corpse 500:sentry 610:corpse 720:flayer 780:hatch 900:drone 1020:sentry
+stage 1-1 after the opener: 5/5 distinct signatures, mean pairwise wave overlap 9%
+stage 1-2: 5/5 distinct signatures, mean pairwise wave overlap 5%
+stage 1-3: 5/5 distinct signatures, mean pairwise wave overlap 4%
+stage 1-4: 5/5 distinct signatures, mean pairwise wave overlap 20%
+stage 2-1: 5/5 distinct signatures, mean pairwise wave overlap 10%
+stage 2-2: 5/5 distinct signatures, mean pairwise wave overlap 7%
+stage 2-3: 5/5 distinct signatures, mean pairwise wave overlap 7%
+stage 2-4: 5/5 distinct signatures, mean pairwise wave overlap 27%
+stage 3-1: no spawns recorded in any run (not measured)
+stage 1-2 set pieces: ice:pack/thaw/crucify B0  ice:vigil/thaw/morgue B0  acid:gutter/slurry/vats B0  fire:cinders/backdraft/meatline B0  acid:walls/slurry/lining B0; mean pairwise share 7%
+stage 1-3 set pieces: fire:kiln/meatline/cinders B0  snot:sneeze/flood/congestion B0  fire:meatline/backdraft/kiln B0  snot:sneeze/congestion/clot B0  ice:vigil/thaw/crucify B0; mean pairwise share 13%
+stage 2-2 set pieces: snot:congestion/flood/clot B0  acid:lining/vats/walls B1  snot:flood/clot/sneeze B0  acid:gutter/walls/lining B1  fire:cinders/meatline/backdraft B1; mean pairwise share 13%
+stage 2-3 set pieces: fire:pincer/backdraft/cinders B1  fire:pincer/kiln/meatline B0  ice:vigil/thaw/crucify B1  ice:thaw/pack/vigil B1  ice:morgue/pack/crucify B1; mean pairwise share 17%
+not measured: spawn-time rolls (y, side, elite) are left out of the signature on purpose; a stage a run never reached is missing from its row

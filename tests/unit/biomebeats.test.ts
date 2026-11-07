@@ -34,15 +34,16 @@ vi.mock('../../src/enemies/spawn', () => {
 
 const L = await import('../../src/layout');
 const { BIOMES, biomeScript, logPick, remix, secondKind } = await import('../../src/biomes');
+const { CATALOG } = await import('../../src/setdraw');
 
 /** a stage's midboss pair as biomeStage passes it on long4 (G.mb[stage], picked by stageMids) */
 const PAIR = ['choir', 'cyst'];
 const ENEMY = /^(behindWave|corpse|crawler|crossT|eyeT|flayer|formation|hatch|hookE|womb|mutant|slime)$/;
 /** build a slot's script, sorted by x as insertScript does, and fire each entry, recording what it called */
-function build(seg: number, b: string, from: number, v = 0, loop = 0, mids: string[] | null = PAIR) {
+function build(seg: number, b: string, from: number, v = 0, loop = 0, mids: string[] | null = PAIR, setIds: string[] | null = null) {
   $.G = { loop, pend: [], rank: 0, seed: 7 + seg * 31 + v }; // the run seed: build rolls draw its stage stream (src/rng.ts)
   seed = 7 + seg * 31 + v;
-  return biomeScript(seg, b, from, v, undefined, mids).sort((p: { x: number }, q: { x: number }) => p.x - q.x).map((e: { x: number; f: () => void }) => { calls.length = 0; e.f(); return { x: e.x, k: [...calls] }; });
+  return biomeScript(seg, b, from, v, undefined, mids, setIds).sort((p: { x: number }, q: { x: number }) => p.x - q.x).map((e: { x: number; f: () => void }) => { calls.length = 0; e.f(); return { x: e.x, k: [...calls] }; });
 }
 
 describe('beat template v2 on long4', () => {
@@ -57,6 +58,34 @@ describe('beat template v2 on long4', () => {
     for (const e of S) if (e.k.some((k) => ENEMY.test(k))) {
       for (const br of P.breaths) expect(e.x >= br.a && e.x < br.z, `${e.k} at ${e.x} in breath ${br.a}-${br.z}`).toBe(false);
       expect(e.x, `${e.k} at ${e.x} after the run-up`).toBeLessThan(P.runup!);
+    }
+  });
+
+  // LS2-mv: the drawn set pieces (setIds), every catalogue piece in every set slot. D20: a set piece's entry is >= 300 px
+  // from both edges of every breath, and none of its spawns lands in a breath or past the run-up
+  it.each(cases)('$b slot $seg visit $v descent $loop: every drawn set piece keeps out of the breaths (D20) and the run-up', ({ b, seg, v, loop }) => {
+    const r = L.slotRow(seg), from = r.gateLate!, P = L.beatPlan(r, from, !!v), ids = CATALOG[b];
+    for (let k = 0; k < ids.length; k++) {
+      const pick = [0, 1, 2].map((j) => ids[(k + j) % ids.length]), S = build(seg, b, from, v, loop, PAIR, pick);
+      $.G = { loop, pend: [], rank: 0, seed: 7 + seg * 31 + v };
+      const sets = biomeScript(seg, b, from, v, undefined, PAIR, pick).filter((e: { k: string }) => /^set:/.test(e.k));
+      expect(sets.map((e: { k: string }) => e.k), `${pick}`).toEqual(pick.map((id) => 'set:' + id));
+      // D20 is the layout invariant on the PLANNED set x (layout.test.ts); the generator then snaps each piece to the
+      // spawn slot near plan - slot/2 (main's beat generator, shared with short), so the entry may sit a slot or so
+      // either side. Measured 2026-11-07: closest placed entry 263 px from a breath edge, largest snap 67.75 px (reported in ls2-mv.md)
+      sets.forEach((e: { x: number; k: string }, i: number) => {
+        const plan = P.sets[i];
+        for (const br of P.breaths) {
+          expect(Math.min(Math.abs(plan - br.a), Math.abs(plan - br.z)), `planned ${e.k} at ${plan} vs breath ${br.a}-${br.z}`).toBeGreaterThanOrEqual(300);
+          expect(e.x >= br.a && e.x < br.z, `${e.k} at ${e.x} in breath ${br.a}-${br.z}`).toBe(false);
+          expect(Math.min(Math.abs(e.x - br.a), Math.abs(e.x - br.z)), `${e.k} at ${e.x} vs breath ${br.a}-${br.z}`).toBeGreaterThanOrEqual(250);
+        }
+        expect(Math.abs(plan - e.x), `${e.k} placed at ${e.x}, planned ${plan}`).toBeLessThan(80); // measured max 67.75
+      });
+      for (const e of S) if (e.k.some((n) => ENEMY.test(n))) {
+        for (const br of P.breaths) expect(e.x >= br.a && e.x < br.z, `${pick} ${e.k} at ${e.x} in breath ${br.a}-${br.z}`).toBe(false);
+        expect(e.x, `${pick} ${e.k} at ${e.x} after the run-up`).toBeLessThan(P.runup!);
+      }
     }
   });
 

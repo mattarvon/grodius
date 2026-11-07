@@ -58,6 +58,12 @@ describe('run save round trip', () => {
     expect(b.G.bx).toEqual(bx); // all three entries, null kept as null
   });
 
+  it('round-trips the stage picks and the set-piece used set (LS2-mv)', () => {
+    const picks = { 1: { mv: 1, sp: ['thaw', 'vigil', 'pack'] } }, spUsed = { ice: ['thaw', 'vigil', 'pack'] };
+    const b = serializeRun(midRun([2200, null, null]).G, midRun([2200, null, null]).P), d = decodeRun(JSON.stringify({ ...b, g: { ...b.g, picks, spUsed } }));
+    expect(d.g.picks).toEqual(picks);
+    expect(d.g.spUsed).toEqual(spUsed);
+  });
   it('keeps no live state, closures or entity references', () => {
     const { G, P } = midRun([2200, null, null]);
     const s = serializeRun(G, P);
@@ -154,6 +160,11 @@ describe('a bad or old run save', () => {
     ['a stage pick keyed by something other than a stage', JSON.stringify({ ...ok(), g: { ...ok().g, mb: { x: ['choir'] } } })],
     ['midbosses met naming an unknown one', JSON.stringify({ ...ok(), g: { ...ok().g, mbUsed: ['ufo', 'toString'] } })],
     ['a previous pair naming an unknown midboss', JSON.stringify({ ...ok(), g: { ...ok().g, mbLast: { ice: ['gorgon'] } } })],
+    ['a stage pick naming an unknown set piece', JSON.stringify({ ...ok(), g: { ...ok().g, picks: { 1: { mv: 0, sp: ['gorgon'] } } } })],
+    ['a stage pick with no such movement variant', JSON.stringify({ ...ok(), g: { ...ok().g, picks: { 1: { mv: 2, sp: ['morgue'] } } } })],
+    ['a stage pick under a key that is no stage', JSON.stringify({ ...ok(), g: { ...ok().g, picks: { x: { mv: 0, sp: ['morgue'] } } } })],
+    ['a used set for no such biome', JSON.stringify({ ...ok(), g: { ...ok().g, spUsed: { gorgon: ['morgue'] } } })],
+    ['a used set naming an unknown set piece', JSON.stringify({ ...ok(), g: { ...ok().g, spUsed: { ice: ['gorgon'] } } })],
   ])('is discarded without throwing: %s', (_, s) => {
     expect(() => decodeRun(s)).not.toThrow();
     expect(decodeRun(s)).toBeNull();

@@ -11,6 +11,7 @@ import { GROSS, mkTex, texPat } from '../textures';
 import { glow, light } from './util';
 import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
+import { drawMoveProps } from './moveprops';
 
 const FONT = 'Silkscreen, monospace';
 const LW = 320; // parallax tile width
@@ -615,6 +616,7 @@ export function drawBiomeDecor(sc) {
       if (h > .64) { const per = 300 + h * 300, ph = ((t + h * 1931) % per) / per, R = 2.5 + (h - .64) * 18; if (f < PH && hash(wx * 2.1) < .6) pustule(x + 5, f, R, ph, 1, wx); else if (c > 0) pustule(x + 5, c, R, ph, -1, wx); }
     }
   }
+  drawMoveProps(sc, k);
   ctx.globalAlpha = 1;
 }
 

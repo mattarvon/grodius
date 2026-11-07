@@ -1,0 +1,19 @@
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+set-shots: layout long4 (orbit, biome, biome, drive)
+ice thaw: 3 enemies at frame 90
+ice vigil: 3 enemies at frame 90
+ice pack: 3 enemies at frame 90
+acid slurry: 7 enemies at frame 90
+acid vats: 4 enemies at frame 90
+acid lining: 2 enemies at frame 90
+fire meatline: 4 enemies at frame 90
+fire backdraft: 1 enemies at frame 90
+fire cinders: 4 enemies at frame 90
+snot sneeze: 4 enemies at frame 90
+snot clot: 4 enemies at frame 90
+snot congestion: 8 enemies at frame 90
+no page errors
+set-shots: ran on long4

@@ -1,0 +1,73 @@
+playtest: layout long4 (orbit, biome, biome, drive)
+INFIRMARY after descent 1: bought gut socket leech socket spine hull | bolted saw,gut,leech levels {"saw":1,"gut":1,"leech":1,"spine":1} | bio left 46
+INFIRMARY after descent 2: bought hook furnace choir saw+ saw+ gut+ leech+ sculpt | bolted saw,gut,leech levels {"saw":3,"gut":2,"leech":2,"spine":1,"hook":1,"furnace":1,"choir":1} | bio left 14
+
+== stage 1-1  87s  lvl 1->5  rank 0->0.45  weapons 2,1,1,0,0,1,1  grafts spore1 cal1
+   kill: on-screen life median 1.02s p90 2.05s | killed in right quarter 53% | escaped 2% (109 enemies)
+   bosses: THE SQUIDFUCKED SAUCER 9.7s, maw 8.2s
+   danger: 0 would-be hits in 88s of play (0.00/min) | regular spawns 120
+   variety: 7 kinds {"drone":47,"corpse":10,"sentry":7,"flayer":11,"hatch":45,"ufo":1,"maw":1} | 37 waves, 18 distinct, top dronex4 x9, flayer x8, corpsex2 x3 | music none, ufo
+   drones 39% of 120 | elites 0
+
+== stage 1-2 [acid]  88s  lvl 5->7  rank 0.46->0.56  weapons 2,1,1,0,0,1,1  grafts spore1 over1
+   kill: on-screen life median 0.58s p90 1.73s | killed in right quarter 60% | escaped 6% (48 enemies)
+   bosses: THE DISSOLVING WOMB 5.7s, THE BROOD MOTHER 5.2s, THE DISSOLVED MAW 6.8s
+   danger: 0 would-be hits in 88s of play (0.00/min) | regular spawns 67
+   variety: 8 kinds {"crawler":18,"womb":5,"hatch":22,"eye":5,"cyst":1,"drone":17,"brood":1,"maw":1} | 32 waves, 16 distinct, top crawler x12, eye x3, womb x2 | music acid
+   drones 25% of 67 | elites 0 | first visit
+
+== stage 1-3 [fire]  96s  lvl 7->11  rank 0.56->0.74  weapons 2,0,1,0,1,1,2  grafts spore1 cal1 chain1
+   kill: on-screen life median 1.58s p90 3.63s | killed in right quarter 49% | escaped 7% (42 enemies)
+   bosses: THE BUTCHER'S APPRENTICE 6.2s, THE NAIL CHOIR 7.0s, THE BURNING BUTCHER 13.8s
+   danger: 0 would-be hits in 96s of play (0.00/min) | regular spawns 53
+   variety: 9 kinds {"flayer":11,"hook":15,"mutant":10,"crawler":2,"drone":15,"prentice":1,"choir":1,"nailbar":2,"butcher":1} | 33 waves, 14 distinct, top flayer x7, mutant x7, hook x5 | music fire
+   drones 28% of 53 | elites 0 | first visit
+
+== stage 1-4  102s  lvl 11->13  rank 0.74->0.94  weapons 3,1,1,0,0,2,2  grafts spore2 cal1 pierce1
+   kill: on-screen life median 1.2s p90 2.8s | killed in right quarter 50% | escaped 4% (109 enemies)
+   bosses: drive 46.8s
+   danger: 1 would-be hits in 100s of play (0.60/min) | regular spawns 136
+   variety: 8 kinds {"mutant":3,"corpse":22,"womb":2,"drone":56,"hatch":33,"flayer":8,"eye":3,"sentry":9} | 31 waves, 18 distinct, top corpse x7, sentryx2 x4, flayerx2 x3 | music none
+   drones 41% of 136 | elites 0
+
+== stage 2-1  79s  lvl 13->15  rank 1->1  weapons 4,0,1,0,1,3,3  grafts spore2 serr1 cal2 over1
+   kill: on-screen life median 0.6s p90 2.83s | killed in right quarter 80% | escaped 2% (121 enemies)
+   bosses: THE SQUIDFUCKED SAUCER 3.4s, maw 2.6s
+   danger: 0 would-be hits in 80s of play (0.00/min) | regular spawns 173
+   variety: 7 kinds {"sentry":12,"drone":102,"corpse":22,"hatch":31,"ufo":1,"flayer":6,"maw":1} | 45 waves, 18 distinct, top sentry x6, dronex7 x6, dronex6 x5 | kinds shared with last descent's stage: 100% | music none, ufo
+   drones 59% of 173 | elites 0
+
+== stage 2-2 [snot]  84s  lvl 15->16  rank 1->1  weapons 4,0,1,0,1,3,3  grafts spore2 rapid2 cal2 over1 regrow1
+   kill: on-screen life median 0.63s p90 2.63s | killed in right quarter 47% | escaped 21% (73 enemies)
+   bosses: THE BROOD MOTHER 3.0s, THE DISSOLVING WOMB 9.3s, THE MUCUS MAW 2.5s
+   danger: 2 would-be hits in 84s of play (1.43/min) | regular spawns 107
+   variety: 8 kinds {"hatch":61,"slime":16,"drone":24,"corpse":4,"brood":1,"womb":2,"cyst":1,"maw":1} | 28 waves, 14 distinct, top slime x8, hatchx5 x3, hatchx6 x3 | kinds shared with last descent's stage: 75% | music snot
+   drones 22% of 107 | elites 7 | first visit
+
+== stage 2-3 [ice]  85s  lvl 16->17  rank 1->1  weapons 4,2,1,0,0,3,3  grafts spore2 serr1 cal2 pierce2 regrow1
+   kill: on-screen life median 1.07s p90 4.4s | killed in right quarter 74% | escaped 4% (45 enemies)
+   bosses: THE NAIL CHOIR 5.0s, THE BUTCHER'S APPRENTICE 5.2s, THE BLOATED BITCH 7.3s
+   danger: 1 would-be hits in 84s of play (0.71/min) | regular spawns 60
+   variety: 11 kinds {"corpse":11,"flayer":7,"eye":3,"cross":9,"choir":1,"nailbar":6,"drone":25,"mutant":4,"prentice":1,"hook":1,"crux":1} | 26 waves, 17 distinct, top corpse x4, flayer x4, cross x4 | kinds shared with last descent's stage: 64% | music ice
+   drones 42% of 60 | elites 6 | first visit
+
+== stage 2-4  84s  lvl 17->18  rank 1->1  weapons 4,2,1,0,0,3,3  grafts spore2 serr1 cal3 pierce2 regrow1
+   kill: on-screen life median 0.67s p90 2.48s | killed in right quarter 62% | escaped 0% (109 enemies)
+   bosses: drive 32.0s
+   danger: 0 would-be hits in 83s of play (0.00/min) | regular spawns 158
+   variety: 7 kinds {"mutant":2,"drone":87,"corpse":18,"eye":2,"sentry":4,"hatch":39,"flayer":6} | 31 waves, 18 distinct, top dronex9 x5, corpse x4, corpsex2 x3 | kinds shared with last descent's stage: 100% | music none
+   drones 55% of 158 | elites 0
+
+== stage 3-1  0s  lvl 18->18  rank 1->1  weapons 4,2,1,0,0,3,3  grafts spore2 serr1 cal3 pierce2 regrow1
+   kill: on-screen life median nulls p90 nulls | killed in right quarter 0% | escaped 0% (0 enemies)
+   bosses: -
+   danger: 0 would-be hits in 2s of play (0.00/min) | regular spawns 0
+   variety: 0 kinds {} | 0 waves, 0 distinct, top  | kinds shared with last descent's stage: 0% | music none
+   drones 0% of 0 | elites 0
+
+script signature written to /tmp/claude-1000/-home-matt-Projects-grodius-ls2-mv/87314c23-b067-46e5-a6c4-ad42f07d8cc9/scratchpad/pt7/sig.json (layout long4); compare seeds with --compare
+
+biome stages: drones 28% of 287 regular spawns
+
+would-be hits: 4 in 11.7 min (0.3/min) | hype voices 17 | end {"st":"play","k":"3-1","loop":2,"fr":42213,"lvl":18,"rank":1,"wep":"4,2,1,0,0,3,3","gm":"spore2 serr1 cal3 pierce2 regrow1","pick":true,"pt":90,"fork":false,"biome":null,"remix":0,"mix":"none","kills":862,"bio":4634} | errors none
+playtest: ran on long4
