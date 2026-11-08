@@ -363,6 +363,22 @@ Matt: "it should be more evil and not cartoonish", then "need gore, and darkness
 
 **Merge order from here:** ls2-read (rebased), then fix merge 2 (audio-director re-reviews `audio.ts` after its rebase onto ls2-read), then D31 after the Fold reading.
 
+### D41 Title eye is ROT; Matt's head is an easter egg; eye kit baked — 2026-11-08 (Matt)
+
+**Decision:** concept #7 ROT replaces the title's bloodshot eye ("we have to use #7 ROT for the title screen"). Matt's self-portrait head goes on the title, ending as a tiny easter egg that peeks in at the edges ("much smaller, like an easter egg floating around the corners"), with the gross eye fully covering his real left eye. He approved the capture ("looks cool merge it").
+
+**Why:** D39. The old lime iris and pink veins read as cartoon. ROT plays the eye straight, and a blind cataract that still follows you is the evil version.
+
+**Consequences:**
+- ROT is an explicit exception to the tone note's "no single big eye". It is for the title only: an in-game eye is a part of a body, or small fodder (art-director).
+- The head went big with heavy blood first, then Matt shrank it. The pool, gush and "tons of blood" rulings are withdrawn, so no drip cap above 24 was needed.
+- The eye moved to x 396, r 88, so the wordmark's S now reads. The title's old `hangSpine` calls are gone.
+- Five kit sprites are baked and wired into nothing, because Matt picks the in-game uses. Candidates are ranked in `production/qa/evidence/ls2-eye.md`.
+- Render only: harness and parity do not move.
+- The head's source photo and its generator stay out of the repo; only the baked PNG ships.
+
+**Open:** Matt's in-game kit picks.
+
 ### D42 LS2-read merged — 2026-11-08 (parent; Matt authorized parent merges)
 
 **What merged** (ls2-read, `93e595b..939d5f3`):
