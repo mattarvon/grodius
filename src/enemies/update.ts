@@ -579,8 +579,8 @@ export function killEnemy(e, dir = 1) {
   });
   const sc = Math.round(e.score * mult() * (1 + $.G.loop * .5));
   $.G.score += sc;
-  // per-kill XP and kill biomass scale by the layout's economy entry (src/economy.ts; short x1, long4 killXP .85 and
-  // killBio .65: LV 13±1 and 1.3-1.5k biomass at the end of Descent 1 over the longer stages, pod-probe, LS1 item G)
+  // per-kill XP and kill biomass scale by the layout's economy entry (src/economy.ts killXP/killBio: short x1, long4 per
+  // D31, fitted with pod-probe)
   if (!e.par) gainXP(killXP(econId(), e.mini ? 30 : Math.max(1, e.score / 100)));
   const vo = pk('volatile');
   // VOLATILE MEAT: one burst per kill, and meat killed BY a burst doesn't burst again (no screen-wide chains)
