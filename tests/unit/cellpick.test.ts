@@ -166,9 +166,9 @@ describe('long4 Orbit and Drive rows', () => {
     expect(LONG4_ORBIT.warnX! - exit).toBeGreaterThanOrEqual(300);
   });
 
-  it('has plans on both long4 rows, and puts the Drive startBoss 4800 px into the approach (D31 stretch), after its WARNING', () => {
+  it('has plans on both long4 rows, and puts the Drive startBoss 5100 px into the approach (D31 stretch), after its WARNING', () => {
     expect(LONG4_ORBIT.plan && DRIVE.plan).toBeTruthy();
-    expect(DRIVE.bossX - DRIVE.x0).toBe(4800);
+    expect(DRIVE.bossX - DRIVE.x0).toBe(5100);
     expect(DRIVE.warnX!).toBeLessThan(DRIVE.bossX);
   });
 

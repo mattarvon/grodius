@@ -103,7 +103,7 @@ describe('clearStage on the long4 economy (LS1 item G, D26)', () => {
   it('measures each long4 stage in scroll seconds from its row span at 1 px/frame', () => {
     $.G = { stage: 0 };
     // D31 stretch: the long4 row spans (src/layout.ts STRETCH)
-    expect([0, 1, 2, 3].map((i) => stageTs(i))).toEqual([6780 / 60, 6020 / 60, 6150 / 60, 5500 / 60]);
+    expect([0, 1, 2, 3].map((i) => stageTs(i))).toEqual([6780 / 60, 6170 / 60, 6300 / 60, 5800 / 60]);
   });
 
   it('grades a clean one-hit Drive S on long4, where the short layout grades it A', () => {

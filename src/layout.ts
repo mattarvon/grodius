@@ -178,12 +178,15 @@ const STRETCH = {
    *  ships out of ?mids=wip the Orbit runs short (~116-120 s, under the 120 s floor). Extra length lands in the climax
    *  filler (it ends ORBIT_RUNUP before the Maw's banner). Measured by pod-probe tally_s (~126-130 s with the tug) */
   orbit: 2400,
-  /** each biome stage: gate to bossX 3550 -> 5950 px (~99.5 s of scroll; +2100 put the low end at ~113 s, under the
-   *  120 s band). pod-probe tally_s, stage-clock */
-  biome: 2400,
-  /** the Drive approach: 2700 -> 4800 px (80 s); its time is mostly the fight, which lengthens with the D31 part 1 cut.
-   *  If pod-probe measures it under 120 s, add +300 here */
-  drive: 2100,
+  /** each biome stage: gate to bossX 3550 -> 6100 px (~102 s of scroll). The plan's +2400 (+2100 put the low end at
+   *  ~113 s) measured 118-141 s after the fit-1 cut (seeds 1/3/5/7/11), 3 stage-runs under 120; fitted +150 (~2.5 s).
+   *  pod-probe tally_s, stage-clock */
+  biome: 2550,
+  /** the Drive approach: 2700 -> 5100 px (~85 s). Its time is mostly the fight: after the fit-1 cut the plan's +2100
+   *  measured 109-146 s (fight 28-65 s), so the plan's fallback +300 went in, all of it in the last filler window
+   *  (it ends at DRIVE_WARN - 80). The fight's spread (~37 s) is wider than the band, so length alone cannot hold
+   *  every seed in 120-150. pod-probe tally_s */
+  drive: 2400,
 };
 const S0 = STRETCH.orbit, S1 = S0 + STRETCH.biome, S2 = S1 + STRETCH.biome, S3 = S2 + STRETCH.drive;
 /** #19 (game-designer): the Orbit climax's last spawn sits >= 300 px (~5 s at ~59.8 px/s) before SOMETHING IS COMING
@@ -257,7 +260,7 @@ const LONG4: LayoutEntry = {
     { kind: 'biome', slot: 0, fork: true, x0: 4380 + S0, x1: 8000 + S1, end: 7900 + S1, bossX: 7800 + S1, gateLate: 4750 + S0 },
     // gate scroll ~the slot-0 row's x1 (the biome boss lands 150 f after its WARNING, then the scroll coasts ~50 px)
     { kind: 'biome', slot: 1, fork: true, x0: 8000 + S1, x1: 11750 + S2, end: 11650 + S2, bossX: 11550 + S2, gateLate: 8500 + S1 },
-    // the Drive approach: 4800 px (80 s) from where slot 1's boss leaves the scroll to startBoss; its WARNING: GRAVITY
+    // the Drive approach: 5100 px (~85 s) from where slot 1's boss leaves the scroll to startBoss; its WARNING: GRAVITY
     // WELL CRITICAL 240 px before, and 700 px of chamber past it. CP1 in the pressure breath (the midpoint rule put it
     // in filler; rebuildAt resumes 120 px before it, onto an empty screen)
     { kind: 'drive', x0: 11750 + S2, x1: 15150 + S3, bossX: 14450 + S3, warnX: 14210 + S3, plan: LONG4_DRIVE_PLAN, cp1: 2600 },
@@ -267,11 +270,11 @@ const LONG4: LayoutEntry = {
   tEnd: [12230 + S2, 12530 + S2],
   beats: {
     // the span starts 330 px of scroll after the gate (its right-edge x + 320 - W: the terrain has finished blending
-    // in) and ends 60 px before the boss WARNING. Late-gate span ~5550 px, so 300 px (D20) is p ~.054
+    // in) and ends 60 px before the boss WARNING. Late-gate span ~5700 px, so 300 px (D20) is p ~.053
     pad: [160, 60], gateLead: -160,
     // template v3 (stretch plan §2.5; D31 amended). The LS1 fractions scaled with the span would have grown every
     // fixed-length beat 1.76x, so they are re-cut. Breath 1 holds midboss A then the release (pod formation, log line
-    // 2); breath 2 midboss B; each `len .05` (~278 px late gate: the WARNING 210 px before the end has 68 px of
+    // 2); breath 2 midboss B; each `len .05` (~285 px late gate: the WARNING 210 px before the end has 75 px of
     // margin). Breath 3 is the rest before the climax (~3.3 s): no midboss, no release, silent
     breaths: [{ end: .36, len: .05, mid: true, release: true }, { end: .66, len: .05, mid: true }, { end: .855, len: .035 }],
     tempo: [
@@ -288,13 +291,13 @@ const LONG4: LayoutEntry = {
     sets: [.22, .5, .75], remixSets: [.19, .48, .73], warnLead: 210,
     runup: .94, arenaBlend: 200,
     // a DRIFT slot-A midboss (the Calving Shelf in wave 2) is gone 300 px before slot B's WARNING. The window is now
-    // ~1365-1380 px (~23 s, slot A WARNING to exit, late/early gate), longer than the 1080 f slot clock, so the clock is
+    // ~1400-1415 px (~23.5 s, slot A WARNING to exit, late/early gate), longer than the 1080 f slot clock, so the clock is
     // the binding exit
     driftLead: 300,
     // movement B fills build B: its blend starts at breath 1's end, where CP1 is written (spec §3.3: movement A runs
     // "intro to CP1"), so midboss A's held screen shows it coming; it ends 200 px into breath 2, before the left edge
     // of midboss B's held screen, so that fight is on movement A. Unchanged from ls2-mv: it grows with the span to
-    // ~1190 px of full gimmick (~20 s, D31 amended "about 18 s") at the late gate. movement-shots, route-probe
+    // ~1220 px of full gimmick (~20 s, D31 amended "about 18 s") at the late gate. movement-shots, route-probe
     moveB: { between: [0, 1], lead: [0, 200], blend: 200 },
   },
   // the same shapes as short, re-anchored on the long rows: the hull closes in at the Orbit's end, the corridor rises

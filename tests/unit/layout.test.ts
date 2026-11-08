@@ -219,15 +219,15 @@ describe('long4 entry', () => {
     expect(biomeRows.map((r) => [r.slot, r.fork])).toEqual([[0, true], [1, true]]);
   });
 
-  it('has the D31-stretched rows: Orbit 6780, a 4800 px Drive approach, LEVEL 24450', () => {
+  it('has the D31-stretched rows: Orbit 6780, a 5100 px Drive approach, LEVEL 25050', () => {
     const [o, , , d] = L.stages;
-    // D31 part 2: LS1's 4380 Orbit (D22) + 2400 (Matt still picks +2400 or +2700), the Drive approach 2700 + 2100
+    // D31 part 2: LS1's 4380 Orbit (D22) + 2400 (D37), the Drive approach 2700 + 2400 (2100 + the plan's +300 fallback)
     expect(o.x1 - o.x0).toBe(6780);
     expect(o.bossX).toBe(6600);
     expect(o.warnX).toBe(6480);
-    expect(d.bossX - d.x0).toBe(4800);
+    expect(d.bossX - d.x0).toBe(5100);
     expect(d.warnX).toBe(d.bossX - 240);
-    expect(L.level).toBe(24450);
+    expect(L.level).toBe(25050);
   });
 
   it('shifts every anchor after the Orbit by the same amount as the Orbit row (one stretch constant)', () => {
@@ -282,11 +282,11 @@ describe('long4 entry', () => {
     expect(warn - lastCell).toBeGreaterThanOrEqual(300);
   });
 
-  it('times each biome stage at ~5950 px from its gate scroll (~60 s of scroll) and sets gateLate past that gate', () => {
+  it('times each biome stage at ~6100 px from its gate scroll (~102 s of scroll) and sets gateLate past that gate', () => {
     // gate scroll: the fork holds the scroll ~50 px past the Orbit Maw's bossX and ~200 px past a biome boss's
     const gateScroll = [L.stages[0].bossX + 50, biomeRows[0].bossX + 200];
     biomeRows.forEach((r, s) => {
-      expect(r.bossX - gateScroll[s]).toBe(3550 + 2400); // LS1's ~60 s + the D31 stretch (~99.5 s of scroll)
+      expect(r.bossX - gateScroll[s]).toBe(3550 + 2550); // LS1's ~60 s + the D31 stretch, fitted (~102 s of scroll)
       expect(r.gateLate).toBeGreaterThanOrEqual(gateScroll[s] + 480 + 10); // choose(): from = scroll + W + 10
       expect(r.breathAfterMid).toBeUndefined(); // short's legacy hack stays short's
     });
