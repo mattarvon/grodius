@@ -156,6 +156,8 @@ localization), D16-D18, and the signing keystore half of D6.
 **Chosen:** option (a). S2-K1 stays an open S2 bug carried into LS2. It is judged by Matt's Fold reading against the short-layout Fold baseline, not by the absolute 16.7 ms, which stays with D15/M6. The named fix (bake gibs to sprites, then cut `drawBG`/`flushLo`) is LS2 work. Not chosen: (b) make the fix an LS1 exit requirement; (c) revert the default to short until the Fold reading.
 **Reason:** recommended by the leads and directors. The merge improved WARNING worst frames (81.9 to 61.0 and 94.0 to 71.0 ms), and 4× on this laptop is not a measured stand-in for the Fold. **Owner:** performance-analyst + engine-programmer in LS2. Matt takes the Fold reading (`ls1-k.md`, Fold steps). S3-K2, the Drive's 504 ms `buildMass` boot slice, goes with it.
 
+**D30 note, 2026-11-07 (Matt):** no "before" Fold reading. The perf meter (`?perf`) runs only in Chrome on Pages, and Pages keeps one build, so the before reading would have held up wave 1. Since D30 compares long against short on the same build, S2-K1 is decided by one Fold session on the wave 1 build. Steps and the pass rule: `production/qa/fold-reading.md` (performance-analyst). The ~10% noise margin is still a proposal. Take that session before the D31 tune lane stretches long4.
+
 ### D31 Long4 power-ups cut, stages stretched — 2026-11-07 (Matt; from his Descent 1 playtest)
 
 **Decision point:** Matt played Descent 1 on long4: "plays nice", but it is "a little over saturated with power ups, I get over powered quick, and the levels are short." Measured on main (`production/qa/evidence/ls1-g.md`): the median run ends Descent 1 at LV 14, and a STRONG kit kills a midboss in 1-3.5 s. Stages run 78-104 s, so Descent 1 takes about 6 minutes.
