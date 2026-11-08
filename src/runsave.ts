@@ -102,7 +102,7 @@ const G_FIELDS = {
   pk: isNumMap, xp: isNum, xpTot: isNum, lvl: isNat,
   gm: isNumMap, kk: isNumMap, gmk: isNat,
   cur: (v) => isInt(v) && v >= -1, // classic POWER meter cursor (player.ts:105); -1 = nothing lit
-  lives: upTo(LIVES_MAX), score: isNum, bio: isNum, kills: isNat, maxCombo: isNat,
+  lives: upTo(LIVES_MAX), score: isNum, bio: isNum, bioFk: isNum, kills: isNat, maxCombo: isNat,
   // seal is written as earned by `cleared` (checkpoint.ts), so a queued seal closure is not lost; cleared is bounded
   // by the stage count in decodeRun
   seal: (v) => isNat(v) && v <= SEAL_MAX, cleared: isNat,

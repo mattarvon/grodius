@@ -201,6 +201,21 @@ export const killBio = (id: EntryId, v: number): number => v * E(id).killBio;
 export const firstKillPay = (id: EntryId, rec: Readonly<Record<string, number>> | null | undefined, k: string): number =>
   E(id).firstKill > 0 && !(rec && Object.hasOwn(rec, k) && rec[k]) ? E(id).firstKill : 0;
 
+/** pay `n` biomass: always to the run's total G.bio, and to the wallet meta.bio only past what this run has already
+ *  banked. meta.bio banks at once and survives a rewind, G.bio rewinds with the checkpoint, so without this a SURFACE +
+ *  RE-ENTER (or option b's restart) replays the same kills, SURPLUS pods, boost and stage-clear pay and banks them again
+ *  (ls2-read report, economy-designer; ls1-audit). meta.bioS/bioV hold the run seed and the mark; another seed means a
+ *  new run, so nothing resets it. First-kill pay is once per profile, so it stays out of the mark (G.bioFk, enemies/
+ *  update.ts firstKill): a replay cannot re-earn it. With no rewind the wallet gets exactly n, as it always did */
+export function bankBio(n: number, G: any, m: any): void {
+  const was = G.bio - (G.bioFk || 0), now = was + n, hi = m.bioS === G.seed ? m.bioV || 0 : 0;
+  G.bio += n;
+  if (now <= hi) return;
+  m.bio += was >= hi ? n : now - hi;
+  m.bioS = G.seed;
+  m.bioV = now;
+}
+
 /** depth for regular enemies and midbosses at stage ordinal `ord` of descent `loop`: equals `loop` at each descent's
  *  first stage (so Open Orbit in Descent 1 stays at 1x) and reaches loop + intra at its last. The Drive's own HP keeps
  *  the integer loop (depth.ts driveMul) */

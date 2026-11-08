@@ -101,6 +101,12 @@ describe('run save round trip', () => {
     expect((localStorage as any).map.get(RUN_KEY)).toBe(before);
   });
 
+  it('carries first-kill pay (G.bioFk) through the round trip, so bankBio rewinds it with G.bio', () => {
+    const { G, P } = midRun([2200, 5300, null]);
+    expect(decodeRun(JSON.stringify(serializeRun({ ...G, bio: 130, bioFk: 100 }, P)))!.g.bioFk).toBe(100);
+    expect(decodeRun(JSON.stringify(serializeRun({ ...G, bio: 130, bioFk: 'x' }, P)))).toBeNull();
+  });
+
   it('restores copies, so the saved blob and the live run never share objects', () => {
     const { G, P } = midRun([2200, 5300, null]);
     const d = decodeRun(serializeRun(G, P))!;

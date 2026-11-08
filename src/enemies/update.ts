@@ -12,7 +12,7 @@ import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
-import { econId, firstKillPay, killBio, killXP } from '../economy';
+import { bankBio, econId, firstKillPay, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
@@ -773,8 +773,7 @@ export function miniReward(e) {
     ty: pool[k],
     choice: gid
   });
-  $.G.bio += 30 * deepPay();
-  $.meta.bio += 30 * deepPay();
+  bankBio(30 * deepPay(), $.G, $.meta);
 }
 /** spec §6.4: the first kill of each midboss kind ever pays the entry's firstKill biomass once, recorded in meta.mbK
  *  (saved with the meta at the next save()). short pays 0 and writes nothing, so today's game is unchanged. No R() */
@@ -784,6 +783,7 @@ function firstKill(e) {
   if (!pay) return;
   (m.mbK ||= {})[e.k] = 1;
   $.G.bio += pay;
+  $.G.bioFk = ($.G.bioFk || 0) + pay; // outside bankBio's mark: a replay cannot re-earn it
   m.bio += pay;
   pop(e.x, e.y - 48, `FIRST KILL +${pay}`, '#9effa0', 9, 70); // y-48: clear of the graft pop and the death burst
 }
