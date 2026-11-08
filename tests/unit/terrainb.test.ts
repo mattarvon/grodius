@@ -295,7 +295,11 @@ describe('the catalogue against the game', () => {
     const P = fly(0, 'ice', L.slotRow(0).gateLate!, 1), M = P.moveB!, mid = (M.a + M.z) / 2;
     const S = biomeScript(0, 'ice', L.slotRow(0).gateLate!, 0, undefined, ['choir', 'cyst'], ['thaw', 'thaw', 'thaw']).find((e: { k: string }) => e.k === 'set:thaw');
     const fire = (scroll: number) => { $.G.scroll = scroll; $.G.pend = []; spawned.length = 0; S.f(); for (const q of $.G.pend) q.f(); return spawned.filter((c) => c[0] === 'corpse').map((c) => c[1] as number); };
-    const at = mid, ys = fire(at - 480 - 20); // its entry column (scroll + W + 20) mid-band, on a stair
+    // its entry column (scroll + W + 20) on a stair inside the band's full-gimmick stretch: the first step low enough
+    // that the bottom body (254 * .8) would start in it (mid-band moved with the D31 stretch, so search for one)
+    let at = mid;
+    for (let x = M.a + M.blend; x < M.z - M.blend; x += TS) if (world.FLOOR[Math.floor(x / TS)] - 16 < 254 * .8) { at = x; break; }
+    const ys = fire(at - 480 - 20);
     const c = world.CEIL[Math.floor(at / TS)], f = world.FLOOR[Math.floor(at / TS)];
     expect(ys).toHaveLength(3);
     expect(254 * .8).toBeGreaterThan(f - 16); // the case that matters: the bottom body would start inside this step

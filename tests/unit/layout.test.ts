@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
+import { heldRange, layoutRev,
   BANDS, LAYOUTS, bandAt, bossAt, forkAfter, hellCore, hellCorr, innerBand, kindOf, lastStage, layout, nSlots, row,
   beatPlan, driftRow, driftsOf, setLayout, slotSpans, slotOf, slotRow, stageOfSlot, ufoAt, ufoGapEnd, type LayoutEntry,
 } from '../../src/layout';
@@ -207,35 +207,83 @@ describe('long4 entry', () => {
     expect(biomeRows.map((r) => [r.slot, r.fork])).toEqual([[0, true], [1, true]]);
   });
 
-  it('has long rows: Orbit 4380, a 2700 px Drive approach, LEVEL near the spec estimate', () => {
+  it('has the D31-stretched rows: Orbit 6780, a 4800 px Drive approach, LEVEL 24450', () => {
     const [o, , , d] = L.stages;
-    // item E: 4380, not the spec's 3600, for the LS1 Orbit wall-time band (production/qa/evidence/ls1-e.md)
-    expect(o.x1 - o.x0).toBe(4380);
-    expect(d.bossX - d.x0).toBe(2700);
-    expect(d.warnX).toBeLessThan(d.bossX);
-    // spec §2.2: ~13,500-14,000 for four stages; +370 for the 150 f biome-boss WARNING coasts and today's 700 px chamber,
-    // +780 for item E's longer Orbit
-    expect(L.level).toBeGreaterThanOrEqual(13500);
-    expect(L.level).toBeLessThanOrEqual(15200);
+    // D31 part 2: LS1's 4380 Orbit (D22) + 2400 (Matt still picks +2400 or +2700), the Drive approach 2700 + 2100
+    expect(o.x1 - o.x0).toBe(6780);
+    expect(o.bossX).toBe(6600);
+    expect(o.warnX).toBe(6480);
+    expect(d.bossX - d.x0).toBe(4800);
+    expect(d.warnX).toBe(d.bossX - 240);
+    expect(L.level).toBe(24450);
+    expect(L.level).toBeLessThanOrEqual(24500);
   });
 
-  it('times each biome stage at ~3550 px from its gate scroll (~60 s of scroll) and sets gateLate past that gate', () => {
+  it('shifts every anchor after the Orbit by the same amount as the Orbit row (one stretch constant)', () => {
+    const [o, s0, s1, d] = L.stages, sh = o.x1 - 4380; // the Orbit's stretch over its LS1 row
+    expect(s0.x0).toBe(o.x1);
+    expect(s0.gateLate! - sh).toBe(4750);
+    expect(L.bands.hull.map((x) => x - sh)).toEqual([4280, 4780]);
+    expect(L.terrain.fT.slice(0, 2).map((x) => x - sh)).toEqual([4330, 4780]);
+    expect(L.terrain.cT.slice(0, 2).map((x) => x - sh)).toEqual([5580, 6030]);
+    expect(L.terrain.blocks[0] - sh).toBe(4880);
+    expect(L.hudMarks[0] - sh).toBe(4480);
+    // and the rest by the cumulative stretch before them: the rows stay contiguous to LEVEL
+    expect([s1.x0, d.x0, d.x1]).toEqual([s0.x1, s1.x1, L.level]);
+  });
+
+  it('carries geometry rev 2 and the long rows\' CP1 overrides, which short leaves unset', () => {
+    const S = LAYOUTS.short!;
+    expect(layoutRev(S)).toBe(1);
+    expect(layoutRev(L)).toBe(2);
+    expect(L.stages.map((r) => r.cp1)).toEqual([3850, undefined, undefined, 2600]);
+    expect(S.stages.every((r) => r.cp1 == null && r.held == null)).toBe(true);
+    // CP1 lands on an empty screen: past the Orbit's mid breath (3300-3700), inside the Drive's pressure breath
+    const [o, , , d] = L.stages, inPlan = (r: typeof o, x: number) => r.plan!.slots.some((s) => x >= s.x && x < s.x + 280) || r.plan!.fill.some((f) => x >= f.a && x < f.b);
+    expect(o.cp1!).toBeGreaterThan(3700);
+    expect(o.cp1!).toBeLessThan(o.warnX! - o.x0);
+    expect(d.cp1!).toBeGreaterThanOrEqual(2400);
+    expect(d.cp1!).toBeLessThan(2750);
+    expect(inPlan(d, d.cp1!)).toBe(false);
+  });
+
+  it('keeps a held Orbit midboss 300 px past the Saucer\'s exit and 300 px before the Maw banner, and the mid-Orbit breath can hold it', () => {
+    const o = L.stages[0], H = heldRange(o);
+    expect(H.lo).toBe(2040 + 300);
+    expect(H.hi).toBe(o.warnX! - o.x0 - 300);
+    // the breath LS2-orbit's slot B is reserved for (its WARNING at ~3490): empty of cells and filler
+    expect(3490).toBeGreaterThanOrEqual(H.lo);
+    expect(3490).toBeLessThanOrEqual(H.hi);
+    if (o.held) { expect(o.held.at).toBeGreaterThanOrEqual(H.lo); expect(o.held.at).toBeLessThanOrEqual(H.hi); }
+    // the check bites: a WARNING 200 px after the Saucer's exit is out of range
+    expect(2240 >= H.lo).toBe(false);
+  });
+
+  it('gives the Orbit a quiet run-up: the climax filler ends >= 300 px before SOMETHING IS COMING (#19)', () => {
+    const o = L.stages[0], warn = o.warnX! - o.x0;
+    const lastFill = Math.max(...o.plan!.fill.map((f) => f.b - 1)), lastCell = Math.max(...o.plan!.slots.map((s) => s.x + 280));
+    expect(warn - lastFill).toBeGreaterThanOrEqual(300);
+    expect(warn - lastCell).toBeGreaterThanOrEqual(300);
+  });
+
+  it('times each biome stage at ~5950 px from its gate scroll (~60 s of scroll) and sets gateLate past that gate', () => {
     // gate scroll: the fork holds the scroll ~50 px past the Orbit Maw's bossX and ~200 px past a biome boss's
     const gateScroll = [L.stages[0].bossX + 50, biomeRows[0].bossX + 200];
     biomeRows.forEach((r, s) => {
-      expect(r.bossX - gateScroll[s]).toBe(3550);
+      expect(r.bossX - gateScroll[s]).toBe(3550 + 2400); // LS1's ~60 s + the D31 stretch (~99.5 s of scroll)
       expect(r.gateLate).toBeGreaterThanOrEqual(gateScroll[s] + 480 + 10); // choose(): from = scroll + W + 10
       expect(r.breathAfterMid).toBeUndefined(); // short's legacy hack stays short's
     });
   });
 
-  it('has two breaths, each holding a midboss (slot A, slot B: item F), with its WARNING inside it', () => {
-    expect(L.beats.breaths.map((b) => !!b.mid)).toEqual([true, true]);
+  it('has two midboss breaths (slot A, slot B) with the WARNING inside, then a rest breath with no midboss or release', () => {
+    expect(L.beats.breaths.map((b) => !!b.mid)).toEqual([true, true, false]);
+    expect(L.beats.breaths.map((b) => !!b.release)).toEqual([true, false, false]);
     for (const r of biomeRows) for (const from of [r.x0, r.gateLate!]) for (const remix of [false, true]) {
       const b = beatPlan(r, from, remix, L);
       expect(b.warns).toHaveLength(2);
       expect(b.warn).toBe(b.warns[0]);
-      b.breaths.forEach((br, s) => {
+      b.breaths.filter((br) => br.mid).forEach((br, s) => {
         expect(b.warns[s]).toBeGreaterThanOrEqual(br.a);
         expect(b.warns[s]).toBeLessThan(br.z);
       });
@@ -275,18 +323,21 @@ describe('long4 entry', () => {
     }
   });
 
-  it('starts the arena run-up after the last breath and before the boss, at p .9', () => {
+  it('starts the arena run-up after the last breath and before the boss, at p .94', () => {
     for (const r of biomeRows) {
       const b = beatPlan(r, r.gateLate!, false, L);
       expect(b.runup!).toBeGreaterThan(Math.max(...b.breaths.map((br) => br.z)));
       expect(b.runup!).toBeLessThan(r.bossX);
-      expect(b.runup!).toBeCloseTo(b.P(.9), 6);
+      expect(b.runup!).toBeCloseTo(b.P(.94), 6);
     }
   });
 
   it('flags its hell bands as stage-keyed, not copies of the AMT bands (creative-director condition)', () => {
     expect(L.hell.corr).not.toEqual(L.bands.corr);
     expect(L.hell.corr[0]).toBe(biomeRows[1].x0); // rises with the last biome slot
-    expect(L.hudMarks).toHaveLength(biomeRows.length);
+    // PROVISIONAL (art-director): one tick inside each biome slot's start, and the Drive's
+    expect(L.hudMarks).toHaveLength(biomeRows.length + 1);
+    expect(L.hudMarks).toEqual([biomeRows[0].x0 + 100, biomeRows[1].x0 + 50, L.stages[3].x0 + 50]);
+    for (const m of L.hudMarks) expect(m).toBeLessThan(L.stages[3].bossX); // drawn at m / bossAt() along the bar
   });
 });

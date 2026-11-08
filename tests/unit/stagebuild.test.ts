@@ -262,9 +262,11 @@ describe('every layout row: the first entry clears the stage start', () => {
     useLayout('short');
     expect(entryScroll(3)).toBeCloseTo(8368.9, 0);
     expect(entryScroll(1, GATES.short[0])).toBeCloseTo(2168.007, 3);
-    // long4: the long4 run's Drive start (11897.916)
+    // long4: the LS1 long4 run's Drive start (11897.916), moved by the D31 stretch before the Drive (+2400 Orbit,
+    // +2400 per biome). PROVISIONAL until the lane lead re-measures it on the stretched build
     useLayout('long4');
-    expect(entryScroll(3)).toBeGreaterThanOrEqual(11897.916);
-    expect(entryScroll(3) - 11897.916).toBeLessThan(2);
+    const D31_SHIFT = 2400 * 3;
+    expect(entryScroll(3)).toBeGreaterThanOrEqual(11897.916 + D31_SHIFT);
+    expect(entryScroll(3) - 11897.916 - D31_SHIFT).toBeLessThan(2);
   });
 });

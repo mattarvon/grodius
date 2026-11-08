@@ -82,8 +82,8 @@ describe('pickCells rules', () => {
 describe('the real cell pools', () => {
   const cases: [string, any[], string[], StageRow][] = [['orbit', ORBIT_CELLS, ORBIT_OPENER, LONG4_ORBIT], ['drive', DRIVE_CELLS, [], DRIVE]];
 
-  it('has 13 Orbit cells (spec target 10-12, plus one for the long Orbit\'s second build slot) and 12+ Drive cells', () => {
-    expect(ORBIT_CELLS.length).toBe(13);
+  it('has 17 Orbit cells (13 for LS1, +2 build and +2 peak for the D31 stretch) and 12+ Drive cells', () => {
+    expect(ORBIT_CELLS.length).toBe(17);
     expect(DRIVE_CELLS.length).toBeGreaterThanOrEqual(12);
   });
 
@@ -166,9 +166,9 @@ describe('long4 Orbit and Drive rows', () => {
     expect(LONG4_ORBIT.warnX! - exit).toBeGreaterThanOrEqual(300);
   });
 
-  it('has plans on both long4 rows, and puts the Drive startBoss 2700 px into the approach, after its WARNING', () => {
+  it('has plans on both long4 rows, and puts the Drive startBoss 4800 px into the approach (D31 stretch), after its WARNING', () => {
     expect(LONG4_ORBIT.plan && DRIVE.plan).toBeTruthy();
-    expect(DRIVE.bossX - DRIVE.x0).toBe(2700);
+    expect(DRIVE.bossX - DRIVE.x0).toBe(4800);
     expect(DRIVE.warnX!).toBeLessThan(DRIVE.bossX);
   });
 

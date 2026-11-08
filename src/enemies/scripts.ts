@@ -229,8 +229,8 @@ const DRIVE_F = [
 // always holds (tests/unit/cellpick.test.ts runs the real pools).
 const C = (id, tag, min, f) => Object.assign(f, { id, tags: [tag], min });
 
-/** Open Orbit: 3 teaching cells (the Descent 1 opener, back as ordinary intro cells from Descent 3), 3 intro, 4 build,
- *  3 peak (13: one over the spec's 10-12, for the second build slot of the 4380 px Orbit). Open space: no terrain kinds */
+/** Open Orbit: 3 teaching cells (the Descent 1 opener, back as ordinary intro cells from Descent 3), 3 intro, 6 build,
+ *  5 peak (17: the D31 stretch's 3 build and 2 peak slots, each pool twice its slots). Open space: no terrain kinds */
 export const ORBIT_CELLS = [
   // the teaching opener, ~15 s: ORBIT_A's classic, one idea per wave, spread over three cells
   C('o.drones', 'intro', 2, (at) => { at(0, () => formation('sine', 80)); at(140, () => formation('sine', 175, 4)); at(250, () => crew(60, 200)); }),
@@ -263,12 +263,33 @@ export const ORBIT_CELLS = [
     at(80, () => sentry(PH * .2, W * .82));
     at(220, () => { formation('dive', 40, 3); formation('dive', PH - 40, 3); });
   }),
+  // D31 stretch (SUMMARY #18): +2 build, +2 peak, all Descent 1, appended so every earlier pick draws as before. The
+  // long Orbit now has 3 build and 2 peak slots, and each pool holds twice its slots
+  // the derelict's wake: a diagonal of drifting dead, a rear wave threading it, a flayer, divers from above
+  C('o.wake', 'build', 0, (at) => {
+    at(0, () => corpse(PH * .3, { drift: .7 })); at(30, () => corpse(PH * .5, { drift: .7 })); at(60, () => corpse(PH * .7, { drift: .7 }));
+    at(130, () => behindWave(PH * .4, 3)); at(210, () => flayer(PH * .7)); at(270, () => formation('dive', 50, 3));
+  }),
+  // crossfire: a high zig and a low sine at once, a sentry parks between the lanes, a swarm from behind
+  C('o.cross', 'build', 0, (at) => { at(0, () => formation('zig', PH * .25, 3)); at(40, () => formation('sine', PH * .75, 3)); at(140, () => sentry(PH * .5, W * .72)); at(220, () => hatch(5, true)); at(260, () => corpse(PH * .2)); }),
+  // the clamp: a rear wave and a head-on wall together, then a flayer pair, a swarm and a sentry pair to close it
+  C('o.clamp', 'peak', 0, (at) => {
+    at(0, () => behindWave(PH * .3, 3)); at(20, () => formation('wall', PH * .65, 3));
+    at(120, () => { flayer(PH * .2); flayer(PH * .8); }); at(200, () => hatch(6, false));
+    at(260, () => { sentry(PH * .3, W * .8); sentry(PH * .7, W * .66); });
+  }),
+  // the graveyard: a field of crew with a sentry hiding in it, swarms from both ends, divers top and bottom
+  C('o.graves', 'peak', 0, (at) => {
+    at(0, () => crew(45, 135, 225)); at(40, () => { sentry(PH * .4, W * .8); corpse(PH * .75); });
+    at(110, () => hatch(6, true)); at(170, () => hatch(5, false));
+    at(250, () => { formation('dive', 40, 3); formation('dive', PH - 40, 3); });
+  }),
 ];
 /** the Descent 1 Open Orbit opener: identical on every seed (spec §3.4) */
 export const ORBIT_OPENER = ['o.drones', 'o.sentry', 'o.swarm'];
 
-/** the Gravity Drive approach: 3 floor cells (the mutant ones: only the first slot has a floor), 2 intro, 4 build,
- *  4 peak. Enough for the 2700 px approach with no cell twice in a descent and none from last descent */
+/** the Gravity Drive approach: 3 floor cells (the mutant ones: only the first slot has a floor), 2 intro, 6 build,
+ *  6 peak (D31 stretch: 3 build and 3 peak slots). No cell twice in a descent and none from last descent */
 export const DRIVE_CELLS = [
   // floor: DRIVE_E's classic, the hulk and crew drift
   C('d.mutant', 'floor', 0, (at) => { at(0, () => mutant()); at(80, () => formation('sine', PH * .25, 4)); at(140, () => crew(70, PH - 70)); at(210, () => hatch(5, true)); }),
@@ -300,6 +321,26 @@ export const DRIVE_CELLS = [
   C('d.bulkhead', 'peak', 0, (at) => { at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .7); }); at(80, () => formation('zig', PH / 2, 4)); at(170, () => behindWave(PH * .7, 4)); at(250, () => crew(40, 120, 210)); }),
   // the flood (Descent 2+): hatchlings from both ends, divers top and bottom, a flayer in the middle
   C('d.flood', 'peak', 1, (at) => { at(0, () => hatch(6, false)); at(60, () => hatch(6, true)); at(150, () => { formation('dive', 40, 4); formation('dive', PH - 40, 4); }); at(250, () => flayer(PH * .5)); }),
+  // D31 stretch (SUMMARY #18): +2 build, +2 peak, all Descent 1, appended so every earlier pick draws as before. The
+  // long approach now has 3 build and 3 peak slots, past the floor, so no corridor-floor kinds here
+  // the dragnet: the dead dragged aft high and low, a sine down the middle, a sentry, a flayer
+  C('d.dragnet', 'build', 0, (at) => {
+    at(0, () => corpse(PH * .2, { drift: .8 })); at(20, () => corpse(PH * .8, { drift: .8 }));
+    at(60, () => formation('sine', PH / 2, 4)); at(150, () => sentry(PH * .7, W * .74)); at(230, () => flayer(PH * .3));
+  }),
+  // the relay: divers from the top, a sentry over a corpse, a swarm from behind, a low zig
+  C('d.relay', 'build', 0, (at) => { at(0, () => formation('dive', 40, 4)); at(100, () => { sentry(PH * .35, W * .78); corpse(PH * .75); }); at(180, () => hatch(6, true)); at(260, () => formation('zig', PH * .6, 4)); }),
+  // the crush: three pods stacked across the corridor, a wall, a rear wave, a flayer pair
+  C('d.crush', 'peak', 0, (at) => {
+    at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .82); }); at(40, () => sentry(PH * .5, W * .7));
+    at(110, () => formation('wall', PH * .35, 4)); at(190, () => behindWave(PH * .65, 4));
+    at(250, () => { flayer(PH * .3); flayer(PH * .7); });
+  }),
+  // the undertow: crew in the pull, a high zig, a big swarm head-on, a low sine through drifting dead, a last sentry
+  C('d.undertow', 'peak', 0, (at) => {
+    at(0, () => crew(50, 210)); at(50, () => formation('zig', PH * .3, 4)); at(120, () => hatch(7, false));
+    at(190, () => { formation('sine', PH * .75, 4); corpse(PH * .4, { drift: .8 }); }); at(270, () => sentry(PH * .5, W * .76));
+  }),
 ];
 
 const frac = (x) => x - Math.floor(x);

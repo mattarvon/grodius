@@ -3,10 +3,11 @@
 // stage-relative WARNING and forced exit, the biome beat fractions, where biome terrain hands back to the ship, the
 // world bands (AMT, buildTerrain, the corridor backdrop, hell flashes) and the HUD depth marks.
 //
-// `short` is today's descent (Orbit, biome, biome, Drive) at today's x values, byte-identical to the code it replaced
-// (proved by tools/layout-parity.mjs and the harness), and stays the default. `long4` is the LS1 long layout behind
-// ?layout=long (build plan sprint 2 item D; src/main.ts); `long5` is LS3-0. Sim code reads the ACTIVE entry through
-// the accessors below at call time, never a copy taken at import, so a flag can switch the entry before a run starts.
+// `long4` (Orbit, biome, biome, Drive, each long) is the default since D24: src/lab.ts DEFAULT_LAYOUT switches to it at
+// boot. `short` is the pre-LS1 descent, byte-identical to the code it replaced (proved by tools/layout-parity.mjs and
+// the harness, which pin ?layout=short), reachable through the LAB and ?layout=short until it is deleted; `long5` is
+// LS3-0. Sim code reads the ACTIVE entry through the accessors below at call time, never a copy taken at import, so a
+// flag can switch the entry before a run starts.
 //
 // Pure data and pure functions: no imports, so tests, the game and the probes (tools/layout-arg.mjs, in Node and
 // in-page) can load it without a DOM.
@@ -43,6 +44,14 @@ export interface StageRow {
   /** long Orbit / Drive rows: the cell-and-filler plan the long script generator builds from (enemies/scripts.ts,
    *  src/cellpick.ts). The short rows have none: their scripts are today's hand-made sections */
   plan?: StagePlan;
+  /** long rows: stage-relative x of CP1, overriding checkpoint.ts cp1X's rule for this row (D31 stretch §4: the Orbit's
+   *  mid-breath end + 150, the Drive's pressure breath). Absent: the rule. Data only for now: cp1X reads it once the
+   *  fix lane's checkpoint.ts lands (it owns that file in wave 2) */
+  cp1?: number;
+  /** Orbit rows: a HELD midboss (slot B, LS2-orbit's tug), stage-relative x of its WARNING. Unset until that kind ships.
+   *  layout.test.ts holds it >= 300 px past every drift's forced exit and >= 300 px before the Maw's banner
+   *  (heldRange below) */
+  held?: { at: number };
 }
 
 /** a generated stage (spec §3.4 "Authoring method"; LS1 row E). All x are stage-relative to the row's x0 */
@@ -95,6 +104,10 @@ export interface Beats {
 
 export interface LayoutEntry {
   id: 'short' | 'long4' | 'long5';
+  /** geometry revision (D31 stretch §5 option 1): bumped whenever a retune moves the entry's world x, so a resume save
+   *  written on the old geometry can be refused. Absent means 1 (short). Read through layoutRev(); runsave.ts stores and
+   *  checks it after the fix lane's merge (it owns that file in wave 2) */
+  rev?: number;
   /** world length the terrain arrays cover (LEVEL) */
   level: number;
   stages: StageRow[];
@@ -157,109 +170,157 @@ const SHORT: LayoutEntry = {
   hudMarks: [2400, 5200],
 };
 
-// ---------------- long4's Open Orbit and Drive approach content (LS1 row E) ----------------
-// The rows' spans, bossX and warnX are item D's; the cell-and-filler plans and the Saucer's window are item E's
-// (spec §3.4 "Authoring method"; enemies/scripts.ts builds them, src/cellpick.ts picks the cells).
-/** long Open Orbit: 3 intro cells (the ~15 s teaching opener in Descent 1, 180..1060), the Saucer, then build and peak
- *  cells with generator filler between them, ending 80 px before the Maw's banner */
+// ---------------- long4's stretch (D31 part 2: each stage ~120-150 s; $P/audit/d31-stretch.md §1) ----------------
+/** how much longer each long4 stage is than its LS1 row. Every anchor after a stage is written as its LS1 value plus
+ *  the cumulative stretch before it (S0..S3 below), so changing one constant shifts everything downstream */
+const STRETCH = {
+  /** Open Orbit. PROVISIONAL: Matt still chooses +2400 (LS2-orbit's held slot B, the tug, adds ~10 s of hold) or +2700
+   *  (no held slot B); the tug is WIP-gated. The extra length lands in the climax filler (it ends ORBIT_RUNUP before
+   *  the Maw's banner). Measured by pod-probe tally_s (target ~116-120 s, ~126-130 s with the tug) */
+  orbit: 2400,
+  /** each biome stage: gate to bossX 3550 -> 5950 px (~99.5 s of scroll; +2100 put the low end at ~113 s, under the
+   *  120 s band). pod-probe tally_s, stage-clock */
+  biome: 2400,
+  /** the Drive approach: 2700 -> 4800 px (80 s); its time is mostly the fight, which lengthens with the D31 part 1 cut.
+   *  If pod-probe measures it under 120 s, add +300 here */
+  drive: 2100,
+};
+const S0 = STRETCH.orbit, S1 = S0 + STRETCH.biome, S2 = S1 + STRETCH.biome, S3 = S2 + STRETCH.drive;
+/** #19 (game-designer): the Orbit climax's last spawn sits >= 300 px (~5 s at ~59.8 px/s) before SOMETHING IS COMING
+ *  (the window ends here and its last beat is <= b - 1). LS1 had 80 px (~1.3 s), so the Maw's banner landed on a busy
+ *  screen. density-probe */
+const ORBIT_RUNUP = 300;
+/** stage-relative x of the long Orbit's Maw banner, and of the Drive's WARNING */
+const ORBIT_WARN = 4080 + S0, DRIVE_WARN = 2460 + STRETCH.drive;
+
+// The cell-and-filler plans (spec §3.4 "Authoring method"; enemies/scripts.ts builds them, src/cellpick.ts picks the
+// cells). Draw order is the array order (scripts.ts pickPlanned: every cell slot, then every filler window), so new
+// slots and windows go at the END, and a moved window keeps its length and gap (stretch plan §2.1). Caveat the plan
+// missed: a new cell slot adds a draw before the first filler draw, so the filler (the Saucer's window included)
+// draws shift on long4; the cells already there draw as before.
+/** long Open Orbit: 3 intro cells (the ~15 s teaching opener in Descent 1, 180..1060), the Saucer, build x2, the
+ *  mid-Orbit breath (3300-3700, empty: reserved for the held slot B), build, peak, peak, the climax, a quiet run-up,
+ *  the Maw. Two arcs of rising tension with one rest between them (stretch plan §2.3) */
 const LONG4_ORBIT_PLAN: StagePlan = {
-  slots: [{ x: 180, tag: 'intro' }, { x: 480, tag: 'intro' }, { x: 780, tag: 'intro' }, { x: 2100, tag: 'build' }, { x: 2700, tag: 'build' }, { x: 3300, tag: 'peak' }],
+  slots: [
+    { x: 180, tag: 'intro' }, { x: 480, tag: 'intro' }, { x: 780, tag: 'intro' }, { x: 2100, tag: 'build' }, { x: 2700, tag: 'build' },
+    { x: 4300, tag: 'peak' }, // peak #1, moved from 3300 past the breath
+    { x: 3700, tag: 'build' }, // new: build #3, right after the breath
+    { x: 5000, tag: 'peak' }, // new: peak #2
+  ],
   fill: [
     { a: 1150, b: 2100, gap: 80, mix: 'orbit' }, // the Saucer's window: eaten while it is up (runScript, $.G.eat)
     { a: 2400, b: 2700, gap: 70, mix: 'orbit' }, // build, ~0.9 beats/s
     { a: 3000, b: 3300, gap: 70, mix: 'orbit' },
-    { a: 3600, b: 4000, gap: 55, mix: 'orbit' }, // peak, ~1.1 beats/s, ending 80 px before the Maw's banner
+    { a: 4600, b: 5000, gap: 55, mix: 'orbit' }, // peak, ~1.1 beats/s (moved from 3600-4000)
+    { a: 4000, b: 4300, gap: 70, mix: 'orbit' }, // new: build #3's filler
+    { a: 5300, b: ORBIT_WARN - ORBIT_RUNUP, gap: 55, mix: 'orbit' }, // new: the climax (880 px, ~14.7 s at +2400)
   ],
   opener: 3,
 };
 /** long Drive approach (x relative to the row's x0): the floor cell where the corridor still has a floor, the wall eyes
- *  at 430 and the log line at 230 (both first beats clear the stage start, which is ~x0 + 148) (fixed beats, enemies/scripts.ts), then cells and filler up to the WARNING */
+ *  at 430 and the log line at 230 (both clear the stage start, ~x0 + 148; fixed beats in enemies/scripts.ts), the
+ *  build, the pressure breath (2400-2750, empty, CP1's resume screen), three peaks, then the WARNING (§2.4) */
 const LONG4_DRIVE_PLAN: StagePlan = {
-  slots: [{ x: 230, tag: 'floor' }, { x: 520, tag: 'intro' }, { x: 830, tag: 'build' }, { x: 1140, tag: 'build' }, { x: 1760, tag: 'peak' }, { x: 2080, tag: 'peak' }],
-  fill: [{ a: 1440, b: 1740, gap: 65, mix: 'interior' }],
+  slots: [
+    { x: 230, tag: 'floor' }, { x: 520, tag: 'intro' }, { x: 830, tag: 'build' }, { x: 1140, tag: 'build' },
+    { x: 3150, tag: 'peak' }, { x: 3470, tag: 'peak' }, // moved from 1760 / 2080 past the breath
+    { x: 1800, tag: 'build' }, // new: build #3
+    { x: 3790, tag: 'peak' }, // new: peak #3
+  ],
+  fill: [
+    { a: 1440, b: 1740, gap: 65, mix: 'interior' },
+    { a: 2100, b: 2400, gap: 65, mix: 'interior' }, // new: up to the pressure breath
+    { a: 2750, b: 3150, gap: 60, mix: 'interior' }, // new: out of it, into the peaks
+    { a: 4090, b: DRIVE_WARN - 80, gap: 55, mix: 'interior' }, // new: ends 80 px before the WARNING, as the LS1 Orbit's did
+  ],
 };
 
-// ---------------- long4: the LS1 long layout (spec §2.2, §3.2-3.4; build plan sprint 2 item D) ----------------
-// Orbit, biome, biome, Drive, each long, behind ?layout=long (the default stays short). Rows are sized by scroll time, not row width: a biome
-// stage is timed from its gate (the scroll holds at the fork ~50 px past the previous Maw, ~200 px past a biome boss:
-// its miniWarn runs 150 f while the scroll coasts) to its boss WARNING at bossX. bossX - gate scroll = 3550 px gives
-// ~60 s of scroll with the fork start and the midboss hold (two ~50 f speed ramps); measured: production/qa/evidence/ls1-d.md.
-// The Orbit and Drive rows' spans, bossX, warnX and the Saucer's entry are D's; their script content is item E's (until
-// E landed them: enemies/scripts.ts builds each from its row's `plan`).
+// ---------------- long4: the long layout (spec §2.2, §3.2-3.4; D24 made it the default) ----------------
+// Rows are sized by scroll time, not row width: a biome stage is timed from its gate (the scroll holds at the fork
+// ~50 px past the previous Maw, ~200 px past a biome boss: its miniWarn runs 150 f while the scroll coasts) to its boss
+// WARNING at bossX. LS1: bossX - gate scroll = 3550 px gave ~60 s of scroll (production/qa/evidence/ls1-d.md); the
+// D31 stretch adds STRETCH.biome to that.
 const LONG4: LayoutEntry = {
   id: 'long4',
-  level: 15150,
+  rev: 2, // 2: the D31 stretch (rev 1 was the LS1 geometry, LEVEL 15150)
+  level: 15150 + S3,
   stages: [
-    // Open Orbit 4380 (item E: D's 3600 measured 65-66 s on long4 with E's content, under the LS1 band of 75-90 s,
-    // because the drift Saucer holds no scroll; every row after it moved +780). The Saucer's WARNING at 1080 (spec §3.4 "around 1100"; not 1100 itself, which is an Orbit script
-    // x in enemies/scripts.ts and would trip layout-literals.test.ts). Item E: its filler window ends at 2100 (about
-    // today's 1000 px, so the Saucer fight and its pods keep docs/pacing.md 3.2's tuning) and it is forced out at 2040,
-    // 1260 px before the Maw's banner, the next WARNING in LS1 (D20 rule 1); LS2-orbit's slot-B WARNING must sit at
-    // >= 2340. The Maw at 4200, its SOMETHING IS COMING 120 px before
-    { kind: 'orbit', x0: 0, x1: 4380, bossX: 4200, warnX: 4080, drift: [{ k: 'ufo', at: 1080, gapEnd: 2100, exitLead: 60 }], plan: LONG4_ORBIT_PLAN },
-    // gate scroll ~4250 (the Maw holds at ~4200 + 50), so the gate x (scroll + W + 10) is ~4740; gateLate rounds up
-    { kind: 'biome', slot: 0, fork: true, x0: 4380, x1: 8000, end: 7900, bossX: 7800, gateLate: 4750 },
-    // gate scroll ~8000 (the biome boss lands 150 f after its WARNING at 7800, then the scroll coasts ~50 px)
-    { kind: 'biome', slot: 1, fork: true, x0: 8000, x1: 11750, end: 11650, bossX: 11550, gateLate: 8500 },
-    // the Drive approach: 2700 px (45 s) from where slot 1's boss leaves the scroll (~11750) to startBoss; its
-    // WARNING: GRAVITY WELL CRITICAL 240 px before, and today's 700 px of chamber past it
-    { kind: 'drive', x0: 11750, x1: 15150, bossX: 14450, warnX: 14210, plan: LONG4_DRIVE_PLAN },
+    // Open Orbit. The Saucer's WARNING at 1080 (spec §3.4 "around 1100"; not 1100 itself, an Orbit script x in
+    // enemies/scripts.ts that layout-literals.test.ts would trip), its filler window to 2100 (docs/pacing.md 3.2's
+    // ~1000 px), forced out at 2040 (D20 rule 1). The drifting Saucer holds no scroll, so the row is sized by its
+    // content (D22). The Maw 120 px after SOMETHING IS COMING. CP1 after the mid-Orbit breath (3700 + 150, ~54% in:
+    // the LS1 rule put it at 2250, ~32%). `held`: LS2-orbit's slot-B WARNING goes in the breath (~3490), heldRange
+    { kind: 'orbit', x0: 0, x1: 4380 + S0, bossX: 4200 + S0, warnX: ORBIT_WARN, drift: [{ k: 'ufo', at: 1080, gapEnd: 2100, exitLead: 60 }], plan: LONG4_ORBIT_PLAN, cp1: 3850 },
+    // gate scroll ~bossX + 50 of the Maw, so the gate x (scroll + W + 10) is ~that + 490; gateLate rounds up
+    { kind: 'biome', slot: 0, fork: true, x0: 4380 + S0, x1: 8000 + S1, end: 7900 + S1, bossX: 7800 + S1, gateLate: 4750 + S0 },
+    // gate scroll ~the slot-0 row's x1 (the biome boss lands 150 f after its WARNING, then the scroll coasts ~50 px)
+    { kind: 'biome', slot: 1, fork: true, x0: 8000 + S1, x1: 11750 + S2, end: 11650 + S2, bossX: 11550 + S2, gateLate: 8500 + S1 },
+    // the Drive approach: 4800 px (80 s) from where slot 1's boss leaves the scroll to startBoss; its WARNING: GRAVITY
+    // WELL CRITICAL 240 px before, and 700 px of chamber past it. CP1 in the pressure breath (the midpoint rule put it
+    // in filler; rebuildAt resumes 120 px before it, onto an empty screen)
+    { kind: 'drive', x0: 11750 + S2, x1: 15150 + S3, bossX: 14450 + S3, warnX: 14210 + S3, plan: LONG4_DRIVE_PLAN, cp1: 2600 },
   ],
-  // the biome hands back to the ship one screen into the Drive approach, so slot 1's boss arena (scroll ~11750,
-  // screen to ~12230) stays on movement C; biomeExit's look hand-back (G.bx[2] = scroll + W + 10) lands at the same x
-  tEnd: [12230, 12530],
+  // the biome hands back to the ship one screen into the Drive approach, so slot 1's boss arena (screen to x0 + 480)
+  // stays on movement C; biomeExit's look hand-back (G.bx[2] = scroll + W + 10) lands at the same x
+  tEnd: [12230 + S2, 12530 + S2],
   beats: {
     // the span starts 330 px of scroll after the gate (its right-edge x + 320 - W: the terrain has finished blending
-    // in) and ends 60 px before the boss WARNING; the run-up (p .9-1) is the rest of the spec's 6 s of quiet. Late
-    // gate span ~3160 px, so 300 px is p ~.095: every breath/set-piece distance below keeps >= .10
+    // in) and ends 60 px before the boss WARNING. Late-gate span ~5550 px, so 300 px (D20) is p ~.054
     pad: [160, 60], gateLead: -160,
-    // breath 1 holds midboss A (its WARNING 210 px before the end stays inside: .075 of the span is ~237 px), then the
-    // release (a pod formation, log line 2). Breath 2 holds midboss B (item F), its WARNING the same 210 px before the
-    // end. The spec's .30-.36 / .62-.68 moved later and widened: with its S1 at .26 the 300 px rule fails
-    breaths: [{ end: .41, len: .075, mid: true, release: true }, { end: .725, len: .075, mid: true }],
+    // template v3 (stretch plan §2.5; D31 amended). The LS1 fractions scaled with the span would have grown every
+    // fixed-length beat 1.76x, so they are re-cut. Breath 1 holds midboss A then the release (pod formation, log line
+    // 2); breath 2 midboss B; each `len .05` (~278 px late gate: the WARNING 210 px before the end has 68 px of
+    // margin). Breath 3 is the rest before the climax (~3.3 s): no midboss, no release, silent
+    breaths: [{ end: .36, len: .05, mid: true, release: true }, { end: .66, len: .05, mid: true }, { end: .855, len: .035 }],
     tempo: [
-      { until: .12, gap: 1.4, dbl: .2, sig: true, lead: 'sig' }, //               intro A: the signature alone, then 60% signature
-      { until: .22, gap: 1.25, dbl: .25, lead: 'second' }, //                     intro B: the second-ranked kind gets its own first slot
-      { until: { breath: 0 }, gap: 1, dbl: 0, rel: true }, //                     build A (S1)
-      { until: { breath: 1 }, gap: 1.1, dbl: -.1, rel: true }, //                 build B (S2), lighter: movement B's slot (later item)
-      { until: .9, gap: .75, dbl: .15, rel: true, third: true }, //               peak (S3), rear waves, Descent 2+ third spawn
-      { until: 1, gap: 1, dbl: 0, stop: true }, //                                arena run-up: no spawns
+      { until: .08, gap: 1.4, dbl: .2, sig: true, lead: 'sig' }, //             intro A: the signature alone, then 60% signature
+      { until: .15, gap: 1.25, dbl: .25, lead: 'second' }, //                    intro B: the second-ranked kind gets its own first slot
+      { until: { breath: 0 }, gap: 1, dbl: 0, rel: true }, //                    build A (S1)
+      { until: { breath: 1 }, gap: 1.1, dbl: -.1, rel: true }, //                build B (S2), lighter: movement B's band
+      { until: { breath: 2 }, gap: .75, dbl: .15, rel: true, third: true }, //   peak A (S3), Descent 2+ third spawn
+      { until: .94, gap: .7, dbl: .2, rel: true, third: true }, //               peak B, the climax
+      { until: 1, gap: 1, dbl: 0, stop: true }, //                               arena run-up: no spawns (~6.6 s with the pad)
     ],
-    // first visit .23/.53/.86, a repeat visit earlier (the spec's -.02..-.04 shift, inside the same 300 px windows)
-    sets: [.23, .53, .86], remixSets: [.2, .515, .83], warnLead: 210,
-    runup: .9, arenaBlend: 200,
-    // a DRIFT slot-A midboss (none in phase 1; the Calving Shelf in wave 2) is gone 300 px before slot B's WARNING:
-    // ~545 px (~9 s) of fight after it lands, under the 1080 f slot clock
+    // first visit .22/.50/.75, a repeat visit .02-.03 earlier; every set piece >= ~370 px from every breath edge at
+    // the late gate (snapping moves a placed entry <= ~68 px, so placed x keeps D20's 300 too)
+    sets: [.22, .5, .75], remixSets: [.19, .48, .73], warnLead: 210,
+    runup: .94, arenaBlend: 200,
+    // a DRIFT slot-A midboss (the Calving Shelf in wave 2) is gone 300 px before slot B's WARNING. The window is now
+    // ~1220 px (~20 s), longer than the 1080 f slot clock, so the clock is the binding exit
     driftLead: 300,
-    // movement B fills build B. Its blend starts at breath 1's end, where CP1 is written (spec §3.3: movement A runs
-    // "intro to CP1"): in midboss A's held screen the ship (scroll + ~100) sits on ~35% of the blend and the gimmick is
-    // full from screen x ~220 rightward, so the fight shows it coming. Ends 200 px into breath 2: before the left edge
-    // of midboss B's held screen (~breath end - 20, ~216 px in at the shortest span), so that fight is on movement A from
-    // edge to edge. Full gimmick ~556 px (~9 s) at the shortest span; the level-design review's 100 px lead left ~456
+    // movement B fills build B: its blend starts at breath 1's end, where CP1 is written (spec §3.3: movement A runs
+    // "intro to CP1"), so midboss A's held screen shows it coming; it ends 200 px into breath 2, before the left edge
+    // of midboss B's held screen, so that fight is on movement A. Unchanged from ls2-mv: it grows with the span to
+    // ~1190 px of full gimmick (~20 s, D31 amended "about 18 s") at the late gate. movement-shots, route-probe
     moveB: { between: [0, 1], lead: [0, 200], blend: 200 },
   },
   // the same shapes as short, re-anchored on the long rows: the hull closes in at the Orbit's end, the corridor rises
   // where slot 0's boss is and squeezes from slot 1's start, and everything opens into the chamber over the 400 px
   // before the Drive's bossX
   bands: {
-    hull: [4280, 4780],
-    corr: [7850, 8350, 14050, 14450],
-    core: [14050, 14500],
-    space: [7650, 8250],
-    inner: [7850, 8250, 14250, 14650],
+    hull: [4280 + S0, 4780 + S0],
+    corr: [7850 + S1, 8350 + S1, 14050 + S3, 14450 + S3],
+    core: [14050 + S3, 14500 + S3],
+    space: [7650 + S1, 8250 + S1],
+    inner: [7850 + S1, 8250 + S1, 14250 + S3, 14650 + S3],
   },
-  terrain: { fT: [4330, 4780, 14000, 14350], cT: [5580, 6030, 14000, 14350], kT: [7900, 8350, 13900, 14250], zT: [14050, 14450], blocks: [4880, 7850] },
+  terrain: {
+    fT: [4330 + S0, 4780 + S0, 14000 + S3, 14350 + S3], cT: [5580 + S0, 6030 + S0, 14000 + S3, 14350 + S3],
+    kT: [7900 + S1, 8350 + S1, 13900 + S3, 14250 + S3], zT: [14050 + S3, 14450 + S3], blocks: [4880 + S0, 7850 + S1],
+  },
   // PROVISIONAL (creative-director condition, LS1-A review): per-kind hell values are authored after art round 2, never
   // copied from the AMT bands. Until then they are keyed to the stage rows, not to AMT: `corr` rises over slot 1's
   // first 500 px (the last biome slot) and falls into the Drive chamber; `core` is the chamber
-  hell: { corr: [8000, 8500, 14050, 14450], core: [14050, 14500] },
-  // PROVISIONAL (art-director: the tick design for long rows is an art decision): today's rule, a tick just inside
-  // each biome slot's start
-  hudMarks: [4480, 8050],
+  hell: { corr: [8000 + S1, 8500 + S1, 14050 + S3, 14450 + S3], core: [14050 + S3, 14500 + S3] },
+  // PROVISIONAL (art-director: the tick design for long rows is an art decision): a tick just inside each biome slot's
+  // start, and one just inside the Drive's (render/hud.ts draws every mark at m / bossAt() along the bar)
+  hudMarks: [4480 + S0, 8050 + S1, 11750 + S2 + 50],
   picker: true,
 };
 
 export const LAYOUTS: Partial<Record<LayoutEntry['id'], LayoutEntry>> = { short: SHORT, long4: LONG4 };
+// the module default; src/lab.ts applies DEFAULT_LAYOUT (long4, D24) at boot, before any run
 let active: LayoutEntry = SHORT;
 
 /** the active layout entry */
@@ -305,6 +366,16 @@ export function driftRow(k: string) {
   const r = active.stages.find((s) => s.drift && s.drift.some((d) => d.k === k));
   if (!r) throw new Error(`layout ${active.id} has no drift midboss '${k}'`);
   return { row: r, drift: r.drift!.find((d) => d.k === k)! };
+}
+/** the geometry revision of an entry (absent: 1) */
+export const layoutRev = (L: LayoutEntry = active) => L.rev ?? 1;
+/** the stage-relative window a held Orbit midboss's WARNING may sit in: >= 300 px past every drift's forced exit
+ *  (gapEnd - exitLead) and >= 300 px before the end encounter's banner (D20 rule 1, both ways). Null on a row with
+ *  no banner */
+export function heldRange(r: StageRow, lead = 300) {
+  const banner = (r.warnX ?? r.bossX) - r.x0;
+  const exit = Math.max(0, ...(r.drift || []).map((d) => d.gapEnd - d.exitLead));
+  return { lo: exit + lead, hi: banner - lead };
 }
 /** the Saucer: its stage row and drift entry */
 export const ufoRow = () => driftRow('ufo').row;
