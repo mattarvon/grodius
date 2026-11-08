@@ -175,7 +175,9 @@ try {
     // option b: a death restarts at the checkpoint, one life spent
     const hits0 = await p.evaluate(() => { const G = window.__G().G; return (G.st && G.st.hits) || 0; }); // the stage's hits before the death
     await p.evaluate(async () => { window.__god = false; const g = window.__G(); g.P.inv = 0; (await import('/src/flow.ts')).killPlayer(); });
-    await p.evaluate('__tick(160)'); // deadT 150, then respawn()
+    // deadT 150, then respawn(); hitstop freezes that clock (killPlayer's 10, and any kill in the window adds more), so a
+    // fixed wait can snapshot before the restart: tick until the ship is back
+    for (let i = 0; i < 400 && !(await p.evaluate(() => window.__G().P.alive)); i++) await p.evaluate('__tick(1)');
     const d = await snap(p, null);
     eq('death restart: stage', orig.stage, d.stage);
     if (!(d.scroll >= orig.cpX - 120 && d.scroll < orig.cpX - 100)) fails.push(`death restart: scroll ${d.scroll.toFixed(1)}, want ~${(orig.cpX - 120).toFixed(1)} (+ a few frames)`);
