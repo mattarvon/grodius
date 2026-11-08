@@ -250,6 +250,13 @@ Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `produ
 
 **D30 status:** S2-K1 is still open. Midboss+8 p95 at 4× is down 16-21% but still misses 16.7 ms. It is decided by Matt's Fold reading of this build (`production/qa/fold-reading.md`), which comes before the D31 merge.
 
+### D37 Orbit stretch +2400 px — 2026-11-07 (Matt)
+
+**Decision point:** the long4 Open Orbit stretch in `d31-stretch.md` (the D31 tune lane): +2400 px, sized for the derelict tug's held slot B, or +2700 px, sized for an Orbit with no held midboss while the tug is WIP-gated (producer).
+**Chosen:** +2400 px (`src/layout.ts` `STRETCH.orbit`). The stretch is sized for the derelict tug's held slot B (~10 s of hold, LS2-orbit). Until the tug ships out of `?mids=wip`, default players get a shorter Orbit, about 116-120 s, under the 120 s floor.
+**Reason:** Matt.
+**Category:** design_rules
+
 ## Open
 
 - **ls2-mv's four questions (Matt).** game-designer's recommendation is in brackets.
@@ -258,7 +265,6 @@ Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `produ
   3. Icicles ×.7: the interval or the rate [the interval, as built].
   4. Snot throat walls: static or moving [static, as built].
 - **Movement-B terrain varies by seed?** It is the same across seeds today (level-designer).
-- **D31 Orbit stretch: +2400 or +2700 px** (producer), while the derelict tug is WIP-gated.
 - **The Calving Shelf's leave clock under the D31 stretch** (wave-2 DRIFT kind).
 - **Where the shelved voice lines go.** audio-director and creative-director back KEYSTER on an S-grade boss clear and SHAMALAMA on a new best chain.
 

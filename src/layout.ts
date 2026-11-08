@@ -174,9 +174,9 @@ const SHORT: LayoutEntry = {
 /** how much longer each long4 stage is than its LS1 row. Every anchor after a stage is written as its LS1 value plus
  *  the cumulative stretch before it (S0..S3 below), so changing one constant shifts everything downstream */
 const STRETCH = {
-  /** Open Orbit. PROVISIONAL: Matt still chooses +2400 (LS2-orbit's held slot B, the tug, adds ~10 s of hold) or +2700
-   *  (no held slot B); the tug is WIP-gated. The extra length lands in the climax filler (it ends ORBIT_RUNUP before
-   *  the Maw's banner). Measured by pod-probe tally_s (target ~116-120 s, ~126-130 s with the tug) */
+  /** Open Orbit: +2400 (D37, Matt). Sized for LS2-orbit's held slot B (the derelict tug, ~10 s of hold); until the tug
+   *  ships out of ?mids=wip the Orbit runs short (~116-120 s, under the 120 s floor). Extra length lands in the climax
+   *  filler (it ends ORBIT_RUNUP before the Maw's banner). Measured by pod-probe tally_s (~126-130 s with the tug) */
   orbit: 2400,
   /** each biome stage: gate to bossX 3550 -> 5950 px (~99.5 s of scroll; +2100 put the low end at ~113 s, under the
    *  120 s band). pod-probe tally_s, stage-clock */
