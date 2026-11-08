@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 vi.mock('../../src/save', () => ({ SET: { muted: false } }));
-vi.mock('../../src/platform', () => ({ nativeSay: () => false }));
 vi.mock('../../src/music', () => ({ duckMusic: () => {}, curBiome: () => 'acid' }));
 
 type Src = { buffer: any; started: boolean; stopped: boolean; onended: null | (() => void) };

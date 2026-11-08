@@ -6,11 +6,11 @@ import { BIOME_KILL, KILL_LAYER } from '../../src/audiomix';
 
 const M = vi.hoisted(() => ({ biome: 'ice' }));
 vi.mock('../../src/save', () => ({ SET: { muted: false } }));
-vi.mock('../../src/platform', () => ({}));
 vi.mock('../../src/music', () => ({ duckMusic: () => {}, curBiome: () => M.biome }));
 
 let A: typeof import('../../src/audio');
 let played: any[];
+let stopped = 0;
 const param = () => ({ value: 0, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, cancelScheduledValues() {} });
 const node = () => ({ connect() {}, disconnect() {} });
 const fakeCtx = () => ({
@@ -19,7 +19,7 @@ const fakeCtx = () => ({
   sampleRate: 48000,
   createBuffer: (_c: number, n: number) => ({ getChannelData: () => new Float32Array(n) }),
   createBufferSource() {
-    const s: any = { ...node(), buffer: null, playbackRate: param(), onended: null, start() { played.push(s); }, stop() {} };
+    const s: any = { ...node(), buffer: null, playbackRate: param(), onended: null, start() { played.push(s); }, stop() { stopped++; } };
     return s;
   },
   createGain: () => ({ ...node(), gain: param() }),
@@ -31,8 +31,10 @@ let now = 0;
 
 beforeEach(async () => {
   vi.resetModules();
+  vi.stubGlobal('crypto', { getRandomValues: (u: Uint32Array) => { u[0] = 12345; return u; } }); // audio.ts seeds ar() from it: pin the rolls
   A = await import('../../src/audio');
   played = [];
+  stopped = 0;
   A.AU.c = fakeCtx();
   A.AU.m = node();
   A.AU.verb = node();
@@ -62,11 +64,31 @@ describe('sfx.gore and the biome kill layer', () => {
     expect(() => A.sfx.gore(3)).not.toThrow();
   });
 
-  it.each(Object.keys(BIOME_KILL))('in %s it skips above maxVoices and never evicts a voice to play', (b) => {
+  // gore(1) adds one voice (the splat) before the guard reads LIVE, so `base` voices here are base + 1 at the guard. The
+  // extra voices end between kills, so every kill sees the same count; 200 kills out-roll any row's `chance`
+  const layerAt = (b: string, atGuard: number) => {
     M.biome = b;
-    const cat = BIOME_KILL[b].cat;
-    for (let i = 0; i < KILL_LAYER.maxVoices + 1; i++) A.sample('splat_s');
-    for (let i = 0; i < 60; i++) A.sfx.gore(3);
-    expect(played.some((s) => s.buffer && s.buffer.c === cat)).toBe(false);
+    for (let i = 0; i < atGuard - 1; i++) A.sample('splat_s');
+    const base = played.length;
+    let heard = false;
+    for (let i = 0; i < 200 && !heard; i++) {
+      A.sfx.gore(1);
+      heard = played.slice(base).some((s) => s.buffer && s.buffer.c === BIOME_KILL[b].cat);
+      played.splice(base).forEach((s) => s.onended && s.onended());
+    }
+    return heard;
+  };
+
+  it.each(Object.keys(BIOME_KILL))('in %s it plays at exactly maxVoices live voices', (b) => {
+    expect(layerAt(b, KILL_LAYER.maxVoices)).toBe(true);
+  });
+
+  it.each(Object.keys(BIOME_KILL))('in %s it skips one voice above maxVoices, and evicts nothing', (b) => {
+    expect(layerAt(b, KILL_LAYER.maxVoices + 1)).toBe(false);
+    expect(stopped).toBe(0);
+  });
+
+  it('keeps the threshold below the cap, so the layer can never be what evicts a voice', () => {
+    expect(KILL_LAYER.maxVoices).toBe(10);
   });
 });

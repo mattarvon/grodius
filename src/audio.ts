@@ -135,7 +135,7 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   if (!AU.c || !L || !L.length || SET.muted || AU.c.state !== 'running') return false;
   if (o.solo && AU.c && AU.c.currentTime < (SOLO[cat] || 0)) return true; // previous take still talking
   // LS1 audit #5/#6: a drop used to return true, so siren()'s alarm() fallback never ran, and the Maw could die silent
-  // (its death frame is the busiest gore frame). A priority cue (Maw death, WARNING siren, stinger, forkopen) is never
+  // (its death frame is the busiest gore frame). A priority cue (Maw and Drive deaths, WARNING siren, stinger, forkopen) is never
   // dropped: it takes the oldest ordinary voice's slot, faded over ~20 ms so it doesn't click. If every live voice is a
   // priority cue or a voice line it plays over the cap (there are only a handful). An ordinary sound is still swallowed, and reports
   // false only when the caller marked a fallback (`fb`): gore's synth fallback would only add mud to a full frame
