@@ -83,7 +83,7 @@ for (const bk of ['ice', 'fire', 'acid', 'snot']) {
 }
 // --- eyes: title hero, then hi-res EYEQ eyes on corpses / crawler / ship ---
 await p.evaluate(() => { const m = window.__fx; m.$.state = 'title'; for (let i = 0; i < 4; i++) m.RS.render(); });
-await shot('eye-title', 355, 135, 80);
+await shot('eye-title', 396, 124, 92);
 await p.evaluate(() => { window.__fx.$.state = 'play'; });
 await p.evaluate(() => { window.__fxClear(); window.__fx.$.G.mini = null; window.__fx.SP.formation('sine', 120, 5); });
 for (let i = 0; i < 20; i++) await p.evaluate(() => window.__fxStep(4, 240));

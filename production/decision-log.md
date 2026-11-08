@@ -363,6 +363,22 @@ Matt: "it should be more evil and not cartoonish", then "need gore, and darkness
 
 **Merge order from here:** ls2-read (rebased), then fix merge 2 (audio-director re-reviews `audio.ts` after its rebase onto ls2-read), then D31 after the Fold reading.
 
+### D41 Title eye is ROT; Matt's head is an easter egg; eye kit baked — 2026-11-08 (Matt)
+
+**Decision:** concept #7 ROT replaces the title's bloodshot eye ("we have to use #7 ROT for the title screen"). Matt's self-portrait head goes on the title, ending as a tiny easter egg that peeks in at the edges ("much smaller, like an easter egg floating around the corners"), with the gross eye fully covering his real left eye. He approved the capture ("looks cool merge it").
+
+**Why:** D39. The old lime iris and pink veins read as cartoon. ROT plays the eye straight, and a blind cataract that still follows you is the evil version.
+
+**Consequences:**
+- ROT is an explicit exception to the tone note's "no single big eye". It is for the title only: an in-game eye is a part of a body, or small fodder (art-director).
+- The head went big with heavy blood first, then Matt shrank it. The pool, gush and "tons of blood" rulings are withdrawn, so no drip cap above 24 was needed.
+- The eye moved to x 396, r 88, so the wordmark's S now reads. The title's old `hangSpine` calls are gone.
+- Five kit sprites are baked and wired into nothing, because Matt picks the in-game uses. Candidates are ranked in `production/qa/evidence/ls2-eye.md`.
+- Render only: harness and parity do not move.
+- The head's source photo and its generator stay out of the repo; only the baked PNG ships.
+
+**Open:** Matt's in-game kit picks.
+
 ### D42 LS2-read merged — 2026-11-08 (parent; Matt authorized parent merges)
 
 **What merged** (ls2-read, `93e595b..939d5f3`):
@@ -412,6 +428,47 @@ The held renames are not in it.
    - "Does ALTERED look more dangerous?" (creative-director: keep the damage, add one threat light per wound in worklist B).
 5. **Worklist B,** proposed after D31: the darkness pass with a new Orbit backdrop, then the gore pass, then the midboss rebuild, then music.
 6. **D38 ("still very linear") stays open** until the choice lane's fork pay lands.
+
+### D43 LS2-eye merged — 2026-11-08 (parent; Matt: "looks cool merge it")
+
+**What merged** (ls2-eye, `586b183..bf076a5`). It is render-only:
+- the ROT title eye (D41), as four baked layers with a hitching gaze and a membrane blink;
+- Matt's self-portrait as a tiny bleeding easter-egg head that drifts along the title's edges;
+- `src/titlelayout.ts`, the single source of the title's no-go rects;
+- the eye kit, baked into `src/sprites/kit/`, not shipped and wired to nothing;
+- `tools/gen_eyes.py`.
+
+The head's generator and source photo are kept outside the repo, at `~/Pictures/grodius-head/` on Matt's machine.
+
+**Gates on bf076a5.** These ran on the `src` and `tests` trees stamped in the logs:
+- typecheck: clean;
+- vitest: 985 pass, plus 1 expected fail;
+- short harness: PASS;
+- parity: 7 of 7 identical.
+
+The parent built the merged tree before the push: `vite build` exit 0, `dist` 44,814,542 bytes.
+
+**Studio review.** All APPROVE or APPROVE WITH NOTES, with no blocks:
+- 2 specialists (web-specialist, ux-designer);
+- all 8 leads;
+- all 3 directors.
+
+S2s fixed before the push:
+- the gate logs on the rebased tip;
+- the shared title layout and no-go rects;
+- the head generator given a durable home;
+- the measured build (technical-director).
+
+**Wordmark.** The shipped title keeps the house blackletter, as on main. Matt's preview had shown a serif fallback by mistake. Matt was shown the real frame; he hadn't replied at push time, and creative-director and art-director prefer the blackletter.
+
+**Rollback point:** tag `pre-ls2-eye` on `586b183`.
+
+**Owned items:**
+1. **Kit picks.** Matt picks. art-director and game-designer write one sheet first, and eyes 3-5 must sit embedded in flesh. If none is picked by the end of LS2, delete the kit.
+2. **Help/credits overlap** (START PAUSE vs SPRITES:). This predates the lane. ux-designer files it, and it is fixed through `titlelayout.ts`.
+3. **ROT reads as a planet and moon in stills.** art-director adds a faint pupil, or rim of meat, before any marketing capture. The head's eye should also shift toward ROT's tallow.
+4. **Fold reading checklist** (producer): the title, the armed prompt, ROT memory (about 0.5 MB more than before), merge 2's items, and S2-K1. Due before D31.
+5. **Typed-in text widths and rail ends.** Re-measure them whenever title copy changes.
 
 ## Open
 

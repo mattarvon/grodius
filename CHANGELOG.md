@@ -2,6 +2,11 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-08 (a new eye on the title)
+
+- The title screen has a new eye: dead, rotted and clouded over, and it still follows you.
+- Leave the title open long enough and something finds you.
+
 ## 2026-11-08 (gates that show the stakes, scarred stages, a darker sound)
 
 - At a fork, each gate's plate now says what it leads to. A biome you haven't cleared shows the perk it unlocks. One you know shows the perk as KNOWN, or FULLY GROWN once it's maxed. A biome you've already been through is marked ALTERED.

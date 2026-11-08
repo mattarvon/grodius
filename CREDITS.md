@@ -138,5 +138,11 @@ All repainted toward the game's palette; CC-BY / OGA-BY rows are the ones that r
 | Game-over demon (`creep`) | Animated Creepy Thing | Charlie | CC0 | https://opengameart.org/content/animated-creepy-thing |
 | Infirmary poster (`poster`) | Zombie Take Away | CiderCorpse | OGA-BY 3.0 | https://opengameart.org/content/zombie-take-away |
 
+## Title eye and head (`src/sprites/`)
+| Used for | Work | Author | License |
+|---|---|---|---|
+| Title hero eye (`rot_*`), eye kit (`kit/eye_*`, not yet used in play) | original, procedural, `tools/gen_eyes.py` | made for Grodius | original, first-party (not CC) |
+| Title easter-egg head (`head_egg@3`) | title head: Matt Arvon (self-portrait) | Matt Arvon | original, first-party (not CC) |
+
 ## Fonts
 Silkscreen and Grenze Gotisch via @fontsource (SIL Open Font License 1.1).
