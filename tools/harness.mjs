@@ -5,7 +5,9 @@
 //   advisory only (they also move with sprite decode order and the HELL FLASHES setting).
 //   --flashes off runs with HELL FLASHES off; `st` must still match the (flashes-on) baseline, which proves the
 //   setting cannot reach the sim (render/fx draw srnd(), never the sim R()). Never combine it with --update.
-//   --update rewrites the baseline from this run.
+//   --update rewrites the baseline from this run, and refuses (exit 1) a run with a harness: failure.
+//   A mismatch is flown once more: differs twice = REGRESSION, differs once = FLAKY. Both exit 1 (D33);
+//   HARNESS_ALLOW_FLAKY=1 lets a local FLAKY pass with a warning, and is ignored when CI is set.
 //   --layout long4 flies ?layout=long4 (the game default since D24) against tools/harness.long4.baseline.json.
 //   No --layout: ?layout=short against tools/harness.baseline.json, exactly as before.
 //   --scenario <name>|all flies a jump-switch scenario (SCENARIOS below; src/jump.ts) on long4 against its own
@@ -17,6 +19,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { platform, release } from 'node:os';
+import { resolveWant, refuseUpdate, flakyFails } from './harness-rules.mjs';
 
 const argv = process.argv.slice(2);
 const UPDATE = argv.includes('--update');
@@ -140,7 +143,8 @@ async function runOnce(b, sc = null, name = null) {
     delete st.simSig;
     if (!st.jump) errs.push('harness: the jump switch did not start (a built page ignores ?stage=: use the dev server)');
     // 'slotB': the stage's second midboss, whichever the picker drew
-    const want = sc.want === 'slotB' ? st.pair.split('+')[1] : sc.want;
+    const want = resolveWant(sc.want, st.pair);
+    if (sc.want && !want) errs.push(`harness: could not resolve want ${sc.want} (pair '${st.pair}')`);
     if (want && !seen.some((k) => k === `mini:${want}` || k === `boss:${want}`)) errs.push(`harness: never met ${want} (seen: ${st.seen || 'nothing'})`);
   }
   if (loads > 1) errs.push(`harness: page reloaded ${loads - 1}x mid-run (Vite dependency re-optimisation?)`);
@@ -181,7 +185,9 @@ async function gate(sc, name) {
     }
   }
   if (UPDATE) {
-    if (sc && result.errs.length) { console.error(`${tag}not recording a failed run: ${result.errs.join('; ')}`); return false; }
+    // a scenario refuses any error; short/long4 refuse the harness's own failures, which a baseline must never expect
+    const why = refuseUpdate(result.errs, !!sc);
+    if (why) { console.error(`${tag}not recording a failed run: ${why}`); return false; }
     let commit = 'unknown';
     try { commit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch {}
     writeFileSync(BASELINE, JSON.stringify({ frames, commit, os: `${platform()} ${release()}`, ...(sc ? { layout: 'long4', scenario: name, q: sc.q } : LAYOUT === 'short' ? {} : { layout: LAYOUT }), ...result }, null, 2) + '\n');
@@ -196,7 +202,12 @@ async function gate(sc, name) {
   const hashMoves = final.hashes.filter((h, i) => h !== base.hashes[i]).length;
   if (hashMoves) console.log(`${tag}note: ${hashMoves}/${final.hashes.length} canvas hashes differ (advisory)`);
   if (diffs.length) { console.error(`${tag}REGRESSION vs baseline @ ${base.commit}:\n${diffs.join('\n')}`); return false; }
-  if (retry) console.warn(`${tag}FLAKY: first run differed, the retry matched. Nondeterminism to track down:\n${first.join('\n')}`);
+  // D33: a flake fails the gate (FAIL = differs twice, FLAKY = differs once); HARNESS_ALLOW_FLAKY=1 passes it locally, never under CI
+  if (retry) {
+    const fails = flakyFails(process.env);
+    console[fails ? 'error' : 'warn'](`${tag}FLAKY${fails ? '' : ' (allowed by HARNESS_ALLOW_FLAKY)'}: first run differed, the retry matched. Nondeterminism to track down:\n${first.join('\n')}`);
+    if (fails) return false;
+  }
   console.log(sc ? `PASS (${name}) vs baseline @ ${base.commit}` : LAYOUT === 'short' ? `PASS vs baseline @ ${base.commit}` : `PASS (${LAYOUT}) vs baseline @ ${base.commit}`);
   return true;
 }

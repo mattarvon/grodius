@@ -5,7 +5,6 @@
 //
 // Precedence for each setting: URL flag > LAB > default. The choice is a pure function (layoutChoice) so tests can
 // drive it without a DOM; the module keeps a cached copy of the stored LAB so draw code never touches storage.
-import { clearRun } from './runsave';
 import { LAYOUTS, layout, setLayout } from './layout';
 
 export const LAB_KEY = 'grodius.lab';
@@ -91,16 +90,13 @@ export const midsWip = () => /[?&]mids=wip\b/.test(search()) || lab().mids === '
 /** the checkpoint trigger for item H: 'a' = app kill or quit only (spec §4 default), 'b' = also on death */
 export const cpTrigger = (): Lab['cp'] => lab().cp;
 
-/** change one LAB setting and persist it. Changing the layout discards the run save (grodius.run): its layout id
- *  no longer matches the run a RESUME would rebuild. Returns the new LAB. */
+/** change one LAB setting and persist it. Returns the new LAB. The run save (grodius.run) is kept, layout change
+ *  included (D33, Matt): it records its own layout, and RE-ENTER flies that one (the title row names it) */
 export function setLab(patch: Partial<Lab>): Lab {
   const before = lab();
   const next = labOf({ ...before, ...patch });
   cur = next;
   writeLab(next);
-  if (next.layout !== before.layout) {
-    clearRun(); // guarded: never throws
-  }
   return next;
 }
 

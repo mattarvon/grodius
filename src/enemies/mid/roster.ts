@@ -104,7 +104,8 @@ export interface MidSim {
    *  burn, acid, the slick. Area damage (blasts, the nuke, burn, acid, the slick) arrives at exactly (e.x, e.y) with
    *  dir 0: decide what an area hit does on purpose. Pure: no allocation, no R(), no state written */
   hurt?: (e: any, d: number, hx: number, hy: number, dir: number) => number;
-  /** midLeave, once, on the frame the withdraw clock runs out (before it slides off): reset what the fight changed */
+  /** once, on the frame the withdraw clock runs out (before it slides off): reset what the fight changed. Fired by midLeave
+   *  (held kinds) and by the Saucer's own withdraw block (DRIFT); any kind with its own withdraw must call it too */
   leave?: (e: any) => void;
   /** killEnemy, when a child it spawned with `own: e` (and kid: 1) dies: a fire patch, a split, a count */
   kidKill?: (kid: any, owner: any) => void;

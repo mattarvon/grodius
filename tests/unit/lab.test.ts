@@ -81,12 +81,12 @@ describe('LAB storage', () => {
     expect(again.cpTrigger()).toBe('b');
   });
 
-  it('discards the checkpoint when the layout changes, and only then', async () => {
+  it('keeps the run save on every toggle, the layout included: RE-ENTER flies the save\'s own layout (D33)', async () => {
     const { ls, setLab } = await load({ 'grodius.run': '{"v":1}' });
     setLab({ cp: 'b' });
-    expect(ls.map.has('grodius.run')).toBe(true);
     setLab({ layout: 'short' });
-    expect(ls.map.has('grodius.run')).toBe(false);
+    setLab({ layout: 'long', mids: 'wip' });
+    expect(ls.map.get('grodius.run')).toBe('{"v":1}');
   });
 
   it('shows the URL flag over the stored LAB', async () => {

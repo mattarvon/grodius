@@ -206,9 +206,11 @@ export function rearWarn(y, f) {
     f
   });
 }
-export function behindWave(y, n = 5, o = {}) {
-  y = rearLane(y);
-  rearWarn(y, () => formation('behind', rearLane(y), n, o));
+/** a rear drone wave at y, telegraphed 100 f ahead. fit: a lane filter (biomes.ts rearY keeps a set piece's wave out of
+ *  the terrain); it runs again at fire time because rearLane re-picks the lane then. Default identity: every other caller */
+export function behindWave(y, n = 5, o = {}, fit = (v) => v) {
+  y = fit(rearLane(y));
+  rearWarn(y, () => formation('behind', fit(rearLane(y)), n, o));
 }
 /** extra drones a power-scaled formation gets: round(3 * min(2, pow)), 0..6 (density is where power shows, D1) */
 export const formationExtra = () => Math.round(Math.min(2.0, $.G.pow || 0) * 3);
