@@ -308,7 +308,8 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     const k1 = pk();
     at(x, el(SPAWN[k1]), k1);
     if (rs() < dbl && !quiet(y2)) { const k = pk(); at(y2, el(SPAWN[k]), k); } // extras never spill into a breath or the run-up
-    if (hard && T.third && rs() < .35 && !quiet(y3)) { const k = pk(); at(y3, el(SPAWN[k]), k); }
+    const p3 = T.third === true ? .35 : T.third || 0; // a number is the chance (long4's climax, layout.ts); true is 35%
+    if (hard && p3 && rs() < p3 && !quiet(y3)) { const k = pk(); at(y3, el(SPAWN[k]), k); }
     x += st;
   }
   midBeats(B, b, BP, mids, at);

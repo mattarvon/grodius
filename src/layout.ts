@@ -72,8 +72,8 @@ export interface Breath { end: number; len: number; mid?: boolean; release?: boo
 /** a tempo band of the spawn loop: it runs until p `until`, or until the end of breath `{ breath: i }`. Slot gap is
  *  B.gap x `gap`; the double chance is `dbl` (absolute) or B.dbl + `dbl` capped at .85 (`rel`). `sig`: rolls the
  *  signature 60% of the time. `lead`: the band's first slot is alone, the signature or the biome's second-ranked mix
- *  kind (intro B). `third`: Descent 2+ adds a third spawn 35% of the time. `stop`: no spawns (the arena run-up) */
-export interface Tempo { until: number | { breath: number }; gap: number; dbl: number; rel?: boolean; sig?: boolean; lead?: 'sig' | 'second'; third?: boolean; stop?: boolean }
+ *  kind (intro B). `third`: Descent 2+ adds a third spawn 35% of the time (a number sets that chance; beat-probe's 1.7 spawns/s peak exit). `stop`: no spawns (the arena run-up) */
+export interface Tempo { until: number | { breath: number }; gap: number; dbl: number; rel?: boolean; sig?: boolean; lead?: 'sig' | 'second'; third?: boolean | number; stop?: boolean }
 /** biome stage beats, p = progress through the spawn span (biomes.ts biomeScript; spec §3.2) */
 export interface Beats {
   /** the spawn span is [x0 + pad[0], bossX - pad[1]], starting no earlier than the gate x + gateLead (a scroll x: the
@@ -283,7 +283,10 @@ const LONG4: LayoutEntry = {
       { until: { breath: 0 }, gap: 1, dbl: 0, rel: true }, //                    build A (S1)
       { until: { breath: 1 }, gap: 1.1, dbl: -.1, rel: true }, //                build B (S2), lighter: movement B's band
       { until: { breath: 2 }, gap: .75, dbl: .15, rel: true, third: true }, //   peak A (S3), Descent 2+ third spawn
-      { until: .94, gap: .7, dbl: .2, rel: true, third: true }, //               peak B, the climax
+      // peak B, the climax. Its Descent 2+ third spawn is .1, not .35: beat-probe read Descent 2 fire at 1.87 spawns/s (.35)
+      // and 1.71 (.15), over LS1's 1.7 exit (level-design ruling). (1 + .8 + .1) / 70 * 60 = ~1.63 (the probe reads ~.03
+      // above that model); Descent 1 is unchanged (no third spawn)
+      { until: .94, gap: .7, dbl: .2, rel: true, third: .1 },
       { until: 1, gap: 1, dbl: 0, stop: true }, //                               arena run-up: no spawns (~6.6 s with the pad)
     ],
     // first visit .22/.50/.75, a repeat visit .02-.03 earlier; every set piece >= ~370 px from every breath edge at
@@ -375,8 +378,8 @@ export function driftRow(k: string) {
 /** the geometry revision of an entry (absent: 1) */
 export const layoutRev = (L: LayoutEntry = active) => L.rev ?? 1;
 /** the stage-relative window a held Orbit midboss's WARNING may sit in: >= 300 px past every drift's forced exit
- *  (gapEnd - exitLead) and >= 300 px before the end encounter's banner (D20 rule 1, both ways). Null on a row with
- *  no banner */
+ *  (gapEnd - exitLead) and >= 300 px before the end encounter's banner (warnX, else bossX; D20 rule 1, both ways).
+ *  Never null: lo > hi means the row has no room */
 export function heldRange(r: StageRow, lead = 300) {
   const banner = (r.warnX ?? r.bossX) - r.x0;
   const exit = Math.max(0, ...(r.drift || []).map((d) => d.gapEnd - d.exitLead));

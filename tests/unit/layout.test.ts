@@ -219,6 +219,17 @@ describe('long4 entry', () => {
     expect(biomeRows.map((r) => [r.slot, r.fork])).toEqual([[0, true], [1, true]]);
   });
 
+  it('caps the climax (peak B) at a .1 Descent 2+ third spawn, every other banded row at the 35% default', () => {
+    // beat-probe exit: peak <= 1.7 spawns/s. Descent 2 fire's climax read 1.87 at .35 and 1.71 at .15; the model below
+    // runs ~.03 under the probe, so it keeps that margin
+    const T = L.beats.tempo, climax = T.find((t) => t.until === .94)!;
+    expect(climax.third).toBe(.1);
+    const climaxRate = (1 + Math.min(.85, .6 + climax.dbl) + (climax.third as number)) / (100 * climax.gap) * 60;
+    expect(climaxRate).toBeLessThanOrEqual(1.7 - .05);
+    expect(T.filter((t) => t !== climax && t.third != null).every((t) => t.third === true)).toBe(true);
+    expect(LAYOUTS.short!.beats.tempo.every((t) => t.third === undefined || t.third === true)).toBe(true);
+  });
+
   it('has the D31-stretched rows: Orbit 6780, a 5100 px Drive approach, LEVEL 25050', () => {
     const [o, , , d] = L.stages;
     // D31 part 2: LS1's 4380 Orbit (D22) + 2400 (D37), the Drive approach 2700 + 2400 (2100 + the plan's +300 fallback)

@@ -28,7 +28,7 @@ const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] :
 const LAYOUT = opt('--layout', 'long4'), STAGE = +opt('--stage', '1'), CPN = +opt('--cp', '1'), SEED = +opt('--seed', '7');
 const DEATH = argv.includes('--death'), OUT = opt('--out', null);
 let url = argv.find((a, i) => !a.startsWith('--') && !['--layout', '--stage', '--cp', '--seed', '--out'].includes(argv[i - 1]));
-const MAX = 60 * 60 * 6; // 6 min of play to reach a checkpoint in Descent 1 is a hang
+const MAX = 60 * 60 * 10; // 10 min of play to reach a checkpoint in Descent 1 is a hang (D31: long4 Descent 1 is ~8.6 min, the Drive CP1 ~7.5)
 
 let server;
 if (!url) {
