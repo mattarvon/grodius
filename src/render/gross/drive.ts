@@ -734,7 +734,7 @@ function rupture() {
   S.cd = {};
   if (!snd('driveburst', { vol: 1, spread: .04, wet: .35, prio: true }, 0)) snd('splat_l', { vol: 1, rate: .6, wet: .4, prio: true }, 0);
   snd('explode_l', { vol: .7, rate: .7, wet: .4, prio: true }, 0);
-  snd('fart_ok', { vol: 1, rate: .32, spread: .02, wet: .6, at: .5, prio: true }, 0); // and Matty's raspberry, slowed to a groan
+  snd('drivegut', { vol: 1, rate: .6, spread: .02, wet: .6, at: .5, prio: true }, 0); // a dying-organism groan (was Matty's raspberry, fart_ok at .32: swapped for Matt's 2026-11-07 "more evil, not cartoonish"; ls1-audit sound-designer. Revert this line to restore it)
 }
 
 // ---------------- drawing ----------------

@@ -118,7 +118,7 @@ describe('the Drive death (render/gross/drive.ts rupture)', () => {
     const src = readFileSync(new URL('../../src/render/gross/drive.ts', import.meta.url), 'utf8');
     const body = src.slice(src.indexOf('function rupture()'), src.indexOf('// ---------------- drawing'));
     const calls = body.match(/snd\('\w+', \{[^}]*\}/g) || [];
-    expect(calls.map((c) => c.slice(5, c.indexOf("'", 5)))).toEqual(['driveburst', 'splat_l', 'explode_l', 'fart_ok']);
+    expect(calls.map((c) => c.slice(5, c.indexOf("'", 5)))).toEqual(['driveburst', 'splat_l', 'explode_l', 'drivegut']);
     for (const c of calls) expect(c).toContain('prio: true');
   });
 });

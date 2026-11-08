@@ -1054,7 +1054,7 @@ function rupture(e, s) {
   if ($.state === 'play') {
     try {
       sample('splat_l', { vol: .9, rate: .8, prio: true });
-      sample('fart_ok', { vol: .75, rate: .6, spread: .05, at: .25, prio: true }); // the empty skin deflating
+      sample('gross_gush', { vol: .75, rate: .5, spread: .05, at: .25, prio: true }); // the empty skin deflating: a slow wet exhale (was fart_ok; Matt 2026-11-07 "more evil, not cartoonish", ls1-audit sound-designer)
     } catch (err) {}
   }
 }
