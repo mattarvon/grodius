@@ -149,8 +149,14 @@ async function runOnce(b, sc = null, name = null) {
 }
 // what is on the field at a stop, and the scenario's closing sim state. In-page: they read window.__G only
 const meets = () => { const { G, state } = window.__G(); return [G && G.mini && `mini:${G.mini.k}`, G && G.boss && 'boss:drive', state !== 'play' && `state:${state}`].filter(Boolean); };
-const simState = () => { const { G, P, enemies, drops, caps } = window.__G(), r = (v) => (typeof v === 'number' ? +v.toFixed(3) : v ?? null);
-  return { jump: !!G.jump, stage: G.stage, pair: ((G.mb && G.mb[G.stage]) || []).join('+'), loop: G.loop, pow: r(G.pow), rank: r(G.rank), lvl: G.lvl, kills: G.kills, t: G.t, simSig: JSON.stringify([G.score, G.scroll, G.bio, G.xpTot, G.mb, G.route, P && [P.x, P.y, P.inv, P.shield], enemies.map((e) => [e.k, r(e.x), r(e.y), e.hp]), drops.length, caps.map((c) => [c.ty, r(c.x), r(c.y)])]) }; };
+// sig also covers the Gravity Drive (G.boss is not in enemies), enemy shots (world.ts eshots, not in __G: read through
+// the dev server's module, as ready() does) and the midboss's own clock/state plus the picker's per-stage tables
+const simState = async () => { const { G, P, enemies, drops, caps } = window.__G(), r = (v) => (typeof v === 'number' ? +v.toFixed(3) : v ?? null);
+  let es = null; try { es = (await import('/src/world.ts')).eshots; } catch (e) {} // a built page: no module URL, sig leaves them out
+  const B = G.boss, M = G.mini;
+  return { jump: !!G.jump, stage: G.stage, pair: ((G.mb && G.mb[G.stage]) || []).join('+'), loop: G.loop, pow: r(G.pow), rank: r(G.rank), lvl: G.lvl, kills: G.kills, t: G.t, simSig: JSON.stringify([G.score, G.scroll, G.bio, G.xpTot, G.mb, G.route, P && [P.x, P.y, P.inv, P.shield], enemies.map((e) => [e.k, r(e.x), r(e.y), e.hp]), drops.length, caps.map((c) => [c.ty, r(c.x), r(c.y)]),
+    B && [r(B.x), r(B.y), r(B.hp), r(B.max), B.phase, B.t, B.dying, B.enter, B.plates.map((q) => r(q.hp))], es && es.map((e) => [e.k, r(e.x), r(e.y)]),
+    M && [M.k, r(M.x), r(M.y), r(M.hp), M.st ?? null, M.t ?? null, M.leave ?? null], G.mbUsed ?? null, G.mbLast ?? null]) }; };
 function compare(base, r) {
   const diffs = Object.keys({ ...base.st, ...r.st }).filter((k) => base.st[k] !== r.st[k]).map((k) => `  st.${k}: ${base.st[k]} -> ${r.st[k]}`);
   if (JSON.stringify(base.errs) !== JSON.stringify(r.errs)) diffs.push(`  errs: ${JSON.stringify(base.errs)} -> ${JSON.stringify(r.errs)}`);
