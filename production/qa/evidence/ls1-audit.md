@@ -241,6 +241,12 @@ The first press now plays `menuBlip(false)` instead of the synth `sfx.menu()` (a
 - vitest: 888 passed, plus 1 expected fail.
 - back-check: ok, now with an added armed-title shot taken with a run save (narrative-director). The shots are `ls1-audit-back/{phone,desktop}-root_leave.png` and `-root_leave_save.png`.
 
+**Gates on the fixup commit `27d699c`**, as the technical-director asked, because the fixup touches `screens.ts` and `menuBlip`:
+- They ran one at a time under the lock, in the gate worktree with its own `node_modules/.vite`, at 14:30-14:34 on 2026-11-08.
+- back-check: ok, `fails: []`. The shots were re-taken.
+- short harness: PASS vs baseline @ `8ff9ba4`.
+- parity: PARITY PASS. Runs 3, 6, 7, 11, 15, 3x3 and 7m identical, 0 errors in all 7.
+
 On the title the leave prompt sits under the LAB row. This replaces the y 205-215 the review suggested, which is the help text's band at the root.
 
 ### Merge 1, first pass (`ab78198`/`0ff2e13`)
