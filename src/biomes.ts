@@ -54,7 +54,7 @@ export const BIOMES = {
     mix: [['crawler', 4], ['womb', 3], ['eye', 2], ['hatch', 1], ['wall', .7], ['dive', .3]],
     late: [['slime', 2.5]], // Descent 2+: the Sinus's slimes have leaked into the tanks
     remix: { sig: 'womb', set: 'gutter', drop: ['dive', 'hatch'], add: [['sine', .6]], pool: [['mutant', 2], ['hook', 2], ['flayer', 2], ['cross', 2]] },
-    logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'MY HULL PLATING IS SIZZLING.',
+    logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'HULL PLATING THINNING. IT TASTES ME.',
       'A BOOT FLOATS PAST. THE FOOT IS STILL IN IT.', 'THE TANK IS NOT FULL. IT IS STILL EATING.'],
   },
   fire: {
@@ -79,7 +79,7 @@ export const BIOMES = {
     mix: [['slime', 5], ['hatch', 3], ['womb', 3], ['corpse', 2], ['sine', 1.5], ['crawler', 1], ['eye', 1]],
     remix: { sig: 'slime', set: 'drip', drop: ['corpse', 'eye', 'sine'], add: [['zig', 1.2]], pool: [['mutant', 2], ['hook', 2], ['cross', 2], ['flayer', 2]] },
     logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.',
-      'MY INTAKES ARE CLOGGED. THE CLOG IS CHEWING.', 'IT SNEEZED. I AM STILL INSIDE IT.'],
+      'MY INTAKES ARE BLOCKED. SOMETHING IS IN THEM.', 'THE WALLS CONTRACTED. THEY ARE WAITING.'],
   },
 };
 export const BIOME_KEYS = Object.keys(BIOMES);

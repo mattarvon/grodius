@@ -48,7 +48,7 @@ if (want.has('hype') || want.has('phone')) {
         const m = window.__s;
         m.$.G.hype = null; m.$.G.babe = null;
         if (cat === 'hype10') m.U.hype(10);
-        if (cat === 'babe20') m.U.babe();
+        if (cat === 'babe20') m.U.babe?.(); // cut in the tone pass (D39): the sfriend face still shows via voiceOn
         m.A.voiceOn(cat, { clip: name, duration: 2.4 }, 1);
         window.__play(26);
       }, [cat, name]);

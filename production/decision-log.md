@@ -298,6 +298,28 @@ Matt played a full run on the wave 1 build (`abf85c1`, long4, before D31): "its 
 - Does slot A's home preference still hold once a biome has two pool members?
 - At-risk biomass, where unbanked biomass is lost on death, needs a decision.
 
+### D39 Tone: evil, not cartoonish; gore and darkness — 2026-11-07 (Matt)
+
+Matt: "it should be more evil and not cartoonish", then "need gore, and darkness". He approved creative-director's tone note (LS2 wave 2 crew notes, `tone.md`).
+
+**Pillar 5: "comedy in comms only".** The MERIDIAN, its creatures, bosses, gore, art, sound, music and log text play malevolent body horror straight: dark, wet, anatomical, never cartoonish. The one release valve is deadpan gallows humour in the comms callers and kill banners. `design/game-brief.md` :35 and :83 rewritten, with follow-ons at :21, :76, :78 and :84.
+
+**Voice:**
+- Keep `stop-killing-me` (CREWMAN #5 // DECEASED) and `lesley-yeah-baby` (LESLEY, MISSION CONTROL).
+- Shelve `hell-yeah` (SGT. RAMROD SLAB) and `sfriend` (SURF CONTROL) to `src/sfx-shelved/`. Cut the surfer flyby and its "EXCELLENT WORK, BABY!" bubble. The VOICE rows stay so a clip can be un-shelved. An empty voice bank is silent, with no TTS fallback.
+
+**Approved strings:**
+- Kill banners: 10 THAT ONE / HAD A NAME; 20 CLEAN-UP CREW / IS NOT COMING; 35 WE WILL NEED / A BIGGER BAG; 50 FILE IT / UNDER LOSSES; 75 THE GATE / KNOWS YOUR NAME; 100 YOU ARE / PART OF IT NOW. CARN: MESSY becomes OPENED.
+- Names: THE DROWNED LANDER (was the Squid Saucer), THE BLOAT, SEVERED, TAKEN DOWN.
+- LS2 names, in docs and specs only for now: THE EXPECTORANT (Spit), THE SCENT ORGAN (Sniffer), CHARON-6 (the tug), CREWMAN #2 // TETHERED.
+- Log, perk and menu lines as listed in the tone note §4(A) item 9.
+
+**Worklist A (render, audio and copy; lane `ls2-read`):** greybox rebuilt as a dark angular mass with a lit split; lime out of the cyst and pink out of gore; `silly` shelved; pick, power, alarm, hype and UI sounds re-voiced darker; Jello clips out of `snot`; fart menu nav replaced; interim music lowpass, drive and rate .94; the voice list above; the kill banners and copy. **Midboss, boss and banner renames wait for fix merge 2** (the warm-up WARNING gate keys off banner text today, and parity records midboss titles).
+
+**Worklist B (a later tone lane, in this order):** the darkness pass with a new Orbit backdrop (highest perf risk, profile on the Fold); the gore pass (anatomical gibs, spatter, persistence); the core midboss rebuild with a motion pass; the music replacement.
+
+**Stays:** D25 (no screen-space splats over the play field). **Inviolable:** enemy bullets and hazards stay lime with a dark outline, unlit and on top, and must read on the phone outdoors. Darkness, gore and fog never dim, cover, move or recolour them.
+
 ### D40 LS1 fix merge 1 merged — 2026-11-08 (parent; Matt authorized parent merges)
 
 **What merged** (ls1-audit, `abf85c1..5fa8663`):

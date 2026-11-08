@@ -29,7 +29,7 @@ function grossCyst(c, e) {
   const s = fxs(e), t = e.t, sw = (e.sw || 0) / 30, sc = 1 + sw * .22 + Math.sin(t * .07) * .03, tel = e.st === 'tel' ? e.wt / 45 : 0, rim = (a, i) => 22 + Math.sin(a * 4 + t * .06) * 1.6 + hash(i) * 2;
   stepParts(s);
   if (s.ev === 'idle>swell') snd('gross_slosh', .5, .35);
-  if (s.ev === 'swell>idle') { spray(s, e.x, e.y + 4, 16, '#a6e02a', 2, 1.4, .4); spray(s, e.x, e.y + 4, 8, '#8a2a3a', 1.6, 1.2, .2); }
+  if (s.ev === 'swell>idle') { spray(s, e.x, e.y + 4, 16, '#9a7024', 2, 1.4, .4); spray(s, e.x, e.y + 4, 8, '#8a2a3a', 1.6, 1.2, .2); }
   // placenta: ragged maroon strands with clots, hanging into the lake, dripping
   c.lineCap = 'round';
   for (let k = -2; k <= 2; k++) {
@@ -106,9 +106,9 @@ function grossCyst(c, e) {
   c.lineDashOffset = -t * .15;
   c.stroke();
   c.setLineDash([]);
-  // bile: green and sloshing over the lower half, digesting it
+  // bile: ochre (lime is the bullets' alone, D39) and sloshing over the lower half, digesting it
   const lv = 3 - sw * 4 + Math.sin(t * .05) * 1.5, tl = Math.sin(t * .03) * 3;
-  c.fillStyle = 'rgba(150,210,30,.5)';
+  c.fillStyle = 'rgba(140,100,26,.55)';
   c.beginPath();
   c.moveTo(-26, lv + tl);
   for (let x = -26; x <= 26; x += 4) c.lineTo(x, lv + tl * (-x / 26) + Math.sin(x * .4 + t * .12) * 1.1);
@@ -116,13 +116,13 @@ function grossCyst(c, e) {
   c.lineTo(-26, 30);
   c.closePath();
   c.fill();
-  c.strokeStyle = 'rgba(220,255,110,.85)';
+  c.strokeStyle = 'rgba(206,160,72,.8)';
   c.lineWidth = .7;
   c.beginPath();
   for (let x = -26; x <= 26; x += 4) { const y = lv + tl * (-x / 26) + Math.sin(x * .4 + t * .12) * 1.1; x === -26 ? c.moveTo(x, y) : c.lineTo(x, y); }
   c.stroke();
   // digesting fizz in the bile
-  c.fillStyle = 'rgba(230,255,150,.8)';
+  c.fillStyle = 'rgba(222,192,120,.7)';
   for (let q = 0; q < 8; q++) { const bx = -14 + hash(q + 31) * 28, by = lv + 14 - ((t * .3 + hash(q + 7) * 30) % 14); c.fillRect(bx, by, .8, .8); }
   c.restore();
   // veins through the membrane, swelling dark red as it bloats
@@ -147,7 +147,7 @@ function grossCyst(c, e) {
   }
   // acid blisters swelling up on the membrane and popping
   const BL = [[-15, -6, 2.6], [15, 4, 2.2], [-3, -18, 1.8], [9, -15, 2], [-17, 3, 1.6], [16, -11, 1.5], [-1, 18, 1.8]];
-  for (let q = 0; q < BL.length; q++) { const [bx, by, br] = BL[q]; bubble(c, s, e, 100 + q, bx, by, br * (1 + sw * .4), 50 + q * 13, 'rgba(180,240,60,.75)', 'rgba(230,255,140,.95)', '#a6e02a', 4); }
+  for (let q = 0; q < BL.length; q++) { const [bx, by, br] = BL[q]; bubble(c, s, e, 100 + q, bx, by, br * (1 + sw * .4), 50 + q * 13, 'rgba(150,106,30,.8)', 'rgba(214,178,100,.9)', '#9a7024', 4); }
   c.fillStyle = 'rgba(230,220,240,.5)';
   c.beginPath();
   c.ellipse(-8, -12, 4, 1.8, -.6, 0, TAU);
@@ -159,14 +159,14 @@ function grossCyst(c, e) {
   c.beginPath();
   c.ellipse(-2, -20, 5, 3 + tel * 2, 0, 0, TAU);
   c.fill();
-  c.fillStyle = tel ? '#a6ff2a' : '#46e0c0';
+  c.fillStyle = tel ? '#ffbf62' : '#46e0c0';
   c.beginPath();
   c.ellipse(-2, -20, 2.6, 1.4 + tel * 1.6, 0, 0, TAU);
   c.fill();
   c.restore();
   // ooze from the holes
-  strand(c, s, e, 70, -12 * sc, 11 * sc, 6, 1.2, 'rgba(150,220,40,.85)', 64, '#c8ff50', 1);
-  strand(c, s, e, 71, 6 * sc, 17 * sc, 5, 1, 'rgba(150,220,40,.85)', 82, '#c8ff50', 1);
+  strand(c, s, e, 70, -12 * sc, 11 * sc, 6, 1.2, 'rgba(140,100,28,.85)', 64, '#c89a48', 1);
+  strand(c, s, e, 71, 6 * sc, 17 * sc, 5, 1, 'rgba(140,100,28,.85)', 82, '#c89a48', 1);
   drawParts(c, s, e);
   if (tel || sw) {
     c.globalCompositeOperation = 'lighter';

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { SET } from './save';
-import { nativeSay } from './platform';
 import { duckMusic, curBiome } from './music';
+import { BIOME_KILL, KILL_LAYER } from './audiomix';
 
 // ---------------- audio ----------------
 export const AU = {
@@ -83,10 +83,11 @@ export function auInit() {
   lp.connect(g);
   g.connect(AU.m);
   AU.lp = lp;
+  AU.dg = g; // the bed's gain: music.ts raises it with the intensity level (audiomix.ts droneTarget)
 }
 // ---------------- sample bank ----------------
 // Every audio file under src/sfx/<category>/ is bundled and decoded on first input. Categories:
-// splat_s splat_m splat_l thud bone silly explode_s explode_l, plus monster (under roar), snot (Sinus kills),
+// splat_s splat_m splat_l thud bone explode_s explode_l (silly is shelved, src/sfx-shelved/README.md), plus monster (under roar), snot (Sinus kills),
 // warning (sirens under WARNING banners), stinger (midboss warning), forkopen (gates open) and the voice lines.
 // Drop more files in a folder and they join the rotation. ov-* clips are cut from Openverse picks by
 // tools/import_openverse.py.
@@ -215,6 +216,18 @@ export function nz(o) {
   s.start(t, ar() * 1.5);
   s.stop(t + a + dur + .05);
 }
+/** synth stand-in for a biome kill clip not in the bank yet (acid: the gfizz clip set is a follow-up) */
+function synthKill(kind, sz) {
+  if (kind !== 'fizz') return;
+  // tone pass (Matt 2026-11-07, "more evil, not cartoonish"): the rising bubble pops read as a cartoon, so they are
+  // gone. A hiss that sinks (bandpass 2.6 kHz -> 700 Hz, inside the phone speaker's 1-4 kHz band at its start) entering
+  // 30 ms in so the splat's transient lands first, under two saws a semitone-ish apart sagging together: the beat
+  // between them is the wrong, sour note of flesh giving way. Lowpassed so it sits under the splat, never over it.
+  nz({ f: 2600, f2: 700, dur: .22 + sz * .04, vol: .07, ft: 'bandpass', q: 1.2, wet: .15, at: .03 }); // flesh dissolving
+  const f0 = arr(200, 240);
+  tone({ type: 'sawtooth', f: f0, f2: f0 * .42, dur: .2 + sz * .04, vol: .035, lp: 900, wet: .15, at: .04 }); // sag
+  tone({ type: 'sawtooth', f: f0 * 1.06, f2: f0 * .4, dur: .2 + sz * .04, vol: .03, lp: 900, wet: .15, at: .04 }); // its sour twin
+}
 export const sfx = {
   /** player gun. t = power tier 0..4: each tier drops the pitch and stacks a heavier layer (body, thump, crack, sub) */
   shot(t = 0) {
@@ -267,21 +280,12 @@ export const sfx = {
       vol: .12
     });
   },
+  // tone pass (D39, tone.md Audio): no clean blip above ~1.2 kHz. The deflection is a dull knock on plate, a short
+  // falling triangle under a lowpass with a damp band of noise, not a bright ping
   tink() {
     if (thr('t', 60)) return;
-    tone({
-      type: 'triangle',
-      f: 2700,
-      f2: 1900,
-      dur: .05,
-      vol: .045
-    });
-    nz({
-      f: 5000,
-      dur: .03,
-      vol: .04,
-      ft: 'highpass'
-    });
+    tone({ type: 'triangle', f: 820, f2: 560, dur: .05, vol: .05, lp: 1000 }); // starts under the 1.2 kHz line, not on it
+    nz({ f: 800, dur: .03, vol: .04, ft: 'bandpass', q: 3 });
   },
   gore(sz) {
     if (thr('g', 45)) return;
@@ -289,9 +293,11 @@ export const sfx = {
     if (sample(cat, { vol: .75 + Math.min(.45, sz * .08), wet: .22 })) {
       if (sz >= 1.2) sample('thud', { vol: .5 + Math.min(.3, sz * .06), rate: sz >= 2.1 ? .8 : 1 }); // body impact under the splat
       if (sz >= 1.4 && ar() < .5) sample('bone', { vol: .55, at: .015 });
-      if (sz >= .9 && ar() < .14) sample('silly', { vol: .6, at: .04 }); // ~1 in 7 kills gets the comedy layer
       if (sz >= 3) sample('explode_l', { vol: .9, wet: .35 });
-      if (curBiome() === 'snot' && ar() < .6) sample('snot', { vol: .55 + Math.min(.3, sz * .06), at: .02 }); // the Sinus: everything dies wet
+      // the biome's kill layer (audiomix.ts BIOME_KILL): lowest priority, so it skips near the voice cap and is throttled
+      const k = BIOME_KILL[curBiome()];
+      if (k && sz >= k.minSz && voices <= KILL_LAYER.maxVoices && !thr('gb', KILL_LAYER.gapMs) && ar() < k.chance)
+        sample(k.cat, { vol: k.vol + Math.min(KILL_LAYER.volCap, sz * k.sizeVol), rate: k.rate, at: k.at, wet: .15 }) || (k.synth && synthKill(k.synth, sz));
       return;
     }
     const v = Math.min(1, .3 + sz * .14);
@@ -319,23 +325,23 @@ export const sfx = {
       q: 3
     });
   },
+  // tone pass (D39): rewards fall and never resolve upward. pick was a C-major arpeggio up; now a minor 2nd down then a
+  // tritone down (G#4 G4 C#4) on lowpassed saws, in the 200 Hz-1 kHz band a phone speaker carries
   pick() {
-    [523, 784, 1046].forEach((f, i) => tone({
-      at: i * .05,
-      f,
-      dur: .07,
-      vol: .05
-    }));
+    [415.3, 392, 277.2].forEach((f, i) => tone({ at: i * .05, type: 'sawtooth', f, dur: .07, vol: .045, lp: 1100, q: 1.5 }));
   },
+  /** power-ups, perk takes, menu confirms and the stage clear (stages.ts calls this; its sim is not touched). A falling
+   *  m2 / tritone / m2 figure (D#4 D4 G#3 G3) over a slow swell of two low saws a semitone apart (G2/G#2), whose
+   *  beating is the dark swell tone.md asks for at the stage clear */
   power() {
-    [262, 330, 392, 523].forEach((f, i) => tone({
-      at: i * .04,
-      type: 'sawtooth',
-      f,
-      dur: .2,
-      vol: .04,
-      lp: 2600
-    }));
+    [311.1, 293.7, 207.7, 196].forEach((f, i) => tone({ at: i * .06, type: 'sawtooth', f, dur: .22, vol: .042, lp: 950, q: 2 }));
+  },
+  /** stage clear: the falling power figure over a dark swell of two saws a semitone apart (G2/G#2). Only the clear
+   *  gets the swell; on every perk, buy and confirm it stopped meaning anything (audio-director, ls2-read) */
+  stageClear() {
+    sfx.power(); // not this.power(): safe if passed as a bare callback
+    tone({ type: 'sawtooth', f: 98, f2: 92.5, dur: .55, a: .2, vol: .05, lp: 420, wet: .35 });
+    tone({ type: 'sawtooth', f: 103.8, f2: 98, dur: .55, a: .2, vol: .045, lp: 420, wet: .35 });
   },
   deny() {
     tone({
@@ -455,15 +461,10 @@ export const sfx = {
   forkOpen() {
     if (!sample('forkopen', { vol: .8, wet: .3, spread: 0 })) sfx.alarm();
   },
+  // tone pass (D39): the 660/880 hi-lo siren was a cartoon klaxon. Now a 220/233 Hz pair (a minor 2nd, ~13 Hz beat)
+  // pulsing four times over the same ~2.1 s: a sour throb in the band phones carry
   alarm() {
-    for (let i = 0; i < 6; i++) tone({
-      at: i * .36,
-      f: i % 2 ? 660 : 880,
-      dur: .3,
-      vol: .045,
-      lp: 3000,
-      wet: .3
-    });
+    for (let i = 0; i < 4; i++) for (const f of [220, 233.1]) tone({ at: i * .52, type: 'sawtooth', f, dur: .4, a: .04, vol: .04, lp: 1000, q: 1.5, wet: .3 });
   },
   heart() {
     tone({
@@ -525,15 +526,12 @@ export const sfx = {
       vol: .15
     });
   },
+  // tone pass (D39): the attack tell was a clean 1.9-2.6 kHz sine sweep. Still a rising pull so it reads as "about to",
+  // but two lowpassed saws a tritone apart (D#4/A4) creeping up a semitone, resonant, under 1.2 kHz
   tele() {
     if (thr('tl', 300)) return;
-    tone({
-      type: 'sine',
-      f: 1900,
-      f2: 2600,
-      dur: .25,
-      vol: .03
-    });
+    tone({ type: 'sawtooth', f: 311.1, f2: 329.6, dur: .25, vol: .035, lp: 1100, q: 3 });
+    tone({ type: 'sawtooth', f: 440, f2: 466.2, dur: .25, vol: .03, lp: 1100, q: 3 });
   },
   shield() {
     tone({
@@ -544,12 +542,9 @@ export const sfx = {
       vol: .08
     });
   },
+  // tone pass (D39): an octave lower and lowpassed, a dull tick rather than a bright blip
   menu() {
-    tone({
-      f: 660,
-      dur: .03,
-      vol: .035
-    });
+    tone({ f: 330, dur: .035, vol: .04, lp: 900 });
   },
   groan() {
     nz({
@@ -639,14 +634,8 @@ export const sfx = {
   },
   chain() {
     if (thr('ch', 150)) return;
-    for (let k = 0; k < 5; k++) tone({
-      at: k * .035,
-      type: 'triangle',
-      f: arr(1800, 3600),
-      f2: arr(900, 1500),
-      dur: .04,
-      vol: .035
-    });
+    // tone pass (D39): was bright 1.8-3.6 kHz triangle pings; now a low lowpassed rattle of links dragging
+    for (let k = 0; k < 5; k++) tone({ at: k * .035, type: 'sawtooth', f: arr(500, 900), f2: arr(250, 400), dur: .04, vol: .035, lp: 1100, q: 2 });
   },
   bomb() {
     if (thr('bm', 80)) return;
@@ -672,17 +661,17 @@ export const sfx = {
       f,
       dur: .7,
       vol: .07,
-      lp: 1900,
+      lp: 1200,
       a: .01,
       wet: .3
     }));
     [82.4, 123.5, 164.8].forEach(f => tone({
       at: .18,
       type: 'sawtooth',
-      f: f * 1.335,
+      f: f * 1.0595, // tone pass (D39): was x1.335, a rising fourth (triumph); now a minor 2nd above, sour
       dur: .9,
       vol: .06,
-      lp: 1900,
+      lp: 1200,
       wet: .3
     }));
     nz({
@@ -704,34 +693,12 @@ export const sfx = {
   },
   drip() {
     if (thr('dr', 200)) return;
-    tone({
-      type: 'sine',
-      f: arr(1100, 1500),
-      f2: 500,
-      dur: .05,
-      vol: .02,
-      wet: .6
-    });
+    // tone pass (D39): was a 1.1-1.5 kHz plink; now a low wet drop falling into the 200-800 Hz band
+    tone({ type: 'sine', f: arr(600, 800), f2: 240, dur: .06, vol: .025, wet: .6 });
   }
 };
-export function say(t, o = {}) {
-  if (SET.muted) return;
-  if (nativeSay(t, o.pitch ?? .3, o.rate ?? .92)) return;
-  try {
-    const S = window.speechSynthesis;
-    if (!S) return;
-    const u = new SpeechSynthesisUtterance(t);
-    u.pitch = o.pitch ?? .3;
-    u.rate = o.rate ?? .92;
-    u.volume = 1;
-    if (o.female) {
-      const v = S.getVoices().find(v => /female|samantha|zira|victoria|karen|moira|tessa|fiona|susan|aria|jenny/i.test(v.name));
-      if (v) u.voice = v;
-    }
-    S.cancel();
-    S.speak(u);
-  } catch (e) {}
-}
+// say() (speechSynthesis / native TTS) is gone (tone pass D39): a voice line is a recorded clip or nothing, so an
+// empty or shelved bank is silent
 export function setMute(m) {
   SET.muted = m;
   if (AU.m) AU.m.gain.value = m ? 0 : .55;

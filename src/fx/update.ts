@@ -4,7 +4,7 @@ import { pk } from '../perks';
 import { FIRE, H, W, dist2, swapRm } from '../core';
 import { srnd, srr, sri, spick } from '../srnd';
 import { SET } from '../save';
-import { AU, BANK, sample, say, sfx, tone } from '../audio';
+import { AU, BANK, sample, sfx } from '../audio';
 import { AMT, ceilAt, decals, drops, flashes, floorAt, geysers, gibs, grav, mists, orbs, sparks, splats, texts } from '../world';
 import { addDecal, drop, spark, splat } from '../fx/spawn';
 import { stepBooms } from './fxsprites';
@@ -236,7 +236,10 @@ export function updateCombo() {
     };
     if (n >= 10 && !($.G.hypeCD > 0)) {
       $.G.hypeCD = HYPE_CD;
-      if (n === 20) babe();else hype(n);
+      // tone pass (D39): the 20-chain surfer flyby is cut and gets the hype sting like every other milestone. The
+      // srnd() keeps the render stream where babe()'s bubble-height draw left it, so later gib counts (harness st) hold
+      if (n === 20) srnd();
+      hype(n);
     }
     if (n >= 10) splat(srr(80, 400), srr(40, 200), 1.5 + n / 40);
     $.G.red = Math.max($.G.red, .35);
@@ -254,43 +257,11 @@ export const HYPE = {
   75: ['THE GATE', 'FEARS YOU!'],
   100: ['HELL IS', 'YOUR HOUSE!']
 };
-export function babe() {
-  // 20-chain surfer flyby: recorded lines in src/sfx/babe20/ (random pick), else text-to-speech
-  const voiced = !!BANK.babe20;
-  $.G.babe = {
-    t: voiced ? 400 : 230,
-    ml: voiced ? 400 : 230,
-    y: srr(34, 52)
-  };
-  tone({
-    f: 523,
-    f2: 1046,
-    dur: .25,
-    vol: .05,
-    type: 'triangle',
-    wet: .3
-  });
-  tone({
-    at: .15,
-    f: 659,
-    f2: 1318,
-    dur: .3,
-    vol: .05,
-    type: 'triangle',
-    wet: .3
-  });
-  setTimeout(() => {
-    if (!sample('babe20', { vol: 1.15, spread: .02, wet: .16 })) say('excellent work, baby', {
-      female: 1,
-      pitch: 1.15,
-      rate: .9
-    });
-  }, 500);
-}
 export function hype(n) {
   const L = HYPE[n];
   if (!L) return;
-  // recorded voice lines live in src/sfx/hype<N>/ (e.g. hype10 = 10-kill chain); otherwise text-to-speech
+  // recorded voice lines live in src/sfx/hype<N>/ (e.g. hype10 = 10-kill chain). No clip, no voice: there is no
+  // text-to-speech fallback (tone pass D39), so an empty or shelved bank is silent apart from the sting
   const voiced = !!BANK['hype' + n];
   $.G.hype = {
     L,
@@ -298,9 +269,7 @@ export function hype(n) {
     ml: voiced ? 240 : 150
   };
   sfx.hype();
-  setTimeout(() => {
-    if (!sample('hype' + n, { vol: 1.15, spread: .02, wet: .16 })) say(L.join(' ').replace(/[!']/g, '').toLowerCase());
-  }, 120);
+  setTimeout(() => sample('hype' + n, { vol: 1.15, spread: .02, wet: .16 }), 120);
 }
 // runs the same whatever the setting (postFX hides it when HELL FLASHES is OFF), so the setting can't change the sim
 export function hellFlash() {

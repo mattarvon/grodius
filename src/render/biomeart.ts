@@ -12,11 +12,15 @@ import { glow, light } from './util';
 import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
 import { drawMoveProps } from './moveprops';
+import { MOTIFW, PREVW, WOUND, acidFlakes, fireAsh, iceDrips, iceWash, wBuilt, wlay, wPts, woundBuilt, woundLook } from './wounds';
+import { PERKS, pk } from '../perks';
+import { PLATE, plateBox, plateLines, plateRight } from './gateplate';
 
 const FONT = 'Silkscreen, monospace';
-const LW = 320; // parallax tile width
-const rng = (s) => { s = (Math.abs(Math.floor(s)) % 2147483646) + 1; return () => ((s = (s * 16807) % 2147483647) / 2147483647); };
-const cnv = (w, h, fn) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); fn(x, w, h); return c; };
+// LW, rng, cnv, figure, face, skull, wrap and ridge are exported for the wound painters (render/wounds.ts)
+export const LW = 320; // parallax tile width
+export const rng = (s) => { s = (Math.abs(Math.floor(s)) % 2147483646) + 1; return () => ((s = (s * 16807) % 2147483647) / 2147483647); };
+export const cnv = (w, h, fn) => { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); fn(x, w, h); return c; };
 const lit = (f) => { ctx.globalCompositeOperation = 'lighter'; f(); ctx.globalCompositeOperation = 'source-over'; };
 
 // ---------------- bodies ----------------
@@ -29,7 +33,7 @@ const POSE = {
   slump: [[-4, 3, -7, 6], [4, 2, 8, 4], [-3, 4, -8, 5], [3, 4, 9, 6]],
   curl: [[-3, 2, 0, 0], [3, 2, 1, -1], [-3, 4, 0, 7], [3, 4, 1, 8]],
 };
-function figure(x, cx, cy, s, pose, col, head) {
+export function figure(x, cx, cy, s, pose, col, head) {
   const P = POSE[pose];
   x.strokeStyle = col; x.lineCap = 'round'; x.lineJoin = 'round';
   x.lineWidth = 3.4 * s; x.beginPath(); x.moveTo(cx, cy - 6 * s); x.lineTo(cx, cy + 3 * s); x.stroke();
@@ -37,11 +41,11 @@ function figure(x, cx, cy, s, pose, col, head) {
   for (let i = 0; i < 4; i++) { const [ex, ey, hx, hy] = P[i], oy = i < 2 ? cy - 5 * s : cy + 3 * s; x.beginPath(); x.moveTo(cx, oy); x.lineTo(cx + ex * s, oy + ey * s); x.lineTo(cx + hx * s, oy + hy * s); x.stroke(); }
   x.fillStyle = head || col; x.beginPath(); x.arc(cx, cy - 9 * s, 2.4 * s, 0, TAU); x.fill();
 }
-function face(x, cx, cy, s, eye, mouth) {
+export function face(x, cx, cy, s, eye, mouth) {
   x.fillStyle = eye; x.fillRect(cx - 1.3 * s, cy - 10 * s, .9 * s, .9 * s); x.fillRect(cx + .4 * s, cy - 10 * s, .9 * s, .9 * s);
   x.fillStyle = mouth; x.beginPath(); x.ellipse(cx, cy - 7.9 * s, .8 * s, 1.2 * s, 0, 0, TAU); x.fill();
 }
-function skull(x, cx, cy, s, bone) {
+export function skull(x, cx, cy, s, bone) {
   x.fillStyle = bone; x.beginPath(); x.arc(cx, cy, 2.6 * s, 0, TAU); x.fill(); x.fillRect(cx - 1.4 * s, cy + 1.4 * s, 2.8 * s, 1.6 * s);
   x.fillStyle = '#0a0806'; x.beginPath(); x.arc(cx - 1 * s, cy - .2 * s, .75 * s, 0, TAU); x.arc(cx + 1 * s, cy - .2 * s, .75 * s, 0, TAU); x.fill();
   x.fillRect(cx - .25 * s, cy + .7 * s, .5 * s, .6 * s);
@@ -106,12 +110,12 @@ export function biomeTerrainFill(mtx) {
   return k;
 }
 /** scale for the derelict's darkness overlay: each biome keeps some dark but stays legible (BIOMES[b].dark) */
-export const biomeDark = () => { if (!$.G) return 1; const [b, k] = biomeK($.G.scroll + W / 2); return b ? 1 - k * (1 - (BIOMES[b].dark ?? 1)) : 1; };
+export const biomeDark = () => { if (!$.G) return 1; const [b, k] = biomeK($.G.scroll + W / 2); return b ? 1 - k * (1 - ((woundLook($.G.scroll + W / 2) || BIOMES[b]).dark ?? 1)) : 1; };
 /** gore mist colour ('r,g,b') for the current biome, or null */
-export const biomeMist = () => { if (!$.G) return null; const [b, k] = biomeK($.G.scroll + W / 2); return b && k > .5 ? BIOMES[b].mist : null; };
-export const biomeEdge = () => { const [b, k] = biomeK($.G.scroll + W / 2); return b && k > .5 ? BIOMES[b].edge : null; };
+export const biomeMist = () => { if (!$.G) return null; const [b, k] = biomeK($.G.scroll + W / 2); return b && k > .5 ? (woundLook($.G.scroll + W / 2) || BIOMES[b]).mist : null; };
+export const biomeEdge = () => { const [b, k] = biomeK($.G.scroll + W / 2); return b && k > .5 ? (woundLook($.G.scroll + W / 2) || BIOMES[b]).edge : null; };
 /** splat colours for the current gore palette ([dark, mid, drip]) or null for the default red */
-export const splatCols = () => { const [b, k] = biomeK($.G.scroll + W / 2); if (!b || k < .5) return null; const B = BIOMES[b].blood; return [B[1], B[0], B[0]]; };
+export const splatCols = () => { const [b, k] = biomeK($.G.scroll + W / 2); if (!b || k < .5) return null; const wd = woundLook($.G.scroll + W / 2); if (wd) return wd.splat; const B = BIOMES[b].blood; return [B[1], B[0], B[0]]; };
 
 // ---------------- parallax tiles ----------------
 const LAY = {}, LPT = {};
@@ -122,10 +126,10 @@ function lay(key, fn) {
 }
 const tileOff = (sc, par) => Math.round(((sc * par) % LW + LW) % LW);
 function drawLay(c, sc, par) { for (let x = -tileOff(sc, par); x < W; x += LW) ctx.drawImage(c, x, 0); }
-function eachPt(key, sc, par, f) { for (let x0 = -tileOff(sc, par); x0 < W; x0 += LW) for (const p of LPT[key]) { const px = x0 + p.x; if (px > -60 && px < W + 60) f(px, p); } }
+function eachPt(key, sc, par, f) { for (let x0 = -tileOff(sc, par); x0 < W; x0 += LW) for (const p of (LPT[key] || wPts(key))) { const px = x0 + p.x; if (px > -60 && px < W + 60) f(px, p); } }
 /** draw f at x, x-LW, x+LW so tile elements wrap seamlessly (all randomness must be rolled before) */
-const wrap = (x, f) => { for (const o of [-LW, 0, LW]) { x.save(); x.translate(o, 0); f(); x.restore(); } };
-const ridge = (i, a) => a.reduce((s, [amp, k, ph]) => s + amp * Math.sin(TAU * i / LW * k + ph), 0);
+export const wrap = (x, f) => { for (const o of [-LW, 0, LW]) { x.save(); x.translate(o, 0); f(); x.restore(); } };
+export const ridge = (i, a) => a.reduce((s, [amp, k, ph]) => s + amp * Math.sin(TAU * i / LW * k + ph), 0);
 
 const L = {
   iceFar: (x, r) => {
@@ -263,48 +267,61 @@ function aurora() {
     }
   }));
 }
-const GR = {};
+const GR = {}, GRW = {};
 let SHB = null;
-function bgGrad(b) {
-  if (GR[b]) return GR[b];
-  const B = BIOMES[b], g = ctx.createLinearGradient(0, 0, 0, PH);
+/** the sky gradient per biome, cached; wd (a WOUND row) caches its own in GRW */
+function bgGrad(b, wd) {
+  const M = wd ? GRW : GR;
+  if (M[b]) return M[b];
+  const B = wd || BIOMES[b], g = ctx.createLinearGradient(0, 0, 0, PH);
   g.addColorStop(0, B.bg[0]); g.addColorStop(1, B.bg[1]);
-  return (GR[b] = g);
+  return (M[b] = g);
 }
 
+// the infected ropes' strokes, built on first use: WOUND must not be read at load (wounds.ts and this file import each other)
+let WROPE = null;
 export function drawBiomeBG(sc) {
   const [b, k] = biomeK(sc + W / 2);
   if (!b) return;
-  const t = $.T;
+  // a remix visit: the wound look (render/wounds.ts); the normal path is unchanged. Only once the warm-up has built both
+  // wound layers: until then the normal background draws, so a warm-up miss never bakes a layer inside a frame (perf C1)
+  const t = $.T, wd0 = woundLook(sc + W / 2), wd = wd0 && woundBuilt(b) ? wd0 : null;
   ctx.globalAlpha = k;
-  ctx.fillStyle = bgGrad(b); ctx.fillRect(0, 0, W, PH);
+  ctx.fillStyle = bgGrad(b, wd); ctx.fillRect(0, 0, W, PH);
   if (b === 'ice') {
     const A = aurora(), off = ((sc * .04 + t * .15) % LW + LW) % LW;
-    lit(() => { for (let j = 0; j < W / 20; j++) { const sx = Math.floor((off + j * 20) % LW), dy = -8 + Math.sin(t * .012 + j * .45) * 9 + Math.sin(t * .021 + j * 1.3) * 3; ctx.globalAlpha = k * (.55 + .25 * Math.sin(t * .01 + j * .3)); ctx.drawImage(A, sx, 0, 20, 110, j * 20, dy, 20, 110); } });
+    lit(() => { for (let j = 0; j < W / 20; j++) { const sx = Math.floor((off + j * 20) % LW), dy = -8 + Math.sin(t * .012 + j * .45) * 9 + Math.sin(t * .021 + j * 1.3) * 3; ctx.globalAlpha = wd ? k * (.55 + .25 * Math.sin(t * .01 + j * .3)) * wd.aur : k * (.55 + .25 * Math.sin(t * .01 + j * .3)); ctx.drawImage(A, sx, 0, 20, 110, j * 20, dy, 20, 110); } });
     ctx.globalAlpha = k;
-    drawLay(lay('iceFar', L.iceFar), sc, .1);
-    drawLay(lay('iceMid', L.iceMid), sc, .3);
-    // a slow glint sliding over each frozen block
-    eachPt('iceMid', sc, .3, (px, p) => { const g = ((t + p.x * 7) % 300) / 300; if (g < .12) { ctx.strokeStyle = `rgba(235,248,255,${.5 * (1 - g / .12)})`; ctx.lineWidth = 1.5; const gx = px - p.w / 2 + (g / .12) * p.w; ctx.beginPath(); ctx.moveTo(gx - 6, p.y); ctx.lineTo(gx + 6, p.y + 60); ctx.stroke(); } });
-    const fg = ctx.createLinearGradient(0, PH * .6, 0, PH); fg.addColorStop(0, 'rgba(160,210,240,0)'); fg.addColorStop(1, 'rgba(160,210,240,.16)');
-    ctx.fillStyle = fg; ctx.fillRect(0, PH * .6, W, PH * .4);
+    drawLay(wd ? wlay('iceFarW') : lay('iceFar', L.iceFar), sc, .1);
+    drawLay(wd ? wlay('iceMidW') : lay('iceMid', L.iceMid), sc, .3);
+    // a slow glint sliding over each frozen block (a wet sheen on the melted ones)
+    eachPt(wd ? 'iceMidW' : 'iceMid', sc, .3, (px, p) => { const g = ((t + p.x * 7) % 300) / 300; if (g < .12) { ctx.strokeStyle = `rgba(235,248,255,${.5 * (1 - g / .12)})`; ctx.lineWidth = 1.5; const gx = px - p.w / 2 + (g / .12) * p.w; ctx.beginPath(); ctx.moveTo(gx - 6, p.y); ctx.lineTo(gx + 6, p.y + 60); ctx.stroke(); } });
+    if (wd) { ctx.fillStyle = iceWash(); ctx.fillRect(0, PH * .6, W, PH * .4); iceDrips(sc, t); }
+    else { const fg = ctx.createLinearGradient(0, PH * .6, 0, PH); fg.addColorStop(0, 'rgba(160,210,240,0)'); fg.addColorStop(1, 'rgba(160,210,240,.16)');
+      ctx.fillStyle = fg; ctx.fillRect(0, PH * .6, W, PH * .4); }
   } else if (b === 'acid') {
-    drawLay(lay('acidFar', L.acidFar), sc, .12);
-    eachPt('acidFar', sc, .12, (px, p) => {
+    drawLay(wd ? wlay('acidFarW') : lay('acidFar', L.acidFar), sc, .12);
+    if (wd) eachPt('acidFarW', sc, .12, (px, p) => {
+      // drained: only a low glow on the residue (no bubbles: nothing lives in it now)
+      lit(() => glow(px, p.y, p.w * .6, '40,200,170', wd.vat * k));
+    });
+    else eachPt('acidFar', sc, .12, (px, p) => {
       lit(() => glow(px, p.y, p.w * .7, '40,200,170', (.18 + .06 * Math.sin(t * .05 + p.x)) * k));
       for (let q = 0; q < 4; q++) { const ph = ((t * (.4 + q * .13) + q * 37 + p.x) % 120) / 120, bx = px - p.w / 2 + 8 + ((q * 17 + p.x) % (p.w - 16)); ctx.strokeStyle = 'rgba(170,255,235,.5)'; ctx.lineWidth = .7; ctx.beginPath(); ctx.arc(bx + Math.sin(ph * 9 + q) * 2, PH - ph * (PH - p.y - 4), 1 + ph * 1.5, 0, TAU); ctx.stroke(); }
     });
-    drawLay(lay('acidMid', L.acidMid), sc, .3);
-    // sulfur fumes
-    lit(() => { for (let i = 0; i < 4; i++) { const fx = ((i * 157 - sc * .2 + t * .3) % (W + 160) + W + 160) % (W + 160) - 80; glow(fx, PH - 30 - i * 14 + Math.sin(t * .01 + i) * 8, 70, '170,170,60', .12 * k); } });
+    drawLay(wd ? wlay('acidMidW') : lay('acidMid', L.acidMid), sc, .3);
+    // sulfur fumes (dust on a drained visit)
+    lit(() => { for (let i = 0; i < 4; i++) { const fx = ((i * 157 - sc * .2 + t * .3) % (W + 160) + W + 160) % (W + 160) - 80; glow(fx, PH - 30 - i * 14 + Math.sin(t * .01 + i) * 8, 70, wd ? wd.fume : '170,170,60', wd ? wd.fumeA * k : .12 * k); } });
+    if (wd) acidFlakes(sc, t);
   } else if (b === 'fire') {
-    drawLay(lay('fireFar', L.fireFar), sc, .1);
-    eachPt('fireFar', sc, .1, (px, p) => { const fl = .75 + .25 * Math.sin(t * .23 + p.x) * Math.sin(t * .071 + p.x * 3); lit(() => glow(px, p.y, p.w * 1.2, '255,90,20', .28 * fl * k)); light(px, p.y, 50, .5 * fl * k); });
-    drawLay(lay('fireMid', L.fireMid), sc, .28);
-    lit(() => { glow(W * .5, PH + 30, 300, '255,70,10', .4 * k); for (let x = 0; x < W; x += 40) glow(x + 20, PH, 40 + 14 * Math.sin(t * .06 + x), '255,140,30', .25 * k); });
-    // ash drifting up, deterministic
-    ctx.fillStyle = 'rgba(120,100,90,.6)';
-    for (let i = 0; i < 28; i++) { const ax = ((hash(i * 3.1) * 1000 - sc * .5 + Math.sin(t * .02 + i) * 6) % W + W) % W, ay = PH - ((t * (.3 + hash(i) * .5) + hash(i * 7) * PH) % PH); ctx.fillRect(ax | 0, ay | 0, 1 + (i % 3 === 0), 1); }
+    drawLay(wd ? wlay('fireFarW') : lay('fireFar', L.fireFar), sc, .1);
+    eachPt(wd ? 'fireFarW' : 'fireFar', sc, .1, (px, p) => { const fl = .75 + .25 * Math.sin(t * .23 + p.x) * Math.sin(t * .071 + p.x * 3); lit(() => glow(px, p.y, p.w * 1.2, '255,90,20', (wd ? wd.mouth : .28) * fl * k)); light(px, p.y, 50, (wd ? wd.light : .5) * fl * k); });
+    drawLay(wd ? wlay('fireMidW') : lay('fireMid', L.fireMid), sc, .28);
+    lit(() => { glow(W * .5, PH + 30, 300, '255,70,10', (wd ? wd.floor : .4) * k); for (let x = 0; x < W; x += 40) glow(x + 20, PH, 40 + 14 * Math.sin(t * .06 + x), '255,140,30', (wd ? wd.row : .25) * k); });
+    // ash drifting up, deterministic (burnt out: ash falling, a few embers rising)
+    if (wd) fireAsh(sc, t);
+    else ctx.fillStyle = 'rgba(120,100,90,.6)';
+    if (!wd) for (let i = 0; i < 28; i++) { const ax = ((hash(i * 3.1) * 1000 - sc * .5 + Math.sin(t * .02 + i) * 6) % W + W) % W, ay = PH - ((t * (.3 + hash(i) * .5) + hash(i * 7) * PH) % PH); ctx.fillRect(ax | 0, ay | 0, 1 + (i % 3 === 0), 1); }
     // heat shimmer: re-blit the lower background in slightly offset strips
     // (one snapshot into a buffer, then strips from the buffer: no canvas-onto-itself draws)
     const y0 = (PH * .45) | 0, hh = PH - y0, SB = SHB || (SHB = cnv(W, hh, () => {}));
@@ -312,25 +329,25 @@ export function drawBiomeBG(sc) {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
     // neighbouring 5 px strips often share an offset: one blit per run, same pixels, about a third of the draws (S2-K1)
     for (let y = 0, run = 0, rdx = 0; y <= hh; y += 5) {
-      const dx = y < hh ? Math.round(Math.sin(t * .17 + (y + y0) * .35) * 1.3) : 0;
+      const dx = y < hh ? Math.round(Math.sin(t * .17 + (y + y0) * .35) * (wd ? wd.shimmer : 1.3)) : 0;
       if (dx === rdx) continue;
       if (rdx) ctx.drawImage(SB, 0, run, W, y - run, rdx, run + y0, W, y - run);
       run = y; rdx = dx;
     }
     ctx.restore();
   } else {
-    drawLay(lay('snotFar', L.snotFar), sc, .1);
-    // throbbing inflammation
-    lit(() => glow(W * .5, PH * .5, 260, '150,40,20', (.12 + .06 * Math.sin(t * .045)) * k));
+    drawLay(wd ? wlay('snotFarW') : lay('snotFar', L.snotFar), sc, .1);
+    // throbbing inflammation (a fever pulse when infected)
+    lit(() => glow(W * .5, PH * .5, 260, '150,40,20', (wd ? wd.glowA + wd.glowB * Math.sin(t * wd.glowW) : .12 + .06 * Math.sin(t * .045)) * k));
     // pus blisters on the wall: inflate, glisten, burst, scab, regrow
     for (let n = Math.floor((sc * .25 - 60) / 90); n < (sc * .25 + W + 60) / 90; n++) {
-      const hh = hash(n * 3.71 + .2); if (hh > .7) continue;
+      const hh = hash(n * 3.71 + .2); if (hh > (wd ? wd.blister : .7)) continue;
       const cx = n * 90 + hh * 50 - sc * .25, cy = 50 + hash(n * 1.93) * (PH - 100), R = 7 + hash(n * 5.1) * 11, per = 260 + hh * 260, ph = ((t + hh * 997) % per) / per;
       if (ph < .82) {
         const rr = R * Math.pow(ph / .82, .55) + 1;
-        ctx.fillStyle = 'rgba(150,40,28,.5)'; ctx.beginPath(); ctx.arc(cx, cy, rr + 2, 0, TAU); ctx.fill();
-        ctx.fillStyle = 'rgba(222,200,110,.55)'; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.fill();
-        ctx.fillStyle = 'rgba(245,235,180,.55)'; ctx.beginPath(); ctx.arc(cx + rr * .15, cy + rr * .1, rr * .55, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(150,40,28,.5)'; ctx.beginPath(); ctx.arc(cx, cy, rr + (wd ? wd.ring : 2), 0, TAU); ctx.fill();
+        ctx.fillStyle = wd ? wd.blFill : 'rgba(222,200,110,.55)'; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.fill();
+        ctx.fillStyle = wd ? wd.blHi : 'rgba(245,235,180,.55)'; ctx.beginPath(); ctx.arc(cx + rr * .15, cy + rr * .1, rr * .55, 0, TAU); ctx.fill();
         ctx.fillStyle = 'rgba(255,255,240,.7)'; ctx.fillRect(cx - rr * .45, cy - rr * .5, Math.max(1, rr * .25), 1);
         if (ph > .7 && (t >> 1) % 2) { ctx.strokeStyle = 'rgba(255,240,190,.6)'; ctx.lineWidth = .7; ctx.stroke(); }
       } else {
@@ -340,13 +357,14 @@ export function drawBiomeBG(sc) {
         for (let d = 0; d < 8; d++) { const a = d / 8 * TAU + hh, dd = R * (.6 + q * 2.2); ctx.beginPath(); ctx.arc(cx + Math.cos(a) * dd, cy + Math.sin(a) * dd + q * q * 18, 1.6 * (1 - q * .5), 0, TAU); ctx.fill(); }
       }
     }
-    drawLay(lay('snotMid', L.snotMid), sc, .3);
+    drawLay(wd ? wlay('snotMidW') : lay('snotMid', L.snotMid), sc, .3);
     // long mucus ropes: background strands that sag and sway
+    if (wd && !WROPE) WROPE = [`rgba(${wd.rope[0]},.28)`, `rgba(${wd.rope[1]},.22)`];
     for (let n = Math.floor((sc * .45 - 40) / 70); n < (sc * .45 + W + 40) / 70; n++) {
       const hh = hash(n * 2.17 + 9); if (hh > .55) continue;
       const x0 = n * 70 + hh * 40 - sc * .45, sw = Math.sin(t * .015 + n) * 8, len = PH * (.45 + hh * .7);
-      ctx.strokeStyle = 'rgba(200,190,90,.28)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, -2); ctx.quadraticCurveTo(x0 + sw, len * .55, x0 + sw * .4, len); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,250,200,.22)'; ctx.lineWidth = .6; ctx.stroke();
+      ctx.strokeStyle = wd ? WROPE[0] : 'rgba(200,190,90,.28)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, -2); ctx.quadraticCurveTo(x0 + sw, len * .55, x0 + sw * .4, len); ctx.stroke();
+      ctx.strokeStyle = wd ? WROPE[1] : 'rgba(255,250,200,.22)'; ctx.lineWidth = .6; ctx.stroke();
       const dp = ((t * .6 + hh * 400) % 200) / 200;
       ctx.fillStyle = 'rgba(225,210,110,.55)'; ctx.beginPath(); ctx.arc(x0 + sw * .4 * dp, len * dp, 1.7, 0, TAU); ctx.fill();
       ctx.beginPath(); ctx.ellipse(x0 + sw * .4, len + 2, 2.4, 3.2, 0, 0, TAU); ctx.fill();
@@ -629,13 +647,18 @@ export function drawBiomeDecor(sc) {
 // ---------------- ambient, hazards, fork gates ----------------
 export function drawFX(haz, amb, gatePos) {
   const [bk] = $.G ? biomeK($.G.scroll + W / 2) : [null];
+  const wk = bk === 'acid' || bk === 'ice' ? woundLook($.G.scroll + W / 2) : null;
+  const dry = bk === 'acid' && !!wk; // a drained vault: its ambient bubbles draw as dust motes
+  if (bk === 'ice' && wk) ctx.globalAlpha = .3; // a thawed vault: the snowflakes are drawn at .3 (the sim's spawn is untouched)
   for (const p of amb) {
-    if (p.em) { ctx.fillStyle = p.c; ctx.fillRect(p.x | 0, p.y | 0, 1, 1 + (p.l & 1)); }
+    if (dry && p.bub) { ctx.fillStyle = 'rgba(130,115,92,.45)'; ctx.fillRect(p.x | 0, p.y | 0, 1, 1); }
+    else if (p.em) { ctx.fillStyle = p.c; ctx.fillRect(p.x | 0, p.y | 0, 1, 1 + (p.l & 1)); }
     else if (p.bub) { ctx.strokeStyle = 'rgba(120,235,210,.6)'; ctx.lineWidth = .7; ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, TAU); ctx.stroke(); ctx.fillStyle = 'rgba(225,220,120,.7)'; ctx.fillRect(p.x - p.s * .5, p.y - p.s * .6, 1, 1); }
     else if (p.glob) { ctx.strokeStyle = 'rgba(210,195,90,.45)'; ctx.lineWidth = .7; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - 6 - p.s * 2); ctx.stroke(); ctx.fillStyle = '#d8c460'; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.s * .7, p.s, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#fff6d0'; ctx.fillRect(p.x - p.s * .3, p.y - p.s * .5, 1, 1); }
     else if (p.s > 1) { ctx.fillStyle = p.c; ctx.fillRect(p.x - 1, p.y, 3, 1); ctx.fillRect(p.x, p.y - 1, 1, 3); }
     else { ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, 1, 1); }
   }
+  if (bk === 'ice' && wk) ctx.globalAlpha = 1;
   if (bk === 'fire') lit(() => { for (let i = 0; i < amb.length; i += 3) { const p = amb[i]; if (p.em) glow(p.x, p.y, 3, '255,120,30', .35); } });
   const sc = $.G ? $.G.scroll : 0, T = $.T;
   for (const h of haz) {
@@ -717,6 +740,45 @@ const MOTIF = {
   snot: (x, y, r, i, t) => { const ph = ((t * .4 + i * 29) % 90) / 90, px = x - r + ((i * 37) % (2 * r)); ctx.strokeStyle = 'rgba(220,205,100,.8)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, y - r); ctx.lineTo(px, y - r + ph * r * 1.4); ctx.stroke(); ctx.fillStyle = '#e8d878'; ctx.beginPath(); ctx.arc(px, y - r + ph * r * 1.4 + 1.5, 1.8, 0, TAU); ctx.fill(); },
 };
 const PREV = { ice: ['iceMid', L.iceMid], acid: ['acidFar', L.acidFar], fire: ['fireFar', L.fireFar], snot: ['snotFar', L.snotFar] };
+// gate plates (ls2-read item 1): the stakes per gate, from gateplate.ts. BIOME_PERK is built once; each gate's lines and
+// box are cached per (fork, gate, pk level) so the draw allocates nothing per frame. pk can move mid-fork (a pick opened
+// by the tally's XP lump), hence it is part of the key. Reads $.G only.
+let BIOME_PERK = null;
+const plateC = [{ f: null, b: null, pkv: -1, L: null, box: null, nameW: 0, chipW: 0, leadW: 0 }, { f: null, b: null, pkv: -1, L: null, box: null, nameW: 0, chipW: 0, leadW: 0 }];
+const PF8 = `8px ${FONT}`, PFTAG = `${PLATE.tagPx}px ${FONT}`; // built once: drawPlate makes no font strings per frame
+const plateMeasure = (s, px) => { ctx.font = px === 8 ? PF8 : px === PLATE.tagPx ? PFTAG : `${px}px ${FONT}`; return ctx.measureText(s).width; };
+function drawPlate(f, i, b, B, p, r, sel, open) {
+  if (!BIOME_PERK) { BIOME_PERK = {}; for (const q of PERKS) if (q.req) BIOME_PERK[q.req] = { id: q.id, name: q.name, max: q.max }; }
+  const perk = BIOME_PERK[b] || null, pkv = perk ? pk(perk.id) : 0, c = plateC[i], cx = W * .74, cy = PH * .5;
+  if (c.f !== f || c.b !== b || c.pkv !== pkv) {
+    c.f = f; c.b = b; c.pkv = pkv;
+    c.L = plateLines(b, B, $.G, perk, pk);
+    c.box = plateBox(c.L, p.x, p.y, 24, plateMeasure, cx, cy, PH); // r only shifts x; that is redone per frame below
+    c.nameW = plateMeasure(c.L.name, 8); c.chipW = c.L.mark ? plateMeasure(c.L.mark, 8) + 2 * PLATE.chipPad : 0;
+    c.leadW = c.L.perkLead ? plateMeasure(c.L.perkLead, 8) : 0;
+  }
+  // the plate tracks the gate's approach swell but not its idle pulse: a readout that holds still, no bob
+  const L = c.L, { y, w, h, slid } = c.box, xr = plateRight(p.x, p.y, 24 * open * (1 + .12 * sel), cx, cy), px = Math.max(PLATE.minX, xr - w), mid = y + h / 2;
+  ctx.fillStyle = PLATE.fill; ctx.fillRect(px, y, w, h);
+  ctx.fillStyle = B.col; ctx.fillRect(px, y, 2, h); ctx.globalAlpha = .35 + .4 * sel; ctx.fillRect(px, y + h - 1, w, 1); ctx.globalAlpha = 1;
+  const tip = xr + 6 + sel * 3;
+  ctx.beginPath(); ctx.moveTo(xr, mid - 4); ctx.lineTo(tip, mid); ctx.lineTo(xr, mid + 4); ctx.fill();
+  if (slid) { ctx.globalAlpha = .5 * open; ctx.fillRect(tip, p.y, Math.max(0, p.x - r * .86 - 7 - tip), 1); ctx.globalAlpha = 1; } // the slid plate still points at its gate
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const tx = px + PLATE.textX;
+  ctx.font = PF8; ctx.fillStyle = B.col; ctx.fillText(L.name, tx, y + PLATE.nameY);
+  if (L.mark) {
+    const kx = tx + c.nameW + PLATE.chipGap;
+    ctx.fillRect(kx, y + PLATE.chipY, c.chipW, PLATE.chipH);
+    ctx.fillStyle = PLATE.col.chipText; ctx.fillText(L.mark, kx + PLATE.chipPad, y + PLATE.nameY);
+  }
+  ctx.font = PFTAG; ctx.fillStyle = PLATE.col.tag; ctx.fillText(L.tag, tx, y + PLATE.tagY);
+  if (L.perk) {
+    ctx.font = PF8;
+    if (L.perkLead) { ctx.fillStyle = PLATE.col.tag; ctx.fillText(L.perkLead, tx, y + PLATE.perkY); } // the verb in grey, by role
+    ctx.fillStyle = L.perkCol; ctx.fillText(L.perkName, tx + c.leadW, y + PLATE.perkY);
+  }
+}
 function drawGates(f, gatePos) {
   const T = $.T, P = $.P, left = Math.max(0, (900 - f.t) / 900);
   for (let i = 0; i < 2; i++) {
@@ -726,11 +788,13 @@ function drawGates(f, gatePos) {
     lit(() => glow(p.x, p.y, r * 2.8, B.rgb, .35 + .3 * sel));
     // the biome itself, seen through the hole
     ctx.save(); ctx.beginPath(); ctx.ellipse(p.x, p.y, rx, ry, 0, 0, TAU); ctx.clip();
-    ctx.fillStyle = B.bg[1]; ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+    // a remix gate (G.bvis[b] >= 1) shows the wound in its portal; rings, glow and plate keep B.col (wounds spec §6)
+    const rem = !!($.G.bvis && $.G.bvis[b] >= 1), WS = rem ? wBuilt(PREVW[b]) : null; // never a lazy bake here: unbuilt reads normal
+    ctx.fillStyle = rem ? WOUND[b].bg[1] : B.bg[1]; ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
     ctx.fillStyle = `rgba(${B.rgb},.22)`; ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
-    const [key, fn] = PREV[b], S = lay(key, fn);
+    const [key, fn] = PREV[b], S = WS || lay(key, fn);
     ctx.drawImage(S, 0, PH * .2, LW, PH * .8, p.x - r * 1.3, p.y - r * 1.05, r * 2.6, r * 2.3);
-    for (let q = 0; q < 10; q++) MOTIF[b](p.x, p.y, r, q, T);
+    for (let q = 0; q < 10; q++) (rem ? MOTIFW : MOTIF)[b](p.x, p.y, r, q, T);
     const vg = ctx.createRadialGradient(p.x, p.y, r * .3, p.x, p.y, r); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(.7, 'rgba(0,0,0,.15)'); vg.addColorStop(1, 'rgba(0,0,0,.8)');
     ctx.fillStyle = vg; ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
     ctx.restore();
@@ -746,16 +810,7 @@ function drawGates(f, gatePos) {
     ctx.beginPath(); ctx.ellipse(p.x, p.y, r * .86 + 7, r + 7, 0, -Math.PI / 2, -Math.PI / 2 + TAU * left); ctx.stroke();
     ctx.globalAlpha = 1;
     light(p.x, p.y, 60, .9);
-    if (open > .9) {
-      // name plate, pointing at its gate
-      ctx.font = `8px ${FONT}`; const nw = ctx.measureText(B.name).width; ctx.font = `7px ${FONT}`; const tw = Math.max(nw, ctx.measureText(B.tag).width) + 12, px = p.x - r - 14 - tw, py = p.y - 11;
-      ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(px, py, tw, 22);
-      ctx.fillStyle = B.col; ctx.fillRect(px, py, 2, 22); ctx.globalAlpha = .35 + .4 * sel; ctx.fillRect(px, py + 21, tw, 1); ctx.globalAlpha = 1;
-      ctx.beginPath(); ctx.moveTo(px + tw, py + 7); ctx.lineTo(px + tw + 6 + sel * 3, py + 11); ctx.lineTo(px + tw, py + 15); ctx.fill();
-      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-      ctx.font = `8px ${FONT}`; ctx.fillStyle = B.col; ctx.fillText(B.name, px + 7, py + 3);
-      ctx.font = `7px ${FONT}`; ctx.fillStyle = '#9fb0c2'; ctx.fillText(B.tag, px + 7, py + 12);
-    }
+    if (open > .9) drawPlate(f, i, b, B, p, r, sel, open);
   }
   const secs = Math.max(0, Math.ceil((900 - f.t) / 60)), cx = W * .74, cy = PH * .5;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

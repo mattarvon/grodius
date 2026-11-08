@@ -1,0 +1,46 @@
+npm notice run grodius@0.2.0 test:regress
+npm notice run node tools/harness.mjs && node tools/harness.mjs --layout long4 && node tools/harness.mjs --scenario all
+{"st":{"state":"over","score":1243,"scroll":3538,"lives":0,"px":50,"py":143.25,"en":0,"gibs":0,"drops":0,"caps":0},"hashes":["c526008967","e810865081","33710fc915","145dd28657","48416fa86c","99fcecf189"],"errs":[]}
+note: 6/6 canvas hashes differ (advisory)
+PASS vs baseline @ 8ff9ba4
+{"st":{"state":"over","score":6096,"scroll":3538,"lives":0,"px":50,"py":153.25,"en":2,"gibs":0,"drops":13,"caps":0},"hashes":["cf28c72a05","1a977c5363","3be38e9626","a3af08e460","5314b925fc","89bd7d91c9"],"errs":[]}
+note: 6/6 canvas hashes differ (advisory)
+PASS (long4) vs baseline @ 88d9525
+orbit: {"st":{"state":"play","score":2639,"scroll":1190,"lives":1,"px":50,"py":92.87,"en":2,"gibs":28,"drops":25,"caps":1,"jump":true,"stage":0,"pair":"ufo","loop":0,"pow":0.032,"rank":0.032,"lvl":1,"kills":15,"t":1190,"seen":"","sig":"e55e70a51d"},"hashes":["19741d2700","0f89e63c81"],"errs":[]}
+orbit: note: 2/2 canvas hashes differ (advisory)
+PASS (orbit) vs baseline @ 5c8c3eb
+saucer: {"st":{"state":"play","score":784,"scroll":2130,"lives":2,"px":50,"py":60.12,"en":3,"gibs":37,"drops":440,"caps":1,"jump":true,"stage":0,"pair":"ufo","loop":0,"pow":0.26,"rank":0.26,"lvl":6,"kills":9,"t":1200,"seen":"mini:ufo","sig":"bac7aa5a7b"},"hashes":["5562e39951","53b1315de0"],"errs":[]}
+saucer: note: 2/2 canvas hashes differ (advisory)
+PASS (saucer) vs baseline @ 5c8c3eb
+breath2: {"st":{"state":"play","score":0,"scroll":6861,"lives":0,"px":50,"py":82.065,"en":1,"gibs":30,"drops":20,"caps":0,"jump":true,"stage":1,"pair":"choir+cyst","loop":0,"pow":0,"rank":0,"lvl":6,"kills":0,"t":1180,"seen":"mini:cyst","sig":"95c5d0a33e"},"hashes":["e754ed387b","b169d0ef57"],"errs":[]}
+breath2: note: 2/2 canvas hashes differ (advisory)
+PASS (breath2) vs baseline @ ffd6b77
+drive: {"st":{"state":"play","score":7394,"scroll":12805,"lives":1,"px":50,"py":177.819,"en":12,"gibs":111,"drops":25,"caps":0,"jump":true,"stage":3,"pair":"","loop":0,"pow":0.032,"rank":0.032,"lvl":6,"kills":24,"t":1175,"seen":"","sig":"50480033ff"},"hashes":["b16a049da2","bb26aae2ba"],"errs":[]}
+drive: note: 2/2 canvas hashes differ (advisory)
+PASS (drive) vs baseline @ 5c8c3eb
+maw-d1: {"st":{"state":"play","score":500,"scroll":4248,"lives":0,"px":50,"py":122,"en":1,"gibs":24,"drops":129,"caps":3,"jump":true,"stage":0,"pair":"ufo","loop":0,"pow":0.5,"rank":0.5,"lvl":6,"kills":0,"t":1180,"seen":"mini:maw","sig":"6eb2462644"},"hashes":["c1074c62c0","445f731ff0"],"errs":[]}
+maw-d1: note: 2/2 canvas hashes differ (advisory)
+PASS (maw-d1) vs baseline @ 5c8c3eb
+maw-d3: {"st":{"state":"play","score":0,"scroll":4248,"lives":5,"px":50,"py":47.02,"en":1,"gibs":27,"drops":292,"caps":0,"jump":true,"stage":0,"pair":"ufo","loop":2,"pow":1,"rank":1,"lvl":12,"kills":0,"t":1200,"seen":"mini:maw","sig":"5398ce1a7d"},"hashes":["6e8025e92f","648ad6b583"],"errs":[]}
+maw-d3: note: 2/2 canvas hashes differ (advisory)
+PASS (maw-d3) vs baseline @ 5c8c3eb
+drive-d1: {"st":{"state":"play","score":615,"scroll":14498,"lives":1,"px":50,"py":101.95,"en":0,"gibs":28,"drops":97,"caps":3,"jump":true,"stage":3,"pair":"","loop":0,"pow":0.5,"rank":0.5,"lvl":6,"kills":2,"t":1190,"seen":"boss:drive","sig":"77d53deed7"},"hashes":["a55b12a63f","2d8f654e19"],"errs":[]}
+drive-d1: note: 2/2 canvas hashes differ (advisory)
+PASS (drive-d1) vs baseline @ 5c8c3eb
+drive-d3: {"st":{"state":"play","score":0,"scroll":14498,"lives":4,"px":50,"py":108.19,"en":2,"gibs":0,"drops":132,"caps":0,"jump":true,"stage":3,"pair":"","loop":2,"pow":1,"rank":1,"lvl":12,"kills":0,"t":1190,"seen":"boss:drive","sig":"35a155dc50"},"hashes":["f8fdda15d3","4bc5a7c46e"],"errs":[]}
+drive-d3: note: 1/2 canvas hashes differ (advisory)
+PASS (drive-d3) vs baseline @ 5c8c3eb
+crux-d1: {"st":{"state":"play","score":1000,"scroll":7997,"lives":0,"px":50,"py":114.954,"en":5,"gibs":15,"drops":56,"caps":0,"jump":true,"stage":1,"pair":"choir+cyst","loop":0,"pow":0.5,"rank":0.5,"lvl":6,"kills":0,"t":1180,"seen":"mini:crux","sig":"c57a935344"},"hashes":["c489954564","9bb96bd72b"],"errs":[]}
+crux-d1: note: 2/2 canvas hashes differ (advisory)
+PASS (crux-d1) vs baseline @ 5c8c3eb
+crux-d3: {"st":{"state":"play","score":1000,"scroll":7997,"lives":3,"px":50,"py":90.83,"en":5,"gibs":44,"drops":50,"caps":0,"jump":true,"stage":1,"pair":"choir+cyst","loop":2,"pow":1,"rank":1,"lvl":12,"kills":0,"t":1170,"seen":"mini:crux","sig":"157b28fe04"},"hashes":["4503e65cfd","7433a4803c"],"errs":[]}
+crux-d3: note: 2/2 canvas hashes differ (advisory)
+PASS (crux-d3) vs baseline @ 5c8c3eb
+butcher-d1: {"st":{"state":"play","score":1500,"scroll":7997,"lives":1,"px":50,"py":106.951,"en":1,"gibs":21,"drops":142,"caps":0,"jump":true,"stage":1,"pair":"prentice+choir","loop":0,"pow":0.5,"rank":0.5,"lvl":6,"kills":0,"t":1190,"seen":"mini:butcher","sig":"83f8d91ef6"},"hashes":["bd1f851a0f","c09c96b435"],"errs":[]}
+butcher-d1: note: 2/2 canvas hashes differ (advisory)
+PASS (butcher-d1) vs baseline @ 5c8c3eb
+butcher-d3: {"st":{"state":"play","score":1500,"scroll":7997,"lives":4,"px":50,"py":94.894,"en":1,"gibs":10,"drops":70,"caps":0,"jump":true,"stage":1,"pair":"prentice+choir","loop":2,"pow":1,"rank":1,"lvl":12,"kills":0,"t":1190,"seen":"mini:butcher","sig":"fdbf9b3478"},"hashes":["a16f319ced","7129e6c184"],"errs":[]}
+butcher-d3: note: 2/2 canvas hashes differ (advisory)
+PASS (butcher-d3) vs baseline @ 5c8c3eb
+12 scenario(s) in 155 s
+regress exit 0
