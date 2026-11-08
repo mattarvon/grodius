@@ -14,7 +14,7 @@ import './fx/spawn';
 import './flow';
 import './enemies/spawn';
 import './enemies/update';
-import './enemies/mid'; // the sim side of the midboss registry, explicitly (update.ts and spawn.ts already pull it in, so the boot order is unchanged)
+import './enemies/mid'; // the sim side of the midboss registry (enemies/mid/index.ts), named here; enemies/spawn.ts and update.ts already import './mid' (the same index), so this line moves nothing in the boot order
 import './boss/update';
 import './mutations';
 import './player';

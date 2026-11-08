@@ -4,7 +4,8 @@
 
 /** what the back press sees. sub: the title sub-menu open (OPTIONS 'opt', LAB 'lab'); gate: the title's press-any-key
  *  gate; asked: the flashing-images question has been answered (SET.asked); onExitRow: the Infirmary's last row
- *  (RETURN / DESCEND) is selected; native: the Capacitor app (only there can the game exit) */
+ *  (RETURN / DESCEND) is selected; native: the Capacitor app (only there can the game exit); exitArmed: a first
+ *  Android back at the title root armed the exit less than EXIT_ARM_T frames ago (exitLive) */
 export interface BackView {
   state: 'title' | 'shop' | 'pause' | 'over' | 'play';
   sub: null | 'opt' | 'lab';
@@ -14,19 +15,27 @@ export interface BackView {
   onExitRow: boolean;
   overT: number;
   native: boolean;
+  exitArmed: boolean;
 }
-export type BackAct = 'exit' | 'closeSub' | 'leaveShop' | 'selectExit' | 'unpause' | 'pause' | 'surface' | 'none';
+export type BackAct = 'exit' | 'armExit' | 'closeSub' | 'leaveShop' | 'selectExit' | 'unpause' | 'pause' | 'surface' | 'none';
 
 /** the over screen's menu opens after this many frames (step.ts); a back press before it is ignored, like a tap */
 export const OVER_MENU_T = 70;
 
-/** one back press, one level up. Never 'exit' from a sub-menu, and never 'exit' off the native app */
+/** the title root's leave window (Matt's bug: one Android back threw him out of the game): a first press arms, a
+ *  second inside this many frames ($.T, 2 s at 60 Hz) exits */
+export const EXIT_ARM_T = 120;
+/** is an exit armed at frame armT still live at frame T? (null: not armed) */
+export const exitLive = (armT: number | null, T: number) => armT !== null && T - armT <= EXIT_ARM_T;
+
+/** one back press, one level up. Never 'exit' from a sub-menu, never off the native app, and never on a first press */
 export function backStep(v: BackView): BackAct {
   switch (v.state) {
     case 'title':
       // the gate and the flashing-images question are the title root too: the question replaces any sub-menu
       if (v.sub && !v.gate && v.asked) return 'closeSub';
-      return v.native ? 'exit' : 'none';
+      if (!v.native) return 'none';
+      return v.exitArmed ? 'exit' : 'armExit';
     case 'shop':
       // between descents the exit row is DESCEND: the first press only selects it, so a stray back can't start a stage
       return v.shopNext === 'loop' && !v.onExitRow ? 'selectExit' : 'leaveShop';
@@ -66,11 +75,13 @@ export const titleMenuBottom = (n: number) => TITLE_MENU.y + (n - 1) * TITLE_MEN
 /** the Infirmary list's flow (render/screens.ts drawShop): first row y, a section head's height, the gap before every
  *  head but the first, a row's pitch and its box height */
 export const SHOP_LIST = { top: 45, head: 10, gap: 2, pitch: 11, rh: 10 };
-/** the bottom of the last row's box for sections of these sizes (the exit row excluded); must stay <= SHOP_EXIT.y - 2 */
+/** the bottom of the last row's box for sections of these sizes, indexed by section (menus.ts shopSec; the exit row
+ *  excluded); must stay <= SHOP_EXIT.y - 2. drawShop's rule: an empty section draws no head, and the gap goes before
+ *  every head whose section index is not 0, whatever came before it */
 export function shopListBottom(secs: number[]): number {
   let y = SHOP_LIST.top;
-  secs.forEach((n, k) => {
-    y += (k ? SHOP_LIST.gap : 0) + SHOP_LIST.head + n * SHOP_LIST.pitch;
+  secs.forEach((n, sc) => {
+    if (n > 0) y += (sc ? SHOP_LIST.gap : 0) + SHOP_LIST.head + n * SHOP_LIST.pitch;
   });
   return y - SHOP_LIST.pitch - 2 + SHOP_LIST.rh;
 }

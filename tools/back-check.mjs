@@ -50,7 +50,8 @@ for (const [name, opt] of VIEWS) {
     window.__st = (n) => { for (let i = 0; i < n; i++) ST.step(); RS.render(); return $.state; };
     // the main.ts backButton listener, minus App.exitApp(): backStep on a native view, then doBack
     window.__nback = () => { const a = BS.backStep(M.backView(true)); if (a === 'exit') g.exits++; else M.doBack(a); return a; };
-    window.__title = () => { $.state = 'title'; $.menuSel = 0; if (M.titleSubOf()) M.doBack('closeSub'); $.menuSel = 0; window.__st(2); };
+    // a fresh title root: menuPointer off-canvas hits no box but drops a leave arm the rig's exit (no App.exitApp) left set
+    window.__title = () => { $.state = 'title'; $.menuSel = 0; if (M.titleSubOf()) M.doBack('closeSub'); $.menuSel = 0; M.menuPointer(-1, -1); window.__st(2); };
     window.__row = (l) => { const it = M.titleItems(), i = it.findIndex((x) => x.l === l); $.menuSel = i; it[i].a(); return i; };
     // where things are: the CSS centre of the menu box for row i (now: the button, else the row)
     window.__at = (i, now) => {
@@ -60,7 +61,9 @@ for (const [name, opt] of VIEWS) {
     };
     window.__look = () => ({ state: $.state, sub: M.titleSubOf(), sel: $.menuSel, shopNext: F.shopNext, msg: $.shopMsg && $.shopMsg.s, armed: M.armedRow(), exits: g.exits, run: !!$.G && $.state === 'play',
       rows: M.titleSubOf() ? null : { OPTIONS: M.titleItems().findIndex((x) => x.l === 'OPTIONS'), LAB: M.titleItems().findIndex((x) => x.l === 'LAB') },
-      psHidden: document.getElementById('ps').hidden });
+      // the II pause button as laid out, not the attribute: an author display rule would beat [hidden]
+      psShown: (() => { const ps = document.getElementById('ps'), b = ps.getBoundingClientRect(); return getComputedStyle(ps).display !== 'none' && b.width > 0 && b.height > 0; })(),
+      leave: M.exitArmed() });
   });
   const ev = (s) => p.evaluate(s);
   const r = (res[name] = { scenes: {} });
@@ -90,7 +93,7 @@ for (const [name, opt] of VIEWS) {
     await p.screenshot({ path: `${OUT}/${name}-${sc}.png` });
     const pt = await ev(`__at(${S.ctl}, true)`);
     o.button = pt && pt.box;
-    if (sc.startsWith('shop')) ok(sc, 'pause II hidden off play/pause', (await ev('__look()')).psHidden, await ev('__look()'));
+    { const l = await ev('__look()'); ok(sc, 'pause II not displayed off play/pause', !l.psShown, l); } // every menu scene, as screenshotted
     if (ok(sc, 'button drawn', !!pt, pt)) {
       const d0 = await ev('__g.downs');
       await press(pt);
@@ -117,14 +120,23 @@ for (const [name, opt] of VIEWS) {
       await ev('__g.exits = 0');
     }
   }
-  // the title root: only the Android mirror exits there, and Esc does nothing
+  // the title root: only the Android mirror exits there, on a second press inside 120 frames; Esc does nothing
   await ev('__title()');
-  r.root = { android: await ev('__nback()') };
+  r.root = { android1: await ev('__nback()') };
+  await ev('__st(1)');
+  r.root.armed = await ev('__look()');
+  await p.screenshot({ path: `${OUT}/${name}-root_leave.png` });
+  r.root.android2 = await ev('__nback()');
+  ok('root', 'first android back arms, no exit', r.root.android1 === 'armExit' && r.root.armed.leave && r.root.armed.exits === 0, r.root);
+  ok('root', 'second android back inside 120 f exits', r.root.android2 === 'exit', r.root);
+  await ev('__g.exits = 0; __title()');
+  r.root.late = [await ev('__nback()'), await ev('__st(121)') && (await ev('__look()')).leave, await ev('__nback()')];
+  ok('root', 'arm expires after 120 f: the next press arms again', r.root.late[0] === 'armExit' && !r.root.late[1] && r.root.late[2] === 'armExit', r.root.late);
+  await ev('__g.exits = 0; __title()');
   await p.keyboard.press('Escape');
   await ev('__st(1)');
   r.root.esc = await ev('__look()');
-  ok('root', 'android exits', r.root.android === 'exit', r.root);
-  ok('root', 'esc stays', r.root.esc.state === 'title' && !r.root.esc.sub, r.root);
+  ok('root', 'esc stays', r.root.esc.state === 'title' && !r.root.esc.sub && !r.root.esc.leave, r.root);
   await ev('__g.exits = 0');
 
   // game over: X and pad B are POWER there too, so only Esc / Backspace / Android back SURFACE

@@ -1,17 +1,18 @@
 // The back tree (LS1 audit S2 #1, #2; Matt's armory bug): one press, one level up, on Android back, Esc and pad B alike.
 import { describe, expect, it, vi } from 'vitest';
-import { SHOP_EXIT, backPressed, backStep, descendTap, shopListBottom, type BackView } from '../../src/backstep';
+import { EXIT_ARM_T, SHOP_EXIT, backPressed, backStep, descendTap, exitLive, shopListBottom, type BackView } from '../../src/backstep';
 
-const V: BackView = { state: 'title', sub: null, gate: false, asked: true, shopNext: 'title', onExitRow: false, overT: 0, native: true };
+const V: BackView = { state: 'title', sub: null, gate: false, asked: true, shopNext: 'title', onExitRow: false, overT: 0, native: true, exitArmed: false };
 const at = (p: Partial<BackView>) => backStep({ ...V, ...p });
 
 describe('backStep: one row per branch of the back tree', () => {
-  it('exits from the title root on the native app', () => {
-    expect(at({})).toBe('exit');
+  it('arms the exit on a first press at the title root on the native app, and exits on an armed second', () => {
+    expect(at({})).toBe('armExit');
+    expect(at({ exitArmed: true })).toBe('exit');
   });
-  it('exits from the press-any-key gate and the flashing-images question (the title root too)', () => {
-    expect(at({ gate: true })).toBe('exit');
-    expect(at({ asked: false })).toBe('exit');
+  it('treats the press-any-key gate and the flashing-images question as the title root too', () => {
+    expect(at({ gate: true })).toBe('armExit');
+    expect(at({ asked: false, exitArmed: true })).toBe('exit');
   });
   it('closes OPTIONS and LAB back to the title root', () => {
     expect(at({ sub: 'opt' })).toBe('closeSub');
@@ -31,6 +32,25 @@ describe('backStep: one row per branch of the back tree', () => {
   it('needs two presses to leave the Infirmary between descents: select DESCEND, then continue', () => {
     expect(at({ state: 'shop', shopNext: 'loop' })).toBe('selectExit');
     expect(at({ state: 'shop', shopNext: 'loop', onExitRow: true })).toBe('leaveShop');
+  });
+});
+
+describe('the title root leave: two Android backs inside EXIT_ARM_T frames', () => {
+  const press = (armT: number | null, T: number) => at({ exitArmed: exitLive(armT, T) });
+  it('arms on the first press without exiting', () => {
+    expect(EXIT_ARM_T).toBe(120);
+    expect(press(null, 500)).toBe('armExit');
+  });
+  it('exits on a second press within 120 frames', () => {
+    expect(press(500, 501)).toBe('exit');
+    expect(press(500, 620)).toBe('exit');
+  });
+  it('arms again, not exits, once 121 frames have passed', () => {
+    expect(press(500, 621)).toBe('armExit');
+  });
+  it('does nothing off the native app, armed or not', () => {
+    expect(at({ native: false })).toBe('none');
+    expect(at({ native: false, exitArmed: true })).toBe('none');
   });
 });
 
@@ -94,5 +114,8 @@ describe('the Infirmary list clears its exit button', () => {
   it('measures the flow drawShop draws: 7 contraptions, a socket and 6 grafts end at exactly 230', () => {
     expect(shopListBottom([7, 1, 6])).toBe(230);
     expect(shopListBottom([7, 1, 7])).toBeGreaterThan(230); // one more graft needs a layout change, not a squeeze
+  });
+  it('gaps by section index like drawShop: an empty section draws no head and the next head keeps its gap', () => {
+    expect(shopListBottom([0, 1, 6])).toBe(45 + 2 + 10 + 11 + 2 + 10 + 6 * 11 - 11 - 2 + 10);
   });
 });

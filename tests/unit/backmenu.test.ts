@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // menus.ts pulls in audio, input, flow and contraptions, which touch the canvas, DOM or audio at import time
 vi.mock('../../src/audio', () => ({ auInit: () => {}, sample: () => false, setMute: () => {}, sfx: { menu: () => {}, deny: () => {}, power: () => {} } }));
 vi.mock('../../src/input', () => ({ I: {}, PR: new Set() }));
+const { I } = await import('../../src/input');
 vi.mock('../../src/platform', () => ({ NATIVE: false }));
 vi.mock('../../src/flow', () => ({ newGame: () => {}, openPause: () => {}, openShop: () => {}, resumeLast: () => {}, resumedFrom: null, shopNext: 'title', startLoop: () => {} }));
 vi.mock('../../src/contraptions', () => ({ RIG: [], RIG_BY: {}, SOCKET_COST: [], rigInit: () => {}, rigged: () => [], sockets: () => 1 }));
@@ -90,5 +91,46 @@ describe('the title sub-menus close the same way on every path', () => {
       expect(titleMenuBottom(M.titleItems().length)).toBeLessThanOrEqual(SUB_BACK.y);
       M.doBack('closeSub');
     }
+  });
+});
+
+describe('the Infirmary lock takes back only from Esc / Backspace (X and pad B are POWER)', () => {
+  const lockedShop = () => {
+    for (const k of Object.keys(I)) delete (I as any)[k];
+    $.state = 'shop';
+    $.shopLock = 40;
+    $.menuSel = 0;
+    $.shopMsg = null;
+  };
+  it('ignores X or pad B (back without hardBack) during the 40-frame lock', () => {
+    lockedShop();
+    Object.assign(I, { back: true, hardBack: false });
+    M.stepShop();
+    expect($.state).toBe('shop');
+  });
+  it('honours Esc (hardBack) during the lock', () => {
+    lockedShop();
+    Object.assign(I, { back: true, hardBack: true });
+    M.stepShop();
+    expect($.state).toBe('title'); // shopNext is 'title' here: one press leaves
+  });
+});
+
+describe('the title root leave arm (menus.ts)', () => {
+  it('arms on a first press, and anything else the player does drops it', async () => {
+    const { backStep } = await import('../../src/backstep');
+    for (const k of Object.keys(I)) delete (I as any)[k];
+    expect(backStep(M.backView(true))).toBe('armExit');
+    M.doBack('armExit');
+    expect(M.exitArmed()).toBe(true);
+    expect(backStep(M.backView(true))).toBe('exit');
+    Object.assign(I, { down: true });
+    M.stepArm();
+    expect(M.exitArmed()).toBe(false);
+    for (const k of Object.keys(I)) delete (I as any)[k];
+    M.doBack('armExit');
+    $.T += 121;
+    M.stepArm();
+    expect(M.exitArmed()).toBe(false);
   });
 });

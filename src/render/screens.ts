@@ -7,7 +7,7 @@ import { touch } from '../input';
 import { drops } from '../world';
 import { shopNext } from '../flow';
 import { GM, ROM, gmL, gunHeld, gunSlots } from '../mutations';
-import { buy, buySocket, fmtBio, overItems, pad, pauseItems, rigAct, rigBolted, rigCost, rigFree, rigOwned, rigUp, rigUpCost, shopAct, shopItems, shopSec, sockCost, titleItems, titleSubOf } from '../menus';
+import { buy, buySocket, exitArmed, fmtBio, overItems, pad, pauseItems, rigAct, rigBolted, rigCost, rigFree, rigOwned, rigUp, rigUpCost, shopAct, shopItems, shopSec, sockCost, titleItems, titleSubOf } from '../menus';
 import { SHOP_EXIT, SHOP_LIST, SUB_BACK, TITLE_MENU } from '../backstep';
 import { RIG_LV, SOCKET_COST, SOCKET_MAX, rigFresh, rigInit, rigged, sockets } from '../contraptions';
 import { glow, hangSpine, light, txt } from '../render/util';
@@ -133,13 +133,15 @@ export function drawTitle() {
   if (it) {
     // a sub-menu (OPTIONS, LAB): a thumb-sized BACK where the help and HI were; the BACK row stays for keys
     const bi = it.findIndex(x => x.l === 'BACK');
-    bigBtn(SUB_BACK.x, SUB_BACK.y, SUB_BACK.w, SUB_BACK.h, '< BACK', bi, it[bi].a);
+    if (bi >= 0) bigBtn(SUB_BACK.x, SUB_BACK.y, SUB_BACK.w, SUB_BACK.h, '< BACK', bi, it[bi].a); // a sub-menu without a BACK row draws no button rather than throw
   } else {
     txt('ARROWS/WASD MOVE   Z/SPACE FIRE', 28, 208, '#5b6573');
     txt((SET.meter ? 'CAPSULES MOVE THE METER, X POWERS UP' : 'FLY INTO A POD TO TAKE IT') + '   P PAUSE   M MUTE', 28, 217, '#5b6573');
     txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', 28, 226, '#3f4955');
     txt('HI ' + pad($.hi, 8), 28, 240, '#8fa3b8');
   }
+  // a first Android back at the title root armed the leave (backstep.ts EXIT_ARM_T): say what the second does, under HI
+  if (exitArmed()) txt('PRESS BACK AGAIN TO LEAVE', 28, 252, '#ffd0a0');
   txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#c46a6e', 'right');
   txt('SPRITES: TIAMALT, SCARCZ, C.BELLANGER, D.COOK, SUNBURN, CIDERCORPSE', W - 8, H - 39, '#3a4048', 'right', 7);
   txt('MUSIC: DANCRAMP - VOID, FREESOUND ARTISTS   SFX: KENNEY, FREESOUND', W - 8, H - 30, '#3a4048', 'right', 7);
