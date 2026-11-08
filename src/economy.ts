@@ -130,7 +130,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // D31 §2.4: the stretch grows kill pods ~x1.45 (1434 -> ~1900), so .65 x 1400/1900 ~ .47 holds the band. Provisional,
     // re-fit in step 5: killBio x (1400 - B_fixed) / (B_measured - B_fixed) (pod-probe finalBio, seeds 1-5)
     // Fit 1 (2026-11-08): .47 gave steady-state 1619 [1440-1723]; B_fixed = 4 S grades x 40 + 3 choices x 30 = 250,
-    // so .47 x (1400 - 250) / (1619 - 250) = .395
+    // so .47 x (1400 - 250) / (1619 - 250) = .395, rounded to .40. Final build: steady 1366 [1235-1536], in band (production/qa/evidence/ls2-d31.md)
     killBio: .4,
     // D31 §2.2: carrier and formation pods are per spawn, the variable faucet. Fit 1 (2026-11-08, ls2-d31 report): at the
     // .17 / .5 projections the stretched build gave 48 D1 pod pickups, the same as main's 48 (spawns rose x1.8, not

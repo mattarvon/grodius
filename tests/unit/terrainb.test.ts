@@ -312,6 +312,38 @@ describe('the catalogue against the game', () => {
     }
   });
 
+  it('keeps every biome\'s long4 climax under beat-probe\'s 1.7 spawns/s exit in Descent 2+, with margin for the probe', () => {
+    // the slot loop's expected rate: (1 + extra + third) spawns per step of B.gap * T.gap px, 60 px of scroll per second.
+    // beat-probe reads ~.03 above this model, so the cap here is 1.65 (layout.ts peak B comment)
+    const climax = L.LAYOUTS.long4!.beats.tempo.find((t) => t.until === .94)!;
+    for (const [k, B] of Object.entries(BIOMES) as [string, { gap: number; dbl: number }][]) {
+      const third = climax.third === true ? .35 : (climax.third || 0);
+      const rate = (1 + Math.min(.85, B.dbl + climax.dbl) + third) / (B.gap * climax.gap) * 60;
+      expect(rate, k).toBeLessThanOrEqual(1.65);
+    }
+  });
+
+  it('places peak B\'s Descent 2 third spawn only under a .1 draw, and peak A\'s under .35 (long4 slot loop)', () => {
+    // C2 (qa-tester re-check): drives biomeScript's `third` chance with a constant stream, so the extras and every other
+    // threshold resolve the same way for each pair of draws compared and only the third spawn differs
+    L.setLayout('long4');
+    try {
+      const r = L.slotRow(0), P = L.beatPlan(r, r.gateLate!, false), [, b2, b3] = P.breaths;
+      const count = (c: number, lo: number, hi: number) => {
+        $.G = { loop: 1, seed: 5, pend: [], scroll: 0 };
+        return biomeScript(0, 'fire', r.gateLate!, 0, () => c, ['choir', 'cyst'], CATALOG.fire.slice(0, 3))
+          .filter((e: { x: number; k: string }) => e.x >= lo && e.x < hi && !e.k.startsWith('set:') && e.k !== 'log').length;
+      };
+      const pkB: [number, number] = [b3.z, P.runup!], pkA: [number, number] = [b2.z, b3.a];
+      expect(count(.09, ...pkB)).toBeGreaterThan(count(.1, ...pkB));
+      expect(count(.1, ...pkB)).toBe(count(.3, ...pkB));
+      expect(count(.3, ...pkA)).toBeGreaterThan(count(.36, ...pkA));
+      expect(count(.09, ...pkA)).toBe(count(.3, ...pkA));
+    } finally {
+      L.setLayout('short');
+    }
+  });
+
   it('keeps a piece\'s fixed spawn heights out of the walls a band has moved, and leaves them alone elsewhere', () => {
     L.setLayout('long4');
     const P = fly(0, 'ice', L.slotRow(0).gateLate!, 1), M = P.moveB!, mid = (M.a + M.z) / 2;
