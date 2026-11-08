@@ -2,6 +2,17 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-08 (back buttons that work, the BACKDRAFT fix, midboss variety)
+
+- On a phone, the RETURN, DESCEND and BACK buttons in the armory, shop and title sub-menus now respond to a tap.
+- On Android, the back button steps back one screen at a time. It used to close the game from OPTIONS or the LAB. At the title screen, press it once and PRESS BACK AGAIN TO LEAVE appears; a second press within two seconds closes the game.
+- On a phone, while a saved run exists, DESCEND takes two taps, because starting a new run ends the saved one.
+- Mashing buttons through a game over no longer skips past the death screen. Only a real back press leaves it.
+- In the loop shop, back now takes two presses to descend, so you can't skip the shop by accident.
+- Fixed: in the fire biome's BACKDRAFT set piece, the rear wave no longer flies through the spires, and neither do the pincer waves. They have learned manners.
+- Midbosses vary more across runs: a midboss you've met less often now comes up more, and only the exact pair you fought last time is held back.
+- The short descent in the LAB row is unchanged.
+
 ## 2026-11-07 (moving terrain, new set pieces, faster gore)
 
 - Partway through each biome stage on the long descent, the terrain now moves. Each biome has two versions. Descent 1 always flies the first; from Descent 2 on, either can come up, and a biome you revisit flies the one you haven't seen yet.
@@ -11,7 +22,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 - The Brood Mother's kill word is now LANCED.
 - Two voice lines are retired for now: the SHAMALAMA hype call and the KEYSTER boss reward. A boss kill has no voice line until they come back.
 - A run saved before this update still resumes, but from the stage you resume on it gets the new terrain and set pieces.
-- Known issue: in the fire biome's BACKDRAFT set piece, the second wave from behind flies straight through the spires. They are not ghosts. They are just rude. Fixed next update.
+- Known issue: in the fire biome's BACKDRAFT set piece, the second wave from behind flies straight through the spires. They are not ghosts. They are just rude. Fixed next update. (Fixed 2026-11-08.)
 - The short descent in the LAB row is unchanged.
 
 ## 2026-11-03 (resume a run, a tougher Apprentice, the long-stage economy)

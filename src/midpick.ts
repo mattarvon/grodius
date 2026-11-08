@@ -1,7 +1,7 @@
 // =====================================================================
 //  MIDBOSS PICKER (design/content-expansion.md §6.3, build plan row LS1-F0). Pure: no $, no G, no R().
 //  The caller passes the descent, the run's midboss state and a random stream, and gets the picks back.
-//  WIRED (LS1-F) on layouts with `picker` set (long4): biomes.ts choose() calls pickBiomeMids() with
+//  WIRED (LS1-F) on layouts with `picker` set (long4, the default since D24): biomes.ts choose() calls pickBiomeMids() with
 //  rng = midStream(i) (biomes.ts; seed src/rng.ts midSeedOf), NEVER stageStream(i): the pick has its own stream
 //  per stage, so it is the same whatever the script drew and wherever in the build it runs. It stores the result in
 //  G.mb[stage], and keeps G.mbUsed / G.mbLast with noteMids(). The short layout keeps one home midboss per biome stage.
@@ -9,11 +9,15 @@
 //  Steps, in order (spec §6.3):
 //    1. descent gate     keep members with min <= L (L = G.loop, 0-based: Descent 1 is L 0)
 //    2. no repeats       drop every kind AND every body already met this descent (G.mbUsed, reset in startLoop)
-//    3. no repeat pair   drop this stage's previous pair (G.mbLast[b])
-//    4. weight           1 / (1 + meta.mb[k]): a midboss never met comes first
-//    5. draw             slot A, then slot B with a tag different from A's
-//    6. fallback         too few left: relax 3, then 1. Step 2 is NEVER relaxed (Pillar 4: a repeat is a bug);
-//                        if even that leaves too few, the stage gets fewer midbosses, never a repeat.
+//    3. no repeat pair   ban only the exact previous pair (G.mbLast[b], any order): with a two-member last, slot A
+//                        may be either member, but then slot B may not be the other. A single slot (n = 1) drops
+//                        last[0]. A last of any other length bans nothing
+//    4. weight           1 / (1 + clamp(met - m0, 0, MID_PICK.cap)), m0 = the least-met candidate's count (meta.mb):
+//                        a midboss behind the others leads, by at most 3:1
+//    5. draw             slot A (the preferred home when it survives), then slot B with a tag different from A's
+//    6. fallback         no full set left: relax 3 (relaxed 1: the previous pair was the only full set under the
+//                        gate), then 1 (relaxed 2). Step 2 is NEVER relaxed (Pillar 4: a repeat is a bug); if even
+//                        that leaves too few, the stage gets fewer midbosses, never a repeat.
 //  Phase 1 (before the new midbosses exist): every biome stage draws from the four existing biome midbosses and
 //  prefers its home one for slot A, so a stage is home + one crossover. The home one is not guaranteed: when an
 //  earlier stage this descent took it as a crossover, body exclusion removes it and the stage gets two crossovers.
@@ -75,11 +79,18 @@ export interface PickOut {
   relaxed: Relaxed;
 }
 
-/** weight of one candidate (step 4) */
-export function midWeight(k: string, met: Readonly<Record<string, number>> | undefined, ignoreMeta = false): number {
+/** step 4 tuning (#15). cap: the most a kind's lead over the least-met candidate counts, so a never-met kind gets a
+ *  3:1 lead, not a monopoly. Safe range 1-3; 0 makes every draw uniform. Measured by the pair-rotation sweep in
+ *  tests/unit/midpick.test.ts */
+export const MID_PICK = { cap: 2 };
+
+/** times met, sanitised: NaN, negative, Infinity and missing all count as never met */
+const metOf = (k: string, met: Readonly<Record<string, number>>) => (Number.isFinite(+met[k]) ? Math.max(0, +met[k]) : 0);
+
+/** weight of one candidate (step 4): floor is m0, the least-met candidate's count */
+export function midWeight(k: string, met: Readonly<Record<string, number>> | undefined, ignoreMeta = false, floor = 0): number {
   if (ignoreMeta || !met) return 1;
-  const m = +met[k] || 0;
-  return 1 / (1 + Math.max(0, m));
+  return 1 / (1 + Math.min(MID_PICK.cap, Math.max(0, metOf(k, met) - floor)));
 }
 
 /** weighted draw over xs in order; one rng() call */
@@ -97,29 +108,39 @@ function draw(xs: readonly string[], w: (k: string) => number, rng: () => number
 /** pick a stage's midbosses (spec §6.3). Pure; draws only from in.rng */
 export function pickMids(p: PickIn): PickOut {
   const defs = p.defs || MIDS, n = p.n ?? 2, last = p.last || [];
-  const w = (k: string) => midWeight(k, p.met, p.ignoreMeta);
   // step 2, never relaxed: kinds and bodies met this descent
   const usedBodies = new Set(p.used.map(k => (defs[k] ? defs[k].body : k)));
   const fresh = p.pool.filter(k => defs[k] && !p.used.includes(k) && !usedBodies.has(defs[k].body));
-  const gate = (k: string) => defs[k].min <= p.L, notLast = (k: string) => !last.includes(k);
-  const levels: string[][] = [
-    fresh.filter(k => gate(k) && notLast(k)), // 0: all rules
-    fresh.filter(gate), //                       1: step 3 relaxed
-    fresh, //                                    2: steps 3 and 1 relaxed
-  ];
-  // slot A must leave slot B a candidate with a different tag and a different body
-  const partners = (c: string[], a: string) => c.filter(k => k !== a && defs[k].body !== defs[a].body && defs[k].tag !== defs[a].tag);
-  const slotA = (c: string[]) => (n === 1 ? c : c.filter(a => partners(c, a).length > 0));
+  const G = fresh.filter(k => defs[k].min <= p.L); // step 1
+  // slot B must differ from A in kind, body and tag
+  const partners = (c: readonly string[], a: string) => c.filter(k => k !== a && defs[k].body !== defs[a].body && defs[k].tag !== defs[a].tag);
+  // step 3: only the exact previous pair. Slot A may be either member; slot B is then not the other one
+  const ban = (a: string) => (last.length === 2 && last.includes(a) ? last[last.indexOf(a) ^ 1] : null);
+  interface Level { C: readonly string[]; As: readonly string[]; part: (a: string) => string[] }
+  const plain = (C: readonly string[]): Level => ({ C, As: n === 1 ? C : C.filter(a => partners(C, a).length > 0), part: (a) => partners(C, a) });
+  let level0: Level;
+  if (n === 1) {
+    const C0 = last.length === 1 ? G.filter(k => k !== last[0]) : G;
+    level0 = { C: C0, As: C0, part: () => [] };
+  } else {
+    const part0 = (a: string) => partners(G, a).filter(k => k !== ban(a));
+    level0 = { C: G, As: G.filter(a => part0(a).length > 0), part: part0 };
+  }
+  const levels: Level[] = [level0, plain(G), plain(fresh)]; // 0 all rules, 1 step 3 relaxed, 2 steps 3 and 1 relaxed
   let r: Relaxed = 0;
-  while (r < 2 && slotA(levels[r]).length === 0) r = (r + 1) as Relaxed;
-  const C = levels[r], As = slotA(C);
+  while (r < 2 && levels[r].As.length === 0) r = (r + 1) as Relaxed;
+  const { C, As, part } = levels[r];
+  // step 4: m0 over the candidates this draw uses, once, for slot A, slot B and the fallback
+  let m0 = 0;
+  if (!p.ignoreMeta && p.met && C.length) { const met = p.met; m0 = Math.min(...C.map(k => metOf(k, met))); }
+  const w = (k: string) => midWeight(k, p.met, p.ignoreMeta, m0);
   if (As.length === 0) {
     // not even step 2's leftovers make a full set: fewer midbosses rather than a repeat
     return { picks: C.length ? [draw(C, w, p.rng)] : [], relaxed: r };
   }
   const a = p.prefer && As.includes(p.prefer) ? p.prefer : draw(As, w, p.rng);
   if (n === 1) return { picks: [a], relaxed: r };
-  return { picks: [a, draw(partners(C, a), w, p.rng)], relaxed: r };
+  return { picks: [a, draw(part(a), w, p.rng)], relaxed: r };
 }
 
 /** the run's midboss memory: G.mbUsed (this descent) and G.mbLast (per stage key, whole run) */
@@ -148,9 +169,10 @@ export function pickBiomeMids(st: MidState, b: string, L: number, rng: () => num
 }
 
 // ---------------- slot clocks and the fork rule (spec §6.4, §6.5; LS1-F) ----------------
-/** midboss leave clocks in frames (spec §6.4; was 1400 f for every midboss, which the short layout keeps). Slot A is
- *  shorter than B: B comes later in the stage with more kit, and its TTK band is 10-15 s against A's 8-11 s
- *  (midboss-probe, STAGE 1 kit). A DRIFT member also has its forced-exit x (layout beats.driftLead): whichever first */
+/** midboss leave clocks in frames (spec §6.4; was 1400 f for every midboss, which the short layout keeps). Every kind
+ *  has one 8-11 s TTK band (D27); slot B's longer clock is its only slot difference. The clocks cap the worst-case
+ *  stage (spec §3.1). Measured by midboss-probe --layout long4 --leave 1080/1260. A DRIFT member also has its
+ *  forced-exit x (layout beats.driftLead): whichever first */
 export const MID_CLOCK = {
   slot: [1080, 1260] as readonly number[], // slot A 18 s, slot B 21 s: caps the worst-case stage (spec §3.1 table)
   race: 900, //                              RACE members (wave 2): they escalate, so the fight is kept short

@@ -104,7 +104,8 @@ const init = ([seed, gates, descents, mortal]) => {
       // ---- menus: the Infirmary (leave it), game over (stop) ----
       if (h.state === 'shop') {
         if (shopT < 0) { shopT = 0; R.shops++; if (cur && h.G) close(h.G, window.__biome()); if (R.shops >= descents) { R.end = 'shop ' + R.shops; break; } }
-        if (++shopT === 60) { key('keydown', 'Backspace'); backUp = 1; }
+        // the loop shop's back takes two presses (ls1-audit): the first selects DESCEND >, the second leaves, still on frame 60
+        if (++shopT === 56 || shopT === 60) { key('keydown', 'Backspace'); backUp = 1; }
         continue;
       }
       shopT = -1;

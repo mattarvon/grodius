@@ -11,11 +11,13 @@ permissions:
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  # main runs finish (a cancel mid `gh release delete/create latest` would leave no latest)
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -24,9 +26,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # only part of src/ is type-checked today, so a type error is reported but doesn't block
+      # D33: a type error blocks CI
       - run: npm run typecheck
-        continue-on-error: true
       - name: Unit + integration tests (vitest, tests/unit + tests/integration)
         run: npm run test:unit
       - run: npm run build
@@ -37,6 +38,7 @@ jobs:
     needs: verify
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -103,6 +105,7 @@ jobs:
     needs: verify
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

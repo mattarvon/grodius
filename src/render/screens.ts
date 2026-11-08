@@ -1,13 +1,14 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, FONT_D, FONT_H, H, PH, TAU, W, ctx, hash, sstep, swapRm } from '../core';
+import { C, FONT_D, FONT_H, H, PH, TAU, W, ctx, hash, psBtn, sstep, swapRm } from '../core';
 import { srnd, srr, sri } from '../srnd';
 import { SET, lv } from '../save';
 import { touch } from '../input';
 import { drops } from '../world';
 import { shopNext } from '../flow';
 import { GM, ROM, gmL, gunHeld, gunSlots } from '../mutations';
-import { buy, buySocket, fmtBio, overItems, pad, pauseItems, rigAct, rigBolted, rigCost, rigFree, rigOwned, rigUp, rigUpCost, shopAct, shopItems, shopSec, sockCost, titleItems } from '../menus';
+import { buy, buySocket, exitArmed, fmtBio, overItems, pad, pauseItems, rigAct, rigBolted, rigCost, rigFree, rigOwned, rigUp, rigUpCost, shopAct, shopItems, shopSec, sockCost, titleItems, titleSubOf } from '../menus';
+import { SHOP_EXIT, SHOP_LIST, SUB_BACK, TITLE_MENU } from '../backstep';
 import { RIG_LV, SOCKET_COST, SOCKET_MAX, rigFresh, rigInit, rigged, sockets } from '../contraptions';
 import { glow, hangSpine, light, txt } from '../render/util';
 import { EYEQ, GLQ, eye, present } from '../render/eyes';
@@ -50,14 +51,15 @@ export function drawMenu(items, x, y, w) {
       ctx.fillRect(x - 12, yy + 3, 6, 2);
     }
     txt(it.l, x, yy, sel ? '#ffffff' : '#8fa3b8');
-    if (it.r) txt(it.r, x + w, yy, sel ? '#ffb0b0' : '#5b6573', 'right');
+    if (it.r) txt(it.r, x + w, yy, it.rc || (sel ? '#ffb0b0' : '#5b6573'), 'right');
     $.menuBoxes.push({
       x: x - 12,
       y: yy - 3,
       w: w + 24,
       h: 13,
       i,
-      a: it.a
+      a: it.a,
+      confirm: it.confirm
     });
   });
 }
@@ -126,11 +128,21 @@ export function drawTitle() {
   if ($.gate) {
     $.menuBoxes = [];
     if (($.T >> 5) % 2 === 0) txt(touch.used || matchMedia('(pointer: coarse)').matches ? 'TAP TO DESCEND' : 'PRESS ANY KEY', 40, 140, '#e0242c', 'left', 10);
-  } else drawMenu(titleItems(), 40, 110, 150); // up to 7 rows (14px) must clear the help text at y 208
-  txt('ARROWS/WASD MOVE   Z/SPACE FIRE', 28, 208, '#5b6573');
-  txt((SET.meter ? 'CAPSULES MOVE THE METER, X POWERS UP' : 'FLY INTO A POD TO TAKE IT') + '   P PAUSE   M MUTE', 28, 217, '#5b6573');
-  txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', 28, 226, '#3f4955');
-  txt('HI ' + pad($.hi, 8), 28, 240, '#8fa3b8');
+  } else drawMenu(titleItems(), 40, TITLE_MENU.y, 150); // up to 7 rows (14px) must clear the help text and the sub-menu BACK at y 206
+  const it = !$.gate && SET.asked && titleSubOf() ? titleItems() : null;
+  if (it) {
+    // a sub-menu (OPTIONS, LAB): a thumb-sized BACK where the help and HI were; the BACK row stays for keys
+    const bi = it.findIndex(x => x.l === 'BACK');
+    if (bi >= 0) bigBtn(SUB_BACK.x, SUB_BACK.y, SUB_BACK.w, SUB_BACK.h, '< BACK', bi, it[bi].a); // a sub-menu without a BACK row draws no button rather than throw
+  } else {
+    txt('ARROWS/WASD MOVE   Z/SPACE FIRE', 28, 208, '#5b6573');
+    txt((SET.meter ? 'CAPSULES MOVE THE METER, X POWERS UP' : 'FLY INTO A POD TO TAKE IT') + '   P PAUSE   M MUTE', 28, 217, '#5b6573');
+    txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', 28, 226, '#3f4955');
+    txt('HI ' + pad($.hi, 8), 28, 240, '#8fa3b8');
+  }
+  // a first Android back at the title root armed the leave (backstep.ts EXIT_ARM_T): say what the second does in the
+  // next row slot under LAB, lined up with the rows (root: <= 6 rows, so y <= 194, clear of the help text at 208)
+  if (exitArmed()) txt('PRESS BACK AGAIN TO LEAVE', 40, TITLE_MENU.y + titleItems().length * TITLE_MENU.pitch, '#ffd0a0');
   txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#c46a6e', 'right');
   txt('SPRITES: TIAMALT, SCARCZ, C.BELLANGER, D.COOK, SUNBURN, CIDERCORPSE', W - 8, H - 39, '#3a4048', 'right', 7);
   txt('MUSIC: DANCRAMP - VOID, FREESOUND ARTISTS   SFX: KENNEY, FREESOUND', W - 8, H - 30, '#3a4048', 'right', 7);
@@ -224,6 +236,18 @@ function shopBtn(x, y, w, label, state, i, a) {
   txt(label, x + w / 2, y, state === 'go' ? '#ffd0d0' : state === 'on' ? '#e8d8a0' : '#4b5663', 'center', 7);
   $.menuBoxes.push({ x, y: y - 2, w, h: 9, i, a, now: 1 });
 }
+/** a thumb-sized exit button in the shopBtn style (Infirmary RETURN / DESCEND, the title sub-menus' BACK): acts on
+ *  the first tap, and lights up when keys select its row (index i) */
+function bigBtn(x, y, w, h, label, i, a) {
+  const sel = $.menuSel === i;
+  ctx.fillStyle = sel ? '#6a0c12' : '#3a070b';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = sel ? '#ff5a5a' : '#c3121c';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
+  txt(label, x + w / 2, y + h / 2 - 4, sel ? '#ffffff' : '#ffd0d0', 'center', 8);
+  $.menuBoxes.push({ x, y, w, h, i, a, now: 1 });
+}
 /** Infirmary wall decor: the Zombie Take Away poster (src/sprites/poster@6.png, rain animates) pasted up in the gap
  *  between the graft names and their BUY buttons, under the list so rows and highlights draw over it. The neon spills
  *  onto the wall and stutters on a fixed pattern (render-only). (x, y) = top-left. */
@@ -306,21 +330,25 @@ export function drawShop() {
     txt(fmtBio($.meta.bio), bx + bw - 6, 14, '#ffb0b0', 'right', 8);
     txt('BIOMASS', bx + 5, 15, '#7a4a4c', 'left', 7);
   }
-  const it = shopItems(), LX = 12, LW = 284, RH = 10;
+  const it = shopItems(), LX = 12, LW = 284, RH = SHOP_LIST.rh;
   $.menuBoxes = [];
-  let y = 45, sec = -1;
+  let y = SHOP_LIST.top, sec = -1, bottom = 0;
   const HEAD = ['CONTRAPTIONS  //  ENTER BUY / BOLT   RIGHT UPGRADE', 'SOCKETS', 'GRAFTS', ''];
   it.forEach((x, i) => {
     const sc = shopSec(x.k);
+    if (x.k === 'back') {
+      // the exit is a button anchored bottom-left (H - 38), outside the list's flow; keys still reach it as the last row
+      const loop = shopNext === 'loop', E = SHOP_EXIT;
+      bigBtn(E.x, E.y, loop ? E.wLoop : E.w, E.h, loop ? 'DESCEND >' : '< RETURN', i, () => shopAct(it[i]));
+      return;
+    }
     if (sc !== sec) {
       sec = sc;
-      if (HEAD[sc]) {
-        y += sc ? 2 : 0;
-        txt(HEAD[sc], LX + 2, y, '#8a3a3c', 'left', 7);
-        ctx.fillStyle = '#3a0a0e';
-        ctx.fillRect(LX, y + 8, LW, 1);
-        y += 10;
-      } else y += 3;
+      y += sc ? SHOP_LIST.gap : 0;
+      txt(HEAD[sc], LX + 2, y, '#8a3a3c', 'left', 7);
+      ctx.fillStyle = '#3a0a0e';
+      ctx.fillRect(LX, y + 8, LW, 1);
+      y += SHOP_LIST.head;
     }
     const sel = $.menuSel === i;
     if (sel) {
@@ -353,12 +381,16 @@ export function drawShop() {
       txt(u.name, LX + 8, y, sel ? '#fff' : '#9fb0c2', 'left', 7);
       pips(u.max, l, 112);
       shopBtn(241, y, 55, mx ? 'GRAFTED' : 'BUY ' + cost, can ? 'go' : 'off', i, () => buy(u));
-    } else {
-      txt(shopNext === 'loop' ? 'CONTINUE THE DESCENT  >' : '< RETURN', LX + 8, y, sel ? '#fff' : '#8fa3b8', 'left', 8);
     }
     $.menuBoxes.push({ x: LX, y: y - 2, w: LW, h: RH, i, a: () => shopAct(it[i]) }); // after the buttons: a button hit wins
-    y += RH + 1;
+    bottom = y - 2 + RH;
+    y += SHOP_LIST.pitch;
   });
+  // a new graft or contraption row must not slide under the exit button (tests/unit/backstep.test.ts checks the budget)
+  if (import.meta.env.DEV && bottom > SHOP_EXIT.y - 2 && !drawShop.warned) {
+    drawShop.warned = 1;
+    console.error(`Infirmary list ends at y ${bottom}, over the exit button at ${SHOP_EXIT.y}`);
+  }
   // ---- right: the ship on the slab, its sockets, the selected thing ----
   const PX = 304, PW = W - PX - 10, sx = 386, sy = 74, ss = 2.4;
   ctx.fillStyle = 'rgba(20,4,6,.75)';
@@ -442,11 +474,17 @@ export function drawShop() {
     wrapTxt('Bolted contraptions ride with you every run. Kills, clears and grades pay biomass.', DX, dy, DW, '#8a98a8', 7, 9, 4);
   }
   // feedback / help line
-  if ($.shopMsg) txt($.shopMsg.s, LX + 2, H - 11, $.shopMsg.col, 'left', 7);
-  else txt(touch.used ? 'TAP A BUTTON TO ACT   TAP A ROW TO INSPECT' : 'ARROWS PICK   Z/ENTER ACT   RIGHT UPGRADE   X/ESC LEAVE', LX + 2, H - 11, '#5b6573', 'left', 7);
+  // right of the exit button (the spec's x 116; 140 beside the wider DESCEND >)
+  const FX = SHOP_EXIT.x + (shopNext === 'loop' ? SHOP_EXIT.wLoop : SHOP_EXIT.w) + 8;
+  if ($.shopMsg) txt($.shopMsg.s, FX, H - 11, $.shopMsg.col, 'left', 7);
+  else txt(touch.used ? 'TAP A BUTTON TO ACT   TAP A ROW TO INSPECT' : 'ARROWS PICK   Z/ENTER ACT   RIGHT UPGRADE   X/ESC LEAVE', FX, H - 11, '#5b6573', 'left', 7);
 }
 export function render() {
   $.menuBoxes = [];
+  // the touch pause button only where it works (play, pause): elsewhere it covered the Infirmary purse and did nothing.
+  // Written only on a change, so no DOM write per frame
+  const psH = !(touch.used && ($.state === 'play' || $.state === 'pause'));
+  if (psBtn.hidden !== psH) psBtn.hidden = psH;
   $.FLUSHED = 0;
   EYEQ.length = 0;
   ctx.save();

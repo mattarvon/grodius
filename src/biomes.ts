@@ -214,19 +214,53 @@ const FIXED = { fixed: 1 };
  *  (long layouts) has moved the walls there: S2 sits inside the gimmick, and a stair, lake or spire floor can stand above
  *  a fraction of PH that is open on movement A (systems review). Outside every band (always, on short) it is y */
 const bandY = (y) => { const wx = $.G.scroll + W + 20; return bandClamp(y, wx, ceilAt(wx), floorAt(wx)); };
+/** the rear-wave lane filter's sampling (rearY). A rear wave enters at the left edge and crosses the whole screen at a
+ *  fixed y, so the lane has to be open over all of it, not just where it enters. The drones move in screen space while
+ *  the screen scrolls, so the terrain they cross runs well past the right edge of the screen at the call */
+const REAR = {
+  x0: -20, // screen x of the first sample: the lead drone spawns at x = -16 (spawn.ts formation 'behind'), sampled a little behind it
+  x1: W, // to the right edge: the wave flies until it leaves the screen
+  v: 1.8, // px/f a rear drone flies in screen space (enemies/update.ts, pat 'behind': e.x += 1.8); the screen scrolls 1 px/f
+  tail: 32, // the last drone of a 3-drone set-piece wave (backdraft) spawns 32 px behind the lead (spawn.ts: -16 - i * 16)
+  step: 16, // world px between samples, every 4th terrain column (TS = 4 px): ~50 samples a call, at the telegraph and the spawn
+  // the y the drones fly at is y0 + sin(..) * 14 + (x > W / 2 ? (i - 2) * (x - W / 2) * .06 : 0) (update.ts 'behind').
+  // For a set piece's wave (n <= 3, i - 2 <= 0) the fan only lifts, by at most 2 * (W / 2) * .06 = 28.8 at the right edge
+  dn: 7 + 14, // pad toward the floor: drone radius (ET.drone.r 7) + the bob (14)
+  up: Math.ceil(7 + 14 + 2 * (W / 2) * .06), // pad toward the ceiling: radius + bob + the fan, 49.8 -> 50
+  lead: 100, // spawn.ts rearWarn's telegraph (a literal there): a rear wave spawns 100 f, ~100 px at 1 px/f, after its call
+};
+/** the world x offset (from G.scroll at the spawn) the drones' flight reaches: a drone at screen x sx has flown
+ *  (sx - x0) / v frames, and the screen has scrolled that far, so it is over world scroll + sx + (sx - x0) / v; the last
+ *  drone reaches the right edge tail / v frames after the lead */
+const REAR_END = REAR.x1 + (REAR.x1 - REAR.x0 + REAR.tail) / REAR.v;
+/** a set piece's rear-wave lane y (behindWave's fit), clamped into the opening the whole flight crosses; when no lane
+ *  is open end to end it takes the middle of the tightest one. On a layout with no arena run-up (short, legacy: the
+ *  same test as biomeScript's) it is y, so short's pincer is unchanged. Reads terrain and scroll only, never R() */
+export const rearY = (y) => {
+  if (layout().beats.runup == null) return y;
+  let ce = 0, fl = PH;
+  // world x from scroll + x0 to scroll + REAR_END, the span the flight covers (screen x0..x1 mapped as above), every step px
+  for (let o = REAR.x0; ; o = Math.min(o + REAR.step, REAR_END)) {
+    const wx = $.G.scroll + o; ce = Math.max(ce, ceilAt(wx)); fl = Math.min(fl, floorAt(wx));
+    if (o >= REAR_END) break;
+  }
+  return ce + REAR.up <= fl - REAR.dn ? clamp(y, ce + REAR.up, fl - REAR.dn) : (ce + fl) / 2;
+};
 const SET = {
   morgue: () => { corpse(bandY(PH * .25)); corpse(bandY(PH * .5), { drift: .2 }); corpse(bandY(PH * .75)); later(40, mutant); }, // a frozen crew drifting in a line, a hulk walking under it
   // set pieces are fixed: formation()'s power drones (up to +6) would close the walls' gap and stretch the pincer's wave
   walls: () => { formation('wall', bandY(PH * .33), 2, FIXED); formation('wall', bandY(PH * .67), 2, FIXED); crawler(1); crawler(-1); }, // a double wall, gap in the middle, crawlers on the lining
-  pincer: () => { flayer(bandY(55)); flayer(bandY(PH - 75)); behindWave(PH / 2, 2, FIXED); }, // flayers top and bottom, a short rear wave between them
+  pincer: () => { flayer(bandY(55)); flayer(bandY(PH - 75)); behindWave(PH / 2, 2, FIXED, rearY); }, // flayers top and bottom, a short rear wave between them
   flood: () => { hatch(ri(7, 9), false); hatch(ri(4, 6), true); slime(1); later(30, () => slime(-1)); },
   // remix sets
   crucify: () => { crossT(1); crossT(-1); later(30, mutant); later(70, () => crossT(R() < .5 ? 1 : -1)); }, // the shelves are lined with crucifixes
   gutter: () => { womb(); crawler(1); crawler(-1); later(35, () => { crawler(1); crawler(-1); }); later(70, () => eyeT(1)); }, // the lining crawls
   kiln: () => { mutant(); hookE(); later(40, () => { hookE(); flayer(bandY(PH / 2)); }); later(80, mutant); }, // the meat line: hulks under swinging hooks
   drip: () => { slime(1); slime(-1); later(35, () => { slime(1); slime(-1); }); later(70, () => { slime(1); womb(); }); }, // the walls run with slimes
-  // the catalogue's new pieces (src/setdraw.ts CATALOG; LS2-mv). None waits past 60 f (the older pieces above go to 80 f;
-  // biomebeats.test.ts checks every piece's last spawn lands before the run-up from S3's planned x)
+  // the catalogue's new pieces (src/setdraw.ts CATALOG; LS2-mv). Their later() waits stop at 55 f (the older pieces above
+  // go to 80 f), but a behindWave lands 100 f after it is called (spawn.ts rearWarn): backdraft's second wave spawns at
+  // 20 + 100 = 120 f. biomebeats.test.ts drains G.pend on a frame clock and checks every piece's spawns land before the
+  // run-up from S3's planned x (a first visit's S3 is 126 px before it)
   thaw: () => { corpse(bandY(PH * .2)); later(25, () => corpse(bandY(PH * .5), { drift: .2 })); later(50, () => corpse(bandY(PH * .8))); }, // the crew thaw out of the wall one at a time, top to bottom
   vigil: () => { eyeT(1); eyeT(-1); later(40, () => corpse(bandY(PH / 2))); }, // eyes in the ice on both shelves, a body between them
   pack: () => { mutant(); flayer(bandY(PH * .3)); later(45, mutant); }, // two hulks walking, a flayer riding over them
@@ -234,7 +268,7 @@ const SET = {
   vats: () => { womb(); later(45, womb); eyeT(-1); }, // wombs on the lining, one eye watching from above
   lining: () => { eyeT(1); eyeT(-1); hatch(ri(4, 6), true); }, // the lining opens: eyes either side, hatchlings from behind
   meatline: () => { hookE(); later(25, hookE); later(50, hookE); flayer(bandY(PH / 2)); }, // the hooks swing in one after another
-  backdraft: () => { behindWave(PH * .3, 3, FIXED); later(40, () => behindWave(PH * .7, 3, FIXED)); mutant(); }, // the fire comes round behind in two waves, a hulk holds the front
+  backdraft: () => { behindWave(PH * .3, 3, FIXED, rearY); later(20, () => behindWave(PH * .7, 3, FIXED, rearY)); mutant(); }, // the fire comes round behind in two waves, a hulk holds the front. 20 f, not 40 (ls1-audit, game-designer): at 40 the second wave spawned 13 px into the run-up when drawn as a first visit's S3; 20 lands it 7 px short and still reads as two waves. Long layouts only (short never draws the catalogue)
   cinders: () => { formation('dive', bandY(PH * .3), 3, FIXED); later(40, () => flayer(bandY(PH * .7))); }, // a short dive, a flayer under it
   sneeze: () => { hatch(ri(6, 8), true); hatch(ri(3, 5), false); }, // it blows through from behind, a few come the right way (fewer than flood's front wave: a rear wave costs more)
   clot: () => { womb(); later(30, () => { slime(1); slime(-1); }); later(55, () => hatch(ri(3, 4), false)); }, // the passage plugs: a womb lodges, the walls run, then the plug spits its brood (drip is slimes first, the womb last)
@@ -288,6 +322,10 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
   let setN = 0; // which drawn set piece is next (setIds)
   const inBreath = (y) => { for (const r of BR) if (y >= r.a && y < r.z) return r; return null; };
   const quiet = (y) => inBreath(y) || (!legacy && y >= BP.runup); // where an extra may not land: a breath, the run-up
+  // where kind k entered at x really spawns: a rear filler (`behind`) lands REAR.lead px late, so it is checked there and
+  // dropped if that is quiet (ls1-audit, game-designer). Long layouts only: on short it is x, and every check below is the
+  // one that was there (pk() still draws, so the build stream's order holds)
+  const lands = (x, k) => (!legacy && k === 'behind' ? x + REAR.lead : x);
   // the tempo band (layout().beats.tempo) for scroll x at progress q: the first whose `until` is still ahead
   const band = (x, q) => { for (const T of BT.tempo) if (typeof T.until === 'number' ? q < T.until : x < BR[T.until.breath].z) return T; return BT.tempo[BT.tempo.length - 1]; };
   const led = new Set();
@@ -305,9 +343,9 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     const pk = T.sig ? sig : roll, dbl = T.rel ? Math.min(.85, B.dbl + T.dbl) : T.dbl;
     if (T.lead && !led.has(T)) { led.add(T); const k = T.lead === 'sig' || !two ? X.sig : two; at(x, el(SPAWN[k]), k); x += st; continue; } // the band's first slot, alone
     const k1 = pk();
-    at(x, el(SPAWN[k1]), k1);
-    if (rs() < dbl && !quiet(y2)) { const k = pk(); at(y2, el(SPAWN[k]), k); } // extras never spill into a breath or the run-up
-    if (hard && T.third && rs() < .35 && !quiet(y3)) { const k = pk(); at(y3, el(SPAWN[k]), k); }
+    if (!quiet(lands(x, k1))) at(x, el(SPAWN[k1]), k1); // x itself is never quiet here (breaths skip above, the run-up stops)
+    if (rs() < dbl && !quiet(y2)) { const k = pk(); if (!quiet(lands(y2, k))) at(y2, el(SPAWN[k]), k); } // extras never spill into a breath or the run-up
+    if (hard && T.third && rs() < .35 && !quiet(y3)) { const k = pk(); if (!quiet(lands(y3, k))) at(y3, el(SPAWN[k]), k); }
     x += st;
   }
   midBeats(B, b, BP, mids, at);

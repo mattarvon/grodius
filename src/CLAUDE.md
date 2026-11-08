@@ -37,7 +37,8 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
    don't conflict): `k`, `name`, `label`, `tag`, `pool`, `min`, a measured `fit` for a
    biome-pool kind, and **`wip: true`** until its art and name are approved. Each kind in
    a pool needs a different tag (spec §6.1), and ANGLE and RACE need `min: 1` (§6.3);
-   `midreg.test.ts` checks both. Never reorder finished rows: the picker walks them in order.
+   `midreg.test.ts` checks both. `wip` rows count toward that rule (the test filters on pool only), so a wip kind
+   sharing a finished kind's tag in its pool fails `midreg.test.ts` at once. Never reorder finished rows: the picker walks them in order.
 2. **`src/enemies/mid/<kind>.ts`**: `function upd<Kind>(e)` (that name: `midhost.test.ts`
    finds it) and one `defineMid('<kind>', { et, word, update })`. Copy `cyst.ts`. `midLeave`,
    `bandFit` and `lob` come from `../update`; `midPh2(e)` from `../midhost` is phase 2. Optional hooks,
@@ -48,7 +49,8 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
      kill the slick already paid) never asks. A 0 < m < 1 hit flashes dimmer and tinks. Area damage arrives at
      exactly `(e.x, e.y)` with `dir` 0: decide what an area hit does. Shots still collide on
      `e.r`, so a small hittable part (the Spine's eye) also needs `e.hb` or a 0 off the part.
-   - `leave(e)`: once, when the withdraw clock runs out (reset a lake, a counter).
+   - `leave(e)`: once, when the withdraw clock runs out (reset a lake, a counter). `midLeave` fires it; a
+     DRIFT kind withdraws on its own (see `ufo.ts`) and must call `MID_SIM[e.k]?.leave?.(e)` once itself.
    - `kidKill(kid, owner)`: a child spawned with `own: e` (and `kid: 1`) died. Count your
      own children by `own`, not `kid`, once two kinds can spawn them.
 3. **`src/render/gross/mid/<kind>.ts`**: in pass 1, one line:
@@ -69,6 +71,10 @@ line to add. Every `.ts` there is a kind, except `_name.ts`, which is a shared h
 - **Load order:** kinds load before `spawn.ts`, in no fixed order. A kind's top level
   must not read `ET` or another kind (a recolour spreading `MID_SIM.cyst` gets
   undefined in the bundle). Read them inside functions.
+  Kind files sit in an import cycle (`../update`, `../spawn`, `../midhost`), so a kind's top level may call
+  `defineMid` with literals only; imported values are read at call time.
+- **`DEPTH.w`:** a per-kind weight defaults to the tag weight, so add a `DEPTH.w` entry only for a
+  measured reason (`depth-probe`). It is a shared line in `src/depth.ts`: expect a rebase there.
 - **Rules:** sim files never import render. Draw code uses `srnd()`, never `R()`. No
   allocation in `update`. Telegraphs and `kid: 1` follow `.claude/rules/ai-code.md`.
 - **See it:** `?mids=wip` or the `mids=wip` LAB row makes a `wip` biome-pool kind

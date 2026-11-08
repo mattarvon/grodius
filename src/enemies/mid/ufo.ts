@@ -29,7 +29,7 @@ import { layout, ufoDrift, ufoGapEnd } from '../../layout';
 import { slotClock } from '../../midpick';
 import { meetMid, registerDrift } from '../../midslot';
 import { midPh2 } from '../midhost';
-import { MID_NAMES, defineMid } from './roster';
+import { MID_NAMES, MID_SIM, defineMid } from './roster';
 
 export const UFO_NAME = MID_NAMES.ufo;
 // Where its WARNING is (it lands ~150 px later, ~45% through the stage) and where it must be gone by (the last of the
@@ -81,7 +81,7 @@ function updUfo(e) {
   if (e.t < e.leave && $.G.scroll > e.exitX) e.leave = e.t; // the forced exit (layout invariant, spec §3.2 rule 1: >= 300 px before the next WARNING; short is a pinned 220 px exception)
   const go = e.t >= e.leave;
   if (go) {
-    if (!e.gone) { e.gone = 1; e.st = 'idle'; e.ll = 0; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); }
+    if (!e.gone) { e.gone = 1; e.st = 'idle'; e.ll = 0; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); } // the leave hook, once, as midLeave does (this kind withdraws on its own)
     e.x += 1.6;
     e.y -= .25;
     if (e.x > W + 80) { e.dead = true; $.G.eat = 0; }

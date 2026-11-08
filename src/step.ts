@@ -18,8 +18,9 @@ import { updatePlayer } from './player';
 import { updateCaps, updateEShots, updateEnemies, updateShots } from './shots';
 import { decayFX, updateAmbient, updateCombo, updateFX } from './fx/update';
 import { stepContraptions } from './contraptions';
-import { menuNav, overItems, pauseItems, stepShop, titleItems } from './menus';
+import { keyBack, menuNav, overItems, pauseItems, stepArm, stepShop, titleItems } from './menus';
 import { cpStep } from './checkpoint';
+import { backPressed } from './backstep';
 
 // ---------------- main step ----------------
 export function stepWorld() {
@@ -88,11 +89,21 @@ export function step() {
   } else if ($.state === 'over') {
     $.G.overT++;
     stepWorld();
-    if ($.G.overT > 70) menuNav(overItems());
+    if ($.G.overT > 70) {
+      menuNav(overItems());
+      if (backPressed($.state, I) && $.state === 'over') keyBack(); // SURFACE: Esc / Backspace only (src/backstep.ts)
+    }
   } else if ($.state === 'pause') {
     menuNav(pauseItems());
     if (I.pause && $.state === 'pause') $.state = 'play';
-  } else if ($.state === 'title') { if (!$.gate) menuNav(titleItems()); }else if ($.state === 'shop') stepShop();
+    else if (I.back && $.state === 'pause') keyBack(); // X, Backspace, pad B: unpause, like Esc
+  } else if ($.state === 'title') {
+    if (!$.gate) {
+      menuNav(titleItems());
+      if (I.back && $.state === 'title') keyBack(); // a sub-menu closes; the root does nothing off the native app
+    }
+  } else if ($.state === 'shop') stepShop();
+  stepArm(); // the DESCEND confirm's arm clears off the title, on a selection move, or after ARM_T frames
   if ($.G) {
     const k = Math.min(9, $.G.shake);
     // render-only offsets (screens.ts, hype.ts translate by them), so srnd: shake is set by fx and by render's ship-sprout

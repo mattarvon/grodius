@@ -250,13 +250,61 @@ Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `produ
 
 **D30 status:** S2-K1 is still open. Midboss+8 p95 at 4× is down 16-21% but still misses 16.7 ms. It is decided by Matt's Fold reading of this build (`production/qa/fold-reading.md`), which comes before the D31 merge.
 
+### D36 ls2-mv's four questions: the recommendations — 2026-11-07 (Matt)
+
+Matt: "go with the recommendations".
+1. **Set-piece repeats (60% same-biome against ≤50%):** each biome grows to 7 set pieces once D31 has fixed the slot count. That is a follow-up content lane after the D31 merge, with level-designer, art-director and technical-artist.
+2. **Signature piece:** not guaranteed. On a biome's first visit in a run, its signature piece is weighted ×2. Owner: the D31 tune lane, because the change moves long4 picks and D31 re-baselines long4 anyway.
+3. **Icicles ×.7:** read as the interval, as built.
+4. **Snot throat walls:** static, as built.
+
+Also started on Matt's say-so: the LS1 fix lane (`ls1-audit`) and the D31 tune lane (`ls2-d31`).
+
+### D40 LS1 fix merge 1 merged — 2026-11-08 (parent; Matt authorized parent merges)
+
+**What merged** (ls1-audit, `abf85c1..5fa8663`):
+- the midboss picker fixes: gap-to-least-met weighting capped at 3:1 (#15), with only the exact previous pair excluded (#16);
+- the harness tool fixes: `breath2` slot B no longer skips silently (#8), and `--update` refuses failed runs (#9);
+- D33 in CI: FLAKY fails it, typecheck blocks it, and cancel-in-progress applies to PRs only;
+- the backdraft and pincer rear-wave clamp, sampled over the whole flight (closes D35 accepted S2 #1);
+- Matt's bug: the touch back controls, plus Android back stepping one level, with a two-press exit at the title root ("PRESS BACK AGAIN TO LEAVE");
+- registry hardening: `import './enemies/mid'`, the top-level rule in `src/CLAUDE.md`, and the DRIFT leave hook;
+- D36.
+
+**Gates on `25b61af`:**
+- typecheck: clean.
+- vitest: pass, plus 1 expected fail.
+- short harness: PASS; parity: 7 of 7 identical.
+- scen: 12 of 12 PASS; long4: PASS, with no re-baseline.
+- build: OK.
+- resume ×3: PASS.
+- back-check: PASS.
+- set-shots: 0 buried, 0 crossed.
+- The first scen and long4 runs crashed on a Vite reload from the dependency cache shared between worktrees. It was not a sim diff. The rerun passed.
+- Fixup 27d699c (exit prompt moved under LAB, menuBlip): back-check ok with the shots re-taken; short PASS; parity 7 of 7 identical; typecheck clean; vitest 888 plus 1 expected fail.
+
+**Studio review:**
+- 5 specialists (web-specialist, ux-designer, systems-designer, qa-tester, level-designer), all 8 leads and all 3 directors gave APPROVE WITH NOTES. No blocks.
+- Two S2s were fixed before the push: the exit prompt overlapped the credits (art-director, localization-lead), and a CHANGELOG entry was missing (release-manager).
+
+**Rollback point:** tag `pre-ls1-fm1` on `abf85c1`.
+
+**Owned items:**
+1. The rear hatch filler lands about 20 px into breath 1 (acid, snot) and about 60 px into snot's run-up (`biomebeats.test.ts` `it.fails`). **Owner:** game-designer, before any LS2 lane builds on the breaths.
+2. long4 dies in Orbit before any fire stage, so set-shots is the only evidence for the rear clamp. **Owner:** qa-lead. D31's re-baseline must include a run that reaches the fire stages.
+3. Set a per-worktree Vite `cacheDir`. **Owner:** devops-engineer, before parallel lanes run gates again. Also make the harness name a mid-run reload (`harness.mjs:132`).
+4. Matt to check the two-press exit on the Fold, in the same session as the Fold reading; record the build sha in `fold-reading.md`. The two-press exit was built before Matt decided ux Decision 2. It is cheap to revert.
+5. The title's fart cursor samples go against D39. ls2-read replaces them.
+6. Backlog:
+   - one shared REAR constant (lead-programmer);
+   - the spec's "about 1 in 5" against the measured 0.257 (systems-designer);
+   - the rough `bigBtn` edge, with amber kept for warnings that cost something (art-director);
+   - a string table with a 340 px footer limit (localization-lead).
+
+**Merge order from here:** ls2-read (rebased), then fix merge 2 (audio-director re-reviews `audio.ts` after its rebase onto ls2-read), then D31 after the Fold reading.
+
 ## Open
 
-- **ls2-mv's four questions (Matt).** game-designer's recommendation is in brackets.
-  1. A 60% same-biome set-piece share against the ≤50% target [grow each biome to 7 pieces, after D31 fixes the slot count].
-  2. A guaranteed signature piece [no; weight it ×2 on a first visit].
-  3. Icicles ×.7: the interval or the rate [the interval, as built].
-  4. Snot throat walls: static or moving [static, as built].
 - **Movement-B terrain varies by seed?** It is the same across seeds today (level-designer).
 - **D31 Orbit stretch: +2400 or +2700 px** (producer), while the derelict tug is WIP-gated.
 - **The Calving Shelf's leave clock under the D31 stretch** (wave-2 DRIFT kind).

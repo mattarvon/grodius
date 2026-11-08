@@ -116,7 +116,7 @@ while (f < 60 * 60 * 40) {
   if (s.st === 'shop') {
     shopN++; await p.evaluate('__tick(60)'); await p.evaluate((n) => __ev.push('SHOP ' + n + ' music ' + JSON.stringify(__music())), shopN);
     if (shopN >= +N) break;
-    await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(40)');
+    await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(1)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); // the loop shop's back takes two presses (ls1-audit) await p.evaluate('__tick(40)');
     continue;
   }
   if (s.st === 'over') { await p.evaluate(() => __ev.push('GAME OVER')); break; }

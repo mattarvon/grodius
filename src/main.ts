@@ -14,6 +14,7 @@ import './fx/spawn';
 import './flow';
 import './enemies/spawn';
 import './enemies/update';
+import './enemies/mid'; // the sim side of the midboss registry (enemies/mid/index.ts), named here; enemies/spawn.ts and update.ts already import './mid' (the same index), so this line moves nothing in the boot order
 import './boss/update';
 import './mutations';
 import './player';
@@ -115,8 +116,9 @@ import { App } from '@capacitor/app';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { NATIVE } from './platform';
 import { save } from './save';
-import { PR, fit, lowerDK } from './input';
+import { fit, lowerDK } from './input';
 import { openPause } from './flow';
+import { doBack, nativeBack } from './menus';
 if (NATIVE) {
   KeepAwake.keepAwake().catch(() => {});
   App.addListener('pause', () => {
@@ -124,10 +126,12 @@ if (NATIVE) {
     rewriteRun(); // the LAST CHECKPOINT again, never live state (spec §4)
     if ($.state === 'play') openPause();
   });
-  // hardware back: pause in play, otherwise acts like Esc (menu back); exits from the title screen
+  // hardware back: one level up the back tree (src/backstep.ts), the same one Esc and pad B walk. It exits only from
+  // the title root, never from a sub-menu; doBack applies it at once, so the Infirmary's 40-frame lock can't swallow it
   App.addListener('backButton', () => {
-    if ($.state === 'title') App.exitApp();
-    else PR.add('Escape');
+    const a = nativeBack();
+    if (a === 'exit') App.exitApp().catch(() => {});
+    else doBack(a);
   });
 }
 // fold/unfold changes the viewport without always firing a plain resize

@@ -2,16 +2,34 @@
 import { $ } from './state';
 import { SET, UPG, exportSave, importSave, lv, save } from './save';
 import { auInit, sample, setMute, sfx } from './audio';
-import { I } from './input';
-import { newGame, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
+import { I, PR } from './input';
+import { newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
 import { runInfo } from './runsave';
 import { setLayout } from './layout';
 import { RIG, RIG_BY, SOCKET_COST, rigInit, rigged, sockets } from './contraptions';
 import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, setLab } from './lab';
+import { ARM_T, backStep, descendTap, exitLive } from './backstep';
+import { NATIVE } from './platform';
 
 // ---------------- menus ----------------
 let titleSub = null, saveMsg = '';
 const sub = (s) => () => { titleSub = s; saveMsg = ''; $.menuSel = 0; };
+/** the open title sub-menu ('opt', 'lab') or null; screens.ts draws the BACK button and hides the help under it */
+export const titleSubOf = () => titleSub;
+// DESCEND confirm (S2 #1): the title row a pointer tap armed, and the $.T it was armed at
+let armed = null, armT = 0;
+/** the armed DESCEND row or null (screens.ts, tools/back-check.mjs) */
+export const armedRow = () => armed;
+/** once per step: an arm clears when the selection moves, after ARM_T frames, or off the title */
+// the title root's leave arm (backstep.ts EXIT_ARM_T): the $.T a first Android back armed it at, and the selection then
+let exitT = null, exitSel = 0;
+/** is a second Android back going to leave? (screens.ts draws the prompt; tools/back-check.mjs reads it) */
+export const exitArmed = () => exitLive(exitT, $.T);
+export function stepArm() {
+  if (armed !== null && ($.state !== 'title' || $.menuSel !== armed || $.T - armT > ARM_T)) armed = null;
+  // anything else the player does disarms the leave: another screen, a sub-menu, a selection move, any key or pad press
+  if (exitT !== null && (!exitLive(exitT, $.T) || $.state !== 'title' || titleSub || $.menuSel !== exitSel || PR.size || I.up || I.down || I.ok || I.back || I.pause || I.power)) exitT = null;
+}
 function exportItem() {
   const code = exportSave();
   saveMsg = 'SHOWN';
@@ -40,6 +58,8 @@ export function titleItems() {
   if (titleSub === 'opt') return optionItems();
   if (titleSub === 'lab') return labItems();
   const ri = runInfo();
+  // with a run save, a pointer tap on a DESCEND row only arms it (it would wipe the save); the right column warns
+  const cf = !!ri, warn = (i, r) => (armed === i ? { r: 'ENDS SAVED RUN', rc: '#ffd23a' } : { r });
   return [...(ri ? [{
     // item H: the last checkpoint (one slot). First while it exists; the harness and probes clear storage at boot,
     // so DESCEND stays row 0 for them
@@ -48,12 +68,15 @@ export function titleItems() {
     a: () => { resumeLast(); }
   }] : []), {
     l: 'DESCEND',
+    confirm: cf,
+    ...warn(ri ? 1 : 0, undefined),
     a: () => {
       startRun();
     }
   }, ...(lv('deep') ? [{
     l: 'DESCEND DEEPER',
-    r: 'DESCENT 2',
+    confirm: cf,
+    ...warn(ri ? 2 : 1, 'DESCENT 2'),
     a: () => startRun(1)
   }] : []), {
     l: 'INFIRMARY',
@@ -97,8 +120,8 @@ function labItems() {
     r: L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
     a: () => setLab({ cp: L.cp === 'b' ? 'a' : 'b' })
   }, {
-    l: 'BACK',
-    a: sub(null)
+    l: 'BACK', // the same close as Esc, Android back and the < BACK button: the cursor lands back on LAB
+    a: () => doBack('closeSub')
   }];
 }
 function optionItems() {
@@ -136,8 +159,8 @@ function optionItems() {
     r: saveMsg === 'BAD CODE' ? saveMsg : '',
     a: importItem
   }, {
-    l: 'BACK',
-    a: sub(null)
+    l: 'BACK', // the same close as Esc, Android back and the < BACK button: the cursor lands back on OPTIONS
+    a: () => doBack('closeSub')
   }];
 }
 export function overItems() {
@@ -206,7 +229,7 @@ export function menuNav(items) {
     $.menuSel = ($.menuSel + 1) % items.length;
     menuBlip(false);
   }
-  if (I.ok) {
+  if (I.ok) { // keys and pad never need the DESCEND confirm: a deliberate press, not a stray tap
     auInit();
     menuBlip(true);
     items[$.menuSel].a();
@@ -331,10 +354,13 @@ export function stepShop() {
   if ($.shopMsg && --$.shopMsg.t <= 0) $.shopMsg = null;
   const px = $.shopPX || 0;
   $.shopPX = I.x;
-  if ($.shopLock > 0) {
-    $.shopLock--;
-    return;
-  }
+  // shopLock (40 frames after opening) gates the pointer and OK so a tap in flight can't buy. Back is honoured during it
+  // only from Esc / Backspace (hardBack): X and pad B are POWER, and openShop('loop') runs straight from play, so mashing
+  // power through a stage clear would otherwise select DESCEND and continue past the Infirmary. Android back skips this
+  const locked = $.shopLock > 0;
+  if (locked) $.shopLock--;
+  if (locked ? I.hardBack : I.back) return keyBack();
+  if (locked) return;
   rigInit();
   const it = shopItems();
   if ($.menuSel >= it.length) $.menuSel = 0;
@@ -350,13 +376,21 @@ export function stepShop() {
   if (I.x > 0 && px <= 0 && x.k === 'rig') rigUp(x.r);
   else if (I.x < 0 && px >= 0 && x.k === 'rig' && rigOwned(x.r.id)) rigAct(x.r);
   if (I.ok) shopAct(x);
-  else if (I.back) leaveShop();
 }
 export function menuPointer(x, y) {
+  exitT = null; // a tap is something else: the leave arm drops
   if ($.state === 'shop' && $.shopLock > 0) return;
   if ($.state === 'over' && $.G.overT <= 70) return;
   for (const b of $.menuBoxes) if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
-    if (b.now) {
+    if (b.confirm && $.state === 'title') {
+      // DESCEND with a run save: the first tap arms (nav blip), a second tap on the armed row starts the run
+      const d = descendTap(armed, b.i, true);
+      $.menuSel = b.i;
+      armed = d.armed;
+      armT = $.T;
+      menuBlip(d.act);
+      if (d.act) b.a();
+    } else if (b.now) {
       // Infirmary buttons (BUY / BOLT / UPGRADE) act on the first tap
       $.menuSel = b.i;
       b.a();
@@ -368,9 +402,53 @@ export function menuPointer(x, y) {
       $.menuSel = b.i;
       sfx.menu();
     }
+    if (!b.confirm) armed = null; // any other box disarms
     return;
   }
 }
+// ---------------- back (src/backstep.ts decides, doBack applies) ----------------
+/** what a back press sees now. native: only the Capacitor app may exit (main.ts backButton) */
+export function backView(native = false) {
+  return {
+    state: $.state,
+    sub: titleSub,
+    gate: !!$.gate,
+    asked: !!SET.asked,
+    shopNext,
+    onExitRow: $.state === 'shop' && $.menuSel === shopItems().length - 1,
+    overT: $.G ? $.G.overT : 0,
+    native,
+    exitArmed: exitArmed()
+  };
+}
+/** apply one back action through the existing menu actions ('exit' and 'none' do nothing here; 'armExit' arms the
+ *  title root's leave for EXIT_ARM_T frames) */
+export function doBack(a) {
+  if (a === 'armExit') {
+    exitT = $.T;
+    exitSel = $.menuSel;
+    menuBlip(false); // the title's own sound, like every other title press (audio-director)
+  } else if (a === 'closeSub') {
+    const from = titleSub === 'opt' ? 'OPTIONS' : 'LAB';
+    titleSub = null;
+    saveMsg = '';
+    $.menuSel = Math.max(0, titleItems().findIndex(x => x.l === from));
+    menuBlip(false);
+  } else if (a === 'leaveShop') leaveShop();
+  else if (a === 'selectExit') {
+    $.menuSel = shopItems().length - 1;
+    sfx.menu();
+    msg('BACK AGAIN TO DESCEND', '#ffd0a0');
+  } else if (a === 'unpause') pauseItems()[0].a(); // RESUME
+  else if (a === 'pause') openPause();
+  else if (a === 'surface') overItems().find(x => x.l === 'SURFACE').a();
+}
+/** a back key or pad B in a menu (step.ts, stepShop): the same tree as Android back, minus the exit */
+export function keyBack() {
+  doBack(backStep(backView(false)));
+}
+/** the Android hardware back (main.ts): 'exit' only from the title root */
+export const nativeBack = () => backStep(backView(NATIVE));
 export const fmtBio = n => Math.floor(n) + ' BIO';
 export const pad = (n, l) => String(Math.floor(n)).padStart(l, '0');
 

@@ -19,6 +19,7 @@ function rngOf(seed: number): () => number {
 const BIOME_KEYS = Object.keys(HOME);
 const RUNS = 1000, DESCENTS_PER_RUN = 10; // 10,000 simulated descents
 const fresh = (): MidState => ({ mbUsed: [], mbLast: {} });
+const pairKey = (ps: readonly string[]) => ps.slice().sort().join('+');
 
 describe('roster', () => {
   it('keeps HOME in step with the four existing biome midbosses', () => {
@@ -50,7 +51,7 @@ describe('10k simulated descents, phase 1 (Orbit -> biome A -> biome B -> Drive)
       const route = [BIOME_KEYS[Math.floor(rng() * 4)], BIOME_KEYS[Math.floor(rng() * 4)]];
       let firstPicks: string[] = [];
       route.forEach((b, slot) => {
-        const homeFree = !st.mbUsed.includes(HOME[b]) && !(st.mbLast[b] || []).includes(HOME[b]);
+        const homeFree = !st.mbUsed.includes(HOME[b]); // #16: step 3 bans only the exact pair, so home leads whenever unmet
         const out = pickBiomeMids(st, b, L, rng, met);
         stats.stages++;
         if (out.picks.length !== 2) stats.short++;
@@ -125,11 +126,19 @@ describe('pickMids rules', () => {
   });
 
   it('relaxes step 3 before step 1', () => {
-    // previous pair leaves only i4 eligible at L 0; dropping step 3 is enough, so the gated i3 stays out
-    const out = pickMids({ pool: W1_POOLS.ice, L: 0, used: [], last: ['i1', 'i2'], rng: rngOf(3), defs: W1 });
+    // i4 met this descent leaves i1 + i2 as the only full set at L 0: that is the previous pair, so step 3 relaxes
+    // and the gated i3 stays out
+    const out = pickMids({ pool: W1_POOLS.ice, L: 0, used: ['i4'], last: ['i1', 'i2'], rng: rngOf(3), defs: W1 });
     expect(out.relaxed).toBe(1);
+    expect(out.picks.slice().sort()).toEqual(['i1', 'i2']);
     expect(out.picks).not.toContain('i3');
+  });
+
+  it('bans only the exact previous pair, so a pair sharing one member stays allowed (relaxed 0)', () => {
+    const out = pickMids({ pool: W1_POOLS.ice, L: 0, used: [], last: ['i1', 'i2'], rng: rngOf(3), defs: W1 });
+    expect(out.relaxed).toBe(0);
     expect(out.picks).toHaveLength(2);
+    expect(out.picks.slice().sort()).not.toEqual(['i1', 'i2']);
   });
 
   it('relaxes the gate only when step 3 alone is not enough', () => {
@@ -153,16 +162,17 @@ describe('pickMids rules', () => {
     expect(pickMids({ pool: ['x', 'y'], L: 0, used: [], rng, defs }).picks).toHaveLength(1);
   });
 
-  it('weights by 1 / (1 + times met): the unmet member is drawn about 4x as often as one met 3 times', () => {
-    expect(midWeight('a', { a: 3 })).toBe(0.25);
+  it('weights by 1 / (1 + capped lead over the least-met candidate): the unmet member is drawn 3x as often', () => {
+    expect(midWeight('a', { a: 3 })).toBe(1 / 3); // capped at MID_PICK.cap = 2
     expect(midWeight('a', {})).toBe(1);
+    expect(midWeight('a', { a: 5 }, false, 4)).toBe(0.5);
     const defs: Record<string, MidDef> = { p: { body: 'p', tag: 'LINE', min: 0 }, q: { body: 'q', tag: 'SPACE', min: 0 } };
     const rng = rngOf(7);
     let p = 0;
     const N = 20000;
     for (let i = 0; i < N; i++) if (pickMids({ pool: ['p', 'q'], L: 0, n: 1, used: [], met: { q: 3 }, rng, defs }).picks[0] === 'p') p++;
-    expect(p / N).toBeGreaterThan(0.78); // expected 0.8
-    expect(p / N).toBeLessThan(0.82);
+    expect(p / N).toBeGreaterThan(0.73); // expected 0.75: m0 = 0, q's gap of 3 caps at 2
+    expect(p / N).toBeLessThan(0.77);
   });
 
   it('ignoreMeta draws as if nothing had been met (the D10 hook)', () => {
@@ -195,9 +205,9 @@ describe('pickMids rules', () => {
 });
 
 describe('wave-1 shape: pools of 4, 10k descents', () => {
-  it('first two visits to a biome in a run share no midboss, with no repeats and distinct tags', () => {
+  it('the second visit to a biome in a run is never the first visit\'s pair, with no repeats and distinct tags', () => {
     const rng = rngOf(0x41);
-    let overlap = 0, repeats = 0, sameTag = 0, short = 0;
+    let pairRepeat = 0, repeats = 0, sameTag = 0, short = 0;
     for (let run = 0; run < 2000; run++) {
       const st = fresh(), met: Record<string, number> = {}, visits: Record<string, string[][]> = {};
       for (let L = 0; L < 5; L++) {
@@ -212,8 +222,96 @@ describe('wave-1 shape: pools of 4, 10k descents', () => {
           (visits[b] ||= []).push(picks);
         }
       }
-      for (const b in visits) if (visits[b][1].some(k => visits[b][0].includes(k))) overlap++;
+      for (const b in visits) if (pairKey(visits[b][1]) === pairKey(visits[b][0])) pairRepeat++;
     }
-    expect({ overlap, repeats, sameTag, short }).toEqual({ overlap: 0, repeats: 0, sameTag: 0, short: 0 });
+    expect({ pairRepeat, repeats, sameTag, short }).toEqual({ pairRepeat: 0, repeats: 0, sameTag: 0, short: 0 });
+  });
+});
+
+// #15 / #16 (systems-designer spec): weight by capped lead over the least-met candidate; step 3 bans only the exact pair
+const P4: Record<string, MidDef> = {
+  v1: { body: 'v1', tag: 'LINE', min: 0 }, v2: { body: 'v2', tag: 'WINDOW', min: 0 }, v3: { body: 'v3', tag: 'SPACE', min: 0 }, N: { body: 'N', tag: 'DRIFT', min: 0 },
+};
+const P4_POOL = ['v1', 'v2', 'v3', 'N'];
+
+describe('pair rotation and catch-up weighting (#15, #16)', () => {
+  it('rotates pairs across runs: few recent-pair repeats, none run to run, and a new kind leads early', () => {
+    const SEEDS = 50, RUNS_PER = 60;
+    let recent = 0, recentDen = 0, runRepeat = 0, nIn = 0;
+    for (let seed = 0; seed < SEEDS; seed++) {
+      const rng = rngOf(0x5e00 + seed), met: Record<string, number> = { v1: 50, v2: 50, v3: 50 }, hist: string[] = [];
+      let last: string[] | undefined;
+      for (let run = 0; run < RUNS_PER; run++) {
+        const { picks } = pickMids({ pool: P4_POOL, L: 0, used: [], last, met, rng, defs: P4 });
+        const key = pairKey(picks);
+        if (run >= 1) { recentDen++; if (hist.slice(-2).includes(key)) recent++; }
+        if (hist.length && hist[hist.length - 1] === key) runRepeat++;
+        if (run < 20 && picks.includes('N')) nIn++;
+        hist.push(key);
+        for (const k of picks) met[k] = (met[k] || 0) + 1;
+        last = picks;
+      }
+    }
+    const recentRate = recent / recentDen, nShare = nIn / (SEEDS * 20);
+    console.log(`[midpick sweep] recent-pair rate ${recentRate.toFixed(3)}, run-to-run repeats ${runRepeat}, N share runs 1-20 ${nShare.toFixed(3)}`);
+    expect(recentRate).toBeLessThanOrEqual(0.33);
+    expect(runRepeat).toBe(0);
+    expect(nShare).toBeGreaterThanOrEqual(0.6);
+    expect(nShare).toBeLessThanOrEqual(0.9);
+  });
+
+  it('a 3-member pool never repeats the previous pair on the next visit, and needs no relaxing', () => {
+    const P3 = ['v1', 'v2', 'v3'];
+    let same = 0, relaxedNon0 = 0;
+    for (let seed = 0; seed < 2000; seed++) {
+      const rng = rngOf(0x3300 + seed);
+      const v1 = pickMids({ pool: P3, L: 0, used: [], rng, defs: P4 });
+      const v2 = pickMids({ pool: P3, L: 0, used: [], last: v1.picks, rng, defs: P4 });
+      if (pairKey(v2.picks) === pairKey(v1.picks)) same++;
+      if (v2.relaxed !== 0) relaxedNon0++;
+    }
+    console.log(`[midpick 3-pool] visit-2 same pair ${same / 2000}, relaxed != 0 ${relaxedNon0 / 2000}`);
+    expect({ same, relaxedNon0 }).toEqual({ same: 0, relaxedNon0: 0 });
+  });
+
+  it('returns the previous pair with relaxed 1 when it is the only full set', () => {
+    const out = pickMids({ pool: ['v1', 'v2'], L: 0, used: [], last: ['v1', 'v2'], rng: rngOf(9), defs: P4 });
+    expect(out.relaxed).toBe(1);
+    expect(out.picks.slice().sort()).toEqual(['v1', 'v2']);
+  });
+
+  it('keeps the preferred home as slot A when the previous pair was home + X, and never pairs it with X', () => {
+    for (let s = 0; s < 500; s++) {
+      const out = pickMids({ pool: P4_POOL, L: 0, used: [], last: ['v1', 'v2'], prefer: 'v1', rng: rngOf(s), defs: P4 });
+      expect(out.picks[0]).toBe('v1');
+      expect(out.picks[1]).not.toBe('v2');
+      expect(out.relaxed).toBe(0);
+    }
+  });
+
+  it('treats NaN, negative and infinite counts as never met', () => {
+    for (let s = 0; s < 300; s++) {
+      const bad = pickMids({ pool: P4_POOL, L: 0, used: [], met: { v1: NaN, v2: -3, v3: Infinity }, rng: rngOf(s), defs: P4 });
+      const clean = pickMids({ pool: P4_POOL, L: 0, used: [], met: {}, rng: rngOf(s), defs: P4 });
+      expect(bad).toEqual(clean);
+    }
+  });
+
+  it('draws the same with met {} as with met undefined (the harness case)', () => {
+    for (let s = 0; s < 300; s++) {
+      const a = pickMids({ pool: W1_POOLS.ice, L: 2, used: [], met: {}, last: ['i1', 'i3'], rng: rngOf(s), defs: W1 });
+      const b = pickMids({ pool: W1_POOLS.ice, L: 2, used: [], last: ['i1', 'i3'], rng: rngOf(s), defs: W1 });
+      expect(a).toEqual(b);
+    }
+  });
+
+  it('bans the previous pair whatever order it was stored in', () => {
+    for (let s = 0; s < 300; s++) {
+      const a = pickMids({ pool: W1_POOLS.ice, L: 0, used: [], last: ['i2', 'i1'], rng: rngOf(s), defs: W1 });
+      const b = pickMids({ pool: W1_POOLS.ice, L: 0, used: [], last: ['i1', 'i2'], rng: rngOf(s), defs: W1 });
+      expect(a).toEqual(b);
+      expect(pairKey(a.picks)).not.toBe('i1+i2');
+      expect(a.relaxed).toBe(0);
+    }
   });
 });
