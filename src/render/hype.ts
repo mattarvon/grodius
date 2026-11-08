@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, FONT_D, FONT_H, TAU, W, clamp, ctx, sstep } from '../core';
+import { C, FONT_D, FONT_H, TAU, W, ctx, sstep } from '../core';
 import { drawChain, poly, txt } from '../render/util';
 import { drawEShots } from '../render/hud';
 import { SPR, srnd } from '../sprites';
@@ -163,119 +163,11 @@ export function drawSlab(c, jaw, t) {
   c.fillStyle = '#2e1a10';
   for (let k = -3; k <= 3; k++) c.fillRect(k * 2.4 - .5, -69 + mh + 1.5, 1, 1.2);
 }
-export function drawBabe() {
-  const b = $.G.babe;
-  if (!b) return;
-  const age = b.ml - b.t,
-    x = -40 + age * (W + 80) / b.ml,
-    y = b.y + Math.sin(age * .07) * 4,
-    wave = Math.sin(age * .3);
-  ctx.save();
-  ctx.globalAlpha = .92 * Math.min(1, b.t / 20, age / 10);
-  // 80s neon trail
-  ctx.globalCompositeOperation = 'lighter';
-  for (const [c, o] of [['255,60,170', -2], ['60,220,255', 1], ['255,200,60', 4]]) {
-    ctx.fillStyle = `rgba(${c},.55)`;
-    ctx.fillRect(x - 60, y + o, 52, 2);
-  }
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.translate(x, y);
-  // surfboard
-  ctx.fillStyle = '#ff3fa4';
-  ctx.beginPath();
-  ctx.ellipse(0, 1, 15, 2.6, 0, 0, TAU);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(-12, .6, 24, .8);
-  ctx.fillStyle = '#3cdcff';
-  ctx.fillRect(-4, -.2, 8, .6);
-  const sk = '#e39a62',
-    skD = '#b46a3a';
-  ctx.lineCap = 'round';
-  // legs
-  ctx.strokeStyle = skD;
-  ctx.lineWidth = 2.6;
-  ctx.beginPath();
-  ctx.moveTo(-1, -14);
-  ctx.lineTo(-4, -1);
-  ctx.moveTo(1, -14);
-  ctx.lineTo(4, -1);
-  ctx.stroke();
-  ctx.strokeStyle = sk;
-  ctx.lineWidth = 1.8;
-  ctx.stroke();
-  // torso
-  ctx.fillStyle = sk;
-  ctx.beginPath();
-  ctx.ellipse(0, -19, 3, 6, 0, 0, TAU);
-  ctx.fill();
-  ctx.fillStyle = skD;
-  ctx.fillRect(1.6, -23, 1, 8);
-  // bikini (full top + bottoms)
-  ctx.fillStyle = '#ff2a6a';
-  poly(ctx, [[-3, -15.5], [3, -15.5], [1.5, -13], [-1.5, -13]]);
-  ctx.fillRect(-3, -21.5, 6, 2.2);
-  ctx.fillStyle = '#ff8ab8';
-  ctx.fillRect(-2.5, -21.5, 5, .6);
-  // arms: one on hip, one waving
-  ctx.strokeStyle = sk;
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.moveTo(-2.5, -23);
-  ctx.lineTo(-5, -18);
-  ctx.lineTo(-2.6, -15.5);
-  ctx.moveTo(2.5, -23);
-  ctx.lineTo(6, -27);
-  ctx.lineTo(7 + wave * 1.5, -32);
-  ctx.stroke();
-  ctx.lineCap = 'butt';
-  // head, shades, big blonde hair blowing back
-  ctx.fillStyle = '#ffe060';
-  poly(ctx, [[-2, -31], [-11, -27 + wave * .6], [-9, -24], [-3, -25], [0, -28]]);
-  ctx.beginPath();
-  ctx.arc(0, -28.5, 3.4, Math.PI, TAU);
-  ctx.fill();
-  ctx.fillStyle = sk;
-  ctx.beginPath();
-  ctx.arc(.6, -27.5, 2.6, 0, TAU);
-  ctx.fill();
-  ctx.fillStyle = '#111';
-  ctx.fillRect(.4, -28.6, 3.4, 1.2);
-  ctx.fillStyle = '#d0205a';
-  ctx.fillRect(2, -25.8, 1.2, .7);
-  ctx.fillStyle = '#fff3a0';
-  ctx.fillRect(-1, -31.5, 2, .8);
-  ctx.restore();
-  // speech bubble
-  if (age > 20 && b.t > 15) {
-    const bx = clamp(x + 10, 6, W - 112),
-      by = y - 46;
-    ctx.save();
-    ctx.globalAlpha = .92;
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(bx, by, 104, 12);
-    ctx.fillStyle = '#ff2a6a';
-    ctx.fillRect(bx, by, 104, 1);
-    ctx.fillRect(bx, by + 11, 104, 1);
-    poly(ctx, [[clamp(x + 6, bx + 4, bx + 100), by + 12], [clamp(x + 2, bx, bx + 96), by + 18], [clamp(x + 12, bx + 8, bx + 104), by + 12]]);
-    txt('EXCELLENT WORK, BABY!', bx + 52, by + 3, '#d0205a', 'center', 7);
-    ctx.restore();
-  }
-  // bullets stay on top
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x - 70, y - 50, 190, 62);
-  ctx.clip();
-  ctx.translate($.G.shx || 0, $.G.shy || 0);
-  drawEShots();
-  ctx.restore();
-}
-
 // --- hype voices: the comms window ---
-// Every voice line (src/sfx/hype*, babe20, corpsevoice, bossreward, startgame) gets a face: a Reticulan from
+// Every voice line (src/sfx/hype*, corpsevoice, bossreward, startgame) gets a face: a Reticulan from
 // src/sprites/hface@18.png (tools/prep_screens.py, 3 jaw frames per face) that pops into the top-right corner like an
 // incoming transmission, flaps its jaw while the clip plays (audio.ts voiceOn() stamps clip name + start/end on the
-// audio clock) and glitches out after. Without recorded audio (muted, TTS fallback) it follows $.G.hype / $.G.babe.
+// audio clock) and glitches out after. Without recorded audio (muted, or a shelved bank) it follows $.G.hype.
 // Render-only: all flicker comes from srnd() / $.T, never the gameplay RNG.
 const VOICE = {
   'hell-yeah': [0, 'SGT. RAMROD SLAB'],
@@ -285,7 +177,7 @@ const VOICE = {
   'keyster-easter': [4, 'THE KEYSTER'],
   'lesley-yeah-baby': [5, 'LESLEY, MISSION CONTROL']
 };
-const BY_CAT = { hype: 'hell-yeah', babe: 'sfriend', corpsevoice: 'stop-killing-me', bossreward: 'keyster-easter', startgame: 'lesley-yeah-baby' };
+const BY_CAT = { hype: 'hell-yeah', corpsevoice: 'stop-killing-me', bossreward: 'keyster-easter', startgame: 'lesley-yeah-baby' };
 const voiceOf = (clip = '') => {
   // clip = file stem, e.g. 'hell-yeah-matty-1': match on the line, not the take
   for (const k in VOICE) if (clip === k || clip.startsWith(k + '-')) return VOICE[k];
@@ -300,7 +192,6 @@ function hypeSource(now) {
   const v = AU.voice;
   if (vLive(v, now)) return { v, clip: v.clip, L: /^hype/.test(v.cat) && $.G.hype ? $.G.hype.L : null };
   if ($.G.hype) return { clip: BY_CAT.hype, L: $.G.hype.L };
-  if ($.G.babe) return { clip: BY_CAT.babe };
   return null;
 }
 export function drawHype() {
@@ -308,7 +199,7 @@ export function drawHype() {
   if (s) {
     if (!cur || cur.out) cur = { clip: s.clip, v: s.v, t: T, out: 0, L: s.L };
     else if (s.v && s.v !== cur.v) {
-      // the recorded clip lands a few frames after the hype/babe trigger: swap the face under the static; a new line
+      // the recorded clip lands a few frames after the hype trigger: swap the face under the static; a new line
       // long after opens a fresh call
       if (T - cur.t < 40 || !cur.v) Object.assign(cur, { clip: s.clip, v: s.v });
       else cur = { clip: s.clip, v: s.v, t: T, out: 0 };

@@ -603,7 +603,7 @@ function rupture(e, s) {
     try {
       sample('splat_l', { vol: .95, rate: .75 });
       sample('gross_gush', { vol: .8 * q, wet: .3 });
-      sample('fart_ok', { vol: .6 * q, rate: .55, spread: .05, at: .3 }); // the probe, withdrawn
+      sample('gross_slosh', { vol: .6 * q, rate: .55, spread: .05, at: .3 }); // the limb, withdrawn
     } catch (err) {}
   }
 }

@@ -29,7 +29,7 @@ for (const [name, [pw, gm]] of Object.entries(L)) {
     window.__pre = () => {
       f++;
       const P = $.P; if (!P) return;
-      P.alive = true; P.inv = 0; $.G.pick = null; $.G.hype = $.G.babe = $.G.banner = $.G.boss = $.G.mini = null; for (let i = W.enemies.length - 1; i >= 0; i--) if (!W.enemies[i].tst) W.enemies.splice(i, 1); $.G.pickQ = 0; W.eshots.length = 0; $.G.scrollSpeed = .4;
+      P.alive = true; P.inv = 0; $.G.pick = null; $.G.hype = $.G.banner = $.G.boss = $.G.mini = null; for (let i = W.enemies.length - 1; i >= 0; i--) if (!W.enemies[i].tst) W.enemies.splice(i, 1); $.G.pickQ = 0; W.eshots.length = 0; $.G.scrollSpeed = .4;
       const y = 127 - 40 * Math.sin(f / 50), x = 110 + 30 * Math.sin(f / 23); P.hist.unshift({ x, y }); if (P.hist.length > 80) P.hist.pop(); P.x = x; P.y = y; P.inv = 0;
       if (f % 14 === 0 && W.enemies.length < 14) { const k = ['drone', 'corpse', 'drone', 'flayer'][(f / 14) % 4 | 0]; try { const e = SP.mk(k, 300 + Math.random() * 150, 40 + Math.random() * 170); e.vx = -.6; e.tst = 1; } catch (e) {} }
     };

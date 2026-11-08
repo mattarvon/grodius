@@ -1,0 +1,15 @@
+dist/assets/void-12-not-done-here-yet-gxrc4hu3.ogg               3,598.95 kB
+dist/assets/index-BH7rALzC.css                                       4.79 kB │ gzip:   1.43 kB
+dist/assets/web-B93w5Zre.js                                          0.84 kB │ gzip:   0.40 kB
+dist/assets/web-DDr5BWpj.js                                          0.89 kB │ gzip:   0.45 kB
+dist/assets/web-x7RzuzFE.js                                          1.15 kB │ gzip:   0.46 kB
+dist/assets/web-DVMkCiXS.js                                          1.68 kB │ gzip:   0.69 kB
+dist/assets/index-BImI6PhK.js                                      576.05 kB │ gzip: 207.19 kB
+
+✓ built in 254ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+build exit 0

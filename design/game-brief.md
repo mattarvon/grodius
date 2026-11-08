@@ -18,8 +18,8 @@ MERIDIAN KEEPS WHAT IT CATCHES." For the studio this means:
 - **The crew is present** as bodies, remains and logs.
 - **Machinery is gone wrong and organic**: cold industrial hardware fused with meat.
 
-The gross-out stays the punchline (pillar 5); *Event Horizon* is the straight man. Art, audio, canon and level work
-are judged against both halves.
+*Event Horizon* played straight (pillar 5): only the comms callers and kill banners crack. Art, audio, canon and level
+work are judged against that.
 
 **Concept:** A horizontal shooter in the Gradius tradition (capsule power, exclusive main and sub weapons, options, a Big Core-style shielded heart, bosses that leave if you're too slow), played as body horror and as "ultimate gross-out" (Grodius = Gross Gradius, Grodius.md:9). Each run is a series of descents. Each descent is Open Orbit, two biome stages picked at forks, then the Gravity Drive. Stages are Gradius length (D31: ~120-150 s each on long4; they measure 78-104 s today, and the LS2 tune lane stretches them), and the long layout (`long4`) has been the default since D24. The old short descent remains a LAB option until it is removed. The MERIDIAN has been "lost 7 years, back 9 days", and its gravity drive is still running (src/flow.ts:18).
 
@@ -32,7 +32,7 @@ Each pillar comes with a design test. A change that fails its test needs Matt's 
 2. **The bullet is sacred.** Gore, washes, glitch and flashes are the spectacle, and they never get in the way of reading hazards. Enemy fire is lime with a dark outline and is drawn on top of everything (src/render/hud.ts:237-305, README.md:52). *Test:* between a grosser effect and a readable bullet, the bullet wins every time. Turning flashes or gore down must really turn them down.
 3. **Earn your guns, in the run.** Power comes from capsules, kills and seals within the run. The Infirmary sells options and comfort, never raw power (README.md:102). Skill shows up as grade, score and survival. *Test:* any meta purchase or biomass sink adds choice, convenience or cosmetics, never extra damage. [PROVISIONAL: power shows up only as enemy fire and density, and HP comes only from depth (one power rule, 2026-10-31), with one exception: the Gravity Drive's HP still grows with your power. Midboss HP takes only the descent number, not the depth step within a descent (D29). Confirm at Matt's M2 playtest.]
 4. **Classic length, hard, never the same twice.** Stages run Gradius length (~120-150 s, D31) and must stay playable on a phone: touch controls, readable at phone size, and holding frame rate on the reference device (the Fold, a 16.7 ms frame budget, provisional until D15 sets the perf rule). They hit hard, with forks, remixes, elites, two midbosses per biome stage and timed boss phases. Later descents never replay a script you've already seen (CHANGELOG.md, 2026-10-30). *Test:* repetition counts as a bug. A stage's two midbosses are always different bodies, and no picked midboss body repeats within a descent (the recurring Maws are exempt). Content that makes the player meet the same boss or pattern again in one descent is a regression.
-5. **Deadpan horror plays straight man to the gross-out punchline.** The ship and sensor text (logs, stage cards, WARNING, game over) stays cold cosmic horror. Creatures, kill banners and the comms hype men carry the bodily-fluid comedy. *Test:* the log never makes jokes, and the gross-out never explains itself.
+5. **The ship is evil, and only the comms crack.** The MERIDIAN, its creatures, bosses, gore, art, sound, music and log text play malevolent body horror straight: dark, wet, anatomical, never cartoonish. The one release valve is deadpan gallows humour in the comms callers and kill banners. *Test:* a funny creature, sound, gib or log line is wrong. A funny comms or banner line must be grim, short, and sayable by someone who has seen the bodies.
 
 ## Core loop
 - **Moment to moment:** fly, fire, dodge readable lime fire, and kill things for splats, chains and hype calls.
@@ -73,15 +73,15 @@ Content phases only. M3 (fights change shape) and M4 (biome Maws) run alongside 
 4. **LS4, new biomes** (the Keel, then the Loom): gated on round 2 (meridian, idiom, sound), v1.1 by default.
 
 ---
-**Who it's for / what they feel:** Adult shmup players (Matt first, then friends) who want hard, punishing, readable runs that still play well on a phone and who laugh at body-horror gross-out. They should feel disgust, pride in the monster they've grown, and the "one more descent" pull.
+**Who it's for / what they feel:** Adult shmup players (Matt first, then friends) who want hard, punishing, readable runs that still play well on a phone and who want body horror played for keeps. They should feel disgust, pride in the monster they've grown, and the "one more descent" pull.
 
-**Art & audio direction:** A crisp 480x270 pixel world with high-resolution wet eyeballs on top, real JWST and pathology imagery graded toward bruise and flesh, and lime hazards. Synthwave ("Void") under splats, farts and Matty's hype-man voice lines. Gross intensity is a dial (`GROSS`), not a fixed constant.
+**Art & audio direction:** A crisp 480x270 pixel world with high-resolution wet eyeballs on top, real JWST and pathology imagery graded toward bruise and flesh, and lime hazards. Gross intensity is a dial (`GROSS`), not a fixed constant.
 
 **Reference game:** Gradius III. Grodius keeps the capsule economy, exclusive weapons, options, the shielded-core boss and the timed boss escape. It adds roguelite descents, forks and grafts. Dying does not restart you at a checkpoint (a LAB option, Q2 still open); the checkpoint is a resume point after you quit.
 
 **Tone guardrails:**
-- Gross-out belongs to creatures, bosses, kills, sound and comms. Ship and sensor text stays deadpan.
-- Profanity is limited to entity names and comms callers, never system or mechanics copy.
+- Horror belongs to everything: creatures, bosses, kills, gore, sound, music, world and ship/sensor text play it straight. Dark humour lives only in comms callers (voice lines and captions) and kill banners: deadpan, grim, no exclamation marks, puns, food jokes, surfer-bro or hype-man cheer.
+- Profanity is limited to comms callers only, never system or mechanics copy.
 - Gore never covers, moves or recolours a hazard. Ambient particles never use the lime bullet signature.
 - No real-world religious symbols as shock material.
 - Nothing that targets real people. Voice performers must consent, and credits must be right.

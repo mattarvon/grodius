@@ -29,7 +29,7 @@ import { drawBiomeBossFX } from '../render/gross/biomebosses';
 import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
 import { drawBG, drawDecor, drawLighting, drawTerrain } from '../render/terrain';
-import { drawBabe, drawHype } from '../render/hype';
+import { drawHype } from '../render/hype';
 import { bossAt, layout } from '../layout';
 
 /** generic POWER capsule (meter mode): classic Gradius orange */
@@ -201,7 +201,6 @@ export function drawHUD() {
   }
   if ($.state !== 'pause') {
     drawHype();
-    drawBabe();
   }
   if ($.G.banner) {
     const b = $.G.banner,

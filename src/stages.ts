@@ -92,7 +92,7 @@ export function clearStage(escaped = false) {
     best: newBest ? (prev ? 'NEW BEST (WAS ' + prev + ')' : 'FIRST CLEAR') : 'BEST ' + best[key],
     t: 420, ml: 420,
   };
-  sfx.power();
+  sfx.stageClear();
   buzz('heavy');
   // boss-kill reward line (src/sfx/bossreward/, random pick if there are several; none loaded since Matt shelved THE KEYSTER, see src/sfx-shelved/README.md, so sample() returns false and nothing plays); waits out the death roar
   if (!escaped) G.pend.push({ t: 50, f: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) });

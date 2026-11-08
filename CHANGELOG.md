@@ -2,6 +2,19 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-08 (gates that show the stakes, scarred stages, a darker sound)
+
+- At a fork, each gate's plate now says what it leads to. A biome you haven't cleared shows the perk it unlocks. One you know shows the perk as KNOWN, or FULLY GROWN once it's maxed. A biome you've already been through is marked ALTERED.
+- A biome you return to looks damaged. Ice has thawed and slumped with blood in the runnels, the furnaces have burnt out to ash, the acid vats are drained to their tide lines, and the snot biome is infected.
+- The music presses harder while a midboss or boss is on screen in the biome stages, and the drone underneath shifts with each biome.
+- Kills sound like the place they happen in: ice cracks, fire sizzles on big kills, acid hisses and the snot biome squelches.
+- The menu, pick-up, power-up, stage-clear, alarm and chain sounds are lower and darker. The title menu no longer farts.
+- Retired: the surfer flyby, the HELL YEAH voice line, every fart sound, and the jelly sounds in the snot biome. The corpse's line and LESLEY stay.
+- The 20-kill chain now shows a banner in place of the surfer.
+- Known issue: the Cryovault's boss is still named THE BLOATED BITCH on its gate plate and health bar. It is renamed in the next update along with the remaining old kill banners.
+- Known issue: when a fork opens while the screen is crowded, its THE SHIP SPLITS banner covers the top gate's plate for its first three seconds or so.
+- The short descent in the LAB row is unchanged.
+
 ## 2026-11-08 (back buttons that work, the BACKDRAFT fix, midboss variety)
 
 - On a phone, the RETURN, DESCEND and BACK buttons in the armory, shop and title sub-menus now respond to a tap.
@@ -9,7 +22,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 - On a phone, while a saved run exists, DESCEND takes two taps, because starting a new run ends the saved one.
 - Mashing buttons through a game over no longer skips past the death screen. Only a real back press leaves it.
 - In the loop shop, back now takes two presses to descend, so you can't skip the shop by accident.
-- Fixed: in the fire biome's BACKDRAFT set piece, the rear wave no longer flies through the spires, and neither do the pincer waves. They have learned manners.
+- Fixed: in the fire biome's BACKDRAFT set piece, the rear wave no longer flies through the spires, and neither do the pincer waves.
 - Midbosses vary more across runs: a midboss you've met less often now comes up more, and only the exact pair you fought last time is held back.
 - The short descent in the LAB row is unchanged.
 
@@ -22,7 +35,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 - The Brood Mother's kill word is now LANCED.
 - Two voice lines are retired for now: the SHAMALAMA hype call and the KEYSTER boss reward. A boss kill has no voice line until they come back.
 - A run saved before this update still resumes, but from the stage you resume on it gets the new terrain and set pieces.
-- Known issue: in the fire biome's BACKDRAFT set piece, the second wave from behind flies straight through the spires. They are not ghosts. They are just rude. Fixed next update. (Fixed 2026-11-08.)
+- Known issue: in the fire biome's BACKDRAFT set piece, the second wave from behind passes through the spires. Fixed next update. (Fixed 2026-11-08.)
 - The short descent in the LAB row is unchanged.
 
 ## 2026-11-03 (resume a run, a tougher Apprentice, the long-stage economy)

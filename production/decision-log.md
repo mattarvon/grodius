@@ -260,6 +260,66 @@ Matt: "go with the recommendations".
 
 Also started on Matt's say-so: the LS1 fix lane (`ls1-audit`) and the D31 tune lane (`ls2-d31`).
 
+### D38 "Still very linear": the fork becomes a decision, builds get trade-offs — 2026-11-07 (Matt)
+
+Matt played a full run on the wave 1 build (`abf85c1`, long4, before D31): "its getting more challanging and a little more rewarding, but still very linear".
+
+**The crew.** Nine roles diagnosed it: game-designer, level-designer, systems-designer, economy-designer, narrative-director, ux-designer, ai-programmer, art-director and audio-director. Then creative-director and producer combined their reports. Their reports are kept in the LS2 wave 2 crew notes.
+
+**Diagnosis.** Wave 1 added variety that the run draws for you, not choices the player makes:
+- The fork is blind and nearly forced. A gate shows only a name, unvisited biomes are offered first, and the ship auto-picks after 15 s.
+- Power arrives unchosen. 22 of the 24 perks are pure upside, grafts and seals come on a schedule, and pods apply themselves.
+- Every biome stage is one corridor with the same beat template.
+- Nothing records the player's choices, on screen or in sound.
+- Every Descent 1 meets all 4 midbosses.
+
+**Decided** (Matt: "sounds good" to creative-director's recommendation):
+1. **Now, render and audio only (lane `ls2-read`):**
+   - gate plates show the stakes: the biome perk the gate unlocks, and a REVISIT/REMIX tag;
+   - remix visits look damaged ("wound states");
+   - midboss and boss music intensity in biome stages, and kill sounds per biome;
+   - paper specs for the choice lane.
+2. **After D31 merges, as one "choice" lane:**
+   - perks with costs;
+   - build-aware perk offers;
+   - a midboss pod pick of 1 from 2;
+   - choosing your seal unlock;
+   - fork pay.
+
+   Nothing is folded into D31, which keeps short identical and keeps the Fold reading clean.
+3. **The gate midboss preview** follows fix merge 1, and ships with the first new midboss kinds.
+4. **In-stage structure waits:** split lanes, pockets, beat variants and reactive midboss attacks come after D31 and the pool lanes.
+5. **The pool lanes go breadth first,** starting with kinds that can appear in Descent 1 (`min: 0`): Cryosleeper, Reclaimer, Kindling or Spit, and Sniffer. Then every Descent 1 stops meeting the same 4.
+
+**The crew's shared "don'ts":** no more forks or gates while the plates show nothing; no random content as the answer to "linear"; no more free upside; no hidden director; and keep each biome tied to its boss.
+
+**Open, for game-designer then Matt:**
+- The Orbit tug is ANGLE, so `min: 1`. Give it a `min: 0` exception for the Orbit slot, or build the tethered crewman (LINE) first? Otherwise Descent 1 Orbit never gets its slot B (D37).
+- Does slot A's home preference still hold once a biome has two pool members?
+- At-risk biomass, where unbanked biomass is lost on death, needs a decision.
+
+### D39 Tone: evil, not cartoonish; gore and darkness — 2026-11-07 (Matt)
+
+Matt: "it should be more evil and not cartoonish", then "need gore, and darkness". He approved creative-director's tone note (LS2 wave 2 crew notes, `tone.md`).
+
+**Pillar 5: "comedy in comms only".** The MERIDIAN, its creatures, bosses, gore, art, sound, music and log text play malevolent body horror straight: dark, wet, anatomical, never cartoonish. The one release valve is deadpan gallows humour in the comms callers and kill banners. `design/game-brief.md` :35 and :83 rewritten, with follow-ons at :21, :76, :78 and :84.
+
+**Voice:**
+- Keep `stop-killing-me` (CREWMAN #5 // DECEASED) and `lesley-yeah-baby` (LESLEY, MISSION CONTROL).
+- Shelve `hell-yeah` (SGT. RAMROD SLAB) and `sfriend` (SURF CONTROL) to `src/sfx-shelved/`. Cut the surfer flyby and its "EXCELLENT WORK, BABY!" bubble. The VOICE rows stay so a clip can be un-shelved. An empty voice bank is silent, with no TTS fallback.
+
+**Approved strings:**
+- Kill banners: 10 THAT ONE / HAD A NAME; 20 CLEAN-UP CREW / IS NOT COMING; 35 WE WILL NEED / A BIGGER BAG; 50 FILE IT / UNDER LOSSES; 75 THE GATE / KNOWS YOUR NAME; 100 YOU ARE / PART OF IT NOW. CARN: MESSY becomes OPENED.
+- Names: THE DROWNED LANDER (was the Squid Saucer), THE BLOAT, SEVERED, TAKEN DOWN.
+- LS2 names, in docs and specs only for now: THE EXPECTORANT (Spit), THE SCENT ORGAN (Sniffer), CHARON-6 (the tug), CREWMAN #2 // TETHERED.
+- Log, perk and menu lines as listed in the tone note §4(A) item 9.
+
+**Worklist A (render, audio and copy; lane `ls2-read`):** greybox rebuilt as a dark angular mass with a lit split; lime out of the cyst and pink out of gore; `silly` shelved; pick, power, alarm, hype and UI sounds re-voiced darker; Jello clips out of `snot`; fart menu nav replaced; interim music lowpass, drive and rate .94; the voice list above; the kill banners and copy. **Midboss, boss and banner renames wait for fix merge 2** (the warm-up WARNING gate keys off banner text today, and parity records midboss titles).
+
+**Worklist B (a later tone lane, in this order):** the darkness pass with a new Orbit backdrop (highest perf risk, profile on the Fold); the gore pass (anatomical gibs, spatter, persistence); the core midboss rebuild with a motion pass; the music replacement.
+
+**Stays:** D25 (no screen-space splats over the play field). **Inviolable:** enemy bullets and hazards stay lime with a dark outline, unlit and on top, and must read on the phone outdoors. Darkness, gore and fog never dim, cover, move or recolour them.
+
 ### D40 LS1 fix merge 1 merged — 2026-11-08 (parent; Matt authorized parent merges)
 
 **What merged** (ls1-audit, `abf85c1..5fa8663`):
@@ -302,6 +362,56 @@ Also started on Matt's say-so: the LS1 fix lane (`ls1-audit`) and the D31 tune l
    - a string table with a 340 px footer limit (localization-lead).
 
 **Merge order from here:** ls2-read (rebased), then fix merge 2 (audio-director re-reviews `audio.ts` after its rebase onto ls2-read), then D31 after the Fold reading.
+
+### D42 LS2-read merged — 2026-11-08 (parent; Matt authorized parent merges)
+
+**What merged** (ls2-read, `93e595b..939d5f3`):
+- gate plates that show the stakes (D38 item 1);
+- remix wound states;
+- music intensity, the per-biome kill layer and the drone bed;
+- `design/choice-spec.md`;
+- tone worklist A (D39);
+- the review fixes.
+The held renames are not in it.
+
+**Gates on the fixed tree:** typecheck, vitest and build pass. The full harness passes with no `--update`: short @8ff9ba4, long4 @88d9525 and all 12 scenarios. Parity is 7/7 identical, including `musicPlan`. The logs are `production/qa/evidence/ls2-read/fix-*.txt`.
+
+**Studio review:**
+- 2 independent specialists (web-specialist, technical-artist), all 8 leads and all 3 directors gave APPROVE WITH NOTES. Nothing blocked.
+- 5 S2s were fixed before the push:
+  - the kill-layer throttle key;
+  - the `fart_ok` swaps, with `fart_nav` and `fart_ok` shelved;
+  - the HYPE[20] line re-voiced;
+  - the dead babe and nativeSay code removed;
+  - the cheap S3s.
+- The reports are in the parent scratchpad, `review/read/`.
+
+**Rollback point:** tag `pre-ls2-read` on `93e595b`.
+
+**Owned items:**
+1. **The held-rename commit.** It follows fix merge 2 and must not slip. Owners: narrative-director, then a parity re-baseline. It carries all of these:
+   - THE BLOAT (now visible on a choice plate);
+   - the remaining HYPE banners (HELL YEAH / BROTHER! at 10);
+   - the SGT. RAMROD SLAB fallback face on the 20-chain caption (show no face);
+   - CARN MESSY → OPENED;
+   - SEVERED;
+   - TAKEN DOWN;
+   - THE DROWNED LANDER;
+   - snot `sub`.
+2. **Merge 2 (ls1-audit) is blocked until its rebase onto this is fixed** (technical-director). VOICE_CAP removes `voices`, which the kill layer reads, and that throws inside the update on device. The rebase must:
+   - use `LIVE.length <= KILL_LAYER.maxVoices` (10);
+   - keep the kill layer non-prio with no `fb`;
+   - add a Vitest that stubs AudioContext and calls `sfx.gore` in each biome;
+   - re-run the full harness and parity;
+   - get audio-director's re-review of `audio.ts`.
+3. **TTS dependency removal:** its own commit after the renames, with `npm uninstall` and `cap sync`, a CI APK build and a device boot check. Owners: web-specialist and devops-engineer.
+4. **For Matt:**
+   - an ear check before merge 2 lands: intensity, the kill layers, the fart replacements (`drivegut`, `gross_gargle`, `gross_slosh`), whether the boss bed pumps the SFX, the sour sting, and the title pops;
+   - the choice-spec §7 questions;
+   - SNOT ROCKET, SHAMALAMA and KEYSTER;
+   - "Does ALTERED look more dangerous?" (creative-director: keep the damage, add one threat light per wound in worklist B).
+5. **Worklist B,** proposed after D31: the darkness pass with a new Orbit backdrop, then the gore pass, then the midboss rebuild, then music.
+6. **D38 ("still very linear") stays open** until the choice lane's fork pay lands.
 
 ## Open
 

@@ -657,7 +657,7 @@ function step1(b) {
       const wx = bx + v.x, wy = by + v.y;
       if (v.open < 26 && v.open > 4) sp(3, wx + Math.cos(v.a) * 6, wy + Math.sin(v.a) * 6, Math.cos(v.a) * rf(.6, 1.6) - rf(.3, 1.1), Math.sin(v.a) * rf(.4, 1.2), rf(4, 8), rf(100, 170) | 0);
       if (v.open === 25) {
-        snd('fart_ok', { vol: .5 + .4 * rot, rate: b.dying ? .4 + k * 1.1 : rf(.45, .62), spread: .05, wet: .45 }, b.dying ? 14 : 60);
+        snd('gross_gargle', { vol: .5 + .4 * rot, rate: b.dying ? .4 + k * 1.1 : rf(.45, .62), spread: .05, wet: .45 }, b.dying ? 14 : 60);
         if (rnd() < .5) sp(1, wx, wy, Math.cos(v.a) * 1.5, Math.sin(v.a) * 1.5, 1.4, 50);
       }
     } else if (--v.t <= 0) {
@@ -734,7 +734,7 @@ function rupture() {
   S.cd = {};
   if (!snd('driveburst', { vol: 1, spread: .04, wet: .35 }, 0)) snd('splat_l', { vol: 1, rate: .6, wet: .4 }, 0);
   snd('explode_l', { vol: .7, rate: .7, wet: .4 }, 0);
-  snd('fart_ok', { vol: 1, rate: .32, spread: .02, wet: .6, at: .5 }, 0); // and Matty's raspberry, slowed to a groan
+  snd('drivegut', { vol: 1, rate: .32, spread: .02, wet: .6, at: .5 }, 0); // and the gut settling, slowed to a groan
 }
 
 // ---------------- drawing ----------------

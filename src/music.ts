@@ -6,6 +6,7 @@ import { $ } from './state';
 import { AU } from './audio';
 import { SET } from './save';
 import { row, slotOf } from './layout';
+import { musicIntensity, INTENSITY, RELEASE_TAU, EQ, shelfDb, driveFor, driveMakeup, droneTarget, droneDetune, MUSIC_TONE, toneDrive, toneMakeup } from './audiomix';
 
 const URLS = import.meta.glob('./music/*.ogg', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 
@@ -25,30 +26,36 @@ export const TRACKS = {
 };
 const byLoop = (v, L) => !Array.isArray(v) ? v : L < v.length ? v[L] : v[1 + (L - 1) % (v.length - 1)];
 let shopVisits = 0, lastState = '';
-/** each biome has its own track, coloured by a light filter (optionally LFO-swept) and drive. rate stays 1: these
- *  are distinct songs now, so there's no reuse to disguise by pitching them */
+/** each biome has its own track, coloured by a light filter (optionally LFO-swept) and drive. rate is the interim
+ *  tone pass (D39, audiomix.ts MUSIC_TONE.rate): every row, 'none' included, plays the tracks slower and lower */
 export const BIOME_MIX = {
-  none: { rate: 1, type: 'lowpass', f: 20000, q: .7, lfo: 0, depth: 0, drive: 0 },
+  none: { rate: MUSIC_TONE.rate, type: 'lowpass', f: 20000, q: .7, lfo: 0, depth: 0, drive: 0 },
   // ice: a little thinner, the sub frozen out
-  ice: { track: 'void-08-caves', rate: 1, type: 'highpass', f: 110, q: .7, lfo: 0, depth: 0, drive: 0 },
+  ice: { track: 'void-08-caves', rate: MUSIC_TONE.rate, type: 'highpass', f: 110, q: .7, lfo: 0, depth: 0, drive: 0 },
   // acid: a slow, shallow wah with a little grit
-  acid: { track: 'void-02-institutional-values', rate: 1, type: 'bandpass', f: 1600, q: .5, lfo: .2, depth: 500, drive: .2 },
+  acid: { track: 'void-02-institutional-values', rate: MUSIC_TONE.rate, type: 'bandpass', f: 1600, q: .5, lfo: .2, depth: 500, drive: .2 },
   // fire: bass shelf up and lightly driven
-  fire: { track: 'void-11-corporate-identity', rate: 1, type: 'lowshelf', f: 160, q: .7, gain: 4, lfo: 0, depth: 0, drive: .35 },
+  fire: { track: 'void-11-corporate-identity', rate: MUSIC_TONE.rate, type: 'lowshelf', f: 160, q: .7, gain: 4, lfo: 0, depth: 0, drive: .35 },
   // snot: muffled, a soft lowpass breathing between ~1800 and ~3000Hz
-  snot: { track: 'void-09-pods', rate: 1, type: 'lowpass', f: 2400, q: 1, lfo: .13, depth: 600, drive: .05 },
+  snot: { track: 'void-09-pods', rate: MUSIC_TONE.rate, type: 'lowpass', f: 2400, q: 1, lfo: .13, depth: 600, drive: .05 },
   // not a biome: while THE SQUIDFUCKED SAUCER (Open Orbit midboss) is up, Open Orbit's own track goes wet and wobbly, a slow wah
-  ufo: { rate: 1, type: 'bandpass', f: 1100, q: .6, lfo: .35, depth: 650, drive: .25 },
+  ufo: { rate: MUSIC_TONE.rate, type: 'bandpass', f: 1100, q: .6, lfo: .35, depth: 650, drive: .25 },
   // a repeat visit to a biome (G.visitNo, set in biomes.ts choose()): same track, filtered differently so it doesn't replay the last visit
-  'ice+': { rate: 1, type: 'bandpass', f: 1400, q: .45, lfo: .07, depth: 700, drive: .1 }, // a cold wind sweeping through it
-  'acid+': { rate: 1, type: 'lowpass', f: 1300, q: 3, lfo: .3, depth: 600, drive: .3 }, // a gurgling resonant wah
-  'fire+': { rate: 1, type: 'highpass', f: 260, q: 1.1, lfo: 0, depth: 0, drive: .5 }, // the bass burnt out, louder grit
-  'snot+': { rate: 1, type: 'lowpass', f: 900, q: 1.4, lfo: .09, depth: 350, drive: .12 }, // heard through a blocked nose
+  'ice+': { rate: MUSIC_TONE.rate, type: 'bandpass', f: 1400, q: .45, lfo: .07, depth: 700, drive: .1 }, // a cold wind sweeping through it
+  'acid+': { rate: MUSIC_TONE.rate, type: 'lowpass', f: 1300, q: 3, lfo: .3, depth: 600, drive: .3 }, // a gurgling resonant wah
+  'fire+': { rate: MUSIC_TONE.rate, type: 'highpass', f: 260, q: 1.1, lfo: 0, depth: 0, drive: .5 }, // the bass burnt out, louder grit
+  'snot+': { rate: MUSIC_TONE.rate, type: 'lowpass', f: 900, q: 1.4, lfo: .09, depth: 350, drive: .12 }, // heard through a blocked nose
 };
 const FADE = 1.4, PAUSE_LVL = .35, DUCK_LVL = .3;
 let filt = null, shaper = null, lfo = null, lfoG = null, mixNow = 'none';
+// the intensity layer (audiomix.ts): EQ ahead of the clip, a gain after it. lastLvl/lastDrive/lastBedB/lastBedLvl cache what is
+// applied, so AudioParams are touched only when the level, mix or biome changes, never per step
+let iShelf = null, iPres = null, iGain = null, toneLp = null, lastLvl = 0, lastDrive = '', lastBedB = 'none', lastBedLvl = 0;
 // soft clip; drive 0..1 maps to tanh gain 1..6 (k*30 turned a mastered track into a square wave), normalised to unity peak
-const curve = (k) => { const n = 2048, c = new Float32Array(n), a = 1 + k * 5; for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(a * x) / Math.tanh(a); } return c; };
+const mkCurve = (k) => { const n = 2048, c = new Float32Array(n), a = 1 + k * 5; for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(a * x) / Math.tanh(a); } return c; };
+// curves cached by drive rounded to .01: a level or mix change allocates at most once per value
+const CURVES = new Map();
+const curve = (k) => { const r = Math.round(k * 100) / 100; let c = CURVES.get(r); if (!c) CURVES.set(r, (c = mkCurve(r))); return c; };
 function applyMix(name) {
   if (!filt || mixNow === name) return;
   mixNow = name;
@@ -59,8 +66,40 @@ function applyMix(name) {
   filt.gain.setTargetAtTime(m.gain || 0, t, .4);
   lfo.frequency.setTargetAtTime(m.lfo || .1, t, .2);
   lfoG.gain.setTargetAtTime(m.depth, t, .4);
-  shaper.curve = m.drive ? curve(m.drive) : null;
+  applyDrive(name, lastLvl);
   for (const d of decks) { d.el.preservesPitch = false; d.el.playbackRate = m.rate; }
+}
+
+/** the soft clip and the intensity EQ/gain for a mix at a level. A curve cannot be ramped, so it swaps here; the swap
+ *  lands on a midboss arrival or a kill explosion, which masks it. Calm with drive 0 leaves the curve null, as before */
+function applyDrive(name, lvl) {
+  if (!shaper) return;
+  const m = BIOME_MIX[name] || BIOME_MIX.none, base = toneDrive(m.drive), d = lvl ? driveFor(base, lvl) : base, key = name + '|' + lvl;
+  if (key === lastDrive) return;
+  const up = lvl > lastLvl, tau = up ? INTENSITY[lvl].tau : RELEASE_TAU, t = AU.c.currentTime, L = INTENSITY[lvl];
+  lastDrive = key;
+  // the curve swaps at once, so its makeup swaps at once too (no dip or jump at the kill); only gainDb ramps
+  const mk = driveMakeup(base, lvl) * toneMakeup(m.drive), was = Math.pow(10, INTENSITY[lastLvl].gainDb / 20);
+  shaper.curve = d ? curve(d) : null;
+  iShelf.gain.setTargetAtTime(shelfDb(m, lvl), t, tau);
+  iPres.gain.setTargetAtTime(L.pres, t, tau);
+  iGain.gain.cancelScheduledValues(t);
+  iGain.gain.setValueAtTime(mk * was, t);
+  iGain.gain.setTargetAtTime(mk * Math.pow(10, L.gainDb / 20), t, tau);
+}
+
+/** the drone bed (audio.ts) follows the biome and the level even with the music off. fx/update.ts owns AU.lp.frequency,
+ *  so the bed moves its detune (a multiplier on that frequency), its Q and the bed gain AU.dg */
+function applyBed(b, lvl, prev) {
+  if (!AU.lp || !AU.dg) return;
+  const bk = b || 'none';
+  if (bk === lastBedB && lvl === lastBedLvl) return;
+  lastBedB = bk;
+  lastBedLvl = lvl;
+  const t = AU.c.currentTime, tau = lvl > prev ? INTENSITY[lvl].tau : RELEASE_TAU, d = droneTarget(b, lvl);
+  AU.lp.detune.setTargetAtTime(droneDetune(b, lvl), t, tau);
+  AU.lp.Q.setTargetAtTime(d.q, t, tau);
+  AU.dg.gain.setTargetAtTime(d.gain, t, tau);
 }
 
 let bus = null, cur = null, curName = '', duckUntil = 0;
@@ -75,6 +114,23 @@ function ensure() {
   filt.frequency.value = 20000;
   shaper = AU.c.createWaveShaper();
   shaper.oversample = '2x';
+  // intensity EQ, 0 dB (transparent) at calm
+  iShelf = AU.c.createBiquadFilter();
+  iShelf.type = 'lowshelf';
+  iShelf.frequency.value = EQ.shelfF;
+  iShelf.gain.value = 0;
+  iPres = AU.c.createBiquadFilter();
+  iPres.type = 'peaking';
+  iPres.frequency.value = EQ.presF;
+  iPres.Q.value = EQ.presQ;
+  iPres.gain.value = 0;
+  iGain = AU.c.createGain();
+  iGain.gain.value = 1;
+  // the interim tone lowpass on the whole bus (audiomix.ts MUSIC_TONE): fixed, after the intensity layer
+  toneLp = AU.c.createBiquadFilter();
+  toneLp.type = 'lowpass';
+  toneLp.frequency.value = MUSIC_TONE.lpF;
+  toneLp.Q.value = MUSIC_TONE.lpQ;
   lfo = AU.c.createOscillator();
   lfoG = AU.c.createGain();
   lfoG.gain.value = 0;
@@ -82,8 +138,12 @@ function ensure() {
   lfoG.connect(filt.frequency);
   lfo.start();
   bus.connect(filt);
-  filt.connect(shaper);
-  shaper.connect(AU.m);
+  filt.connect(iShelf);
+  iShelf.connect(iPres);
+  iPres.connect(shaper);
+  shaper.connect(iGain);
+  iGain.connect(toneLp);
+  toneLp.connect(AU.m);
   for (let i = 0; i < 2; i++) {
     const el = new Audio();
     el.loop = true;
@@ -94,6 +154,7 @@ function ensure() {
     g.connect(bus);
     decks.push({ el, g, name: '' });
   }
+  applyDrive(mixNow, lastLvl); // the interim tone drive applies from the first track, before any mix change
   return true;
 }
 
@@ -155,8 +216,12 @@ export function musicUpdate() {
   if (!AU.c) return;
   const w = wanted();
   if (w !== curName) play(w);
-  if (!bus) return;
+  const b = curBiome(), il = musicIntensity($.G, b, $.state), prev = lastLvl;
+  applyBed(b, il, prev); // before the bus check: the bed escalates with the music off too
+  if (!bus) { lastLvl = il; return; }
   applyMix(mixWanted());
+  if (il !== lastLvl) applyDrive(mixNow, il);
+  lastLvl = il;
   if (cur && cur.el.playbackRate !== (BIOME_MIX[mixNow] || BIOME_MIX.none).rate) cur.el.playbackRate = (BIOME_MIX[mixNow] || BIOME_MIX.none).rate;
   // a play() refused before the first click/key gets retried once audio is unlocked
   if (cur && cur.name && cur.el.paused && AU.c.state === 'running' && !document.hidden && $.T % 30 === 0) cur.el.play().catch(() => {});
@@ -177,7 +242,7 @@ export function musicSuspend(hidden) {
 }
 
 /** test hook */
-export const musicNow = () => ({ mix: mixNow, want: curName, playing: cur ? !cur.el.paused : false, t: cur ? +cur.el.currentTime.toFixed(1) : 0, bus: bus ? +bus.gain.value.toFixed(2) : null });
+export const musicNow = () => ({ mix: mixNow, want: curName, playing: cur ? !cur.el.paused : false, t: cur ? +cur.el.currentTime.toFixed(1) : 0, bus: bus ? +bus.gain.value.toFixed(2) : null, inten: lastLvl });
 
 /** the Open Orbit midboss keeps the stage's track (it's a drive-by, not a boss track) but filters it while it's up */
 const ufoMix = () => ($.G && $.G.mini && $.G.mini.k === 'ufo' && !$.G.mini.dead && !$.G.mini.gone ? 'ufo' : null);
