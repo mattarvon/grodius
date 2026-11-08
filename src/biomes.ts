@@ -18,11 +18,11 @@ import { enemies } from './world';
 import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 import { beatPlan, layout, nSlots, slotRow, stageOfSlot } from './layout';
-import { midSeedOf, seedOf, stream } from './rng';
+import { midSeedOf, pickSeedOf, seedOf, stream } from './rng';
 import { MIDS, forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
 import { driftOf, whenNoMini } from './midslot';
 import { drawPicks } from './setdraw';
-import { MOVE, gimmick, moveHazMul, ventNear } from './terrainb';
+import { MOVES, bandClamp, gimmick, hazInterval, moveAt, snapVent } from './terrainb';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -154,14 +154,6 @@ function arena(b, ce, fl) {
   if (fl - ce < ARENA_GAP) { const m = (fl + ce) / 2; fl = m + ARENA_GAP / 2; ce = m - ARENA_GAP / 2; }
   return [ce, fl];
 }
-/** the movement B each built biome slot is flying, by slot: {a, z, blend} (beatPlan's band), the biome b, the variant
- *  mv, the terrain offset o. Hazards and the props read it (render/moveprops.ts). Rebuilt by every biomeStage */
-export const MOVES = [];
-/** the live movement B at world x (its fully blended part), or null */
-export function moveAt(wx) {
-  for (let s = 0; s < MOVES.length; s++) { const m = MOVES[s]; if (m && wx > m.a + m.blend && wx < m.z - m.blend) return m; }
-  return null;
-}
 /** blend the terrain from world x `from` onward (over 300px, all of it off-screen) into biome b; it stays that
  *  biome until the next rewrite, and always fades back to the untouched level over layout().tEnd, where the biome
  *  terrain hands back to the level's own corridor (the Gravity Drive approach; its chamber band is in world.ts). The biome shape
@@ -215,31 +207,35 @@ export function insertScript(entries) {
 // one signature set piece per biome, dropped in twice per slot; a repeat visit swaps in the second one (remix)
 const later = (t, f) => $.G.pend.push({ t, f });
 const FIXED = { fixed: 1 };
+/** a set piece's fixed spawn height y, kept out of the terrain mass where it enters (x = W + 20) when a movement B band
+ *  (long layouts) has moved the walls there: S2 sits inside the gimmick, and a stair, lake or spire floor can stand above
+ *  a fraction of PH that is open on movement A (systems review). Outside every band (always, on short) it is y */
+const bandY = (y) => { const wx = $.G.scroll + W + 20; return bandClamp(y, wx, ceilAt(wx), floorAt(wx)); };
 const SET = {
-  morgue: () => { corpse(PH * .25); corpse(PH * .5, { drift: .2 }); corpse(PH * .75); later(40, mutant); }, // a frozen crew drifting in a line, a hulk walking under it
+  morgue: () => { corpse(bandY(PH * .25)); corpse(bandY(PH * .5), { drift: .2 }); corpse(bandY(PH * .75)); later(40, mutant); }, // a frozen crew drifting in a line, a hulk walking under it
   // set pieces are fixed: formation()'s power drones (up to +6) would close the walls' gap and stretch the pincer's wave
-  walls: () => { formation('wall', PH * .33, 2, FIXED); formation('wall', PH * .67, 2, FIXED); crawler(1); crawler(-1); }, // a double wall, gap in the middle, crawlers on the lining
-  pincer: () => { flayer(55); flayer(PH - 75); behindWave(PH / 2, 2, FIXED); }, // flayers top and bottom, a short rear wave between them
+  walls: () => { formation('wall', bandY(PH * .33), 2, FIXED); formation('wall', bandY(PH * .67), 2, FIXED); crawler(1); crawler(-1); }, // a double wall, gap in the middle, crawlers on the lining
+  pincer: () => { flayer(bandY(55)); flayer(bandY(PH - 75)); behindWave(PH / 2, 2, FIXED); }, // flayers top and bottom, a short rear wave between them
   flood: () => { hatch(ri(7, 9), false); hatch(ri(4, 6), true); slime(1); later(30, () => slime(-1)); },
   // remix sets
   crucify: () => { crossT(1); crossT(-1); later(30, mutant); later(70, () => crossT(R() < .5 ? 1 : -1)); }, // the shelves are lined with crucifixes
   gutter: () => { womb(); crawler(1); crawler(-1); later(35, () => { crawler(1); crawler(-1); }); later(70, () => eyeT(1)); }, // the lining crawls
-  kiln: () => { mutant(); hookE(); later(40, () => { hookE(); flayer(PH / 2); }); later(80, mutant); }, // the meat line: hulks under swinging hooks
+  kiln: () => { mutant(); hookE(); later(40, () => { hookE(); flayer(bandY(PH / 2)); }); later(80, mutant); }, // the meat line: hulks under swinging hooks
   drip: () => { slime(1); slime(-1); later(35, () => { slime(1); slime(-1); }); later(70, () => { slime(1); womb(); }); }, // the walls run with slimes
-  // the catalogue's new pieces (src/setdraw.ts CATALOG; LS2-mv). Nothing here waits past 60 f: S3 can fire as late as
-  // p ~.875, and a piece must be done before the run-up at .9 (setdraw.test.ts)
-  thaw: () => { corpse(PH * .2); later(25, () => corpse(PH * .5, { drift: .2 })); later(50, () => corpse(PH * .8)); }, // the crew thaw out of the wall one at a time, top to bottom
-  vigil: () => { eyeT(1); eyeT(-1); later(40, () => corpse(PH / 2)); }, // eyes in the ice on both shelves, a body between them
-  pack: () => { mutant(); flayer(PH * .3); later(45, mutant); }, // two hulks walking, a flayer riding over them
-  slurry: () => { formation('sine', PH * .3, 3, FIXED); formation('sine', PH * .7, 3, FIXED); later(40, () => crawler(1)); }, // two thin streams through the tank, something crawling after them
+  // the catalogue's new pieces (src/setdraw.ts CATALOG; LS2-mv). None waits past 60 f (the older pieces above go to 80 f;
+  // biomebeats.test.ts checks every piece's last spawn lands before the run-up from S3's planned x)
+  thaw: () => { corpse(bandY(PH * .2)); later(25, () => corpse(bandY(PH * .5), { drift: .2 })); later(50, () => corpse(bandY(PH * .8))); }, // the crew thaw out of the wall one at a time, top to bottom
+  vigil: () => { eyeT(1); eyeT(-1); later(40, () => corpse(bandY(PH / 2))); }, // eyes in the ice on both shelves, a body between them
+  pack: () => { mutant(); flayer(bandY(PH * .3)); later(45, mutant); }, // two hulks walking, a flayer riding over them
+  slurry: () => { formation('sine', bandY(PH * .3), 3, FIXED); later(30, () => formation('sine', bandY(PH * .7), 3, FIXED)); later(55, () => crawler(1)); }, // two thin streams through the tank, the second behind the first, something crawling after them
   vats: () => { womb(); later(45, womb); eyeT(-1); }, // wombs on the lining, one eye watching from above
   lining: () => { eyeT(1); eyeT(-1); hatch(ri(4, 6), true); }, // the lining opens: eyes either side, hatchlings from behind
-  meatline: () => { hookE(); later(25, hookE); later(50, hookE); flayer(PH / 2); }, // the hooks swing in one after another
-  backdraft: () => { behindWave(PH * .3, 2, FIXED); behindWave(PH * .7, 2, FIXED); mutant(); }, // the fire comes round behind, a hulk holds the front
-  cinders: () => { formation('dive', PH * .3, 3, FIXED); later(40, () => flayer(PH * .7)); }, // a short dive, a flayer under it
+  meatline: () => { hookE(); later(25, hookE); later(50, hookE); flayer(bandY(PH / 2)); }, // the hooks swing in one after another
+  backdraft: () => { behindWave(PH * .3, 3, FIXED); later(40, () => behindWave(PH * .7, 3, FIXED)); mutant(); }, // the fire comes round behind in two waves, a hulk holds the front
+  cinders: () => { formation('dive', bandY(PH * .3), 3, FIXED); later(40, () => flayer(bandY(PH * .7))); }, // a short dive, a flayer under it
   sneeze: () => { hatch(ri(6, 8), true); hatch(ri(3, 5), false); }, // it blows through from behind, a few come the right way (fewer than flood's front wave: a rear wave costs more)
-  clot: () => { womb(); slime(1); slime(-1); }, // a womb with a slime on each wall
-  congestion: () => { corpse(PH / 3); corpse(PH * 2 / 3); later(30, () => hatch(ri(4, 6), false)); }, // two bodies block the passage, hatchlings press through them
+  clot: () => { womb(); later(30, () => { slime(1); slime(-1); }); later(55, () => hatch(ri(3, 4), false)); }, // the passage plugs: a womb lodges, the walls run, then the plug spits its brood (drip is slimes first, the womb last)
+  congestion: () => { corpse(bandY(PH / 3)); corpse(bandY(PH * 2 / 3)); later(45, () => hatch(ri(3, 5), false)); }, // two bodies block the passage, hatchlings press through them
 };
 /** the set pieces there are (test hook: setdraw.ts CATALOG must name only these) */
 export const SET_KINDS = Object.keys(SET);
@@ -286,6 +282,7 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
   if (legacy) at(mid, () => logLine(logs[1]), 'log'); // short: line 2 at the span's midpoint
   else at(BP.runup, () => logLine(logs[2]), 'log'); // arena run-up: line 3 (line 2 is the release, below)
   const sig = () => (rs() < .6 ? X.sig : roll()), sets = X.sets.map(P), two = secondKind(X);
+  let setN = 0; // which drawn set piece is next (setIds)
   const inBreath = (y) => { for (const r of BR) if (y >= r.a && y < r.z) return r; return null; };
   const quiet = (y) => inBreath(y) || (!legacy && y >= BP.runup); // where an extra may not land: a breath, the run-up
   // the tempo band (layout().beats.tempo) for scroll x at progress q: the first whose `until` is still ahead
@@ -301,7 +298,7 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
       continue;
     }
     if (T.stop) break; // the arena run-up: nothing spawns from here to the boss
-    if (sets.length && x + st / 2 > sets[0]) { sets.shift(); const id = setIds ? setIds[setIds.length - sets.length - 1] : X.set; at(x, el(SET[id]), 'set:' + id); x += st; continue; }
+    if (sets.length && x + st / 2 > sets[0]) { const sx = legacy ? x : sets[0], id = (setIds && setIds[setN]) || X.set; sets.shift(); setN++; at(sx, el(SET[id]), 'set:' + id); x += st; continue; }
     const pk = T.sig ? sig : roll, dbl = T.rel ? Math.min(.85, B.dbl + T.dbl) : T.dbl;
     if (T.lead && !led.has(T)) { led.add(T); const k = T.lead === 'sig' || !two ? X.sig : two; at(x, el(SPAWN[k]), k); x += st; continue; } // the band's first slot, alone
     const k1 = pk();
@@ -335,6 +332,8 @@ function midBeats(B, b, BP, mids, at) {
 /** stage i's build stream for this run and descent (src/rng.ts): Rs = stream(seedOf(G.seed, G.loop, i)), fresh
  *  each call, so every build of a stage replays the same draws */
 export const stageStream = (i) => stream(seedOf(($.G && $.G.seed) || 0, ($.G && $.G.loop) || 0, i));
+/** stage i's build-picks stream (movement-B variant, set pieces): salted like midStream, independent of Rs (src/rng.ts) */
+export const pickStream = (i) => stream(pickSeedOf(($.G && $.G.seed) || 0, ($.G && $.G.loop) || 0, i));
 /** stage i's midboss-pick stream (src/rng.ts midSeedOf): the ONLY stream midpick.ts pickMids/pickBiomeMids may be
  *  given (item F). Never pass stageStream(i) to the picker: the pick would then depend on how many draws the script
  *  made. Fresh each call, independent of stageStream(i), so the pick and the script can run in either order */
@@ -342,10 +341,11 @@ export const midStream = (i) => stream(midSeedOf(($.G && $.G.seed) || 0, ($.G &&
 
 /** biome stage i's build picks on a layout with moveB (biome b, v earlier visits): the movement-B variant mv and the
  *  set pieces sp, drawn once and read back on a rebuild, as G.mb is (a resume must not draw again: G.spUsed has moved).
- *  A fresh stageStream(i) of its own, not the script's: a rebuild skips this draw, and the script's rolls can't shift */
+ *  From pickStream(i), salted apart from the script's stream: a rebuild skips this draw, so the script's rolls can't
+ *  shift, and the picks don't replay the script's first draws. Writes G.spUsed and G.mvSeen (both run-long, saved) */
 export function stagePicks(i, b, v) {
   const G = $.G, P = (G.picks ||= {});
-  if (!P[i]) P[i] = drawPicks(b, v, G.loop, (G.spUsed ||= {}), stageStream(i));
+  if (!P[i]) P[i] = drawPicks(b, v, G.loop, (G.spUsed ||= {}), pickStream(i), (G.mvSeen ||= {}));
   return P[i];
 }
 
@@ -455,13 +455,13 @@ function spawnHazard(b) {
   let x = rr(W * .45, W * .9);
   for (let k = 0; k < 8 && P && Math.abs(x - P.x) < 46; k++) x = rr(W * .45, W * .9); // never drop it on the ship
   // the Chimney (movement B1): jets come down its vents. A vent past the right edge would burn its telegraph off-screen
-  const mv = b === 'jet' && moveAt(x + G.scroll), vent = mv && mv.b === 'fire' && mv.mv === 1;
-  if (vent) { x = ventNear(x + G.scroll) - G.scroll; if (x > W - 20) x -= MOVE.vent.every; }
+  let vent = false;
+  if (b === 'jet') ({ x, vent } = snapVent(x, G.scroll, W)); // src/terrainb.ts; never on short (no bands)
   if (P && Math.abs(x - P.x) < 46) return;
   const wx = x + G.scroll, c = ceilAt(wx), f = floorAt(wx);
   if (b === 'icicle' && c > 4) haz.push({ k: b, x, y: c + 2, t: 0, vy: 0, len: rr(10, 18) });
   else if (b === 'geyser' && f < PH - 2) haz.push({ k: b, x, y: f, t: 0, top: c });
-  else if (b === 'jet') { const up = (vent || R() < .5) && c > 4; haz.push({ k: b, x, y: up ? c : f, dir: up ? 1 : -1, t: 0, span: f - c }); }
+  else if (b === 'jet') { const up = (vent || R() < .5) && c > 4, h = { k: b, x, y: up ? c : f, dir: up ? 1 : -1, t: 0, span: f - c }; if (vent && up) h.vent = 1; haz.push(h); } // vent: the Chimney's own jet (biomeart draws its telegraph bold)
   else if (b === 'strand' && G.scrollSpeed > .5) haz.push({ k: b, x: W + 10, t: 0, hp: 3, ph: R() * TAU });
 }
 
@@ -503,7 +503,7 @@ export function stepBiome() {
   const P0 = $.P;
   if (B && k > .9 && $.state === 'play' && !G.fork && !G.forkHold && !G.tally && !G.pick && !G.clearT && P0 && P0.alive && P0.inv < 60) {
     G.hazT = (G.hazT || 60) - 1;
-    if (G.hazT <= 0) { spawnHazard(B.haz); const m = moveAt(sc + W / 2); G.hazT = B.hazEvery * (G.mini ? 1.6 : 1) * (m ? moveHazMul(m.b, m.mv) : 1) * rr(.7, 1.3) / (1 + .3 * G.loop); }
+    if (G.hazT <= 0) { spawnHazard(B.haz); G.hazT = hazInterval(B.hazEvery * (G.mini ? 1.6 : 1) * rr(.7, 1.3) / (1 + .3 * G.loop), sc + W / 2); } // hazInterval: movement B's rate, src/terrainb.ts
   }
   const P = $.P;
   for (let i = haz.length - 1; i >= 0; i--) {

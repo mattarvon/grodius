@@ -231,11 +231,12 @@ const LONG4: LayoutEntry = {
     // a DRIFT slot-A midboss (none in phase 1; the Calving Shelf in wave 2) is gone 300 px before slot B's WARNING:
     // ~545 px (~9 s) of fight after it lands, under the 1080 f slot clock
     driftLead: 300,
-    // movement B fills build B. Starts 100 px past breath 1's end: that is where the ship is (scroll + ~100) as the
-    // scroll leaves the breath, so midboss A's held screen shows it coming on the right. Ends 200 px into breath 2:
-    // before the left edge of midboss B's held screen (~breath end - 20, ~216 px in at the shortest span), so that
-    // fight is on movement A from edge to edge. Full gimmick ~475 px (~8 s) at the shortest span
-    moveB: { between: [0, 1], lead: [100, 200], blend: 200 },
+    // movement B fills build B. Its blend starts at breath 1's end, where CP1 is written (spec §3.3: movement A runs
+    // "intro to CP1"): in midboss A's held screen the ship (scroll + ~100) sits on ~35% of the blend and the gimmick is
+    // full from screen x ~220 rightward, so the fight shows it coming. Ends 200 px into breath 2: before the left edge
+    // of midboss B's held screen (~breath end - 20, ~216 px in at the shortest span), so that fight is on movement A from
+    // edge to edge. Full gimmick ~556 px (~9 s) at the shortest span; the level-design review's 100 px lead left ~456
+    moveB: { between: [0, 1], lead: [0, 200], blend: 200 },
   },
   // the same shapes as short, re-anchored on the long rows: the hull closes in at the Orbit's end, the corridor rises
   // where slot 0's boss is and squeezes from slot 1's start, and everything opens into the chamber over the 400 px

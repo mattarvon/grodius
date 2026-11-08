@@ -1,33 +1,33 @@
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
-The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
 movement-shots: layout long4 (orbit, biome, biome, drive)
 layout long4
-slot 0 ice   gate 4741  A min gap 143.9 @6640  C min gap 177.2 @8292
-slot 0 ice   B0 band 5976-6834  gap 143.9-239.8 (min @6640)
-slot 0 ice   B1 band 5976-6834  gap 127.7-208.0 (min @6268)
-slot 0 acid  gate 4741  A min gap 164.8 @6536  C min gap 201.9 @8304
-slot 0 acid  B0 band 5976-6834  gap 164.8-218.3 (min @6536)
-slot 0 acid  B1 band 5976-6834  gap 142.3-225.1 (min @6540)
-slot 0 fire  gate 4741  A min gap 113.4 @6540  C min gap 174.1 @8312
-slot 0 fire  B0 band 5976-6834  gap 113.4-208.1 (min @6540)
-slot 0 fire  B1 band 5976-6834  gap 135.2-213.8 (min @6244)
+slot 0 ice   gate 4741  A min gap 139.8 @6640  C min gap 177.2 @8292
+slot 0 ice   B0 band 5876-6834  gap 139.8-239.8 (min @6640)
+slot 0 ice   B1 band 5876-6834  gap 108.0-205.2 (min @6360)
+slot 0 acid  gate 4741  A min gap 168.3 @6340  C min gap 201.9 @8304
+slot 0 acid  B0 band 5876-6834  gap 168.3-216.8 (min @6340)
+slot 0 acid  B1 band 5876-6834  gap 142.3-224.9 (min @6540)
+slot 0 fire  gate 4741  A min gap 118.5 @6540  C min gap 174.1 @8312
+slot 0 fire  B0 band 5876-6834  gap 118.5-208.0 (min @6540)
+slot 0 fire  B1 band 5876-6834  gap 119.2-195.8 (min @6244)
 slot 0 snot  gate 4741  A min gap 108.0 @6376  C min gap 154.1 @8304
-slot 0 snot  B0 band 5976-6834  gap 108.0-168.9 (min @6376)
-slot 0 snot  B1 band 5976-6834  gap 123.2-179.5 (min @6688)
-slot 1 ice   gate 8491  A min gap 144.7 @10384  C min gap 186.8 @11936
-slot 1 ice   B0 band 9726-10584  gap 144.7-222.6 (min @10384)
-slot 1 ice   B1 band 9726-10584  gap 111.9-217.5 (min @9960)
-slot 1 acid  gate 8491  A min gap 171.1 @10336  C min gap 204.7 @12168
-slot 1 acid  B0 band 9726-10584  gap 171.1-231.3 (min @10336)
-slot 1 acid  B1 band 9726-10584  gap 154.6-231.3 (min @10060)
-slot 1 fire  gate 8491  A min gap 112.7 @10340  C min gap 167.9 @12168
-slot 1 fire  B0 band 9726-10584  gap 112.7-211.0 (min @10340)
-slot 1 fire  B1 band 9726-10584  gap 124.7-212.6 (min @10336)
+slot 0 snot  B0 band 5876-6834  gap 108.0-166.3 (min @6376)
+slot 0 snot  B1 band 5876-6834  gap 123.2-185.5 (min @6688)
+slot 1 ice   gate 8491  A min gap 137.9 @9808  C min gap 186.8 @11936
+slot 1 ice   B0 band 9626-10584  gap 137.9-232.9 (min @9808)
+slot 1 ice   B1 band 9626-10584  gap 108.0-232.9 (min @10320)
+slot 1 acid  gate 8491  A min gap 165.5 @9828  C min gap 204.7 @12168
+slot 1 acid  B0 band 9626-10584  gap 165.5-231.4 (min @9828)
+slot 1 acid  B1 band 9626-10584  gap 139.6-231.4 (min @9844)
+slot 1 fire  gate 8491  A min gap 117.8 @10340  C min gap 167.9 @12168
+slot 1 fire  B0 band 9626-10584  gap 117.8-211.0 (min @10340)
+slot 1 fire  B1 band 9626-10584  gap 108.7-211.0 (min @10336)
 slot 1 snot  gate 8491  A min gap 108.0 @10116  C min gap 153.4 @11552
-slot 1 snot  B0 band 9726-10584  gap 108.0-164.2 (min @10116)
-slot 1 snot  B1 band 9726-10584  gap 108.0-183.9 (min @10192)
+slot 1 snot  B0 band 9626-10584  gap 108.0-174.0 (min @10116)
+slot 1 snot  B1 band 9626-10584  gap 108.0-183.9 (min @10192)
 no page errors
 not measured: hazards; Descent 2+ terrain seeds
 movement-shots: ran on long4

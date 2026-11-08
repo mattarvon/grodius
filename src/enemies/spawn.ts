@@ -9,6 +9,7 @@ import { startBoss } from '../boss/update';
 import { ufoWarn } from './ufo';
 import { depthHP } from '../depth';
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
+import { bandClamp } from '../terrainb';
 
 // ---------------- enemies ----------------
 export const ET = {
@@ -287,7 +288,9 @@ export function hatch(n, fromLeft, go) {
   for (let i = 0; i < n; i++) {
     let y = rr(30, PH - 30);
     if (fromLeft && $.P) for (let k = 0; k < 6 && Math.abs(y - $.P.y) < 45; k++) y = rr(30, PH - 30);
-    mk('hatch', fromLeft ? -10 - i * 14 : W + 10 + i * 14, y, {
+    const x = fromLeft ? -10 - i * 14 : W + 10 + i * 14, wx = $.G.scroll + x;
+    y = bandClamp(y, wx, ceilAt(wx), floorAt(wx), 12); // inside a movement B band only, after the draws (short: no band, unchanged)
+    mk('hatch', x, y, {
       fromLeft,
       ph: R() * TAU,
       ghost: fromLeft ? 55 + i * 8 : 0

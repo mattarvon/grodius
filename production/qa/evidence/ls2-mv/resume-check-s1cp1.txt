@@ -2,12 +2,12 @@ The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
-checkpoint: stage 1 CP1 at cpX 6024.7 after 7530 frames; 22 entries still to fire; route ice/; midbosses {"0":["ufo"],"1":["choir","cyst"]}; bx 4738.0/-/-
+checkpoint: stage 1 CP1 at cpX 6024.7 after 8130 frames; 22 entries still to fire; route ice/; midbosses {"0":["ufo"],"1":["choir","cyst"]}; bx 4738.0/-/-
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
 The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
-title after reload: RESUME STAGE 1-2 | DESCEND | INFIRMARY 717 BIO | OPTIONS | LAB LONG (URL)
+title after reload: RESUME STAGE 1-2 | DESCEND | INFIRMARY 555 BIO | OPTIONS | LAB LONG (URL)
 resumed: stage 1, scroll 5904.7 (cpX 6024.7 - 120), lives 2, 22 entries to fire; RESUME press drew the sim RNG 0x
 terrain-only renders, pixels differing original vs resumed: 5905: 0 px, 6025: 0 px, 6265: 0 px, 6625: 0 px, 6912: 0 px, 7600: 0 px
 not measured: live enemies, shots, pods and spawn-time rolls (not reproduced by design, spec §4); the Fold APK app kill (Matt)

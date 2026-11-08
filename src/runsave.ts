@@ -7,7 +7,7 @@
 import { $ } from './state';
 import { LAYOUTS, lastStage, layout, nSlots, setLayout } from './layout';
 import { HOME, MIDS } from './midpick';
-import { isSetId } from './setdraw';
+import { SETS_PER_STAGE, isSetId } from './setdraw';
 
 export const RUN_KEY = 'grodius.run';
 /** bump when the allowlist changes meaning; a blob with any other version is discarded, never migrated */
@@ -39,7 +39,10 @@ const isSetArr = (v) => Array.isArray(v) && v.every(isSetId);
 // the set-piece used set by biome (G.spUsed), and each stage's build picks (G.picks, biomes.ts stagePicks): an unknown
 // set id would throw when its script entry fires, so it is checked here like a midboss kind
 const isSpUsed = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entries(v).every(([k, a]) => isBiome(k) && isSetArr(a));
-const isStagePick = (v) => isObj(v) && (v.mv === 0 || v.mv === 1) && isSetArr(v.sp);
+// a stage's picks name exactly SETS_PER_STAGE distinct pieces: biomeScript indexes them by slot
+const isStagePick = (v) => isObj(v) && (v.mv === 0 || v.mv === 1) && isSetArr(v.sp) && v.sp.length === SETS_PER_STAGE && new Set(v.sp).size === v.sp.length;
+// each biome's movement-B variants flown this run (G.mvSeen; setdraw.ts moveRoll): bit 0 B0, bit 1 B1
+const isMvSeen = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entries(v).every(([k, m]) => isBiome(k) && (m === 1 || m === 2 || m === 3));
 const isPicks = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entries(v).every(([k, p]) => /^\d+$/.test(k) && isStagePick(p));
 
 // $.G fields. A field that is absent on G is simply not written (and not restored), so fields owned by lanes not
@@ -79,7 +82,7 @@ const G_FIELDS = {
   mbSeen: plain, intRot: plain, // midboss seen, interior rotation (reserved)
   // LS2-mv: the set-piece used set (kept across descents: drawn without replacement per run) and each stage's movement-B
   // variant and set-piece ids, drawn once and read back on a rebuild as G.mb is
-  spUsed: isSpUsed, picks: isPicks,
+  spUsed: isSpUsed, picks: isPicks, mvSeen: isMvSeen,
   st: isObj, // stage stats as they stood at the checkpoint (grade inputs)
 };
 // $.P loadout. The hull form is not stored: shipform.ts derives it from this loadout, G.gm, G.pk and meta.rig.

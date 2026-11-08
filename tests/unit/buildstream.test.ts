@@ -28,7 +28,7 @@ vi.mock('../../src/enemies/ufo', () => ({ ufoWarn: noop }));
 
 const { BIOME_KEYS, biomeScript, midStream, stageStream } = await import('../../src/biomes');
 const { stageScript } = await import('../../src/enemies/scripts');
-const { MID_SALT, midSeedOf, seedOf, stream, newRunSeed } = await import('../../src/rng');
+const { MID_SALT, PICK_SALT, midSeedOf, pickSeedOf, seedOf, stream, newRunSeed } = await import('../../src/rng');
 const { PHASE1_BIOME_POOL, pickMids } = await import('../../src/midpick');
 const { applyRun, decodeRun, serializeRun } = await import('../../src/runsave');
 
@@ -179,6 +179,8 @@ describe("the midboss pick's stream", () => {
 
   it('pins the salt and the seed, so a code change cannot silently re-roll every run', () => {
     expect(MID_SALT).toBe(0x4d1db055);
+    expect(PICK_SALT).toBe(0x5e7b1c4d); // the set-piece/movement-B pick (LS2-mv): changing it re-rolls every run's picks
+    for (const s of [1, 7, 99]) expect(new Set([seedOf(s, 0, 1), midSeedOf(s, 0, 1), pickSeedOf(s, 0, 1)]).size).toBe(3);
     expect(midSeedOf(SEED, 1, 1)).toBe(PINNED);
   });
 });

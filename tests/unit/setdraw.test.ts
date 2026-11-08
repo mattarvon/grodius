@@ -1,6 +1,6 @@
 // The set-piece catalogue and draw (spec §3.3, §10; build plan LS2-mv): pure, no DOM.
 import { describe, expect, it } from 'vitest';
-import { B1_FIRST_VISIT, CATALOG, SETS_PER_STAGE, drawSets, isSetId, moveRoll } from '../../src/setdraw';
+import { B1_FIRST_VISIT, CATALOG, SETS_PER_STAGE, SETW, drawPicks, drawSets, isSetId, moveRoll } from '../../src/setdraw';
 import { stream } from '../../src/rng';
 
 const BIOMES = Object.keys(CATALOG);
@@ -46,16 +46,39 @@ describe('drawSets', () => {
   });
 });
 
+describe('slot order', () => {
+  it('weighs every catalogue piece', () => {
+    for (const id of Object.values(CATALOG).flat()) expect(SETW[id], id).toBeGreaterThan(0);
+  });
+  it.each(BIOMES)('%s: puts the lightest of the three in S2, the movement-B slot (spec §3.2: lighter spawns there)', (b) => {
+    for (const s of SEEDS) {
+      const a = drawSets(b, {}, stream(s));
+      expect(SETW[a[1]], a.join()).toBe(Math.min(...a.map((id) => SETW[id])));
+    }
+  });
+});
+
 describe('moveRoll', () => {
   it('flies B0 on a first visit in Descent 1, without drawing', () => {
     let n = 0;
     expect(moveRoll(0, 0, () => { n++; return 0; })).toBe(0);
     expect(n).toBe(0);
   });
-  it('flies B1 on every remix, without drawing', () => {
+  it('flies a remix on the variant the biome has not flown this run, B1 when it has flown both or neither, without drawing', () => {
     let n = 0;
-    for (const loop of [0, 1, 3]) expect(moveRoll(1, loop, () => { n++; return .99; })).toBe(1);
+    for (const loop of [0, 1, 3]) {
+      expect(moveRoll(1, loop, () => { n++; return .99; }, 1)).toBe(1); // met on B0: B1
+      expect(moveRoll(1, loop, () => { n++; return .99; }, 2)).toBe(0); // met on B1 (a Descent 2+ roll): B0, never B1 twice
+      expect(moveRoll(2, loop, () => { n++; return .99; }, 3)).toBe(1);
+      expect(moveRoll(1, loop, () => { n++; return .99; })).toBe(1);
+    }
     expect(n).toBe(0);
+  });
+  it('records each variant a biome flies, so a run that rolled B1 first still shows B0', () => {
+    const seen: Record<string, number> = {}, rs = () => 0; // rs 0: every first-visit roll in Descent 2+ comes up B1
+    expect(drawPicks('acid', 0, 1, {}, rs, seen).mv).toBe(1);
+    expect(drawPicks('acid', 1, 2, {}, rs, seen).mv).toBe(0);
+    expect(seen.acid).toBe(3);
   });
   it('may roll B1 on a first visit from Descent 2', () => {
     expect(moveRoll(0, 1, () => B1_FIRST_VISIT - .01)).toBe(1);

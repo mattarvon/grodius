@@ -70,17 +70,14 @@ describe('beat template v2 on long4', () => {
       $.G = { loop, pend: [], rank: 0, seed: 7 + seg * 31 + v };
       const sets = biomeScript(seg, b, from, v, undefined, PAIR, pick).filter((e: { k: string }) => /^set:/.test(e.k));
       expect(sets.map((e: { k: string }) => e.k), `${pick}`).toEqual(pick.map((id) => 'set:' + id));
-      // D20 is the layout invariant on the PLANNED set x (layout.test.ts); the generator then snaps each piece to the
-      // spawn slot near plan - slot/2 (main's beat generator, shared with short), so the entry may sit a slot or so
-      // either side. Measured 2026-11-07: closest placed entry 263 px from a breath edge, largest snap 67.75 px (reported in ls2-mv.md)
+      // D20 on the piece as placed: long layouts drop each set piece at its planned x (biomeScript), which the layout
+      // keeps >= 300 px from every breath edge (layout.test.ts), so no placed piece comes nearer
       sets.forEach((e: { x: number; k: string }, i: number) => {
-        const plan = P.sets[i];
+        expect(e.x, `${e.k}`).toBe(P.sets[i]);
         for (const br of P.breaths) {
-          expect(Math.min(Math.abs(plan - br.a), Math.abs(plan - br.z)), `planned ${e.k} at ${plan} vs breath ${br.a}-${br.z}`).toBeGreaterThanOrEqual(300);
           expect(e.x >= br.a && e.x < br.z, `${e.k} at ${e.x} in breath ${br.a}-${br.z}`).toBe(false);
-          expect(Math.min(Math.abs(e.x - br.a), Math.abs(e.x - br.z)), `${e.k} at ${e.x} vs breath ${br.a}-${br.z}`).toBeGreaterThanOrEqual(250);
+          expect(Math.min(Math.abs(e.x - br.a), Math.abs(e.x - br.z)), `${e.k} at ${e.x} vs breath ${br.a}-${br.z}`).toBeGreaterThanOrEqual(300);
         }
-        expect(Math.abs(plan - e.x), `${e.k} placed at ${e.x}, planned ${plan}`).toBeLessThan(80); // measured max 67.75
       });
       for (const e of S) if (e.k.some((n) => ENEMY.test(n))) {
         for (const br of P.breaths) expect(e.x >= br.a && e.x < br.z, `${pick} ${e.k} at ${e.x} in breath ${br.a}-${br.z}`).toBe(false);
