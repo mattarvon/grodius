@@ -9,8 +9,8 @@
 //   midboss    where breath 1's midboss arrived and how it left
 // Biome stages are checked against the item D band (58-62 s of scroll). Orbit and Drive rows are reported only:
 // their script content is item E's.
-// Usage: node tools/stage-clock.mjs [url] [--layout long4] [--seeds 1,5,6,7,11] [--descents 1]
-//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default short) sets the entry
+// Usage: node tools/stage-clock.mjs [url] [--layout long4|short] [--seeds 1,5,6,7,11] [--descents 1]
+//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default long4 per D33) sets the entry
 //   in-page before the run, like every probe; the game's own ?layout=long flag (src/main.ts) selects the same entry.
 //   Not measured: render-only output (canvas stubbed); a mortal pilot (it never dies, so no respawn stalls); seeds 2
 //   and 3 (the parity bot's kit cannot kill the Gravity Drive, their runs time out).

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { JUMP, KITS, jumpBlob, jumpBoot, parseJump } from '../../src/jump';
 import { LAYOUTS, setLayout } from '../../src/layout';
 import { HOME, forkAllows } from '../../src/midpick';
@@ -195,5 +197,33 @@ describe('the sealed run-save slot', () => {
     expect(storeRun(saved())).toBe(true);
     clearRun();
     expect(s.getItem(RUN_KEY)).toBeNull();
+  });
+});
+
+// SUMMARY #12: main.ts gates the switch on import.meta.env.DEV (the build sets it false). main.ts touches the DOM at
+// import, so this evaluates its gate line as written against the stubbed env: dropping or inverting the gate fails here.
+// The dist side (the code shaken out of the bundle) is CI's "Jump switch absent" step
+describe('the dev gate in main.ts', () => {
+  const line = readFileSync(join(__dirname, '../../src/main.ts'), 'utf8').match(/^const jump = (.+);$/m);
+  const gate = (env: { DEV: unknown }, boot: (s: string) => unknown) =>
+    new Function('env', 'jumpBoot', 'location', `return ${line![1].replaceAll('import.meta.env', 'env')}`)(env, boot, { search: '?stage=drive&x=100&kit=full' });
+  afterEach(() => { vi.unstubAllEnvs(); });
+
+  it('finds the gate line in main.ts', () => {
+    expect(line?.[1]).toMatch(/import\.meta\.env\.DEV/);
+  });
+
+  it('never reads ?stage= when DEV is false, so a deployed page boots normally', () => {
+    vi.stubEnv('DEV', false);
+    const boot = vi.fn(() => ({ kind: 'drive' }));
+    expect(gate(import.meta.env, boot)).toBeNull();
+    expect(boot).not.toHaveBeenCalled();
+  });
+
+  it('hands the URL to jumpBoot on the dev server', () => {
+    vi.stubEnv('DEV', true);
+    const boot = vi.fn(() => ({ kind: 'drive' }));
+    expect(gate(import.meta.env, boot)).toEqual({ kind: 'drive' });
+    expect(boot).toHaveBeenCalledWith('?stage=drive&x=100&kit=full');
   });
 });

@@ -1053,8 +1053,8 @@ function rupture(e, s) {
   add({ x, y, l: 14, m: 14, s: 34, c: P.pus[1], k: 8, g: 0 }, true);
   if ($.state === 'play') {
     try {
-      sample('splat_l', { vol: .9, rate: .8 });
-      sample('fart_ok', { vol: .75, rate: .6, spread: .05, at: .25 }); // the empty skin deflating
+      sample('splat_l', { vol: .9, rate: .8, prio: true });
+      sample('fart_ok', { vol: .75, rate: .6, spread: .05, at: .25, prio: true }); // the empty skin deflating
     } catch (err) {}
   }
 }

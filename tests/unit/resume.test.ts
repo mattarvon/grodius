@@ -31,7 +31,8 @@ vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: noop }));
 const biomes: any = await import('../../src/biomes');
 const { biomeReset, biomeStage } = biomes;
 const { buildStage, rebuildAt } = await import('../../src/stagebuild');
-const { setLayout, layout, stageOfSlot } = await import('../../src/layout');
+const { beatPlan, setLayout, layout, stageOfSlot } = await import('../../src/layout');
+const { CP } = await import('../../src/checkpoint');
 const { applyRun, decodeRun, serializeRun } = await import('../../src/runsave');
 
 type Entry = { x: number; k?: string };
@@ -90,6 +91,18 @@ describe('the resume rebuild', () => {
     const want = left($.G, cpX);
     expect(want).not.toEqual(left(early, cpX));
     expect(list(resumed(late, cpX).script.slice($.G.si))).toEqual(want);
+    setLayout('short');
+  });
+
+  it('replays the release exactly once on a resume at the pre-release CP1 (LS1 audit #4)', () => {
+    setLayout('long4');
+    const G0 = original(0, 1), r = layout().stages[1];
+    const rel = beatPlan(r, G0.bx[0], false).breaths.find((b) => b.mid && b.release)!.z, cpX = rel - CP.preRelease;
+    const at = (S: Entry[]) => S.filter((e) => e.x === rel).map((e) => e.k).sort();
+    expect(at(G0.script)).toEqual(['log', 'pod']); // the run built one release: its pod formation and log line 2
+    const G1 = resumed(G0, cpX);
+    expect(at(G1.script.slice(G1.si))).toEqual(['log', 'pod']); // still to fire after the resume, once (x > cpX)
+    expect(at(G1.script)).toEqual(['log', 'pod']); // and nowhere else: no second grant
     setLayout('short');
   });
 

@@ -1,6 +1,6 @@
 // XP pacing probe: invincible bot plays the real flow (takes forks, grabs pods), logs ship level per stage,
 // every level-up time, and any pick screen that opens during a fork / tally / death (must never happen).
-// Usage: node tools/perk-pace.mjs <url> [minutes=20] [mode=pick|none] [endLoop=1] [--layout short]
+// Usage: node tools/perk-pace.mjs <url> [minutes=20] [mode=pick|none] [endLoop=1] [--layout long4|short]
 //   mode none: pick screens are dismissed without taking a perk (baseline for balance comparison)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';

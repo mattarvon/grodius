@@ -8,7 +8,7 @@
 //   variety - enemy kinds per stage, wave signatures (kinds spawned together) and how often the top one repeats,
 //            how much of descent N's stage repeats descent N-1's mix, hype voice count, music per stage
 // Screenshots every SHOT seconds of game time go to <outDir>. Needs the VITE dev server (imports live modules).
-// Usage: node tools/playtest.mjs <url> <outDir> [descents=3] [seed=7] [maxMinutes=30] [--layout short]
+// Usage: node tools/playtest.mjs <url> <outDir> [descents=3] [seed=7] [maxMinutes=30] [--layout long4|short]
 // Every run also writes <outDir>/sig.json: per stage, its script signature (each spawn's stage-relative scroll x and
 // kind, grouped into waves), and the Open Orbit opener (Descent 1, spawns before the Saucer's WARNING).
 // Cross-seed signature report (LS1 row E): run several seeds into their own outDirs, then

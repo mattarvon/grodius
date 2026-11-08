@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RUN_KEY, RUN_V, applyRun, clearRun, decodeRun, readRun, runInfo, serializeRun, writeRun } from '../../src/runsave';
+import { LIVES_MAX, LOAD_MAX, LOOP_MAX, SCREEN_W, SEAL_MAX, xpNeedRun, RUN_KEY, RUN_V, applyRun, clearRun, decodeRun, readRun, runInfo, serializeRun, writeRun } from '../../src/runsave';
 
 function storage() {
   const m = new Map<string, string>();
@@ -19,7 +19,7 @@ const forkX = (x0: number, scroll: number) => Math.max(x0, scroll + W + 10);
 /** a Descent 2 run in its second biome, with run state of every allowlisted kind plus live state that must not be kept */
 function midRun(bx: (number | null)[]) {
   const G: any = {
-    loop: 1, stage: 2, cpX: 6120.5, layout: 'short', seed: 123456789, bx,
+    loop: 1, stage: 2, cpX: 6120.5, cpN: 1, layout: 'short', seed: 123456789, bx,
     pk: { graze: 2, tape: 1 }, xp: 17.25, xpTot: 912.5, lvl: 14, gm: { rapid: 2, seek: 1 }, kk: { sm: 40 }, gmk: 3, cur: 2,
     lives: 2, score: 123450, bio: 812.4, kills: 410, maxCombo: 37, seal: 2, cleared: 5,
     route: ['ice', 'fire'], bvis: { ice: 2, fire: 1 }, visited: ['ice', 'acid', 'fire'], seenV: 3,
@@ -60,20 +60,20 @@ describe('run save round trip', () => {
 
   it('round-trips the stage picks and the set-piece used set (LS2-mv)', () => {
     const picks = { 1: { mv: 1, sp: ['thaw', 'vigil', 'pack'] } }, spUsed = { ice: ['thaw', 'vigil', 'pack'] }, mvSeen = { ice: 2, fire: 3 };
-    const b = serializeRun(midRun([2200, null, null]).G, midRun([2200, null, null]).P), d = decodeRun(JSON.stringify({ ...b, g: { ...b.g, picks, spUsed, mvSeen } }));
+    const b = serializeRun(midRun([2200, 5300, null]).G, midRun([2200, 5300, null]).P), d = decodeRun(JSON.stringify({ ...b, g: { ...b.g, picks, spUsed, mvSeen } }));
     expect(d.g.picks).toEqual(picks);
     expect(d.g.spUsed).toEqual(spUsed);
     expect(d.g.mvSeen).toEqual(mvSeen);
   });
   it('keeps no live state, closures or entity references', () => {
-    const { G, P } = midRun([2200, null, null]);
+    const { G, P } = midRun([2200, 5300, null]);
     const s = serializeRun(G, P);
     for (const k of LIVE_G) expect(s.g).not.toHaveProperty(k);
     for (const k of LIVE_P) expect(s.p).not.toHaveProperty(k);
   });
 
   it('stores remix whole when choose() made it an array that pickV hung keys on', () => {
-    const { G, P } = midRun([2200, null, null]);
+    const { G, P } = midRun([2200, 5300, null]);
     const r: any = [1, 0];
     r.orbitA = { used: [0], last: 0 };
     G.remix = r;
@@ -82,7 +82,7 @@ describe('run save round trip', () => {
   });
 
   it('keeps a sparse frag readable (player.ts writes frag[i] at the pod index picked up first)', () => {
-    const { G, P } = midRun([2300, null, null]);
+    const { G, P } = midRun([2300, 5300, null]);
     P.frag = [];
     P.frag[2] = 1; // [ , , 1]
     expect(writeRun(G, P)).toBe(true);
@@ -92,7 +92,7 @@ describe('run save round trip', () => {
   });
 
   it('refuses to write a run that would not read back, leaving the last checkpoint standing', () => {
-    const a = midRun([2300, null, null]);
+    const a = midRun([2300, 5300, null]);
     expect(writeRun(a.G, a.P)).toBe(true);
     const before = (localStorage as any).map.get(RUN_KEY);
     const b = midRun([2300, 5150, null]);
@@ -102,7 +102,7 @@ describe('run save round trip', () => {
   });
 
   it('restores copies, so the saved blob and the live run never share objects', () => {
-    const { G, P } = midRun([2200, 4300, null]);
+    const { G, P } = midRun([2200, 5300, null]);
     const d = decodeRun(serializeRun(G, P))!;
     const b: any = {};
     applyRun(d, b, {});
@@ -111,10 +111,10 @@ describe('run save round trip', () => {
   });
 
   it('writes, reads and clears one slot under grodius.run', () => {
-    const { G, P } = midRun([2200, 4300, null]);
+    const { G, P } = midRun([2200, 5300, null]);
     expect(writeRun(G, P)).toBe(true);
     expect(JSON.parse((localStorage as any).map.get(RUN_KEY)).v).toBe(RUN_V);
-    expect(readRun()!.g.bx).toEqual([2200, 4300, null]);
+    expect(readRun()!.g.bx).toEqual([2200, 5300, null]);
     clearRun();
     expect(readRun()).toBeNull();
   });
@@ -122,7 +122,7 @@ describe('run save round trip', () => {
 
 describe('a bad or old run save', () => {
   beforeEach(() => vi.stubGlobal('localStorage', storage()));
-  const ok = () => serializeRun(midRun([2200, null, null]).G, midRun([2200, null, null]).P);
+  const ok = () => serializeRun(midRun([2200, 5300, null]).G, midRun([2200, 5300, null]).P);
 
   it.each([
     ['not JSON', '{nope'],
@@ -170,6 +170,46 @@ describe('a bad or old run save', () => {
     ['a flown-variants entry for no such biome', JSON.stringify({ ...ok(), g: { ...ok().g, mvSeen: { gorgon: 1 } } })],
     ['a flown-variants entry that is no variant set', JSON.stringify({ ...ok(), g: { ...ok().g, mvSeen: { ice: 4 } } })],
     ['a used set for no such biome', JSON.stringify({ ...ok(), g: { ...ok().g, spUsed: { gorgon: ['morgue'] } } })],
+    // LS1 audit (security-engineer, gameplay-programmer): the remix memory is typed, and every bound holds
+    ['a visitNo that is not a list', JSON.stringify({ ...ok(), g: { ...ok().g, visitNo: { 0: 1 } } })],
+    ['a visitNo of the wrong length', JSON.stringify({ ...ok(), g: { ...ok().g, visitNo: [0] } })],
+    ['a visitNo holding a string (biomeStage would build a remix silently)', JSON.stringify({ ...ok(), g: { ...ok().g, visitNo: [0, 'yes'] } })],
+    ['a remix value that is no visit count or section memory', JSON.stringify({ ...ok(), g: { ...ok().g, remix: { 0: 'x' } } })],
+    ['a remix section memory with a bad used list', JSON.stringify({ ...ok(), g: { ...ok().g, remix: { orbitA: { used: ['a'], last: 0 } } } })],
+    ['a remixV that is a list', JSON.stringify({ ...ok(), g: { ...ok().g, remixV: [1] } })],
+    ['a remixV section with no last', JSON.stringify({ ...ok(), g: { ...ok().g, remixV: { orbitA: { used: [0] } } } })],
+    ['a remixV section with a fractional descent', JSON.stringify({ ...ok(), g: { ...ok().g, remixV: { orbitA: { used: [0], last: 0, L: .5 } } } })],
+    ['a remixV cell memory with numeric ids', JSON.stringify({ ...ok(), g: { ...ok().g, remixV: { 'c:orbit': { used: [1], last: [] } } } })],
+    ['a remixV cell pick with no filler list', JSON.stringify({ ...ok(), g: { ...ok().g, remixV: { 'c:orbit': { used: [], last: [], L: 0, pick: { ids: ['a'] } } } } })],
+    ['THRUST above its max', JSON.stringify({ ...ok(), p: { ...ok().p, speed: LOAD_MAX.speed + 1 } })],
+    ['MISSILE above its max', JSON.stringify({ ...ok(), p: { ...ok().p, missile: LOAD_MAX.missile + 1 } })],
+    ['SPLIT above its max', JSON.stringify({ ...ok(), p: { ...ok().p, double: LOAD_MAX.double + 1 } })],
+    ['ARC above its max', JSON.stringify({ ...ok(), p: { ...ok().p, laser: LOAD_MAX.laser + 1 } })],
+    ['PYRE above its max', JSON.stringify({ ...ok(), p: { ...ok().p, pyre: LOAD_MAX.pyre + 1 } })],
+    ['ten million WRAITHs (the hud and player loops would hang)', JSON.stringify({ ...ok(), p: { ...ok().p, options: 1e7 } })],
+    ['WARD above its max', JSON.stringify({ ...ok(), p: { ...ok().p, wardLv: LOAD_MAX.wardLv + 1 } })],
+    ['a shield above WARD_MAX', JSON.stringify({ ...ok(), p: { ...ok().p, shield: LOAD_MAX.shield + .5 } })],
+    ['an aegis above its cap', JSON.stringify({ ...ok(), p: { ...ok().p, aegis: LOAD_MAX.aegis + 1 } })],
+    ['more fragment counts than pod types', JSON.stringify({ ...ok(), p: { ...ok().p, frag: Array(LOAD_MAX.frag + 1).fill(0) } })],
+    ['a fragment count past every NEED', JSON.stringify({ ...ok(), p: { ...ok().p, frag: [LOAD_MAX.fragN + 1] } })],
+    ['a fractional fragment count', JSON.stringify({ ...ok(), p: { ...ok().p, frag: [.5] } })],
+    ['an xp of 1e30 (gainXP would loop for ever on the first kill)', JSON.stringify({ ...ok(), g: { ...ok().g, xp: 1e30 } })],
+    ['an xp at its level\'s need (gainXP never leaves one there)', JSON.stringify({ ...ok(), g: { ...ok().g, lvl: 14, xp: xpNeedRun(14) } })],
+    ['a negative xp', JSON.stringify({ ...ok(), g: { ...ok().g, xp: -1 } })],
+    ['a missing checkpoint x (resumeRun would set the scroll to NaN)', JSON.stringify({ ...ok(), g: { ...ok().g, cpX: undefined } })],
+    ['a missing checkpoint number', JSON.stringify({ ...ok(), g: { ...ok().g, cpN: undefined } })],
+    ['a gate x more than W before its slot', JSON.stringify({ ...ok(), g: { ...ok().g, bx: [SEG0_X0 - W - 1, 5300, null] } })],
+    ['a gate x at its slot boss', JSON.stringify({ ...ok(), g: { ...ok().g, bx: [2200, 8020, null] } })],
+    ['a reached slot with no biome (rebuildAt would build an empty stage)', JSON.stringify({ ...ok(), g: { ...ok().g, route: ['ice', null] } })],
+    ['a reached slot with no gate x', JSON.stringify({ ...ok(), g: { ...ok().g, bx: [2200, null, null] } })],
+    ['more clears than LOOP_MAX descents hold (sealFor walks them all)', JSON.stringify({ ...ok(), g: { ...ok().g, cleared: 1e9 } })],
+    ['a seal past SEAL_TXT', JSON.stringify({ ...ok(), g: { ...ok().g, seal: 4 } })],
+    ['a descent past LOOP_MAX', JSON.stringify({ ...ok(), g: { ...ok().g, loop: LOOP_MAX + 1 } })],
+    ['lives past the hang guard', JSON.stringify({ ...ok(), g: { ...ok().g, lives: LIVES_MAX + 1 } })],
+    ['more queued picks than levels gained', JSON.stringify({ ...ok(), g: { ...ok().g, lvl: 3, pickQ: 3 } })],
+    ['a checkpoint x past the stage boss', JSON.stringify({ ...ok(), g: { ...ok().g, cpX: 8020 } })],
+    ['a negative checkpoint x', JSON.stringify({ ...ok(), g: { ...ok().g, cpX: -5 } })],
+    ['a checkpoint x before the previous stage', JSON.stringify({ ...ok(), g: { ...ok().g, cpX: SEG0_X0 - 1 } })],
     ['a used set naming an unknown set piece', JSON.stringify({ ...ok(), g: { ...ok().g, spUsed: { ice: ['gorgon'] } } })],
   ])('is discarded without throwing: %s', (_, s) => {
     expect(() => decodeRun(s)).not.toThrow();
@@ -180,9 +220,45 @@ describe('a bad or old run save', () => {
     expect(runInfo()).toBeNull(); // and the title has no RESUME row
   });
 
+  it('accepts every bound at its limit (a maxed ship, a full queue, the stage edges)', () => {
+    const b = ok();
+    const p = { speed: 5, missile: 2, double: 1, laser: 1, pyre: 2, options: 3, wardLv: 3, shield: 3, aegis: 12, frag: [0, 1, 2, 3, 4, null, 0] };
+    for (const cpX of [SEG0_X0, 8019.5]) expect(decodeRun(JSON.stringify({ ...b, g: { ...b.g, cpX, lvl: 4, pickQ: 3, lives: LIVES_MAX, visitNo: [0, 2],
+      remixV: { orbitA: { used: [0, 2], last: 2, L: 1 }, 'c:orbit': { used: ['a'], last: [], L: 1, pick: { ids: ['a', null], fill: [{ x: 10, k: 'drone', u: 0 }] } } } }, p }))).not.toBeNull();
+  });
+
+  it('keeps LOAD_MAX in step with player.ts SMAX, WARD_MAX and NEED', async () => {
+    // player.ts imports the sim; read its tables as text so this test needs no mocks
+    const src = (await import('node:fs')).readFileSync(new URL('../../src/player.ts', import.meta.url), 'utf8');
+    const arr = (n: string) => JSON.parse(src.match(new RegExp(`export const ${n} = (\\[[^;]*\\]);`))![1].replace(/'/g, '"'));
+    expect([LOAD_MAX.speed, LOAD_MAX.missile, LOAD_MAX.double, LOAD_MAX.laser, LOAD_MAX.pyre, LOAD_MAX.options, LOAD_MAX.wardLv]).toEqual(arr('SMAX'));
+    expect(LOAD_MAX.shield).toBe(+src.match(/export const WARD_MAX = (\d+);/)![1]);
+    expect(LOAD_MAX.frag).toBe(arr('SLOTS').length);
+    // the aegis cap is a literal at every write: player.ts (refill, regrowth) and contraptions.ts (the WARD socket)
+    const caps = [src, (await import('node:fs')).readFileSync(new URL('../../src/contraptions.ts', import.meta.url), 'utf8')]
+      .flatMap((t) => [...t.matchAll(/aegis\s*(?:=|<)\s*(\d+)|Math\.min\((\d+),\s*\(P\.aegis/g)].map((m) => +(m[1] ?? m[2])));
+    expect(caps.length).toBeGreaterThanOrEqual(5);
+    expect(new Set(caps)).toEqual(new Set([LOAD_MAX.aegis]));
+    expect(LOAD_MAX.fragN).toBe(Math.max(...arr('NEED').flat()));
+  });
+
+  it('keeps SCREEN_W and SEAL_MAX in step with core.ts W and stages.ts SEAL_TXT', async () => {
+    const fs = await import('node:fs'), read = (f: string) => fs.readFileSync(new URL(`../../src/${f}`, import.meta.url), 'utf8');
+    expect(SCREEN_W).toBe(+read('core.ts').match(/export const W = (\d+)/)![1]);
+    expect(SEAL_MAX).toBe(JSON.parse(read('stages.ts').match(/export const SEAL_TXT = (\[.*\]);/)![1].replace(/'/g, '"')).length - 1);
+    expect(W).toBe(SCREEN_W);
+  });
+
+  it('keeps xpNeedRun in step with perks.ts xpNeed', async () => {
+    const src = (await import('node:fs')).readFileSync(new URL('../../src/perks.ts', import.meta.url), 'utf8');
+    const body = src.match(/export const xpNeed = \(lvl\) => (.*);\n/)![1];
+    const xpNeed = new Function('lvl', `return ${body};`) as (l: number) => number;
+    for (let l = 1; l <= 80; l++) expect(xpNeedRun(l)).toBe(xpNeed(l));
+  });
+
   it('survives storage that throws', () => {
     vi.stubGlobal('localStorage', { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('full'); }, removeItem: () => { throw new Error('x'); } });
-    const { G, P } = midRun([2200, null, null]);
+    const { G, P } = midRun([2200, 5300, null]);
     expect(writeRun(G, P)).toBe(false);
     expect(readRun()).toBeNull();
     expect(() => clearRun()).not.toThrow();

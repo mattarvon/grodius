@@ -10,7 +10,7 @@ vi.mock('../../src/platform', () => ({ buzz: () => {} }));
 vi.mock('../../src/biomes', () => ({ BIOMES: {}, openFork: () => {}, holdForFork: () => {}, biomeExit: () => {} }));
 vi.mock('../../src/stagebuild', () => ({ buildStage: () => {} }));
 
-const { CP, cp1X, cpSafe, cpStep, cpView, writeCp } = await import('../../src/checkpoint');
+const { CP, cp1Release, cp1X, cpSafe, cpStep, cpView, writeCp } = await import('../../src/checkpoint');
 const { RUN_KEY, RUN_V, clearRun, decodeRun, decodeRunAs, lastRun, readRun, rewriteRun, runInfo, serializeRun } = await import('../../src/runsave');
 const { LAYOUTS, beatPlan, layout, setLayout } = await import('../../src/layout');
 const { sealFor } = await import('../../src/stages');
@@ -30,7 +30,7 @@ function playing(i = 1, over: Record<string, unknown> = {}) {
   $.state = 'play';
   $.P = { alive: true, speed: 1, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, shield: 0, wardLv: 0, aegis: 0, frag: [] } as any;
   const L = layout(), r = L.stages[i];
-  $.G = { loop: 0, stage: i, t: 1000, scroll: r.x0 + 10, seed: 5, bx: [L.stages[1].x0 + 400, null, null], route: ['acid', null], visitNo: [0, 0],
+  $.G = { loop: 0, stage: i, t: 1000, scroll: r.x0 + 10, seed: 5, bx: [L.stages[1].x0 + 400, L.stages[2].x0 + 400, null], route: ['acid', 'ice'], visitNo: [0, 0],
     st: { kills: 0, spawned: 0, hits: 0, deaths: 0, chain: 0, t0: 900 }, pend: [], mini: null, fork: null, forkHold: false, tally: null, pick: null,
     boss: null, bossStarted: false, clearT: 0, lives: 2, seal: 0, cleared: 1, cpWant: 0, ...over } as any;
 }
@@ -66,7 +66,7 @@ describe('reading a run save under its own layout (sprint 2 carry-forward 1)', (
     const extra = { ...s[2], slot: 2, x0: x, x1: x + 3000, end: x + 2900, bossX: x + 2800 };
     (LAYOUTS as any).wide5 = { ...L4, id: 'wide5', stages: [s[0], s[1], s[2], extra, s[3]] };
     try {
-      store().set(RUN_KEY, JSON.stringify({ v: RUN_V, g: { loop: 0, stage: 4, cpX: 1, cpN: 0, layout: 'wide5', seed: 1, bx: [1, 2, 3, null], route: ['ice', 'fire', 'acid'] }, p: {} }));
+      store().set(RUN_KEY, JSON.stringify({ v: RUN_V, g: { loop: 0, stage: 4, cpX: s[3].x0 + 1, cpN: 0, layout: 'wide5', seed: 1, bx: [s[1].x0, s[2].x0, extra.x0, null], route: ['ice', 'fire', 'acid'] }, p: {} }));
       expect(readRun()).not.toBeNull();
       expect(store().has(RUN_KEY)).toBe(true);
       expect(layout().id).toBe('short');
@@ -103,13 +103,15 @@ describe('reading a run save under its own layout (sprint 2 carry-forward 1)', (
 });
 
 describe('checkpoint positions', () => {
-  it('puts CP1 150 px past midboss A on a biome stage, from the stored gate x', () => {
+  it('puts CP1 150 px past midboss A on a biome stage with no release, just before the release on one with it, from the stored gate x', () => {
     for (const id of ['short', 'long4'] as const) {
       setLayout(id);
       const r = layout().stages[1], from = r.x0 + 333;
       const g = { bx: [from, null, null], visitNo: [0, 0] };
-      const bz = beatPlan(r, from, false).breaths.find((b) => b.mid)!.z;
-      expect(cp1X(1, g)).toBeCloseTo(bz + CP.after, 6);
+      const b = beatPlan(r, from, false).breaths.find((b) => b.mid)!, bz = b.z;
+      expect(b.release).toBe(id === 'long4'); // short's single breath has no release beat
+      expect(cp1X(1, g)).toBeCloseTo(b.release ? bz - CP.preRelease : bz + CP.after, 6);
+      expect(cp1Release(1, g)).toBe(b.release ? bz : null);
       expect(cp1X(1, { ...g, bx: [from + 200, null, null] })).toBeGreaterThan(cp1X(1, g)!); // a later gate moves it
       expect(cp1X(1, { bx: [null, null, null] })).toBeNull(); // no gate taken: no CP1
     }
@@ -192,6 +194,39 @@ describe('checkpoint triggers', () => {
     expect(decodeRun(lastRun())!.g.cpN).toBe(1);
   });
 
+  it('writes CP1 before the release entry once midboss A is gone, so a resume replays the release pod (LS1 audit #4)', () => {
+    setLayout('long4');
+    playing(1);
+    cpStep();
+    const rel = $.G.cp1Rel;
+    expect(rel).toBe(cp1Release(1, $.G));
+    expect($.G.cp1X).toBe(rel - CP.preRelease);
+    $.G.scroll = $.G.cp1X;
+    cpStep();
+    const d = decodeRun(lastRun())!;
+    expect(d.g.cpN).toBe(1);
+    expect(d.g.cpX).toBeLessThan(rel); // the rebuild keeps entries x > cpX: the release at rel replays
+  });
+
+  it('falls back to 150 px past the release when the first safe step comes after it fired', () => {
+    setLayout('long4');
+    playing(1);
+    cpStep();
+    const rel = $.G.cp1Rel;
+    $.G.scroll = $.G.cp1X;
+    $.G.pend.push({ t: 30, f: () => {} }); // a closure still pending holds CP1 past the release
+    cpStep();
+    $.G.scroll = rel + 5;
+    $.G.pend.length = 0;
+    cpStep();
+    expect(decodeRun(lastRun())!.g.cpN).toBe(0); // the release fired: no CP1 between it and its pod's lifetime
+    expect($.G.cp1X).toBe(rel + CP.after);
+    $.G.scroll = rel + CP.after;
+    cpStep();
+    expect(decodeRun(lastRun())!.g.cpN).toBe(1);
+    expect(decodeRun(lastRun())!.g.cpX).toBe(rel + CP.after);
+  });
+
   it('leaves the previous checkpoint standing when the state would not read back', () => {
     playing(1);
     cpStep();
@@ -225,7 +260,7 @@ describe('rewards pending at the checkpoint (H entry criterion 1)', () => {
   });
 
   it('stores queued level-up picks and the biome boost offer', () => {
-    playing(2, { pickQ: 2, boostReq: 'acid' });
+    playing(2, { lvl: 4, pickQ: 2, boostReq: 'acid' });
     cpStep();
     const d = decodeRun(lastRun())!;
     expect(d.g.pickQ).toBe(2);

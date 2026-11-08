@@ -5,13 +5,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../src/audio', () => ({ auInit: () => {}, sample: () => false, setMute: () => {}, sfx: { menu: () => {}, deny: () => {}, power: () => {} } }));
 vi.mock('../../src/input', () => ({ I: {}, PR: new Set() }));
 vi.mock('../../src/platform', () => ({ NATIVE: false }));
-vi.mock('../../src/flow', () => ({ newGame: () => {}, openPause: () => {}, openShop: () => {}, resumeLast: () => {}, resumedFrom: null, shopNext: 'title', startLoop: () => {} }));
+// shopNext through a getter, so a test can open the loop shop (menus.ts reads the binding at call time)
+const F = vi.hoisted(() => ({ shopNext: 'title' as 'title' | 'loop', startLoop: (_l: number) => {} }));
+vi.mock('../../src/flow', () => ({ newGame: () => {}, openPause: () => {}, openShop: () => {}, resumeLast: () => {}, resumedFrom: null, get shopNext() { return F.shopNext; }, startLoop: (l: number) => F.startLoop(l) }));
 vi.mock('../../src/contraptions', () => ({ RIG: [], RIG_BY: {}, SOCKET_COST: [], rigInit: () => {}, rigged: () => [], sockets: () => 1 }));
 
 const { $ } = await import('../../src/state');
 const { SET } = await import('../../src/save');
 const M = await import('../../src/menus');
 const { ARM_T, SUB_BACK, titleMenuBottom } = await import('../../src/backstep');
+const { I } = await import('../../src/input') as { I: Record<string, unknown> };
 
 const open = (l: string) => { const it = M.titleItems(); it[it.findIndex((x: any) => x.l === l)].a(); };
 const rowOf = (l: string) => M.titleItems().findIndex((x: any) => x.l === l);
@@ -90,5 +93,54 @@ describe('the title sub-menus close the same way on every path', () => {
       expect(titleMenuBottom(M.titleItems().length)).toBeLessThanOrEqual(SUB_BACK.y);
       M.doBack('closeSub');
     }
+  });
+});
+
+describe('IMPORT SAVE (LS1 audit, security S3)', () => {
+  it('drops the old profile\'s checkpoint before the reload, so RESUME is never offered under the imported profile', async () => {
+    const { RUN_KEY } = await import('../../src/runsave');
+    const m = new Map<string, string>([[RUN_KEY, '{"v":2}']]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
+    const reload = vi.fn();
+    vi.stubGlobal('location', { reload });
+    vi.stubGlobal('window', { prompt: () => btoa(JSON.stringify({ meta: { bio: 5, lv: {} } })) });
+    try {
+      open('OPTIONS');
+      open('IMPORT SAVE');
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(m.has(RUN_KEY)).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('back during shopLock (stepShop, LS1 audit)', () => {
+  // the 40-frame lock after the shop opens gates the pointer and OK, never back
+  const pressBack = () => { I.back = true; try { M.stepShop(); } finally { I.back = false; } };
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeItem: () => {} });
+    $.state = 'shop';
+    $.shopLock = 40;
+    $.shopMsg = null;
+    $.menuSel = 0;
+    $.G = null as any;
+  });
+
+  it('closes the title shop to the title on a back press inside the lock', () => {
+    F.shopNext = 'title';
+    try { pressBack(); } finally { vi.unstubAllGlobals(); }
+    expect($.state).toBe('title');
+    expect($.shopLock).toBe(39); // the lock still counts down on the same frame
+  });
+
+  it('selects the exit row of the loop shop on a back press inside the lock, without starting the next descent', () => {
+    F.shopNext = 'loop';
+    const start = vi.fn();
+    F.startLoop = start;
+    try { pressBack(); } finally { F.shopNext = 'title'; F.startLoop = () => {}; vi.unstubAllGlobals(); }
+    expect($.state).toBe('shop');
+    expect($.menuSel).toBe(M.shopItems().length - 1);
+    expect(start).not.toHaveBeenCalled();
   });
 });

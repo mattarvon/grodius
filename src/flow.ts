@@ -19,7 +19,7 @@ import { newRunSeed } from './rng';
 import { setLayout, layout } from './layout';
 import { clearRun, decodeRun, decodeRunAs, lastRun } from './runsave';
 import { sealFor, stageBanner } from './stages';
-import { CP, cp1X, writeCp } from './checkpoint';
+import { CP, cp1Release, cp1X, writeCp } from './checkpoint';
 import { rebuildAt } from './stagebuild';
 import { cpTrigger } from './lab';
 import { jumpBlob } from './jump';
@@ -140,6 +140,7 @@ export function resumeRun(d) {
   // the next checkpoint of this stage: CP1 after a CP0, none after a CP1. CP0 is never re-written from here: its
   // cpX would move back by the lead-in on every resume
   G.cp1X = G.cpN === 0 ? cp1X(G.stage, G) : null;
+  G.cp1Rel = G.cpN === 0 ? cp1Release(G.stage, G) : null;
   G.cpWant = G.cp1X != null ? 1 : 2;
   const wx = P.x + G.scroll;
   P.y = clamp((floorAt(wx) + ceilAt(wx)) / 2, 30, PH - 30);
@@ -243,6 +244,22 @@ function bossRecoveryNote() {
   if (P.wardLv) ty.push(6);
   G.recover = ty.slice(0, 3);
 }
+/** a death's cost on the run (killPlayer; and D32, an option-b restart): the power cursor resets and every graft
+ *  loses a level */
+function deathCost(G) {
+  G.cur = -1; // classic: the power cursor resets when you die
+  let w = 0;
+  for (const k in G.gm) if (G.gm[k] > 0) {
+    G.gm[k]--;
+    w = 1;
+  }
+  if (w) G.feed = {
+    s: 'YOUR GRAFTS WITHER',
+    d: 'every mutation lost a level',
+    t: 170,
+    ml: 170
+  };
+}
 export function killPlayer() {
   if (!$.P.alive) return;
   $.P.alive = false;
@@ -268,20 +285,7 @@ export function killPlayer() {
   $.G.comboT = 0;
   $.G.cMile = 0;
   $.G.meter = -1;
-  $.G.cur = -1; // classic: the power cursor resets when you die
-  {
-    let w = 0;
-    for (const k in $.G.gm) if ($.G.gm[k] > 0) {
-      $.G.gm[k]--;
-      w = 1;
-    }
-    if (w) $.G.feed = {
-      s: 'YOUR GRAFTS WITHER',
-      d: 'every mutation lost a level',
-      t: 170,
-      ml: 170
-    };
-  }
+  deathCost($.G);
   splat(rr(120, 360), rr(60, 180), 3);
   sfx.die();
 }
@@ -311,14 +315,22 @@ export function respawn() {
   $.G.recover = null;
 }
 /** checkpoint option b (spec §4; LAB CHECKPOINT: ON DEATH): a death restarts the run at its last checkpoint with one
- *  life spent; the stage's deaths still count against its grade. The checkpoint is re-written with the life gone, so
- *  an app kill can't give it back. False when there is no checkpoint (respawn in place, as option a) */
+ *  life spent and the normal death cost paid on the restored ship (D32: guns stripped as respawn's resetPlayer(true),
+ *  grafts down a level, the power cursor reset); the stage keeps its higher deaths and hits for its grade. The
+ *  checkpoint is re-written with the life and the cost taken, so an app kill can't give them back. False when there is
+ *  no checkpoint (respawn in place, as option a) */
 function deathRestart() {
-  const G0 = $.G, lives = G0.lives - 1, deaths = G0.st ? G0.st.deaths : 0, d = lastCp();
+  const G0 = $.G, lives = G0.lives - 1, deaths = G0.st ? G0.st.deaths : 0, hits = G0.st ? G0.st.hits || 0 : 0, d = lastCp();
   if (!d || d.g.loop !== G0.loop || d.g.stage !== G0.stage) return false; // only this stage's checkpoint
   if (!tryResume(d)) return false; // the ordinary respawn then runs on the untouched run
   $.G.lives = lives;
   $.G.st.deaths = Math.max($.G.st.deaths || 0, deaths);
+  $.G.st.hits = Math.max($.G.st.hits || 0, hits);
+  const y = $.P.y;
+  resetPlayer(true); // D32: option a's respawn strip, on the restored loadout
+  $.P.y = y; // where resumeRun placed it, with the resume's longer i-frames
+  $.P.inv = CP.inv;
+  deathCost($.G);
   writeCp($.G.cpN, $.G.cpX);
   return true;
 }

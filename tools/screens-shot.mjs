@@ -1,7 +1,7 @@
 // Screen-art shots: the hype-voice comms portrait mid-line in a real play frame (one per voice clip), the game-over
 // screen at two animation moments and the Infirmary. Imports live modules from the VITE dev server and drives $.state
 // directly; rAF is parked so every frame is rendered on purpose.
-// Usage: node tools/screens-shot.mjs <url> <outDir> [only=hype,over,shop,phone] [--layout short]
+// Usage: node tools/screens-shot.mjs <url> <outDir> [only=hype,over,shop,phone] [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';

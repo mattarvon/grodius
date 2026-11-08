@@ -1,5 +1,5 @@
 // Screenshots of the guns at base / mid / max loadouts firing into live meat. Needs the VITE DEV server.
-// Usage: node tools/gun-shots.mjs http://localhost:4202/ <outdir> [--layout short]   (open space at biome slot 0's x0 + 700 in src/layout.ts)
+// Usage: node tools/gun-shots.mjs http://localhost:4202/ <outdir> [--layout long4|short]   (open space at biome slot 0's x0 + 700 in src/layout.ts)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, out = '.'] = process.argv.slice(2);

@@ -1,6 +1,6 @@
 // FX shots: hit sparks (Open Orbit, ice, fire, acid, snot), death explosions (small / medium / boss-size, mid-animation),
 // the title eye and a few hi-res EYEQ eyes, for checking the sprite FX in tools/prep_fx.py + src/fx/fxsprites.ts.
-// Usage: node tools/fx-shots.mjs <url> <outDir> [--layout short]   (biome scenes in slot 0 of src/layout.ts; needs the VITE dev server: imports live modules)
+// Usage: node tools/fx-shots.mjs <url> <outDir> [--layout long4|short]   (biome scenes in slot 0 of src/layout.ts; needs the VITE dev server: imports live modules)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';

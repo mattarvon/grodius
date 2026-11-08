@@ -5,7 +5,7 @@
 // fields. Nothing here is wired to a trigger yet: H adds CP0/CP1, the Android pause re-write and RESUME.
 // One slot, under its own key, separate from the meta save (grodius.v1) so a bad run blob can never cost meta.
 import { $ } from './state';
-import { LAYOUTS, lastStage, layout, nSlots, setLayout } from './layout';
+import { LAYOUTS, lastStage, layout, nSlots, row, setLayout, slotRow, stageOfSlot } from './layout';
 import { HOME, MIDS } from './midpick';
 import { SETS_PER_STAGE, isSetId } from './setdraw';
 
@@ -43,6 +43,44 @@ const isSpUsed = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.ent
 const isStagePick = (v) => isObj(v) && (v.mv === 0 || v.mv === 1) && isSetArr(v.sp) && v.sp.length === SETS_PER_STAGE && new Set(v.sp).size === v.sp.length;
 // each biome's movement-B variants flown this run (G.mvSeen; setdraw.ts moveRoll): bit 0 B0, bit 1 B1
 const isMvSeen = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entries(v).every(([k, m]) => isBiome(k) && (m === 1 || m === 2 || m === 3));
+// LS1 audit (gameplay-programmer, security-engineer): the remix memory the rebuild reads. visitNo: one earlier-visit
+// count per biome slot (biomes.ts biomeStage reads visitNo[seg]; a truthy non-number would silently build a remix).
+// remixV: per section, pickV's {used: variant indices, last, L} (enemies/scripts.ts); per planned row ('c:<kind>'),
+// pickPlanned's cell memory {used: ids, last: ids, L, pick?: {ids, fill}} (cellpick.ts CellMem)
+const isVisitNo = (v) => Array.isArray(v) && v.length === nSlots() && v.every(isNat);
+const isSecMem = (h) => isObj(h) && Array.isArray(h.used) && h.used.every(isNat) && isInt(h.last) && h.last >= -1 && (h.L === undefined || isNat(h.L));
+const isCellPick = (p) => isObj(p) && Array.isArray(p.ids) && p.ids.every(isStrOrNull) && Array.isArray(p.fill) && p.fill.every((b) => isObj(b) && isNum(b.x) && isStr(b.k));
+const isCellMem = (h) => isObj(h) && Array.isArray(h.used) && h.used.every(isStr) && Array.isArray(h.last) && h.last.every(isStrOrNull) && (h.L === undefined || isNat(h.L)) && (h.pick === undefined || isCellPick(h.pick));
+const isRemixV = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entries(v).every(([k, h]) => (k.startsWith('c:') ? isCellMem(h) : isSecMem(h)));
+// the pre-LS1-A shared remix object: slot -> visit no. (choose()) beside pickV's section memories
+const isRemix = (v) => (isObj(v) || Array.isArray(v)) && !Object.hasOwn(v, '__proto__') && Object.values(v).every((h) => isNat(h) || isSecMem(h));
+// Upper bounds (LS1 audit, security-engineer): a hand-edited or future-skewed blob must not decode into a value the
+// game loops over (options: 1e7 hangs hud.ts and player.ts). Gun levels are player.ts SMAX (THRUST, MISSILE, SPLIT, ARC,
+// PYRE, WRAITH, WARD), restated here because importing player.ts would change the boot-time module order;
+// tests/unit/runsave.test.ts keeps the two in step. The rest are the game's own caps
+export const LOAD_MAX = {
+  speed: 5, missile: 2, double: 1, laser: 1, pyre: 2, options: 3, wardLv: 3, // player.ts SMAX
+  shield: 3, // player.ts WARD_MAX: every shield gain is clamped to it
+  aegis: 12, // player.ts / contraptions.ts: the aegis refill caps at 12
+  frag: 7, // one fragment count per pod type (player.ts SLOTS); each count is reset at its NEED, the largest being 4
+  fragN: 4, // player.ts NEED's largest entry
+};
+/** lives: no table caps them (hull, SPARE MEAT and the loop shop each add a few), so this is a hang guard far above
+ *  any real run, not a balance cap */
+export const LIVES_MAX = 99;
+/** perks.ts xpNeed, restated (importing perks.ts would change the boot-time module order; runsave.test.ts keeps them in
+ *  step): gainXP always leaves 0 <= xp < xpNeed(lvl), and an xp far past it would loop gainXP ~ (xp/6)^(1/3) times on
+ *  the first kill (xp: 1e30 hangs the tab; LS1 audit, security-engineer) */
+export const xpNeedRun = (lvl) => Math.round(48 + lvl * 9.6 + Math.max(0, lvl - 10) ** 2 * 6);
+/** descents a save may claim: no run reaches it (each descent is ~10 min), and it keeps `cleared`, which sealFor
+ *  walks 1..cleared on every cpView, small (LS1 audit, systems-designer) */
+export const LOOP_MAX = 99;
+/** core.ts W, the screen width: choose() puts a gate at max(slot x0, scroll + W + 10), so a stored gate x more than W
+ *  before its slot's x0 is no gate the game made (restated: core.ts touches the DOM at import; the test keeps it in step) */
+export const SCREEN_W = 480;
+/** stages.ts SEAL_TXT has 4 entries: seal tiers 0..3 */
+export const SEAL_MAX = 3;
+const upTo = (n) => (v) => isNat(v) && v <= n;
 const isPicks = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entries(v).every(([k, p]) => /^\d+$/.test(k) && isStagePick(p));
 
 // $.G fields. A field that is absent on G is simply not written (and not restored), so fields owned by lanes not
@@ -50,9 +88,9 @@ const isPicks = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entr
 // Each check is what a well-formed value looks like; one bad field discards the whole blob (decodeRun).
 const G_FIELDS = {
   // position in the run
-  loop: isNat,
+  loop: (v) => isNat(v) && v <= LOOP_MAX,
   stage: isNat, // upper bound: the blob's own layout's last stage (decodeRun, under decodeRunAs's layout switch)
-  cpX: isNum, // checkpoint scroll x: the resume skips script entries up to it (src/checkpoint.ts)
+  cpX: isNum, // bounded to the stage in decodeRun (rowFits). checkpoint scroll x: the resume skips script entries up to it (src/checkpoint.ts)
   cpN: (v) => v === 0 || v === 1, // which checkpoint of the stage: CP0 (stage start) or CP1 (after midboss A)
   stT: isNum, // frames into the stage at the checkpoint (G.t - st.t0): the resume rebases st.t0 on its own G.t
   layout: isStr, // layout id; a blob from another layout is discarded by H (spec §4, D2)
@@ -64,8 +102,10 @@ const G_FIELDS = {
   pk: isNumMap, xp: isNum, xpTot: isNum, lvl: isNat,
   gm: isNumMap, kk: isNumMap, gmk: isNat,
   cur: (v) => isInt(v) && v >= -1, // classic POWER meter cursor (player.ts:105); -1 = nothing lit
-  lives: isNat, score: isNum, bio: isNum, kills: isNat, maxCombo: isNat,
-  seal: isNat, cleared: isNat, // seal is written as earned by `cleared` (checkpoint.ts): a queued seal closure is not lost
+  lives: upTo(LIVES_MAX), score: isNum, bio: isNum, kills: isNat, maxCombo: isNat,
+  // seal is written as earned by `cleared` (checkpoint.ts), so a queued seal closure is not lost; cleared is bounded
+  // by the stage count in decodeRun
+  seal: (v) => isNat(v) && v <= SEAL_MAX, cleared: isNat,
   // rewards still pending at the checkpoint (H entry criterion 1): queued level-up picks, the biome boost offer
   pickQ: isNat, boostReq: isStrOrNull,
   // route and freshness
@@ -73,8 +113,8 @@ const G_FIELDS = {
   bvis: isNumMap,
   visited: (v) => Array.isArray(v) && v.every(isStr),
   seenV: isNat,
-  remix: plain, // today one object shared by pickV (per-section {used,last}) and choose() (slot -> visit no.)
-  remixV: plain, visitNo: plain, // LS1-A splits remix into these two
+  remix: isRemix, // the pre-LS1-A object shared by pickV (per-section {used,last}) and choose() (slot -> visit no.)
+  remixV: isRemixV, visitNo: isVisitNo, // LS1-A split remix into these two
   // the midboss picker (item F, src/biomes.ts stageMids): each stage's pair, picked ONCE from midStream(i) and read
   // back on a rebuild, so a resume places the same pair (re-picking would follow meta.mb, which meeting it changed);
   // what this descent has met (spec §6.3 step 2); each biome's previous pair (step 3, kept across descents)
@@ -88,12 +128,13 @@ const G_FIELDS = {
 // $.P loadout. The hull form is not stored: shipform.ts derives it from this loadout, G.gm, G.pk and meta.rig.
 // P.rig is live animation/cooldown state and is reset on restore, like every other cooldown (spec §4).
 const P_FIELDS = {
-  speed: isNat, missile: isNat, double: isNat, laser: isNat, pyre: isNat, options: isNat,
-  shield: (v) => isNum(v) && v >= 0, wardLv: isNat, aegis: isNat,
-  frag: (v) => Array.isArray(v) && v.every((x) => x === null || isNum(x)),
+  speed: upTo(LOAD_MAX.speed), missile: upTo(LOAD_MAX.missile), double: upTo(LOAD_MAX.double), laser: upTo(LOAD_MAX.laser),
+  pyre: upTo(LOAD_MAX.pyre), options: upTo(LOAD_MAX.options), wardLv: upTo(LOAD_MAX.wardLv),
+  shield: (v) => isNum(v) && v >= 0 && v <= LOAD_MAX.shield, aegis: upTo(LOAD_MAX.aegis),
+  frag: (v) => Array.isArray(v) && v.length <= LOAD_MAX.frag && v.every((x) => x === null || (isNat(x) && x <= LOAD_MAX.fragN)),
 };
 // Always required: without these the rebuild has nowhere to start
-const REQUIRED_G = ['loop', 'stage', 'bx', 'route'];
+const REQUIRED_G = ['loop', 'stage', 'bx', 'route', 'cpX', 'cpN']; // cpX/cpN: resumeRun sets the scroll from cpX (NaN without it)
 
 const clone = (v) => (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v);
 // choose() writes remix[seg] with ||= [0, 0], so on a run where it ran first remix is an array that pickV later hangs
@@ -121,6 +162,21 @@ function valid(fields, o) {
   return true;
 }
 
+// the checkpoint x lies before the stage's boss (cpSafe never writes in a fight; jump.ts's x is bounded the same way)
+// and no earlier than the previous stage's start (a biome stage's CP0 lands just before its row, at the gate)
+const cpFits = (i, x) => { const r = row(i), p = i > 0 ? row(i - 1) : null; return !!r && x >= (p ? p.x0 : 0) && x < r.bossX; };
+
+// every biome slot the run has reached (its stage <= G.stage) has a biome and a gate x, or rebuildAt silently builds an
+// empty stage; a stored gate x lies in [slot x0 - W, slot bossX) (choose(): max(x0, scroll + W + 10), before its boss)
+const gatesFit = (g) => {
+  for (let s = 0; s < nSlots(); s++) {
+    const x = g.bx[s], r = slotRow(s);
+    if (stageOfSlot(s) <= g.stage && (g.route[s] == null || x == null)) return false;
+    if (x != null && !(x >= r.x0 - SCREEN_W && x < r.bossX)) return false;
+  }
+  return true;
+};
+
 /** a parsed blob if it is a well-formed run save of this version, else null. Never throws. */
 export function decodeRun(s) {
   try {
@@ -128,6 +184,12 @@ export function decodeRun(s) {
     if (!isObj(d) || d.v !== RUN_V || !valid(G_FIELDS, d.g) || !valid(P_FIELDS, d.p || {})) return null;
     if (!REQUIRED_G.every((k) => d.g[k] !== undefined)) return null;
     if (d.g.stage > lastStage()) return null; // H entry criterion 2: a stage the (blob's) layout doesn't have
+    if (!cpFits(d.g.stage, d.g.cpX)) return null;
+    if (!gatesFit(d.g)) return null;
+    if (d.g.cleared !== undefined && d.g.cleared > (LOOP_MAX + 1) * (lastStage() + 1)) return null;
+    // a level-up queues one pick (perks.ts gainXP: lvl++ and pickQ++ together, from lvl 1), so pickQ < lvl
+    if (d.g.xp !== undefined && !(d.g.xp >= 0 && d.g.xp < xpNeedRun(d.g.lvl ?? 1))) return null;
+    if (d.g.pickQ !== undefined && d.g.pickQ >= (d.g.lvl ?? 1)) return null;
     return { v: d.v, g: d.g, p: d.p || {} };
   } catch (e) {
     return null;

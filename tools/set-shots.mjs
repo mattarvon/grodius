@@ -5,7 +5,7 @@
 //          outside the gap at their world x): set pieces spawn at fixed heights and the gimmick moves the walls; and
 //          crossed, rear-wave drones seen on screen inside the terrain at any frame (they cross the screen at one y).
 // Output: <outDir>/<biome>-<id>.png and <outDir>/band/<biome>-<id>-B<mv>.png; counts on stdout.
-// Usage: node tools/set-shots.mjs <outDir> [url] [--layout long4]   (no url: starts its own Vite dev server)
+// Usage: node tools/set-shots.mjs <outDir> [url] [--layout long4|short]   (no url: starts its own Vite dev server)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
@@ -13,7 +13,7 @@ import fs from 'node:fs';
 const pos = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const OUT = pos[0];
 let url = pos[1], server, b;
-if (!OUT) { console.error('usage: node tools/set-shots.mjs <outDir> [url] [--layout long4]'); process.exit(2); }
+if (!OUT) { console.error('usage: node tools/set-shots.mjs <outDir> [url] [--layout long4|short]'); process.exit(2); }
 fs.mkdirSync(`${OUT}/band`, { recursive: true });
 try {
   if (!url) {

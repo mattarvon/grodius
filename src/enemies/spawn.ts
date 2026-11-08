@@ -383,7 +383,7 @@ export const ring = (x, y, n, a0, sp, k) => {
 };
 export const every = (e, n) => e.t % Math.max(18, Math.round(n * (1 - .4 * Math.min(2.0, $.G.pow || 0)))) === 0;
 export function miniWarn(name, f) {
-  banner('WARNING', name, '#ff2a2a', 170);
+  banner('WARNING', name, '#ff2a2a', 170, true);
   sfx.dread();
   $.G.glitch = 10;
   $.G.pend.push({
@@ -416,7 +416,9 @@ export function butcher() {
     att: 0
   });
 }
-export function banner(text, sub, col = '#d4141e', t = 200) {
+/** show a banner for t frames. warn: it is a WARNING, so the render warm-up holds until it ends (warmplan.ts). A flag,
+ *  not the text, so a copy change or a translation can never reopen the gate (common.md hard rule 3) */
+export function banner(text, sub, col = '#d4141e', t = 200, warn = false) {
   $.G.banner = {
     text,
     sub,
@@ -424,7 +426,7 @@ export function banner(text, sub, col = '#d4141e', t = 200) {
     t,
     ml: t
   };
-  if (text === 'WARNING') $.G.warnEnd = $.G.t + t; // the warm-up holds until this step (warmplan.ts). Write-only for the sim
+  if (warn) $.G.warnEnd = $.G.t + t; // the warm-up holds until this step (warmplan.ts). Write-only for the sim
 }
 // the Open Orbit and Gravity Drive approach scripts, remixed per descent, live in enemies/scripts.ts
 export { stageScript } from './scripts';

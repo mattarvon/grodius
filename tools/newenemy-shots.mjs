@@ -1,7 +1,7 @@
 // New-enemy shots: the snot slime, hulking mutant and MERIDIAN security drone, each alive, mid-attack and dying, in
 // its real stage (sentry: Open Orbit; slime: the Sinus; mutant: the Cryovault and the Furnace). Same approach as
 // tools/upgrade-shots.mjs: live modules in headless Chromium, real spawn functions, biomes entered through openFork.
-// Usage: node tools/newenemy-shots.mjs <url> <outDir> [--layout short]   (biome scenes in slot 0 of src/layout.ts, at stage-relative x; needs the VITE dev server)
+// Usage: node tools/newenemy-shots.mjs <url> <outDir> [--layout long4|short]   (biome scenes in slot 0 of src/layout.ts, at stage-relative x; needs the VITE dev server)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';

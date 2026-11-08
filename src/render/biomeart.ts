@@ -8,7 +8,7 @@ import { $ } from '../state';
 import { FIRE, PH, TAU, W, ctx, hash } from '../core';
 import { ceilAt, floorAt } from '../world';
 import { GROSS, mkTex, texPat } from '../textures';
-import { glow, light } from './util';
+import { HUD_TOP, glow, light } from './util';
 import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
 import { drawMoveProps } from './moveprops';
@@ -677,7 +677,9 @@ export function drawFX(haz, amb, gatePos) {
         if (h.vent) { ctx.fillStyle = `rgba(255,150,60,${.25 + .45 * q})`; ctx.fillRect(h.x - 1.5, h.y, 3, R * q); }
         ctx.fillStyle = '#2a0c06'; ctx.fillRect(h.x - 6, d > 0 ? h.y - 1 : h.y - 2, 12, 3);
         ctx.fillStyle = q < .5 ? '#a02a08' : q < .85 ? '#ff7a1a' : '#fff0b0'; ctx.fillRect(h.x - 4, d > 0 ? h.y : h.y - 1, 8, 1);
-        lit(() => glow(h.x, h.y, 8 + q * 18, '255,110,20', .3 + .5 * q * pul));
+        // a roof vent's warm-up glow drops down the strike line as it grows, so it never lights the HUD band (LS2 wave 1 S2-1)
+        const gr = 8 + q * 18, gy = h.vent && d > 0 ? Math.max(h.y, HUD_TOP + gr * .75) : h.y;
+        lit(() => glow(h.x, gy, gr, '255,110,20', .3 + .5 * q * pul));
         continue;
       }
       const L = h.reach, y0 = d > 0 ? h.y : h.y - L;

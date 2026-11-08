@@ -78,7 +78,7 @@ for (const [name, opt] of VIEWS) {
     shop_loop: {
       open: `__title(); __g.F.newGame(0); __g.$.state = 'play'; __st(2); __g.F.openShop('loop'); __st(45)`,
       ctl: `__g.M.shopItems().length - 1`, presses: 2, up: (l) => l.state === 'play',
-      half: (l) => l.state === 'shop' && l.msg === 'BACK AGAIN TO DESCEND',
+      half: (l) => l.state === 'shop' && l.msg === 'PRESS BACK AGAIN TO DESCEND',
     },
     opt: { open: `__title(); __row('OPTIONS'); __st(2)`, ctl: `__g.M.titleItems().findIndex((x) => x.l === 'BACK')`, presses: 1, up: (l) => l.state === 'title' && !l.sub && l.sel === l.rows.OPTIONS },
     lab: { open: `__title(); __row('LAB'); __st(2)`, ctl: `__g.M.titleItems().findIndex((x) => x.l === 'BACK')`, presses: 1, up: (l) => l.state === 'title' && !l.sub && l.sel === l.rows.LAB },
@@ -90,7 +90,7 @@ for (const [name, opt] of VIEWS) {
     await p.screenshot({ path: `${OUT}/${name}-${sc}.png` });
     const pt = await ev(`__at(${S.ctl}, true)`);
     o.button = pt && pt.box;
-    if (sc.startsWith('shop')) ok(sc, 'pause II hidden off play/pause', (await ev('__look()')).psHidden, await ev('__look()'));
+    ok(sc, 'pause II hidden off play/pause', (await ev('__look()')).psHidden, await ev('__look()'));
     if (ok(sc, 'button drawn', !!pt, pt)) {
       const d0 = await ev('__g.downs');
       await press(pt);

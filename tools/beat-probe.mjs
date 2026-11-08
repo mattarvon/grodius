@@ -8,8 +8,8 @@
 //   peak     peak band <= 1.7 spawns/s (LS1 exit, density)
 //   warn     no set piece within 150 px of a WARNING (the midboss WARNING, every breath's WARNING slot, bossX)
 // Set pieces count as one call; logs, WARNINGs and the boss don't count.
-// Usage: node tools/beat-probe.mjs [url] [--layout long4] [--n 200]
-//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default short) sets the entry
+// Usage: node tools/beat-probe.mjs [url] [--layout long4|short] [--n 200]
+//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default long4 per D33) sets the entry
 //   in-page before the run, like every probe; the game's own ?layout=long flag (src/main.ts) selects the same entry.
 //   Not measured: spawn-time sides/positions/elite rolls (only the build); the early gate (only gateLate, the shorter
 //   and therefore denser span); Descent 3+.
