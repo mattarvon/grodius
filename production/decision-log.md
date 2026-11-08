@@ -250,13 +250,18 @@ Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `produ
 
 **D30 status:** S2-K1 is still open. Midboss+8 p95 at 4× is down 16-21% but still misses 16.7 ms. It is decided by Matt's Fold reading of this build (`production/qa/fold-reading.md`), which comes before the D31 merge.
 
+### D36 ls2-mv's four questions: the recommendations — 2026-11-07 (Matt)
+
+Matt: "go with the recommendations".
+1. **Set-piece repeats (60% same-biome against ≤50%):** each biome grows to 7 set pieces once D31 has fixed the slot count. That is a follow-up content lane after the D31 merge, with level-designer, art-director and technical-artist.
+2. **Signature piece:** not guaranteed. On a biome's first visit in a run, its signature piece is weighted ×2. Owner: the D31 tune lane, because the change moves long4 picks and D31 re-baselines long4 anyway.
+3. **Icicles ×.7:** read as the interval, as built.
+4. **Snot throat walls:** static, as built.
+
+Also started on Matt's say-so: the LS1 fix lane (`ls1-audit`) and the D31 tune lane (`ls2-d31`).
+
 ## Open
 
-- **ls2-mv's four questions (Matt).** game-designer's recommendation is in brackets.
-  1. A 60% same-biome set-piece share against the ≤50% target [grow each biome to 7 pieces, after D31 fixes the slot count].
-  2. A guaranteed signature piece [no; weight it ×2 on a first visit].
-  3. Icicles ×.7: the interval or the rate [the interval, as built].
-  4. Snot throat walls: static or moving [static, as built].
 - **Movement-B terrain varies by seed?** It is the same across seeds today (level-designer).
 - **D31 Orbit stretch: +2400 or +2700 px** (producer), while the derelict tug is WIP-gated.
 - **The Calving Shelf's leave clock under the D31 stretch** (wave-2 DRIFT kind).
