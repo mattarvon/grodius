@@ -4,6 +4,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
+import { VOICE_CAP } from '../../src/audio';
+
 vi.mock('../../src/save', () => ({ SET: { muted: false } }));
 vi.mock('../../src/music', () => ({ duckMusic: () => {}, curBiome: () => 'acid' }));
 
@@ -29,8 +31,8 @@ function fakeCtx() {
 }
 const clip = (cat: string) => [{ duration: .5, clip: cat }];
 const playing = () => srcs.filter((s) => s.started && !s.stopped);
-/** the voice cap: sample() has always let 15 voices sound at once (`voices > 14` swallowed the 16th) */
-const CAP = 15;
+/** the voice cap: sample() has always let 15 voices sound at once (`voices > 14` swallowed the 16th), pinned below */
+const CAP = VOICE_CAP;
 const fill = () => { for (let i = 0; i < CAP; i++) expect(A.sample('splat_s')).toBe(true); };
 
 beforeEach(async () => {
@@ -44,6 +46,10 @@ beforeEach(async () => {
 });
 
 describe('the sample() voice cap', () => {
+  it('stays at 15', () => {
+    expect(VOICE_CAP).toBe(15);
+  });
+
   it('returns false when it drops a fallback-marked sound at the cap, so the caller can fall back', () => {
     fill();
     const n = srcs.length;

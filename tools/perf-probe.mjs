@@ -220,8 +220,7 @@ const warnGate = () => run(`
   WU.warmLog.length = 0;
   const unbuilt = WU.warmBuilt().length, G = $.G; let frames = 0, spawned = 0, inWarn = 0, bannerFrames = 0;
   SP.miniWarn('GATE TEST', () => { spawned = 1; });
-  const end = G.warnEnd;
-  while (G.t < end && frames < 400) {
+  while (G.t < G.warnEnd && frames < 400) {
     fly(frames, 135); WU.warmPump(); inWarn = WU.warmLog.length; if (G.banner && G.banner.text === 'WARNING') bannerFrames++; ST.step(); frames++;
   }
   for (let i = 0; i < 8; i++) WU.warmPump();

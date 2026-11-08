@@ -38,8 +38,12 @@ const GEN_CAP = { c: '255,110,30', h: '#ff7a1a' };
  *  a backing strip or plate: a backing drawn after drawWorld dimmed hazards and the ship under it (Pillar 2; the merge 2
  *  art and accessibility check), an outline covers only its own glyphs (LS1 audit #20, LS1-F carry-forward 6) */
 function txtOutlined(s, x, y, c, a, sz) {
-  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) txt(s, x + dx, y + dy, '#000', a, sz);
-  txt(s, x, y, c, a, sz);
+  txt(s, x - 1, y, '#000', a, sz); // sets the font, align and baseline: every frame, so once per string (web-specialist)
+  ctx.fillText(s, (x + 1) | 0, y | 0);
+  ctx.fillText(s, x | 0, (y - 1) | 0);
+  ctx.fillText(s, x | 0, (y + 1) | 0);
+  ctx.fillStyle = c;
+  ctx.fillText(s, x | 0, y | 0);
 }
 // --- HUD ---
 export function drawHUD() {
@@ -109,8 +113,8 @@ export function drawHUD() {
   $.G.dScore = ($.G.dScore || 0) + ($.G.score - ($.G.dScore || 0)) * .2;
   if (Math.abs($.G.score - $.G.dScore) < 1) $.G.dScore = $.G.score;
   txtOutlined('SCORE ' + pad($.G.dScore, 8), 6, 4, '#cfd9e3');
-  txtOutlined('HI ' + pad(Math.max($.hi, $.G.score), 8), W - 6, 4, '#8fa3b8', 'right');
-  txtOutlined('STAGE ' + stageLabel() + ' ' + stageInfo().name + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#8fa3b8'); // #5b6573 was ~1.5:1 on amber ceilings; #8fa3b8 + outline ~5:1 (a11y)
+  txtOutlined('HI ' + pad(Math.max($.hi, $.G.score), 8), W - 6, 4, '#cfd9e3', 'right');
+  txtOutlined('STAGE ' + stageLabel() + ' ' + stageInfo().name + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#cfd9e3'); // #5b6573 was ~1.5:1 on amber ceilings; #8fa3b8 still sank into the pale ice ceiling (a flown Cryovault frame)
   if (!$.G.boss || $.G.boss.dying) {
     const bw = 110,
       bx = W / 2 - bw / 2,
@@ -122,7 +126,7 @@ export function drawHUD() {
     ctx.fillStyle = C.bloodL;
     ctx.fillRect(bx, 8, bw * pr, 2);
     ctx.fillRect(bx + bw * pr - 1, 6, 2, 6);
-    txtOutlined('DEPTH', W / 2, 12, '#8fa3b8', 'center');
+    txtOutlined('DEPTH', W / 2, 12, '#cfd9e3', 'center');
   }
   if ($.G.combo >= 3) {
     const s = $.G.combo >= 20 ? 10 : 8;

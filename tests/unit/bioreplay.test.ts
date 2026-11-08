@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('../../src/layout', () => ({ layout: () => ({ id: 'long4' }) }));
 import { bankBio } from '../../src/economy';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const SEED = 42;
 const run = (bio = 0, seed = SEED) => ({ bio, seed } as any);
@@ -79,5 +80,30 @@ describe('bankBio', () => {
     expect(m.bio).toBe(200);
     bankBio(30, G, m);
     expect(m.bio).toBe(230); // the old mark would have held this back by the first kill's 100
+  });
+
+  it('leaves a dev jump out of the mark: it pays exactly n and writes nothing, even on a seed already marked', () => {
+    const m = wallet();
+    bankBio(100, run(), m);
+    const J = { ...run(), jump: true };
+    bankBio(40, J, m);
+    expect(m.bio).toBe(140);
+    expect(J.bio).toBe(40);
+    expect(m.bioV).toBe(100);
+  });
+});
+
+describe('the biomass invariants bankBio relies on', () => {
+  const root = new URL('../../src/', import.meta.url);
+  const files = (readdirSync(root, { recursive: true }) as string[]).filter((f) => f.endsWith('.ts'));
+  const hits = (re: RegExp) => files.flatMap((f) => readFileSync(new URL(f, root), 'utf8').split('\n').filter((l) => re.test(l.replace(/\/\/.*$/, ''))).map((l) => `${f}: ${l.trim()}`));
+
+  it('nothing subtracts from or assigns G.bio during a run: a drop would read as a replay and stop the pay', () => {
+    expect(hits(/\bG\.bio\s*(-=|=(?!=)|--)/)).toEqual([]);
+  });
+
+  it('only bankBio and first-kill pay add to it, so a new pay site cannot skip the mark', () => {
+    expect(hits(/\bG\.bio\s*\+=/).map((h) => h.split(':')[0]).sort()).toEqual(['economy.ts', 'economy.ts', 'enemies/update.ts'].sort());
+    expect(hits(/\bmeta\.bio\s*\+=/).map((h) => h.split(':')[0])).toEqual(['save.ts']); // the v2 refund, on load
   });
 });

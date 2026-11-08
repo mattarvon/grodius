@@ -103,7 +103,8 @@ const ar = () => ((arng ^= arng << 13), (arng ^= arng >>> 17), (arng ^= arng << 
 const arr = (a, b) => a + ar() * (b - a);
 // The voice cap (was `voices > 14`: 15 sound at once). A wall of 30 splats in one frame is mud anyway, so ordinary sounds
 // past it are dropped. LIVE is oldest-first so a priority cue can take the oldest ordinary voice's slot.
-const VOICE_CAP = 15;
+export const VOICE_CAP = 15;
+// AU.c is created once. If the context is ever recreated, clear LIVE with it: a dead context's sources never fire onended
 const LIVE: { s: any; g: any; prio: boolean; cat: string }[] = [];
 // voice lines: they duck the music and set AU.voice/SOLO, so evicting one would cut it mid-word and leave those pointing
 // at a dead take. Eviction skips them (sound-designer review)

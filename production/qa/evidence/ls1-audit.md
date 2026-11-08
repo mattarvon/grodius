@@ -11,7 +11,7 @@ Lane `ls1-audit`, branch `ls1-audit` off main `abf85c1`, with the parent's D36 c
   - This report's merge-1 commit, which changes no code.
 
   Merge 1's gates ran on `25b61af`.
-- **Fix merge 2:** `0065fe0` to the branch tip, rebased onto ls2-read (`586b183`). Fix merge 1 is on main at `93e595b`.
+- **Fix merge 2:** `17ec282` to the branch tip, rebased onto ls2-eye (`547926e`, which has ls2-read). Fix merge 1 is on main at `93e595b`.
 
 ## Agents used (about 40 spawns over 25 roles)
 
@@ -180,8 +180,8 @@ art-director and accessibility-specialist reviewed the merge-2 render work again
 
 | Item | Verdict | What changed |
 |---|---|---|
-| Top HUD backing strip (#20) | **S2 from accessibility, now closed.** It was drawn after `drawWorld`, so it dimmed hazards, icicles and the ship at y 0-32 by up to 70% (Pillar 2) | `7b4b10a`: the strip is removed. SCORE, HI, STAGE and DEPTH get a 1 px #000 glyph outline (`txtOutlined`), and HI, STAGE and DEPTH move to #8fa3b8. Contrast at the glyph edge: SCORE about 14:1, the grey rows about 8:1 |
-| Midboss HP plate (LS1-F cf 6) | **S2 from art-director, now closed.** It cut vent jets under it to 38% | `7b4b10a`: the plate is removed. The name and NAIL BARRIERS are outlined. The red name is about 4.5:1 at its edge, against about 1:1 before LS1-F |
+| Top HUD backing strip (#20) | **S2 from accessibility, now closed.** It was drawn after `drawWorld`, so it dimmed hazards, icicles and the ship at y 0-32 by up to 70% (Pillar 2) | `62c04d8`: the strip is removed. SCORE, HI, STAGE and DEPTH get a 1 px #000 glyph outline (`txtOutlined`), and HI, STAGE and DEPTH move to #8fa3b8 (since `#cfd9e3`, see the Studio review section). Contrast at the glyph edge when reviewed: SCORE about 14:1, the grey rows about 8:1 |
+| Midboss HP plate (LS1-F cf 6) | **S2 from art-director, now closed.** It cut vent jets under it to 38% | `62c04d8`: the plate is removed. The name and NAIL BARRIERS are outlined. The red name is about 4.5:1 at its edge, against about 1:1 before LS1-F |
 | KILLS at y 31, its fuse at 41/43 | pass (`hud/hud-*-B0.png`: 12 KILLS clears the LV row and the XP bar) | — |
 | Vent glow out of the HUD band | pass: lit by the threat | — |
 | Chimney glow | pass: one light, with the threat as its source | — |
@@ -192,7 +192,7 @@ art-director and accessibility-specialist reviewed the merge-2 render work again
 - The ship at y < 20 now sits under the STAGE row's glyphs. The common shmup fix is to fade the top-left rows while the ship overlaps them (ux-designer, then ui-programmer).
 - HUD text, KILLS included, draws after `drawEShots`, so it can sit over a bullet. This is already on main; the outline adds about 1 px. A fix would draw `drawEShots` after the HUD.
 
-Both reviewers re-checked the fix (`7b4b10a`, `a23998a` before the rebase) and lifted their blocks.
+Both reviewers re-checked the fix (`62c04d8`, `a23998a` before the rebase) and lifted their blocks.
 
 **Tone issues already on main, not from this lane, for the tone lane:**
 - the snot biome's mid-to-high yellow, with round glowing orbs;
@@ -291,6 +291,50 @@ On the title the leave prompt sits under the LAB row. This replaces the y 205-21
 - short PASS; 12/12 scenarios; long4 PASS; build OK; back-check pass; resume S1 CP1, S2 CP0 and option b PASS.
 - Parity failed on `ab78198`: six runs timed out in the loop shop, because the bots pressed back once and the shop now needs two presses. `0ff2e13` presses at frames 56 and 60, so the bots still leave on frame 60. After that, parity was identical over 7/7 runs.
 
+### Merge 2, final: `b127be3`, rebased onto ls2-eye (`547926e`)
+
+These are the numbers for the merge. The only commit on top of `b127be3` is this report and its shots, folded in. Each heavy job ran one at a time, in a worktree with its own Vite cache.
+
+| Gate | Result |
+|---|---|
+| typecheck | exit 0, 0 errors |
+| vitest | 1111 passed and 1 expected fail, 55 files |
+| build | OK |
+| short harness | PASS vs baseline @ `8ff9ba4` |
+| 12 scenarios | 12/12 PASS vs baseline @ `5c8c3eb`, 169 s |
+| long4 harness | PASS vs baseline @ `88d9525` |
+| parity (short) | PARITY PASS: runs 3, 6, 7, 11, 15, 3x3 and 7m identical, 0 errors in all 7 |
+| resume-check | PASS: S1 CP1, S2 CP0, and S1 CP1 with option b |
+| back-check (phone + desktop) | ok, `fails: []` |
+| `bio-replay-check` (qa-lead) | PASS **on `b127be3`**: wallet +15, +0, +0, with the run reaching +15 each cycle. The first proof ran on `1c0ec2b`, before the rebases |
+| `biome-kill-check` | PASS: ice, fire and snot play their layer; acid's synth row, 60 kills, no throw. Voices peak at 8 and drain to 0 |
+
+Not rerun on this tip: set-shots (last on `40c910f`; nothing since touches spawns or terrain) and the option b page rig below (on `5b0525f`; the only source change after it is three HUD colours, plus ls2-eye's merge).
+
+### Fix merge 2 Studio review (10 of 10 APPROVE WITH NOTES)
+
+**Option b, the death's pods (game-designer S2).** `deathRestart` lost the BLACK BOX pods and the boss-fight lifeline, because `resumeRun` clears `caps` and builds a new `G`. They now drop by the restored ship, from the loadout that died. No `R()`; option a behaves as before.
+
+**Option b, the life (systems-designer S2).** The life came off the live count, so a life gained after the checkpoint (SPARE MEAT) was kept and then earned again on the replay, which made the death free. It now comes off the checkpoint's count. I added a clamp at 0, which the review didn't ask for: a checkpoint on the last life with a spare gained since would otherwise give -1 lives. That death costs the spare.
+
+`tests/unit/deathrestart.test.ts` covers both; five mutants of `flow.ts` each fail one test. In the real page, on `5b0525f`:
+
+| Death | Pods | Lives |
+|---|---|---|
+| BLACK BOX | `[3,1,4,5,5]` | 2 at the checkpoint, 3 live: 1 after |
+| Boss-fight lifeline | `[3,1,5]` | the same |
+| Neither | none | the same |
+
+The pods aren't in the re-written checkpoint, so quitting after the restart loses any not yet collected.
+
+**The biomass mark.** `newGame` clears it, and a dev jump (`G.jump`) neither reads nor writes it. **Dev-seed note:** the mark is keyed on the run seed, and `?seed=` can repeat one on a profile, so a jump would have paid nothing until it passed that seed's mark. Skipping the mark on jumps removes that. A real run draws its own seed. The seed key stays, to guard an app kill before the save. "Nothing subtracts from `G.bio` during a run" is commented on `bankBio` and pinned by a source scan, which also fails if a new pay site writes `G.bio` or `meta.bio` directly.
+
+**`STAGE 1-1 OPEN ORBIT` in the HUD shots is a rig artefact (art-director).** `startStage` is queued on `G.pend` at the gate (`biomes.ts:469`), and the rig's `clr()` empties `G.pend`, so `G.stage` stays 0. A really flown frame (`ls1-audit-art/hud/flown-cryovault.png`, from `resume-check --death`) reads `STAGE 1-2 THE CRYOVAULT`.
+
+**A regression that frame showed: HUD text over ice.** With the strip gone, `#8fa3b8` sank into the pale ice ceiling in the flown frame. The earlier checks missed it because the HUD rig shot only snot, fire and acid, and the reviewers' re-check used those shots. HI, STAGE and DEPTH are now `#cfd9e3`, the same as SCORE, and the rig now shoots ice too. Side by side it reads clearly better, at the cost of the hierarchy between SCORE and the other rows. **No lead has seen this colour, and it hasn't been seen on a phone.** The accessibility figures in the art check above were for the old colour.
+
+**S3s done:** `VOICE_CAP` exported and used by `audio-voices.test.ts`; a note that `LIVE` must be cleared if the context is recreated; `perf-probe` reads `G.warnEnd` live; `txtOutlined` sets the font once per string. That needed no offset table, so it has none.
+
 ### Merge 2, on `40c910f`, rebased onto ls2-read (`586b183`)
 
 Each heavy job ran one at a time under the heavy lock, in a worktree with its own Vite cache.
@@ -307,7 +351,7 @@ Each heavy job ran one at a time under the heavy lock, in a worktree with its ow
 | resume-check | PASS: S1 CP1, S2 CP0, and S1 CP1 with option b (D32). 0 RNG draws, 0 px of terrain difference |
 | back-check (phone + desktop) | ok, `fails: []`; shots re-taken |
 | set-shots (long4) | band total: buried 0, crossed 0; no page errors. See the coverage note in "What was not measured" |
-| `bio-replay-check` | PASS: wallet +15, +0, +0 (the third after a reload) |
+| `bio-replay-check` | PASS: wallet +15, +0, +0 (the third after a reload). Rerun on `b127be3`, see the final table |
 | `biome-kill-check` | PASS on the final rig (run after `8881c25`): real kills, a real AudioContext and the real bank. ice, fire and snot play their layer; acid has no clips, and its synth row ran 60 kills with no throw. Voices peak at 8 and drain to 0 |
 
 Nothing moved: short, parity, long4 and the 12 scenarios all match their baselines. Merge 2 does have sim-side changes (the `bandFit` clamp, the picker's `m0` per draw, the CP1 anchor). They didn't change these runs' compared state, but I did not trace each one to say why, so this is evidence for these runs only. The long4 harness still ends in Orbit at scroll 3538.
@@ -328,7 +372,8 @@ After `40c910f` there are only tests, one comment, the rig and this report, so t
 **Merge 2:**
 
 - **set-shots coverage is thinner than 0/0 reads.** 10 of the 41 band rows saw no enemies at all, on `40c910f`, and 7 of 41 on `25b61af`. The empty rows change between runs (`fire B1 pincer` had 4 enemies on `25b61af` and 0 now; `snot B1 clot` the reverse). So a 0 row is not evidence for that row, and the rig passes it anyway. Fire B0 pincer and both backdrafts did fly on `40c910f`, and fire B1 pincer on `25b61af`. Backlog for tools-programmer: fail or re-roll a row that sees nothing.
-- **Art review after the rebase:** art-director and accessibility-specialist reviewed the shots from before ls2-read's art landed. Only the HUD shots were retaken on the rebased code, and only the producer looked at them. A lead's review of the merge should look at the current frames.
+- **Art review after the rebases:** art-director and accessibility-specialist reviewed the shots from before ls2-read's art landed. Only the HUD shots (now with ice) were retaken on current code, and only the producer looked at them, including the brighter HUD colour. A lead should look at the current frames.
+- **Option b pods** were checked by unit test and by calling `killPlayer`/`respawn` directly in the page, not by flying into a real boss death.
 - **By ear:** nothing here has been heard. The kill layer check proves a clip starts, not how it sounds.
 - **Acid's kill layer** is synth only: the `gfizz` clips don't exist yet, so the rig can't see it play, only that it doesn't throw.
 - **On the Fold:** the voice cap, the kill layer and the outlined HUD text at phone size.
@@ -361,7 +406,7 @@ After `40c910f` there are only tests, one comment, the rig and this report, so t
   devops-engineer and the merge-1 review checked the YAML. It has not run on Actions, because this lane opens no PR.
 - **The title's existing overlap:** the credits (`SPRITES:`/`IMAGES:`, 7 px, right-aligned) run into the third help line and the HI row on both phone and desktop (`ls1-audit-back/*-root_leave*.png`). This is on main, not from this lane. It is a backlog item for ux and art-director.
 
-## Biomass replay exploit: real, fixed in merge 2 (`cef2513`)
+## Biomass replay exploit: real, fixed in merge 2 (`e897333`)
 
 Raised by economy-designer and creative-director in ls2-read's report, and traced through `runsave`, `checkpoint` and every pay site.
 
