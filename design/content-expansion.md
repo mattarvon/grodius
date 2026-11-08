@@ -379,10 +379,12 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 **Steps:**
 1. **Descent gate:** keep members with `min ≤ L`. ANGLE and RACE members are `min: 1`, so Descent 1 shows only LINE, SPACE, RANGE, CROWD, WINDOW and the Saucer.
 2. **Never repeat within a descent:** exclude every kind **and every body** in `G.mbUsed`. That set covers the whole descent and is reset in `startLoop`. A recolour or crossover shares its parent's body for this rule.
-3. **Avoid repeating a pair:** exclude this biome's previous pair (`G.mbLast[b]`).
-4. **Weight across runs:** weight what is left by `1 / (1 + $.meta.mb[k])`, so midbosses never met come first.
+3. **Avoid repeating a pair:** the chosen pair must not be this biome's previous pair (`G.mbLast[b]`, order ignored). One member may come back. A single-slot stage must not repeat its previous pick.
+4. **Weight across runs:** weight what is left by `1 / (1 + min(2, $.meta.mb[k] − m0))` (m0 = the lowest `$.meta.mb` among the candidates still in the draw). A midboss met least comes first, with no member more than 3× as likely as another.
 5. **Draw slot A, then slot B,** with B's tag different from A's.
-6. **Fallback:** if fewer than 2 candidates are left, relax step 3, then step 1. **Never relax step 2** (Pillar 4: a repeat counts as a bug).
+6. **Fallback:** relax step 3 only when the previous pair is the only full set left, then step 1. **Step 2 is never relaxed** (Pillar 4: a repeat counts as a bug).
+
+(Steps 3, 4 and 6 changed 2026-11-07, ls1-audit fix merge 1, SUMMARY #15/#16; creative-director endorsed.)
 
 **State:**
 - Picks live in `G.mb`, not in `G.remix`. `G.remix` already mixes key types (`biomes.ts:242`, `music.ts:149`) and is split as part of the layout refactor.
@@ -390,7 +392,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 - If seeded runs (D10) ever become a goal, seeded mode must ignore `meta.mb`. When the `meta.mb` weighting is first added, the picker takes an `ignoreMeta` flag as a **no-op hook** (always false today), so D10 never forces a picker change.
 
 **What this gives:**
-- With pools of 4, the first 2 visits to a biome in a run share no midboss.
+- Back-to-back visits to a biome never fly the same pair; one member may return. A pair returns within 3 visits about 1 in 5.
 - Across runs, every pool member is met within about 2 runs per biome.
 
 **Before the new midbosses exist (phase 1 of the build).** Each biome stage **prefers** its home midboss plus one **crossover** (one of the other three existing biome midbosses), chosen by the rules above.
@@ -551,7 +553,7 @@ HP never rises with power (D1).
 
 **Targets:**
 - Two consecutive runs share at most 50% of wave signatures per stage.
-- No midboss pair repeats within 3 runs.
+- A biome's midboss pair returns within 3 visits in at most about 20-25% of seeds (measured with pools of 4: 0.20 uniform, 0.257 in the fresh-kind-against-veterans sweep). The test bound is looser: `route-probe` / `tests/unit/midpick.test.ts` sweep ≤ 0.33. (Changed 2026-11-07, ls1-audit fix merge 1, SUMMARY #15/#16; creative-director endorsed.)
 - Zero repeated bodies within a descent.
 
 ## 11. What waits on art direction round 2
