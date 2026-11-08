@@ -20,7 +20,7 @@ export function poly(c, p) {
   c.fill();
 }
 /** the top HUD band's bottom edge (game px): SCORE/HI y 4-12, STAGE y 13-21, the DEPTH bar y 6-12, the LV badge and XP
- *  bar y 20-29, the mutation row y 22+. World glows keep out of it (LS2 wave 1 S2-1), the HUD backing strip covers it */
+ *  bar y 20-29, the mutation row y 22+. World glows keep out of it (LS2 wave 1 S2-1); the HUD text there is outlined, with no backing strip (Pillar 2) */
 export const HUD_TOP = 30;
 export const GLOWC = {};
 export function glowSpr(col) {
