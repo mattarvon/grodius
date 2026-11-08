@@ -37,7 +37,7 @@ Each pillar comes with a design test. A change that fails its test needs Matt's 
 ## Core loop
 - **Moment to moment:** fly, fire, dodge readable lime fire, and kill things for splats, chains and hype calls.
 - **Stage:** an intro, a build-up, a breather with midboss A, a gimmick, a second breather with midboss B, then a peak. Beat the boss before its clock runs out, then get a tally with an S/A/B/C grade (on the long layout, an S allows one hit) that pays score and biomass.
-- **Run:** pick capsules, perks and grafts, break seals on stages 2, 4 and 6, choose biome forks, and go deeper. Death keeps half your THRUST, and grafts lose a level. If you close the game mid-stage, RESUME on the title returns you to your last checkpoint (the stage start, or just after midboss A).
+- **Run:** pick capsules, perks and grafts, break seals on stages 2, 4 and 6, choose biome forks, and go deeper. Death keeps half your THRUST, and grafts lose a level. If you close the game mid-stage, RE-ENTER on the title returns you to your last checkpoint (the stage start, or just after midboss A).
 - **Between runs:** spend biomass in the Infirmary on contraptions, sockets and comfort grafts, then descend again. On the long layout, the first kill of each midboss kind pays +100 biomass, once per profile.
 
 ## Player goal & fail state

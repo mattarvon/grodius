@@ -207,7 +207,60 @@ Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `produ
 
 **Not chosen yet:** one style for all kill words, and a smaller WARNING header for midbosses.
 
+### D35 LS2 wave 1 merged — 2026-11-07 (parent; Matt authorized parent merges)
+
+**What merged:**
+- **ls2-0:** the midboss registry, one file per kind, plus the WIP flag.
+- **ls2-perf:** the S2-K1 render fixes: the gib atlas, the floor cut, Drive mass slicing, and the warm-up lead-in gate.
+- **ls2-mv:** terrain movement B (B0/B1 per biome) and 3 new set pieces per biome.
+- **The parent commits:** D31-D34, the shelved voice lines, the Fold reading steps, and the qa fixes.
+
+**Gates on the combined tip `b0316d1`:**
+- typecheck: clean.
+- vitest: 819 of 819 pass.
+- build: OK.
+- harness: 14 of 14 PASS, with no new re-baseline. `breath2` reads ls2-mv's explained `95c5d0a33e`.
+- parity: 7 of 7 identical.
+- `resume-check` long4 S1 CP1 and S2 CP0: PASS, with 0 RNG draws and 0 px.
+
+**Studio review:**
+- 10 specialists and all 8 leads gave APPROVE or APPROVE WITH NOTES.
+- The creative-director, technical-director and producer all gave SIGN-OFF WITH CONDITIONS; every condition was met before the push.
+- One must-fix was found and fixed: resume-check still looked for RESUME (200fc34).
+- The reports are kept in the parent scratchpad. The lane reports are `production/qa/evidence/ls2-{0,perf,mv}.md`.
+
+**Rollback point:** tag `pre-ls2-w1` on `7391234`. Reverting drops only in-flight runs saved under wave 1, because `valid()` rejects the new `mvSeen` field. Meta saves are safe.
+
+**Accepted S2s, owners and order:**
+1. `backdraft`'s rear wave flies through the fire B0 spires. The clamp goes in `rearLane`/`behindWave` for every rear wave. **Owner:** the LS1 fix lane, in its first merge. **Expiry (creative-director):** if wave 2 would push without the fix, take `backdraft` out of the fire pool; it must not ship a second wave.
+2. The fire chimney's vent glow sits inside the HUD band. **Owner:** the fix lane.
+3. The snot throat reads like movement A in stills. **Owner:** the fix lane, plus a motion check before the round-2 sign-off.
+4. The movement-B hazard multipliers have no target and no per-band measurement. **Owner:** the D31 tune lane, before the stretch.
+5. The warm-up WARNING gate keys off the banner text. **Owner:** the fix lane: an explicit `warn` flag and a test, before any banner-copy or i18n change.
+6. The perf next-fix ranking needs one more profile. **Owner:** performance-analyst, in one heat-lock slot alongside Matt's Fold reading.
+
+**ls2-mv design calls, recorded as built** (game-designer):
+- Descent 1 flies B0. From Descent 2 on, a revisit flies the variant it hasn't flown yet (`mvSeen`).
+- Set pieces are drawn without replacement, from their own salted per-stage pick stream.
+- The lightest piece moves to slot S2.
+- Ice B0 shortens the icicle interval to ×.7, so more icicles fall.
+- Snot throat walls are static; the squeeze is drawn only.
+- The movement-B terrain offset is the same across seeds. Movement A already works that way.
+- D20 holds on planned x; placed entries can sit as close as 263 px.
+
+**D30 status:** S2-K1 is still open. Midboss+8 p95 at 4× is down 16-21% but still misses 16.7 ms. It is decided by Matt's Fold reading of this build (`production/qa/fold-reading.md`), which comes before the D31 merge.
+
 ## Open
+
+- **ls2-mv's four questions (Matt).** game-designer's recommendation is in brackets.
+  1. A 60% same-biome set-piece share against the ≤50% target [grow each biome to 7 pieces, after D31 fixes the slot count].
+  2. A guaranteed signature piece [no; weight it ×2 on a first visit].
+  3. Icicles ×.7: the interval or the rate [the interval, as built].
+  4. Snot throat walls: static or moving [static, as built].
+- **Movement-B terrain varies by seed?** It is the same across seeds today (level-designer).
+- **D31 Orbit stretch: +2400 or +2700 px** (producer), while the derelict tug is WIP-gated.
+- **The Calving Shelf's leave clock under the D31 stretch** (wave-2 DRIFT kind).
+- **Where the shelved voice lines go.** audio-director and creative-director back KEYSTER on an S-grade boss clear and SHAMALAMA on a new best chain.
 
 - **Where to use the shelved voice lines (Matt, 2026-11-07).** BROTHER SHAMALAMA (10-kill hype) and THE KEYSTER (boss reward) are in `src/sfx-shelved/`. Matt will pick rare triggers for them; the audio-director can propose some. Until then a boss kill plays no voice line.
 

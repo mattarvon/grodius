@@ -2,6 +2,18 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-07 (moving terrain, new set pieces, faster gore)
+
+- Partway through each biome stage on the long descent, the terrain now moves. Each biome has two versions. Descent 1 always flies the first; from Descent 2 on, either can come up, and a biome you revisit flies the one you haven't seen yet.
+- Every biome has three new set pieces. A stage draws three of its biome's pieces, and you won't see the same one twice in a run.
+- Gore draws faster: heavy kill frames render about a quarter quicker and look the same. Empty stretches of a biome render faster too, and the Gravity Drive no longer stalls while its art loads.
+- The title screen's RESUME is now RE-ENTER. The pause menu's ABANDON SHIP is now SURFACE: it keeps your run, so you can RE-ENTER later.
+- The Brood Mother's kill word is now LANCED.
+- Two voice lines are retired for now: the SHAMALAMA hype call and the KEYSTER boss reward. A boss kill has no voice line until they come back.
+- A run saved before this update still resumes, but from the stage you resume on it gets the new terrain and set pieces.
+- Known issue: in the fire biome's BACKDRAFT set piece, the second wave from behind flies straight through the spires. They are not ghosts. They are just rude. Fixed next update.
+- The short descent in the LAB row is unchanged.
+
 ## 2026-11-03 (resume a run, a tougher Apprentice, the long-stage economy)
 
 - Your run now survives closing the game. RESUME at the top of the title screen puts you back at your last checkpoint: the start of the stage, or just after its first midboss. You get the same terrain, the same midbosses, and your build, score and lives as they were at that checkpoint.
