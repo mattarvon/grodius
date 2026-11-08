@@ -36,7 +36,7 @@ while (f < 60 * 60 * +MIN || console.log('time up')) {
     if (MODE === 'none') await p.evaluate(() => { __G().G.pick = null; });
     else { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); }
   }
-  if (s.st === 'shop') { console.log('shop after', k, 'LV' + s.lvl); await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(40)'); continue; }
+  if (s.st === 'shop') { console.log('shop after', k, 'LV' + s.lvl); await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(1)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); // the loop shop's back takes two presses (ls1-audit) await p.evaluate('__tick(40)'); continue; }
   if (s.st !== 'play' || s.loop >= +END) { console.log('end', JSON.stringify(s)); break; }
 }
 const s = await p.evaluate(() => { const g = __G(), G = g.G; return { lvl: G.lvl, pk: G.pk, kills: G.kills, score: G.score, bad: window.__bad }; });

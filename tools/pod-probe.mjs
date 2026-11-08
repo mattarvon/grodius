@@ -59,7 +59,7 @@ for (let it = 0; it < MIN * 60 * 2; it++) {
   if (process.env.DBG && it % 20 === 0) console.log(await p.evaluate(() => { const g = __G(), G = g.G; return `${(window.__fr/60).toFixed(0)}s ${g.state} st${G.loop+1}-${(G.stage||0)+1} scroll${Math.round(G.scroll)} kills${G.kills} lv${G.lvl} pick${!!G.pick} fork${!!G.fork} tally${!!G.tally} boss${!!G.boss} mini${G.mini&&!G.mini.dead?G.mini.k:''} en${g.enemies.filter(e=>!e.dead).map(e=>e.k).slice(0,6)} P${Math.round(g.P.x)},${Math.round(g.P.y)} caps${g.caps.length}`; }));
   if (k !== last) { seg.push({ k, f0: s.fr, lvl: s.lvl, bio: s.bio, kills: s.kills }); last = k; }
   if (s.pick && s.pt > 36) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); }
-  if (s.st === 'shop') { await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(40)'); continue; }
+  if (s.st === 'shop') { await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(1)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); // the loop shop's back takes two presses (ls1-audit) await p.evaluate('__tick(40)'); continue; }
   if (s.st !== 'play' || s.loop >= +END) { endState = JSON.stringify(s); break; }
 }
 const fin = await p.evaluate(() => { const g = __G(), G = g.G; return { fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), metaBio: Math.round((g.G && window.__G && 0) || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf, fk: Object.keys(window.__S.meta.mbK || {}) }; });

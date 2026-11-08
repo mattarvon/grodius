@@ -104,7 +104,7 @@ for (const seed of SEEDS) {
     await p.evaluate('__tick(60)'); f += 60;
     const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, pick: !!(G && G.pick), pt: G && G.pick ? G.pick.t : 0 }; });
     if (s.pick && s.pt > 36) { await key('keydown', 'Enter'); await p.evaluate('__tick(1)'); await key('keyup', 'Enter'); }
-    if (s.st === 'shop') { if (++shops >= DESCENTS) { end = 'descents done'; break; } await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(40)'); }
+    if (s.st === 'shop') { if (++shops >= DESCENTS) { end = 'descents done'; break; } await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(1)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); // the loop shop's back takes two presses (ls1-audit) await p.evaluate('__tick(40)'); }
     if (s.st === 'over') { end = 'game over'; break; }
   }
   await p.evaluate('__flush()');
