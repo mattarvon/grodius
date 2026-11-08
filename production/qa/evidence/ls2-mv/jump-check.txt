@@ -1,0 +1,73 @@
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS valid jump starts play at the stage {"state":"play","jump":true,"stage":3,"loop":1,"scroll":11848,"lives":2}
+PASS slot unchanged after 200+ frames of play
+PASS slot unchanged after game over
+PASS slot unchanged after a new game on the same page, and its checkpoint steps
+PASS no console or page errors in the jump run []
+7:29:41 PM [vite] (client) [console.error] jump switch: ?stage=nope: unknown stage kind on layout long4 (orbit, drive, biome, ice, acid, fire, snot); normal boot
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS bad URL &stage=nope jump switch: ?stage=nope: unknown stage kind on layout long4 (orbit, drive, biome, ice, acid, fire, snot); normal boot
+PASS   and the slot and the title's RESUME are intact
+7:29:42 PM [vite] (client) [console.error] jump switch: ?x=99999: out of range for orbit (0 to under 4200); normal boot
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS bad URL &stage=orbit&x=99999 jump switch: ?x=99999: out of range for orbit (0 to under 4200); normal boot
+PASS   and the slot and the title's RESUME are intact
+7:29:43 PM [vite] (client) [console.error] jump switch: ?x=-5: out of range for orbit (0 to under 4200); normal boot
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS bad URL &stage=orbit&x=-5 jump switch: ?x=-5: out of range for orbit (0 to under 4200); normal boot
+PASS   and the slot and the title's RESUME are intact
+7:29:45 PM [vite] (client) [console.error] jump switch: ?kit=god: unknown kit (bare, mid, full); normal boot
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS bad URL &stage=orbit&kit=god jump switch: ?kit=god: unknown kit (bare, mid, full); normal boot
+PASS   and the slot and the title's RESUME are intact
+7:29:46 PM [vite] (client) [console.error] jump switch: ?loop=-1: not a descent index (0 is Descent 1); normal boot
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS bad URL &stage=orbit&loop=-1 jump switch: ?loop=-1: not a descent index (0 is Descent 1); normal boot
+PASS   and the slot and the title's RESUME are intact
+7:29:47 PM [vite] (client) [console.error] jump switch: ?stage=interior: unknown stage kind on layout long4 (orbit, drive, biome, ice, acid, fire, snot); normal boot
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS bad URL &stage=interior jump switch: ?stage=interior: unknown stage kind on layout long4 (orbit, drive, biome, ice, acid, fire, snot); normal boot
+PASS   and the slot and the title's RESUME are intact
+7:29:48 PM [vite] (client) [console.error] jump switch: ?stage=: unknown stage kind on layout long4 (orbit, drive, biome, ice, acid, fire, snot); normal boot
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS bad URL &stage= jump switch: ?stage=: unknown stage kind on layout long4 (orbit, drive, biome, ice, acid, fire, snot); normal boot
+PASS   and the slot and the title's RESUME are intact
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS clamped URL warns twice and jumps {"state":"play","jump":true,"stage":0,"loop":9,"scroll":16,"lives":2}
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+PASS normal URL boots to the title, no jump, RESUME offered {"state":"title","jump":false,"stage":null,"loop":null,"scroll":null,"lives":null}
+ALL PASS

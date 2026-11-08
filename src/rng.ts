@@ -35,6 +35,17 @@ export function midSeedOf(runSeed: number, loop: number, stageIdx: number) {
   return fmix(seedOf(runSeed, loop, stageIdx) ^ MID_SALT) || 0x6d2b79f5;
 }
 
+/** salt of the stage's build-picks stream (movement-B variant, set pieces; LS2-mv). Changing it re-rolls every run's
+ *  picks, so it is pinned by a test */
+export const PICK_SALT = 0x5e7b1c4d;
+
+/** the 32-bit seed of one stage's build-picks stream: the stage seed hashed with PICK_SALT, the midboss pick's pattern.
+ *  Its own stream, not a fresh copy of Rs: a fresh stream(seedOf(...)) would replay the script's first draws, so the
+ *  set pieces would correlate with the script's opening rolls (game-design review) */
+export function pickSeedOf(runSeed: number, loop: number, stageIdx: number) {
+  return fmix(seedOf(runSeed, loop, stageIdx) ^ PICK_SALT) || 0x6d2b79f5;
+}
+
 /** a seeded uniform [0, 1) generator (xorshift32): the same seed always gives the same sequence */
 export function stream(seed: number): () => number {
   let s = seed >>> 0 || 0x6d2b79f5;

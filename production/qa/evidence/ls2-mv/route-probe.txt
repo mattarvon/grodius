@@ -1,0 +1,720 @@
+ROUTE ice,acid
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4200 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 115/124 78s k /0
+  fork open seg 0 opts ice,acid scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=ice)
+  fork closed after 150f -> route ice, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4260 route ice, k ice/0.04776882458808817
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 5814 k ice/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 6811 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 7951 k ice/1
+  tally 1-2 "THE CRYOVAULT" S esc=false kills 51/56 86s k ice/1
+  fork open seg 1 opts fire,acid scroll 7997 visited ice gates y 71,182 terrain 29..219
+  (forced gate force1=acid)
+  fork closed after 141f -> route ice,acid bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8009 route ice,acid k ice/0.9522311754119157
+  SEAL 1 (cleared 2)
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 9566 k acid/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 10560 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 11700 k acid/1
+  tally 1-3 "THE DIGESTION TANKS" S esc=false kills 62/66 84s k acid/0.97528076171875
+L0 stage 3 start scroll 11899 route ice,acid k acid/0.3936437243237594
+  GRAVITY DRIVE boss at scroll 14452 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 120/134 130s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":1}
+L1 stage 0 start scroll 0 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1232 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4202 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 129/140 78s k /0
+  fork open seg 0 opts fire,snot scroll 4248 visited ice,acid gates y 71,182 terrain -70..265
+  (forced gate force0=ice)
+  fork closed after 141f -> route ice, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4260 route ice, k ice/0.04776882458808817
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 5816 k ice/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 6811 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 7952 k ice/1
+  tally 2-2 "THE CRYOVAULT" S esc=false kills 51/51 103s k ice/1
+  fork open seg 1 opts fire,snot scroll 7997 visited ice,acid gates y 71,182 terrain 25..233
+  (forced gate force1=acid)
+  fork closed after 148f -> route ice,acid bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8011 route ice,acid k ice/0.9485371959581801
+  SEAL 3 (cleared 6)
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 9564 k acid/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 10560 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 11702 k acid/1
+  tally 2-3 "THE DIGESTION TANKS" S esc=false kills 50/55 80s k acid/0.97528076171875
+L1 stage 3 start scroll 11901 route ice,acid k acid/0.384630059570651
+  GRAVITY DRIVE boss at scroll 14450 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 142/153 70s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":1}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 158 {"icicle":88,"geyser":70} bad [] hazHitFrames 0 deaths 0 frames 9384
+music:
+  0-0:none:void-05-cyber-side-scroller:on x751
+  0-0:ufo:void-05-cyber-side-scroller:on x142
+  0-0:none:ov-cyberpunk-beat:on x141
+  0-1:ice:void-08-caves:on x1125
+  0-2:acid:void-02-institutional-values:on x1081
+  0-3:none:void-12-not-done-here-yet:on x537
+  0-3:none:void-13-finale:on x1160
+  1-0:none:ov-circuit-synthwave:on x834
+  1-0:ufo:ov-circuit-synthwave:on x70
+  1-0:none:ov-cyberpunk-snippet:on x136
+  1-1:ice+:void-08-caves:on x1313
+  1-2:acid+:void-02-institutional-values:on x1021
+  1-3:none:ov-circuit-synthwave-alt:on x524
+  1-3:none:void-13-finale:on x428
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4
+ROUTE ice,fire
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4203 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 131/134 76s k /0
+  fork open seg 0 opts snot,acid scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=ice)
+  fork closed after 144f -> route ice, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4260 route ice, k ice/0.04776882458808817
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 5813 k ice/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 6810 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 7951 k ice/1
+  tally 1-2 "THE CRYOVAULT" S esc=false kills 47/49 83s k ice/1
+  fork open seg 1 opts acid,fire scroll 7997 visited ice gates y 71,182 terrain 29..219
+  (forced gate force1=fire)
+  fork closed after 150f -> route ice,fire bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8011 route ice,fire k ice/0.9472398360112106
+  SEAL 1 (cleared 2)
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 9563 k fire/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 10560 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 11702 k fire/1
+  tally 1-3 "THE FURNACE" S esc=false kills 53/54 81s k fire/0.97528076171875
+L0 stage 3 start scroll 11897 route ice,fire k fire/0.4026833888111927
+  GRAVITY DRIVE boss at scroll 14451 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 125/144 75s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":0.39}
+L1 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1232 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4200 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 178/178 73s k /0
+  fork open seg 0 opts acid,snot scroll 4248 visited ice,fire gates y 71,182 terrain -70..265
+  (forced gate force0=ice)
+  fork closed after 143f -> route ice, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4260 route ice, k ice/0.04776882458808817
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 5813 k ice/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 6810 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 7950 k ice/1
+  tally 2-2 "THE CRYOVAULT" S esc=false kills 59/61 77s k ice/1
+  fork open seg 1 opts acid,snot scroll 7997 visited ice,fire gates y 71,182 terrain 25..233
+  (forced gate force1=fire)
+  fork closed after 142f -> route ice,fire bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8009 route ice,fire k ice/0.9522311754119118
+  SEAL 3 (cleared 6)
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 9563 k fire/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 10562 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 11700 k fire/1
+  tally 2-3 "THE FURNACE" S esc=false kills 62/66 82s k fire/0.97528076171875
+L1 stage 3 start scroll 11898 route ice,fire k fire/0.3981605007505896
+  GRAVITY DRIVE boss at scroll 14450 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 131/148 109s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":0.3}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 156 {"icicle":78,"jet":78} bad [] hazHitFrames 0 deaths 0 frames 8717
+music:
+  0-0:none:void-05-cyber-side-scroller:on x771
+  0-0:ufo:void-05-cyber-side-scroller:on x113
+  0-0:none:ov-cyberpunk-beat:on x115
+  0-1:ice:void-08-caves:on x1089
+  0-2:fire:void-11-corporate-identity:on x1048
+  0-3:none:void-12-not-done-here-yet:on x542
+  0-3:none:void-13-finale:on x489
+  1-0:none:ov-circuit-synthwave:on x842
+  1-0:ufo:ov-circuit-synthwave:on x32
+  1-0:none:ov-cyberpunk-snippet:on x79
+  1-1:ice+:void-08-caves:on x993
+  1-2:fire+:void-11-corporate-identity:on x1060
+  1-3:none:ov-circuit-synthwave-alt:on x519
+  1-3:none:void-13-finale:on x904
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4
+ROUTE ice,snot
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4200 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 122/125 79s k /0
+  fork open seg 0 opts snot,ice scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=ice)
+  fork closed after 142f -> route ice, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4260 route ice, k ice/0.04776882458808817
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 5813 k ice/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 6809 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 7950 k ice/1
+  tally 1-2 "THE CRYOVAULT" S esc=false kills 37/46 115s k ice/1
+  fork open seg 1 opts fire,snot scroll 7997 visited ice gates y 71,182 terrain 29..219
+  (forced gate force1=snot)
+  fork closed after 143f -> route ice,snot bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8009 route ice,snot k ice/0.9510326855165913
+  SEAL 1 (cleared 2)
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 9563 k snot/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 10561 k snot/1
+  mini maw title=THE MUCUS MAW biome=snot stageBoss=true scroll 11701 k snot/1
+  tally 1-3 "THE SINUS" S esc=false kills 74/85 80s k snot/0.97528076171875
+L0 stage 3 start scroll 11897 route ice,snot k snot/0.4026833888111927
+  GRAVITY DRIVE boss at scroll 14451 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 104/129 185s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":1}
+L1 stage 0 start scroll 0 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4203 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 140/151 76s k /0
+  fork open seg 0 opts acid,fire scroll 4248 visited ice,snot gates y 71,182 terrain -70..265
+  (forced gate force0=ice)
+  fork closed after 147f -> route ice, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4260 route ice, k ice/0.0489673144834107
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 5813 k ice/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 6812 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 7950 k ice/1
+  tally 2-2 "THE CRYOVAULT" S esc=false kills 47/52 81s k ice/1
+  fork open seg 1 opts fire,acid scroll 7997 visited ice,snot gates y 71,182 terrain 25..233
+  (forced gate force1=snot)
+  fork closed after 146f -> route ice,snot bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8009 route ice,snot k ice/0.9522311754119157
+  SEAL 3 (cleared 6)
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 9566 k snot/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 10559 k snot/1
+  mini maw title=THE MUCUS MAW biome=snot stageBoss=true scroll 11700 k snot/1
+  tally 2-3 "THE SINUS" S esc=false kills 75/75 81s k snot/0.97528076171875
+L1 stage 3 start scroll 11900 route ice,snot k snot/0.3891334478655837
+  GRAVITY DRIVE boss at scroll 14451 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 123/145 69s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":1}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 118 {"icicle":91,"strand":27} bad [] hazHitFrames 0 deaths 0 frames 10039
+music:
+  0-0:none:void-05-cyber-side-scroller:on x753
+  0-0:ufo:void-05-cyber-side-scroller:on x123
+  0-0:none:ov-cyberpunk-beat:on x153
+  0-1:ice:void-08-caves:on x1478
+  0-2:snot:void-09-pods:on x1031
+  0-3:none:void-12-not-done-here-yet:on x533
+  0-3:none:void-13-finale:on x1818
+  1-0:none:ov-circuit-synthwave:on x843
+  1-0:ufo:ov-circuit-synthwave:on x64
+  1-0:none:ov-cyberpunk-snippet:on x107
+  1-1:ice+:void-08-caves:on x1038
+  1-2:snot+:void-09-pods:on x1033
+  1-3:none:ov-circuit-synthwave-alt:on x522
+  1-3:none:void-13-finale:on x422
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4
+ROUTE acid,ice
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4200 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 130/136 77s k /0
+  fork open seg 0 opts fire,acid scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=acid)
+  fork closed after 150f -> route acid, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4261 route acid, k acid/0.05146280404181994
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 5813 k acid/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 6812 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 7950 k acid/1
+  tally 1-2 "THE DIGESTION TANKS" S esc=false kills 47/51 87s k acid/1
+  fork open seg 1 opts ice,fire scroll 7997 visited acid gates y 71,182 terrain 22..231
+  (forced gate force1=ice)
+  fork closed after 141f -> route acid,ice bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8011 route acid,ice k acid/0.9472398360112106
+  SEAL 1 (cleared 2)
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 9564 k ice/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 10561 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 11699 k ice/1
+  tally 1-3 "THE CRYOVAULT" S esc=false kills 50/53 92s k ice/0.97528076171875
+L0 stage 3 start scroll 11900 route acid,ice k ice/0.3891334478655837
+  GRAVITY DRIVE boss at scroll 14452 k /0
+  tally 1-4 "THE GRAVITY DRIVE" A esc=false kills 85/123 310s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":1}
+L1 stage 0 start scroll 0 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1232 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4202 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 125/134 74s k /0
+  fork open seg 0 opts fire,snot scroll 4248 visited acid,ice gates y 71,182 terrain -70..265
+  (forced gate force0=acid)
+  fork closed after 149f -> route acid, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4260 route acid, k acid/0.04776882458808817
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 5813 k acid/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 6809 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 7950 k acid/1
+  tally 2-2 "THE DIGESTION TANKS" S esc=false kills 45/49 81s k acid/1
+  fork open seg 1 opts ice,fire scroll 7997 visited acid,ice gates y 71,182 terrain 13..235
+  (forced gate force1=ice)
+  fork closed after 147f -> route acid,ice bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8009 route acid,ice k acid/0.9522311754119157
+  SEAL 3 (cleared 6)
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 9564 k ice/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 10561 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 11700 k ice/1
+  tally 2-3 "THE CRYOVAULT" S esc=false kills 46/50 83s k ice/0.97528076171875
+L1 stage 3 start scroll 11900 route acid,ice k ice/0.3891334478655837
+  GRAVITY DRIVE boss at scroll 14450 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 133/153 79s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":1}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 155 {"geyser":73,"icicle":82} bad [state:geyser] hazHitFrames 0 deaths 0 frames 11480
+music:
+  0-0:none:void-05-cyber-side-scroller:on x842
+  0-0:ufo:void-05-cyber-side-scroller:on x51
+  0-0:none:ov-cyberpunk-beat:on x129
+  0-1:acid:void-02-institutional-values:on x1127
+  0-2:ice:void-08-caves:on x1194
+  0-3:none:void-12-not-done-here-yet:on x548
+  0-3:none:void-13-finale:on x3318
+  1-0:none:ov-circuit-synthwave:on x787
+  1-0:ufo:ov-circuit-synthwave:on x115
+  1-0:none:ov-cyberpunk-snippet:on x86
+  1-1:acid+:void-02-institutional-values:on x1037
+  1-2:ice+:void-08-caves:on x1063
+  1-3:none:ov-circuit-synthwave-alt:on x519
+  1-3:none:void-13-finale:on x543
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4
+ROUTE acid,fire
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4200 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 121/129 76s k /0
+  fork open seg 0 opts ice,snot scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=acid)
+  fork closed after 143f -> route acid, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4260 route acid, k acid/0.04776882458808817
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 5815 k acid/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 6812 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 7951 k acid/1
+  tally 1-2 "THE DIGESTION TANKS" S esc=false kills 59/65 98s k acid/1
+  fork open seg 1 opts ice,fire scroll 7997 visited acid gates y 71,182 terrain 22..231
+  (forced gate force1=fire)
+  fork closed after 141f -> route acid,fire bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8010 route acid,fire k acid/0.9498014200251524
+  SEAL 1 (cleared 2)
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 9564 k fire/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 10560 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 11700 k fire/1
+  tally 1-3 "THE FURNACE" S esc=false kills 61/63 76s k fire/0.97528076171875
+L0 stage 3 start scroll 11898 route acid,fire k fire/0.3981605007505896
+  GRAVITY DRIVE boss at scroll 14452 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 133/140 73s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":1}
+L1 stage 0 start scroll 0 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1232 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4201 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 140/140 74s k /0
+  fork open seg 0 opts snot,ice scroll 4248 visited acid,fire gates y 71,182 terrain -70..265
+  (forced gate force0=acid)
+  fork closed after 148f -> route acid, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4260 route acid, k acid/0.04776882458808817
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 5813 k acid/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 6809 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 7952 k acid/1
+  tally 2-2 "THE DIGESTION TANKS" S esc=false kills 53/59 78s k acid/1
+  fork open seg 1 opts fire,ice scroll 7997 visited acid,fire gates y 71,182 terrain 13..235
+  (forced gate force1=fire)
+  fork closed after 148f -> route acid,fire bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8009 route acid,fire k acid/0.9522311754119157
+  SEAL 3 (cleared 6)
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 9564 k fire/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 10560 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 11702 k fire/1
+  tally 2-3 "THE FURNACE" S esc=false kills 77/81 74s k fire/0.97528076171875
+L1 stage 3 start scroll 11899 route acid,fire k fire/0.3936437243237594
+  GRAVITY DRIVE boss at scroll 14451 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 146/150 65s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":1}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 145 {"geyser":73,"jet":72} bad [] hazHitFrames 0 deaths 0 frames 8255
+music:
+  0-0:none:void-05-cyber-side-scroller:on x740
+  0-0:ufo:void-05-cyber-side-scroller:on x138
+  0-0:none:ov-cyberpunk-beat:on x117
+  0-1:acid:void-02-institutional-values:on x1260
+  0-2:fire:void-11-corporate-identity:on x1007
+  0-3:none:void-12-not-done-here-yet:on x547
+  0-3:none:void-13-finale:on x472
+  1-0:none:ov-circuit-synthwave:on x870
+  1-0:ufo:ov-circuit-synthwave:on x40
+  1-0:none:ov-cyberpunk-snippet:on x86
+  1-1:acid+:void-02-institutional-values:on x1001
+  1-2:fire+:void-11-corporate-identity:on x954
+  1-3:none:ov-circuit-synthwave-alt:on x523
+  1-3:none:void-13-finale:on x379
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4
+ROUTE fire,ice
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4202 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 123/126 78s k /0
+  fork open seg 0 opts fire,acid scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=fire)
+  fork closed after 141f -> route fire, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4260 route fire, k fire/0.04776882458808817
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 5813 k fire/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 6811 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 7950 k fire/1
+  tally 1-2 "THE FURNACE" S esc=false kills 56/58 94s k fire/1
+  fork open seg 1 opts ice,snot scroll 7997 visited fire gates y 71,181 terrain 33..224
+  (forced gate force1=ice)
+  fork closed after 149f -> route fire,ice bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8009 route fire,ice k fire/0.9510326855165913
+  SEAL 1 (cleared 2)
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 9565 k ice/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 10562 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 11700 k ice/1
+  tally 1-3 "THE CRYOVAULT" S esc=false kills 59/60 88s k ice/0.97528076171875
+L0 stage 3 start scroll 11901 route fire,ice k ice/0.384630059570651
+  GRAVITY DRIVE boss at scroll 14453 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 128/138 81s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":1}
+L1 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1231 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4203 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 147/151 74s k /0
+  fork open seg 0 opts acid,snot scroll 4248 visited fire,ice gates y 71,182 terrain -70..265
+  (forced gate force0=fire)
+  fork closed after 146f -> route fire, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4260 route fire, k fire/0.04776882458808817
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 5816 k fire/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 6809 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 7951 k fire/1
+  tally 2-2 "THE FURNACE" S esc=false kills 72/74 85s k fire/1
+  fork open seg 1 opts acid,snot scroll 7997 visited fire,ice gates y 71,182 terrain 26..229
+  (forced gate force1=ice)
+  fork closed after 144f -> route fire,ice bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8009 route fire,ice k fire/0.9510326855165913
+  SEAL 3 (cleared 6)
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 9563 k ice/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 10561 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 11700 k ice/1
+  tally 2-3 "THE CRYOVAULT" S esc=false kills 67/72 86s k ice/0.97528076171875
+L1 stage 3 start scroll 11897 route fire,ice k ice/0.4026833888111927
+  GRAVITY DRIVE boss at scroll 14450 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 128/156 73s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":1}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 170 {"jet":84,"icicle":86} bad [] hazHitFrames 0 deaths 0 frames 8745
+music:
+  0-0:none:void-05-cyber-side-scroller:on x757
+  0-0:ufo:void-05-cyber-side-scroller:on x124
+  0-0:none:ov-cyberpunk-beat:on x138
+  0-1:fire:void-11-corporate-identity:on x1223
+  0-2:ice:void-08-caves:on x1124
+  0-3:none:void-12-not-done-here-yet:on x534
+  0-3:none:void-13-finale:on x576
+  1-0:none:ov-circuit-synthwave:on x794
+  1-0:ufo:ov-circuit-synthwave:on x72
+  1-0:none:ov-cyberpunk-snippet:on x94
+  1-1:fire+:void-11-corporate-identity:on x1093
+  1-2:ice+:void-08-caves:on x1098
+  1-3:none:ov-circuit-synthwave-alt:on x524
+  1-3:none:void-13-finale:on x473
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4
+ROUTE fire,acid
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4200 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 128/134 78s k /0
+  fork open seg 0 opts ice,acid scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=fire)
+  fork closed after 142f -> route fire, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4260 route fire, k fire/0.04776882458808817
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 5816 k fire/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 6811 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 7951 k fire/1
+  tally 1-2 "THE FURNACE" S esc=false kills 52/61 104s k fire/1
+  fork open seg 1 opts ice,acid scroll 7997 visited fire gates y 71,181 terrain 33..224
+  (forced gate force1=acid)
+  fork closed after 147f -> route fire,acid bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8009 route fire,acid k fire/0.9522311754119157
+  SEAL 1 (cleared 2)
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 9564 k acid/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 10560 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 11702 k acid/1
+  tally 1-3 "THE DIGESTION TANKS" S esc=false kills 53/73 78s k acid/0.97528076171875
+L0 stage 3 start scroll 11898 route fire,acid k acid/0.3981605007505896
+  GRAVITY DRIVE boss at scroll 14450 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 112/126 83s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":1}
+L1 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1233 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4201 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 148/152 75s k /0
+  fork open seg 0 opts snot,ice scroll 4248 visited fire,acid gates y 71,182 terrain -70..265
+  (forced gate force0=fire)
+  fork closed after 147f -> route fire, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4260 route fire, k fire/0.04776882458808817
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 5816 k fire/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 6812 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 7952 k fire/1
+  tally 2-2 "THE FURNACE" S esc=false kills 65/72 75s k fire/1
+  fork open seg 1 opts ice,snot scroll 7997 visited fire,acid gates y 71,182 terrain 26..229
+  (forced gate force1=acid)
+  fork closed after 150f -> route fire,acid bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8011 route fire,acid k fire/0.9472398360112065
+  SEAL 3 (cleared 6)
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 9565 k acid/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 10559 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 11702 k acid/1
+  tally 2-3 "THE DIGESTION TANKS" S esc=false kills 43/50 77s k acid/0.97528076171875
+L1 stage 3 start scroll 11898 route fire,acid k acid/0.3981605007505896
+  GRAVITY DRIVE boss at scroll 14453 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 155/167 75s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":1}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 151 {"jet":84,"geyser":67} bad [] hazHitFrames 0 deaths 0 frames 8579
+music:
+  0-0:none:void-05-cyber-side-scroller:on x789
+  0-0:ufo:void-05-cyber-side-scroller:on x109
+  0-0:none:ov-cyberpunk-beat:on x136
+  0-1:fire:void-11-corporate-identity:on x1329
+  0-2:acid:void-02-institutional-values:on x1007
+  0-3:none:void-12-not-done-here-yet:on x549
+  0-3:none:void-13-finale:on x610
+  1-0:none:ov-circuit-synthwave:on x814
+  1-0:ufo:ov-circuit-synthwave:on x57
+  1-0:none:ov-cyberpunk-snippet:on x98
+  1-1:fire+:void-11-corporate-identity:on x975
+  1-2:acid+:void-02-institutional-values:on x968
+  1-3:none:ov-circuit-synthwave-alt:on x526
+  1-3:none:void-13-finale:on x490
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4
+ROUTE fire,snot
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4201 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 119/124 77s k /0
+  fork open seg 0 opts acid,fire scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=fire)
+  fork closed after 143f -> route fire, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4260 route fire, k fire/0.04776882458808817
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 5815 k fire/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 6810 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 7950 k fire/1
+  tally 1-2 "THE FURNACE" S esc=false kills 61/66 98s k fire/1
+  fork open seg 1 opts acid,ice scroll 7997 visited fire gates y 71,181 terrain 33..224
+  (forced gate force1=snot)
+  fork closed after 141f -> route fire,snot bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8011 route fire,snot k fire/0.9472398360112106
+  SEAL 1 (cleared 2)
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 9564 k snot/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 10560 k snot/1
+  mini maw title=THE MUCUS MAW biome=snot stageBoss=true scroll 11700 k snot/1
+  tally 1-3 "THE SINUS" S esc=false kills 95/96 75s k snot/0.97528076171875
+L0 stage 3 start scroll 11901 route fire,snot k snot/0.35632731030784726
+  GRAVITY DRIVE boss at scroll 14450 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 99/134 95s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":0.3}
+L1 stage 0 start scroll 0 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1232 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4200 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 176/181 75s k /0
+  fork open seg 0 opts acid,ice scroll 4248 visited fire,snot gates y 71,182 terrain -70..265
+  (forced gate force0=fire)
+  fork closed after 148f -> route fire, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4261 route fire, k fire/0.05019857997484953
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 5814 k fire/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 6809 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 7950 k fire/1
+  tally 2-2 "THE FURNACE" S esc=false kills 78/81 88s k fire/1
+  fork open seg 1 opts acid,ice scroll 7997 visited fire,snot gates y 71,182 terrain 26..229
+  (forced gate force1=snot)
+  fork closed after 146f -> route fire,snot bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8009 route fire,snot k fire/0.9522311754119118
+  SEAL 3 (cleared 6)
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 9566 k snot/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 10561 k snot/1
+  mini maw title=THE MUCUS MAW biome=snot stageBoss=true scroll 11700 k snot/1
+  tally 2-3 "THE SINUS" S esc=false kills 91/103 73s k snot/0.97528076171875
+L1 stage 3 start scroll 11899 route fire,snot k snot/0.38889319979022496
+  GRAVITY DRIVE boss at scroll 14451 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 156/159 64s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":0.3}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 116 {"jet":90,"strand":26} bad [] hazHitFrames 0 deaths 0 frames 8624
+music:
+  0-0:none:void-05-cyber-side-scroller:on x761
+  0-0:ufo:void-05-cyber-side-scroller:on x119
+  0-0:none:ov-cyberpunk-beat:on x124
+  0-1:fire:void-11-corporate-identity:on x1303
+  0-2:snot:void-09-pods:on x967
+  0-3:none:void-12-not-done-here-yet:on x530
+  0-3:none:void-13-finale:on x742
+  1-0:none:ov-circuit-synthwave:on x876
+  1-0:ufo:ov-circuit-synthwave:on x42
+  1-0:none:ov-cyberpunk-snippet:on x95
+  1-1:fire+:void-11-corporate-identity:on x1123
+  1-2:snot+:void-09-pods:on x929
+  1-3:none:ov-circuit-synthwave-alt:on x527
+  1-3:none:void-13-finale:on x366
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4
+ROUTE snot,ice
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4201 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 119/123 78s k /0
+  fork open seg 0 opts snot,acid scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=snot)
+  fork closed after 142f -> route snot, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4260 route snot, k snot/0.04776882458808817
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 5814 k snot/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 6812 k snot/1
+  mini maw title=THE MUCUS MAW biome=snot stageBoss=true scroll 7951 k snot/1
+  tally 1-2 "THE SINUS" S esc=false kills 81/89 85s k snot/1
+  fork open seg 1 opts fire,ice scroll 7997 visited snot gates y 75,175 terrain 41..207
+  (forced gate force1=ice)
+  fork closed after 144f -> route snot,ice bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8009 route snot,ice k snot/0.9522311754119157
+  SEAL 1 (cleared 2)
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 9564 k ice/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 10560 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 11700 k ice/1
+  tally 1-3 "THE CRYOVAULT" S esc=false kills 71/72 83s k ice/0.97528076171875
+L0 stage 3 start scroll 11901 route snot,ice k ice/0.384630059570651
+  GRAVITY DRIVE boss at scroll 14453 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 99/132 83s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":0.3}
+L1 stage 0 start scroll 0 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1232 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4200 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 124/147 75s k /0
+  fork open seg 0 opts fire,acid scroll 4248 visited snot,ice gates y 71,182 terrain -70..265
+  (forced gate force0=snot)
+  fork closed after 146f -> route snot, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4260 route snot, k snot/0.04776882458808817
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 5813 k snot/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 6811 k snot/1
+  mini maw title=THE MUCUS MAW biome=snot stageBoss=true scroll 7950 k snot/1
+  tally 2-2 "THE SINUS" S esc=false kills 91/91 76s k snot/1
+  fork open seg 1 opts fire,ice scroll 7997 visited snot,ice gates y 73,181 terrain 42..210
+  (forced gate force1=ice)
+  fork closed after 148f -> route snot,ice bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8009 route snot,ice k snot/0.9522311754119157
+  SEAL 3 (cleared 6)
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 9564 k ice/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 10560 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 11700 k ice/1
+  tally 2-3 "THE CRYOVAULT" S esc=false kills 36/45 83s k ice/0.97528076171875
+L1 stage 3 start scroll 11897 route snot,ice k ice/0.4026833888111927
+  GRAVITY DRIVE boss at scroll 14451 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 154/159 79s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":1}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 95 {"strand":17,"icicle":78} bad [] hazHitFrames 0 deaths 0 frames 8534
+music:
+  0-0:none:void-05-cyber-side-scroller:on x757
+  0-0:ufo:void-05-cyber-side-scroller:on x131
+  0-0:none:ov-cyberpunk-beat:on x131
+  0-1:snot:void-09-pods:on x1104
+  0-2:ice:void-08-caves:on x1087
+  0-3:none:void-12-not-done-here-yet:on x534
+  0-3:none:void-13-finale:on x588
+  1-0:none:ov-circuit-synthwave:on x849
+  1-0:ufo:ov-circuit-synthwave:on x49
+  1-0:none:ov-cyberpunk-snippet:on x97
+  1-1:snot+:void-09-pods:on x966
+  1-2:ice+:void-08-caves:on x1054
+  1-3:none:ov-circuit-synthwave-alt:on x518
+  1-3:none:void-13-finale:on x546
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4
+ROUTE snot,fire
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4202 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 106/116 78s k /0
+  fork open seg 0 opts acid,ice scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=snot)
+  fork closed after 143f -> route snot, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4260 route snot, k snot/0.04776882458808817
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 5813 k snot/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 6810 k snot/1
+  mini maw title=THE MUCUS MAW biome=snot stageBoss=true scroll 7951 k snot/1
+  tally 1-2 "THE SINUS" S esc=false kills 73/76 88s k snot/1
+  fork open seg 1 opts fire,ice scroll 7997 visited snot gates y 75,175 terrain 41..207
+  (forced gate force1=fire)
+  fork closed after 144f -> route snot,fire bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8011 route snot,fire k snot/0.9485371959581801
+  SEAL 1 (cleared 2)
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 9563 k fire/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 10562 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 11701 k fire/1
+  tally 1-3 "THE FURNACE" S esc=false kills 64/68 83s k fire/0.97528076171875
+L0 stage 3 start scroll 11899 route snot,fire k fire/0.3936437243237594
+  GRAVITY DRIVE boss at scroll 14450 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 104/137 103s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":1}
+L1 stage 0 start scroll 0 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1232 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4200 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 148/151 74s k /0
+  fork open seg 0 opts acid,ice scroll 4248 visited snot,fire gates y 71,182 terrain -70..265
+  (forced gate force0=snot)
+  fork closed after 149f -> route snot, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4260 route snot, k snot/0.04776882458808817
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 5814 k snot/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 6809 k snot/1
+  mini maw title=THE MUCUS MAW biome=snot stageBoss=true scroll 7952 k snot/1
+  tally 2-2 "THE SINUS" S esc=false kills 98/99 73s k snot/1
+  fork open seg 1 opts ice,fire scroll 7997 visited snot,fire gates y 73,181 terrain 42..210
+  (forced gate force1=fire)
+  fork closed after 143f -> route snot,fire bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8009 route snot,fire k snot/0.9522311754119157
+  SEAL 3 (cleared 6)
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 9566 k fire/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 10559 k fire/1
+  mini butcher title=THE BURNING BUTCHER biome=fire stageBoss=false scroll 11700 k fire/1
+  tally 2-3 "THE FURNACE" S esc=false kills 71/72 82s k fire/0.97528076171875
+L1 stage 3 start scroll 11900 route snot,fire k fire/0.3891334478655837
+  GRAVITY DRIVE boss at scroll 14452 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 137/145 64s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":0.57}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 107 {"strand":26,"jet":81} bad [] hazHitFrames 0 deaths 0 frames 8605
+music:
+  0-0:none:void-05-cyber-side-scroller:on x737
+  0-0:ufo:void-05-cyber-side-scroller:on x138
+  0-0:none:ov-cyberpunk-beat:on x140
+  0-1:snot:void-09-pods:on x1158
+  0-2:fire:void-11-corporate-identity:on x1069
+  0-3:none:void-12-not-done-here-yet:on x538
+  0-3:none:void-13-finale:on x826
+  1-0:none:ov-circuit-synthwave:on x847
+  1-0:ufo:ov-circuit-synthwave:on x60
+  1-0:none:ov-cyberpunk-snippet:on x92
+  1-1:snot+:void-09-pods:on x946
+  1-2:fire+:void-11-corporate-identity:on x1050
+  1-3:none:ov-circuit-synthwave-alt:on x523
+  1-3:none:void-13-finale:on x361
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4

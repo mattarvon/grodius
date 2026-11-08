@@ -36,6 +36,13 @@ function compare(dirs) {
     for (let i = 0; i < sets.length; i++) for (let j = i + 1; j < sets.length; j++) { const u = new Set([...sets[i], ...sets[j]]); pair += [...sets[i]].filter((x) => sets[j].has(x)).length / Math.max(1, u.size); n++; }
     console.log(`stage ${k}${k === '1-1' ? ' after the opener' : ''}: ${new Set(sigs).size}/${sigs.length} distinct signatures, mean pairwise wave overlap ${n ? Math.round(100 * pair / n) : 0}%`);
   }
+  // set pieces (LS2-mv): of the three in a stage, how many a pair of seeds both play there. Full spread in tools/set-share.mjs
+  for (const k of [...new Set(runs.flatMap((r) => Object.keys(r.picks || {})))].sort()) {
+    const P = runs.map((r) => r.picks && r.picks[k]).filter(Boolean);
+    let sh = 0, n = 0;
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { sh += P[i].sp.filter((x) => P[j].sp.includes(x)).length / P[i].sp.length; n++; }
+    console.log(`stage ${k} set pieces: ${P.map((p) => `${p.b}:${p.sp.join('/')} B${p.mv}`).join('  ')}; mean pairwise share ${n ? Math.round(100 * sh / n) : 0}%`);
+  }
   console.log('not measured: spawn-time rolls (y, side, elite) are left out of the signature on purpose; a stage a run never reached is missing from its row');
 }
 const [url, OUT, DESC = '3', SEED = '7', MAXM = '30'] = process.argv.slice(2);
@@ -60,6 +67,7 @@ await p.addInitScript((seed) => {
       const h = window.__G && window.__G();
       if (!h || !h.G || h.state !== 'play') continue;
       L.fr++; const G = h.G, P = h.P, st = `${G.loop + 1}-${(G.stage || 0) + 1}`; L.frBy[st] = (L.frBy[st] || 0) + 1;
+      if (G.picks && G.picks[G.stage]) (L.picks ||= {})[st] = { ...G.picks[G.stage], b: G.route[__LY.row(G.stage).slot] }; // LS2-mv: the stage's set pieces and movement B
       // enemy lifetimes: from first on screen to removal; killed if removed while still on screen
       const alive = new Set();
       for (const e of h.enemies) { alive.add(e);
@@ -124,7 +132,7 @@ for (let it = 0; it < MAXM * 60 * 2; it++) {
     await p.evaluate(async () => (await import('/src/menus.ts')).leaveShop()); await p.evaluate('__tick(60)'); continue; }
   if (s.st !== 'play' || s.loop >= +DESC) { end = JSON.stringify(s); break; }
 }
-const L = await p.evaluate(() => { const L = __pt; return { fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r) }; });
+const L = await p.evaluate(() => { const L = __pt; return { picks: L.picks || {}, fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r) }; });
 const q = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(f * s.length))].toFixed(2) : null; };
 const prev = {}, prevB = {}, drn = { biome: [0, 0] };
 for (let i = 0; i < stages.length; i++) {
@@ -157,7 +165,7 @@ for (let i = 0; i < stages.length; i++) {
 const sigOf = (k) => { const w = []; for (const x of L.spawns.filter((x) => x.st === k)) { const l = w[w.length - 1]; if (l && x.sx - l.x1 < 40) { l.k.push(x.k); l.x1 = x.sx; } else w.push({ x: x.sx, x1: x.sx, k: [x.k] }); }
   return w.map((v) => ({ x: v.x, ks: [...new Set(v.k)].sort().join('+') })); }; // kinds, not counts: formation() sizes waves by power
 const sigStages = Object.fromEntries(stages.map((S) => [S.k, sigOf(S.k)]));
-fs.writeFileSync(`${OUT}/sig.json`, JSON.stringify({ seed: +SEED, layout: LAY.id, openerEnd: LAY.ufoAt, opener: (sigStages['1-1'] || []).filter((w) => w.x < LAY.ufoAt), stages: sigStages }));
+fs.writeFileSync(`${OUT}/sig.json`, JSON.stringify({ seed: +SEED, layout: LAY.id, openerEnd: LAY.ufoAt, opener: (sigStages['1-1'] || []).filter((w) => w.x < LAY.ufoAt), stages: sigStages, picks: L.picks }));
 console.log(`\nscript signature written to ${OUT}/sig.json (layout ${LAY.id}); compare seeds with --compare`);
 console.log(`\nbiome stages: drones ${drn.biome[1] ? Math.round(100 * drn.biome[0] / drn.biome[1]) : 0}% of ${drn.biome[1]} regular spawns`);
 console.log(`\nwould-be hits: ${L.hits} in ${(L.fr / 3600).toFixed(1)} min (${(L.hits / (L.fr / 3600)).toFixed(1)}/min) | hype voices ${L.hype} | end ${end} | errors ${errs.slice(0, 3).join(' / ') || 'none'}`);

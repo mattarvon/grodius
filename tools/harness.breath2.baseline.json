@@ -1,36 +1,36 @@
 {
   "frames": 1200,
-  "commit": "5c8c3eb",
+  "commit": "ffd6b77",
   "os": "linux 6.18.42-1-cachyos-lts",
   "layout": "long4",
   "scenario": "breath2",
   "q": "stage=ice&x=2254&kit=mid&seed=7",
   "st": {
     "state": "play",
-    "score": 1000,
+    "score": 0,
     "scroll": 6861,
     "lives": 0,
     "px": 50,
-    "py": 84.565,
+    "py": 82.065,
     "en": 1,
     "gibs": 30,
-    "drops": 75,
+    "drops": 20,
     "caps": 0,
     "jump": true,
     "stage": 1,
     "pair": "choir+cyst",
     "loop": 0,
-    "pow": 0.065,
-    "rank": 0.065,
+    "pow": 0,
+    "rank": 0,
     "lvl": 6,
     "kills": 0,
     "t": 1180,
     "seen": "mini:cyst",
-    "sig": "24ea3cef14"
+    "sig": "95c5d0a33e"
   },
   "hashes": [
-    "e3f28a84f4",
-    "5e39a43f3a"
+    "483b77fe8c",
+    "3ec202de47"
   ],
   "errs": []
 }

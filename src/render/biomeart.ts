@@ -11,6 +11,7 @@ import { GROSS, mkTex, texPat } from '../textures';
 import { glow, light } from './util';
 import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
+import { drawMoveProps } from './moveprops';
 
 const FONT = 'Silkscreen, monospace';
 const LW = 320; // parallax tile width
@@ -621,6 +622,7 @@ export function drawBiomeDecor(sc) {
       if (h > .64) { const per = 300 + h * 300, ph = ((t + h * 1931) % per) / per, R = 2.5 + (h - .64) * 18; if (f < PH && hash(wx * 2.1) < .6) pustule(x + 5, f, R, ph, 1, wx); else if (c > 0) pustule(x + 5, c, R, ph, -1, wx); }
     }
   }
+  drawMoveProps(sc, k);
   ctx.globalAlpha = 1;
 }
 
@@ -670,6 +672,9 @@ export function drawFX(haz, amb, gatePos) {
       if (!h.reach) {
         const q = Math.min(1, h.t / 60), pul = .5 + .5 * Math.sin(h.t * (.3 + q * .8));
         ctx.strokeStyle = `rgba(255,120,40,${.12 + .3 * q * pul})`; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.strokeRect(h.x - 5, d > 0 ? h.y : h.y - R, 10, R); ctx.setLineDash([]);
+        // the Chimney's vent jet (long layouts, LS2-mv): the jets are that band's threat, so its telegraph is a solid 3 px
+        // column that fills down the strike line as the jet warms (spec §9: 3 px), not only the 1 px dashed outline
+        if (h.vent) { ctx.fillStyle = `rgba(255,150,60,${.25 + .45 * q})`; ctx.fillRect(h.x - 1.5, h.y, 3, R * q); }
         ctx.fillStyle = '#2a0c06'; ctx.fillRect(h.x - 6, d > 0 ? h.y - 1 : h.y - 2, 12, 3);
         ctx.fillStyle = q < .5 ? '#a02a08' : q < .85 ? '#ff7a1a' : '#fff0b0'; ctx.fillRect(h.x - 4, d > 0 ? h.y : h.y - 1, 8, 1);
         lit(() => glow(h.x, h.y, 8 + q * 18, '255,110,20', .3 + .5 * q * pul));

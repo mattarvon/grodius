@@ -4,7 +4,7 @@
 //     several scroll x from the lead-in to the stage's boss, compared pixel for pixel (PNGs kept with --out);
 //   - the script x and kind list still to fire (every entry past cpX: filler, set pieces, log lines, midboss, boss);
 //   - the stored rebuild recipe (seed, loop, stage, route, bx, visitNo, remixV) and the midboss picks (G.mb, G.mbUsed,
-//     G.mbLast: item F), and where the scroll restarts (cpX - CP.lead);
+//     G.mbLast: item F; G.picks, G.spUsed: LS2-mv), and where the scroll restarts (cpX - CP.lead);
 //   - lives, and the progression and loadout the checkpoint stored: score, level/xp, perks, grafts, the POWER cursor,
 //     seal, and the ship's guns, options, shield and pods (H entry criterion 3);
 //   - sim RNG draws made by the RESUME press (must be 0: the rebuild draws only the stage build streams).
@@ -126,7 +126,7 @@ const snap = (p, xs) => p.evaluate(async ([xs, PROG_G, LOAD_P]) => {
   }
   return {
     state: g.state, stage: G.stage, loop: G.loop, lives: G.lives, scroll: G.scroll, cpX: cp.cpX, cpN: cp.cpN, seed: G.seed,
-    route: G.route, bx: G.bx, visitNo: G.visitNo, remixV: G.remixV, deaths: G.st && G.st.deaths, mb: G.mb, mbUsed: G.mbUsed, mbLast: G.mbLast,
+    route: G.route, bx: G.bx, visitNo: G.visitNo, remixV: G.remixV, deaths: G.st && G.st.deaths, mb: G.mb, mbUsed: G.mbUsed, mbLast: G.mbLast, picks: G.picks, spUsed: G.spUsed,
     // progression and loadout (H entry criterion 3), compared with what the checkpoint stored
     prog: Object.fromEntries(PROG_G.map((k) => [k, G[k]])), load: g.P ? Object.fromEntries(LOAD_P.map((k) => [k, g.P[k]])) : null,
     stored: JSON.parse((await import('/src/runsave.ts')).lastRun() || 'null'),
@@ -206,7 +206,7 @@ try {
   if (d1 !== d0) fails.push(`the RESUME press drew the sim RNG ${d1 - d0} times, want 0`);
   eq('state', 'play', res.state);
   // mb / mbUsed / mbLast: the midboss picker's state (item F); a resume must place the same pair, never re-pick
-  for (const k of ['stage', 'loop', 'seed', 'cpX', 'route', 'bx', 'visitNo', 'remixV', 'mb', 'mbUsed', 'mbLast']) eq(k, orig[k], res[k]);
+  for (const k of ['stage', 'loop', 'seed', 'cpX', 'route', 'bx', 'visitNo', 'remixV', 'mb', 'mbUsed', 'mbLast', 'picks', 'spUsed']) eq(k, orig[k], res[k]);
   eq('lives', lives, res.lives);
   // loadout, level/xp and score: the resumed run carries exactly what the checkpoint stored (the original flew on for
   // a few steps after writing it, so the stored blob, not the live original, is the reference)

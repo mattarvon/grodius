@@ -1,12 +1,15 @@
-// Movement shots (build plan sprint 2 item D; spec §3.3): biome terrain movements A (signature, today's shape()) and C
-// (the boss arena: gap >= 150 px, half amplitude, blended in over arenaBlend px from the run-up) for every biome in both
-// slots, on the layout the page flies. Full frames, empty of enemies, plus a measured gap table:
-//   A     min gap over movement A's span (gate + 300 .. run-up)
+// Movement shots (build plan sprint 2 item D, LS2-mv; spec §3.3): biome terrain movements A (signature, today's shape()),
+// B (the gimmick, B0 and B1) and C (the boss arena: gap >= 150 px, half amplitude, blended in over arenaBlend px from the
+// run-up) for every biome in both slots, on the layout the page flies. Full frames, empty of enemies, plus a measured gap
+// table:
+//   A     min gap from gate + 300 to the run-up (movement B's band included)
+//   B0/B1 min and max gap over the band; shots s<slot>-<biome>-B0/B1 mid-band, and on slot 0 -B0hold/-B1hold, the screen
+//         midboss A's hold shows (the scroll ~20 px before breath 1's end)
 //   C     min gap from the run-up + arenaBlend to the boss arena's right screen edge (bossX + 200 + W)
 // Usage: node tools/movement-shots.mjs <outDir> [url] [--layout long4]
 //   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default short) sets the entry
 //   in-page before the run, like every probe; the game's own ?layout=long flag (src/main.ts) selects the same entry.
-//   Not measured: movement B (a later item), live hazards, Descent 2+ terrain seeds (shots and gaps are Descent 1).
+//   Not measured: live hazards, Descent 2+ terrain seeds (shots and gaps are Descent 1).
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
@@ -33,24 +36,25 @@ await useLayout(p, 'movement-shots');
 await p.waitForTimeout(1500);
 const id = await p.evaluate(async () => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
-  const C = await import('/src/core.ts'), IN = await import('/src/input.ts'), RS = await import('/src/render/screens.ts'), BI = await import('/src/biomes.ts'), L = await import('/src/layout.ts');
+  const C = await import('/src/core.ts'), IN = await import('/src/input.ts'), RS = await import('/src/render/screens.ts'), BI = await import('/src/biomes.ts'), L = await import('/src/layout.ts'), SD = await import('/src/setdraw.ts');
   window.__w = { S, W, ST, F, C, IN, RS, BI, L };
   window.__clear = () => { const $ = S.$; $.G.si = $.G.script.length; $.G.pick = null; $.G.pickQ = 0; $.G.tally = null; $.G.mini = null; $.G.pend.length = 0; for (const a of [W.enemies, W.eshots, W.caps, W.shots, W.gibs, W.drops]) if (a) a.length = 0; };
   window.__go = (sc, n = 240) => { const $ = S.$; window.__clear(); $.G.scroll = sc; for (let i = 0; i < n; i++) { Object.assign($.P, { x: 60, y: C.PH / 2, alive: true, inv: 30 }); ST.step(); window.__clear(); $.G.scroll = sc + i * .5; } RS.render(); };
   // fork into biome b at slot s the way choose() does, with the scroll where the fork holds it (prev bossX + 50 / + 200)
-  window.__into = (s, b) => {
+  window.__into = (s, b, mv = 0) => {
     const { $ } = S; S.$.gate = false; IN.K.KeyZ = false; F.newGame(0); $.state = 'play';
     for (let i = 0; i < 30; i++) ST.step();
     window.__clear();
     const prev = L.row(L.stageOfSlot(s) - 1);
     if (s === 1) { $.G.route[0] = b === 'ice' ? 'acid' : 'ice'; }
     $.G.scroll = prev.bossX + (prev.kind === 'orbit' ? 50 : 200);
+    ($.G.picks ||= {})[L.stageOfSlot(s)] = { mv, sp: SD.CATALOG[b].slice(0, 3) }; // the stored picks choose() reads back: forces the variant
     BI.openFork(s); $.G.fork.opts = [b, b]; $.G.fork.t = 50;
     Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 }); ST.step();
     const r = L.slotRow(s), from = $.G.bx[s], P = L.beatPlan(r, from, false);
-    return { from, runup: P.runup, a: P.a, bossX: r.bossX, blend: L.layout().beats.arenaBlend || 0 };
+    return { from, runup: P.runup, a: P.a, bossX: r.bossX, blend: L.layout().beats.arenaBlend || 0, moveB: P.moveB, hold: P.breaths[0].z - 20 };
   };
-  window.__gap = (x0, x1) => { const B = window.__biome(); let m = 1e9, at = 0; for (let j = Math.floor(x0 / B.TS); j <= Math.ceil(x1 / B.TS); j++) { const g = B.F[j] - B.C[j]; if (g < m) { m = g; at = j * B.TS; } } return [m, at]; };
+  window.__gap = (x0, x1) => { const B = window.__biome(); let m = 1e9, at = 0, M = 0; for (let j = Math.floor(x0 / B.TS); j <= Math.ceil(x1 / B.TS); j++) { const g = B.F[j] - B.C[j]; M = Math.max(M, g); if (g < m) { m = g; at = j * B.TS; } } return [m, at, M]; };
   return L.layout().id;
 });
 console.log(`layout ${id}`);
@@ -67,10 +71,18 @@ for (const s of [0, 1]) for (const bk of ['ice', 'acid', 'fire', 'snot']) {
     await p.evaluate((x) => window.__go(x), Math.round(g.runup - 240)); await shot(`s${s}-${bk}-AtoC`);
     await p.evaluate((x) => window.__go(x), Math.round(g.bossX + 200)); await shot(`s${s}-${bk}-C`);
   }
+  for (const mv of [0, 1]) {
+    const m = await p.evaluate(([s, bk, mv]) => window.__into(s, bk, mv), [s, bk, mv]);
+    if (!m.moveB) continue;
+    const gB = await p.evaluate(([a, b]) => window.__gap(a, b), [m.moveB.a, m.moveB.z]);
+    rows.push(`slot ${s} ${bk.padEnd(5)} B${mv} band ${Math.round(m.moveB.a)}-${Math.round(m.moveB.z)}  gap ${gB[0].toFixed(1)}-${gB[2].toFixed(1)} (min @${gB[1]})`);
+    await p.evaluate((x) => window.__go(x), Math.round((m.moveB.a + m.moveB.z) / 2 - 240)); await shot(`s${s}-${bk}-B${mv}`);
+    if (s === 0) { await p.evaluate((x) => window.__go(x, 1), Math.round(m.hold)); await shot(`s${s}-${bk}-B${mv}hold`); }
+  }
 }
 console.log(rows.join('\n'));
 console.log(errs.length ? 'page errors:\n' + errs.slice(0, 5).join('\n') : 'no page errors');
-console.log('not measured: movement B (later item); hazards; Descent 2+ terrain seeds');
+console.log('not measured: hazards; Descent 2+ terrain seeds');
 ranOn('movement-shots');
 await b.close();
 if (server) await server.close();

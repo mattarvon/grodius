@@ -1,0 +1,14 @@
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+checkpoint: stage 2 CP0 at cpX 8009.3 after 12570 frames; 38 entries still to fire; route ice/fire; midbosses {"0":["ufo"],"1":["choir","cyst"],"2":["prentice","brood"]}; bx 4738.0/8487.0/-
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+title after reload: RESUME STAGE 1-3 | DESCEND | INFIRMARY 762 BIO | OPTIONS | LAB LONG (URL)
+resumed: stage 2, scroll 7889.3 (cpX 8009.3 - 120), lives 1, 38 entries to fire; RESUME press drew the sim RNG 0x
+terrain-only renders, pixels differing original vs resumed: 7889: 0 px, 8009: 0 px, 8249: 0 px, 8609: 0 px, 9780: 0 px, 11350: 0 px
+not measured: live enemies, shots, pods and spawn-time rolls (not reproduced by design, spec §4); the Fold APK app kill (Matt)
+RESUME CHECK PASS (long4, stage 2 CP0)

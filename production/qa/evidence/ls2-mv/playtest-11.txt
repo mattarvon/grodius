@@ -1,0 +1,65 @@
+playtest: layout long4 (orbit, biome, biome, drive)
+INFIRMARY after descent 1: bought gut socket leech spine hook furnace hull gland | bolted saw,gut levels {"saw":1,"gut":1,"leech":1,"spine":1,"hook":1,"furnace":1} | bio left 15
+
+== stage 1-1  89s  lvl 1->4  rank 0->0.42  weapons 2,1,1,0,0,1,1  grafts spore1
+   kill: on-screen life median 1.05s p90 2.93s | killed in right quarter 58% | escaped 5% (100 enemies)
+   bosses: THE SQUIDFUCKED SAUCER 9.9s, maw 10.4s
+   danger: 0 would-be hits in 89s of play (0.00/min) | regular spawns 108
+   variety: 7 kinds {"drone":35,"corpse":15,"sentry":14,"flayer":6,"hatch":38,"ufo":1,"maw":1} | 39 waves, 15 distinct, top sentry x7, dronex4 x6, corpsex2 x5 | music none, ufo
+   drones 32% of 108 | elites 0
+
+== stage 1-2 [fire]  113s  lvl 4->8  rank 0.42->0.51  weapons 2,1,1,0,0,1,1  grafts spore1 cal1
+   kill: on-screen life median 2.7s p90 4.32s | killed in right quarter 62% | escaped 38% (47 enemies)
+   bosses: THE BUTCHER'S APPRENTICE 9.8s, THE DISSOLVING WOMB 11.6s, THE BURNING BUTCHER 20.0s
+   danger: 0 would-be hits in 113s of play (0.00/min) | regular spawns 56
+   variety: 8 kinds {"flayer":8,"drone":25,"hook":10,"mutant":6,"crawler":7,"prentice":1,"cyst":1,"butcher":1} | 27 waves, 13 distinct, top hook x6, flayer x4, mutant x4 | music fire
+   drones 45% of 56 | elites 0 | first visit
+
+== stage 1-3 [ice]  93s  lvl 8->11  rank 0.55->0.79  weapons 3,2,0,1,0,1,2  grafts spore1 rapid1 cal1
+   kill: on-screen life median 0.83s p90 4.4s | killed in right quarter 49% | escaped 7% (46 enemies)
+   bosses: THE NAIL CHOIR 6.9s, THE BROOD MOTHER 6.4s, THE BLOATED BITCH 11.9s
+   danger: 1 would-be hits in 93s of play (0.65/min) | regular spawns 60
+   variety: 12 kinds {"corpse":11,"drone":23,"cross":7,"eye":2,"mutant":5,"flayer":4,"choir":1,"nailbar":6,"hook":2,"brood":1,"hatch":6,"crux":1} | 30 waves, 17 distinct, top cross x4, flayer x4, corpse x3 | music ice
+   drones 38% of 60 | elites 0 | first visit
+
+== stage 1-4  96s  lvl 11->14  rank 0.79->0.92  weapons 3,0,0,1,1,2,2  grafts spore2 cal1 pierce1
+   kill: on-screen life median 1.57s p90 3.3s | killed in right quarter 51% | escaped 23% (109 enemies)
+   bosses: drive 42.0s
+   danger: 2 would-be hits in 95s of play (1.27/min) | regular spawns 131
+   variety: 8 kinds {"mutant":1,"corpse":23,"womb":1,"drone":53,"flayer":7,"eye":3,"hatch":34,"sentry":9} | 31 waves, 18 distinct, top corpse x6, sentryx2 x4, hatchx5 x3 | music none
+   drones 40% of 131 | elites 0
+
+== stage 2-1  81s  lvl 14->16  rank 0.99->1  weapons 4,0,1,0,1,2,3  grafts spore2 serr1 cal1 over1
+   kill: on-screen life median 0.6s p90 1.65s | killed in right quarter 80% | escaped 11% (139 enemies)
+   bosses: THE SQUIDFUCKED SAUCER 6.2s, maw 3.6s
+   danger: 0 would-be hits in 83s of play (0.00/min) | regular spawns 158
+   variety: 7 kinds {"sentry":9,"drone":84,"corpse":22,"hatch":33,"ufo":1,"flayer":10,"maw":1} | 43 waves, 21 distinct, top flayer x6, sentry x5, dronex6 x5 | kinds shared with last descent's stage: 100% | music none, ufo
+   drones 53% of 158 | elites 0
+
+== stage 2-2 [acid]  84s  lvl 16->17  rank 1->1  weapons 4,2,0,1,0,2,3  grafts spore2 cal2 over1 tail1 regrow1
+   kill: on-screen life median 1.53s p90 3.83s | killed in right quarter 41% | escaped 8% (48 enemies)
+   bosses: THE DISSOLVING WOMB 5.5s, THE BROOD MOTHER 3.5s, THE DISSOLVED MAW 5.5s
+   danger: 0 would-be hits in 83s of play (0.00/min) | regular spawns 69
+   variety: 9 kinds {"crawler":18,"womb":8,"eye":3,"cyst":1,"drone":20,"hatch":17,"slime":3,"brood":1,"maw":1} | 28 waves, 15 distinct, top crawler x9, womb x5, hatch+slime x2 | kinds shared with last descent's stage: 33% | music acid
+   drones 29% of 69 | elites 8 | first visit
+
+== stage 2-3 [ice]  83s  lvl 17->19  rank 1->1  weapons 5,2,0,1,0,3,3  grafts spore2 cal2 over1 pierce2 regrow1
+   kill: on-screen life median 0.78s p90 2.52s | killed in right quarter 75% | escaped 3% (62 enemies)
+   bosses: THE NAIL CHOIR 4.3s, THE BUTCHER'S APPRENTICE 5.0s, THE BLOATED BITCH 6.1s
+   danger: 1 would-be hits in 82s of play (0.73/min) | regular spawns 75
+   variety: 13 kinds {"mutant":8,"womb":2,"hatch":2,"cross":3,"corpse":10,"flayer":2,"drone":43,"choir":1,"nailbar":6,"prentice":1,"slime":3,"eye":2,"crux":1} | 33 waves, 17 distinct, top mutant x6, corpse x5, cross x3 | kinds shared with last descent's stage: 77% | music ice+
+   drones 57% of 75 | elites 13 | REMIX (visit 2) | vs last ice visit: kinds shared 77%, wave signatures shared 41%
+
+== stage 2-4  84s  lvl 19->19  rank 1->1  weapons 5,0,0,1,1,3,3  grafts spore2 rapid1 cal2 pierce2 regrow1
+   kill: on-screen life median 1.65s p90 2.95s | killed in right quarter 48% | escaped 15% (112 enemies)
+   bosses: drive 32.9s
+   danger: 0 would-be hits in 84s of play (0.00/min) | regular spawns 163
+   variety: 7 kinds {"mutant":2,"drone":89,"corpse":16,"eye":3,"sentry":4,"hatch":41,"flayer":8} | 31 waves, 19 distinct, top dronex9 x4, corpse x4, corpsex2 x3 | kinds shared with last descent's stage: 100% | music none
+   drones 55% of 163 | elites 0
+
+script signature written to /tmp/claude-1000/-home-matt-Projects-grodius-ls2-mv/87314c23-b067-46e5-a6c4-ad42f07d8cc9/scratchpad/pt11/sig.json (layout long4); compare seeds with --compare
+
+biome stages: drones 43% of 260 regular spawns
+
+would-be hits: 4 in 12.0 min (0.3/min) | hype voices 16 | end  | errors none
+playtest: ran on long4

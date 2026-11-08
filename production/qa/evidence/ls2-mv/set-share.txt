@@ -1,0 +1,11 @@
+set-piece share over 200 seeds, 3 descents, layout long4, simulated routes
+stage 1-2  whole run: count 15% jaccard 11% placed 8%   same biome (4993 pairs): count 60% jaccard 46% placed 33%
+stage 1-3  whole run: count 16% jaccard 12% placed 9%   same biome (5287 pairs): count 60% jaccard 46% placed 33%
+stage 2-2  whole run: count 15% jaccard 12% placed 8%   same biome (4995 pairs): count 60% jaccard 46% placed 33%
+stage 2-3  whole run: count 18% jaccard 14% placed 10%   same biome (5927 pairs): count 60% jaccard 46% placed 32%
+stage 3-2  whole run: count 15% jaccard 11% placed 8%   same biome (4921 pairs): count 60% jaccard 46% placed 33%
+stage 3-3  whole run: count 17% jaccard 13% placed 9%   same biome (5753 pairs): count 60% jaccard 46% placed 33%
+movement B split (B0/B1) by stage: 1-2 200/0  1-3 200/0  2-2 50/150  2-3 47/153  3-2 48/152  3-3 59/141
+worst whole-run count share 18%: PASS (<= 50%, any two seeds at a stage)
+worst same-biome count share 60%: FAIL (<= 50%, two seeds on the same biome at a stage: 3 of a catalogue of N shares 3/N by construction)
+not measured: played routes (see playtest.mjs --compare); consecutive-run memory (none: the draw is per run)

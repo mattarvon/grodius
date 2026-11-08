@@ -1,0 +1,18 @@
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+breath2: {"st":{"state":"play","score":0,"scroll":6861,"lives":0,"px":50,"py":82.065,"en":1,"gibs":30,"drops":20,"caps":0,"jump":true,"stage":1,"pair":"choir+cyst","loop":0,"pow":0,"rank":0,"lvl":6,"kills":0,"t":1180,"seen":"mini:cyst","sig":"95c5d0a33e"},"hashes":["483b77fe8c","3ec202de47"],"errs":[]}
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+breath2: {"st":{"state":"play","score":0,"scroll":6861,"lives":0,"px":50,"py":82.065,"en":1,"gibs":30,"drops":20,"caps":0,"jump":true,"stage":1,"pair":"choir+cyst","loop":0,"pow":0,"rank":0,"lvl":6,"kills":0,"t":1180,"seen":"mini:cyst","sig":"95c5d0a33e"},"hashes":["483b77fe8c","3ec202de47"],"errs":[]}
+breath2: {"st":{"state":"play","score":0,"scroll":6861,"lives":0,"px":50,"py":82.065,"en":1,"gibs":30,"drops":20,"caps":0,"jump":true,"stage":1,"pair":"choir+cyst","loop":0,"pow":0,"rank":0,"lvl":6,"kills":0,"t":1180,"seen":"mini:cyst","sig":"95c5d0a33e"},"hashes":["483b77fe8c","3ec202de47"],"errs":[]}
+breath2: 3 runs: identical sig 95c5d0a33e 95c5d0a33e 95c5d0a33e canvas 483b77fe8c.3ec202de47 483b77fe8c.3ec202de47 483b77fe8c.3ec202de47
+PASS (breath2) vs baseline @ ffd6b77
+1 scenario(s) in 22 s

@@ -1,0 +1,71 @@
+route-probe: layout long4 (orbit, biome, biome, drive)
+TITLE music {"mix":"none","want":"void-10-title-music","playing":true,"t":0,"bus":1}
+L0 stage 0 start scroll 4 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1229 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4201 k /0
+  tally 1-1 "OPEN ORBIT" S esc=false kills 127/134 79s k /0
+  fork open seg 0 opts acid,ice scroll 4248 visited  gates y 71,182 terrain -70..262
+  (forced gate force0=ice)
+  fork closed after 150f -> route ice, bx 4738,0,0 alive true
+L0 stage 1 start scroll 4261 route ice, k ice/0.05146280404181994
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 5813 k ice/1
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 6809 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 7950 k ice/1
+  tally 1-2 "THE CRYOVAULT" S esc=false kills 62/67 98s k ice/1
+  fork open seg 1 opts acid,snot scroll 7997 visited ice gates y 71,182 terrain 29..219
+  (forced gate force1=acid)
+  fork closed after 147f -> route ice,acid bx 4738,8487,0 alive true
+L0 stage 2 start scroll 8009 route ice,acid k ice/0.9522311754119157
+  SEAL 1 (cleared 2)
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 9563 k acid/1
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 10562 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 11699 k acid/1
+  tally 1-3 "THE DIGESTION TANKS" S esc=false kills 64/85 95s k acid/0.97528076171875
+L0 stage 3 start scroll 11900 route ice,acid k acid/0.3891334478655837
+  GRAVITY DRIVE boss at scroll 14451 k /0
+  tally 1-4 "THE GRAVITY DRIVE" S esc=false kills 129/142 88s k /0
+  SEAL 2 (cleared 4)
+SHOP 1 music {"mix":"none","want":"void-07-heist","playing":true,"t":0,"bus":0.3}
+L1 stage 0 start scroll 0 route , k /0
+  mini ufo title=THE SQUIDFUCKED SAUCER biome=- stageBoss=false scroll 1232 k /0
+  mini maw title=- biome=- stageBoss=true scroll 4202 k /0
+  tally 2-1 "OPEN ORBIT" S esc=false kills 157/159 75s k /0
+  fork open seg 0 opts fire,snot scroll 4248 visited ice,acid gates y 71,182 terrain -70..265
+  (forced gate force0=ice)
+  fork closed after 146f -> route ice, bx 4738,0,0 alive true
+L1 stage 1 start scroll 4262 route ice, k ice/0.05276016398879144
+  mini brood title=THE BROOD MOTHER biome=- stageBoss=false scroll 5816 k ice/1
+  mini prentice title=THE BUTCHER'S APPRENTICE biome=- stageBoss=false scroll 6811 k ice/1
+  mini crux title=THE BLOATED BITCH biome=ice stageBoss=false scroll 7951 k ice/1
+  tally 2-2 "THE CRYOVAULT" S esc=false kills 55/63 97s k ice/1
+  fork open seg 1 opts fire,snot scroll 7997 visited ice,acid gates y 71,182 terrain 25..233
+  (forced gate force1=acid)
+  fork closed after 142f -> route ice,acid bx 4738,8487,0 alive true
+L1 stage 2 start scroll 8011 route ice,acid k ice/0.9485371959581801
+  SEAL 3 (cleared 6)
+  mini cyst title=THE DISSOLVING WOMB biome=- stageBoss=false scroll 9564 k acid/1
+  mini choir title=THE NAIL CHOIR biome=- stageBoss=false scroll 10560 k acid/1
+  mini maw title=THE DISSOLVED MAW biome=acid stageBoss=true scroll 11702 k acid/1
+  tally 2-3 "THE DIGESTION TANKS" S esc=false kills 74/87 82s k acid/0.97528076171875
+L1 stage 3 start scroll 11900 route ice,acid k acid/0.3891334478655837
+  GRAVITY DRIVE boss at scroll 14451 k /0
+  tally 2-4 "THE GRAVITY DRIVE" S esc=false kills 129/145 80s k /0
+SHOP 2 music {"mix":"none","want":"ov-dx7-chords","playing":true,"t":0,"bus":0.3}
+minGap 104.0 @13860  slams 0 (max 0.0 at )  hazards 157 {"icicle":87,"geyser":70} bad [] hazHitFrames 0 deaths 0 frames 9150
+music:
+  0-0:none:void-05-cyber-side-scroller:on x800
+  0-0:ufo:void-05-cyber-side-scroller:on x89
+  0-0:none:ov-cyberpunk-beat:on x146
+  0-1:ice:void-08-caves:on x1257
+  0-2:acid:void-02-institutional-values:on x1202
+  0-3:none:void-12-not-done-here-yet:on x533
+  0-3:none:void-13-finale:on x650
+  1-0:none:ov-circuit-synthwave:on x864
+  1-0:ufo:ov-circuit-synthwave:on x48
+  1-0:none:ov-cyberpunk-snippet:on x103
+  1-1:ice+:void-08-caves:on x1245
+  1-2:acid+:void-02-institutional-values:on x1023
+  1-3:none:ov-circuit-synthwave-alt:on x520
+  1-3:none:void-13-finale:on x550
+errors: console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden) | console: Failed to load resource: the server responded with a status of 403 (Forbidden)
+route-probe: ran on long4

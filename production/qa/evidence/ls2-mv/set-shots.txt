@@ -1,0 +1,61 @@
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+set-shots: layout long4 (orbit, biome, biome, drive)
+plain ice thaw: 3 enemies at frame 90 (3 seen)
+plain ice vigil: 3 enemies at frame 90 (3 seen)
+plain ice pack: 3 enemies at frame 90 (3 seen)
+band  ice B0 morgue (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+band  ice B0 crucify (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+band  ice B0 thaw (S2 at x 6255): 3 enemies at frame 90, 3 seen, 0 first seen inside the walls
+band  ice B0 vigil (S2 at x 6255): 3 enemies at frame 90, 3 seen, 0 first seen inside the walls
+band  ice B0 pack (S2 at x 6255): 3 enemies at frame 90, 3 seen, 0 first seen inside the walls
+band  ice B1 morgue (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+band  ice B1 crucify (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+band  ice B1 thaw (S2 at x 6255): 3 enemies at frame 90, 3 seen, 0 first seen inside the walls
+band  ice B1 vigil (S2 at x 6255): 3 enemies at frame 90, 3 seen, 0 first seen inside the walls
+band  ice B1 pack (S2 at x 6255): 3 enemies at frame 90, 3 seen, 0 first seen inside the walls
+plain acid slurry: 7 enemies at frame 90 (7 seen)
+plain acid vats: 4 enemies at frame 90 (4 seen)
+plain acid lining: 2 enemies at frame 90 (2 seen)
+band  acid B0 walls (S2 at x 6255): 6 enemies at frame 90, 6 seen, 0 first seen inside the walls
+band  acid B0 gutter (S2 at x 6255): 6 enemies at frame 90, 6 seen, 0 first seen inside the walls
+band  acid B0 slurry (S2 at x 6255): 7 enemies at frame 90, 7 seen, 0 first seen inside the walls
+band  acid B0 vats (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+band  acid B0 lining (S2 at x 6255): 2 enemies at frame 90, 2 seen, 0 first seen inside the walls
+band  acid B1 walls (S2 at x 6255): 6 enemies at frame 90, 6 seen, 0 first seen inside the walls
+band  acid B1 gutter (S2 at x 6255): 6 enemies at frame 90, 6 seen, 0 first seen inside the walls
+band  acid B1 slurry (S2 at x 6255): 7 enemies at frame 90, 7 seen, 0 first seen inside the walls
+band  acid B1 vats (S2 at x 6255): 3 enemies at frame 90, 3 seen, 0 first seen inside the walls
+band  acid B1 lining (S2 at x 6255): 2 enemies at frame 90, 2 seen, 0 first seen inside the walls
+plain fire meatline: 4 enemies at frame 90 (4 seen)
+plain fire backdraft: 1 enemies at frame 90 (1 seen)
+plain fire cinders: 4 enemies at frame 90 (4 seen)
+band  fire B0 pincer (S2 at x 6255): 2 enemies at frame 90, 2 seen, 0 first seen inside the walls
+band  fire B0 kiln (S2 at x 6255): 5 enemies at frame 90, 5 seen, 0 first seen inside the walls
+band  fire B0 meatline (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+band  fire B0 backdraft (S2 at x 6255): 1 enemies at frame 90, 1 seen, 0 first seen inside the walls
+band  fire B0 cinders (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+band  fire B1 pincer (S2 at x 6255): 2 enemies at frame 90, 2 seen, 0 first seen inside the walls
+band  fire B1 kiln (S2 at x 6255): 5 enemies at frame 90, 5 seen, 0 first seen inside the walls
+band  fire B1 meatline (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+band  fire B1 backdraft (S2 at x 6255): 1 enemies at frame 90, 1 seen, 0 first seen inside the walls
+band  fire B1 cinders (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+plain snot sneeze: 4 enemies at frame 90 (4 seen)
+plain snot clot: 8 enemies at frame 90 (8 seen)
+plain snot congestion: 5 enemies at frame 90 (5 seen)
+band  snot B0 flood (S2 at x 6255): 9 enemies at frame 90, 9 seen, 0 first seen inside the walls
+band  snot B0 drip (S2 at x 6255): 6 enemies at frame 90, 6 seen, 0 first seen inside the walls
+band  snot B0 sneeze (S2 at x 6255): 4 enemies at frame 90, 4 seen, 0 first seen inside the walls
+band  snot B0 clot (S2 at x 6255): 6 enemies at frame 90, 6 seen, 0 first seen inside the walls
+band  snot B0 congestion (S2 at x 6255): 5 enemies at frame 90, 5 seen, 0 first seen inside the walls
+band  snot B1 flood (S2 at x 6255): 9 enemies at frame 90, 9 seen, 0 first seen inside the walls
+band  snot B1 drip (S2 at x 6255): 6 enemies at frame 90, 6 seen, 0 first seen inside the walls
+band  snot B1 sneeze (S2 at x 6255): 5 enemies at frame 90, 5 seen, 0 first seen inside the walls
+band  snot B1 clot (S2 at x 6255): 8 enemies at frame 90, 8 seen, 0 first seen inside the walls
+band  snot B1 congestion (S2 at x 6255): 5 enemies at frame 90, 5 seen, 0 first seen inside the walls
+band total: 0 enemies first seen inside the walls (want 0)
+no page errors
+not measured: S1/S3 over movement A and C (no band there); Descent 2+ terrain offsets; enemies that fly into a wall after spawning (their own patterns, as on main)
+set-shots: ran on long4
