@@ -1,0 +1,7 @@
+npm notice run grodius@0.2.0 npx
+npm notice run 'vite' --port 5497 --strictPort --host 127.0.0.1 --logLevel error
+screens-shot: layout short (orbit, biome, biome, drive)
+errors: none
+screens-shot: ran on short
+exit=0
+ran-on=e7dc604 tctl-start=78

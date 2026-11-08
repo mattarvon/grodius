@@ -110,7 +110,7 @@ Wound probe (background only, conservative):
 
 | Biome | Worst 32 px column, wound / normal (≤ 1.15) | Bullet contrast (≥ 4.5:1) |
 |---|---|---|
-| ice | 1.14 | 7.1:1 |
+| ice | 1.15 (at the limit since the review fixes; was 1.14) | 7.1:1 |
 | acid | 0.71 | 6.9:1 |
 | fire | 0.59 | 9.0:1 |
 | snot | 0.75 | 7.6:1 |
@@ -174,3 +174,32 @@ This also settles web-specialist's 20-chain blocker: the harness `st` (gibs incl
   - harness: short PASS @ 8ff9ba4, long4 PASS @ 88d9525, 12 of 12 scenarios PASS. No `--update`, and no mid-run reload.
   - parity: PARITY PASS, 7 of 7 runs identical.
   - Logs: `ls2-read/rebase-*.txt`.
+
+## Studio review fixes (`e7dc604`), 2026-11-08
+All 10 reviewers approved with notes. These fixes come from `review/read/fixes.md`.
+
+**S2s**
+
+| # | Fix | Result |
+|---|---|---|
+| 1 | Kill-layer throttle key | Now `gk`, so it no longer collides with `sfx.glob()`'s `gb`. |
+| 2 | `fart_ok` plays | Drive vents and Maw vents use `gross_gargle`, Drive death uses `drivegut`, and the Maw's deflating skin and the Saucer's death use `gross_slosh`. `fart_nav` and `fart_ok` are shelved, and `dist` has no fart clips. The rates are unchanged and nobody has heard the swaps. |
+| 3 | 20-chain line | CLEAN-UP CREW / IS NOT COMING. Harness and parity are identical. Shot: `tone-hype-20-chain.png`. |
+| 4 | THE BLOAT | **Still held.** `biomes.ts:353` copies `bossName` into `G.mini.title`, and the parity baseline records `crux\|THE BLOATED BITCH`, so the rename would move parity. The plate still reads FROZEN // BLOATED BITCH (`wound-gate-desktop.png`). This was decided by reading the code and the baseline; no rename was run. |
+| 5 | Dead code | `drawBabe`, its call, branch, timer and regex, `BY_CAT.babe` and `nativeSay` are gone. The TTS dependency stays for the technical-director's commit. |
+
+**Cheap S3s:** all done. New tests: `tests/unit/voicebank.test.ts` and the wound-look case in `wounds.test.ts`.
+
+**Gates**, all on `e7dc604`, in the gate worktree with its own Vite `cacheDir`. Each ran under the lock and started below 80 °C.
+- typecheck: clean.
+- vitest: 45 files, 963 passed plus 1 expected fail (fix merge 1's `biomebeats` `it.fails`).
+- build: exit 0.
+- harness: short PASS @ 8ff9ba4, long4 PASS @ 88d9525, 12 of 12 scenarios PASS. No `--update`.
+- parity: PARITY PASS, 7 of 7 runs identical.
+- Logs: `ls2-read/fix-*.txt`, with Vite's font allow-list warnings filtered out.
+
+**Measured:** the iron-oxide shards take the ice wound's worst column to 1.15, exactly on the limit (was 1.14). Bullet contrast stays 7.1:1. Warm slices are 2.4 ms or less at 4x CPU throttle.
+
+**Open**
+- The 20-chain window is captioned SGT. RAMROD SLAB, because `BY_CAT.hype` still falls back to that face with no clip. The review didn't list it, so it is unchanged, and it now sits next to the new cold line.
+- Not on a device: the swapped samples have not been heard on the Fold.

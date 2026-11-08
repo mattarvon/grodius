@@ -1,0 +1,15 @@
+shot tone-greybox-calm-desktop
+shot tone-greybox-half-desktop
+shot tone-greybox-tell-desktop
+shot tone-cyst-desktop
+shot tone-cyst-tel-desktop
+shot tone-gore-desktop
+shot tone-greybox-calm-phone
+shot tone-greybox-half-phone
+shot tone-greybox-tell-phone
+shot tone-cyst-phone
+shot tone-cyst-tel-phone
+shot tone-gore-phone
+errors: none
+exit=0
+ran-on=e7dc604 tctl-start=76
