@@ -22,7 +22,8 @@ for (const L of Object.values(LAYOUTS)) {
 // midboss registry came after row A's original 8-file list). NOT_X names, per file, the anchor-valued numbers that are
 // something else; a new collision fails here and goes in this table with what the number is, never as a file skip
 const NOT_X: Record<string, number[]> = {
-  'audio.ts': [2300, 2400, 2700, 4200, 5000, 5200], // oscillator and filter Hz
+  'audio.ts': [800, 2300, 2400, 4200, 5200], // oscillator and filter Hz
+  'audiomix.ts': [800], // the presence peak's Hz (EQ.presF)
   'music.ts': [2400], // filter Hz
   'economy.ts': [2100, 2400], // BIO_LONG bio bands
   'enemies/spawn.ts': [800], // kill score

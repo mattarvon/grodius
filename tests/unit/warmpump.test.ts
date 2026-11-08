@@ -13,6 +13,7 @@ const A = vi.hoisted(() => {
 });
 const gibs: any[] = [];
 vi.mock('../../src/render/gibart', () => ({ gibAtlas: () => {} }));
+vi.mock('../../src/render/wounds', () => ({ warmWound: () => false, dropWound: () => {}, woundBuilt: () => false, woundHeld: () => false, woundDC: () => null }));
 vi.mock('../../src/render/heroeye', () => ({ warmHeroEye: () => false }));
 vi.mock('../../src/render/eyes', () => ({ warmEyes: () => false }));
 vi.mock('../../src/render/terrain', () => ({ warmDerelict: () => false }));

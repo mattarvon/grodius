@@ -201,7 +201,7 @@ Both reviewers re-checked `a23998a` and lifted their blocks.
 - the orange-white fire vent jets, where Pillar 2 needs a call from game-designer and art.
 
 **Tone self-check on this lane's own work** (Matt, 2026-11-07, then the approved note):
-- **Sound:** `848a90c` replaces the Maw's and the Drive's death `fart_ok` with `gross_gush` (rate .5) and `drivegut` (rate .6). The comment in `drive.ts` says how to restore Matty's raspberry if Matt wants it back. The title-root arm sound is `menuBlip(false)`, the title's own sound. Nobody has listened to either yet.
+- **Sound:** this lane replaced the Maw's and the Drive's death `fart_ok` too, but ls2-read reached main first with its own swaps (`gross_slosh`, and `drivegut` at rate .32). At the rebase I kept ls2-read's sounds, which own that decision, and kept this lane's `prio` on them. The title-root arm sound is `menuBlip(false)`, the title's own sound. Nobody has listened to either yet.
 - **Copy:** I changed no strings, because strings belong to ls2-read. The escape subline stays NO REWARD. NO BIOMASS goes to ls2-read as a proposal.
 - **Art:** see the table above. Nothing this lane added is rounded, bright or jokey. The lights it added are lit by the threat.
 - **Out of scope, for audio-director:**
