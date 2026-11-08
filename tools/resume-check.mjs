@@ -140,7 +140,7 @@ const PROG_G = ['score', 'lvl', 'xp', 'xpTot', 'pk', 'gm', 'kk', 'gmk', 'cur', '
 const LOAD_P = ['speed', 'missile', 'double', 'laser', 'pyre', 'options', 'shield', 'wardLv', 'aegis', 'frag'];
 
 const fails = [], notes = [];
-const eq = (what, a, b) => { const A = JSON.stringify(a), Bv = JSON.stringify(b); if (A !== Bv) fails.push(`${what}: ${A.slice(0, 300)} -> ${Bv.slice(0, 300)}`); };
+const eq = (what, a, b) => { const A = String(JSON.stringify(a)), Bv = String(JSON.stringify(b)); if (A !== Bv) fails.push(`${what}: ${A.slice(0, 300)} -> ${Bv.slice(0, 300)}`); }; // String(): a missing value is a difference to report, not a crash
 const b = await chromium.launch();
 const report = { layout: LAYOUT, stage: STAGE, cp: CPN, seed: SEED, death: DEATH };
 try {
