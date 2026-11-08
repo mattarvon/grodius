@@ -11,6 +11,7 @@ import { MID_ET, MID_SIM } from './mid/roster';
 import { depthHP } from '../depth';
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
 import { bandClamp } from '../terrainb';
+import { capKept, econId } from '../economy';
 
 // ---------------- enemies ----------------
 // the midbosses' rows come from their own files (enemies/mid/): MID_ET is this same object
@@ -169,7 +170,7 @@ export function mk(k, x, y, o = {}) {
   e.hp *= e.dm;
   e.max = e.hp;
   if (!b.mini && !o.par && !o.kid && $.G.st) $.G.st.spawned++; // kid: born from a midboss, not scripted
-  if (e.cap && !e.mini && R() < .65) e.cap = false;
+  if (e.cap && !e.mini && !capKept(econId(), R())) e.cap = false; // D31: the entry's keep (economy.ts capKeep; short .35)
   enemies.push(e);
   return e;
 }
@@ -215,12 +216,13 @@ export const formationExtra = () => Math.round(Math.min(2.0, $.G.pow || 0) * 3);
 /** a drone wave of n (+ formationExtra()). o.fixed: a scripted set piece whose layout must hold (the acid biome's
  *  double wall would merge into one at +6 drones), so it spawns exactly n; other o fields go to every drone's mk() */
 export function formation(pat, y, n = 5, o = {}) {
-  const { fixed, ...mo } = o;
+  const { fixed, pod, ...mo } = o; // pod: the group always drops its pod (the biome breath's release, D31)
   if (!fixed) n += formationExtra(); // denser waves as you power up; uncapped past rank 1 so Infirmary buys still add bodies
   const g = {
     n,
     killed: 0
   };
+  if (pod) g.pod = 1;
   for (let i = 0; i < n; i++) {
     const e = mk('drone', pat === 'behind' ? -16 - i * 16 : W + 16 + i * 16, y, {
       group: g,

@@ -12,7 +12,7 @@ import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
-import { econId, firstKillPay, killBio, killXP } from '../economy';
+import { econId, firstKillPay, grpDrops, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
@@ -622,7 +622,8 @@ export function killEnemy(e, dir = 1) {
   if (e.cap) dropCap(e.x, e.y);
   if (e.group) {
     e.group.killed++;
-    if (e.group.killed === e.group.n) dropCap(e.x, e.y);
+    // D31: a cleared formation drops on the entry's grpPod chance (short 1: no draw); the breath's release always does
+    if (e.group.killed === e.group.n && grpDrops(econId(), e.group.pod, R)) dropCap(e.x, e.y);
   }
   if (e.k === 'crux' || e.k === 'butcher') {
     for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);

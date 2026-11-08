@@ -1,7 +1,7 @@
 // The set-piece catalogue and draw (spec §3.3, §10; build plan LS2-mv): pure, no DOM.
 import { describe, expect, it } from 'vitest';
-import { B1_FIRST_VISIT, CATALOG, SETS_PER_STAGE, SETW, drawPicks, drawSets, isSetId, moveRoll } from '../../src/setdraw';
-import { stream } from '../../src/rng';
+import { B1_FIRST_VISIT, CATALOG, SETS_PER_STAGE, SETW, SIG_FIRST_W, drawPicks, drawSets, isSetId, moveRoll } from '../../src/setdraw';
+import { pickSeedOf, stream } from '../../src/rng';
 
 const BIOMES = Object.keys(CATALOG);
 const SEEDS = Array.from({ length: 200 }, (_, i) => i + 1);
@@ -83,5 +83,62 @@ describe('moveRoll', () => {
   it('may roll B1 on a first visit from Descent 2', () => {
     expect(moveRoll(0, 1, () => B1_FIRST_VISIT - .01)).toBe(1);
     expect(moveRoll(0, 1, () => B1_FIRST_VISIT)).toBe(0);
+  });
+});
+
+describe("first-visit signature weight (D36 item 2)", () => {
+  /** a counting stream: every value from stream(s), and how many were drawn */
+  const counted = (s: number) => { const rs = stream(s), c = { n: 0, rs: () => { c.n++; return rs(); } }; return c; };
+
+  it('weighs the signature x2 on the first draw of a first visit, and evenly on a later visit', () => {
+    // first draw .3: x2 over a pool of 5 is 6 shares, the signature's two cover [0, 2/6); evenly it covers [0, 1/5)
+    // only. The next two draws (.99) take the pool's last pieces, never the signature at index 0
+    const r = () => { const q = [.3, .99, .99]; return () => q.shift()!; };
+    expect(SIG_FIRST_W).toBe(2);
+    for (const b of BIOMES) {
+      expect(drawPicks(b, 0, 0, {}, r()).sp, b).toContain(CATALOG[b][0]);
+      expect(drawSets(b, {}, r()), b).not.toContain(CATALOG[b][0]);
+      expect(drawPicks(b, 1, 0, {}, r(), { [b]: 1 }).sp, b).not.toContain(CATALOG[b][0]);
+    }
+  });
+
+  it.each(BIOMES)('%s: plays the signature in ~80% of first visits (x2) against ~60% unweighted', (b) => {
+    let hit = 0, flat = 0;
+    for (let s = 1; s <= 2000; s++) {
+      // the real pick streams (biomes.ts pickStream): stream(s) for small consecutive s opens on correlated values
+      if (drawPicks(b, 0, 0, {}, stream(pickSeedOf(s, 0, 1))).sp.includes(CATALOG[b][0])) hit++;
+      if (drawSets(b, {}, stream(pickSeedOf(s, 0, 1))).includes(CATALOG[b][0])) flat++;
+    }
+    // x2: 1 - (4/6)(3/5)(2/4) = .8; evenly 3/5
+    expect(hit / 2000).toBeGreaterThan(.76);
+    expect(hit / 2000).toBeLessThan(.84);
+    expect(flat / 2000).toBeGreaterThan(.56);
+    expect(flat / 2000).toBeLessThan(.64);
+  });
+
+  it('draws the same number of values with and without the weight', () => {
+    for (const s of SEEDS) for (const loop of [0, 1]) {
+      const a = counted(s), z = counted(s);
+      drawPicks('fire', 0, loop, {}, a.rs);
+      drawSets('fire', {}, z.rs);
+      expect(a.n, `seed ${s} loop ${loop}`).toBe(z.n + (loop > 0 ? 1 : 0)); // + the Descent 2 first-visit B1 roll
+    }
+  });
+
+  it('leaves a later visit identical to the unweighted draw', () => {
+    for (const s of SEEDS) {
+      const u1 = { fire: ['pincer'] }, u2 = { fire: ['pincer'] };
+      expect(drawPicks('fire', 1, 0, u1, stream(s), { fire: 1 }).sp).toEqual(drawSets('fire', u2, stream(s)));
+    }
+  });
+
+  it('draws as many pieces as the caller asks (biomes.ts passes layout beats.sets.length)', () => {
+    expect(drawPicks('ice', 0, 0, {}, stream(3), {}, 2).sp).toHaveLength(2);
+  });
+
+  it('has no set draw on short: short flies no movement B, so biomeStage never calls stagePicks', async () => {
+    const { LAYOUTS } = await import('../../src/layout');
+    expect(LAYOUTS.short!.beats.moveB).toBeUndefined();
+    expect(LAYOUTS.long4!.beats.moveB).toBeDefined();
   });
 });

@@ -20,7 +20,7 @@ vi.mock('../../src/boss/update', () => ({ bossHitByShot: () => {} }));
 vi.mock('../../src/render/util', () => ({ drawChain: () => {}, drawHookTip: () => {}, light: () => {} }));
 
 const econ = await import('../../src/economy');
-const { ECON, HPM_TOL, d1EliteChance, descDepth, firstKillPay, gluttonyN, gradeOf, gradePts, hpmCol, hpmTarget, killBio, killXP, livesAfterDrive, sealAt, stageXP } = econ;
+const { ECON, HPM_TOL, capKept, graftN, grpDrops, d1EliteChance, descDepth, firstKillPay, gluttonyN, gradeOf, gradePts, hpmCol, hpmTarget, killBio, killXP, livesAfterDrive, sealAt, stageXP } = econ;
 const { clearStage } = await import('../../src/stages');
 const perks = await import('../../src/perks');
 const { GM } = await import('../../src/mutations');
@@ -87,6 +87,23 @@ describe('short entry reproduces today exactly', () => {
     expect([0, 1, 2].map((loop) => [0, 1, 2, 3].map((ord) => stageXP('short', ord, loop)))).toEqual([[30, 75, 120, 165], [70, 115, 160, 205], [110, 155, 200, 245]]);
     expect([1, 2, 3, 4, 5, 6, 7, 8].map((c) => sealAt('short', c))).toEqual([0, 1, 0, 2, 0, 3, 0, 0]);
     expect([st(10, 10), st(10, 10, 1), st(8, 10, 1), st(7, 10), st(6, 10, 1), st(3, 10), st(2, 10), st(10, 10, 0, 1)].map((s) => gradeOf('short', s))).toEqual(['S', 'A', 'A', 'S', 'A', 'B', 'C', 'A']);
+    // D31's pod and graft knobs at today's values: the .65 keep roll, every formation drops, the GM literals
+    expect([ECON.short.capKeep, ECON.short.grpPod, ECON.short.graftMul]).toEqual([.35, 1, 1]);
+  });
+
+  it("keeps a carrier's pod on exactly today's rolls (spawn.ts: dropped at R() < .65)", () => {
+    for (let i = 0; i <= 100; i++) expect(capKept('short', i / 100), String(i / 100)).toBe(!(i / 100 < .65));
+  });
+
+  it('drops every cleared formation and never draws for it', () => {
+    let n = 0;
+    expect(grpDrops('short', undefined, () => { n++; return .99; })).toBe(true);
+    expect(n).toBe(0);
+  });
+
+  it('hands every graft its literal thresholds, the same array', () => {
+    for (const m of GM) if (m.id !== 'over') expect(m.n, m.id).toBe(graftN('short', m.n));
+    expect(GM.find((m: any) => m.id === 'rapid').n).toEqual([36, 150]);
   });
 
   it('keeps depth per descent only', () => {
@@ -120,10 +137,10 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(gradeOf('long4', st(10, 10), 60, true)).toBe('C');
   });
 
-  it("pays today's stage XP lump, cuts kill XP to x0.85 (item G's tune) and kill biomass to x0.65 (item G's tune)", () => {
+  it("pays today's stage XP lump, cuts kill XP to x0.30 and kill biomass to x0.47 (D31, provisional)", () => {
     for (let loop = 0; loop < 3; loop++) for (let ord = 0; ord < 4; ord++) expect(stageXP('long4', ord, loop)).toBe(perks.stageXP(ord, loop));
-    expect(killXP('long4', 30)).toBeCloseTo(25.5);
-    expect(killBio('long4', 100)).toBeCloseTo(65);
+    expect(killXP('long4', 30)).toBeCloseTo(9);
+    expect(killBio('long4', 100)).toBeCloseTo(47);
   });
 
   it('adds .35 of a descent of depth across 4 stages', () => {
@@ -197,9 +214,46 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(hpmTarget('long4', 'drive', 0, 0)).toMatchObject({ t: 1.3, banded: false });
   });
 
-  it('targets LV 13±1 and D1 biomass 1.3-1.5k', () => {
-    expect(ECON.long4.targets!.lvD1).toEqual([12, 14]);
+  it('targets LV 10-11 at the end of Descent 1 (D31), LV 3 after Open Orbit, and D1 biomass 1.3-1.5k', () => {
+    expect(ECON.long4.targets!.lvD1).toEqual([10, 11]);
+    expect(ECON.long4.targets!.lvStage).toEqual({ 0: 3 });
     expect(ECON.long4.targets!.bio[0]).toEqual([1300, 1500]);
+  });
+
+  it('pins the D31 cut: kill XP .30, kill biomass .47, carrier keep .17, formation pods .5, grafts x1 (provisional)', () => {
+    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .47, .17, .5, 1]);
+  });
+
+  it('keeps a carrier pod only at a roll of .83 or more', () => {
+    expect(capKept('long4', .8299)).toBe(false);
+    expect(capKept('long4', .83)).toBe(true);
+  });
+
+  it('rolls once per cleared formation, and never for the release formation', () => {
+    let n = 0;
+    const r = (v: number) => () => { n++; return v; };
+    expect(grpDrops('long4', undefined, r(.49))).toBe(true);
+    expect(grpDrops('long4', undefined, r(.5))).toBe(false);
+    expect(n).toBe(2);
+    expect(grpDrops('long4', 1, r(.99))).toBe(true);
+    expect(n).toBe(2);
+  });
+
+  it('scales the live graft thresholds by graftMul, GLUTTONY excepted, once tuned', async () => {
+    const { setLayout } = await import('../../src/layout');
+    const e = ECON.long4 as { graftMul: number }, rapid = GM.find((m: any) => m.id === 'rapid'), over = GM.find((m: any) => m.id === 'over');
+    setLayout('long4');
+    try {
+      expect(rapid.n).toEqual([36, 150]); // graftMul 1 today: measure first (§2.3)
+      e.graftMul = 1.4;
+      expect(rapid.n).toEqual([50, 210]);
+      expect(rapid.n).toBe(rapid.n); // memoised: countKill allocates nothing per kill
+      expect(over.n).toEqual([3, 6]);
+    } finally {
+      e.graftMul = 1;
+      setLayout('short');
+    }
+    expect(rapid.n).toEqual([36, 150]);
   });
 });
 

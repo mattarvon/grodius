@@ -6,7 +6,7 @@
 //  module state and draw no RNG, so they can be unit tested.
 //
 //  WIRED (LS1 item G) for the active layout entry (`econId()`): stages.ts (seals, grades), perks.ts (stage XP),
-//  enemies/update.ts (kill XP, kill biomass), depth.ts (intra-descent depth) and mutations.ts (GLUTTONY) read it. The
+//  enemies/update.ts (kill XP, kill biomass, D31 formation pods), enemies/spawn.ts (D31 carrier keep), depth.ts (intra-descent depth) and mutations.ts (GLUTTONY, D31 graft thresholds) read it. The
 //  `short` entry reproduces today's literals exactly (frozen golden copy in tests/unit/economy.test.ts), so the short
 //  layout is unchanged. Descent 1 elites and Drive lives are not wired: both are null on short and long4 (D26), and
 //  `long5` wires them at LS3-0.
@@ -43,6 +43,13 @@ export interface EconEntry {
   killXP: number;
   /** kill biomass multiplier (the pods that kills drop; grade pay and Infirmary pay are not scaled) */
   killBio: number;
+  /** D31: chance a carrier spawn keeps its pod (enemies/spawn.ts mk: the existing keep roll's threshold, no new draw) */
+  capKeep: number;
+  /** D31: chance a cleared formation drops its pod (enemies/update.ts killEnemy). 1 = always, and no R() is drawn.
+   *  The biome breath's release formation (group.pod) always drops */
+  grpPod: number;
+  /** D31: multiplier on the kill-count graft thresholds (mutations.ts GM n), GLUTTONY excepted (it reads `glut`) */
+  graftMul: number;
   /** biomass paid once per profile for the first kill of each midboss kind (spec §6.4), recorded in meta.mbK; 0 = none */
   firstKill: number;
   /** intra-descent depth: dep = loop + intra * ord / (n - 1) */
@@ -91,6 +98,9 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     xp: { a: 30, b: 45, c: 40 },
     killXP: 1,
     killBio: 1,
+    capKeep: .35, // today's keep roll (spawn.ts dropped a carrier's pod at R() < .65), so the same draws keep the same pods
+    grpPod: 1, // today: every cleared formation drops, and no draw is made (short's R() count is unchanged)
+    graftMul: 1, // today's GM thresholds
     firstKill: 0, // today's game pays nothing and writes no kill record
     intra: 0, // depth is per descent only
     glut: [2, 4],
@@ -109,14 +119,26 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     gradeRef: 35, // today's ~35 s of scroll, so a 35 s stage grades exactly as today; without it grades collapse on 1.75x the exposure
     sHits: 1, // Q9: a two-minute no-hit stage is a different ask
     xp: { a: 30, b: 45, c: 40 }, // today's lump; the per-kill cut below does the work
-    // LV 13±1 at the end of Descent 1 (pod-probe, item G). The spec's .75 start measured LV 12/14/12/12 (seeds 1-4,
-    // the low edge of the band); x1 measured 13-14 (seeds 1-5)
-    killXP: .85,
+    // D31 (audit/d31-economy.md §1-2.1): LV 10-11 at the end of Descent 1 over the stretched 120-150 s stages. .30 is the
+    // post-stretch projection (fit range .25-.35; LS1 item G's .85 measured LV 13-14 on today's stages). Provisional,
+    // re-fit in step 5 on the stretched build: k = (1010 - 390) / raw kill XP (pod-probe xpTot, seeds 1-5)
+    killXP: .3,
     firstKill: 100, // spec §6.4; once per profile, so it is not in the steady-state D1 biomass bands
     // D1 biomass 1300-1500 steady state (pod-probe, item G; run biomass minus the once-per-profile first-kill pay).
     // The spec's .75 start measured 1311-1681 with one midboss per biome stage, then 1412-1834 (median 1627) once F's
     // second midboss landed
-    killBio: .65,
+    // D31 §2.4: the stretch grows kill pods ~x1.45 (1434 -> ~1900), so .65 x 1400/1900 ~ .47 holds the band. Provisional,
+    // re-fit in step 5: killBio x (1400 - B_fixed) / (B_measured - B_fixed) (pod-probe finalBio, seeds 1-5)
+    killBio: .47,
+    // D31 §2.2: carrier pods are per spawn, so the keep falls by the stretch ratio to land D1 pods ~-35%:
+    // .35 x .70 / 1.45 ~ .17 (post-stretch projection; provisional, re-fit in step 5 on pod-probe stages[].pods)
+    capKeep: .17,
+    // D31 §2.2: formations multiply with the stretch's spawn sections; .5 is the post-stretch projection (.7 on today's
+    // stages). One R() per cleared formation on long4 only. Provisional, re-fit in step 5 (pod-probe kinds.pod)
+    grpPod: .5,
+    // D31 §2.3: measure first. If the stretched build ends D1 with more graft levels than the step-0 baseline, set the
+    // measured kill ratio (~1.4) so grafts keep today's per-stage timing (pod-probe G.gm at each tally)
+    graftMul: 1,
     intra: .35, // late Descent 1 would otherwise stay soft over a longer descent (depth-probe, playtest.mjs hits/min)
     // GLUTTONY counts Maw + midboss kills: per long4 descent the Saucer + 2 + 2 biome midbosses, the Open Orbit Maw and
     // 0-2 biome Maw stage bosses, so 6-8 when every one is killed (short: 2-4)
@@ -126,7 +148,8 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     hpm: HPM_LONG4,
     // Orbit (no slot B) and the Drive (no approach midboss) are measured in LS1 and banded from LS2-orbit / LS2-ship
     hpmBanded: ['biome0', 'biome1'],
-    targets: { lvD1: [12, 14], bio: BIO_LONG },
+    // D31: Descent 1 ends at LV 10-11; at least LV 3 after Open Orbit so the first picks still land in stage 1 (risk R5)
+    targets: { lvD1: [10, 11], lvStage: { 0: 3 }, bio: BIO_LONG },
   },
   // the D19 target and the LS3-0 exit: Orbit, biome, interior, biome, Drive
   long5: {
@@ -137,6 +160,9 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     xp: { a: 40, b: 35, c: 40 },
     killXP: .75, // LV 4 / 8 after stages 1 / 2, LV 14±1 at the end of Descent 1 (pod-probe, LS3-0)
     killBio: .6, // Q12: holds purchases per Infirmary visit at 2-4 items
+    capKeep: .35, // D31 is a long4 cut: long5 keeps today's pod faucets until LS3-0 fits its own
+    grpPod: 1,
+    graftMul: 1,
     firstKill: 100, // spec §6.4
     intra: .35,
     glut: [3, 7], // ~9 Maw + midboss kills per descent
@@ -194,6 +220,30 @@ export const killXP = (id: EntryId, base: number): number => base * E(id).killXP
 
 /** biomass for a kill pod worth `v` */
 export const killBio = (id: EntryId, v: number): number => v * E(id).killBio;
+
+/** D31: does a carrier spawn keep its pod, given the keep roll r (one R() draw). Drops at r < 1 - capKeep, the old
+ *  `r < .65` exactly on short (1 - .35 === .65 in doubles), so the same draw keeps the same pods */
+export const capKept = (id: EntryId, r: number): boolean => !(r < 1 - E(id).capKeep);
+
+/** D31: does a cleared formation drop its pod. `pod`: the biome breath's release formation, always. `rnd` is drawn
+ *  only when the entry's grpPod is below 1 and the formation is not exempt (short draws nothing) */
+export const grpDrops = (id: EntryId, pod: unknown, rnd: () => number): boolean => {
+  const p = E(id).grpPod;
+  return !!pod || p >= 1 || rnd() < p;
+};
+
+const graftMemo = new Map<readonly number[], { m: number; n: readonly number[] }>();
+/** D31: a graft's kill-count thresholds on the entry: `base` itself at graftMul 1 (no copy), else base x graftMul
+ *  rounded, at least 1 (memoised per base, so countKill allocates nothing per kill) */
+export const graftN = (id: EntryId, base: readonly number[]): readonly number[] => {
+  const m = E(id).graftMul;
+  if (m === 1) return base;
+  const c = graftMemo.get(base);
+  if (c && c.m === m) return c.n;
+  const n = base.map((v) => Math.max(1, Math.round(v * m)));
+  graftMemo.set(base, { m, n });
+  return n;
+};
 
 /** first-kill biomass for midboss kind `k` given the profile's kill record `rec` (meta.mbK): the entry's pay, or 0
  *  when the entry pays none or the kind is already recorded. The record is the guard against paying twice, so a kill

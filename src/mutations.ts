@@ -6,7 +6,7 @@ import { sfx } from './audio';
 import { arcs, caps, enemies, shots } from './world';
 import { drop, flash, gore, pop, spark } from './fx/spawn';
 import { hurt } from './enemies/update';
-import { econId, gluttonyN } from './economy';
+import { econId, gluttonyN, graftN } from './economy';
 
 // ---------------- mutations: you become what you kill ----------------
 export const GM = [{
@@ -113,6 +113,12 @@ export const GM = [{
   d: 'shield hits burst back',
   sh: 1
 }];
+// D31: every kill-count graft but GLUTTONY reads its thresholds through the entry's graftMul (economy.ts graftN; short
+// and long4 1 = the literal array above, unchanged). A getter like GLUTTONY's, so a later setLayout() is read live
+for (const m of GM) if (m.id !== 'over') {
+  const base = m.n;
+  Object.defineProperty(m, 'n', { get: () => graftN(econId(), base), enumerable: true, configurable: true });
+}
 export const ROM = ['', 'I', 'II', 'III', 'IV'];
 export const gmL = id => $.G && $.G.gm ? $.G.gm[id] || 0 : 0;
 /** perk-side damage multiplier (SERRATED MARROW, GLASS JAW) */

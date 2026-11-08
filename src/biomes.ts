@@ -296,8 +296,9 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     const br = inBreath(x);
     if (br) {
       x = br.z;
-      // the release: one guaranteed pod formation (a drone wave drops a pod when it's wiped out) and log line 2
-      if (br.release) { at(x, () => logLine(logs[1]), 'log'); at(x, el(() => formation('sine', PH / 2, FM)), 'pod'); x += st; }
+      // the release: one guaranteed pod formation (a drone wave drops a pod when it's wiped out; pod: exempt from the D31
+      // grpPod cut, economy.ts) and log line 2
+      if (br.release) { at(x, () => logLine(logs[1]), 'log'); at(x, el(() => formation('sine', PH / 2, FM, { pod: 1 })), 'pod'); x += st; }
       continue;
     }
     if (T.stop) break; // the arena run-up: nothing spawns from here to the boss
@@ -348,7 +349,7 @@ export const midStream = (i) => stream(midSeedOf(($.G && $.G.seed) || 0, ($.G &&
  *  shift, and the picks don't replay the script's first draws. Writes G.spUsed and G.mvSeen (both run-long, saved) */
 export function stagePicks(i, b, v) {
   const G = $.G, P = (G.picks ||= {});
-  if (!P[i]) P[i] = drawPicks(b, v, G.loop, (G.spUsed ||= {}), pickStream(i), (G.mvSeen ||= {}));
+  if (!P[i]) P[i] = drawPicks(b, v, G.loop, (G.spUsed ||= {}), pickStream(i), (G.mvSeen ||= {}), layout().beats.sets.length);
   return P[i];
 }
 
