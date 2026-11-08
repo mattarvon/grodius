@@ -190,11 +190,11 @@ export function pauseItems() {
     }
   }];
 }
-// title screen: every cursor move is a short pfft, every selection a full fart (src/sfx/fart_nav, fart_ok)
+// title screen: every cursor move is a small wet valve pop (gross_pop), every selection a wet splat (splat_s), both low (tone pass D39: the farts are out)
 export const menuBlip = (ok) => {
-  // starting a run (DESCEND / DESCEND DEEPER) gets Lesley's "yeah baby" instead of the select fart
+  // starting a run (DESCEND / DESCEND DEEPER) gets Lesley's "yeah baby" instead of the select splat
   if ($.state === 'title' && ok && /^DESCEND/.test((titleItems()[$.menuSel] || {}).l || '') && sample('startgame', { vol: 1.15, spread: .02, wet: .14 })) return;
-  if ($.state === 'title' && sample(ok ? 'fart_ok' : 'fart_nav', { vol: ok ? .9 : .7, spread: .08, wet: .1 })) return;
+  if ($.state === 'title' && sample(ok ? 'splat_s' : 'gross_pop', { vol: ok ? .5 : .35, spread: .08, wet: .1 })) return;
   sfx.menu();
 };
 export function menuNav(items) {
@@ -260,7 +260,7 @@ export function rigAct(r) {
     m.cl[r.id] = 1;
     sfx.power();
     sample('splat_m', { vol: .6 });
-    msg(free ? r.name + ' GRAFTED. THIS ONE WAS FREE.' : r.name + ' GRAFTED', '#ffd0a0');
+    msg(free ? r.name + ' GRAFTED. THE SHIP ASKS NOTHING. YET.' : r.name + ' GRAFTED', '#ffd0a0');
     if (m.rig.length < sockets()) bolt(r.id);
   } else if (rigBolted(r.id)) {
     m.rig = m.rig.filter(x => x !== r.id);

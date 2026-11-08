@@ -52,8 +52,10 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
    - `kidKill(kid, owner)`: a child spawned with `own: e` (and `kid: 1`) died. Count your
      own children by `own`, not `kid`, once two kinds can spawn them.
 3. **`src/render/gross/mid/<kind>.ts`**: in pass 1, one line:
-   `export default greybox({ col, r, tell })` from `./_greybox` (a wobbling blob in the
-   biome tint with one eye; `tell(e)` returns the telegraph strength from 0 to 1; it has no
+   `export default greybox({ col, r, tell })` from `./_greybox` (a dark, angular, asymmetric mass in
+   the biome tint at the bottom of the value range: faceted hull, a bolted plate, ribs, no eye, no blob, still apart
+   from a hash-timed hitch; `tell(e)` returns the telegraph strength from 0 to 1 and splits a seam down its front
+   that opens to wound red and throws light; it has no
    cached layer, so no `built` or `drop`, and the warm-up skips it). In
    pass 2, `export default { draw, warm, built, drop }`, plus `under` for a telegraph or
    chain beneath the body. Keep each `warm()` slice under about 4 ms on the phone. Copy `cyst.ts`; the shared particles, layers and crossover

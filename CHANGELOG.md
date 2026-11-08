@@ -11,7 +11,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 - The Brood Mother's kill word is now LANCED.
 - Two voice lines are retired for now: the SHAMALAMA hype call and the KEYSTER boss reward. A boss kill has no voice line until they come back.
 - A run saved before this update still resumes, but from the stage you resume on it gets the new terrain and set pieces.
-- Known issue: in the fire biome's BACKDRAFT set piece, the second wave from behind flies straight through the spires. They are not ghosts. They are just rude. Fixed next update.
+- Known issue: in the fire biome's BACKDRAFT set piece, the second wave from behind passes through the spires. Fixed next update.
 - The short descent in the LAB row is unchanged.
 
 ## 2026-11-03 (resume a run, a tougher Apprentice, the long-stage economy)

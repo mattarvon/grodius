@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
 vi.mock('../../src/save', () => ({ save: () => {}, lv: () => 0 }));
-vi.mock('../../src/audio', () => ({ sample: () => {}, sfx: { power: () => {}, alarm: () => {} } }));
+vi.mock('../../src/audio', () => ({ sample: () => {}, sfx: { power: () => {}, stageClear: () => {}, alarm: () => {} } }));
 vi.mock('../../src/enemies/spawn', () => ({ banner: () => {} }));
 vi.mock('../../src/platform', () => ({ buzz: () => {} }));
 vi.mock('../../src/biomes', () => ({ BIOMES: {}, openFork: () => {}, holdForFork: () => {}, biomeExit: () => {} }));
