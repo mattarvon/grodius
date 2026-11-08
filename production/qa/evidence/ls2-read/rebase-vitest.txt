@@ -1,0 +1,5 @@
+ Test Files  44 passed (44)
+      Tests  958 passed | 1 expected fail (959)
+   Start at  14:44:04
+   Duration  3.64s (tests 68%, transform 20%, import 11%, worker 1%)
+

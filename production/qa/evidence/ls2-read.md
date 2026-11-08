@@ -160,3 +160,17 @@ This also settles web-specialist's 20-chain blocker: the harness `st` (gibs incl
 - **`stages.ts`:** one call changes, `sfx.power()` → `sfx.stageClear()`.
 - **After fix merge 2:** apply the held renames list above in one commit. It moves parity (midboss titles), so re-baseline then, with that as the explanation.
 - **`src/render/biomeart.ts`:** large hunks (wound paths, `drawPlate`). Any lane editing biome rendering should rebase onto this one.
+
+## Rebase onto fix merge 1 (main `93e595b`), 2026-11-08
+- **Conflicts were docs only.**
+  - `production/decision-log.md`: D38 and D39 are now in number order between D36 and D40.
+  - `CHANGELOG.md`: this lane's known-issue wording keeps main's "(Fixed 2026-11-08.)".
+- **Auto-merged:** `menus.ts`, `biomes.ts`, `src/CLAUDE.md`.
+- **`menuBlip`** keeps fix merge 1's call sites, including the first exit press at the title (`menus.ts:430`). It plays this lane's tone-pass sounds: `gross_pop` on a cursor move or first back press, `splat_s` on a select. The exit prompt is fix merge 1's `PRESS BACK AGAIN TO LEAVE`. This lane adds no back prompts.
+- **Gates** ran in a separate gate worktree, detached at the rebased commit, with its own Vite `cacheDir`. The `cacheDir` is a gate-only, uncommitted `vite.config.ts` line (D40 owned item 3). Heavy gates ran under the lock with the heat wait.
+  - typecheck: clean.
+  - vitest: 44 files, 958 passed plus 1 expected fail (fix merge 1's `biomebeats` `it.fails`).
+  - build: exit 0.
+  - harness: short PASS @ 8ff9ba4, long4 PASS @ 88d9525, 12 of 12 scenarios PASS. No `--update`, and no mid-run reload.
+  - parity: PARITY PASS, 7 of 7 runs identical.
+  - Logs: `ls2-read/rebase-*.txt`.
