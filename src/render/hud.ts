@@ -143,9 +143,10 @@ export function drawHUD() {
     {
       const cw = 60 * $.G.comboT / 120;
       ctx.fillStyle = $.G.comboT < 40 ? '#ff3030' : '#7a2a2a';
-      ctx.fillRect(W / 2 - cw / 2, 38, cw, 1);
+      ctx.fillRect(W / 2 - cw / 2, s === 10 ? 43 : 41, cw, 1); // under the counter (moved 3 px down with it)
     }
-    txt($.G.combo + ' KILLS', W / 2, 28, `rgba(255,${120 - Math.min(100, $.G.combo * 2)},${110 - Math.min(100, $.G.combo * 2)},${.5 + .5 * $.G.comboT / 120})`, 'center', s);
+    // y 31, below the LV badge and XP bar (y 20-29, util.ts HUD_TOP): at 28 it overprinted them (ls1-audit, ui-programmer)
+    txt($.G.combo + ' KILLS', W / 2, 31, `rgba(255,${120 - Math.min(100, $.G.combo * 2)},${110 - Math.min(100, $.G.combo * 2)},${.5 + .5 * $.G.comboT / 120})`, 'center', s);
   }
   if ($.G.carn) {
     const a = Math.min(1, $.G.carn.t / 30),

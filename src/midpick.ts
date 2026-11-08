@@ -12,8 +12,8 @@
 //    3. no repeat pair   ban only the exact previous pair (G.mbLast[b], any order): with a two-member last, slot A
 //                        may be either member, but then slot B may not be the other. A single slot (n = 1) drops
 //                        last[0]. A last of any other length bans nothing
-//    4. weight           1 / (1 + clamp(met - m0, 0, MID_PICK.cap)), m0 = the least-met candidate's count (meta.mb):
-//                        a midboss behind the others leads, by at most 3:1
+//    4. weight           1 / (1 + clamp(met - m0, 0, MID_PICK.cap)), m0 = the lowest meta.mb among the candidates
+//                        in that draw: a midboss behind the others leads, by at most 3:1
 //    5. draw             slot A (the preferred home when it survives), then slot B with a tag different from A's
 //    6. fallback         no full set left: relax 3 (relaxed 1: the previous pair was the only full set under the
 //                        gate), then 1 (relaxed 2). Step 2 is NEVER relaxed (Pillar 4: a repeat is a bug); if even
@@ -87,7 +87,7 @@ export const MID_PICK = { cap: 2 };
 /** times met, sanitised: NaN, negative, Infinity and missing all count as never met */
 const metOf = (k: string, met: Readonly<Record<string, number>>) => (Number.isFinite(+met[k]) ? Math.max(0, +met[k]) : 0);
 
-/** weight of one candidate (step 4): floor is m0, the least-met candidate's count */
+/** weight of one candidate (step 4): floor is m0, the lowest count among the candidates in the same draw */
 export function midWeight(k: string, met: Readonly<Record<string, number>> | undefined, ignoreMeta = false, floor = 0): number {
   if (ignoreMeta || !met) return 1;
   return 1 / (1 + Math.min(MID_PICK.cap, Math.max(0, metOf(k, met) - floor)));
@@ -130,17 +130,20 @@ export function pickMids(p: PickIn): PickOut {
   let r: Relaxed = 0;
   while (r < 2 && levels[r].As.length === 0) r = (r + 1) as Relaxed;
   const { C, As, part } = levels[r];
-  // step 4: m0 over the candidates this draw uses, once, for slot A, slot B and the fallback
-  let m0 = 0;
-  if (!p.ignoreMeta && p.met && C.length) { const met = p.met; m0 = Math.min(...C.map(k => metOf(k, met))); }
-  const w = (k: string) => midWeight(k, p.met, p.ignoreMeta, m0);
+  // step 4 (spec §6.3): each draw floors at m0, the lowest meta.mb among the candidates still in THAT draw (As for
+  // slot A, A's partners for slot B, C for the fallback). Still one rng() call per draw
+  const pick = (xs: readonly string[]) => {
+    const met = p.met;
+    const m0 = !p.ignoreMeta && met && xs.length ? Math.min(...xs.map(k => metOf(k, met))) : 0;
+    return draw(xs, (k) => midWeight(k, met, p.ignoreMeta, m0), p.rng);
+  };
   if (As.length === 0) {
     // not even step 2's leftovers make a full set: fewer midbosses rather than a repeat
-    return { picks: C.length ? [draw(C, w, p.rng)] : [], relaxed: r };
+    return { picks: C.length ? [pick(C)] : [], relaxed: r };
   }
-  const a = p.prefer && As.includes(p.prefer) ? p.prefer : draw(As, w, p.rng);
+  const a = p.prefer && As.includes(p.prefer) ? p.prefer : pick(As);
   if (n === 1) return { picks: [a], relaxed: r };
-  return { picks: [a, draw(part(a), w, p.rng)], relaxed: r };
+  return { picks: [a, pick(part(a))], relaxed: r };
 }
 
 /** the run's midboss memory: G.mbUsed (this descent) and G.mbLast (per stage key, whole run) */
