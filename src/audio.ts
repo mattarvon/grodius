@@ -140,7 +140,7 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   s.onended = () => voices--;
   s.start(AU.c.currentTime + (o.at ?? 0));
   if (o.solo) SOLO[cat] = AU.c.currentTime + (o.at ?? 0) + L[i].duration / s.playbackRate.value;
-  if (/^(hype|babe|bossreward|corpsevoice|startgame)/.test(cat)) duckMusic(L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, o.at ?? 0);
+  if (/^(hype|bossreward|corpsevoice|startgame)/.test(cat)) duckMusic(L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, o.at ?? 0);
   return true;
 }
 /** the voice line now talking: render/hype.ts puts a comms-window face to it (clip = file stem, t0/t1 = AU.c clock) */
@@ -295,8 +295,9 @@ export const sfx = {
       if (sz >= 1.4 && ar() < .5) sample('bone', { vol: .55, at: .015 });
       if (sz >= 3) sample('explode_l', { vol: .9, wet: .35 });
       // the biome's kill layer (audiomix.ts BIOME_KILL): lowest priority, so it skips near the voice cap and is throttled
+      // on its own key: sharing sfx.glob()'s 'gb' let the two silence each other
       const k = BIOME_KILL[curBiome()];
-      if (k && sz >= k.minSz && voices <= KILL_LAYER.maxVoices && !thr('gb', KILL_LAYER.gapMs) && ar() < k.chance)
+      if (k && sz >= k.minSz && voices <= KILL_LAYER.maxVoices && !thr('gk', KILL_LAYER.gapMs) && ar() < k.chance)
         sample(k.cat, { vol: k.vol + Math.min(KILL_LAYER.volCap, sz * k.sizeVol), rate: k.rate, at: k.at, wet: .15 }) || (k.synth && synthKill(k.synth, sz));
       return;
     }

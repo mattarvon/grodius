@@ -8,7 +8,7 @@ Source: D38 and D31 in `production/decision-log.md`, and the crew notes (creativ
 
 ## 0. Shared reference
 
-**Pillars** (`design/game-brief.md`): P1 you become what you kill · P2 the bullet is sacred · P3 earn your guns, in the run · P4 classic length, hard, never the same twice · P5 deadpan horror.
+**Pillars** (`design/game-brief.md`): P1 you become what you kill · P2 the bullet is sacred · P3 earn your guns, in the run · P4 classic length, hard, never the same twice · P5 the ship is evil, and only the comms crack.
 
 **Pick counts (stated once; every section uses these).** Perk offer: 3 cards (unchanged). Stage-boss pick: 3 caps (unchanged), 4 only under §5 option D's `PICK` tag and only when ≥ 4 slots are unmaxed, else one per unmaxed slot. Midboss pick (§3): 2 caps, 1 when one slot is unmaxed. Seal pick (§4): 3 keys, fewer when fewer are eligible.
 
@@ -103,7 +103,7 @@ The card is 142x112. Description lines start at `y+43`, 9 px apart; COST adds a 
 - AC1.3 `splay` never appears unless `teeth` is held (AC2.1 covers it).
 - AC1.4 Screenshot rig `tools/choice-shots.mjs` (**NEW**, mode `cards`) renders every card with `c` at 480x270 to `production/qa/evidence/choice/cards-<id>.png`. Pass: BLOOD PACT shown, gain + COST ≤ 4 lines, no text past the card edge.
 - AC1.5 Every new card grows a visible part (P1), same rig, `sprout-<id>.png`.
-- AC1.6 Playtest (Matt, Fold): across 3 runs, at least one blood pact taken by choice and the end-of-D1 ships differ.
+- AC1.6 Playtest (Matt, Fold): across 3 runs, at least one blood pact taken by choice and the end-of-D1 ships differ. Watch for two death spirals: `strip` + `glass` leaves a 40 f respawn window (F1.4), and `lung`'s price stacks with D32's death cost.
 - AC1.7 The pod run: LV at D1 end inside `ECON.long4.targets.lvD1` [12, 14], and NEW output `slotSum` (sum of `slotLv` 0-6 at D1 end) within ±1 of the pre-lane median.
 - AC1.8 Unit tests (`perks.test.ts`) for F1.1-F1.6 at both ends of each range, including `hb` clamped at .5 (tiny 2 + strip), today's `tiny` hitboxes unchanged with no new card held, and F1.4 at 40 / 80 / 160.
 - AC1.9 `splay` with `teeth` 1 or 2: `teethPos()` returns `n` teeth spaced `TAU/n`; n ≤ 2 positions equal today's.
@@ -273,7 +273,7 @@ THRUST is **not keyed**: it rises with the tier (2→3→4→5). SPLIT never cha
 
 | | rule | `R()` | pros | cons |
 |---|---|---|---|---|
-| **A** | Every **remix** gate (`G.bvis[b] ≥ 1`) pays MEAT x1.5 (grade bio, boss bio, stage XP) | none | deterministic; the plate already shows REMIX | nothing in D1 (no remixes). From D3 both gates are always remixes, so it pays on every biome stage with no trade: +110 to +140 bio a descent of flat faucet |
+| **A** | Every **remix** gate (`G.bvis[b] ≥ 1`) pays MEAT x1.5 (grade bio, boss bio, stage XP) | none | deterministic; the plate already shows ALTERED | nothing in D1 (no remixes). From D3 both gates are always remixes, so it pays on every biome stage with no trade: +110 to +140 bio a descent of flat faucet |
 | **A′** | As A, but only when the **other** gate is fresh | none | keeps A's "new perk or more meat" trade and removes the D3 faucet | comes up at most once a run (`openFork` offers fresh biomes first, `biomes.ts:409-411`), so it rarely matters |
 | **D (stream)** | Every fork's two gates carry different tags, `MEAT` (grade bio and boss bio x1.5) and `PICK` (stage-boss pick shows 4 caps, §0). Which gate gets which: salted `forkStream(seg)` (`pickStream`/`midStream` pattern, `biomes.ts:337-343`), drawn at `openFork`, stored on `G.fork.tag` | no sim `R()`; re-derived on resume | live from D1; choice, no volume on PICK | the tag is effectively random per fork (seeded, shown before you choose), which is close to the drawn content the crew warned against |
 | **D (biome)** | As D, but the tag **follows the biome** from a fixed `FORK_TAG` table; if both biomes carry the same tag, the upper gate takes the other (fixed rule) | none | learnable: the player can plan routes around it (P4); no stream to explain | 4 biomes split 2/2, so the pairing is often forced; the table assignment is a new tuning decision (economy-designer) |
@@ -282,7 +282,7 @@ Dropped by review: **B** (a random tag per gate: drawn content, moves the harnes
 
 **METER mode (`SET.meter`).** Stage-boss caps are `METER_CAP`, so a 4th cap adds nothing and MEAT would dominate. Under D, in METER mode both gates pay as today and show no tag. No draw depends on the setting (both D variants use no sim `R()`).
 
-**Plate (ux B1-B2, R8, N10).** **No new line**: the 32 px plate between gates ≥ 56 px apart has no room. The pay text **replaces the REMIX chip** (A, A′) or **fills the tag slot** (D), at 8 px, max 10 characters. It shows the number, not a multiplier: `+35 BIO` (the S-grade bonus at this descent, computed from `GRADE`, the boss bio and `deepPay`, so it is never stale) or `PICK 4`. The `plate.md` contract is amended to match. The tally shows the bonus beside its bio.
+**Plate (ux B1-B2, R8, N10).** **No new line**: the 32 px plate between gates ≥ 56 px apart has no room. The pay text **replaces the ALTERED chip** (A, A′) or **fills the tag slot** (D), at 8 px, max 10 characters. It shows the number, not a multiplier: `+35 BIO` (the S-grade bonus at this descent, computed from `GRADE`, the boss bio and `deepPay`, so it is never stale) or `PICK 4`. The `plate.md` contract is amended to match. The tally shows the bonus beside its bio.
 
 **Stacking cap (economy B1).** Biomass multipliers on one payout **add their bonuses**, capped: `mul = min(BIO_MUL_MAX, 1 + Σ bonus)`, `BIO_MUL_MAX` = 2.0. BLOOD MONEY 2 (+.6) and MEAT (+.5) give 2.0, not 2.4; the bench `stomach` would add under the same cap.
 

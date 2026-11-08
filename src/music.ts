@@ -48,9 +48,9 @@ export const BIOME_MIX = {
 };
 const FADE = 1.4, PAUSE_LVL = .35, DUCK_LVL = .3;
 let filt = null, shaper = null, lfo = null, lfoG = null, mixNow = 'none';
-// the intensity layer (audiomix.ts): EQ ahead of the clip, a gain after it. lastLvl/lastDrive/lastBed cache what is
+// the intensity layer (audiomix.ts): EQ ahead of the clip, a gain after it. lastLvl/lastDrive/lastBedB/lastBedLvl cache what is
 // applied, so AudioParams are touched only when the level, mix or biome changes, never per step
-let iShelf = null, iPres = null, iGain = null, toneLp = null, lastLvl = 0, lastDrive = '', lastBed = 'none|0';
+let iShelf = null, iPres = null, iGain = null, toneLp = null, lastLvl = 0, lastDrive = '', lastBedB = 'none', lastBedLvl = 0;
 // soft clip; drive 0..1 maps to tanh gain 1..6 (k*30 turned a mastered track into a square wave), normalised to unity peak
 const mkCurve = (k) => { const n = 2048, c = new Float32Array(n), a = 1 + k * 5; for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(a * x) / Math.tanh(a); } return c; };
 // curves cached by drive rounded to .01: a level or mix change allocates at most once per value
@@ -92,9 +92,10 @@ function applyDrive(name, lvl) {
  *  so the bed moves its detune (a multiplier on that frequency), its Q and the bed gain AU.dg */
 function applyBed(b, lvl, prev) {
   if (!AU.lp || !AU.dg) return;
-  const key = (b || 'none') + '|' + lvl;
-  if (key === lastBed) return;
-  lastBed = key;
+  const bk = b || 'none';
+  if (bk === lastBedB && lvl === lastBedLvl) return;
+  lastBedB = bk;
+  lastBedLvl = lvl;
   const t = AU.c.currentTime, tau = lvl > prev ? INTENSITY[lvl].tau : RELEASE_TAU, d = droneTarget(b, lvl);
   AU.lp.detune.setTargetAtTime(droneDetune(b, lvl), t, tau);
   AU.lp.Q.setTargetAtTime(d.q, t, tau);

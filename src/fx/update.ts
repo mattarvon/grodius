@@ -216,8 +216,8 @@ export function updateFX() {
     if (t.l <= 0) swapRm(texts, i);
   }
 }
-/** frames between voiced hype calls (SGT. SLAB + the surfer): chains hit 10 / 20 constantly with a strong build and
- *  the voices saturated. The chain word (MESSY, GRISLY...) still shows on every milestone. */
+/** frames between hype calls: chains hit 10 / 20 constantly with a strong build and the comms
+ *  saturated. The chain word (MESSY, GRISLY...) still shows on every milestone. */
 export const HYPE_CD = 1200;
 export const CARN = [[5, 'MESSY'], [10, 'GRISLY'], [20, 'VISCERAL'], [35, 'ABATTOIR'], [50, 'MEAT GRINDER'], [75, 'BEYOND THE GATE'], [100, 'HELL IS SHIPWIDE']];
 export function updateCombo() {
@@ -237,7 +237,7 @@ export function updateCombo() {
     if (n >= 10 && !($.G.hypeCD > 0)) {
       $.G.hypeCD = HYPE_CD;
       // tone pass (D39): the 20-chain surfer flyby is cut and gets the hype sting like every other milestone. The
-      // srnd() keeps the render stream where babe()'s bubble-height draw left it, so later gib counts (harness st) hold
+      // srnd() keeps the render stream where the flyby's bubble-height draw left it, so later gib counts (harness st) hold
       if (n === 20) srnd();
       hype(n);
     }
@@ -247,11 +247,10 @@ export function updateCombo() {
   if ($.G.hypeCD > 0) $.G.hypeCD--;
   if ($.G.carn && --$.G.carn.t <= 0) $.G.carn = null;
   if ($.G.hype && --$.G.hype.t <= 0) $.G.hype = null;
-  if ($.G.babe && --$.G.babe.t <= 0) $.G.babe = null;
 }
 export const HYPE = {
   10: ['HELL YEAH', 'BROTHER!'],
-  20: ["NOW WE'RE", "COOKIN' MEAT!"],
+  20: ['CLEAN-UP CREW', 'IS NOT COMING'], // tone.md A8: the only HYPE line re-voiced so far, since the surfer no longer covers it
   35: ['SPLATTER', "'EM, BROTHER!"],
   50: ['GLORIOUS', 'CARNAGE!'],
   75: ['THE GATE', 'FEARS YOU!'],

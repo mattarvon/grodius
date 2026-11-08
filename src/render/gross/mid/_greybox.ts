@@ -105,7 +105,9 @@ export function greybox(g: Greybox): MidArt {
       c.fill();
       c.strokeStyle = 'rgba(4,2,3,.8)'; c.lineWidth = 1; c.stroke();
       c.fillStyle = 'rgba(120,104,78,.8)'; // tallow bolts: a tint-coloured dot can read as a bullet
-      c.fillRect(R * .36, -R * .3, 1, 1); c.fillRect(R * .62, -R * .14, 1, 1);
+      c.fillRect(R * .36, -R * .3, 1, 1);
+      c.fillStyle = 'rgba(58,50,38,.8)'; // the second bolt stays dark: two lit ones read as a pair of eyes
+      c.fillRect(R * .62, -R * .14, 1, 1);
       c.strokeStyle = 'rgba(120,104,78,.45)'; // tallow, low: bone under skin
       c.lineWidth = 1;
       c.beginPath();

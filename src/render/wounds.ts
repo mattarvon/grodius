@@ -98,10 +98,16 @@ export function woundLook(wx) {
   const s = woundAt(wx), G = $.G;
   return s >= 0 && G.visitNo && G.visitNo[s] >= 1 ? WOUND[G.route[s]] || null : null;
 }
+/** woundLook, but null until that biome's layers are built: on a missed warm-up the fog, edge and gore colours stay
+ *  normal along with the background, instead of flashing wound colours over the normal backdrop */
+export function woundLive(wx) {
+  const w = woundLook(wx);
+  return w && woundBuilt($.G.route[woundAt(wx)]) ? w : null;
+}
 /** gore drop colours for the screen centre when it is a wound (drawDrops), else null: DC itself stays the sim's */
 export function woundDC() {
   if (!$.G) return null;
-  const w = woundLook($.G.scroll + W / 2);
+  const w = woundLive($.G.scroll + W / 2);
   return w && winK > .5 ? w.dc : null;
 }
 
@@ -140,14 +146,14 @@ const P = {
       const path = () => { x.beginPath(); sh.forEach((q, k) => (k ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]))); x.closePath(); };
       path(); x.fillStyle = 'rgba(70,120,170,.16)'; x.fill();
       x.save(); path(); x.clip();
-      const bg = x.createRadialGradient(cx, by + 14, 0, cx, by + 14, 44); bg.addColorStop(0, 'rgba(140,14,30,.55)'); bg.addColorStop(1, 'rgba(140,14,30,0)');
+      const bg = x.createRadialGradient(cx, by + 14, 0, cx, by + 14, 44); bg.addColorStop(0, 'rgba(96,38,14,.55)'); bg.addColorStop(1, 'rgba(96,38,14,0)'); // iron oxide: red through the blue ice read mauve-pink
       x.fillStyle = bg; x.fillRect(cx - 50, by - 34, 100, 100);
       // runnels of blood down the shard, heavy and dark, each ending in a bead
       for (let k = 0; k < 6; k++) { const rx = (cx - w / 2 + 4 + r() * (w - 8)) | 0, ry = top + 10 + r() * 30, rl = 30 + r() * 70, rw = 1 + (r() < .4); x.fillStyle = 'rgba(110,10,24,.55)'; x.fillRect(rx, ry, rw, rl); x.fillStyle = 'rgba(80,4,14,.8)'; x.fillRect(rx - .5, ry + rl, rw + 1, 2); }
       x.restore();
       // the body, head and shoulders above the melt line
       figure(x, cx, by, s, pose, 'rgba(46,76,112,.95)', '#506a80');
-      face(x, cx, by, s, '#dff2ff', '#200208');
+      face(x, cx, by, s, '#141c26', '#200208'); // dark sockets: tone.md has no big or white eyes
       x.fillStyle = '#6a0a18'; x.fillRect(cx - 1.3 * s, by - 9.1 * s, .6, 4 * s); x.fillRect(cx - .3, by - 7 * s, .8, 5 * s);
       // the ice still over his legs: a wet sheen over what is below the line
       x.save(); path(); x.clip(); x.fillStyle = 'rgba(120,170,215,.18)'; x.fillRect(cx - w / 2, by - 4, w, PH); x.restore();

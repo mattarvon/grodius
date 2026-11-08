@@ -138,11 +138,31 @@ describe('woundAt / woundLook', () => {
 
   it('gives drawDrops the wound drop colours only past the halfway crossfade, like the other look readers', () => {
     $.G.visitNo = [1, 1];
+    while (WD.warmWound('fire')); while (WD.warmWound('ice'));
     $.G.scroll = 5500 - 240; // the screen centre (scroll + W / 2) deep in slot 1
     expect(WD.woundDC()).toBe(WD.WOUND.fire.dc);
     $.G.scroll = 1000 - 270 - 240; // early in slot 0's fade-in: slot 0 wins, but at k < .5
     expect(WD.woundAt($.G.scroll + 240)).toBe(0);
     expect(WD.woundDC()).toBeNull();
+    WD.dropWound('fire'); WD.dropWound('ice');
+  });
+
+  it('keeps the fog, edge, darkness and gore colours normal until the wound layers are built, like the background', () => {
+    $.G.visitNo = [1, 1];
+    $.G.scroll = 5500 - 240;
+    const B = BI.BIOMES.fire, W0 = WD.WOUND.fire as any;
+    WD.dropWound('fire');
+    expect(WD.woundLive(5500)).toBeNull();
+    expect(WD.woundDC()).toBeNull();
+    expect(BI.biomeEdge()).toBe(B.edge);
+    expect(BI.biomeMist()).toBe(B.mist);
+    while (WD.warmWound('fire'));
+    expect(WD.woundLive(5500)).toBe(W0);
+    expect(WD.woundDC()).toBe(W0.dc);
+    expect(BI.biomeEdge()).toBe(W0.edge);
+    expect(BI.biomeMist()).toBe(W0.mist);
+    expect(BI.splatCols()).toBe(W0.splat);
+    WD.dropWound('fire');
   });
 
   it('reads $.G and writes nothing into it', () => {

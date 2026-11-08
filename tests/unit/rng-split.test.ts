@@ -11,7 +11,7 @@ const ROOTS = ['src/render', 'src/fx'];
 // audio too: sfx args are evaluated even with no AudioContext, so an fx-timed sfx call drawing R() leaks fx into the sim.
 // shipform: render's drawShip diffs the ship form every frame (trackForm) and sprouts/withers parts as particles, and its
 // death shed reads that render-built diff, so it is presentation through and through (LS1-B1fix).
-const EXTRA = ['src/audio.ts', 'src/shipform.ts'];
+const EXTRA = ['src/audio.ts', 'src/audiomix.ts', 'src/music.ts', 'src/shipform.ts'];
 const root = new URL('../../', import.meta.url);
 
 const stripComments = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');

@@ -12,7 +12,7 @@ import { glow, light } from './util';
 import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
 import { drawMoveProps } from './moveprops';
-import { MOTIFW, PREVW, WOUND, acidFlakes, fireAsh, iceDrips, iceWash, wBuilt, wlay, wPts, woundBuilt, woundLook } from './wounds';
+import { MOTIFW, PREVW, WOUND, acidFlakes, fireAsh, iceDrips, iceWash, wBuilt, wlay, wPts, woundBuilt, woundLive, woundLook } from './wounds';
 import { PERKS, pk } from '../perks';
 import { PLATE, plateBox, plateLines, plateRight } from './gateplate';
 
@@ -110,12 +110,12 @@ export function biomeTerrainFill(mtx) {
   return k;
 }
 /** scale for the derelict's darkness overlay: each biome keeps some dark but stays legible (BIOMES[b].dark) */
-export const biomeDark = () => { if (!$.G) return 1; const [b, k] = biomeK($.G.scroll + W / 2); return b ? 1 - k * (1 - ((woundLook($.G.scroll + W / 2) || BIOMES[b]).dark ?? 1)) : 1; };
+export const biomeDark = () => { if (!$.G) return 1; const [b, k] = biomeK($.G.scroll + W / 2); return b ? 1 - k * (1 - ((woundLive($.G.scroll + W / 2) || BIOMES[b]).dark ?? 1)) : 1; };
 /** gore mist colour ('r,g,b') for the current biome, or null */
-export const biomeMist = () => { if (!$.G) return null; const [b, k] = biomeK($.G.scroll + W / 2); return b && k > .5 ? (woundLook($.G.scroll + W / 2) || BIOMES[b]).mist : null; };
-export const biomeEdge = () => { const [b, k] = biomeK($.G.scroll + W / 2); return b && k > .5 ? (woundLook($.G.scroll + W / 2) || BIOMES[b]).edge : null; };
+export const biomeMist = () => { if (!$.G) return null; const [b, k] = biomeK($.G.scroll + W / 2); return b && k > .5 ? (woundLive($.G.scroll + W / 2) || BIOMES[b]).mist : null; };
+export const biomeEdge = () => { const [b, k] = biomeK($.G.scroll + W / 2); return b && k > .5 ? (woundLive($.G.scroll + W / 2) || BIOMES[b]).edge : null; };
 /** splat colours for the current gore palette ([dark, mid, drip]) or null for the default red */
-export const splatCols = () => { const [b, k] = biomeK($.G.scroll + W / 2); if (!b || k < .5) return null; const wd = woundLook($.G.scroll + W / 2); if (wd) return wd.splat; const B = BIOMES[b].blood; return [B[1], B[0], B[0]]; };
+export const splatCols = () => { const [b, k] = biomeK($.G.scroll + W / 2); if (!b || k < .5) return null; const wd = woundLive($.G.scroll + W / 2); if (wd) return wd.splat; const B = BIOMES[b].blood; return [B[1], B[0], B[0]]; };
 
 // ---------------- parallax tiles ----------------
 const LAY = {}, LPT = {};

@@ -336,7 +336,7 @@ export function drawGrossMaw(c, e) {
   if (fartNow && GROSS > 0) {
     s.fart = 1;
     for (let i = 0; i < n(7); i++) add({ x: e.x + 24, y: e.y - 3 + rb(-2, 2), vx: rb(.3, 1.3), vy: rb(-.5, .2), g: -.006, l: rb(55, 90), s: rb(3, 5), c: P.gas, k: 2, a: rb(.3, .5) });
-    if (rnd() < .4) snd(s, 'fart_ok', { vol: .5, wet: .25, spread: .15 }, 60);
+    if (rnd() < .4) snd(s, 'gross_gargle', { vol: .5, wet: .25, spread: .15 }, 60);
   }
   s.fart = Math.max(0, s.fart - .05);
   // ---- body ----
@@ -1054,7 +1054,7 @@ function rupture(e, s) {
   if ($.state === 'play') {
     try {
       sample('splat_l', { vol: .9, rate: .8 });
-      sample('fart_ok', { vol: .75, rate: .6, spread: .05, at: .25 }); // the empty skin deflating
+      sample('gross_slosh', { vol: .75, rate: .6, spread: .05, at: .25 }); // the empty skin deflating
     } catch (err) {}
   }
 }
