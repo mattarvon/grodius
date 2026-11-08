@@ -11,6 +11,16 @@
 // `bossFight_s` the seconds the Gravity Drive (G.boss; biome bosses are enemies) was up and not dying, per stage.
 // Stage times: `stages[].dur` runs from one stage label to the next (so it includes the tally card, a fork or the
 // shop); `tally_s` is the tally card's own clock, STAGE card to boss kill (spec §3.1's wall-time definition).
+// Kit snapshots (economy plan d31 §4, measure-only: read between ticks, no input and no R() draw): `grades[].kit` at each
+// tally and `warns[]` at each WARNING banner (midbosses, the Saucer, and the biome bosses too: `title` names it; one per
+// banner, polled every 30 frames, so `f` is within 30 frames)
+// carry { xpTot, pow, lvl, slots (player.ts SLOTS order THRUST MISSILE SPLIT ARC PYRE WRAITH WARD, + shield), pk (G.pk
+// perks), gm (G.gm grafts) }. `stages[].kinds` splits that stage's pickups by kind (pod/choice/blue/graft/salv);
+// `stages[].pods` stays pod + choice. `stages[].src` splits the same pickups by origin, read off what died the frame the
+// cap appeared: fixed:mid (a midboss or the Maw), fixed:saucer (dropped while the Saucer is up), fixed:release (a group
+// spawned with pod: the biome breath's release), fixed:choice, carrier (e.cap), formation (a group's last kill), else
+// salv/graft/blue/unknown. A carrier that is also in a group counts as fixed:release or carrier, never formation.
+// `grades[].gradeBio` is the tally's grade biomass (G.tally.bio, stages.ts clearStage). Not measured: the Drive's own WARNING (its banner is its title, not WARNING).
 import { chromium } from 'playwright';
 import { useLayout, LAYOUT } from './layout-arg.mjs';
 import { PILOT } from './pilot.mjs';
@@ -23,8 +33,8 @@ if (PIL) await p.addInitScript(PILOT);
 await p.addInitScript(([seed, mortal, pil]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);
   try { localStorage.clear(); } catch (e) {}
-  window.__pods = []; window.__fr = 0; window.__bf = {};
-  window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const g = window.__G && window.__G(); let before = null;
+  window.__pods = []; window.__capSrc = new WeakMap(); window.__fr = 0; window.__bf = {};
+  window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const g = window.__G && window.__G(); let before = null, beforeE = null;
       if (g && g.P && g.state === 'play') { if (!mortal) { g.P.inv = 30; g.P.alive = true; } const G = g.G; let tx, ty;
         if (G.fork && G.fork.t > 45) { tx = 480 * .74; ty = (window.__gi ?? 0) % 2 ? 254 * .72 : 254 * .28; }
         else { const c = g.caps.filter((c) => c.x > 0 && c.x < 470).sort((a, b) => a.x - b.x)[0];
@@ -33,26 +43,34 @@ await p.addInitScript(([seed, mortal, pil]) => { let now = 0; const q = []; perf
           else { const m = (G.mini && !G.mini.dead && G.mini) || G.boss || g.enemies.find((e) => !e.dead); tx = 90; ty = m ? m.y : g.P.y; } }
         if (pil) window.__pilotStep(g, tx, ty);
         else if (tx != null) { g.P.x += Math.sign(tx - g.P.x) * Math.min(3, Math.abs(tx - g.P.x)); g.P.y += Math.sign(ty - g.P.y) * Math.min(3, Math.abs(ty - g.P.y)); }
-        before = g.caps.slice(); }
+        before = g.caps.slice(); beforeE = g.enemies.slice(); }
       q.splice(0).forEach((f) => f(now));
       const h = window.__G && window.__G();
       if (h && h.G && h.state === 'play') { window.__fr++; if (h.G.boss && !h.G.boss.dying && !h.G.tally) { const k = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`; window.__bf[k] = (window.__bf[k] || 0) + 1; } }
       if (before && h && h.P) { const seen = new Set(h.caps); let chosen = false;
+        // where each new cap came from, read off what died this frame (measure-only; see the header's `src`)
+        const had = new Set(before), nowE = new Set(h.enemies), gone = beforeE.filter((e) => e.dead || !nowE.has(e));
+        for (const c of h.caps) if (!had.has(c) && !window.__capSrc.has(c)) window.__capSrc.set(c, c.choice ? 'fixed:choice' : c.salv ? 'salv' : c.graft ? 'graft' : c.blue ? 'blue'
+          : gone.some((e) => e.mid || e.k === 'maw') ? 'fixed:mid' : gone.some((e) => e.group && e.group.pod) ? 'fixed:release' : gone.some((e) => e.cap) ? 'carrier'
+          : gone.some((e) => e.group) ? 'formation' : h.G.mini && h.G.mini.k === 'ufo' && !h.G.mini.dead ? 'fixed:saucer' : 'unknown');
         for (const c of before) if (!seen.has(c) && c.x >= -12 && (c.x - h.P.x) ** 2 + (c.y - h.P.y) ** 2 < 20 * 20) {
           const kind = c.graft ? 'graft' : c.blue ? 'blue' : c.choice ? 'choice' : c.salv ? 'salv' : 'pod';
           if (kind === 'choice') { if (chosen) continue; chosen = true; }
-          window.__pods.push({ f: window.__fr, kind, st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, [+SEED, MORTAL, PIL]);
+          window.__pods.push({ f: window.__fr, kind, src: window.__capSrc.get(c) || 'unknown', st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, [+SEED, MORTAL, PIL]);
 await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'pod-probe', { quiet: true }); // stdout stays one JSON object; it carries the layout
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
 await p.evaluate(async () => { window.__fr = 0; window.__pods.length = 0; window.__S = (await import('/src/state.ts')).$; window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); });
-let last = '', lastFork = false; const tally = {}, grades = {}; const seg = []; let endState = '';
+let last = '', lastFork = false; const tally = {}, grades = {}, warns = []; const k0 = (s) => `${s.loop + 1}-${(s.stage || 0) + 1}`; const seg = []; let endState = '';
 for (let it = 0; it < MIN * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
-  const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, stage: G.stage, loop: G.loop, lvl: G.lvl, pick: !!G.pick, pt: G.pick ? G.pick.t : 0, fork: !!G.fork, fr: window.__fr, bio: Math.round(G.bio || 0), kills: G.kills, tally: G.tally ? [G.tally.id, G.tally.secs] : null, gr: G.tally ? { g: G.tally.g, hits: G.tally.hits, deaths: G.tally.deaths, pct: G.tally.pct, spawned: G.st ? G.st.spawned : null, lvl: G.lvl, bio: Math.round(G.bio || 0), fk: Object.keys(window.__S.meta.mbK || {}).length } : null, lives: G.lives }; });
-  if (s.tally) { tally[s.tally[0]] = s.tally[1]; grades[s.tally[0]] ||= s.gr; }
+  const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, stage: G.stage, loop: G.loop, lvl: G.lvl, pick: !!G.pick, pt: G.pick ? G.pick.t : 0, fork: !!G.fork, fr: window.__fr, bio: Math.round(G.bio || 0), kills: G.kills, tally: G.tally ? [G.tally.id, G.tally.secs] : null, gr: G.tally ? { g: G.tally.g, gradeBio: Math.round(G.tally.bio || 0), hits: G.tally.hits, deaths: G.tally.deaths, pct: G.tally.pct, spawned: G.st ? G.st.spawned : null, lvl: G.lvl, bio: Math.round(G.bio || 0), fk: Object.keys(window.__S.meta.mbK || {}).length } : null, lives: G.lives,
+    kit: { xpTot: G.xpTot != null ? Math.round(G.xpTot * 10) / 10 : null, pow: G.pow != null ? +G.pow.toFixed(3) : null, lvl: G.lvl, slots: g.P ? [g.P.speed, g.P.missile, g.P.double, g.P.laser, g.P.pyre, g.P.options, g.P.wardLv || 0, Math.round((g.P.shield || 0) * 100) / 100] : null, pk: G.pk ? { ...G.pk } : null, gm: G.gm ? Object.fromEntries(Object.entries(G.gm).filter(([, v]) => v)) : null },
+    warn: G.banner && G.banner.text === 'WARNING' && G.banner !== window.__wb ? ((window.__wb = G.banner), G.banner.sub || '?') : null }; });
+  if (s.tally) { tally[s.tally[0]] = s.tally[1]; if (!grades[s.tally[0]]) grades[s.tally[0]] = { ...s.gr, kit: s.kit }; }
+  if (s.warn) warns.push({ stage: k0(s), f: s.fr, title: s.warn, kit: s.kit });
   if (s.fork && !lastFork) await p.evaluate(() => (window.__gi = (window.__gi ?? 0) + 1));
   lastFork = s.fork;
   const k = `${s.loop + 1}-${(s.stage || 0) + 1}`;
@@ -67,8 +85,10 @@ seg.push({ k: 'END', f0: fin.fr });
 const podsOnly = fin.pods.filter((x) => x.kind === 'pod' || x.kind === 'choice');
 const first = podsOnly[0];
 const stages = seg.slice(0, -1).map((sg, i) => { const f1 = seg[i + 1].f0; const n = podsOnly.filter((x) => x.f >= sg.f0 && x.f < f1).length; const dur = (f1 - sg.f0) / 60;
-  return { stage: sg.k, dur: +dur.toFixed(1), pods: n, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
+  const kinds = fin.pods.filter((x) => x.f >= sg.f0 && x.f < f1).reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {});
+  const src = fin.pods.filter((x) => x.f >= sg.f0 && x.f < f1).reduce((a, x) => ((a[x.src] = (a[x.src] || 0) + 1), a), {});
+  return { stage: sg.k, dur: +dur.toFixed(1), pods: n, kinds, src, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
-  mortal: MORTAL, pilot: PIL ? await p.evaluate(() => window.__pilotLog) : null, stages, tally_s: tally, grades, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
+  mortal: MORTAL, pilot: PIL ? await p.evaluate(() => window.__pilotLog) : null, stages, tally_s: tally, grades, warns, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
 console.error(`pod-probe: ran on ${LAYOUT}`); await b.close();
