@@ -175,7 +175,41 @@ See "Gate results" at the end.
 
 ## Merge 2 art check
 
-PENDING: art-director and accessibility-specialist on `ls1-audit-art/` shots.
+art-director and accessibility-specialist reviewed the merge-2 render work against the approved tone note (`crew/tone.md`), one after the other. The shots are on 026720c and a23998a, long4. A curated set is in `ls1-audit-art/` (hud, throat, movement, world, sets); the full set of 115+ frames was reviewed in the gate worktree.
+
+| Item | Verdict | What changed |
+|---|---|---|
+| Top HUD backing strip (#20) | **S2 from accessibility, now closed.** It was drawn after `drawWorld`, so it dimmed hazards, icicles and the ship at y 0-32 by up to 70% (Pillar 2) | `a23998a`: the strip is removed. SCORE, HI, STAGE and DEPTH get a 1 px #000 glyph outline (`txtOutlined`), and HI, STAGE and DEPTH move to #8fa3b8. Contrast at the glyph edge: SCORE about 14:1, the grey rows about 8:1 |
+| Midboss HP plate (LS1-F cf 6) | **S2 from art-director, now closed.** It cut vent jets under it to 38% | `a23998a`: the plate is removed. The name and NAIL BARRIERS are outlined. The red name is about 4.5:1 at its edge, against about 1:1 before LS1-F |
+| KILLS at y 31, its fuse at 41/43 | pass (`hud/hud-*-B0.png`: 12 KILLS clears the LV row and the XP bar) | — |
+| Vent glow out of the HUD band | pass: lit by the threat | — |
+| Chimney glow | pass: one light, with the threat as its source | — |
+| Snot throat lip | S3, does not block: it reads as flat blocks, not muscle | backlog for technical-artist: shape the lip to `ceilAt`/`floorAt` and drop the cap toward bile ochre |
+| Brighter HUD text | pass | — |
+
+**S3s, on the backlog and not blocking:**
+- The ship at y < 20 now sits under the STAGE row's glyphs. The common shmup fix is to fade the top-left rows while the ship overlaps them (ux-designer, then ui-programmer).
+- HUD text, KILLS included, draws after `drawEShots`, so it can sit over a bullet. This is already on main; the outline adds about 1 px. A fix would draw `drawEShots` after the HUD.
+
+Both reviewers re-checked `a23998a` and lifted their blocks.
+
+**Tone issues already on main, not from this lane, for the tone lane:**
+- the snot biome's mid-to-high yellow, with round glowing orbs;
+- the cartoon skeletons in the acid vats;
+- the synthwave sun and neon city in Orbit;
+- the single green title eyeball;
+- the orange-white fire vent jets, where Pillar 2 needs a call from game-designer and art.
+
+**Tone self-check on this lane's own work** (Matt, 2026-11-07, then the approved note):
+- **Sound:** `848a90c` replaces the Maw's and the Drive's death `fart_ok` with `gross_gush` (rate .5) and `drivegut` (rate .6). The comment in `drive.ts` says how to restore Matty's raspberry if Matt wants it back. The title-root arm sound is `menuBlip(false)`, the title's own sound. Nobody has listened to either yet.
+- **Copy:** I changed no strings, because strings belong to ls2-read. The escape subline stays NO REWARD. NO BIOMASS goes to ls2-read as a proposal.
+- **Art:** see the table above. Nothing this lane added is rounded, bright or jokey. The lights it added are lit by the threat.
+- **Out of scope, for audio-director:**
+  - the menu fart nav and select sounds;
+  - "yeah baby" and the rest of the silly voice bank;
+  - the Maw fight fart;
+  - the Drive dying loop;
+  - the Saucer death.
 
 ## Decisions for Matt
 
