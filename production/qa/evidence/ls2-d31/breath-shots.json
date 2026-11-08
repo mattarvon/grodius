@@ -1,0 +1,34 @@
+[
+ {
+  "name": "d31-orbit-mid-breath",
+  "scroll": 3060,
+  "target": 3060,
+  "frames": 682,
+  "stage": 0,
+  "errs": []
+ },
+ {
+  "name": "d31-drive-pressure-breath",
+  "scroll": 21410,
+  "target": 21410,
+  "frames": 782,
+  "stage": 3,
+  "errs": []
+ },
+ {
+  "name": "d31-breath3-ice",
+  "scroll": 11764,
+  "target": 11764,
+  "frames": 1309,
+  "stage": 1,
+  "errs": []
+ },
+ {
+  "name": "d31-breath3-fire",
+  "scroll": 11764,
+  "target": 11764,
+  "frames": 1324,
+  "stage": 1,
+  "errs": []
+ }
+]
