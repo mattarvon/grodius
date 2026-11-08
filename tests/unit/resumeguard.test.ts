@@ -6,9 +6,12 @@ import { $ } from '../../src/state';
 // rebuild is made to throw directly: flow.ts tryResume drops the slot and puts $.G, $.P, the screen and the layout back
 const rebuild = vi.fn();
 let trigger = 'a';
-vi.mock('../../src/core', () => ({ PH: 270, R: () => 0, clamp: (v: number) => v, dist2: () => 1e9, pick: (a: any[]) => a[0], ri: () => 0, rr: () => 0, swapRm: () => {} }));
+// every sim draw is counted: a RESUME press must make none (#13; the rebuild's own builds are resume.test.ts's)
+let simDraws = 0;
+const draw = <T,>(v: T) => () => { simDraws++; return v; };
+vi.mock('../../src/core', () => ({ PH: 270, R: draw(0), clamp: (v: number) => v, dist2: () => 1e9, pick: (a: any[]) => { simDraws++; return a[0]; }, ri: draw(0), rr: draw(0), swapRm: () => {} }));
 vi.mock('../../src/save', () => ({ lv: () => 0, save: () => {} }));
-vi.mock('../../src/audio', () => ({ sfx: { shield: () => {} } }));
+vi.mock('../../src/audio', () => ({ sfx: { shield: () => {}, die: () => {} } }));
 vi.mock('../../src/platform', () => ({ buzz: () => {} }));
 vi.mock('../../src/world', () => ({ ALL: [], buildTerrain: () => {}, caps: [], ceilAt: () => 0, eshots: [], floorAt: () => 270 }));
 vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, gore: () => {}, spark: () => {}, splat: () => {} }));
@@ -22,7 +25,7 @@ vi.mock('../../src/rng', () => ({ newRunSeed: () => 1 }));
 vi.mock('../../src/stagebuild', () => ({ rebuildAt: (x: number) => rebuild(x) }));
 vi.mock('../../src/lab', () => ({ cpTrigger: () => trigger }));
 
-const { jumpRun, resumeLast, respawn, startLoop } = await import('../../src/flow');
+const { jumpRun, killPlayer, resumeLast, respawn, startLoop } = await import('../../src/flow');
 const { warmBlocked } = await import('../../src/warmplan');
 const { parseJump } = await import('../../src/jump');
 const { RUN_KEY, RUN_V, lastRun, readRun, runInfo } = await import('../../src/runsave');
@@ -99,6 +102,82 @@ describe('the option-b death restart when the rebuild throws', () => {
 });
 
 // the jump switch (build plan LS1 row I) flies the same tryResume path: same rebuild, same backstop
+describe('the option-b death restart pays the normal death cost (D32)', () => {
+  /** a stored stage-2 CP1 with a fitted ship and grafts, and the live run on the same stage, dying */
+  function dyingAt(storedHits: number, liveHits: number) {
+    trigger = 'b';
+    setLayout('long4');
+    const L = LAYOUTS.long4!;
+    const g = { loop: 0, stage: 2, cpX: L.stages[2].x0 + 900, cpN: 1, layout: 'long4', seed: 77, lives: 3, cur: 3, gm: { rapid: 2, seek: 0 },
+      bx: [L.stages[1].x0 + 300, L.stages[2].x0 + 400, null], route: ['ice', 'fire'], visitNo: [0, 0], st: { kills: 4, spawned: 9, hits: storedHits, deaths: 0, chain: 0 } };
+    (localStorage as any).setItem(RUN_KEY, JSON.stringify({ v: RUN_V, g, p: { speed: 3, missile: 2, laser: 1, options: 2, shield: 2, wardLv: 1 } }));
+    readRun();
+    $.G = { loop: 0, stage: 2, lives: 3, cur: 1, gm: { rapid: 1 }, scroll: 7000, st: { deaths: 1, hits: liveHits } } as any;
+    $.P = { x: 50, y: 100, speed: 4, missile: 2, alive: false } as any;
+    $.state = 'play';
+    respawn();
+  }
+
+  it('strips the restored guns as respawn does, keeping half the THRUST', () => {
+    dyingAt(1, 4);
+    expect($.G.cpX).toBe(LAYOUTS.long4!.stages[2].x0 + 900); // it did restart at the checkpoint
+    expect([$.P.speed, $.P.missile, $.P.laser, $.P.options, $.P.shield, $.P.wardLv]).toEqual([1, 0, 0, 0, 0, 0]);
+    expect($.P.alive).toBe(true);
+    expect($.P.inv).toBe(280); // the resume's i-frames (CP.inv), not respawn's 160
+    expect($.G.lives).toBe(2);
+    setLayout('short');
+  });
+
+  it('drops every restored graft a level and resets the power cursor', () => {
+    dyingAt(1, 4);
+    expect($.G.gm).toEqual({ rapid: 1, seek: 0 });
+    expect($.G.cur).toBe(-1);
+    expect($.G.feed.s).toBe('YOUR GRAFTS WITHER');
+    setLayout('short');
+  });
+
+  it('keeps the higher hit count for the grade, whichever side it is on', () => {
+    dyingAt(1, 4);
+    expect($.G.st.hits).toBe(4);
+    expect($.G.st.deaths).toBe(1);
+    dyingAt(5, 2);
+    expect($.G.st.hits).toBe(5);
+    setLayout('short');
+  });
+
+  it('re-writes the checkpoint with the cost taken, so an app kill cannot give the guns back', () => {
+    dyingAt(1, 4);
+    const d = JSON.parse(lastRun()!);
+    expect(d.p.laser).toBe(0);
+    expect(d.p.speed).toBe(1);
+    expect(d.g.gm.rapid).toBe(1);
+    expect(d.g.cur).toBe(-1);
+    expect(d.g.lives).toBe(2);
+    setLayout('short');
+  });
+
+  it('leaves option a\'s death cost as it was', () => {
+    $.G = { lives: 2, cur: 3, gm: { rapid: 2, seek: 0 }, st: { deaths: 0 }, scroll: 0 } as any;
+    $.P = { x: 50, y: 100, alive: true, speed: 3, missile: 1 } as any;
+    killPlayer();
+    expect($.G.cur).toBe(-1);
+    expect($.G.gm).toEqual({ rapid: 1, seek: 0 });
+    respawn();
+    expect([$.P.speed, $.P.missile]).toEqual([1, 0]);
+    expect($.G.lives).toBe(1);
+  });
+});
+
+describe('a RESUME press and the sim RNG (#13)', () => {
+  it('draws the sim RNG zero times through resumeLast (resume.test.ts shows the rebuild draws none either)', () => {
+    stored();
+    simDraws = 0;
+    expect(resumeLast()).toBe(true);
+    expect(simDraws).toBe(0);
+    setLayout('short');
+  });
+});
+
 describe('jumpRun', () => {
   const jump = (q: string) => (parseJump(q) as any).jump;
   beforeEach(() => { setLayout('long4'); $.state = 'title'; $.G = null as any; $.P = null as any; });

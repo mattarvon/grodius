@@ -1,6 +1,6 @@
 // Gravity Drive look-book: renders the final boss at full HP, ~50%, ~15%, mid-death and the rupture, at 2x.
 // Invincible bot parks at x=90 on the boss's y (firing). Needs the VITE DEV server.
-// Usage: node tools/drive-shots.mjs http://localhost:5203/ <outDir> [--layout short]   (the Drive at src/layout.ts bossAt())
+// Usage: node tools/drive-shots.mjs http://localhost:5203/ <outDir> [--layout long4|short]   (the Drive at src/layout.ts bossAt())
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { mkdirSync } from 'node:fs';

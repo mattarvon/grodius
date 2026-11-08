@@ -15,8 +15,8 @@
 //  Descent 1 may start on a fixed opener (Orbit's teaching cells, about 15 s): the same ids in the same order on
 //  every seed, with no draw. The opener cells carry min 2, so they come back as ordinary cells from Descent 3.
 //
-//  Streams: until build plan item B2 lands, `rnd` is the sim R() at build time (as pickV does today); B2 swaps in the
-//  per-stage build stream Rs. Only the long layouts call this, so the short layout's draws are untouched.
+//  Streams: `rnd` is the stage's build stream rs (src/rng.ts; build plan item B2), never the sim R(). Only planned rows
+//  call this (long4, the default since D24), so the short layout (LAB or ?layout=short) never draws here.
 // =====================================================================
 
 export type CellTag = 'intro' | 'build' | 'peak' | 'floor';

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   BANDS, LAYOUTS, bandAt, bossAt, forkAfter, hellCore, hellCorr, innerBand, kindOf, lastStage, layout, nSlots, row,
   beatPlan, driftRow, driftsOf, setLayout, slotSpans, slotOf, slotRow, stageOfSlot, ufoAt, ufoGapEnd, type LayoutEntry,
@@ -123,8 +123,11 @@ const OLD = {
 };
 
 describe('short layout reproduces today', () => {
-  setLayout('short');
-  const L = layout(), xs = Array.from({ length: 2241 }, (_, i) => -200 + i * 5);
+  // set per test, not at collect time: a describe body runs before any test, so another file's or block's layout
+  // could otherwise be the active one when these run
+  let L: ReturnType<typeof layout>;
+  beforeEach(() => { setLayout('short'); L = layout(); });
+  const xs = Array.from({ length: 2241 }, (_, i) => -200 + i * 5);
 
   it('has the old anchors: LEVEL, BOSS_AT, SEG, T_END0/1, UFO_AT, UFO_GAP_END', () => {
     expect(L.level).toBe(10000);

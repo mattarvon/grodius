@@ -1,5 +1,5 @@
 // Infirmary probe: opens the shop from the title with a given save, drives it with keys / mouse / touch, screenshots each state.
-// Usage: node tools/shop-probe.mjs <url> <outdir> [--layout short]
+// Usage: node tools/shop-probe.mjs <url> <outdir> [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, out] = process.argv.slice(2);

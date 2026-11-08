@@ -14,7 +14,7 @@ import { METER_CAP, POD, mult } from '../enemies/update';
 import { GM, ROM, gmL, graftSwap } from '../mutations';
 import { SLOTS, needOf, optPos, slotLocked, slotMaxed } from '../player';
 import { pad } from '../menus';
-import { glow, light, poly, txt } from '../render/util';
+import { HUD_TOP, glow, light, poly, txt } from '../render/util';
 import { eye, flushLo } from '../render/eyes';
 import { drawShip, drawWraith } from '../render/ship';
 import { drawShots } from '../render/bullets';
@@ -34,6 +34,27 @@ import { bossAt, layout } from '../layout';
 
 /** generic POWER capsule (meter mode): classic Gradius orange */
 const GEN_CAP = { c: '255,110,30', h: '#ff7a1a' };
+/** the top HUD's backing (LS1 audit #20): #050608, the bottom strip's colour, at .7 over the text rows, fading out over
+ *  the LV/mutation row so it reads as shade, not a bar. Built once: a gradient is bound to ctx, not per frame */
+const TOP_A = .7, TOP_SOLID = 20;
+let topGrad = null;
+/** the HUD's backings: the top strip, and a plate under the midboss name and HP bar (LS1-F carry-forward 6: red on the
+ *  Furnace/Sinus walls was near 1:1). Called before drawEShots, so a backing never dims an enemy bullet */
+export function drawHudBacks() {
+  drawTopBacking();
+  const m = $.G.mini;
+  if (m && !m.dead && m.t > 30) { ctx.fillStyle = 'rgba(5,6,8,.62)'; ctx.fillRect(W / 2 - 96, PH - 68, 192, m.bars ? 26 : 18); } // drawHUD's bar: bw 180, y PH-56
+}
+function drawTopBacking() {
+  if (!topGrad) {
+    topGrad = ctx.createLinearGradient(0, 0, 0, HUD_TOP + 2);
+    topGrad.addColorStop(0, `rgba(5,6,8,${TOP_A})`);
+    topGrad.addColorStop(TOP_SOLID / (HUD_TOP + 2), `rgba(5,6,8,${TOP_A})`);
+    topGrad.addColorStop(1, 'rgba(5,6,8,0)');
+  }
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, W, HUD_TOP + 2);
+}
 // --- HUD ---
 export function drawHUD() {
   ctx.fillStyle = '#050608';
@@ -103,7 +124,7 @@ export function drawHUD() {
   if (Math.abs($.G.score - $.G.dScore) < 1) $.G.dScore = $.G.score;
   txt('SCORE ' + pad($.G.dScore, 8), 6, 4, '#cfd9e3');
   txt('HI ' + pad(Math.max($.hi, $.G.score), 8), W - 6, 4, '#6d7a88', 'right');
-  txt('STAGE ' + stageLabel() + ' ' + stageInfo().name + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#5b6573');
+  txt('STAGE ' + stageLabel() + ' ' + stageInfo().name + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#6d7a88'); // #5b6573 was ~1.5:1 on amber ceilings
   if (!$.G.boss || $.G.boss.dying) {
     const bw = 110,
       bx = W / 2 - bw / 2,
@@ -111,11 +132,11 @@ export function drawHUD() {
       pr = clamp($.G.scroll / BA, 0, 1);
     ctx.fillStyle = '#14191f';
     ctx.fillRect(bx, 8, bw, 2);
-    for (const m of layout().hudMarks) ctx.fillStyle = '#36414c', ctx.fillRect(bx + bw * m / BA, 6, 1, 6);
+    for (const m of layout().hudMarks) ctx.fillStyle = '#5b6573', ctx.fillRect(bx + bw * m / BA, 6, 1, 6); // ticks lifted from #36414c to read on the strip (#20)
     ctx.fillStyle = C.bloodL;
     ctx.fillRect(bx, 8, bw * pr, 2);
     ctx.fillRect(bx + bw * pr - 1, 6, 2, 6);
-    txt('DEPTH', W / 2, 12, '#4b5663', 'center');
+    txt('DEPTH', W / 2, 12, '#6d7a88', 'center');
   }
   if ($.G.combo >= 3) {
     const s = $.G.combo >= 20 ? 10 : 8;
@@ -167,6 +188,7 @@ export function drawHUD() {
       bx = W / 2 - bw / 2,
       y = PH - 56,
       k = Math.max(0, m.hp / m.max);
+    txt(nm, W / 2 + 1, y - 9, '#000', 'center', 8);
     txt(nm, W / 2, y - 10, '#e0242c', 'center', 8);
     ctx.fillStyle = '#14080a';
     ctx.fillRect(bx - 1, y - 1, bw + 2, 5);

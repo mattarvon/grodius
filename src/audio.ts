@@ -101,7 +101,13 @@ const ar = () => ((arng ^= arng << 13), (arng ^= arng >>> 17), (arng ^= arng << 
 // audio never draws the sim R() (M2 #13): sfx args are evaluated even when no context runs (the harness, a muted or
 // autoplay-blocked device), so an R() there made the sim depend on how many gibs hit the floor and on the sample rate
 const arr = (a, b) => a + ar() * (b - a);
-let voices = 0;
+// The voice cap (was `voices > 14`: 15 sound at once). A wall of 30 splats in one frame is mud anyway, so ordinary sounds
+// past it are dropped. LIVE is oldest-first so a priority cue can take the oldest ordinary voice's slot.
+const VOICE_CAP = 15;
+const LIVE: { s: any; g: any; prio: boolean; cat: string }[] = [];
+// voice lines: they duck the music and set AU.voice/SOLO, so evicting one would cut it mid-word and leave those pointing
+// at a dead take. Eviction skips them (sound-designer review)
+const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame)/;
 function loadBank(A) {
   for (const [p, u] of Object.entries(SFX_URLS)) {
     const cat = p.split('/')[2];
@@ -121,13 +127,29 @@ function nextClip(cat, n) {
   }
   return (LASTS[cat] = b.q.pop());
 }
-/** play a random clip from a category with pitch/volume jitter. false if the category isn't loaded (caller falls back to synth) */
+/** play a random clip from a category with pitch/volume jitter. false if the category isn't loaded (caller falls back to
+ *  synth), or if it was dropped at the voice cap and the call set `fb`. `prio`: never dropped (see the cap below) */
 const SOLO: Record<string, number> = {};
-export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number; solo?: boolean } = {}) {
+export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number; solo?: boolean; prio?: boolean; fb?: boolean } = {}) {
   const L = BANK[cat];
   if (!AU.c || !L || !L.length || SET.muted || AU.c.state !== 'running') return false;
   if (o.solo && AU.c && AU.c.currentTime < (SOLO[cat] || 0)) return true; // previous take still talking
-  if (voices > 14) return true; // swallow it: a wall of 30 splats in one frame is mud anyway
+  // LS1 audit #5/#6: a drop used to return true, so siren()'s alarm() fallback never ran, and the Maw could die silent
+  // (its death frame is the busiest gore frame). A priority cue (Maw death, WARNING siren, stinger, forkopen) is never
+  // dropped: it takes the oldest ordinary voice's slot, faded over ~20 ms so it doesn't click. If every live voice is a
+  // priority cue or a voice line it plays over the cap (there are only a handful). An ordinary sound is still swallowed, and reports
+  // false only when the caller marked a fallback (`fb`): gore's synth fallback would only add mud to a full frame
+  // (producer ruling, option b)
+  if (LIVE.length >= VOICE_CAP) {
+    if (!o.prio) return !o.fb;
+    const k = LIVE.findIndex((v) => !v.prio && !VOICE_CAT.test(v.cat)); // none left (all priority or voice): play over the cap
+    if (k >= 0) {
+      const v = LIVE.splice(k, 1)[0], t = AU.c.currentTime;
+      v.s.onended = null;
+      v.g.gain.setTargetAtTime(0, t, .007);
+      v.s.stop(t + .03);
+    }
+  }
   const i = nextClip(cat, L.length);
   const s = AU.c.createBufferSource(), g = AU.c.createGain();
   s.buffer = L[i];
@@ -135,12 +157,13 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   g.gain.value = (o.vol ?? 1) * (.8 + ar() * .3);
   s.connect(g);
   route(g, o.wet ?? .2);
-  voices++;
+  const v = { s, g, prio: !!o.prio, cat };
+  LIVE.push(v);
   AU.lastCat = cat; // test hook
-  s.onended = () => voices--;
+  s.onended = () => { const k = LIVE.indexOf(v); if (k >= 0) LIVE.splice(k, 1); };
   s.start(AU.c.currentTime + (o.at ?? 0));
   if (o.solo) SOLO[cat] = AU.c.currentTime + (o.at ?? 0) + L[i].duration / s.playbackRate.value;
-  if (/^(hype|bossreward|corpsevoice|startgame)/.test(cat)) duckMusic(L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, o.at ?? 0);
+  if (VOICE_CAT.test(cat)) duckMusic(L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, o.at ?? 0);
   return true;
 }
 /** the voice line now talking: render/hype.ts puts a comms-window face to it (clip = file stem, t0/t1 = AU.c clock) */
@@ -297,7 +320,7 @@ export const sfx = {
       // the biome's kill layer (audiomix.ts BIOME_KILL): lowest priority, so it skips near the voice cap and is throttled
       // on its own key: sharing sfx.glob()'s 'gb' let the two silence each other
       const k = BIOME_KILL[curBiome()];
-      if (k && sz >= k.minSz && voices <= KILL_LAYER.maxVoices && !thr('gk', KILL_LAYER.gapMs) && ar() < k.chance)
+      if (k && sz >= k.minSz && LIVE.length <= KILL_LAYER.maxVoices && !thr('gk', KILL_LAYER.gapMs) && ar() < k.chance)
         sample(k.cat, { vol: k.vol + Math.min(KILL_LAYER.volCap, sz * k.sizeVol), rate: k.rate, at: k.at, wet: .15 }) || (k.synth && synthKill(k.synth, sz));
       return;
     }
@@ -452,15 +475,15 @@ export const sfx = {
   },
   /** WARNING banners: a recorded siren, the synth alarm if the bank isn't loaded */
   siren() {
-    if (!sample('warning', { vol: .5, wet: .35, spread: .04 })) sfx.alarm();
+    if (!sample('warning', { vol: .5, wet: .35, spread: .04, prio: true, fb: true })) sfx.alarm();
   },
   /** a midboss is coming: siren plus the string stinger */
   dread() {
     sfx.siren();
-    sample('stinger', { vol: .7, wet: .4, spread: 0 });
+    sample('stinger', { vol: .7, wet: .4, spread: 0, prio: true });
   },
   forkOpen() {
-    if (!sample('forkopen', { vol: .8, wet: .3, spread: 0 })) sfx.alarm();
+    if (!sample('forkopen', { vol: .8, wet: .3, spread: 0, prio: true, fb: true })) sfx.alarm();
   },
   // tone pass (D39): the 660/880 hi-lo siren was a cartoon klaxon. Now a 220/233 Hz pair (a minor 2nd, ~13 Hz beat)
   // pulsing four times over the same ~2.1 s: a sour throb in the band phones carry

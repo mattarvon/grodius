@@ -5,7 +5,7 @@
 // Usage: node tools/midboss-probe.mjs <url> [shotsDir] [zoomDir]   (also saves a rendered mid-fight midboss-<kind>.png, and a close-up)
 //        node tools/midboss-probe.mjs <url> matrix [shotsDir]   (LS1 P0 crossovers: each of the 4 biome midbosses in each of
 //        the 4 biomes, STAGE 1 kit; TTK, y range, terrain clipping, render errors, and a mid-fight xmb-<kind>-<biome>.png)
-//        Either form takes [--layout short]. World x comes from src/layout.ts: the biome fights sit in biome slot 0, at
+//        Either form takes [--layout long4|short]. World x comes from src/layout.ts: the biome fights sit in biome slot 0, at
 //        stage-relative x 1000 (matrix: 1000 / 1400 / 1800 / 2200), and the Saucer at ufoAt() + 150.
 //        --leave <frames> spawns every midboss on that leave clock instead of today's 1400 f (LS1-F: the long4 slot
 //        clocks are 1080 for slot A and 1260 for slot B, src/midpick.ts MID_CLOCK); the Saucer keeps its forced exit.

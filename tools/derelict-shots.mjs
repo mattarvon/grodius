@@ -3,7 +3,7 @@
 // drawDerelict alone (no sky, no post-FX) so the blocks, neon and windows can be judged pixel by pixel, plus
 // (with --inplay) one frame of untouched real play: newGame, the stage script running, ~7 s of live frames.
 // (Strip 06 at scroll 13100 was the disc preview while the disc sat at the unreachable off+1560.)
-// Usage: node tools/derelict-shots.mjs <outDir> [prefix] [--layout long4]   (starts its own Vite dev server)
+// Usage: node tools/derelict-shots.mjs <outDir> [prefix] [--layout long4|short]   (starts its own Vite dev server)
 import { chromium } from 'playwright';
 import { useLayout, ranOn, LY } from './layout-arg.mjs';
 import fs from 'node:fs';

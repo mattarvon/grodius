@@ -19,7 +19,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { platform, release } from 'node:os';
-import { resolveWant, refuseUpdate, flakyFails } from './harness-rules.mjs';
+import { resolveWant, refuseUpdate, flakyFails, parseRuns, simState } from './harness-rules.mjs';
 
 const argv = process.argv.slice(2);
 const UPDATE = argv.includes('--update');
@@ -32,8 +32,9 @@ const li = argv.indexOf('--layout');
 const LAYOUT = li >= 0 ? argv[li + 1] : 'short';
 if (!['short', 'long4'].includes(LAYOUT)) { console.error(`--layout must be short or long4, got ${LAYOUT}`); process.exit(1); }
 const argOf = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : null; };
-const SCENARIO = argOf('--scenario'), RUNS = +(argOf('--runs') ?? 1), SHOTS = argOf('--shots');
+const SCENARIO = argOf('--scenario'), RUNS = parseRuns(argOf('--runs')), SHOTS = argOf('--shots');
 if (SCENARIO && (li >= 0 || fi >= 0)) { console.error('--scenario sets its own layout and frames: drop --layout and --frames'); process.exit(1); }
+if (RUNS === null) { console.error(`--runs needs an integer of 1 or more, got ${argOf('--runs')}`); process.exit(1); }
 if ((RUNS !== 1 || SHOTS) && !SCENARIO) { console.error('--runs and --shots need --scenario'); process.exit(1); }
 let url = argv.find((a, i) => !a.startsWith('--') && !['--frames', '--flashes', '--layout', '--scenario', '--runs', '--shots'].includes(argv[i - 1]));
 const baselineOf = (name) => new URL(name ? `./harness.${name}.baseline.json` : LAYOUT === 'short' ? './harness.baseline.json' : `./harness.${LAYOUT}.baseline.json`, import.meta.url);
@@ -139,13 +140,15 @@ async function runOnce(b, sc = null, name = null) {
   if (sc) {
     Object.assign(st, await p.evaluate(simState));
     st.seen = seen.join(' ');
-    st.sig = createHash('md5').update(st.simSig).digest('hex').slice(0, 10);
-    delete st.simSig;
     if (!st.jump) errs.push('harness: the jump switch did not start (a built page ignores ?stage=: use the dev server)');
-    // 'slotB': the stage's second midboss, whichever the picker drew
-    const want = resolveWant(sc.want, st.pair);
-    if (sc.want && !want) errs.push(`harness: could not resolve want ${sc.want} (pair '${st.pair}')`);
-    if (want && !seen.some((k) => k === `mini:${want}` || k === `boss:${want}`)) errs.push(`harness: never met ${want} (seen: ${st.seen || 'nothing'})`);
+    else {
+      st.sig = createHash('md5').update(st.simSig).digest('hex').slice(0, 10);
+      delete st.simSig;
+      // 'slotB': the stage's second midboss, whichever the picker drew
+      const want = resolveWant(sc.want, st.pair);
+      if (sc.want && !want) errs.push(`harness: could not resolve want ${sc.want} (pair '${st.pair}')`);
+      if (want && !seen.some((k) => k === `mini:${want}` || k === `boss:${want}`)) errs.push(`harness: never met ${want} (seen: ${st.seen || 'nothing'})`);
+    }
   }
   if (loads > 1) errs.push(`harness: page reloaded ${loads - 1}x mid-run (Vite dependency re-optimisation?)`);
   await p.close();
@@ -153,8 +156,6 @@ async function runOnce(b, sc = null, name = null) {
 }
 // what is on the field at a stop, and the scenario's closing sim state. In-page: they read window.__G only
 const meets = () => { const { G, state } = window.__G(); return [G && G.mini && `mini:${G.mini.k}`, G && G.boss && 'boss:drive', state !== 'play' && `state:${state}`].filter(Boolean); };
-const simState = () => { const { G, P, enemies, drops, caps } = window.__G(), r = (v) => (typeof v === 'number' ? +v.toFixed(3) : v ?? null);
-  return { jump: !!G.jump, stage: G.stage, pair: ((G.mb && G.mb[G.stage]) || []).join('+'), loop: G.loop, pow: r(G.pow), rank: r(G.rank), lvl: G.lvl, kills: G.kills, t: G.t, simSig: JSON.stringify([G.score, G.scroll, G.bio, G.xpTot, G.mb, G.route, P && [P.x, P.y, P.inv, P.shield], enemies.map((e) => [e.k, r(e.x), r(e.y), e.hp]), drops.length, caps.map((c) => [c.ty, r(c.x), r(c.y)])]) }; };
 function compare(base, r) {
   const diffs = Object.keys({ ...base.st, ...r.st }).filter((k) => base.st[k] !== r.st[k]).map((k) => `  st.${k}: ${base.st[k]} -> ${r.st[k]}`);
   if (JSON.stringify(base.errs) !== JSON.stringify(r.errs)) diffs.push(`  errs: ${JSON.stringify(base.errs)} -> ${JSON.stringify(r.errs)}`);

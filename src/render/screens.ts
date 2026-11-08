@@ -19,7 +19,7 @@ import { drawBoss } from '../render/boss';
 import { drawDrops } from '../render/gore';
 import { drawBG, drawSplats } from '../render/terrain';
 import { postFX } from '../render/hell';
-import { drawEShots, drawHUD, drawWorld } from '../render/hud';
+import { drawEShots, drawHUD, drawHudBacks, drawWorld } from '../render/hud';
 import { SPR, spr, sprAt } from '../sprites';
 import { drawTitleHead } from './titlehead';
 import { titleGaze } from './titlegaze';
@@ -512,6 +512,7 @@ export function render() {
     pIn();
     drawSplats();
     postFX();
+    drawHudBacks(); // the HUD's translucent backings sit under the bullets, the HUD text over both (LS1 audit #20)
     // enemy bullets go over the hell image and the washes: a bullet must never be hidden by an effect
     ctx.save();
     ctx.translate(shx, shy);

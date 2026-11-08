@@ -6,7 +6,7 @@
 // The sim signature (frames, boss/midboss hp, score, rank, bio, player, enemies, enemy shots, caps, orbs) must be
 // identical across the three. A difference means something outside the sim drew the sim RNG R() (or wrote sim state).
 // Fx-only arrays (gibs, drops, ...) are reported but not signed: they are presentation.
-// Usage: node tools/rng-probe.mjs [url] [--frames N] [--only maw,ufo] [--json out.json] [--trace] [--layout short]
+// Usage: node tools/rng-probe.mjs [url] [--frames N] [--only maw,ufo] [--json out.json] [--trace] [--layout long4|short]
 //   World x comes from src/layout.ts: biome fights at slot 0 (stage-relative x 1000), stage bosses at slot 0 x0 + 700,
 //   the Saucer at ufoAt() + 150, the Drive at bossAt().
 //   --trace records the call site of every Math.random draw made inside render() and prints the top ones

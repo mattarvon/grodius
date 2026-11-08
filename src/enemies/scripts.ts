@@ -2,9 +2,14 @@
 // The hand-made stage scripts: Open Orbit (stage 0) and the Gravity Drive approach (stage 3). The biome stages in
 // between are scripted per gate in biomes.ts. See docs/pacing.md ("Open Orbit and the Drive approach, remixed").
 //
-// Each script is cut into sections, and each section has several hand-made variants. Descent 1 always plays variant 0
-// (the tuned script new players learn; it never comes back later). From Descent 2 on, every section picks a remix with
-// the gameplay RNG at build time (so a seed replays the same run), preferring ones this run hasn't played yet and never
+// The default layout, long4 (D24), builds these two stages from cells plus generator filler (LONG STAGES, below). The
+// sections here are the short layout's (LAB or ?layout=short), kept until short is deleted; their variants were cut
+// into long4's first cells.
+//
+// Each short script is cut into sections, and each section has several hand-made variants. Descent 1 always plays
+// variant 0 (the tuned script new players learn; on short it never comes back later, while long4's opener cells
+// return from Descent 3). From Descent 2 on, every section picks a remix from the stage's build stream rs
+// (src/rng.ts) at build time (so a seed replays the same run), preferring ones this run hasn't played yet and never
 // repeating last descent's; some set pieces only unlock in Descent 3+ (`min`). The fixed beats stay put whatever is
 // picked: the Saucer's WARNING at UFO_AT and its filler-skip window (ufo.ts), the "SOMETHING IS COMING" breath and the
 // Maw, the corridor's wall eyes, WARNING: GRAVITY WELL CRITICAL and the breath of drifting crew before the Drive.
@@ -308,7 +313,10 @@ const DRONE_PAT = ['sine', 'zig', 'dive', 'wall'];
  *  4 (the drone budget at the top of this file) */
 function fillSpawn(k, u, nDrone) {
   const y = PH * (.18 + .64 * frac(u * 7.31));
-  if (k === 'drones') { const pat = DRONE_PAT[Math.floor(u * 4) % 4]; if (pat === 'zig' && u < .15) behindWave(y, nDrone); else formation(pat, y, nDrone); }
+  // a from-behind branch (`pat === 'zig' && u < .15`) was removed here (LS1 audit): u < .15 always picks DRONE_PAT[0],
+  // 'sine', so it never fired. Filler drones are front formations only; a from-behind filler beat is a design call
+  // that would move long4 (backlog)
+  if (k === 'drones') formation(DRONE_PAT[Math.floor(u * 4) % 4], y, nDrone);
   else if (k === 'sentry') sentry(y, W * (.62 + .2 * frac(u * 3.7)));
   else if (k === 'corpse') u < .5 ? corpse(y) : crew(y, PH - y);
   else if (k === 'flayer') flayer(PH * (.25 + .5 * u));
@@ -393,7 +401,7 @@ export function stageScript(i, rs) {
       at('eyes')(430, () => { eyeT(1); eyeT(-1); });
       play('dF', DRIVE_F);
     }
-    at('warn')(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200); sfx.siren(); $.G.glitch = 14; });
+    at('warn')(warn, () => { banner('WARNING', 'GRAVITY WELL CRITICAL', '#ff2a2a', 200, true); sfx.siren(); $.G.glitch = 14; });
     at('crew')(warn + 90, () => { corpse(PH * .3, { drift: .2 }); corpse(PH * .65, { drift: .2 }); }); // the breath: crew dragged toward the drive
     at('boss')(r.bossX - r.x0, () => startBoss());
   }

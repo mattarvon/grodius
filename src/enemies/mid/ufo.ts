@@ -32,8 +32,8 @@ import { midPh2 } from '../midhost';
 import { MID_NAMES, MID_SIM, defineMid } from './roster';
 
 export const UFO_NAME = MID_NAMES.ufo;
-// Where its WARNING is (it lands ~150 px later, ~45% through the stage) and where it must be gone by (the last of the
-// filler, 1880..1900, always comes; the Maw's "SOMETHING IS COMING" is at 2000) are the Open Orbit row's drift entry
+// Where its WARNING is (it lands ~150 px later, ~45% through the stage) and where it must be gone by (before the
+// Maw's "SOMETHING IS COMING") are the Open Orbit row's drift entry
 // in src/layout.ts, stage-relative (ufoAt() / ufoGapEnd() give world x).
 /** where the lash, the tumours and the belly hatch sit, relative to its centre (the art in render/gross/mid/ufo.ts uses these) */
 export const LASH_O = [-34, 9], TUMOURS = [[-24, -7], [6, -10], [30, -5]], HATCH_O = [12, 11];
@@ -75,13 +75,13 @@ const cd = (e, ph2) => Math.round((ph2 ? 52 : 78) * (1 - .3 * ($.G.rank || 0)) *
 
 function updUfo(e) {
   const ph2 = midPh2(e);
-  // leave: on its timer, or when the scroll reaches the Maw's run-up (escape costs nothing, like the other midbosses)
+  // leave: on its timer, or when the scroll reaches the Maw's run-up (an escape pays no kill reward, like the other midbosses)
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);
   if (e.t < e.leave && $.G.scroll > e.exitX) e.leave = e.t; // the forced exit (layout invariant, spec §3.2 rule 1: >= 300 px before the next WARNING; short is a pinned 220 px exception)
   const go = e.t >= e.leave;
   if (go) {
-    if (!e.gone) { e.gone = 1; e.st = 'idle'; e.ll = 0; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); } // the leave hook, once, as midLeave does (this kind withdraws on its own)
+    if (!e.gone) { e.gone = 1; e.st = 'idle'; e.ll = 0; banner('IT WITHDRAWS', 'NO REWARD', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); } // the leave hook, once, as midLeave does (this kind withdraws on its own)
     e.x += 1.6;
     e.y -= .25;
     if (e.x > W + 80) { e.dead = true; $.G.eat = 0; }

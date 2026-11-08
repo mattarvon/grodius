@@ -1,5 +1,5 @@
 // Pick-screen screenshots: starts a run, plays a bit, forces level-ups (optionally with given visited biomes / perks)
-// and screenshots the pick screen + HUD. Usage: node tools/perk-shot.mjs <url> <outdir> [visited=ice,acid] [pk json] [--layout short]
+// and screenshots the pick screen + HUD. Usage: node tools/perk-shot.mjs <url> <outdir> [visited=ice,acid] [pk json] [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, out, vis = '', pkj = '{}', force = ''] = process.argv.slice(2);

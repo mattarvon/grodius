@@ -31,6 +31,13 @@ jobs:
       - name: Unit + integration tests (vitest, tests/unit + tests/integration)
         run: npm run test:unit
       - run: npm run build
+      # SUMMARY #12: the jump switch is dev only (main.ts gates jumpBoot on import.meta.env.DEV, which the build sets
+      # false, so jumpBoot and parseJump shake out). Both markers live only there; jumpRun/jumpBlob may stay (flow.ts)
+      - name: Jump switch absent from the production bundle
+        run: |
+          hits=$(grep -rlF -e 'unknown stage kind on layout' -e 'jump switch:' dist/ || true)
+          if [ -n "$hits" ]; then echo "::error::jump-switch code shipped in: $hits"; exit 1; fi
+          echo "jump switch markers: none in dist/"
       - name: Regression gate (sim state vs tools/harness.baseline.json)
         run: npm run test:regress
 
