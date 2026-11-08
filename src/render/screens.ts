@@ -22,6 +22,8 @@ import { postFX } from '../render/hell';
 import { drawEShots, drawHUD, drawWorld } from '../render/hud';
 import { SPR, spr, sprAt } from '../sprites';
 import { drawTitleHead } from './titlehead';
+import { titleGaze } from './titlegaze';
+import { TITLE } from '../titlelayout';
 
 // --- screens ---
 export function drawMutList() {
@@ -112,8 +114,8 @@ export function drawTitle() {
   ctx.fillRect(0, 0, W * .56, H);
   drawTitleHead();
   const gx = srnd() < .04 ? sri(-4, 4) : 0;
-  txt('GRODIUS', 26 + gx + 2, 30 + 2, '#1a0003', 'left', 64, FONT_D);
-  txt('GRODIUS', 26 + gx, 30, '#b3121a', 'left', 64, FONT_D);
+  txt('GRODIUS', TITLE.logo.x + gx + 2, TITLE.logo.y + 2, '#1a0003', 'left', TITLE.logo.size, FONT_D);
+  txt('GRODIUS', TITLE.logo.x + gx, TITLE.logo.y, '#b3121a', 'left', TITLE.logo.size, FONT_D);
   if (srnd() < .05) {
     {
       const y = 40 + sri(0, 40),
@@ -124,7 +126,7 @@ export function drawTitle() {
   if (!SET.asked && !$.gate) {
     txt('THIS GAME HAS FLASHING IMAGES.', 28, 96, '#f0c8c8');
     txt('YOU CAN CHANGE THIS LATER IN OPTIONS.', 28, 142, '#8fa3b8');
-  } else txt('DERELICT MERIDIAN // NEPTUNE ORBIT', 28, 96, '#6d8094');
+  } else txt('DERELICT MERIDIAN // NEPTUNE ORBIT', TITLE.sub.x, TITLE.sub.y, '#6d8094');
   if ($.gate) {
     $.menuBoxes = [];
     if (($.T >> 5) % 2 === 0) txt(touch.used || matchMedia('(pointer: coarse)').matches ? 'TAP TO DESCEND' : 'PRESS ANY KEY', 40, 140, '#e0242c', 'left', 10);
@@ -135,18 +137,18 @@ export function drawTitle() {
     const bi = it.findIndex(x => x.l === 'BACK');
     if (bi >= 0) bigBtn(SUB_BACK.x, SUB_BACK.y, SUB_BACK.w, SUB_BACK.h, '< BACK', bi, it[bi].a); // a sub-menu without a BACK row draws no button rather than throw
   } else {
-    txt('ARROWS/WASD MOVE   Z/SPACE FIRE', 28, 208, '#5b6573');
-    txt((SET.meter ? 'CAPSULES MOVE THE METER, X POWERS UP' : 'FLY INTO A POD TO TAKE IT') + '   P PAUSE   M MUTE', 28, 217, '#5b6573');
-    txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', 28, 226, '#3f4955');
-    txt('HI ' + pad($.hi, 8), 28, 240, '#8fa3b8');
+    txt('ARROWS/WASD MOVE   Z/SPACE FIRE', TITLE.help.x, TITLE.help.y, '#5b6573');
+    txt((SET.meter ? 'CAPSULES MOVE THE METER, X POWERS UP' : 'FLY INTO A POD TO TAKE IT') + '   P PAUSE   M MUTE', TITLE.help.x, TITLE.help.y + TITLE.help.pitch, '#5b6573');
+    txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', TITLE.help.x, TITLE.help.y + TITLE.help.pitch * 2, '#3f4955');
+    txt('HI ' + pad($.hi, 8), TITLE.hi.x, TITLE.hi.y, '#8fa3b8');
   }
   // a first Android back at the title root armed the leave (backstep.ts EXIT_ARM_T): say what the second does in the
   // next row slot under LAB, lined up with the rows (root: <= 6 rows, so y <= 194, clear of the help text at 208)
   if (exitArmed()) txt('PRESS BACK AGAIN TO LEAVE', 40, TITLE_MENU.y + titleItems().length * TITLE_MENU.pitch, '#ffd0a0');
-  txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#c46a6e', 'right');
-  txt('SPRITES: TIAMALT, SCARCZ, C.BELLANGER, D.COOK, SUNBURN, CIDERCORPSE', W - 8, H - 39, '#3a4048', 'right', 7);
-  txt('MUSIC: DANCRAMP - VOID, FREESOUND ARTISTS   SFX: KENNEY, FREESOUND', W - 8, H - 30, '#3a4048', 'right', 7);
-  txt('IMAGES: NASA/ESA/CSA JWST, VOYAGER 2, CHANDRA, FLICKR   SEE CREDITS.MD', W - 8, H - 21, '#3a4048', 'right', 7);
+  txt('EXTREME GORE. FLASHING IMAGES.', TITLE.right, TITLE.age.y, '#c46a6e', 'right');
+  txt('SPRITES: TIAMALT, SCARCZ, C.BELLANGER, D.COOK, SUNBURN, CIDERCORPSE', TITLE.right, TITLE.credits.y, '#3a4048', 'right', 7);
+  txt('MUSIC: DANCRAMP - VOID, FREESOUND ARTISTS   SFX: KENNEY, FREESOUND', TITLE.right, TITLE.credits.y + TITLE.credits.pitch, '#3a4048', 'right', 7);
+  txt('IMAGES: NASA/ESA/CSA JWST, VOYAGER 2, CHANDRA, FLICKR   SEE CREDITS.MD', TITLE.right, TITLE.credits.y + TITLE.credits.pitch * 2, '#3a4048', 'right', 7);
 }
 export function drawOverlay(title, sub, col) {
   ctx.fillStyle = 'rgba(8,0,1,.72)';
@@ -534,8 +536,6 @@ export function render() {
 
 // ---------------- loop ----------------
 
-// Beside drawTitleEye on purpose: this lane may only touch this function's neighbourhood (imports hoist anyway)
-import { titleGaze } from './titlegaze';
 const TGZ = { x: 0, y: 0, ang: 0, m: 0, bl: 0, jig: 0, phase: 0 }, TGZ_LATE = { x: 0, y: 0, ang: 0, m: 0, bl: 0, jig: 0, phase: 0 };
 const ROPE_N = 14, ROPE_X = new Float32Array(ROPE_N + 1), ROPE_Y = new Float32Array(ROPE_N + 1);
 const ROPE_W = [22, 17, 11, 4], ROPE_C = ['#140a08', '#33201a', '#57402a', '#8c7a4e'];
@@ -567,7 +567,7 @@ function titleRope(ex, ey, r, t, jerk, jerkAng) {
 }
 /** title hero: the ROT eye hung on its optic nerve, cropped by the right frame. Holds still, then hitches (titlegaze.ts) */
 function drawTitleEye() {
-  const t = $.T, ex = 396, ey = PH * .46, r = 88;
+  const t = $.T, ex = TITLE.eye.x, ey = TITLE.eye.y, r = TITLE.eye.r;
   titleGaze(t, TGZ);
   titleGaze(t - 8, TGZ_LATE); // the rope hears about a hitch 8 frames after the eye does
   titleRope(ex, ey, r, t, TGZ_LATE.jig, TGZ_LATE.ang);

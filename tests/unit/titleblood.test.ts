@@ -1,28 +1,18 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { D, DRIP, E, GONE, HEAD, RAILS, VISIT, bobY, eggAdvance, eggFrame, eggReset, epochStart, maxStep } from '../../src/render/titleblood';
-import { SUB_BACK } from '../../src/backstep';
+import { TITLE, TITLE_EYE_CLEAR, TITLE_NOGO } from '../../src/titlelayout';
 
-// The title's easter egg must never sit on the menu, logo, text or ROT, however its visits fall. These are the no-go rects
-// on the 480x270 canvas, as read from drawTitle; x1,y1 exclusive
-const NOGO = [
-  { n: 'logo', x0: 26, y0: 30, x1: 296, y1: 92 },
-  { n: 'subtitle', x0: 28, y0: 96, x1: 205, y1: 105 },
-  { n: 'menu', x0: 28, y0: 105, x1: 202, y1: 206 },
-  { n: 'help', x0: 28, y0: 208, x1: 255, y1: 226 },
-  { n: 'hi', x0: 28, y0: 240, x1: 90, y1: 247 },
-  { n: 'credits', x0: 190, y0: 231, x1: 472, y1: 249 },
-  { n: 'age', x0: 322, y0: 258, x1: 472, y1: 266 },
-  { n: 'subBack', x0: SUB_BACK.x, y0: SUB_BACK.y, x1: SUB_BACK.x + SUB_BACK.w, y1: SUB_BACK.y + SUB_BACK.h },
-  { n: 'rope', x0: 420, y0: 0, x1: 446, y1: 40 },
-];
-const ROT = { x: 396, y: 124, r: 92, wobble: 8 };
+// The title's easter egg must never sit on the menu, logo, text or ROT, however its visits fall. The rects come from the
+// layout table drawTitle draws from, so moving a title element and leaving a rail behind fails here
+const NOGO = TITLE_NOGO;
+const ROT = { x: TITLE.eye.x, y: TITLE.eye.y, clear: TITLE_EYE_CLEAR };
 const FRAMES = 1200000; // about 5.5 hours of title: hundreds of visits
 
 const hitsRect = (x: number, y: number, w: number, h: number, r: typeof NOGO[0]) => x < r.x1 && x + w > r.x0 && y < r.y1 && y + h > r.y0;
 function hitsRot(x: number, y: number, w: number, h: number) {
   const cx = Math.max(x, Math.min(ROT.x, x + w)), cy = Math.max(y, Math.min(ROT.y, y + h));
-  return Math.hypot(cx - ROT.x, cy - ROT.y) < ROT.r + ROT.wobble;
+  return Math.hypot(cx - ROT.x, cy - ROT.y) < ROT.clear;
 }
 
 beforeEach(() => eggReset());
@@ -108,6 +98,20 @@ describe('the drips', () => {
     expect(peak).toBeGreaterThan(0);
   });
 
+  it('never falls onto a no-go rect or ROT, whichever rail it left', () => {
+    let hit = 0, seen = 0;
+    for (let t = 0; t < FRAMES / 4; t++) {
+      eggAdvance(t);
+      for (let i = 0; i < D.n; i++) {
+        const tail = 1 + Math.floor(D.vy[i] * DRIP.tailK), x = Math.floor(D.x[i]), y = Math.floor(D.y[i]) - tail + 1;
+        seen++;
+        if (NOGO.some((r) => hitsRect(x, y, D.w[i], tail, r)) || hitsRot(x, y, D.w[i], tail)) hit++;
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+    expect(hit).toBe(0);
+  });
+
   it('dies out while the head is gone, so nothing piles up', () => {
     let leftover = 0;
     for (let t = 0; t < FRAMES / 4; t++) {
@@ -143,5 +147,6 @@ describe('isolation', () => {
     const src = readFileSync(new URL('../../src/render/titleblood.ts', import.meta.url), 'utf8') + readFileSync(new URL('../../src/render/titlehead.ts', import.meta.url), 'utf8');
     expect(src).not.toMatch(/from '\.\.\/world'/);
     expect(src).not.toMatch(/Math\.random/);
+    expect(src).not.toMatch(/\bR\(/);
   });
 });

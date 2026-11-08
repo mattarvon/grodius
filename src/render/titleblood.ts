@@ -4,6 +4,7 @@
 // the $.T delta, not per render, so 120 Hz doesn't double its speed and a rig jump can't burst the pool. Render only: this
 // isn't world.drops, and nothing here reaches the sim. Path choices are srnd().
 import { srnd, srr, sri } from '../srnd';
+import { TITLE } from '../titlelayout';
 
 const hsh = (n: number) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 
@@ -14,11 +15,11 @@ export const HEAD = { w: 19, h: 31, eyeX: 6, eyeY: 17, stumpX: 10, stumpY: 29, b
  *  margin ROT's wobble needs; `out` is the off-screen direction, always straight away from the no-go areas. `floor` kills
  *  drips before they reach text or ROT. Checked against every no-go rect by tests/unit/titleblood.test.ts */
 export const RAILS = [
-  { n: 'top', x0: 4, y0: -6, x1: 340, y1: -6, ox: 0, oy: -1, floor: 28 },        // chin and eye hang into y 0-25, above the logo
-  { n: 'left', x0: 1, y0: 30, x1: 1, y1: 236, ox: -1, oy: 0, floor: 270 },       // x to 20: the logo and menu start at 26
-  { n: 'bottom', x0: 4, y0: 252, x1: 296, y1: 252, ox: 0, oy: 1, floor: 270 },   // head above the eye only: credits end at 249, age line at x 322
-  { n: 'topRight', x0: 458, y0: -4, x1: 458, y1: 8, ox: 1, oy: 0, floor: 44 },   // right of ROT's rope, above its shoulder
-  { n: 'bottomRight', x0: 470, y0: 198, x1: 466, y1: 197, ox: 1, oy: 0, floor: 229 }, // a peek: ROT above-left, credits below
+  { n: 'top', x0: 4, y0: -6, x1: 330, y1: -6, ox: 0, oy: -1, floor: TITLE.logo.y - 2 }, // chin and eye hang into y 0-25, above the logo
+  { n: 'left', x0: 1, y0: 6, x1: 1, y1: 58, ox: -1, oy: 0, floor: 100 },         // x to 20, left of the logo; stops at y 90, clear of the menu's cursor
+  { n: 'bottom', x0: 4, y0: 252, x1: 128, y1: 252, ox: 0, oy: 1, floor: 270 },   // under HI; stops left of the last credits line, which runs to y 257 from x 150
+  { n: 'topRight', x0: 461, y0: -4, x1: 461, y1: 8, ox: 1, oy: 0, floor: 44 },   // right of ROT's rope, above its shoulder
+  { n: 'bottomRight', x0: 470, y0: 198, x1: 466, y1: 197, ox: 1, oy: 0, floor: TITLE.credits.y - 2 }, // a peek: ROT above-left, credits below
 ];
 
 /** the visit's pace: slow, and long gone between. Frames at 60/s unless noted */

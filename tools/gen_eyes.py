@@ -10,7 +10,7 @@ Usage:
       1024 px concept PNGs + sheet. DIR defaults to .scratch/eyes (git-ignored).
   python3 -I tools/gen_eyes.py bake [rot] [kit]     (no args = both)
       rot: src/sprites/rot_{ball,lens,shade,spec}.png and rot_layout.json.
-      kit: src/sprites/eye_{cluster,flyer,rotted,burst,wrong}.png.
+      kit: src/sprites/kit/eye_{cluster,flyer,rotted,burst,wrong}.png (a subfolder: the boot glob skips it until one is used).
 """
 import json, math, os, random, sys, time
 from PIL import Image, ImageMath, ImageDraw, ImageChops, ImageFont, features
@@ -1015,7 +1015,7 @@ def kit_sprite(cv, name, px, crop=None):
     A = T(ch[3])
     A = cl(A)
     out = [to8(cl(T(c) / mx(A, 1 / 255))) for c in ch[:3]] + [to8(A)]
-    write_rgba(Image.merge('RGBA', out), name)
+    write_rgba(Image.merge('RGBA', out), 'kit/' + name)
 
 
 def bake_kit():
@@ -1025,7 +1025,7 @@ def bake_kit():
     kit_sprite(c_hero_rot(), 'eye_rotted', (56, 56))
     kit_sprite(c_burst(), 'eye_burst', (56, 56))
     kit_sprite(c_wrong(), 'eye_wrong', (80, 80))
-    sprite_bytes('eye_cluster', 'eye_flyer', 'eye_rotted', 'eye_burst', 'eye_wrong')
+    sprite_bytes(*('kit/eye_' + n for n in ('cluster', 'flyer', 'rotted', 'burst', 'wrong')))
 
 
 def main_concept(args):

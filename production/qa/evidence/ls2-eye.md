@@ -1,6 +1,6 @@
 # LS2-eye: ROT title eye, Matt's easter-egg head, eye kit
 
-Branch `ls2-eye`, off main `93e595b`. Source tip `f0a4e71`; later commits touch only docs, evidence and tools. Decision: D41. Matt watched the capture and said "looks cool merge it".
+Branch `ls2-eye`, rebased onto main `586b183` (ls2-read). Decision: D41. Matt watched the capture and said "looks cool merge it".
 
 **The sim does not move.** Short harness and parity pass.
 
@@ -10,39 +10,57 @@ Branch `ls2-eye`, off main `93e595b`. Source tip `f0a4e71`; later commits touch 
 - **Life.** Gaze holds for 240-900 frames, then hitches; darts come in hash-timed bursts (`src/render/titlegaze.ts`, a pure function of `$.T`). A nictitating membrane replaces the lids. The rope and drool are regraded to tallow and ochre. The breathing squash, sine drift and metronome blink are gone (D39).
 - **Placement.** The eye moved to x 396, r 88, cropped by the right frame. The wordmark is clear of it.
 - **Easter egg.** `src/render/titlehead.ts` and `titleblood.ts`, sprite `head_egg@3.png` (19x31 px). The head peeks in at an edge or corner, drifts, lingers, leaves, and stays away 6-20 s. At most 24 small drips, no pool. The gross eye fully covers Matt's real left eye, and that eye was removed from the art.
-- **Kit.** Five sprites baked and wired into nothing (ranking below).
+- **Kit.** Five sprites baked to `src/sprites/kit/` and wired into nothing (ranking below). The boot glob skips the subfolder, so they cost players nothing until one is used.
+- **Title layout.** `src/titlelayout.ts` holds the title's positions and no-go rects. `drawTitle`, `drawTitleEye`, the egg's rails and its test all read it.
 - **Tools.** `tools/gen_eyes.py`, `title-shots.mjs`, `title-capture.mjs`, `title-perf-probe.mjs`; `fx-shots.mjs` crop updated.
 - **Docs.** D41, CREDITS.
 
-**`screens.ts` outside `drawTitleEye`** (the brief asked me to say): the `drawTitleHead();` call and its import, the two `hangSpine` calls and the `hangSpine` import removed, and the `titlegaze` import placed beside `drawTitleEye` to stay out of ls2-read's way.
+**`screens.ts` outside `drawTitleEye`:** the `drawTitleHead();` call, the title layout's positions in place of literals (same pixels), the `titlegaze` and `titlelayout` imports at the top, and the `hangSpine` calls and import removed.
 
 ## Gates
 
-| Gate | Result | Log |
-|---|---|---|
-| `npm run typecheck` | exit 0 | `ls2-eye/typecheck.txt` |
-| `npx vitest run` | 43 files, 909 passed, 1 expected fail | `ls2-eye/vitest.txt` |
-| `npm run build` | exit 0 | `ls2-eye/build.txt` |
-| `node tools/harness.mjs` (short) | PASS vs baseline @ 8ff9ba4 | `ls2-eye/harness-short.txt` |
-| `node tools/layout-parity.mjs` | PARITY PASS: runs 3, 6, 7, 11, 15, 3x3, 7m identical | `ls2-eye/parity.txt` |
+**Final tree: this commit.** The `final-*` logs are stamped with its `src` and `tests` tree IDs (`src-tree=fc7e0fcd04`, `tests-tree=91204dfc39`). They ran before the commit so the fixes and logs could land together; check with `git rev-parse <sha>:src`.
 
-- **Which commit.** Build, harness and parity ran on `f0a4e71`. Typecheck and vitest were re-run on the final tip. `git diff f0a4e71 <tip> -- src tests` is empty, so I did not repeat the three heavy runs for docs and tools.
+| Gate | Final tree | Rebased `e20eef2` |
+|---|---|---|
+| typecheck | exit 0 (`final-typecheck.txt`) | exit 0 (`typecheck.txt`) |
+| vitest | 47 files, 985 passed, 1 expected fail (`final-vitest.txt`) | 47 files, 984 passed, 1 expected fail (`vitest.txt`) |
+| build | not re-run (this pass's list is typecheck, vitest, harness, parity) | exit 0 (`build.txt`) |
+| short harness | PASS vs baseline @ 8ff9ba4 (`final-harness-short.txt`) | PASS (`harness-short.txt`) |
+| parity | PARITY PASS: runs 3, 6, 7, 11, 15, 3x3, 7m identical (`final-parity.txt`) | PARITY PASS (`parity.txt`) |
+
 - **Harness canvas note.** "6/6 canvas hashes differ" is advisory, and expected: the title art changed. The harness and parity logs also show Vite refusing font files (see the font finding). That changes text rendering, not sim state.
 - **Long4 and the 12 scenarios were not run.** The brief's gates are short harness and parity.
-- **Merge check.** `git merge-tree` against `origin/main` before the docs commit: clean. I did not merge; that is the parent's. Expect a small text conflict in `production/decision-log.md` (D41 and D42 both sit after D40). `CHANGELOG.md` is untouched for the same reason, and its text is below.
 
 ## Finding: the preview had the wrong wordmark font
 
 This worktree uses private `node_modules` symlinks for its Vite cache (D40). Vite then refuses the font files, because they resolve outside its serving allow list, and the wordmark falls back to a serif. **Every dev-server shot in this lane until the final set had it, including the `before-*` shots and the capture Matt approved.**
 
 - **Players are not affected.** On the production build, font loading returned 200 and `loaded` in 6 of 6 runs (3 phone, 3 desktop, 904x412 and 960x540).
-- **Retained evidence.** The final `after-*` shots and `title-preview.webm` were retaken with fonts served, and show the real blackletter wordmark. The `before-*` shots still show the serif.
+- **Retained evidence.** `final-title-{desktop,phone}.png` are the current title, with fonts served and the head on screen at its bottom and left rail limits. The `after-*` shots and `title-preview.webm` also have the real wordmark (the preview predates the rail changes). The `before-*` shots and `egg-zones.png` still show the serif.
 - **For Matt:** the shipped title has the blackletter wordmark, not the serif in the preview he approved. It is narrower, so it clears ROT with more room.
 - **For other lanes:** dev-server shots from a worktree with private symlinks can have this problem. `server.fs.allow` or `fs.strict: false` fixes it.
 
+## Finding: the hand-copied no-go table was wrong
+
+The Studio review asked for one shared source. Measuring the real fonts then showed the copied table disagreed with the screen:
+
+| | Copied | Real |
+|---|---|---|
+| Eye centre y | 124 | 116.84 (`PH` is 254) |
+| Last credits line | ends y 249, from x 190 | ends y 257, from x 150 |
+| Help text right edge | x 255 | x 323 with the meter on |
+| Age line left edge | x 322 | x 314 |
+
+**Deviation from the review, for ux-designer:** it asked for the bottom rail to end at x 280. I ended it at **x 128**, because anywhere past that the head sits behind the last credits line, and lowering it hides the eye. The left rail stops at y 90 as asked. The top rail ends at x 330 and the top-right rail moved to x 461, to clear the eye's true position.
+
+The test also found one real miss once it had the right numbers: the top-right rail came within 100.0 px of the eye against a 100.4 clearance.
+
+Text widths in `titlelayout.ts` are measured constants, so a changed string needs re-measuring. Moving an element in the table does break the test; changing a string's width does not.
+
 ## Title cost and drip cap
 
-performance-analyst; one run each, other lanes loading the machine. Radeon 780M, 4x CPU throttle, head and drips on screen, `$.DK` confirmed. ms, p50/p95/p99:
+performance-analyst, on `f0a4e71` before the rebase and the review fixes; one run each, other lanes loading the machine. Radeon 780M, 4x CPU throttle, head and drips on screen, `$.DK` confirmed. ms, p50/p95/p99:
 
 | | Old `93e595b` | New |
 |---|---|---|
@@ -67,14 +85,14 @@ performance-analyst; one run each, other lanes loading the machine. Radeon 780M,
 
 ## Bundle bytes
 
-| Group | Bytes |
-|---|---|
-| `rot_*` with `rot_layout.json` | 210,022 |
-| `eye_*` (kit) | 25,602 |
-| `head_egg@3` | 599 |
-| **Added** | **236,223** |
+| Group | Bytes | Ships? |
+|---|---|---|
+| `rot_*` with `rot_layout.json` | 210,022 | yes |
+| `head_egg@3` | 599 | yes |
+| `kit/eye_*` | 25,602 | no: nothing imports them, and the boot glob skips `kit/` |
+| **Added to the build** | **210,621** | |
 
-`dist` PNGs add 235,420. No assets were removed by this lane. The kit is loaded at boot even though nothing draws it yet (`src/sprites.ts` globs the folder).
+No assets were removed by this lane. `dist` sizes were last measured before the kit moved, so 210,621 is from the source files. Using a kit sprite means moving it up or importing it.
 
 ## Kit ranking, for Matt to pick
 
@@ -93,7 +111,7 @@ The last three are lone round eyes, so the art-director wants them embedded in m
 > ## 2026-11-08 (a new eye on the title)
 >
 > - The title screen has a new eye: dead, rotted and clouded over, and it still follows you.
-> - Something else drifts around the edges of the title now and then. Keep the screen open and you may catch it.
+> - Leave the title open long enough and something finds you.
 
 ## Acceptance
 
@@ -107,8 +125,9 @@ The last three are lone round eyes, so the art-director wants them embedded in m
 
 ## Open risks and notes
 
-- **The head's generator is not in the repo**, by the brief's rule (the source photo is never committed). It is at `$S/selfie/gen_head.py` in a scratchpad. **If that folder is cleared, `head_egg@3.png` can't be rebaked.** Parent: keep it, or Matt decides where it lives.
-- **`egg-zones.png` shows the serif wordmark** (taken before the font finding), and the montage's head shots are the point of it.
+- **The head's generator is outside the repo**, in `~/Pictures/grodius-head/`, with its helpers and the source photo, which is never committed. `head_egg@3.png` can only be rebaked on Matt's machine.
+- **`egg-zones.png` shows the serif wordmark and the old rails**; its x6 crops of the head are the point of it.
+- **Not this lane's, spotted in the real font:** the third help line (`START PAUSE`) overlaps the start of the first credits line, on desktop and phone. It predates this lane. The earlier font fallback hid it from reviews.
 - **ROT's lens:** 1.5% of its pixels exceed the art-director's 60% L ceiling at rest, mostly wet sheen, accepted as such; other gazes not measured.
 - **Motion hasn't had a director's eye.** The art-director reviewed stills only; Matt has watched the capture.
 - **Orphans:** `queueRampIris` in `eyes.ts` has no callers. Left alone to stay out of `eyes.ts`.
@@ -128,6 +147,10 @@ The last three are lone round eyes, so the art-director wants them embedded in m
 
 **Process note.** The head technical-artist stopped at the "ask first" rule rather than write to `src/` from a lead's message, and built in a draft copy. No tool denied anything. I copied its files in as lane lead, on the authority of this lane's brief and Matt's addenda relayed by the parent, and checked each diff before applying it.
 
+## Studio review
+
+10 reviewers, on `b5a4195`: APPROVE or APPROVE WITH NOTES, no blocks. All the S2s and cheap S3s are in this commit, with the bottom-rail deviation above. The CHANGELOG text is above; `CHANGELOG.md` is left for the merge.
+
 ## Merge notes
 
-Parent merges. Render only, no baseline move. `screens.ts` has no conflict with ls2-read. Run the Studio review on the tip.
+Parent merges. Render only, no baseline move.

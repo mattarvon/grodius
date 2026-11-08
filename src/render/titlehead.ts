@@ -1,7 +1,7 @@
 // Matt's tiny severed head (self-portrait), an easter egg floating in around the title's edges: one baked 3-frame strip and
 // a few live drips, on the low-res ctx over the dim rect and behind the title's text. Integer pixels, flat reds, no alpha,
 // no allocation per frame. Path and tuning are in titleblood.ts; this file only draws.
-// head_egg@3.png is baked by a generator kept out of the repo, because the source photo is never committed.
+// head_egg@3.png is baked by a generator outside the repo, in ~/Pictures/grodius-head/, because its source photo is never committed.
 import { $ } from '../state';
 import { ctx } from '../core';
 import { SPR } from '../sprites';

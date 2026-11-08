@@ -2,7 +2,7 @@ npm notice run grodius@0.2.0 build
 npm notice run vite build
 vite v8.3.2 building client environment for production...
 transforming...
-✓ 435 modules transformed.
+✓ 405 modules transformed.
 rendering chunks...
 computing gzip size...
 dist/assets/head_egg@3-cJeo4enh.png                                  0.59 kB
@@ -55,7 +55,6 @@ dist/assets/gen-09-CRVmw4G6.ogg                                      5.47 kB
 dist/assets/grenze-gotisch-vietnamese-900-normal-J2O7eke8.woff2      5.50 kB
 dist/assets/ov-squish-02-Cc25yUK9.ogg                                5.50 kB
 dist/assets/kenney-impactSoft_medium_001-D3jC1jpc.ogg                5.50 kB
-dist/assets/gen-01-DdHDMwvk.ogg                                      5.51 kB
 dist/assets/gen-06-BU2PZjlE.ogg                                      5.51 kB
 dist/assets/slime-spit@10-rpeGdYZw.png                               5.56 kB
 dist/assets/gen-03-r0grWdea.ogg                                      5.57 kB
@@ -65,14 +64,11 @@ dist/assets/gen-02-OZhlqkev.ogg                                      5.65 kB
 dist/assets/ov-slimy-squelching-flesh-co-02-CNBLQrzq.ogg             5.67 kB
 dist/assets/gen-04-C_NqHUwD.ogg                                      5.67 kB
 dist/assets/grenze-gotisch-vietnamese-600-normal-BsAsJLVD.woff2      5.76 kB
-dist/assets/gen-11-D7Gjv_lb.ogg                                      5.77 kB
-dist/assets/gen-07-DTTBjwaR.ogg                                      5.78 kB
 dist/assets/corpse@8-Bu68SL6i.png                                    5.80 kB
 dist/assets/ov-squishes-03-CHg6Omkd.ogg                              5.82 kB
 dist/assets/ov-squishes-05-M1nUvddX.ogg                              5.89 kB
 dist/assets/ov-squish-06-DUKVi1m2.ogg                                5.95 kB
 dist/assets/gen-10-hSzAceg2.ogg                                      6.00 kB
-dist/assets/gen-10-TkNV33uP.ogg                                      6.09 kB
 dist/assets/sentry@8-DmKDT59m.png                                    6.17 kB
 dist/assets/gen-01-v-NNxv_b.ogg                                      6.20 kB
 dist/assets/ov-slimy-squelching-flesh-co-03-Dkf1w2iA.ogg             6.25 kB
@@ -126,13 +122,11 @@ dist/assets/gen-08-BBvNW4VJ.ogg                                      7.76 kB
 dist/assets/grenze-gotisch-vietnamese-600-normal-pllIcTQe.woff       7.82 kB
 dist/assets/gen-01-BSzXv-o2.ogg                                      7.82 kB
 dist/assets/ov-squishes-06-D1-JR4fy.ogg                              7.87 kB
-dist/assets/gen-06-CDApa5_a.ogg                                      7.95 kB
 dist/assets/ov-squishy-flesh-thingy-seam-06-DyQT3MxX.ogg             7.96 kB
 dist/assets/gen-11-bCUGr0Rp.ogg                                      7.97 kB
 dist/assets/xray-teeth-EJO_9EoH.png                                  8.08 kB
 dist/assets/gen-01-CWWlXndP.ogg                                      8.11 kB
 dist/assets/ov-slimy-squelching-flesh-co-01-DOrzDF8n.ogg             8.16 kB
-dist/assets/gen-12-npgRAQMv.ogg                                      8.17 kB
 dist/assets/ov-haunted-shrills-03-B8M45g7x.ogg                       8.21 kB
 dist/assets/ov-slimy-squelching-flesh-co-04-Cipqi9NM.ogg             8.23 kB
 dist/assets/gen-02-CKtnCkkh.ogg                                      8.27 kB
@@ -149,7 +143,6 @@ dist/assets/womb@8-Ct1Ps6VM.png                                      8.73 kB
 dist/assets/gen-03-REVVsTYa.ogg                                      8.74 kB
 dist/assets/ov-ripping-slimy-squelching-03-Cy9HItTP.ogg              8.75 kB
 dist/assets/kenney-impactPunch_medium_000-B3Phl7d7.ogg               8.80 kB
-dist/assets/gen-02-B8ZD9OY4.ogg                                      8.81 kB
 dist/assets/kenney-impactPunch_heavy_002-Dw7wRhKV.ogg                9.02 kB
 dist/assets/ov-wet-meat-04-CYsytDmP.ogg                              9.07 kB
 dist/assets/ov-squishes-04-N20eeZhm.ogg                              9.10 kB
@@ -163,11 +156,9 @@ dist/assets/kenney-impactPunch_medium_003-CCW87zP3.ogg               9.50 kB
 dist/assets/ov-squishy-flesh-thingy-seam-03-BWrIfEPi.ogg             9.61 kB
 dist/assets/boom_m@10-CTm1Ce0V.png                                   9.75 kB
 dist/assets/gen-01-JyTHc36u.ogg                                      9.75 kB
-dist/assets/gen-03-CKga5H0y.ogg                                      9.80 kB
 dist/assets/ov-wet-meat-05-BGxxAXTJ.ogg                              9.81 kB
 dist/assets/ov-distant-explosions-01-BvwtNXzU.ogg                    9.82 kB
 dist/assets/ov-distant-explosions-02-Bye8M5zY.ogg                    9.87 kB
-dist/assets/gen-05-CMfGkrnW.ogg                                      9.90 kB
 dist/assets/ov-wet-meat-01-C1uy_rPy.ogg                              9.93 kB
 dist/assets/ov-ripping-slimy-squelching-01-BJmqUV-K.ogg              9.99 kB
 dist/assets/ov-ice-organic-crack-creak-f-04-Bn-BSEOd.ogg            10.01 kB
@@ -177,19 +168,15 @@ dist/assets/kenney-impactPunch_medium_004-DtnNUHwV.ogg              10.03 kB
 dist/assets/ov-ripping-slimy-squelching-04-2dblL-a4.ogg             10.16 kB
 dist/assets/ov-ice-organic-crack-creak-f-03-Du4Bv6va.ogg            10.19 kB
 dist/assets/ov-deep-01-loading-dWubvV0o.ogg                         10.29 kB
-dist/assets/gen-09-DHeJz_sy.ogg                                     10.31 kB
 dist/assets/kenney-impactPunch_medium_002-CU1_Wtwa.ogg              10.39 kB
 dist/assets/ov-ripping-slimy-squelching-06-DtLUHId7.ogg             10.43 kB
 dist/assets/kenney-impactPunch_heavy_004-BRIgV_VU.ogg               10.45 kB
 dist/assets/ov-ice-organic-crack-creak-f-05-BumAZOVf.ogg            10.51 kB
 dist/assets/gen-02-BaqyMtPG.ogg                                     10.56 kB
-dist/assets/gen-04-CHSOVYDG.ogg                                     10.58 kB
 dist/assets/ov-nuclear-alarm-of-tihange-01-xG5IJVKQ.ogg             10.72 kB
-dist/assets/gen-08-BuNC_JJe.ogg                                     10.74 kB
 dist/assets/gen-03-tXvwBxeo.ogg                                     10.85 kB
 dist/assets/kenney-impactPunch_heavy_001-CDMV9R2N.ogg               10.86 kB
 dist/assets/ov-squish-03-BFCDK4gx.ogg                               10.87 kB
-dist/assets/matty-fart-1-deep-pfft-Cso943cP.ogg                     10.93 kB
 dist/assets/ov-squishes-02-CVEFZt5s.ogg                             10.95 kB
 dist/assets/gen-03-CSIQzld8.ogg                                     10.98 kB
 dist/assets/eye_cluster-CxchCRgx.png                                11.00 kB
@@ -200,7 +187,6 @@ dist/assets/gen-02-8hwR18ZP.ogg                                     11.12 kB
 dist/assets/gen-03-CDbTTlEe.ogg                                     11.29 kB
 dist/assets/gen-08-0KpVKdYu.ogg                                     11.31 kB
 dist/assets/gen-06-DWwi8aFU.ogg                                     11.32 kB
-dist/assets/ov-jello-squish-06-BzfdjsD4.ogg                         11.40 kB
 dist/assets/ufo1@17-CRUb5sT7.png                                    11.44 kB
 dist/assets/ov-massacred-banana-01-06-CFvOMiL-.ogg                  11.46 kB
 dist/assets/neptune-voyager-BAvzoBYe.png                            11.57 kB
@@ -209,7 +195,6 @@ dist/assets/gen-03-DkAAm3hx.ogg                                     11.65 kB
 dist/assets/gen-04-EomXVxOL.ogg                                     11.67 kB
 dist/assets/gen-06-DpjCmtsp.ogg                                     11.72 kB
 dist/assets/gen-07-BFXacbr2.ogg                                     11.74 kB
-dist/assets/matty-fart-1-pfft-DlRYLUK8.ogg                          11.81 kB
 dist/assets/gen-01--Jausg5c.ogg                                     11.91 kB
 dist/assets/ov-deep-gargly-monster-growl-02-DwUQ04vY.ogg            11.93 kB
 dist/assets/gen-09-BlDgqiC_.ogg                                     11.96 kB
@@ -227,14 +212,8 @@ dist/assets/gen-04-BMxGlaQL.ogg                                     12.43 kB
 dist/assets/ov-squish-01-BViQYrkV.ogg                               12.51 kB
 dist/assets/gen-01-DHg72I-4.ogg                                     12.57 kB
 dist/assets/gen-02-Cmp6qiEX.ogg                                     12.73 kB
-dist/assets/matty-fart-1-squeak-pfft-QaWxKqZO.ogg                   12.73 kB
 dist/assets/gen-04-C6DYWe24.ogg                                     12.76 kB
 dist/assets/ov-massacred-banana-01-01-DjEunK3Q.ogg                  12.84 kB
-dist/assets/ov-jello-squish-04-C1dVTf0N.ogg                         12.85 kB
-dist/assets/ov-jello-squish-05-DV7M21ax.ogg                         13.25 kB
-dist/assets/ov-jello-squish-01-e5K2lyy4.ogg                         13.26 kB
-dist/assets/ov-jello-squish-02-DSg0ghHD.ogg                         13.31 kB
-dist/assets/ov-jello-squish-03-sqH9KxTl.ogg                         13.34 kB
 dist/assets/gen-04-DjofWyh6.ogg                                     13.47 kB
 dist/assets/ov-deep-gargly-monster-growl-01-1kfIFm-i.ogg            13.48 kB
 dist/assets/grenze-gotisch-latin-ext-900-normal-BKXZii7v.woff2      13.51 kB
@@ -297,27 +276,18 @@ dist/assets/tex-flesh-CUGAdm6v.png                                  33.10 kB
 dist/assets/tex-derelict-tEvAEe1P.png                               33.26 kB
 dist/assets/ufo3@17-DOgABsZX.png                                    35.51 kB
 dist/assets/tex-snot-DLKT93YT.png                                   35.72 kB
-dist/assets/matty-fart-1-squeak-DPnLgcDu.ogg                        35.96 kB
-dist/assets/matty-fart-1-squeak-DSzWb2TN.ogg                        35.96 kB
 dist/assets/tex-fire-CZP9DN0i.png                                   37.47 kB
 dist/assets/tex-acid-GLpaiF2P.png                                   38.50 kB
-dist/assets/matty-fart-1-CW_CszOU.ogg                               41.17 kB
-dist/assets/matty-fart-1-Pc286-K3.ogg                               41.17 kB
 dist/assets/stop-killing-me-matty-1-COI2z1eT.ogg                    41.66 kB
 dist/assets/tex-ice-CP-lxpde.png                                    41.69 kB
 dist/assets/ov-scaryviolins-D_7IWkAb.ogg                            42.39 kB
-dist/assets/matty-fart-1-deep-Ba8tlykA.ogg                          45.11 kB
-dist/assets/matty-fart-1-deep-fbcuAyKZ.ogg                          45.11 kB
 dist/assets/kenney-explosionCrunch_002-Apyt41Jz.ogg                 47.90 kB
 dist/assets/kenney-explosionCrunch_001-CIQCjp3i.ogg                 47.91 kB
-dist/assets/sfriend-matty-1-DKVegAOz.ogg                            52.50 kB
 dist/assets/kenney-explosionCrunch_003-BTBWbBEH.ogg                 54.82 kB
 dist/assets/iris_grey-Lmbkwak-.png                                  56.00 kB
-dist/assets/hell-yeah-matty-1-B0GsnOzs.ogg                          56.44 kB
 dist/assets/perseus-skull-DoGo_Rxu.png                              56.86 kB
 dist/assets/kenney-explosionCrunch_004-B9H0LKRi.ogg                 79.25 kB
 dist/assets/poster@6-BFAva9VR.png                                   88.44 kB
-dist/assets/shamalama-matty-1-DgbL0pDK.ogg                          96.85 kB
 dist/assets/sky-casa-BcMI-l99.png                                  112.79 kB
 dist/assets/rot_ball-BC5exMrH.png                                  149.31 kB
 dist/assets/sky-tarantula-DLVTqNqR.png                             157.63 kB
@@ -344,16 +314,15 @@ dist/assets/void-08-caves-gfrOlMBB.ogg                           3,543.02 kB
 dist/assets/void-02-institutional-values-H_Fqjk_4.ogg            3,576.72 kB
 dist/assets/void-12-not-done-here-yet-gxrc4hu3.ogg               3,598.95 kB
 dist/assets/index-W6VLO7vN.css                                       4.80 kB │ gzip:   1.43 kB
-dist/assets/web-Bw1bf1Iu.js                                          0.84 kB │ gzip:   0.40 kB
-dist/assets/web-BqpmG6Z1.js                                          0.89 kB │ gzip:   0.45 kB
-dist/assets/web-DGZrETCW.js                                          1.15 kB │ gzip:   0.46 kB
-dist/assets/web-hFJGe8QC.js                                          1.68 kB │ gzip:   0.69 kB
-dist/assets/index-CBsoZYw4.js                                      563.82 kB │ gzip: 204.26 kB
+dist/assets/web-DZfqlF4Z.js                                          0.84 kB │ gzip:   0.40 kB
+dist/assets/web-2pVPdigC.js                                          0.89 kB │ gzip:   0.45 kB
+dist/assets/web-CXPq5dnm.js                                          1.15 kB │ gzip:   0.46 kB
+dist/assets/index-CDXsx8i-.js                                      579.07 kB │ gzip: 209.19 kB
 
+✓ built in 298ms
 [plugin builtin:vite-reporter] 
 (!) Some chunks are larger than 500 kB after minification. Consider:
 - Using dynamic import() to code-split the application
 - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 290ms
-exit=0 ran-on=f0a4e71
+exit=0 ran-on=e20eef2

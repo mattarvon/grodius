@@ -141,8 +141,8 @@ All repainted toward the game's palette; CC-BY / OGA-BY rows are the ones that r
 ## Title eye and head (`src/sprites/`)
 | Used for | Work | Author | License |
 |---|---|---|---|
-| Title hero eye (`rot_*`), eye kit (`eye_*`, not yet used in play) | original, procedural, `tools/gen_eyes.py` | made for Grodius | same as the game |
-| Title easter-egg head (`head_egg@3`) | title head: Matt Arvon (self-portrait) | Matt Arvon | same as the game |
+| Title hero eye (`rot_*`), eye kit (`kit/eye_*`, not yet used in play) | original, procedural, `tools/gen_eyes.py` | made for Grodius | original, first-party (not CC) |
+| Title easter-egg head (`head_egg@3`) | title head: Matt Arvon (self-portrait) | Matt Arvon | original, first-party (not CC) |
 
 ## Fonts
 Silkscreen and Grenze Gotisch via @fontsource (SIL Open Font License 1.1).
