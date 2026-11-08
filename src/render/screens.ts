@@ -10,7 +10,7 @@ import { GM, ROM, gmL, gunHeld, gunSlots } from '../mutations';
 import { buy, buySocket, exitArmed, fmtBio, overItems, pad, pauseItems, rigAct, rigBolted, rigCost, rigFree, rigOwned, rigUp, rigUpCost, shopAct, shopItems, shopSec, sockCost, titleItems, titleSubOf } from '../menus';
 import { SHOP_EXIT, SHOP_LIST, SUB_BACK, TITLE_MENU } from '../backstep';
 import { RIG_LV, SOCKET_COST, SOCKET_MAX, rigFresh, rigInit, rigged, sockets } from '../contraptions';
-import { glow, hangSpine, light, txt } from '../render/util';
+import { glow, light, txt } from '../render/util';
 import { EYEQ, GLQ, eye, present } from '../render/eyes';
 import { drawShip } from '../render/ship';
 import { PIC, ready } from '../textures';
@@ -21,6 +21,7 @@ import { drawBG, drawSplats } from '../render/terrain';
 import { postFX } from '../render/hell';
 import { drawEShots, drawHUD, drawWorld } from '../render/hud';
 import { SPR, spr, sprAt } from '../sprites';
+import { drawTitleHead } from './titlehead';
 
 // --- screens ---
 export function drawMutList() {
@@ -86,8 +87,6 @@ export function drawTitle() {
     y: PH / 2,
     hist: []
   };
-  hangSpine(ctx, W * .73, -10, PH + 20, 16, '#0c0204');
-  hangSpine(ctx, W * .73, -10, PH + 20, 10, '#2a0408');
   drawTitleEye();
   if (srnd() < .25) drops.push({
     x: srr(W * .55, W * .95),
@@ -111,6 +110,7 @@ export function drawTitle() {
   drawDrops();
   ctx.fillStyle = 'rgba(2,3,6,.55)';
   ctx.fillRect(0, 0, W * .56, H);
+  drawTitleHead();
   const gx = srnd() < .04 ? sri(-4, 4) : 0;
   txt('GRODIUS', 26 + gx + 2, 30 + 2, '#1a0003', 'left', 64, FONT_D);
   txt('GRODIUS', 26 + gx, 30, '#b3121a', 'left', 64, FONT_D);
@@ -534,38 +534,44 @@ export function render() {
 
 // ---------------- loop ----------------
 
-let JIG = 0; // eased jiggle amount for the title eye
-/** title hero: a huge bloodshot eyeball hanging off its optic nerve, gaze wandering, the odd blink */
-function drawTitleEye() {
-  const t = $.T, ex = W * .74 + Math.sin(t * .007) * 4, ey = PH * .5 + Math.sin(t * .011) * 5, r = 100;
-  // optic nerve: fleshy rope from behind the eye up out of frame, swaying
-  const pts = [];
-  for (let k = 0; k <= 14; k++) {
-    const f = k / 14;
-    pts.push([ex + r * .4 + f * 70 + Math.sin(t * .02 + f * 4) * 6 * f, ey - r * .27 - f * (ey + 40) + Math.cos(t * .017 + f * 3) * 3]);
+// Beside drawTitleEye on purpose: this lane may only touch this function's neighbourhood (imports hoist anyway)
+import { titleGaze } from './titlegaze';
+const TGZ = { x: 0, y: 0, ang: 0, m: 0, bl: 0, jig: 0, phase: 0 }, TGZ_LATE = { x: 0, y: 0, ang: 0, m: 0, bl: 0, jig: 0, phase: 0 };
+const ROPE_N = 14, ROPE_X = new Float32Array(ROPE_N + 1), ROPE_Y = new Float32Array(ROPE_N + 1);
+const ROPE_W = [22, 17, 11, 4], ROPE_C = ['#140a08', '#33201a', '#57402a', '#8c7a4e'];
+/** title rope: the optic nerve from behind the eye, nearly straight up out of frame */
+function titleRope(ex, ey, r, t, jerk, jerkAng) {
+  for (let k = 0; k <= ROPE_N; k++) {
+    const f = k / ROPE_N, sag = f * (1 - f) * 4; // pinned at the ball and the far end, so a jerk reads as a whip
+    ROPE_X[k] = ex + r * .4 + f * 10 + Math.sin(t * .02 + f * 4) * 3 * f + Math.cos(jerkAng) * jerk * 7 * sag;
+    ROPE_Y[k] = ey - r * .27 - f * (ey + 40) + Math.cos(t * .017 + f * 3) * 1.5 + Math.sin(jerkAng) * jerk * 2 * sag;
   }
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  for (const [w, col] of [[22, '#2a0508'], [17, '#7a1e2a'], [11, '#b8485a'], [4, '#e08a96']]) {
-    ctx.strokeStyle = col;
+  for (let b = 0; b < ROPE_W.length; b++) {
+    const w = ROPE_W[b], top = w === 4 ? -4 : 0;
+    ctx.strokeStyle = ROPE_C[b];
     ctx.lineWidth = w;
     ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (const [x, y] of pts) ctx.lineTo(x, y + (w === 4 ? -4 : 0));
+    ctx.moveTo(ROPE_X[0], ROPE_Y[0] + top);
+    for (let k = 1; k <= ROPE_N; k++) ctx.lineTo(ROPE_X[k], ROPE_Y[k] + top);
     ctx.stroke();
   }
-  ctx.strokeStyle = '#5a0a14';
+  ctx.strokeStyle = '#2a120c';
   ctx.lineWidth = 1;
   for (let v = 0; v < 3; v++) {
     ctx.beginPath();
-    for (let k = 0; k <= 14; k++) { const [x, y] = pts[k]; const o = Math.sin(k * 1.7 + v * 2) * 5; k ? ctx.lineTo(x + o, y) : ctx.moveTo(x + o, y); }
+    for (let k = 0; k <= ROPE_N; k++) { const o = Math.sin(k * 1.7 + v * 2) * 5; k ? ctx.lineTo(ROPE_X[k] + o, ROPE_Y[k]) : ctx.moveTo(ROPE_X[k] + o, ROPE_Y[k]); }
     ctx.stroke();
   }
-  if (srnd() < .3) drops.push({ x: ex + srr(-r * .4, r * .6), y: ey + srr(r * .3, r * .8), px: 0, py: 0, vx: 0, vy: srr(.3, 1), s: 1, c: srnd() < .6 ? 0 : 1, l: 300 });
-  // gaze: slow wander, occasional darting look (the ball jiggles when it darts), blink every few seconds
-  const dart = Math.sin(t * .0031) > .93, ang = Math.PI + Math.sin(t * .013) * .9 + (dart ? Math.sin(t * .2) * .6 : 0);
-  const bc = t % 340, blink = bc < 10 ? Math.sin(bc / 10 * Math.PI) : 0;
-  light(ex, ey, 140, .9);
-  JIG += ((dart ? 1 : 0) - JIG) * .08;
-  eye(ctx, ex, ey, r, { hero: 1, jig: JIG, iris: '#9fd23a', ang, m: .32 + .18 * Math.sin(t * .009), dil: 1.05 + .15 * Math.sin(t * .021), bs: 2, blink, lid: '#8a3a40', al: 1 });
+}
+/** title hero: the ROT eye hung on its optic nerve, cropped by the right frame. Holds still, then hitches (titlegaze.ts) */
+function drawTitleEye() {
+  const t = $.T, ex = 396, ey = PH * .46, r = 88;
+  titleGaze(t, TGZ);
+  titleGaze(t - 8, TGZ_LATE); // the rope hears about a hitch 8 frames after the eye does
+  titleRope(ex, ey, r, t, TGZ_LATE.jig, TGZ_LATE.ang);
+  if (srnd() < .06) drops.push({ x: ex + srr(-r * .4, r * .6), y: ey + srr(r * .3, r * .8), px: 0, py: 0, vx: 0, vy: srr(.3, 1), s: 1, c: srnd() < .6 ? 0 : 1, l: 300 });
+  light(ex - r * .2, ey - r * .2, 120, .35);
+  eye(ctx, ex, ey, r, { hero: 1, jig: TGZ.jig, ang: TGZ.ang, m: TGZ.m, blink: TGZ.bl, al: 1 });
 }
