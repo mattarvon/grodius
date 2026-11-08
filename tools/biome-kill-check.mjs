@@ -14,7 +14,7 @@ await p.waitForFunction(() => window.__started, null, { timeout: 30000 });
 await p.keyboard.press('KeyX'); // the audio gate
 await p.waitForTimeout(3000); // the bank decodes
 // what actually starts: AU.lastCat is overwritten by whatever a kill plays after the layer, so record every buffer
-await p.evaluate(`(async () => { const { AU } = await import('/src/audio.ts'); const mk = AU.c.createBufferSource.bind(AU.c); window.__buf = new Set(); AU.c.createBufferSource = () => { const s = mk(), st = s.start.bind(s); s.start = (...a) => { window.__buf.add(s.buffer); return st(...a); }; return s; }; })()`);
+await p.evaluate(`(async () => { const { AU } = await import('/src/audio.ts'); const mk = AU.c.createBufferSource.bind(AU.c); window.__buf = new Set(); window.__live = 0; window.__peak = 0; AU.c.createBufferSource = () => { const s = mk(), st = s.start.bind(s); s.start = (...a) => { window.__buf.add(s.buffer); if (s.buffer !== AU.noise) { window.__live++; window.__peak = Math.max(window.__peak, window.__live); s.addEventListener('ended', () => window.__live--); } return st(...a); }; return s; }; })()`);
 const mods = `const [{ $ }, AUD, MIX, EU, F, L, MU] = await Promise.all(['/src/state.ts', '/src/audio.ts', '/src/audiomix.ts', '/src/enemies/update.ts', '/src/flow.ts', '/src/layout.ts', '/src/music.ts'].map((m) => import(m)));`;
 const head = await p.evaluate(`(async () => { ${mods} return { ctx: AUD.AU.c ? AUD.AU.c.state : null, biomes: Object.keys(MIX.BIOME_KILL), bank: Object.fromEntries(Object.values(MIX.BIOME_KILL).map((k) => [k.cat, (AUD.BANK[k.cat] || []).length])) }; })()`);
 console.log('audio context', head.ctx, '; clips per layer', JSON.stringify(head.bank));
@@ -25,13 +25,20 @@ for (const bio of head.biomes) {
   for (; n < 60 && !heard && !thrown; n++) {
     thrown = await p.evaluate(`(async () => { ${mods} if (MU.curBiome() !== ${JSON.stringify(bio)}) return 'curBiome is ' + MU.curBiome(); try { EU.killEnemy({ k: 'mutant', x: 300, y: 135, score: 0, bio: 0, gsz: 3.2, big: 1, hp: 0 }); return null; } catch (e) { return String(e); } })()`);
     heard = await p.evaluate(`(async () => { ${mods} return (AUD.BANK[MIX.BIOME_KILL[${JSON.stringify(bio)}].cat] || []).some((b) => window.__buf.has(b)); })()`);
-    await p.waitForTimeout(120); // real clock: past the 45 ms and 90 ms throttles
+    // real clock: let the voices end, or a kill every 120 ms holds the live count above KILL_LAYER.maxVoices and the layer
+    // rightly skips
+    for (let w = 0; w < 40 && (await p.evaluate(() => window.__live)) > 2; w++) await p.waitForTimeout(100);
+    await p.waitForTimeout(100);
   }
   const has = head.bank[await p.evaluate(`(async () => { ${mods} return MIX.BIOME_KILL[${JSON.stringify(bio)}].cat; })()`)] > 0;
   const good = !thrown && (heard || !has);
   console.log(`${bio}: ${n} kills, ${thrown ? 'THREW ' + thrown : heard ? 'layer played' : has ? 'LAYER NEVER PLAYED' : 'no clips in the bank: its synth row'}`);
   ok = ok && good;
 }
+await p.waitForTimeout(4000);
+const v = await p.evaluate(() => ({ live: window.__live, peak: window.__peak }));
+console.log(`voices: peak ${v.peak}, still live 4 s after the last kill ${v.live} (a leak would stay above 0 and silence the layer)`);
+if (v.live !== 0) ok = false;
 await b.close();
 if (errs.length) { console.log('page errors', errs); ok = false; }
 console.log(ok ? 'BIOME KILL PASS' : 'BIOME KILL FAIL');
