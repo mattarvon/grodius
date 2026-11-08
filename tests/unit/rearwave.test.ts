@@ -41,6 +41,13 @@ describe('behindWave fit', () => {
     expect(enemies.map((e) => e.y)).toEqual([LANE - 60, LANE - 60, LANE - 60]); // fit(rearLane(fit(lane)))
   });
 
+  // biomes.ts REAR samples the flight from these: the lead's x0 (-16, sampled from -20) and a 3-drone wave's tail (32 px)
+  it('spawns a fixed 3-drone wave left of the screen, the lead at x -16 and the last 32 px behind it', () => {
+    behindWave(LANE, 3, { fixed: 1 });
+    land();
+    expect(enemies.map((e) => e.x)).toEqual([-16, -32, -48]);
+  });
+
   it('fits the lane rearLane re-picks at spawn time when the player has moved onto it', () => {
     const fit = (v: number) => Math.min(v, 180);
     behindWave(LANE, 2, { fixed: 1 }, fit);

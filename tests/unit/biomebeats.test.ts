@@ -31,9 +31,12 @@ vi.mock('../../src/render/biomeart', () => ({
 }));
 vi.mock('../../src/enemies/spawn', () => {
   const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime'];
-  // behindWave lands its wave REAR_LEAD f after the call (spawn.ts rearWarn's telegraph, 100 f, a literal there), so
-  // the mock records it from G.pend that many frames later, as the real one does
-  return { ...Object.fromEntries(k.map((n) => [n, rec(n)])), behindWave: () => { $.G.pend.push({ t: 100, f: rec('behindWave') }); } };
+  // behindWave, and hatch from behind (fromLeft, not yet `go`), land 100 f after the call (spawn.ts rearWarn's
+  // telegraph, a literal there), so the mock records them from G.pend that many frames later, as the real ones do
+  return {
+    ...Object.fromEntries(k.map((n) => [n, rec(n)])), behindWave: () => { $.G.pend.push({ t: 100, f: rec('behindWave') }); },
+    hatch: (_n: number, fromLeft: boolean, go?: number) => { if (fromLeft && !go) { calls.push('rearWarn'); $.G.pend.push({ t: 100, f: rec('hatch') }); } else calls.push('hatch'); },
+  };
 });
 
 const L = await import('../../src/layout');
@@ -142,6 +145,19 @@ describe('beat template v2 on long4', () => {
     expect(strays(/^behind$/, () => [null as unknown as string[]])).toEqual([]);
   });
 
+  // ls1-audit: a hatch filler (SPAWN.hatch) comes from behind half the time, a coin it flips when it fires (R() < .5), so
+  // biomeScript's lands() cannot move it; from behind it lands 100 f after its entry, like a `behind`. It fails: on acid
+  // and snot a rear hatch called just before breath 1 lands ~20 px into it, and one just before snot's run-up ~60 px in.
+  // game-designer decision (timing is not changed here): drop or move the filler, or accept it
+  it.fails('lands every hatch filler, rear hatchlings at their landing x, outside the breaths and the run-up', () => {
+    expect(strays(/^hatch$/, () => [null as unknown as string[]])).toEqual([]);
+  });
+
+  // the set pieces with a rear hatch (lining, sneeze, flood), drawn in every set slot: their rear hatchlings land 100 f on
+  it('lands every set piece\'s rear hatchlings outside the breaths and the run-up', () => {
+    expect(strays(/^set:(lining|sneeze|flood)$/, rotations)).toEqual([]);
+  });
+
   it.each(cases)('$b slot $seg visit $v descent $loop: two midboss WARNINGs (breaths 1 and 2), the boss WARNING at bossX, three log lines', ({ b, seg, v, loop }) => {
     const r = L.slotRow(seg), P = L.beatPlan(r, r.gateLate!, !!v), S = build(seg, b, r.gateLate!, v, loop);
     const warns = S.filter((e) => e.k.includes('miniWarn'));
@@ -161,7 +177,7 @@ describe('beat template v2 on long4', () => {
   it('opens on the signature alone, then gives the second-ranked kind its own first slot in intro B', () => {
     const r = L.slotRow(0), P = L.beatPlan(r, r.gateLate!, false);
     for (const b of Object.keys(BIOMES)) {
-      const X = remix(b, 0, 0), S = build(0, b, r.gateLate!).filter((e) => e.k.some((k) => ENEMY.test(k)));
+      const X = remix(b, 0, 0), S = build(0, b, r.gateLate!).filter((e) => e.k.some((k) => ENEMY.test(k) || k === 'rearWarn')); // a rear hatch's slot is its telegraph
       expect(S[0].x).toBe(P.a);
       const introB = S.find((e) => e.x >= P.P(.12));
       expect(introB && introB.x).toBeLessThan(P.P(.22));
@@ -206,24 +222,38 @@ describe('the second-ranked mix kind', () => {
 // S2 (ls1-audit): a set piece's rear wave crosses the whole screen at one y, so biomes.ts rearY clamps it into the
 // opening over that whole span. The terrain here is open (0..254) except where a test raises a spire
 describe('rearY, the set pieces\' rear-wave lane', () => {
-  const SCROLL = 6000, SPIRE = 150, PAD = 16; // PAD: biomes.ts REAR.pad, written out so a change to it can't pass its own test
-  /** a spire floor at SPIRE over screen x [a, z) */
+  // the pads, written out so a change to biomes.ts REAR can't pass its own test: drone radius 7 + bob 14 below (toward
+  // the floor), and above that plus the fan, 2 * (W / 2) * .06 = 28.8 (update.ts 'behind'), 49.8 rounded up
+  const SCROLL = 6000, SPIRE = 150, PAD_DN = 21, PAD_UP = 50;
+  /** a spire floor at SPIRE over world x scroll + [a, z) */
   const spire = (a: number, z: number) => { terrain.fl = (x: number) => (x >= SCROLL + a && x < SCROLL + z ? SPIRE : 254); };
   beforeEach(() => { $.G = { scroll: SCROLL, pend: [] }; terrain.ce = () => 0; terrain.fl = () => 254; L.setLayout('long4'); });
   afterAll(() => { terrain.ce = () => 0; terrain.fl = () => 254; L.setLayout('short'); });
 
-  it('clamps a wave entering over a spire mid-screen to the spire top less the pad', () => {
+  it('clamps a wave entering over a spire mid-screen to the spire top less the lower pad', () => {
     spire(200, 260);
-    expect(rearY(254 * .7)).toBe(SPIRE - PAD);
+    expect(rearY(254 * .7)).toBe(SPIRE - PAD_DN);
   });
 
-  it('clamps to the ceiling plus the pad under a low ceiling at the left edge', () => {
+  it('clamps to the ceiling plus the upper pad under a low ceiling at the left edge', () => {
     terrain.ce = (x: number) => (x < SCROLL + 20 ? 60 : 0);
-    expect(rearY(30)).toBe(60 + PAD);
+    expect(rearY(30)).toBe(60 + PAD_UP);
   });
 
-  it('leaves y alone when the spire is past the right edge, outside the flight', () => {
+  // the drones fly +1.8 px/f in screen space while the screen scrolls 1 px/f: the lead reaches the right edge over world
+  // scroll + 480 + 500 / 1.8 ~ scroll + 758, the third drone (32 px behind) ~18 px later
+  it('clamps the lane to a spire that scrolls in at world scroll + 700, under the right of the flight', () => {
+    spire(690, 710);
+    expect(rearY(254 * .7)).toBe(SPIRE - PAD_DN);
+  });
+
+  it('clamps to a spire past the right edge at the call, which the flight reaches', () => {
     spire(500, 560);
+    expect(rearY(254 * .7)).toBe(SPIRE - PAD_DN);
+  });
+
+  it('leaves y alone when the spire is past the end of the flight', () => {
+    spire(800, 860);
     expect(rearY(254 * .7)).toBe(254 * .7);
   });
 
@@ -231,6 +261,11 @@ describe('rearY, the set pieces\' rear-wave lane', () => {
     terrain.ce = (x: number) => (x < SCROLL + 100 ? 130 : 0);
     spire(300, 340);
     expect(rearY(254 * .7)).toBe((130 + SPIRE) / 2);
+  });
+
+  it('falls back to the middle when the gap fits the drone but not the fan (asymmetric pads)', () => {
+    terrain.ce = () => 100; spire(-100, 900); // a 50 px gap: 2 x 16 fit, 50 + 21 don't
+    expect(rearY(120)).toBe((100 + SPIRE) / 2);
   });
 
   it('is the identity on short (no arena run-up), even over a spire', () => {

@@ -215,22 +215,36 @@ const FIXED = { fixed: 1 };
  *  a fraction of PH that is open on movement A (systems review). Outside every band (always, on short) it is y */
 const bandY = (y) => { const wx = $.G.scroll + W + 20; return bandClamp(y, wx, ceilAt(wx), floorAt(wx)); };
 /** the rear-wave lane filter's sampling (rearY). A rear wave enters at the left edge and crosses the whole screen at a
- *  fixed y, so the lane has to be open over all of it, not just where it enters */
+ *  fixed y, so the lane has to be open over all of it, not just where it enters. The drones move in screen space while
+ *  the screen scrolls, so the terrain they cross runs well past the right edge of the screen at the call */
 const REAR = {
   x0: -20, // screen x of the first sample: the lead drone spawns at x = -16 (spawn.ts formation 'behind'), sampled a little behind it
   x1: W, // to the right edge: the wave flies until it leaves the screen
-  step: 16, // every 4th terrain column (TS = 4 px): 31 samples a call, once at the telegraph and once at the spawn
-  pad: 16, // drone radius (7) + margin, the same pad as terrainb.ts bandClamp
+  v: 1.8, // px/f a rear drone flies in screen space (enemies/update.ts, pat 'behind': e.x += 1.8); the screen scrolls 1 px/f
+  tail: 32, // the last drone of a 3-drone set-piece wave (backdraft) spawns 32 px behind the lead (spawn.ts: -16 - i * 16)
+  step: 16, // world px between samples, every 4th terrain column (TS = 4 px): ~50 samples a call, at the telegraph and the spawn
+  // the y the drones fly at is y0 + sin(..) * 14 + (x > W / 2 ? (i - 2) * (x - W / 2) * .06 : 0) (update.ts 'behind').
+  // For a set piece's wave (n <= 3, i - 2 <= 0) the fan only lifts, by at most 2 * (W / 2) * .06 = 28.8 at the right edge
+  dn: 7 + 14, // pad toward the floor: drone radius (ET.drone.r 7) + the bob (14)
+  up: Math.ceil(7 + 14 + 2 * (W / 2) * .06), // pad toward the ceiling: radius + bob + the fan, 49.8 -> 50
   lead: 100, // spawn.ts rearWarn's telegraph (a literal there): a rear wave spawns 100 f, ~100 px at 1 px/f, after its call
 };
+/** the world x offset (from G.scroll at the spawn) the drones' flight reaches: a drone at screen x sx has flown
+ *  (sx - x0) / v frames, and the screen has scrolled that far, so it is over world scroll + sx + (sx - x0) / v; the last
+ *  drone reaches the right edge tail / v frames after the lead */
+const REAR_END = REAR.x1 + (REAR.x1 - REAR.x0 + REAR.tail) / REAR.v;
 /** a set piece's rear-wave lane y (behindWave's fit), clamped into the opening the whole flight crosses; when no lane
  *  is open end to end it takes the middle of the tightest one. On a layout with no arena run-up (short, legacy: the
  *  same test as biomeScript's) it is y, so short's pincer is unchanged. Reads terrain and scroll only, never R() */
 export const rearY = (y) => {
   if (layout().beats.runup == null) return y;
   let ce = 0, fl = PH;
-  for (let sx = REAR.x0; sx <= REAR.x1; sx += REAR.step) { const wx = $.G.scroll + sx; ce = Math.max(ce, ceilAt(wx)); fl = Math.min(fl, floorAt(wx)); }
-  return ce + REAR.pad <= fl - REAR.pad ? clamp(y, ce + REAR.pad, fl - REAR.pad) : (ce + fl) / 2;
+  // world x from scroll + x0 to scroll + REAR_END, the span the flight covers (screen x0..x1 mapped as above), every step px
+  for (let o = REAR.x0; ; o = Math.min(o + REAR.step, REAR_END)) {
+    const wx = $.G.scroll + o; ce = Math.max(ce, ceilAt(wx)); fl = Math.min(fl, floorAt(wx));
+    if (o >= REAR_END) break;
+  }
+  return ce + REAR.up <= fl - REAR.dn ? clamp(y, ce + REAR.up, fl - REAR.dn) : (ce + fl) / 2;
 };
 const SET = {
   morgue: () => { corpse(bandY(PH * .25)); corpse(bandY(PH * .5), { drift: .2 }); corpse(bandY(PH * .75)); later(40, mutant); }, // a frozen crew drifting in a line, a hulk walking under it

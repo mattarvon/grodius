@@ -1,5 +1,6 @@
 // Set-piece shots (build plan LS2-mv), two passes, each shot on an empty screen with the ship invincible and parked left:
-//   plain: every catalogue piece new in LS2-mv, fired from its S1 entry in its own biome on movement A, until its waits and telegraphs run out (cap 240 f).
+//   plain: every catalogue piece new in LS2-mv, fired from its S1 entry in its own biome on movement A, until its waits and telegraphs run out and its rear
+//          drones have left the screen (cap 480 f).
 //   band:  every catalogue piece (old and new: any can land in S2) fired from its S2 entry, inside movement B, once over
 //          B0 and once over B1, to the same stop. Counts buried, the enemies that first appear inside the terrain mass (y
 //          outside the gap at their world x): set pieces spawn at fixed heights and the gimmick moves the walls; and
@@ -43,16 +44,21 @@ try {
       BI.openFork(0); $.G.fork.opts = [bk, bk]; $.G.fork.t = 50;
       Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 }); ST.step();
     };
-    // fire the nth script entry of piece id and step until its G.pend has run out and no rear-wave telegraph is left
-    // (backdraft's second wave lands 140 f on), capped at FIRE_CAP. buried: enemies first seen inside the walls.
-    // crossed: rear-wave drones (pat 'behind') seen on screen inside the terrain at any frame, once per drone
+    // fire the nth script entry of piece id and step until its G.pend has run out, no rear-wave telegraph is left
+    // (backdraft's second wave spawns 120 f on) and every rear-wave drone has flown off the right edge, capped at
+    // FIRE_CAP. Stopping when pend and warn drain would stop on the frame the last wave spawns, off-screen left, and
+    // crossed would watch no flight. buried: enemies first seen inside the walls. crossed: rear-wave drones (pat
+    // 'behind') seen on screen inside the terrain at any frame, once per drone
     window.__fire = (id, nth) => {
-      const FIRE_CAP = 240; // > 140 f, the longest set-piece wait (backdraft: later 40 + rearWarn 100), with margin
+      // > 410 f: backdraft's second wave spawns at later 20 + rearWarn 100 = 120 f, and its last drone (x = -48) flies
+      // to the right edge (W - 6, spawn.ts onScreen) at 1.8 px/f (enemies/update.ts 'behind'): 120 + 522 / 1.8 ~ 410 f
+      const FIRE_CAP = 480;
       const idx = $.G.script.map((e, i) => (e.k === 'set:' + id ? i : -1)).filter((i) => i >= 0)[nth], x = $.G.script[idx].x;
       wipe(); $.G.stage = 1; $.G.si = idx; $.G.scroll = x - 1;
       const seen = new Set(), hit = new Set(); let buried = 0, n = 0;
       const inWall = (e) => { const wx = $.G.scroll + e.x; return e.y < W.ceilAt(wx) || e.y > W.floorAt(wx); };
-      while (n < FIRE_CAP && (n === 0 || $.G.pend.length || $.G.warn.length)) {
+      const flying = () => W.enemies.some((e) => e.pat === 'behind' && !e.dead && e.x < C.W - 6); // a rear drone not yet off the right edge
+      while (n < FIRE_CAP && (n === 0 || $.G.pend.length || $.G.warn.length || flying())) {
         n++;
         Object.assign($.P, { x: 40, y: C.PH / 2, alive: true, inv: 30 }); ST.step(); if ($.G.si > idx) $.G.si = $.G.script.length;
         for (const e of W.enemies) {
