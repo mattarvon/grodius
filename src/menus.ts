@@ -427,7 +427,7 @@ export function doBack(a) {
   if (a === 'armExit') {
     exitT = $.T;
     exitSel = $.menuSel;
-    sfx.menu();
+    menuBlip(false); // the title's own sound, like every other title press (audio-director)
   } else if (a === 'closeSub') {
     const from = titleSub === 'opt' ? 'OPTIONS' : 'LAB';
     titleSub = null;

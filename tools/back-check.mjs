@@ -154,6 +154,13 @@ for (const [name, opt] of VIEWS) {
 
   // DESCEND with a run save: the first tap arms (ENDS SAVED RUN), the second starts; Enter starts at once
   const withSave = `__title(); __g.F.newGame(0); __g.$.state = 'play'; __st(3); __g.CP.writeCp(0); __g.$.state = 'title'; __g.$.menuSel = 0; __st(2)`;
+  // the armed title with a run save (RE-ENTER row too): the leave prompt sits in the slot under LAB (narrative-director)
+  await ev(withSave);
+  r.root.saveArm = await ev('__nback()');
+  await ev('__st(1)');
+  await p.screenshot({ path: `${OUT}/${name}-root_leave_save.png` });
+  ok('root', 'with a run save, first android back arms', r.root.saveArm === 'armExit' && (await ev('__look()')).leave, r.root.saveArm);
+  await ev('__st(121); __g.exits = 0');
   const d = (r.descend = {});
   await ev(withSave);
   d.info = await ev('__g.M.titleItems().map((x) => x.l)');

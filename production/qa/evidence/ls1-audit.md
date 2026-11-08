@@ -180,7 +180,7 @@ PENDING: art-director and accessibility-specialist on `ls1-audit-art/` shots.
 ## Decisions for Matt
 
 1. **Back in the between-descents shop:** the producer took two presses (the first selects `DESCEND >` and shows "PRESS BACK AGAIN TO DESCEND"). Alternative: one press continues, as before.
-2. **Android back at the title root:** per the fm1 review, it now takes two presses. The first shows "PRESS BACK AGAIN TO LEAVE" and the second leaves within 120 f (`EXIT_ARM_T`). Still to do: a device check on the Fold, and ux to confirm the placement at (28,252).
+2. **Android back at the title root:** per the fm1 review, it now takes two presses. The first shows "PRESS BACK AGAIN TO LEAVE" and the second leaves within 120 f (`EXIT_ARM_T`). Still to do: a device check on the Fold, and ux to confirm the placement in the row slot under LAB.
 3. **Exact-pair midboss exclusion** is in (creative-director endorsed), so one member may come back on a revisit. Spec §10 is now a measured rate (about 1 in 5 within 3 visits).
 4. **`checkMids()`** at boot: fatal in release builds too (black screen on a bad registry), or DEV-only?
 5. **Spec "90-120 s"** in 5 places and the LS1 goal/exit lines: rewrite to D31, or keep as the LS1 record?
@@ -210,7 +210,7 @@ Each heavy job ran one at a time under `flock /tmp/grodius-heavy.lock`, from a s
 | parity (short) | PARITY PASS: runs 3, 6, 7, 11, 15, 3x3 and 7m identical, 0 errors |
 | build | OK |
 | resume-check | PASS: long4 S1 CP1, S2 CP0, and S1 CP1 with option b (D32). The RESUME press drew the sim RNG 0 times, and terrain differed by 0 px at every sample |
-| back-check (phone + desktop) | ok, `fails: []`. `#ps` was hidden by computed style and bbox on every menu scene, and the shots were re-taken into `ls1-audit-back/` |
+| back-check (phone + desktop) | ok, `fails: []`. `#ps` was hidden by computed style and bbox on every menu scene, and the shots were re-taken into `ls1-audit-back/`. It was rerun after the leave-prompt fixup (see below): ok, `fails: []` |
 | set-shots (long4) | band total: buried 0, crossed 0. Fire B0 and B1 pincer: 4 enemies to frame 383, crossed 0. Fire B0 and B1 backdraft: 7 seen to frame 411, crossed 0. No page errors |
 
 **Why scen and long4 ran twice.** In the first run (m1c, 22:55) both exited 1 with `page.evaluate: Execution context was destroyed, most likely because of a navigation` (harness.mjs:132). That was a page reload, not a sim diff:
@@ -229,6 +229,20 @@ The fix gave the gate worktree a private `node_modules` directory: a symlink to 
 
 The long4 harness game-overs in Orbit at scroll 3538, before any fire stage. None of these changes can reach it there, and long4 stays PASS on its old baseline. The 12 scenarios are likewise unchanged. The short harness and parity are identical too, which matches what we expected, since short runs leave `rearY` as the identity.
 
+### Merge 1 fixup: the leave prompt (art-director S2)
+
+The `PRESS BACK AGAIN TO LEAVE` prompt was at (28,252), where it ran into the credits and the eye's drip strand. It now sits in the next row slot under LAB:
+- x 40, at `TITLE_MENU.y + rows × pitch`, which is y 180 with 5 rows and y 194 with 6;
+- the amber `#ffd0a0` is kept;
+- it clears the help text at y 208, and a unit test pins that for 4-6 rows.
+
+The first press now plays `menuBlip(false)` instead of the synth `sfx.menu()` (audio-director). The change is render and sound only: the sim is untouched, so the harness was not rerun.
+- typecheck: 0 errors.
+- vitest: 888 passed, plus 1 expected fail.
+- back-check: ok, now with an added armed-title shot taken with a run save (narrative-director). The shots are `ls1-audit-back/{phone,desktop}-root_leave.png` and `-root_leave_save.png`.
+
+On the title the leave prompt sits under the LAB row. This replaces the y 205-215 the review suggested, which is the help text's band at the root.
+
 ### Merge 1, first pass (`ab78198`/`0ff2e13`)
 
 - typecheck clean; vitest 874.
@@ -241,7 +255,47 @@ PENDING.
 
 ## What was not measured
 
-PENDING.
+**Merge 1** (merge 2's own items get added when its gates run):
+
+- **On the device (Matt, Fold APK):**
+  - the two-press leave at the title root on real Android back (gesture and button);
+  - the `exitApp` path;
+  - the thumb reach of `< BACK` and `DESCEND >`;
+  - the APK app kill before RE-ENTER.
+
+  The rigs drive `nativeBack` through the in-page mirror, not the Capacitor event.
+- **By ear:** the title-root arm sound (now `menuBlip(false)`, audio-director). The harness and rigs remove `AudioContext`.
+- **Rear waves:**
+  - S1 and S3 over movements A and C (no band there);
+  - terrain offsets in Descent 2+;
+  - front-entering enemies that fly into a wall later in their own patterns;
+  - the player-dependent `rearLane` re-pick (set-shots parks the ship at mid-height).
+
+  set-shots reports one buried enemy outside the band, on plain snot sneeze, movement A (`buried 1`). The band total, which is the gate, is 0/0.
+- **Resume:** live enemies, shots, pods and spawn-time rolls are not reproduced, by design (spec §4).
+- **The picker in play:** the "about 1 in 5 within 3 visits" pair-repeat rate in §10 is measured by the unit simulation, not over played runs. The build plan's LS2 exit line asks for the played rate.
+- **D33 CI on GitHub Actions:**
+  - the typecheck step that now blocks;
+  - the timeouts;
+  - the PR-only `cancel-in-progress`.
+
+  devops-engineer and the merge-1 review checked the YAML. It has not run on Actions, because this lane opens no PR.
+- **The title's existing overlap:** the credits (`SPRITES:`/`IMAGES:`, 7 px, right-aligned) run into the third help line and the HI row on both phone and desktop (`ls1-audit-back/*-root_leave*.png`). This is on main, not from this lane. It is a backlog item for ux and art-director.
+
+## Bug: rear hatch filler lands inside the breaths
+
+- **Severity:** S2.
+- **Owner:** game-designer.
+- **Due:** fixed before LS2 builds on the breaths.
+- **What:** the filler `hatch` (`SPAWN.hatch`) flips front or rear when it fires (`R() < .5`), so `biomeScript`'s `lands()` filter can't place it. From behind, it lands 100 f after its entry, like a `behind` wave. So:
+  - on acid and snot, a rear hatch called just before breath 1 lands about 20 px into the breath;
+  - on snot, one called just before the run-up lands about 60 px in.
+- **Repro:** `tests/unit/biomebeats.test.ts:152`, held as `it.fails` ("lands every hatch filler, rear hatchlings at their landing x, outside the breaths and the run-up"). When the fix lands, the test passes and `it.fails` turns red, so it must be flipped to `it`.
+- **Options for game-designer:**
+  - drop the filler near a breath;
+  - draw the side at script time (this moves the draw, so long4 re-baselines, with the move explained);
+  - accept it.
+- **Not changed here:** the timing. Moving the coin is a sim change, which is outside merge 1's behaviour-identical scope.
 
 ## Merge-order notes
 

@@ -1,6 +1,6 @@
 // The back tree (LS1 audit S2 #1, #2; Matt's armory bug): one press, one level up, on Android back, Esc and pad B alike.
 import { describe, expect, it, vi } from 'vitest';
-import { EXIT_ARM_T, SHOP_EXIT, backPressed, backStep, descendTap, exitLive, shopListBottom, type BackView } from '../../src/backstep';
+import { EXIT_ARM_T, SHOP_EXIT, TITLE_MENU, backPressed, backStep, descendTap, exitLive, shopListBottom, type BackView } from '../../src/backstep';
 
 const V: BackView = { state: 'title', sub: null, gate: false, asked: true, shopNext: 'title', onExitRow: false, overT: 0, native: true, exitArmed: false };
 const at = (p: Partial<BackView>) => backStep({ ...V, ...p });
@@ -117,5 +117,16 @@ describe('the Infirmary list clears its exit button', () => {
   });
   it('gaps by section index like drawShop: an empty section draws no head and the next head keeps its gap', () => {
     expect(shopListBottom([0, 1, 6])).toBe(45 + 2 + 10 + 11 + 2 + 10 + 6 * 11 - 11 - 2 + 10);
+  });
+});
+
+describe('the title-root leave prompt', () => {
+  it('sits in the row slot under the last root row and clears the help text at y 208 for up to six rows', () => {
+    const HELP_Y = 208, TEXT_H = 8, MAX_ROOT_ROWS = 6; // RE-ENTER, DESCEND, DESCEND DEEPER, INFIRMARY, OPTIONS, LAB
+    for (let n = 4; n <= MAX_ROOT_ROWS; n++) {
+      const y = TITLE_MENU.y + n * TITLE_MENU.pitch;
+      expect(y).toBeGreaterThan(TITLE_MENU.y + (n - 1) * TITLE_MENU.pitch + 10 - 1);
+      expect(y + TEXT_H).toBeLessThan(HELP_Y);
+    }
   });
 });

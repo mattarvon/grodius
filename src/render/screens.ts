@@ -140,8 +140,9 @@ export function drawTitle() {
     txt(touch.used ? 'TOUCH: DRAG TO FLY, AUTO-FIRE' + (SET.meter ? ', POWER BUTTON' : '') : 'GAMEPAD: A FIRE, ' + (SET.meter ? 'B POWER, ' : '') + 'START PAUSE', 28, 226, '#3f4955');
     txt('HI ' + pad($.hi, 8), 28, 240, '#8fa3b8');
   }
-  // a first Android back at the title root armed the leave (backstep.ts EXIT_ARM_T): say what the second does, under HI
-  if (exitArmed()) txt('PRESS BACK AGAIN TO LEAVE', 28, 252, '#ffd0a0');
+  // a first Android back at the title root armed the leave (backstep.ts EXIT_ARM_T): say what the second does in the
+  // next row slot under LAB, lined up with the rows (root: <= 6 rows, so y <= 194, clear of the help text at 208)
+  if (exitArmed()) txt('PRESS BACK AGAIN TO LEAVE', 40, TITLE_MENU.y + titleItems().length * TITLE_MENU.pitch, '#ffd0a0');
   txt('EXTREME GORE. FLASHING IMAGES.', W - 8, H - 12, '#c46a6e', 'right');
   txt('SPRITES: TIAMALT, SCARCZ, C.BELLANGER, D.COOK, SUNBURN, CIDERCORPSE', W - 8, H - 39, '#3a4048', 'right', 7);
   txt('MUSIC: DANCRAMP - VOID, FREESOUND ARTISTS   SFX: KENNEY, FREESOUND', W - 8, H - 30, '#3a4048', 'right', 7);
