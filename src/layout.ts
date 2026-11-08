@@ -197,7 +197,8 @@ const ORBIT_WARN = 4080 + S0, DRIVE_WARN = 2460 + STRETCH.drive;
 // cells). Draw order is the array order (scripts.ts pickPlanned: every cell slot, then every filler window), so new
 // slots and windows go at the END, and a moved window keeps its length and gap (stretch plan §2.1). Caveat the plan
 // missed: a new cell slot adds a draw before the first filler draw, so the filler (the Saucer's window included)
-// draws shift on long4; the cells already there draw as before.
+// draws shift on long4, and the bigger build/peak pools change which cell the same draw picks (cellpick.ts
+// tier[floor(r * len)]). Only Descent 1's teaching opener, fixed rather than drawn, is stable (level-design review).
 /** long Open Orbit: 3 intro cells (the ~15 s teaching opener in Descent 1, 180..1060), the Saucer, build x2, the
  *  mid-Orbit breath (3300-3700, empty: reserved for the held slot B), build, peak, peak, the climax, a quiet run-up,
  *  the Maw. Two arcs of rising tension with one rest between them (stretch plan §2.3) */
@@ -287,7 +288,8 @@ const LONG4: LayoutEntry = {
     sets: [.22, .5, .75], remixSets: [.19, .48, .73], warnLead: 210,
     runup: .94, arenaBlend: 200,
     // a DRIFT slot-A midboss (the Calving Shelf in wave 2) is gone 300 px before slot B's WARNING. The window is now
-    // ~1220 px (~20 s), longer than the 1080 f slot clock, so the clock is the binding exit
+    // ~1365-1380 px (~23 s, slot A WARNING to exit, late/early gate), longer than the 1080 f slot clock, so the clock is
+    // the binding exit
     driftLead: 300,
     // movement B fills build B: its blend starts at breath 1's end, where CP1 is written (spec §3.3: movement A runs
     // "intro to CP1"), so midboss A's held screen shows it coming; it ends 200 px into breath 2, before the left edge

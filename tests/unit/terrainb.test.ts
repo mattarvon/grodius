@@ -94,12 +94,12 @@ describe('movement B on long4', () => {
     expect(inside).toBeGreaterThan(100);
   });
 
-  it('sits between the breaths: from CP1 at breath 1\'s end, gone before midboss B\'s held screen, ~9 s at full', () => {
+  it('sits between the breaths: from CP1 at breath 1\'s end, gone before midboss B\'s held screen, ~20 s at full (D31 stretch)', () => {
     for (const seg of [0, 1]) for (const from of [L.slotRow(seg).x0, L.slotRow(seg).gateLate!]) {
       const P = L.beatPlan(L.slotRow(seg), from, false), M = P.moveB!;
       expect(M.a).toBe(P.breaths[0].z); // spec §3.3: movement A runs "intro to CP1", and CP1 is written at breath 1's end
       expect(M.z).toBeLessThan(P.breaths[1].z - 20); // the scroll holds ~20 px before the breath's end
-      expect(M.z - M.a - 2 * M.blend).toBeGreaterThan(540); // the full gimmick, ~9 s at 1 px/f (level-design review)
+      expect(M.z - M.a - 2 * M.blend).toBeGreaterThan(1000); // the full gimmick, ~20 s at 1 px/f under the D31 stretch (D31 amended: about 18 s)
     }
   });
 
