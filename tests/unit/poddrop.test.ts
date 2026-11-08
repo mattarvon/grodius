@@ -53,6 +53,28 @@ describe('formation pod drop (D31 grpPod)', () => {
     expect(clear('long4', [.99])).toEqual({ pods: 0, n: 1 });
   });
 
+  // G1: a one-drone formation cannot tell "roll at the last kill" from "roll at every kill"; three drones can
+  /** kill the n drones of one n-drone formation on layout id, R() answering q first; returns the R() draws after each kill */
+  const clearN = (id: 'short' | 'long4', n: number, q: number[]) => {
+    L.setLayout(id);
+    $.G = { loop: 0, stage: 1, score: 0, bio: 0, combo: 0, comboT: 0, kills: 0, maxCombo: 0, st: { kills: 0, chain: 0 }, hitstop: 0 };
+    $.P = { x: 90, y: 135 };
+    $.meta = { bio: 0 };
+    caps.length = 0;
+    rq.q = [...q]; rq.n = 0;
+    const g = { n, killed: 0 }, after: number[] = [];
+    for (let i = 0; i < n; i++) { killEnemy({ k: 'drone', x: 300, y: 135, score: 100, bio: 0, gsz: 1, group: g }); after.push(rq.n); }
+    return { pods: caps.length, after };
+  };
+
+  it('draws its one roll only when the last drone of a 3-drone formation dies on long4', () => {
+    expect(clearN('long4', 3, [.49])).toEqual({ pods: 1, after: [0, 0, 1 + DROP_DRAWS] });
+  });
+
+  it('draws nothing for a 3-drone formation on short beyond the pod itself', () => {
+    expect(clearN('short', 3, [])).toEqual({ pods: 1, after: [0, 0, DROP_DRAWS] });
+  });
+
   it("always drops the biome breath's release formation on long4, without a roll", () => {
     expect(clear('long4', [], 1)).toEqual({ pods: 1, n: DROP_DRAWS });
   });

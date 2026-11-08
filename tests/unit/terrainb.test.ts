@@ -290,6 +290,28 @@ describe('the catalogue against the game', () => {
     }
     L.setLayout('short');
   });
+  it('spawns the breath-1 release formation with the pod flag on long4, and no other formation carries it', () => {
+    // G2: formation() marks group.pod (podkeep.test.ts) and killEnemy skips the roll for it (poddrop.test.ts); this is
+    // the link between them, biomeScript's release (biomes.ts)
+    L.setLayout('long4');
+    try {
+      for (const seg of [0, 1]) for (const b of ['ice', 'fire']) {
+        $.G = { loop: 0, seed: 5, pend: [], scroll: 0 };
+        const S = biomeScript(seg, b, L.slotRow(seg).gateLate!, 0, undefined, ['choir', 'cyst'], CATALOG[b].slice(0, 3));
+        expect(S.filter((e: { k: string }) => e.k === 'pod'), `${b} slot ${seg}`).toHaveLength(1);
+        const flagged: string[] = [];
+        for (const e of S) {
+          $.G.pend = []; spawned.length = 0;
+          e.f(); for (const q of $.G.pend) q.f();
+          for (const c of spawned) if (c[0] === 'formation' && (c[4] as { pod?: number } | undefined)?.pod === 1) flagged.push(e.k);
+        }
+        expect(flagged, `${b} slot ${seg}`).toEqual(['pod']);
+      }
+    } finally {
+      L.setLayout('short');
+    }
+  });
+
   it('keeps a piece\'s fixed spawn heights out of the walls a band has moved, and leaves them alone elsewhere', () => {
     L.setLayout('long4');
     const P = fly(0, 'ice', L.slotRow(0).gateLate!, 1), M = P.moveB!, mid = (M.a + M.z) / 2;

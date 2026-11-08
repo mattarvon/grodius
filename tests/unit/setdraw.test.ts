@@ -136,6 +136,32 @@ describe("first-visit signature weight (D36 item 2)", () => {
     expect(drawPicks('ice', 0, 0, {}, stream(3), {}, 2).sp).toHaveLength(2);
   });
 
+  it('weighs the signature x2 on a biome first met in Descent 2, after its B1 roll', () => {
+    // G4: from Descent 2 the first visit's B1 roll comes first, so the weighted draw is the second value; .3 lands on
+    // the signature only when it weighs x2 (see the first test)
+    for (const b of BIOMES) {
+      const b0 = drawPicks(b, 0, 1, {}, ((q) => () => q.shift()!)([.9, .3, .99, .99]));
+      expect(b0.mv, b).toBe(0);
+      expect(b0.sp, b).toContain(CATALOG[b][0]);
+      const b1 = drawPicks(b, 0, 1, {}, ((q) => () => q.shift()!)([.1, .3, .99, .99]));
+      expect(b1.mv, b).toBe(1);
+      expect(b1.sp, b).toContain(CATALOG[b][0]);
+      // met in Descent 1 (v 1), back in Descent 2: a remix, unweighted, and no B1 roll
+      expect(drawPicks(b, 1, 1, {}, ((q) => () => q.shift()!)([.3, .99, .99]), { [b]: 1 }).sp, b).not.toContain(CATALOG[b][0]);
+    }
+  });
+
+  it('gives every picker layout exactly SETS_PER_STAGE set fractions, the count runsave.ts accepts', async () => {
+    // G3: stagePicks draws beats.sets.length pieces, and runsave.ts isStagePick refuses a saved pick of any other length
+    const { LAYOUTS } = await import('../../src/layout');
+    const pickers = Object.values(LAYOUTS).filter((L) => L!.beats.moveB);
+    expect(pickers.length).toBeGreaterThan(0);
+    for (const L of pickers) {
+      expect(L!.beats.sets, L!.id).toHaveLength(SETS_PER_STAGE);
+      expect(L!.beats.remixSets, L!.id).toHaveLength(SETS_PER_STAGE);
+    }
+  });
+
   it('has no set draw on short: short flies no movement B, so biomeStage never calls stagePicks', async () => {
     const { LAYOUTS } = await import('../../src/layout');
     expect(LAYOUTS.short!.beats.moveB).toBeUndefined();

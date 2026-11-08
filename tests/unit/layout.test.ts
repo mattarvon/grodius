@@ -49,6 +49,8 @@ function violations(L: LayoutEntry) {
       const last = Math.max(...b.breaths.map((br) => br.z));
       if (r.bossX - last < MIN_GAP) out.push(`${tag}: breath ends ${(r.bossX - last).toFixed(1)} px before bossX`);
     }
+    // a HELD Orbit midboss's WARNING sits >= MIN_GAP past every drift's forced exit and before the banner (heldRange)
+    if (r.held) { const H = heldRange(r, MIN_GAP); if (r.held.at < H.lo || r.held.at > H.hi) out.push(`stage ${i}: held WARNING at ${r.held.at} outside [${H.lo}, ${H.hi}]`); }
     // a DRIFT midboss does not hold the scroll: it must be forced out >= MIN_GAP before the next WARNING (§3.2 rule 1)
     for (const d of r.drift || []) {
       const at = r.x0 + d.at, exit = r.x0 + d.gapEnd - d.exitLead, later = warns.filter((w) => w > at);
@@ -95,6 +97,16 @@ describe('layout invariants, every entry', () => {
     expect(v).toMatch(/stages 0\/1 not contiguous/);
     expect(v).toMatch(/ufo forced exit at 1940 is 180 px before the next WARNING at 2120/);
     expect(v).toMatch(/stage 2 early gate: breath ends .* px before bossX/);
+  });
+
+  it('catches a held Orbit WARNING inside 300 px of the Saucer exit or of the Maw banner, and passes one on the edge', () => {
+    // G6: the held check through the every-entry invariant, on a copy of long4 (its own row leaves held unset)
+    const at = (x: number) => { const bad: LayoutEntry = JSON.parse(JSON.stringify(LAYOUTS.long4)); bad.stages[0].held = { at: x }; return violations(bad).join('\n'); };
+    const H = heldRange(LAYOUTS.long4!.stages[0]);
+    expect(at(H.lo - 1)).toMatch(new RegExp(`stage 0: held WARNING at ${H.lo - 1} outside \\[${H.lo}, ${H.hi}\\]`));
+    expect(at(H.hi + 1)).toMatch(/stage 0: held WARNING at \d+ outside/);
+    expect(at(H.lo)).not.toMatch(/held WARNING/);
+    expect(at(H.hi)).not.toMatch(/held WARNING/);
   });
 
   it('catches a DRIFT midboss in a biome slot whose exit runs into the breath WARNING', () => {
@@ -216,7 +228,6 @@ describe('long4 entry', () => {
     expect(d.bossX - d.x0).toBe(4800);
     expect(d.warnX).toBe(d.bossX - 240);
     expect(L.level).toBe(24450);
-    expect(L.level).toBeLessThanOrEqual(24500);
   });
 
   it('shifts every anchor after the Orbit by the same amount as the Orbit row (one stretch constant)', () => {
@@ -257,6 +268,11 @@ describe('long4 entry', () => {
     if (o.held) { expect(o.held.at).toBeGreaterThanOrEqual(H.lo); expect(o.held.at).toBeLessThanOrEqual(H.hi); }
     // the check bites: a WARNING 200 px after the Saucer's exit is out of range
     expect(2240 >= H.lo).toBe(false);
+  });
+
+  it('measures heldRange on a row with no drift from the stage start, and to its warnX banner', () => {
+    const d = L.stages[3], H = heldRange(d);
+    expect(H).toEqual({ lo: 300, hi: d.warnX! - d.x0 - 300 });
   });
 
   it('gives the Orbit a quiet run-up: the climax filler ends >= 300 px before SOMETHING IS COMING (#19)', () => {

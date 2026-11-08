@@ -255,6 +255,28 @@ describe('long4 matches spec §7 (LS1)', () => {
     }
     expect(rapid.n).toEqual([36, 150]);
   });
+
+  it('recomputes the memoised thresholds when graftMul changes, and never goes below 1', async () => {
+    // G5: a memo keyed on the base array alone would hand back the first multiplier's thresholds after a re-fit
+    const { setLayout } = await import('../../src/layout');
+    const e = ECON.long4 as { graftMul: number }, base = [36, 150] as const;
+    setLayout('long4');
+    try {
+      e.graftMul = 1.4;
+      const a = graftN('long4', base);
+      expect(a).toEqual([50, 210]);
+      expect(graftN('long4', base)).toBe(a); // memoised
+      e.graftMul = 1.2;
+      expect(graftN('long4', base)).toEqual([43, 180]); // 43.2, 180: not the stale [50, 210]
+      e.graftMul = .01;
+      expect(graftN('long4', base)).toEqual([1, 2]); // .36 rounds to 0, floored to 1; 1.5 rounds to 2
+      e.graftMul = 1;
+      expect(graftN('long4', base)).toBe(base); // back at 1: the literal array itself
+    } finally {
+      e.graftMul = 1;
+      setLayout('short');
+    }
+  });
 });
 
 describe('long5 matches spec §7 (LS3-0)', () => {
