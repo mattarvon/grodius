@@ -250,6 +250,44 @@ Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `produ
 
 **D30 status:** S2-K1 is still open. Midboss+8 p95 at 4× is down 16-21% but still misses 16.7 ms. It is decided by Matt's Fold reading of this build (`production/qa/fold-reading.md`), which comes before the D31 merge.
 
+### D38 "Still very linear": the fork becomes a decision, builds get trade-offs — 2026-11-07 (Matt)
+
+Matt played a full run on the wave 1 build (`abf85c1`, long4, before D31): "its getting more challanging and a little more rewarding, but still very linear".
+
+**The crew.** Nine roles diagnosed it: game-designer, level-designer, systems-designer, economy-designer, narrative-director, ux-designer, ai-programmer, art-director and audio-director. Then creative-director and producer combined their reports. Their reports are kept in the LS2 wave 2 crew notes.
+
+**Diagnosis.** Wave 1 added variety that the run draws for you, not choices the player makes:
+- The fork is blind and nearly forced. A gate shows only a name, unvisited biomes are offered first, and the ship auto-picks after 15 s.
+- Power arrives unchosen. 22 of the 24 perks are pure upside, grafts and seals come on a schedule, and pods apply themselves.
+- Every biome stage is one corridor with the same beat template.
+- Nothing records the player's choices, on screen or in sound.
+- Every Descent 1 meets all 4 midbosses.
+
+**Decided** (Matt: "sounds good" to creative-director's recommendation):
+1. **Now, render and audio only (lane `ls2-read`):**
+   - gate plates show the stakes: the biome perk the gate unlocks, and a REVISIT/REMIX tag;
+   - remix visits look damaged ("wound states");
+   - midboss and boss music intensity in biome stages, and kill sounds per biome;
+   - paper specs for the choice lane.
+2. **After D31 merges, as one "choice" lane:**
+   - perks with costs;
+   - build-aware perk offers;
+   - a midboss pod pick of 1 from 2;
+   - choosing your seal unlock;
+   - fork pay.
+
+   Nothing is folded into D31, which keeps short identical and keeps the Fold reading clean.
+3. **The gate midboss preview** follows fix merge 1, and ships with the first new midboss kinds.
+4. **In-stage structure waits:** split lanes, pockets, beat variants and reactive midboss attacks come after D31 and the pool lanes.
+5. **The pool lanes go breadth first,** starting with kinds that can appear in Descent 1 (`min: 0`): Cryosleeper, Reclaimer, Kindling or Spit, and Sniffer. Then every Descent 1 stops meeting the same 4.
+
+**The crew's shared "don'ts":** no more forks or gates while the plates show nothing; no random content as the answer to "linear"; no more free upside; no hidden director; and keep each biome tied to its boss.
+
+**Open, for game-designer then Matt:**
+- The Orbit tug is ANGLE, so `min: 1`. Give it a `min: 0` exception for the Orbit slot, or build the tethered crewman (LINE) first? Otherwise Descent 1 Orbit never gets its slot B (D37).
+- Does slot A's home preference still hold once a biome has two pool members?
+- At-risk biomass, where unbanked biomass is lost on death, needs a decision.
+
 ## Open
 
 - **ls2-mv's four questions (Matt).** game-designer's recommendation is in brackets.
