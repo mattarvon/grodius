@@ -224,6 +224,8 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
    - the cells and fire's `behind` mix kind stay unclamped (only set-piece rear waves use `rearY`);
    - change the fork shuffle `sort(() => R() - .5)` to Fisher-Yates in the next re-baseline;
    - X, Backspace and pad B unpause, so mashing POWER at a pause resumes play (use `hardBack` or ~20 f of grace).
+   - the 100 f rear-wave telegraph (`rearWarn`) is a literal in `spawn.ts` and is restated in `biomes.ts` REAR.lead and the tests: export it as one constant (fm1 review);
+   - the filler `hatch` from behind can land ~20 px into breath 1 (acid/snot slot 1) or 60 px into the run-up (snot slot 0); `biomebeats.test.ts` holds it as `it.fails` for game-designer.
 4. **Layout and level (level-designer, D31 lane):**
    - cell pools are 2× slots, so from D2 the picker alternates (S2, for Matt: grow pools to 3× or dual-tag cells; is the D1 opener as the D3 intro acceptable?);
    - `o.swarm`'s sentry sits 60 px before the Saucer WARNING;
@@ -263,6 +265,8 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
    - a contrast, flash-rate and touch-target measurement pass;
    - the touch footer string-fit shot at the lowest resolution;
    - the Infirmary exit button's bottom edge is ~9 CSS px above the Android gesture strip (move it up ~6 px or respect the safe-area inset).
+   - the Infirmary BUY and level-up rows are ~9 px tall on the Fold: raise the touch row pitch, or arm-then-confirm on purchases (fm1 review, ux);
+   - device check: the title root's two-press exit assumes Android back never also arrives as a WebView keydown (which would disarm it).
 7. **Perf and warm-up (engine-programmer, performance-analyst):**
    - the warm-up drop and rebuild loop mechanism;
    - the crux `EYEC` eye canvases are never evicted;

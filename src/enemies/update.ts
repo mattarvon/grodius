@@ -392,7 +392,7 @@ export function updEnemy(e) {
             e.dead = true;
             if (e.stageBoss) {
               clearStage(true);
-              banner('IT GOT AWAY', 'NO BIOMASS', '#8a5a5a', 150);
+              banner('IT GOT AWAY', 'NO REWARD', '#8a5a5a', 150);
             }
           }
         }
@@ -490,7 +490,7 @@ export function midLeave(e, k = .03) {
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);
   if (e.t < e.leave) { e.x = lerp(e.x, e.tx, k); return false; }
-  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NO BIOMASS', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); }
+  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NO REWARD', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); }
   e.x += 1.6;
   if (e.x > W + 60) e.dead = true;
   return true;
@@ -512,7 +512,7 @@ function phaseClock(e) {
     if (e.x > W + 80) {
       e.dead = true;
       clearStage(true);
-      banner('IT GOT AWAY', 'NO BIOMASS', '#8a5a5a', 150);
+      banner('IT GOT AWAY', 'NO REWARD', '#8a5a5a', 150);
     }
     return true;
   }

@@ -75,7 +75,7 @@ export function clearStage(escaped = false) {
   st.done = true;
   const g = gradeOf(econId(), st, stageTs(G.stage), escaped), R = GRADE[g], perfect = !st.hits && !st.deaths && !escaped;
   const bonus = R.score * (G.loop + 1) + (perfect ? 10000 * (G.loop + 1) : 0);
-  const bio = escaped ? 0 : R.bio * deepPay(); // IT GOT AWAY / NO BIOMASS: no biomass (D5b)
+  const bio = escaped ? 0 : R.bio * deepPay(); // IT GOT AWAY / NO REWARD: no biomass (D5b)
   G.score += bonus;
   G.bio += bio;
   $.meta.bio += bio;
