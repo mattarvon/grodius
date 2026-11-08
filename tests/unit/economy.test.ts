@@ -137,10 +137,10 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(gradeOf('long4', st(10, 10), 60, true)).toBe('C');
   });
 
-  it("pays today's stage XP lump, cuts kill XP to x0.30 and kill biomass to x0.47 (D31, provisional)", () => {
+  it("pays today's stage XP lump, cuts kill XP to x0.30 and kill biomass to x0.40 (D31, fit 1)", () => {
     for (let loop = 0; loop < 3; loop++) for (let ord = 0; ord < 4; ord++) expect(stageXP('long4', ord, loop)).toBe(perks.stageXP(ord, loop));
     expect(killXP('long4', 30)).toBeCloseTo(9);
-    expect(killBio('long4', 100)).toBeCloseTo(47);
+    expect(killBio('long4', 100)).toBeCloseTo(40);
   });
 
   it('adds .35 of a descent of depth across 4 stages', () => {
@@ -220,37 +220,40 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(ECON.long4.targets!.bio[0]).toEqual([1300, 1500]);
   });
 
-  it('pins the D31 cut: kill XP .30, kill biomass .47, carrier keep .17, formation pods .5, grafts x1 (provisional)', () => {
-    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .47, .17, .5, 1]);
+  it('pins the D31 cut: kill XP .30, kill biomass .40, carrier keep .075, formation pods .22, grafts x1.8 (fit 1)', () => {
+    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .4, .075, .22, 1.8]);
   });
 
-  it('keeps a carrier pod only at a roll of .83 or more', () => {
-    expect(capKept('long4', .8299)).toBe(false);
-    expect(capKept('long4', .83)).toBe(true);
+  it('keeps a carrier pod only at a roll of .925 or more', () => {
+    expect(capKept('long4', .9249)).toBe(false);
+    expect(capKept('long4', .925)).toBe(true);
   });
 
   it('rolls once per cleared formation, and never for the release formation', () => {
     let n = 0;
     const r = (v: number) => () => { n++; return v; };
-    expect(grpDrops('long4', undefined, r(.49))).toBe(true);
-    expect(grpDrops('long4', undefined, r(.5))).toBe(false);
+    expect(grpDrops('long4', undefined, r(.2199))).toBe(true);
+    expect(grpDrops('long4', undefined, r(.22))).toBe(false);
     expect(n).toBe(2);
     expect(grpDrops('long4', 1, r(.99))).toBe(true);
     expect(n).toBe(2);
   });
 
-  it('scales the live graft thresholds by graftMul, GLUTTONY excepted, once tuned', async () => {
+  it('scales the live graft thresholds by graftMul x1.8 (fit 1), rounded, GLUTTONY excepted', async () => {
     const { setLayout } = await import('../../src/layout');
     const e = ECON.long4 as { graftMul: number }, rapid = GM.find((m: any) => m.id === 'rapid'), over = GM.find((m: any) => m.id === 'over');
+    const base = Object.fromEntries(GM.map((m: any) => [m.id, [...m.n]])); // short: the literals
     setLayout('long4');
     try {
-      expect(rapid.n).toEqual([36, 150]); // graftMul 1 today: measure first (§2.3)
-      e.graftMul = 1.4;
-      expect(rapid.n).toEqual([50, 210]);
+      expect(rapid.n).toEqual([65, 270]); // 36 x 1.8 = 64.8, 150 x 1.8 = 270
+      expect(GM.find((m: any) => m.id === 'cal').n).toEqual([216, 720, 1440]);
+      for (const m of GM) if (m.id !== 'over') expect(m.n, m.id).toEqual(base[m.id].map((v: number) => Math.round(v * 1.8)));
       expect(rapid.n).toBe(rapid.n); // memoised: countKill allocates nothing per kill
       expect(over.n).toEqual([3, 6]);
-    } finally {
       e.graftMul = 1;
+      expect(rapid.n).toEqual([36, 150]); // the getter reads the live value: graftMul 1 is the literal again
+    } finally {
+      e.graftMul = 1.8;
       setLayout('short');
     }
     expect(rapid.n).toEqual([36, 150]);
@@ -259,7 +262,7 @@ describe('long4 matches spec §7 (LS1)', () => {
   it('recomputes the memoised thresholds when graftMul changes, and never goes below 1', async () => {
     // G5: a memo keyed on the base array alone would hand back the first multiplier's thresholds after a re-fit
     const { setLayout } = await import('../../src/layout');
-    const e = ECON.long4 as { graftMul: number }, base = [36, 150] as const;
+    const e = ECON.long4 as { graftMul: number }, base = [36, 150] as const, was = e.graftMul;
     setLayout('long4');
     try {
       e.graftMul = 1.4;
@@ -273,7 +276,7 @@ describe('long4 matches spec §7 (LS1)', () => {
       e.graftMul = 1;
       expect(graftN('long4', base)).toBe(base); // back at 1: the literal array itself
     } finally {
-      e.graftMul = 1;
+      e.graftMul = was; // fit 1's 1.8: later tests read the live entry
       setLayout('short');
     }
   });

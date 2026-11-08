@@ -1,5 +1,5 @@
 // D31 (audit d31-economy.md §2.2): the carrier keep roll in enemies/spawn.ts mk() reads the entry's capKeep. Short keeps
-// today's `R() < .65` drop exactly; long4 keeps .17. Only the threshold moves: the draw count is the same on both
+// today's `R() < .65` drop exactly; long4 keeps .075 (fit 1). Only the threshold moves: the draw count is the same on both
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
@@ -36,9 +36,9 @@ describe('carrier keep roll (D31 capKeep)', () => {
     for (const r of [0, .3, .35, .6499, .65, .66, .83, .99]) expect(carrier('short', r).kept, String(r)).toBe(!(r < .65));
   });
 
-  it('keeps a long4 carrier pod only at R() >= .83 (capKeep .17)', () => {
-    for (const r of [.65, .7, .8299]) expect(carrier('long4', r).kept, String(r)).toBe(false);
-    for (const r of [.83, .9, .99]) expect(carrier('long4', r).kept, String(r)).toBe(true);
+  it('keeps a long4 carrier pod only at R() >= .925 (capKeep .075, fit 1)', () => {
+    for (const r of [.65, .83, .9249]) expect(carrier('long4', r).kept, String(r)).toBe(false);
+    for (const r of [.925, .95, .99]) expect(carrier('long4', r).kept, String(r)).toBe(true);
   });
 
   it('draws the same number of R() on both entries: only the threshold moved', () => {

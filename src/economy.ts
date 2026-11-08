@@ -129,16 +129,20 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // second midboss landed
     // D31 §2.4: the stretch grows kill pods ~x1.45 (1434 -> ~1900), so .65 x 1400/1900 ~ .47 holds the band. Provisional,
     // re-fit in step 5: killBio x (1400 - B_fixed) / (B_measured - B_fixed) (pod-probe finalBio, seeds 1-5)
-    killBio: .47,
-    // D31 §2.2: carrier pods are per spawn, so the keep falls by the stretch ratio to land D1 pods ~-35%:
-    // .35 x .70 / 1.45 ~ .17 (post-stretch projection; provisional, re-fit in step 5 on pod-probe stages[].pods)
-    capKeep: .17,
-    // D31 §2.2: formations multiply with the stretch's spawn sections; .5 is the post-stretch projection (.7 on today's
-    // stages). One R() per cleared formation on long4 only. Provisional, re-fit in step 5 (pod-probe kinds.pod)
-    grpPod: .5,
-    // D31 §2.3: measure first. If the stretched build ends D1 with more graft levels than the step-0 baseline, set the
-    // measured kill ratio (~1.4) so grafts keep today's per-stage timing (pod-probe G.gm at each tally)
-    graftMul: 1,
+    // Fit 1 (2026-11-08): .47 gave steady-state 1619 [1440-1723]; B_fixed = 4 S grades x 40 + 3 choices x 30 = 250,
+    // so .47 x (1400 - 250) / (1619 - 250) = .395
+    killBio: .4,
+    // D31 §2.2: carrier and formation pods are per spawn, the variable faucet. Fit 1 (2026-11-08, ls2-d31 report): at the
+    // .17 / .5 projections the stretched build gave 48 D1 pod pickups, the same as main's 48 (spawns rose x1.8, not
+    // x1.45). Fixed pods (midboss/Maw 11, Saucer 2, choice 3, release 2) are 18 of them, so -35% (31) needs the variable
+    // 30 cut to ~13: f = (.65 x 48 - 18) / 30 = .44 on both knobs. pod-probe stages[].src, seeds 1/3/5/7/11
+    capKeep: .075,
+    // One R() per cleared non-release formation, long4 only (short: grpPod 1, no draw). .5 x f (.44), fit 1 as above
+    grpPod: .22,
+    // D31 §2.3: measured (fit 1, 2026-11-08): the stretched build ended D1 with 6-7 graft levels against main's 5, on
+    // x1.8 the kills (674 vs 375 median). graftMul = the kill ratio, so grafts keep today's per-stage timing
+    // (pod-probe grades[3].kit.gm, kills)
+    graftMul: 1.8,
     intra: .35, // late Descent 1 would otherwise stay soft over a longer descent (depth-probe, playtest.mjs hits/min)
     // GLUTTONY counts Maw + midboss kills: per long4 descent the Saucer + 2 + 2 biome midbosses, the Open Orbit Maw and
     // 0-2 biome Maw stage bosses, so 6-8 when every one is killed (short: 2-4)

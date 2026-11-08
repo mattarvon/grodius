@@ -189,8 +189,8 @@ describe('the gimmick shapes', () => {
 describe('movement B hazards', () => {
   const band = (b: string, mv: number) => { MOVES.length = 0; MOVES[0] = { a: 6000, z: 6800, blend: 200, b, mv, o: 1 }; };
   beforeEach(() => { MOVES.length = 0; });
-  it('spaces hazards x.7 in ice B0, x.85 in ice B1, x.6 on the Chimney and x1 elsewhere', () => {
-    expect([moveHazMul('ice', 0), moveHazMul('ice', 1), moveHazMul('fire', 1)]).toEqual([.7, .85, .6]);
+  it('spaces hazards x.7 in ice B0, x.85 in ice B1, x.7 on the Chimney (fit 1) and x1 elsewhere', () => {
+    expect([moveHazMul('ice', 0), moveHazMul('ice', 1), moveHazMul('fire', 1)]).toEqual([.7, .85, .7]);
     for (const [b, mv] of [['acid', 0], ['acid', 1], ['fire', 0], ['snot', 0], ['snot', 1], ['nope', 0]] as const) expect(moveHazMul(b, mv), `${b} B${mv}`).toBe(1);
   });
   it('leaves the interval untouched outside every band, scales it inside, and never goes under the floor there', () => {

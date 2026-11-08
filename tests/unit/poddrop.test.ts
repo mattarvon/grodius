@@ -1,5 +1,5 @@
 // D31 (audit d31-economy.md §2.2): a cleared formation drops its pod on the entry's grpPod chance (killEnemy in
-// enemies/update.ts). Short (grpPod 1) draws no extra R(); long4 (.5) draws one per cleared formation; the biome
+// enemies/update.ts). Short (grpPod 1) draws no extra R(); long4 (.22, fit 1) draws one per cleared formation; the biome
 // breath's release formation (group.pod, biomes.ts biomeScript) always drops and draws nothing
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
@@ -47,9 +47,9 @@ describe('formation pod drop (D31 grpPod)', () => {
     expect(clear('short', [])).toEqual({ pods: 1, n: DROP_DRAWS });
   });
 
-  it('drops on long4 when its one roll is under .5, and not otherwise', () => {
-    expect(clear('long4', [.49])).toEqual({ pods: 1, n: 1 + DROP_DRAWS });
-    expect(clear('long4', [.5])).toEqual({ pods: 0, n: 1 });
+  it('drops on long4 when its one roll is under .22 (fit 1), and not otherwise', () => {
+    expect(clear('long4', [.2199])).toEqual({ pods: 1, n: 1 + DROP_DRAWS });
+    expect(clear('long4', [.22])).toEqual({ pods: 0, n: 1 });
     expect(clear('long4', [.99])).toEqual({ pods: 0, n: 1 });
   });
 
@@ -68,7 +68,7 @@ describe('formation pod drop (D31 grpPod)', () => {
   };
 
   it('draws its one roll only when the last drone of a 3-drone formation dies on long4', () => {
-    expect(clearN('long4', 3, [.49])).toEqual({ pods: 1, after: [0, 0, 1 + DROP_DRAWS] });
+    expect(clearN('long4', 3, [.2199])).toEqual({ pods: 1, after: [0, 0, 1 + DROP_DRAWS] });
   });
 
   it('draws nothing for a 3-drone formation on short beyond the pod itself', () => {
