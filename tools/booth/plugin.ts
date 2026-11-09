@@ -143,8 +143,9 @@ export async function measure(file: string): Promise<{ lufs: number | null; peak
 const DEMUX: Record<string, string> = { webm: 'matroska', ogg: 'ogg', wav: 'wav', m4a: 'mov' };
 
 /** raw take -> the game's clip: mono, the key clicks cut, highpass, denoise, head/tail trim, fades at the cuts, gain
- *  to VOX.lufs with a soft clip on the peaks, the ceiling, 44.1 kHz Vorbis. Measured after the trim, after the clip
- *  and after the encode (one makeup pass if the limiter still took the take short) */
+ *  to VOX.lufs into a gentle voice compressor, the gain again, a 4x-oversampled limiter at the ceiling, 44.1 kHz
+ *  Vorbis. Measured after the trim, after the compressor and after the encode (one makeup pass if the limiter still
+ *  took the take short) */
 export async function processTake(raw: string, out: string) {
   const ext = path.extname(raw).slice(1), tmp = out.replace(/\.ogg$/, '.tmp.wav');
   const input = ['-hide_banner', '-protocol_whitelist', 'file', '-f', DEMUX[ext], '-i', raw, '-t', '120'];
