@@ -116,23 +116,21 @@ If the trim cuts a breath, wait a beat before Stop (the booth says so while reco
 ## Test, gate and evidence output
 
 Gates ran on the lane's dev server (:5297, private Vite cacheDir), one at a time under `/tmp/grodius-heavy.lock`,
-with Tctl 39-60 C. Typecheck, vitest, build, short, long4 and parity ran at `192910a`. The scenarios were re-run in full
-at `e2f517b`, which differs only in a doc comment in `tools/booth/plugin.ts`. Every log begins with `git rev-parse HEAD`
-and `git status --short`. Build output is trimmed to the tail.
+with Tctl 39-60 C. Every gate ran at `93064be` (on `ls2-slab` 6e85b81, after both rebases). Every log begins with
+`git rev-parse HEAD` and `git status --short`. Build output is trimmed to the tail. (Before the rebases the same gates
+passed at `192910a`/`e2f517b` on `1f7f142`.)
 
 ```text
-192910a6e0b6d0e1580e643995da46cd78fdf95a
-?? production/qa/evidence/ls2-booth/
+93064be7a63a50fc7c707cb8991f1e758c11156b
 --- typecheck
 npm notice run tsc --noEmit
 --- vitest
- Test Files  58 passed (58)
-      Tests  1155 passed | 1 expected fail (1156)
+ Test Files  60 passed (60)
+      Tests  1185 passed | 1 expected fail (1186)
 ```
 
 ```text
-192910a6e0b6d0e1580e643995da46cd78fdf95a
-?? production/qa/evidence/ls2-booth/
+93064be7a63a50fc7c707cb8991f1e758c11156b
 --- npm run build (tail)
 (!) Some chunks are larger than 500 kB after minification. Consider:
 - Using dynamic import() to code-split the application
@@ -166,24 +164,22 @@ none
 ```
 
 ```text
-192910a6e0b6d0e1580e643995da46cd78fdf95a
-?? production/qa/evidence/ls2-booth/
+93064be7a63a50fc7c707cb8991f1e758c11156b
 --- harness short
 {"st":{"state":"over","score":1243,"scroll":3538,"lives":0,"px":50,"py":143.25,"en":0,"gibs":0,"drops":0,"caps":0},"hashes":["b9ce4a76ac","83207e90e2","deefef2cf3","cdff70c46c","8ecfcbedc1","0bc5cf3670"],"errs":[]}
 note: 6/6 canvas hashes differ (advisory)
 PASS vs baseline @ 8ff9ba4
 exit 0
 
-192910a6e0b6d0e1580e643995da46cd78fdf95a
+93064be7a63a50fc7c707cb8991f1e758c11156b
 --- harness long4
-{"st":{"state":"over","score":6096,"scroll":3538,"lives":0,"px":50,"py":153.25,"en":2,"gibs":0,"drops":13,"caps":0},"hashes":["d628aa0103","1a73c77a52","7f6273bddd","338ffbcd59","a91a9eb7c1","81feb21ab0"],"errs":[]}
+{"st":{"state":"over","score":6096,"scroll":3538,"lives":0,"px":50,"py":153.25,"en":2,"gibs":0,"drops":13,"caps":0},"hashes":["4aa9c205a8","1a73c77a52","7f6273bddd","338ffbcd59","a91a9eb7c1","81feb21ab0"],"errs":[]}
 note: 6/6 canvas hashes differ (advisory)
 PASS (long4) vs baseline @ 88d9525
 ```
 
 ```text
-e2f517bae6e5370bfac942e8ab77484020213c26
---- harness scenarios (full)
+--- harness scenarios
 PASS (orbit) vs baseline @ 5c8c3eb
 PASS (saucer) vs baseline @ 5c8c3eb
 PASS (breath2) vs baseline @ ffd6b77
@@ -196,14 +192,11 @@ PASS (crux-d1) vs baseline @ 5c8c3eb
 PASS (crux-d3) vs baseline @ 5c8c3eb
 PASS (butcher-d1) vs baseline @ 5c8c3eb
 PASS (butcher-d3) vs baseline @ 5c8c3eb
-12 scenario(s) in 136 s
-exit 0
+12 scenario(s) in 101 s
 ```
 
 ```text
-192910a6e0b6d0e1580e643995da46cd78fdf95a
-?? production/qa/evidence/ls2-booth.md
-?? production/qa/evidence/ls2-booth/
+93064be7a63a50fc7c707cb8991f1e758c11156b
 --- layout-parity
 run 3 (seed 3, 2 descents) gates 1001: shop 2, 8 stages, 30729 play frames, deaths 0, errors 0
 run 6 (seed 6, 2 descents) gates 1100: shop 2, 8 stages, 38325 play frames, deaths 0, errors 0
