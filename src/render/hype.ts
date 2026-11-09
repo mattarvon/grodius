@@ -164,20 +164,27 @@ export function drawSlab(c, jaw, t) {
   for (let k = -3; k <= 3; k++) c.fillRect(k * 2.4 - .5, -69 + mh + 1.5, 1, 1.2);
 }
 // --- hype voices: the comms window ---
-// Every voice line (src/sfx/hype*, corpsevoice, bossreward, startgame) gets a face: a Reticulan from
+// Every voice line (src/sfx/hype*, corpsevoice, bossreward, startgame, kill-*, carn5) gets a face: a Reticulan from
 // src/sprites/hface@18.png (tools/prep_screens.py, 3 jaw frames per face) that pops into the top-right corner like an
 // incoming transmission, flaps its jaw while the clip plays (audio.ts voiceOn() stamps clip name + start/end on the
 // audio clock) and glitches out after. Without recorded audio (muted, or a shelved bank) it follows $.G.hype.
 // Render-only: all flicker comes from srnd() / $.T, never the gameplay RNG.
+// SGT. RAMROD SLAB is Matt (2026-11-09: 'I am RAMROD SLAB'): his own baked head, src/sprites/slab@3.png (generator outside
+// the repo, ~/Pictures/grodius-head/gen_comms2.py, beside the private source), not a Reticulan. SLAB_FACE picks that sheet
+const SLAB_FACE = -1, SLAB = 'SGT. RAMROD SLAB';
+// every new recorded line is his (LS2-slab): matched on the folder, since the booth names a take after its words
+const SLAB_CAT = /^(hype\d+|bossreward|kill-[a-z]+|carn5)$/;
 const VOICE = {
-  'hell-yeah': [0, 'SGT. RAMROD SLAB'],
+  'hell-yeah': [SLAB_FACE, SLAB],
   shamalama: [1, 'BROTHER SHAMALAMA'],
   sfriend: [2, 'SURF CONTROL'],
   'stop-killing-me': [3, 'CREWMAN #5 // DECEASED', ['STOP KILLING ME', 'WITH YOUR SPACESHIP, SIR']],
   'keyster-easter': [4, 'THE KEYSTER'],
   'lesley-yeah-baby': [5, 'LESLEY, MISSION CONTROL']
 };
-const voiceOf = (clip = '') => {
+/** [face, caller tag, caption?] for a voice clip: by its folder for SGT. RAMROD SLAB's, else by its file stem */
+export const voiceOf = (clip = '', cat = '') => {
+  if (SLAB_CAT.test(cat)) return [SLAB_FACE, SLAB];
   // clip = file stem, e.g. 'hell-yeah-matty-1': match on the line, not the take
   for (const k in VOICE) if (clip === k || clip.startsWith(k + '-')) return VOICE[k];
   let h = 0; // a clip nobody mapped yet still gets the same face every time
@@ -185,11 +192,15 @@ const voiceOf = (clip = '') => {
   return [h % 6, 'UNKNOWN CALLER'];
 };
 const FW = 48, FH = 52, OPEN = 7, STATIC = 12, CLOSE = 16;
-let cur = null; // { clip, v (linked AU.voice), t ($.T opened), out ($.T closing), L }
+let cur = null; // { clip, cat, v (linked AU.voice), t ($.T opened), out ($.T closing), L }
 const vLive = (v, now) => v && now > v.t0 - .3 && now < v.t1 + .25;
 function hypeSource(now) {
-  const v = AU.voice;
-  if (vLive(v, now)) return { v, clip: v.clip, L: /^hype/.test(v.cat) && $.G.hype ? $.G.hype.L : null };
+  // lines queue on the audio clock (audio.ts sample): the window shows the one talking now, or, in the hand-over, the
+  // one about to
+  const q = AU.voiceQ || [], v = q.find((x) => vLive(x, now) && now < x.t1) || q.find((x) => vLive(x, now));
+  // a chain's caption shows from its hype call, even while its line waits behind another caller's
+  const hypeL = $.G.hype && q.some((x) => /^hype/.test(x.cat) && now < x.t1 + .25) ? $.G.hype.L : null;
+  if (v) return { v, clip: v.clip, cat: v.cat, L: hypeL };
   // an unvoiced chain caption (the hype bank is shelved, D39) has no caller: no face and no tag (the held renames,
   // D42 item 1). It used to fall back to SGT. RAMROD SLAB's face
   if ($.G.hype) return { clip: '', L: $.G.hype.L };
@@ -198,12 +209,13 @@ function hypeSource(now) {
 export function drawHype() {
   const T = $.T, now = AU.c ? AU.c.currentTime : 0, s = hypeSource(now);
   if (s) {
-    if (!cur || cur.out) cur = { clip: s.clip, v: s.v, t: T, out: 0, L: s.L };
+    if (!cur || cur.out) cur = { clip: s.clip, cat: s.cat, v: s.v, t: T, out: 0, L: s.L };
     else if (s.v && s.v !== cur.v) {
       // the recorded clip lands a few frames after the hype trigger: swap the face under the static; a new line
       // long after opens a fresh call
-      if (T - cur.t < 40 || !cur.v) Object.assign(cur, { clip: s.clip, v: s.v });
-      else cur = { clip: s.clip, v: s.v, t: T, out: 0 };
+      // the same caller twice in a row (his queued lines) keeps the window open rather than hanging up and re-dialling
+      if (T - cur.t < 40 || !cur.v || voiceOf(s.clip, s.cat)[0] === voiceOf(cur.clip, cur.cat)[0]) Object.assign(cur, { clip: s.clip, cat: s.cat, v: s.v });
+      else cur = { clip: s.clip, cat: s.cat, v: s.v, t: T, out: 0 };
     }
     if (s.L) cur.L = s.L;
     // a linked clip that has finished hangs up even if the hype timer still runs
@@ -212,7 +224,7 @@ export function drawHype() {
   if (!cur) return;
   if (cur.out && T - cur.out > CLOSE) return void (cur = null);
   const blind = !cur.clip; // nobody on the line: signal and the caption only
-  const [face, tag, cap] = blind ? [0, '', null] : voiceOf(cur.clip), L = cap || cur.L;
+  const [face, tag, cap] = blind ? [0, '', null] : voiceOf(cur.clip, cur.cat), L = cap || cur.L;
   const age = T - cur.t, out = cur.out ? (T - cur.out) / CLOSE : 0;
   const talking = !out && (cur.v ? now >= cur.v.t0 && now < cur.v.t1 : age > STATIC && age < 90);
   // syllables: two beating sines, quantised to shut / half / wide
@@ -229,11 +241,12 @@ export function drawHype() {
   ctx.beginPath();
   ctx.rect(wx, top + 1, FW, Math.max(0, hh - 2));
   ctx.clip();
-  const S = SPR.hface;
+  const S = face === SLAB_FACE ? SPR.slab : SPR.hface;
   if (S && S.fw && age >= 3) {
-    const fx = (face * 3 + jaw) * S.fw;
+    const fx = ((face === SLAB_FACE ? 0 : face) * 3 + jaw) * S.fw;
     // the picture in 4 px bands that slip sideways on a bad signal (locking on, hanging up, the odd hiccup)
-    const hic = (T * 7 + face * 13) % 97 < 3, tear = age < STATIC ? 1 - age / STATIC : out ? Math.min(1, out * 1.6) : hic ? .35 : 0;
+    // (his sheet hashes as a seventh face, past the six Reticulans, so the % stays positive)
+    const hic = (T * 7 + (face === SLAB_FACE ? 6 : face) * 13) % 97 < 3, tear = age < STATIC ? 1 - age / STATIC : out ? Math.min(1, out * 1.6) : hic ? .35 : 0;
     ctx.imageSmoothingEnabled = false;
     for (let y = 0; y < FH; y += 4) {
       const o = tear && srnd() < .5 ? Math.round((srnd() - .5) * 18 * tear) : 0;
