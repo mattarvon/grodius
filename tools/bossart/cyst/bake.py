@@ -101,7 +101,7 @@ def paint(q):
     cv = over(Lc, cv)
     op = 1 + .28 * tell + .6 * gey + .1 * sw + .15 * wound
     lm = blob(wr, S, cx, cy, 38 * op, 26 * op, rough=.22, lobes=9, ang=-.3)
-    Ll = wet(grade(rgbT(ph3), (.20,.03,.03), (.60,.28,.26), (.86,.66,.58), keep=0), blur(lm, 5) * .9, lm, k=10, spec=.5, film=lm, sss=.3)
+    Ll = wet(grade(rgbT(ph3), (.10,.012,.014), (.36,.05,.05), (.62,.16,.14), keep=0), blur(lm, 5) * .9, lm, k=10, spec=.5, film=lm, sss=.3)
     cv = over(Ll, cv)
     hl = blob(wr, S, cx, cy + 1, 25 * op, 15 * op, rough=.4, lobes=8, ang=-.3)
     cv = over(dict(rgb=(hl * .02, hl * .003, hl * .005), a=hl), cv)

@@ -13,7 +13,7 @@ import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
 import { drawMoveProps } from './moveprops';
 import { tankFadeNew, tankFadeStep } from './tankfade';
-import { MOTIFW, PREVW, WOUND, acidFlakes, drainedBodies, fireAsh, iceDrips, iceWash, wBuilt, wlay, wPts, woundBuilt, woundLive, woundLook } from './wounds';
+import { MOTIFW, PREVW, WOUND, acidFlakes, drainedBodies, drainedHung, fireAsh, iceDrips, iceWash, wBuilt, wlay, wPts, woundBuilt, woundLive, woundLook } from './wounds';
 import { PERKS, pk } from '../perks';
 import { PLATE, plateBox, plateLines, plateRight } from './gateplate';
 
@@ -183,20 +183,16 @@ const L = {
       pts.push({ x: cx, y: lvl, w, body });
     }
   },
-  acidMid: (x, r) => {
+  acidMid: (x, r, pts) => {
     // corroded gantry, weeping teal
     const by = 22 + r() * 10;
     wrap(x, () => { x.fillStyle = '#1e130c'; x.fillRect(0, by, LW, 7); x.fillStyle = '#3e2412'; x.fillRect(0, by, LW, 1); });
     for (let i = 0; i < 18; i++) { const hx = r() * LW, hr = 1 + r() * 2.2; wrap(x, () => { x.fillStyle = '#040302'; x.beginPath(); x.arc(hx, by + 3.5, hr, 0, TAU); x.fill(); }); }
     for (let i = 0; i < 26; i++) { const dx = r() * LW | 0, l = 6 + r() * 46; wrap(x, () => { x.fillStyle = 'rgba(60,210,180,.22)'; x.fillRect(dx, by + 7, 1, l); x.fillStyle = 'rgba(150,255,230,.45)'; x.fillRect(dx, by + 7 + l, 1, 1); }); }
     for (let i = 0; i < 4; i++) { const sx = 20 + i * 80 + r() * 30; wrap(x, () => { x.strokeStyle = '#1a100a'; x.lineWidth = 4; x.beginPath(); x.moveTo(sx, by + 6); x.lineTo(sx + 24, by + 46); x.stroke(); }); }
-    // a crewman hung from the gantry, the bottom half already gone
-    const hx = 60 + r() * 200, s = 2;
-    x.strokeStyle = '#140c08'; x.lineWidth = 1; x.beginPath(); x.moveTo(hx, by + 7); x.lineTo(hx, by + 30); x.stroke();
-    figure(x, hx, by + 46, s, 'hang', 'rgba(80,44,32,.85)', 'rgba(80,44,32,.85)');
-    x.globalCompositeOperation = 'destination-out'; x.fillStyle = '#000'; x.fillRect(hx - 12, by + 52, 24, 40); x.globalCompositeOperation = 'source-over';
-    x.strokeStyle = 'rgba(225,228,200,.85)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(hx, by + 50); x.lineTo(hx, by + 58); x.moveTo(hx - 1, by + 52); x.lineTo(hx - 4, by + 64); x.moveTo(hx + 1, by + 52); x.lineTo(hx + 3, by + 66); x.stroke();
-    skull(x, hx, by + 28, 1.7, 'rgba(225,228,200,.9)');
+    // a crewman hung from the gantry, the bottom half already gone: on its own layer (tankBodies) so it fades with the vat
+    // dead while the Womb is up (D46, Matt's call b)
+    pts.push({ hang: [60 + r() * 200, by] });
   },
   fireFar: (x, r, pts) => {
     // furnace wall: brick, incinerator mouths with the dead still standing in the fire
@@ -281,6 +277,19 @@ const BODY = {};
 function tankBodies(key, pts) {
   return BODY[key] || (BODY[key] = cnv(LW, PH, (x) => {
     if (key === 'acidFarW') { drainedBodies(x, pts); return; }
+    if (key === 'acidMidW') { drainedHung(x, pts); return; }
+    if (key === 'acidMid') {
+      for (const p of pts) {
+        if (!p.hang) continue;
+        const [hx, by] = p.hang, s = 2;
+        x.strokeStyle = '#140c08'; x.lineWidth = 1; x.beginPath(); x.moveTo(hx, by + 7); x.lineTo(hx, by + 30); x.stroke();
+        figure(x, hx, by + 46, s, 'hang', 'rgba(80,44,32,.85)', 'rgba(80,44,32,.85)');
+        x.globalCompositeOperation = 'destination-out'; x.fillStyle = '#000'; x.fillRect(hx - 12, by + 52, 24, 40); x.globalCompositeOperation = 'source-over';
+        x.strokeStyle = 'rgba(225,228,200,.85)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(hx, by + 50); x.lineTo(hx, by + 58); x.moveTo(hx - 1, by + 52); x.lineTo(hx - 4, by + 64); x.moveTo(hx + 1, by + 52); x.lineTo(hx + 3, by + 66); x.stroke();
+        skull(x, hx, by + 28, 1.7, 'rgba(225,228,200,.9)');
+      }
+      return;
+    }
     for (const p of pts) {
       if (!p.body) continue;
       const [bx, by, s, pose] = p.body;
@@ -331,6 +340,8 @@ export function drawBiomeBG(sc) {
       for (let q = 0; q < 4; q++) { const ph = ((t * (.4 + q * .13) + q * 37 + p.x) % 120) / 120, bx = px - p.w / 2 + 8 + ((q * 17 + p.x) % (p.w - 16)); ctx.strokeStyle = 'rgba(170,255,235,.5)'; ctx.lineWidth = .7; ctx.beginPath(); ctx.arc(bx + Math.sin(ph * 9 + q) * 2, PH - ph * (PH - p.y - 4), 1 + ph * 1.5, 0, TAU); ctx.stroke(); }
     });
     drawLay(wd ? wlay('acidMidW') : lay('acidMid', L.acidMid), sc, .3);
+    { const key = wd ? 'acidMidW' : 'acidMid', ba = tankBodyAlpha(); // the gantry's hung crewman, faded like the vat dead
+      if (ba > 0) { ctx.globalAlpha = k * ba; drawLay(tankBodies(key, wd ? wPts(key) : LPT[key]), sc, .3); ctx.globalAlpha = k; } }
     // sulfur fumes (dust on a drained visit)
     lit(() => { for (let i = 0; i < 4; i++) { const fx = ((i * 157 - sc * .2 + t * .3) % (W + 160) + W + 160) % (W + 160) - 80; glow(fx, PH - 30 - i * 14 + Math.sin(t * .01 + i) * 8, 70, wd ? wd.fume : '170,170,60', wd ? wd.fumeA * k : .12 * k); } });
     if (wd) acidFlakes(sc, t);
@@ -563,7 +574,9 @@ export function drawBiomeDecor(sc) {
         const c = ceilAt(wx); if (c < -10) return;
         const len = 10 + hash(n) * 22, sw = Math.sin(t * .02 + n) * 1.5;
         ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, c); ctx.lineTo(x + sw, c + len); ctx.stroke();
-        ctx.drawImage(melt(), (x + sw - 12) | 0, (c + len) | 0);
+        // the hook's corpse fades with the vat dead while the Womb is up: it hung right onto the placenta's rod (D46, call b)
+        const ba = tankBodyAlpha(), ga = ctx.globalAlpha;
+        if (ba > 0) { ctx.globalAlpha = ga * ba; ctx.drawImage(melt(), (x + sw - 12) | 0, (c + len) | 0); ctx.globalAlpha = ga; }
         for (let q = 0; q < 3; q++) { const ph = ((t * 1.1 + q * 41 + n * 7) % 70) / 70, fy = c + len + 42 + ph * ph * 120; if (fy < floorAt(wx)) { ctx.fillStyle = q ? 'rgba(90,220,190,.9)' : '#9a5038'; ctx.fillRect(x + sw - 2 + q * 2, fy, 1, 2 + ph * 2); } }
       }
     });

@@ -41,7 +41,7 @@ function grossCyst(c, e) {
   drawParts(c, s, e);
   if (tel || sw) {
     c.globalCompositeOperation = 'lighter';
-    glowC(c, -2, tel ? -19 : 0, tel ? 8 + tel * 12 : 16 + sw * 18, '60,230,195', .16 + .42 * Math.max(tel, sw));
+    glowC(c, -2, tel ? -19 : 4, tel ? 8 + tel * 12 : 16 + sw * 18, '60,230,195', tel ? .16 + .42 * tel : .08 + .2 * sw); // the swell glow sits low and soft: it lit the cord stump into a face
     c.globalCompositeOperation = 'source-over';
   }
 }
