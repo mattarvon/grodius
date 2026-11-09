@@ -8,7 +8,7 @@
 import { $ } from '../state';
 import { PH, TAU, W, ctx, hash } from '../core';
 import { ceilAt, floorAt } from '../world';
-import { glow } from './util';
+import { HUD_TOP, glow } from './util';
 import { MOVE, MOVES, moveK, narrowNear, ventNear } from '../terrainb';
 
 /** the props' own sizes (draw only; the terrain's are terrainb.ts MOVE) */
@@ -23,6 +23,9 @@ const PROP_K = {
   grille: { deep: 14, bar: 7 },
   /** snot B0: a contraction band's half width and depth into the wall; the wave's speed toward the player */
   band: { half: 7, deep: 14, speed: .12 },
+  /** snot B0: how far a band's lip swells into the gap at its pulse's peak, so a still shows the squeeze (art-director,
+   *  LS2 wave 1 S2-3: at most 6 px into the gap). Drawn only: a lip reads the wall nearer than it is, never farther */
+  lip: 4,
 };
 const lit = () => { ctx.globalCompositeOperation = 'lighter'; };
 const flat = () => { ctx.globalCompositeOperation = 'source-over'; };
@@ -113,7 +116,8 @@ function chimney(m, sc, t, a) {
     const k = moveK(m, wx), x = wx - sc;
     if (k <= 0 || x < -40 || x > W + 40) continue;
     ctx.globalAlpha = a * k;
-    glow(x, ceilAt(wx), 16, '255,90,20', .45 * (.7 + .3 * Math.sin(t * .09 + wx)));
+    const c = ceilAt(wx), r = Math.min(16, Math.max(6, c - HUD_TOP + 4)); // the glow's top edge stays out of the HUD band (S2-1)
+    glow(x, c, r, '255,90,20', .45 * (.7 + .3 * Math.sin(t * .09 + wx)));
   }
   flat();
   for (let wx = x0; wx < x1; wx += V.every) {
@@ -121,7 +125,8 @@ function chimney(m, sc, t, a) {
     if (k <= 0 || x < -40 || x > W + 40) continue;
     ctx.globalAlpha = a * k;
     ctx.fillStyle = '#3a0c04'; ctx.fillRect(x - V.half, c - G.deep, V.half * 2, G.deep);
-    ctx.fillStyle = '#ff7a1a'; for (let q = -V.half + 3; q < V.half; q += G.bar) ctx.fillRect(x + q - 1, c - G.deep + 2, 2, G.deep - 2);
+    const by = Math.max(c - G.deep + 2, HUD_TOP); // the lit bars start below the HUD band; the dark mouth may sit under it
+    ctx.fillStyle = '#ff7a1a'; if (by < c) for (let q = -V.half + 3; q < V.half; q += G.bar) ctx.fillRect(x + q - 1, by, 2, c - by);
     ctx.fillStyle = '#160704'; ctx.fillRect(x - V.half - 3, c - 1, V.half * 2 + 6, 2);
   }
 }
@@ -132,11 +137,12 @@ function throat(m, sc, t, a) {
   for (let wx = narrowNear(Math.max(sc, m.a)) - e; wx < Math.min(sc + W + e, m.z); wx += e) {
     const k = moveK(m, wx);
     if (k <= 0) continue;
-    const x = wx - sc, c = ceilAt(wx), f = floorAt(wx), n = Math.round(wx / e), pulse = .35 + .65 * Math.max(0, Math.sin(t * B.speed + n * 1.3));
+    const x = wx - sc, c = ceilAt(wx), f = floorAt(wx), n = Math.round(wx / e), s = Math.max(0, Math.sin(t * B.speed + n * 1.3)), pulse = .35 + .65 * s;
+    const L = Math.round(PROP_K.lip * s * k); // the squeeze: the band swells L px (0-4) into the gap with its pulse
     ctx.globalAlpha = a * k;
-    ctx.fillStyle = '#2a1208'; ctx.fillRect(x - B.half, c - B.deep, B.half * 2, B.deep); ctx.fillRect(x - B.half, f, B.half * 2, B.deep);
+    ctx.fillStyle = '#2a1208'; ctx.fillRect(x - B.half, c - B.deep, B.half * 2, B.deep + L); ctx.fillRect(x - B.half, f - L, B.half * 2, B.deep + L);
     ctx.globalAlpha = a * k * pulse;
-    ctx.fillStyle = '#f4e49a'; ctx.fillRect(x - B.half, c - 3, B.half * 2, 3); ctx.fillRect(x - B.half, f, B.half * 2, 3);
+    ctx.fillStyle = '#f4e49a'; ctx.fillRect(x - B.half, c + L - 3, B.half * 2, 3); ctx.fillRect(x - B.half, f - L, B.half * 2, 3);
   }
 }
 /** snot B1: a pale rim along each polyp's crown, a shine and a dimple */

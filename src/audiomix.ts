@@ -85,7 +85,7 @@ export const BIOME_KILL: Record<string, { cat: string; chance: number; vol: numb
   // snot: unchanged from before (the Sinus: everything dies wet)
   snot: { cat: 'snot', chance: .6, vol: .55, sizeVol: .06, rate: 1, minSz: 0, at: .02 },
 };
-/** the kill layer is lowest priority: it skips above maxVoices (leaving the 14-voice cap 4 voices of headroom for the
+/** the kill layer is lowest priority: it skips above maxVoices (leaving the 15-voice cap 5 voices of headroom for the
  *  splats), is throttled to one per gapMs so long sizzles don't stack in a chain-kill, and its size bonus is capped */
 export const KILL_LAYER = { maxVoices: 10, gapMs: 90, volCap: .3 };
 

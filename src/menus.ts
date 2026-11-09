@@ -4,7 +4,7 @@ import { SET, UPG, exportSave, importSave, lv, save } from './save';
 import { auInit, sample, setMute, sfx } from './audio';
 import { I, PR } from './input';
 import { newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
-import { runInfo } from './runsave';
+import { clearRun, runInfo } from './runsave';
 import { setLayout } from './layout';
 import { RIG, RIG_BY, SOCKET_COST, rigInit, rigged, sockets } from './contraptions';
 import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, setLab } from './lab';
@@ -41,7 +41,7 @@ function importItem() {
   let code = null;
   try { code = window.prompt('PASTE A SAVE CODE. THIS REPLACES YOUR CURRENT SAVE.'); } catch (e) {}
   if (!code) return;
-  if (importSave(code)) location.reload();
+  if (importSave(code)) { clearRun(); location.reload(); } // the old profile's checkpoint must not be offered under the imported one (LS1 audit, security S3)
   else saveMsg = 'BAD CODE';
 }
 export function titleItems() {
@@ -438,7 +438,7 @@ export function doBack(a) {
   else if (a === 'selectExit') {
     $.menuSel = shopItems().length - 1;
     sfx.menu();
-    msg('BACK AGAIN TO DESCEND', '#ffd0a0');
+    msg('PRESS BACK AGAIN TO DESCEND', '#ffd0a0');
   } else if (a === 'unpause') pauseItems()[0].a(); // RESUME
   else if (a === 'pause') openPause();
   else if (a === 'surface') overItems().find(x => x.l === 'SURFACE').a();

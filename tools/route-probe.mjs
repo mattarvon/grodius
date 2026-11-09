@@ -2,7 +2,7 @@
 // fork and g1 at the second fork of every descent, auto-picks perks, leaves the shop, and checks every frame:
 //   forks open after stage 0/1 tallies and close; terrain gap on screen >= 100px; no visible terrain jumps (slams);
 //   hazards never spawn on the ship or during fork/tally/death; biome boss titles; music mix per stage.
-// Usage: node tools/route-probe.mjs <url> [g0=0] [g1=1] [descents=1] [opts: die-fork,escape0,escape1,wait,mortal] [--layout short]
+// Usage: node tools/route-probe.mjs <url> [g0=0] [g1=1] [descents=1] [opts: die-fork,escape0,escape1,wait,mortal] [--layout long4|short]
 //   shots=<dir>: a fly<stage> shot is taken once the scroll is past the stage row's x0 + 1000 (biome), + 200 (Drive) or
 //   1200 (Open Orbit) in src/layout.ts; on short that is 3300 / 6150 / 8500 (stage 2 was 6400 before LS1-J).
 import { chromium } from 'playwright';

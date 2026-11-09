@@ -34,6 +34,17 @@ import { bossAt, layout } from '../layout';
 
 /** generic POWER capsule (meter mode): classic Gradius orange */
 const GEN_CAP = { c: '255,110,30', h: '#ff7a1a' };
+/** text with a 1 px #000 outline. The HUD text over the playfield (the top rows, the midboss name) uses it instead of
+ *  a backing strip or plate: a backing drawn after drawWorld dimmed hazards and the ship under it (Pillar 2; the merge 2
+ *  art and accessibility check), an outline covers only its own glyphs (LS1 audit #20, LS1-F carry-forward 6) */
+function txtOutlined(s, x, y, c, a, sz) {
+  txt(s, x - 1, y, '#000', a, sz); // sets the font, align and baseline: every frame, so once per string (web-specialist)
+  ctx.fillText(s, (x + 1) | 0, y | 0);
+  ctx.fillText(s, x | 0, (y - 1) | 0);
+  ctx.fillText(s, x | 0, (y + 1) | 0);
+  ctx.fillStyle = c;
+  ctx.fillText(s, x | 0, y | 0);
+}
 // --- HUD ---
 export function drawHUD() {
   ctx.fillStyle = '#050608';
@@ -101,9 +112,9 @@ export function drawHUD() {
   txt('x' + mult().toFixed(1), W - 4, PH + 4, $.G.combo >= 10 ? '#ff6a6a' : '#5b6573', 'right');
   $.G.dScore = ($.G.dScore || 0) + ($.G.score - ($.G.dScore || 0)) * .2;
   if (Math.abs($.G.score - $.G.dScore) < 1) $.G.dScore = $.G.score;
-  txt('SCORE ' + pad($.G.dScore, 8), 6, 4, '#cfd9e3');
-  txt('HI ' + pad(Math.max($.hi, $.G.score), 8), W - 6, 4, '#6d7a88', 'right');
-  txt('STAGE ' + stageLabel() + ' ' + stageInfo().name + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#5b6573');
+  txtOutlined('SCORE ' + pad($.G.dScore, 8), 6, 4, '#cfd9e3');
+  txtOutlined('HI ' + pad(Math.max($.hi, $.G.score), 8), W - 6, 4, '#cfd9e3', 'right');
+  txtOutlined('STAGE ' + stageLabel() + ' ' + stageInfo().name + '   SEALS ' + ['', 'I', 'II', 'III'][$.G.seal || 0] + '·'.repeat(3 - ($.G.seal || 0)), 6, 13, '#cfd9e3'); // #5b6573 was ~1.5:1 on amber ceilings; #8fa3b8 still sank into the pale ice ceiling (a flown Cryovault frame)
   if (!$.G.boss || $.G.boss.dying) {
     const bw = 110,
       bx = W / 2 - bw / 2,
@@ -111,20 +122,21 @@ export function drawHUD() {
       pr = clamp($.G.scroll / BA, 0, 1);
     ctx.fillStyle = '#14191f';
     ctx.fillRect(bx, 8, bw, 2);
-    for (const m of layout().hudMarks) ctx.fillStyle = '#36414c', ctx.fillRect(bx + bw * m / BA, 6, 1, 6);
+    for (const m of layout().hudMarks) ctx.fillStyle = '#5b6573', ctx.fillRect(bx + bw * m / BA, 6, 1, 6); // ticks lifted from #36414c to read on ceilings (#20)
     ctx.fillStyle = C.bloodL;
     ctx.fillRect(bx, 8, bw * pr, 2);
     ctx.fillRect(bx + bw * pr - 1, 6, 2, 6);
-    txt('DEPTH', W / 2, 12, '#4b5663', 'center');
+    txtOutlined('DEPTH', W / 2, 12, '#cfd9e3', 'center');
   }
   if ($.G.combo >= 3) {
     const s = $.G.combo >= 20 ? 10 : 8;
     {
       const cw = 60 * $.G.comboT / 120;
       ctx.fillStyle = $.G.comboT < 40 ? '#ff3030' : '#7a2a2a';
-      ctx.fillRect(W / 2 - cw / 2, 38, cw, 1);
+      ctx.fillRect(W / 2 - cw / 2, s === 10 ? 43 : 41, cw, 1); // under the counter (moved 3 px down with it)
     }
-    txt($.G.combo + ' KILLS', W / 2, 28, `rgba(255,${120 - Math.min(100, $.G.combo * 2)},${110 - Math.min(100, $.G.combo * 2)},${.5 + .5 * $.G.comboT / 120})`, 'center', s);
+    // y 31, below the LV badge and XP bar (y 20-29, util.ts HUD_TOP): at 28 it overprinted them (ls1-audit, ui-programmer)
+    txt($.G.combo + ' KILLS', W / 2, 31, `rgba(255,${120 - Math.min(100, $.G.combo * 2)},${110 - Math.min(100, $.G.combo * 2)},${.5 + .5 * $.G.comboT / 120})`, 'center', s);
   }
   if ($.G.carn) {
     const a = Math.min(1, $.G.carn.t / 30),
@@ -167,7 +179,8 @@ export function drawHUD() {
       bx = W / 2 - bw / 2,
       y = PH - 56,
       k = Math.max(0, m.hp / m.max);
-    txt(nm, W / 2, y - 10, '#e0242c', 'center', 8);
+    txt(nm, W / 2 + 1, y - 9, '#000', 'center', 8);
+    txtOutlined(nm, W / 2, y - 10, '#e0242c', 'center', 8);
     ctx.fillStyle = '#14080a';
     ctx.fillRect(bx - 1, y - 1, bw + 2, 5);
     ctx.fillStyle = m.shielded ? '#5d6b7a' : C.bloodL;
@@ -181,7 +194,7 @@ export function drawHUD() {
     }
     if (m.bars) {
       const n = m.bars.filter(b => !b.dead).length;
-      if (n) txt(n + ' NAIL BARRIERS', W / 2, y + 5, '#8fa3b8', 'center', 7);
+      if (n) txtOutlined(n + ' NAIL BARRIERS', W / 2, y + 5, '#8fa3b8', 'center', 7);
     }
   }
   if ($.G.tally && $.state !== 'pause') drawTally();

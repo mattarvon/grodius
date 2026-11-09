@@ -2,6 +2,19 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-08 (resumed runs that cost what they should, a cleaner HUD)
+
+- Dying after a checkpoint restart now costs what any other death costs. You lose a life from the count you had at the checkpoint, not a life you picked up afterwards. If that checkpoint held no spare life, you respawn where you fell instead.
+- When you restart from a checkpoint, the BLACK BOX and boss-lifeline pods you lost drop again beside your ship.
+- In biome stages, the first checkpoint now sits just before the midboss releases its pod, so a resumed run gets that pod again.
+- Surfacing and RE-ENTERing a run no longer pays biomass twice for the same kills.
+- The HUD text is outlined instead of sitting on a dark strip, so nothing behind it gets hidden. SCORE, HI, STAGE and DEPTH all use the same pale colour so they stay readable over the ice ceiling.
+- The kill counter sits below the level badge and no longer overlaps the XP bar.
+- Warning sirens, stingers and boss deaths are never cut off when the screen is full of sound.
+- The furnace chimney and roof vents no longer glow through the HUD, and the sinus throat's lip now pulses.
+- An escaped midboss now says NO REWARD.
+- IMPORT SAVE clears any saved run.
+
 ## 2026-11-08 (a new eye on the title)
 
 - The title screen has a new eye: dead, rotted and clouded over, and it still follows you.
@@ -16,7 +29,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 - The menu, pick-up, power-up, stage-clear, alarm and chain sounds are lower and darker. The title menu no longer farts.
 - Retired: the surfer flyby, the HELL YEAH voice line, every fart sound, and the jelly sounds in the snot biome. The corpse's line and LESLEY stay.
 - The 20-kill chain now shows a banner in place of the surfer.
-- Known issue: the Cryovault's boss is still named THE BLOATED BITCH on its gate plate and health bar. It is renamed in the next update along with the remaining old kill banners.
+- Known issue: the Cryovault's boss is still named THE BLOATED BITCH on its gate plate and health bar. It is renamed in a later update along with the remaining old kill banners.
 - Known issue: when a fork opens while the screen is crowded, its THE SHIP SPLITS banner covers the top gate's plate for its first three seconds or so.
 - The short descent in the LAB row is unchanged.
 

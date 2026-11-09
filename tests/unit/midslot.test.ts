@@ -166,6 +166,31 @@ describe('midboss slots on long4 (item F)', () => {
       }
     });
 
+    it('throws at the slot for a DRIFT kind with no registerDrift spawner, so it never becomes a held midboss', () => {
+      // a roster DRIFT kind whose kind file never called registerDrift (biomes.ts midSlot); named, so midName passes
+      const mids = MIDS as any, names = MID_NAMES as any;
+      mids.ghost = { body: 'ghost', tag: 'DRIFT', min: 0 };
+      names.ghost = 'THE GHOST';
+      try {
+        const S = stage(['ghost', 'choir']);
+        expect(() => play(S, r().bossX - 10)).toThrow(/DRIFT midboss 'ghost' is not registered/);
+        expect(log.some(([k]) => k === 'mid:ghost')).toBe(false);
+      } finally { delete mids.ghost; delete names.ghost; }
+    });
+
+    it('throws at the slot for a DRIFT midboss on a layout with no beats.driftLead, instead of spawning it unbounded', () => {
+      // a stub layout: long4 with beats.driftLead removed, so beatPlan's driftExit is null for every slot
+      const base = L.LAYOUTS.long4!, LS = L.LAYOUTS as any;
+      LS.nolead = { ...base, id: 'nolead', beats: { ...base.beats, driftLead: undefined } };
+      L.setLayout('nolead');
+      try {
+        expect(L.beatPlan(r(), gate(), false).driftExit[0]).toBeNull();
+        const S = stage(['ufo', 'choir']);
+        expect(() => play(S, r().bossX - 10)).toThrow(/layout nolead: DRIFT midboss 'ufo' in a biome slot but no beats\.driftLead/);
+        expect(log.some(([k]) => k === 'mid:ufo')).toBe(false);
+      } finally { L.setLayout('long4'); delete LS.nolead; }
+    });
+
     it('spawns a DRIFT slot-A midboss with its stage-relative forced exit and the slot clock, held slot B on its clock', () => {
       const S = stage(['ufo', 'choir']), P = L.beatPlan(r(), gate(), false);
       let ufo: any = null, choir: any = null;

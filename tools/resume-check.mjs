@@ -9,7 +9,8 @@
 //     seal, and the ship's guns, options, shield and pods (H entry criterion 3);
 //   - sim RNG draws made by the RESUME press (must be 0: the rebuild draws only the stage build streams).
 // With --death it first flies checkpoint option b (LAB CHECKPOINT: ON DEATH): after the checkpoint the ship is killed,
-// and the run must restart at the checkpoint with one life spent; the reload then resumes with that life still gone.
+// and the run must restart at the checkpoint with one life spent and the D32 death cost paid (guns stripped, grafts -1,
+// cursor reset, checkpoint re-written); the reload then resumes the re-written checkpoint.
 //
 // Seeded Math.random, fake clock, manual rAF, no audio (as tools/harness.mjs); an invincible autopilot (as
 // tools/layout-parity.mjs) flies to the checkpoint. Storage is cleared on the first load only, so the reload keeps
@@ -126,7 +127,7 @@ const snap = (p, xs) => p.evaluate(async ([xs, PROG_G, LOAD_P]) => {
   }
   return {
     state: g.state, stage: G.stage, loop: G.loop, lives: G.lives, scroll: G.scroll, cpX: cp.cpX, cpN: cp.cpN, seed: G.seed,
-    route: G.route, bx: G.bx, visitNo: G.visitNo, remixV: G.remixV, deaths: G.st && G.st.deaths, mb: G.mb, mbUsed: G.mbUsed, mbLast: G.mbLast, picks: G.picks, spUsed: G.spUsed,
+    route: G.route, bx: G.bx, visitNo: G.visitNo, remixV: G.remixV, deaths: G.st && G.st.deaths, hits: G.st && G.st.hits, mb: G.mb, mbUsed: G.mbUsed, mbLast: G.mbLast, picks: G.picks, spUsed: G.spUsed,
     // progression and loadout (H entry criterion 3), compared with what the checkpoint stored
     prog: Object.fromEntries(PROG_G.map((k) => [k, G[k]])), load: g.P ? Object.fromEntries(LOAD_P.map((k) => [k, g.P[k]])) : null,
     stored: JSON.parse((await import('/src/runsave.ts')).lastRun() || 'null'),
@@ -139,7 +140,7 @@ const PROG_G = ['score', 'lvl', 'xp', 'xpTot', 'pk', 'gm', 'kk', 'gmk', 'cur', '
 const LOAD_P = ['speed', 'missile', 'double', 'laser', 'pyre', 'options', 'shield', 'wardLv', 'aegis', 'frag'];
 
 const fails = [], notes = [];
-const eq = (what, a, b) => { const A = JSON.stringify(a), Bv = JSON.stringify(b); if (A !== Bv) fails.push(`${what}: ${A.slice(0, 300)} -> ${Bv.slice(0, 300)}`); };
+const eq = (what, a, b) => { const A = String(JSON.stringify(a)), Bv = String(JSON.stringify(b)); if (A !== Bv) fails.push(`${what}: ${A.slice(0, 300)} -> ${Bv.slice(0, 300)}`); }; // String(): a missing value is a difference to report, not a crash
 const b = await chromium.launch();
 const report = { layout: LAYOUT, stage: STAGE, cp: CPN, seed: SEED, death: DEATH };
 try {
@@ -169,17 +170,39 @@ try {
   report.reachedAt = f; report.cpX = orig.cpX; report.scriptLeft = orig.script.length; report.xs = xs;
   console.log(`checkpoint: stage ${orig.stage} CP${orig.cpN} at cpX ${orig.cpX.toFixed(1)} after ${f} frames; ${orig.script.length} entries still to fire; route ${orig.route.join('/')}; midbosses ${JSON.stringify(orig.mb || null)}; bx ${orig.bx.map((x) => x == null ? '-' : x.toFixed(1)).join('/')}`);
   await p.evaluate('__tick(300)'); // fly on past the checkpoint: the reload lands mid-stage
-  let lives = orig.lives;
+  let lives = orig.lives, restored = null; // restored: the checkpoint option b re-writes on the death (D32)
   if (DEATH) {
     // option b: a death restarts at the checkpoint, one life spent
+    const hits0 = await p.evaluate(() => { const G = window.__G().G; return (G.st && G.st.hits) || 0; }); // the stage's hits before the death
     await p.evaluate(async () => { window.__god = false; const g = window.__G(); g.P.inv = 0; (await import('/src/flow.ts')).killPlayer(); });
-    await p.evaluate('__tick(160)'); // deadT 150, then respawn()
+    // deadT 150, then respawn(); hitstop freezes that clock (killPlayer's 10, and any kill in the window adds more), so a
+    // fixed wait can snapshot before the restart: tick until the ship is back
+    for (let i = 0; i < 400 && !(await p.evaluate(() => window.__G().P.alive)); i++) await p.evaluate('__tick(1)');
     const d = await snap(p, null);
     eq('death restart: stage', orig.stage, d.stage);
     if (!(d.scroll >= orig.cpX - 120 && d.scroll < orig.cpX - 100)) fails.push(`death restart: scroll ${d.scroll.toFixed(1)}, want ~${(orig.cpX - 120).toFixed(1)} (+ a few frames)`);
     eq('death restart: lives', orig.lives - 1, d.lives);
     eq('death restart: script still to fire', orig.script, d.script);
     if (!(d.deaths >= 1)) fails.push(`death restart: the stage's deaths ${d.deaths}, want >= 1`);
+    // D32 (flow.ts deathRestart): the restored ship pays the normal death cost. resetPlayer(true) strips the guns
+    // (speed halved rounded down, the rest gone), deathCost takes a level off every graft and resets the power cursor,
+    // hits keep the higher of pre-death and restored, and the checkpoint is re-written with that cost
+    const ck0 = orig.stored;
+    if (!ck0) fails.push('death restart: no stored checkpoint read back before the death');
+    else {
+      const wantLoad = { speed: Math.floor((ck0.p.speed || 0) / 2), missile: 0, double: 0, laser: 0, pyre: 0, options: 0, shield: 0, wardLv: 0, aegis: 0, frag: [] };
+      const wantGm = Object.fromEntries(Object.entries(ck0.g.gm || {}).map(([k, v]) => [k, v > 0 ? v - 1 : v]));
+      const wantProg = { ...Object.fromEntries(PROG_G.filter((k) => ck0.g[k] !== undefined).map((k) => [k, ck0.g[k]])), gm: wantGm, cur: -1 };
+      for (const k of LOAD_P) eq(`death restart: loadout ${k} (D32 strip)`, wantLoad[k], d.load && d.load[k]);
+      for (const k of Object.keys(wantProg)) eq(`death restart: progression ${k} (D32)`, wantProg[k], d.prog[k]);
+      if (!((d.hits || 0) >= hits0)) fails.push(`death restart: the stage's hits ${d.hits}, want >= ${hits0} (max of pre-death and restored)`);
+      if (!d.stored) fails.push('death restart: no checkpoint re-written after the death');
+      else {
+        for (const k of LOAD_P) if (d.stored.p[k] !== undefined) eq(`death restart: re-written loadout ${k}`, wantLoad[k], d.stored.p[k]);
+        for (const k of Object.keys(wantProg)) if (d.stored.g[k] !== undefined) eq(`death restart: re-written progression ${k}`, wantProg[k], d.stored.g[k]);
+      }
+    }
+    restored = d.stored;
     console.log(`option b: died at scroll ~${(orig.cpX + 300).toFixed(0)}, restarted at ${d.scroll.toFixed(1)} with ${d.lives} lives (was ${orig.lives}), deaths ${d.deaths}`);
     lives = orig.lives - 1;
     await p.evaluate(() => { window.__god = true; });
@@ -209,13 +232,14 @@ try {
   for (const k of ['stage', 'loop', 'seed', 'cpX', 'route', 'bx', 'visitNo', 'remixV', 'mb', 'mbUsed', 'mbLast', 'picks', 'spUsed']) eq(k, orig[k], res[k]);
   eq('lives', lives, res.lives);
   // loadout, level/xp and score: the resumed run carries exactly what the checkpoint stored (the original flew on for
-  // a few steps after writing it, so the stored blob, not the live original, is the reference)
-  const ck = orig.stored;
+  // a few steps after writing it, so the stored blob, not the live original, is the reference). After an option-b
+  // death the reference is the checkpoint deathRestart re-wrote with the D32 cost
+  const ck = DEATH ? restored : orig.stored;
   if (!ck) fails.push('no stored checkpoint read back before the reload');
   else {
     for (const k of PROG_G) if (ck.g[k] !== undefined) eq(`progression ${k}`, ck.g[k], res.prog[k]);
     for (const k of LOAD_P) if (ck.p[k] !== undefined) eq(`loadout ${k}`, ck.p[k], res.load && res.load[k]);
-    eq('lives stored', ck.g.lives, DEATH ? lives + 1 : lives);
+    eq('lives stored', ck.g.lives, lives); // the re-written checkpoint holds the life the death spent
   }
   report.checked = { lives: res.lives, prog: res.prog, load: res.load, mb: res.mb, mbUsed: res.mbUsed, mbLast: res.mbLast };
   eq('scroll at resume', Math.max(0, orig.cpX - 120), res.scroll);

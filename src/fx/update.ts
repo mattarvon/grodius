@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
 import { pk } from '../perks';
+import { bankBio } from '../economy';
 import { FIRE, H, W, dist2, swapRm } from '../core';
 import { srnd, srr, sri, spick } from '../srnd';
 import { SET } from '../save';
@@ -200,8 +201,7 @@ export function updateFX() {
       }
       if (d < 8) {
         const gv = o.v * (1 + .3 * pk('greed'));
-        $.G.bio += gv;
-        $.meta.bio += gv;
+        bankBio(gv, $.G, $.meta);
         sfx.squish();
         swapRm(orbs, i);
         continue;

@@ -4,7 +4,7 @@
 // Each slot is built from where choose() puts it in practice: the row's gateLate in src/layout.ts (fork scroll + W + 10;
 // 2660 / 5640 on short, which the parity bots take at 2658 / 5637). Spans and breaths come from layout.ts beatPlan.
 // Set pieces count as one call; logs, the biome midboss (mid p= is where it lands) and the boss don't count.
-// Usage: node tools/density-probe.mjs <url> [N=400] [save.json] [compare.json] [--layout short]
+// Usage: node tools/density-probe.mjs <url> [N=400] [save.json] [compare.json] [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';

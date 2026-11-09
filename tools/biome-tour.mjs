@@ -1,6 +1,6 @@
 // Biome tour: invincible pod-grabbing bot plays the real flow, takes gate <pick> at each fork,
 // auto-picks perks, and screenshots the fork, the first perk screen, and each biome.
-// Usage: node tools/biome-tour.mjs <url> <outdir> [gateIndex0] [gateIndex1] [--layout short]
+// Usage: node tools/biome-tour.mjs <url> <outdir> [gateIndex0] [gateIndex1] [--layout long4|short]
 //   gateIndex1 is taken at every fork after the first. A biome is shot once the scroll is 800 px into its stage row
 //   (src/layout.ts; on short that is 3100 / 5950, 6000 before LS1-J); the tour ends at the last stage.
 import { chromium } from 'playwright';

@@ -1,5 +1,5 @@
 // Pick-screen input test: held fire / mashed fire must not pick; release+hold, Enter, arrows, mouse hover + click work.
-// Usage: node tools/perk-input.mjs <url> [--layout short]
+// Usage: node tools/perk-input.mjs <url> [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const url = process.argv[2];

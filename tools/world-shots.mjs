@@ -1,7 +1,7 @@
 // World shots: Open Orbit sky (Neptune + Triton), a derelict corridor stretch and the ice biome, as full frames.
 // World x is stage-relative to src/layout.ts rows: Open Orbit, biome slot 0 (ice), and biome slot 1 bare (the corridor)
 // plus the Drive approach. File names carry the world x.
-// Usage: node tools/world-shots.mjs <url> <outDir> [--layout short]   (needs the VITE dev server: imports live modules)
+// Usage: node tools/world-shots.mjs <url> <outDir> [--layout long4|short]   (needs the VITE dev server: imports live modules)
 import { chromium } from 'playwright';
 import { useLayout, ranOn, LY } from './layout-arg.mjs';
 import fs from 'node:fs';

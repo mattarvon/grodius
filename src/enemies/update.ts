@@ -12,7 +12,7 @@ import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
-import { econId, firstKillPay, killBio, killXP } from '../economy';
+import { bankBio, econId, firstKillPay, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
@@ -480,14 +480,17 @@ export function bandFit(e) {
   bodyBand(e.k, ce, fl, BAND);
   e.blo = e.blo == null || BAND[0] > e.blo ? BAND[0] : lerp(e.blo, BAND[0], BAND_EASE);
   e.bhi = e.bhi == null || BAND[1] < e.bhi ? BAND[1] : lerp(e.bhi, BAND[1], BAND_EASE);
+  // the eased side must never pass the other side's hard limit: on a slope one side tightens while the other relaxes,
+  // and a lagging blo above the new bhi would push the body into the floor (ls1-audit, ai-programmer second pass)
+  e.blo = Math.min(e.blo, BAND[1]); e.bhi = Math.max(e.bhi, BAND[0]);
   e.y = fitY(e.y, e.blo, e.bhi);
 }
-// biome midbosses: settle at e.tx, and once e.t passes e.leave slide off right (escape costs nothing). The HUD fuse shows the time left.
+// biome midbosses: settle at e.tx, and once e.t passes e.leave slide off right (an escape pays no kill reward: no pod, no biomass, no first-kill pay). The HUD fuse shows the time left.
 export function midLeave(e, k = .03) {
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);
   if (e.t < e.leave) { e.x = lerp(e.x, e.tx, k); return false; }
-  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); }
+  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NO REWARD', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); }
   e.x += 1.6;
   if (e.x > W + 60) e.dead = true;
   return true;
@@ -770,8 +773,7 @@ export function miniReward(e) {
     ty: pool[k],
     choice: gid
   });
-  $.G.bio += 30 * deepPay();
-  $.meta.bio += 30 * deepPay();
+  bankBio(30 * deepPay(), $.G, $.meta);
 }
 /** spec §6.4: the first kill of each midboss kind ever pays the entry's firstKill biomass once, recorded in meta.mbK
  *  (saved with the meta at the next save()). short pays 0 and writes nothing, so today's game is unchanged. No R() */
@@ -781,6 +783,7 @@ function firstKill(e) {
   if (!pay) return;
   (m.mbK ||= {})[e.k] = 1;
   $.G.bio += pay;
+  $.G.bioFk = ($.G.bioFk || 0) + pay; // outside bankBio's mark: a replay cannot re-earn it
   m.bio += pay;
   pop(e.x, e.y - 48, `FIRST KILL +${pay}`, '#9effa0', 9, 70); // y-48: clear of the graft pop and the death burst
 }

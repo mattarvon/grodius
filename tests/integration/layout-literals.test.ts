@@ -18,17 +18,37 @@ for (const L of Object.values(LAYOUTS)) {
   for (const r of L.stages) [r.x0, r.x1, r.end, r.bossX, r.warnX, ...(r.drift || []).flatMap((d) => [d.at, d.gapEnd])].forEach((x) => x && ANCHORS.add(x));
   [...L.tEnd, ...Object.values(L.bands).flat(), ...Object.values(L.hell).flat(), ...L.hudMarks, ...L.terrain.blocks, ...L.terrain.fT, ...L.terrain.cT, ...L.terrain.kT, ...L.terrain.zT].forEach((x) => ANCHORS.add(x));
 }
-// the files that held world-x anchors before the table (build plan row A's list, plus the HUD depth bar); any anchor
-// number in their code is a leftover. Other files are only checked for the world-x shapes below: their numbers are
-// scores and filter Hz (stages.ts pays 5000 for a B, music.ts filters at 2400 Hz), not x values
+// every file is scanned for anchor numbers: a world x can turn up in any of them (stagebuild, checkpoint, jump and the
+// midboss registry came after row A's original 8-file list). NOT_X names, per file, the anchor-valued numbers that are
+// something else; a new collision fails here and goes in this table with what the number is, never as a file skip
+const NOT_X: Record<string, number[]> = {
+  'audio.ts': [800, 2300, 2400, 4200, 5200], // oscillator and filter Hz
+  'audiomix.ts': [800], // the presence peak's Hz (EQ.presF)
+  'music.ts': [2400], // filter Hz
+  'economy.ts': [2100, 2400], // BIO_LONG bio bands
+  'enemies/spawn.ts': [800], // kill score
+  'flow.ts': [5000], // the lives bonus score
+  'fx/spawn.ts': [4800], // the drop-array cap
+  'midpick.ts': [1080], // a midboss leave clock in frames
+  'mutations.ts': [800], // mutation costs
+  'save.ts': [800], // pre-migration costs
+  'stages.ts': [2000, 5000, 10000], // grade and perfect-stage scores
+};
+// the world-x shape checks below that look at scroll locals stay on the files that held anchors before the table
+// (build plan row A's list, plus the HUD depth bar): `s` and `sc` are other things elsewhere
 const ANCHOR_FILES = ['core.ts', 'world.ts', 'biomes.ts', 'enemies/scripts.ts', 'enemies/mid/ufo.ts', 'render/terrain.ts', 'render/hud.ts', 'fx/update.ts'];
 
 const hits = (re: RegExp, only?: string[]) => SRC.filter((x) => !only || only.includes(x.f)).flatMap(({ f, s }) => [...s.matchAll(re)].map((m) => `${f}: ${m[0].trim()}`));
 
 describe('no literal world x outside src/layout.ts', () => {
-  it('has no layout anchor number in the files that used to hold them', () => {
-    const found = hits(/(?<![\w.#])\d{3,5}(?![\w.])/g, ANCHOR_FILES).filter((h) => ANCHORS.has(+h.split(': ')[1]));
+  it('has no layout anchor number in any source file, past the named non-x values', () => {
+    const found = hits(/(?<![\w.#])\d{3,5}(?![\w.])/g).filter((h) => { const [f, n] = h.split(': '); return ANCHORS.has(+n) && !NOT_X[f]?.includes(+n); });
     expect(found).toEqual([]);
+  });
+
+  it('names only non-x values that are still in their file, so the table cannot hide a stale exemption', () => {
+    const stale = Object.entries(NOT_X).flatMap(([f, ns]) => ns.filter((n) => !hits(new RegExp(`(?<![\\w.#])${n}(?![\\w.])`, 'g'), [f]).length).map((n) => `${f}: ${n}`));
+    expect(stale).toEqual([]);
   });
 
   it('declares no world-x constant (LEVEL, BOSS_AT, SEG, T_END, UFO_AT, UFO_GAP_END) as a literal', () => {

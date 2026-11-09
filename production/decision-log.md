@@ -513,3 +513,51 @@ S2s fixed before the push:
 - **D16 Audio direction.** Drone under music, UI synth pass, sliders vs VOICE toggle, music size (38 MB).
 - **D17 Art direction.** Bitmap strips vs vector enemies; public `assets-raw` provenance manifest.
 - **D18 Canon.** The descent/time-loop explanation, the missing 7 years, the Infirmary in the fiction.
+
+### D44 LS1 fix merge 2 merged — 2026-11-08 (parent; Matt authorized parent merges)
+
+**What merged** (ls1-audit, `547926e..b153400`):
+- the resume contract: biome CP1 is written just before midboss A's release pod; the run-save decoder bounds every
+  field; IMPORT SAVE clears the run save;
+- D32: an option-b death pays the normal death cost. Lives come off the checkpoint's count; BLACK BOX and
+  boss-lifeline pods drop again by the restored ship; when the checkpoint has no life to take, the player respawns
+  in place (option a) so a re-picked spare can't loop the run (systems-designer delta review);
+- no biomass re-bank on a replay after RE-ENTER (bankBio high-water mark per run seed);
+- voice priority (VOICE_CAP, LIVE list; priority cues evict the oldest ordinary voice); the kill layer proved against
+  the cap;
+- the WARNING flag on banner(); warm-up hardening;
+- HUD text outlined instead of a strip and plate; HI/STAGE/DEPTH at #cfd9e3; KILLS counter below the LV row;
+  vent/chimney glow out of the HUD band; the snot throat lip pulses;
+- picker m0 per draw (spec §6.3); bandFit clamp; copy NO REWARD and PRESS BACK AGAIN TO DESCEND;
+- tools: probes default to long4, resume-check, bio-replay-check, biome-kill-check.
+
+**Gates.** On a675dd5/b153400: typecheck 0; vitest 1113 + 1 expected fail; short and long4 harness PASS (canvas
+hashes differ, advisory: the HUD colour); 12/12 scenarios; resume-check PASS; option-b page rig PASS. Parity, back,
+bio-replay and biome-kill checks last passed on b127be3 (only flow.ts and tests changed since). The parent built the
+merged tree before the push: `vite build` exit 0, `dist` 44,817,798 bytes.
+
+**Studio review.** All APPROVE or APPROVE WITH NOTES, no blocks: specialists, all 8 leads, delta reviews
+(art-director on the HUD colour, systems-designer on the lives clamp: its block fixed in a675dd5), and all 3
+directors.
+
+**Rollback point:** tag `pre-ls1-fm2` on `547926e`.
+
+**Owned items:**
+1. technical-director: rerun parity once on main; before any harness re-baseline, confirm only the HUD rows' pixels
+   changed. The bandFit clamp, picker m0 and CP1 anchor are a known harness coverage gap.
+2. creative-director S3s: rename the combo counter CHAIN (KILLS means two things); the tone debt on main (acid vat
+   skeletons, yellow snot orbs, orange-white jets) goes to the tone lane.
+3. Matt: on the Fold, the HUD colour and outline, phone profiling, RE-ENTER of a pre-merge save, an option-b death;
+   by ear, the Maw and Drive deaths, siren + stinger, WARNING.
+4. The held-rename commit (D42) owns the midboss-title parity re-baseline.
+
+### D45 Every boss gets a realistic, gross repaint; Maw and Saucer picked — 2026-11-08 (Matt)
+
+Matt, playing through: the Maw and the Squidfucked Saucer "look vector and generic"; then "have the art dept look at
+all of the bosses. need to upgrade all of them. more realistic, more gross shit".
+- From a 7-and-7 concept picker, Matt picked **Maw c1 Lamprey Disc** (a lamprey oral disc of hooked teeth, eyes in
+  the gill pores) with a CC0 vintage dental-plate teeth source (rawpixel 6266016) for its tooth rings, and
+  **Saucer c3 Natural-History Plate** (an ivory scratchboard specimen engraving on black, blood the only colour;
+  George Shaw's cuttlefish, CC0).
+- The LS2-bossart lane (art-director leading) audits all ten bosses and midbosses, offers 6 directions per remaining
+  boss (one in the engraving style), then builds Matt's picks as baked sprites, render-only, gameplay unchanged.

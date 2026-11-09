@@ -11,7 +11,7 @@ import { BIOMES, openFork, holdForFork, biomeExit } from './biomes';
 import { forkAfter, lastStage, row } from './layout';
 import { gradeKey } from './gradekey';
 import { buildStage } from './stagebuild';
-import { econId, gradeOf, sealAt } from './economy';
+import { bankBio, econId, gradeOf, sealAt } from './economy';
 
 /** stage names by stage kind; a biome stage is named by the biome you fly into once its gate is taken */
 export const STAGE_NAMES = {
@@ -77,8 +77,7 @@ export function clearStage(escaped = false) {
   const bonus = R.score * (G.loop + 1) + (perfect ? 10000 * (G.loop + 1) : 0);
   const bio = escaped ? 0 : R.bio * deepPay(); // IT GOT AWAY / NO REWARD: no biomass (D5b)
   G.score += bonus;
-  G.bio += bio;
-  $.meta.bio += bio;
+  bankBio(bio, G, $.meta);
   const id = stageLabel(), key = gradeKey(), best = ($.meta.best ||= {}); // id: banner/tally label; key: by stage kind
   const newBest = !best[key] || ORDER.indexOf(g) < ORDER.indexOf(best[key]);
   const prev = best[key];

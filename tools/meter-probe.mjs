@@ -1,7 +1,7 @@
 // Meter probe: plays the real flow (invincible pod-grabbing bot) in PODS mode and METER mode and compares the loadout
 // over time, so the classic meter's economy can be checked against typed pods. In METER mode the bot presses POWER
 // whenever the cursor sits on a slot it wants (greedy: THRUST to 2, then MISSILE, SPLIT, WRAITH, WARD; never ARC/PYRE).
-// Needs the VITE DEV server. Usage: node tools/meter-probe.mjs http://localhost:4202/ [seconds=200] [shotDir] [--layout short]
+// Needs the VITE DEV server. Usage: node tools/meter-probe.mjs http://localhost:4202/ [seconds=200] [shotDir] [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, SECS = '200', shotDir] = process.argv.slice(2);

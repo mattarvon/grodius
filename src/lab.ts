@@ -1,6 +1,6 @@
 // The LAB: a persisted dev row on the title screen (build plan LS1 sprint 2 item D2). The Capacitor APK loads its
-// bundled page with no query string, so this is the only way to reach the long layout (and later the WIP midbosses
-// and the checkpoint-on-death option) on the phone. It lives under its own key, outside the meta save (grodius.v1)
+// bundled page with no query string, so this is the only way to reach the short layout (long4 is the default since
+// D24), the WIP midbosses and the checkpoint-on-death option on the phone. It lives under its own key, outside the meta save (grodius.v1)
 // and the run save (grodius.run), so a bad LAB blob can never cost either.
 //
 // Precedence for each setting: URL flag > LAB > default. The choice is a pure function (layoutChoice) so tests can
@@ -41,7 +41,7 @@ export interface LayoutChoice {
   /** the layout entry id the next run flies (DEFAULT_LAYOUT when nothing chose: a run start keeps the active entry) */
   id: string;
   src: 'url' | 'lab' | 'default';
-  /** a ?layout= value that names no registered entry: ignored (warned at boot), the LAB or short applies */
+  /** a ?layout= value that names no registered entry: ignored (warned at boot), the LAB or DEFAULT_LAYOUT applies */
   bad?: string;
 }
 /** THE layout choice (the boot flag parse and every run start go through it): a registered ?layout= flag beats the
@@ -79,7 +79,7 @@ let cur: Lab | null = readLab();
 
 /** the LAB as the title should show it (defaults filled in) */
 export const lab = (): Lab => cur || LAB_DEFAULT;
-/** the layout a run started now would fly (URL > LAB > short), with its source for the title. With neither a flag
+/** the layout a run started now would fly (URL > LAB > DEFAULT_LAYOUT, long4), with its source for the title. With neither a flag
  *  nor a LAB key the run keeps the active entry (DEFAULT_LAYOUT at boot; a probe's --layout sets it in-page before Enter) */
 export function activeLayout(): LayoutChoice {
   const c = layoutChoice(search(), cur);

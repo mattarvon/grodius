@@ -289,6 +289,15 @@ describe('pair rotation and catch-up weighting (#15, #16)', () => {
     }
   });
 
+  it('floors each draw at the least-met member of the list it draws from: slot B partners met 5 and 7 draw 75/25', () => {
+    const defs: Record<string, MidDef> = { A: { body: 'A', tag: 'LINE', min: 0 }, p5: { body: 'p5', tag: 'SPACE', min: 0 }, p7: { body: 'p7', tag: 'WINDOW', min: 0 } };
+    const rng = rngOf(11), N = 20000;
+    let p5 = 0;
+    for (let i = 0; i < N; i++) if (pickMids({ pool: ['A', 'p5', 'p7'], L: 0, used: [], met: { A: 0, p5: 5, p7: 7 }, prefer: 'A', rng, defs }).picks[1] === 'p5') p5++;
+    expect(p5 / N).toBeGreaterThan(0.73); // expected 0.75: floor 5, so p5 weighs 1 and p7 (gap 2) weighs 1/3
+    expect(p5 / N).toBeLessThan(0.77);
+  });
+
   it('treats NaN, negative and infinite counts as never met', () => {
     for (let s = 0; s < 300; s++) {
       const bad = pickMids({ pool: P4_POOL, L: 0, used: [], met: { v1: NaN, v2: -3, v3: Infinity }, rng: rngOf(s), defs: P4 });

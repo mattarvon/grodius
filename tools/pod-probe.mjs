@@ -1,6 +1,6 @@
 // Seeded pacing probe: progression.mjs bot + pick/fork/shop handling, seeded RNG,
 // per-frame pod-pickup timestamps, per-stage pods/min, bio per descent.
-// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout short] [--mortal] [--pilot]
+// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout long4|short] [--mortal] [--pilot]
 // --pilot: steer with the dodging autopilot (tools/pilot.mjs) instead of the plain target-seeker; use it with --mortal
 // (the plain bot game-overs in long4's first biome). Its frames with no safe move are reported as `pilot.trapped`.
 // --mortal: the bot is not kept invincible, so it takes real hits, loses ships and can game over (the run then ends
@@ -62,7 +62,7 @@ for (let it = 0; it < MIN * 60 * 2; it++) {
   if (s.st === 'shop') { await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(1)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); // the loop shop's back takes two presses (ls1-audit) await p.evaluate('__tick(40)'); continue; }
   if (s.st !== 'play' || s.loop >= +END) { endState = JSON.stringify(s); break; }
 }
-const fin = await p.evaluate(() => { const g = __G(), G = g.G; return { fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), metaBio: Math.round((g.G && window.__G && 0) || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf, fk: Object.keys(window.__S.meta.mbK || {}) }; });
+const fin = await p.evaluate(() => { const g = __G(), G = g.G; return { fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf, fk: Object.keys(window.__S.meta.mbK || {}) }; });
 seg.push({ k: 'END', f0: fin.fr });
 const podsOnly = fin.pods.filter((x) => x.kind === 'pod' || x.kind === 'choice');
 const first = podsOnly[0];

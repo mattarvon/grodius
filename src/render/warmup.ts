@@ -37,10 +37,16 @@ const ROUTE_KEYS = routeKeys(UNITS);
 const boot = [...BOOT_ART];
 
 /** the slice log the probes read (window.__warm): bounded, and slices are rare, so it costs nothing in play */
-export const warmLog: { k: string; op: string; ms: number; t: number; stage: number; scroll: number; state: string; banner: string; warn: boolean }[] = [];
+export const WARM_LOG_CAP = 400;
+type WarmEntry = { k: string; op: string; ms: number; t: number; stage: number; scroll: number; state: string; banner: string; warn: boolean; n?: number };
+/** past WARM_LOG_CAP entries one 'cut' entry closes the log and counts in n what it no longer records, so a long
+ *  session or Descent 2+ can't read as a quiet one. A probe that clears it (length = 0) starts it again */
+export const warmLog: WarmEntry[] = [];
 function note(k: string, op: string, ms: number) {
   const G = $.G;
-  if (warmLog.length < 400) warmLog.push({ k, op, ms, t: G ? G.t : -1, stage: G ? G.stage : -1, scroll: G ? G.scroll : -1, state: $.state, banner: (G && G.banner && G.banner.text) || '', warn: !!G && G.t < (G.warnEnd || 0) });
+  if (warmLog.length > WARM_LOG_CAP) { warmLog[WARM_LOG_CAP].n!++; return; }
+  const cut = warmLog.length === WARM_LOG_CAP;
+  warmLog.push({ k: cut ? '(log full)' : k, op: cut ? 'cut' : op, ms: cut ? 0 : ms, t: G ? G.t : -1, stage: G ? G.stage : -1, scroll: G ? G.scroll : -1, state: $.state, banner: (G && G.banner && G.banner.text) || '', warn: !!G && G.t < (G.warnEnd || 0), ...(cut ? { n: 1 } : {}) });
 }
 const timed = (k: string, op: string, f: () => boolean | void) => { const t0 = performance.now(), r = f(); note(k, op, performance.now() - t0); return r; };
 

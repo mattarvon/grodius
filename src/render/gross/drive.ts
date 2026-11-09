@@ -732,9 +732,9 @@ function rupture() {
   S.after = { t: 0, x, y, drips: [] };
   for (let i = 0; i < Math.round(26 * GK); i++) S.after.drips.push({ x: rf(8, W - 8), w: rf(3, 9), sp: rf(.25, .9), d: rf(0, 30), c: rnd() < .65 ? 0 : 1 });
   S.cd = {};
-  if (!snd('driveburst', { vol: 1, spread: .04, wet: .35 }, 0)) snd('splat_l', { vol: 1, rate: .6, wet: .4 }, 0);
-  snd('explode_l', { vol: .7, rate: .7, wet: .4 }, 0);
-  snd('drivegut', { vol: 1, rate: .32, spread: .02, wet: .6, at: .5 }, 0); // and the gut settling, slowed to a groan
+  if (!snd('driveburst', { vol: 1, spread: .04, wet: .35, prio: true }, 0)) snd('splat_l', { vol: 1, rate: .6, wet: .4, prio: true }, 0);
+  snd('explode_l', { vol: .7, rate: .7, wet: .4, prio: true }, 0);
+  snd('drivegut', { vol: 1, rate: .32, spread: .02, wet: .6, at: .5, prio: true }, 0); // and the gut settling, slowed to a groan
 }
 
 // ---------------- drawing ----------------

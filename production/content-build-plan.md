@@ -153,7 +153,7 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   8. **Writer (D8):** optional crossover log lines; some midboss names read oddly outside their home biome (to settle when Matt names the wave-1 roster).
   9. **Design record (row M, needs Matt's wording):** `design/game-brief.md`'s protected core still says "one midboss per biome stage", and Pillar 4 still says "35 s stages". Amend both to match D19, or later reviews will flag F as a regression. creative-director: raise the WARNING-banner contrast (item 6) in the next polish pass, before LS2, and decide D27 before G closes. **Done for the design record 2026-11-05:** `design/game-brief.md` refreshed (Pillar 4 "Classic length, hard, never the same twice" in Matt-approved wording; the protected core lists two midbosses and the resume point). The WARNING-banner contrast (item 6) is still open; D27 closed 2026-11-03.
 - **Carry-forward from the LS1-H studio review (2026-11-03):**
-  1. **Matt (Q2, decision log):** the ABANDON SHIP wording now that it keeps the run. The quit-to-resume undo under options a and b is **accepted as known (D28, Matt, 2026-11-03)**.
+  1. **Matt (Q2, decision log):** ~~the ABANDON SHIP wording now that it keeps the run~~ (D34: renamed SURFACE; only "does it fit in play" is left). The quit-to-resume undo under options a and b is **accepted as known (D28, Matt, 2026-11-03)**.
   2. **Matt:** the Fold APK app-kill check (row H acceptance, exit criterion "Resume"). **Still open after the merge**; the Playwright resume-check (7/7) stands in until then.
   3. **gameplay-programmer:** `meetMid` counts `meta.mb` again when a midboss is replayed after a resume. Spec §4 accepts this; fix it before anything grades or unlocks from `meta.mb`.
   4. **web-specialist:** `gunfx.ts` `critGoreT`/`stopT` aren't reset when `G.t` resets (pre-existing with `newGame`). Fix with one reset hook called from `newGame` and `resumeRun`.
@@ -162,8 +162,8 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
      - if `lastCp()` decodes another layout's save and then fails the loop/stage check, the active layout is left switched.
   6. **qa-tester:** unit tests for `clearRun` on gameOver/newGame/endLoop, for a working `resumeRun`/`deathRestart`, and for option a after a death.
   7. **sound-designer:** `deathRestart` has no arrival cue (`sfx.die`, then a hard cut).
-  8. **Localization:** build the RESUME row's value (stage + layout) as one pattern.
-  9. **Writer (D8):** RESUME is a plain-UI word among diegetic rows; take a diegetic option (e.g. REVIVE) to the copy pass.
+  8. **Localization:** build the RE-ENTER (D34: was RESUME) row's value (stage + layout) as one pattern.
+  9. **Writer (D8):** ~~RESUME is a plain-UI word among diegetic rows; take a diegetic option (e.g. REVIVE) to the copy pass.~~ (D34: superseded; the row is RE-ENTER.)
 - **Carry-forward from the LS1-G studio review (2026-11-03):**
   1. **systems-designer + qa-lead:** the hits/min exit criterion (±30% of spec §8 per biome slot, row G evidence and LS1 exit "Difficulty") is **not demonstrated**: 2 of 8 cells in band, 0-3 hits per cell, 2 seeds. The cause is the instrument: G's mortal bot game-overs in long4's first biome on all 5 seeds (the same gap as sprint 2 carry-forward 10). Both biome stages also run under the 90-120 s wall band, which lowers hits/min. **Carried forward, not waived** (decision log). Gates LS2 banding and the LS1 exit; needs a mortal bot that survives the biomes, or ≥ 10 seeds per kind. Row G closes with this attached.
      - **LS1-bot (2026-11-05):** the mortal pilot (`pod-probe --pilot`, `production/qa/evidence/ls1-bot.md`) clears long4's Descent 1 on 5 of 5 seeds, and 3 of 5 survive two descents (post-fix runs). It does not close this item. §8 targets are would-be hits for the *invincible* bot, so what is left is a ≥ 10-seed `playtest.mjs` sweep (or a waiver).
@@ -173,7 +173,7 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
   4. **economy-designer:** the LV median sits at the top edge of `lvD1 [12,14]`. Trial `killXP` .80 in LS2.
   5. **qa-tester:** mutate-check the economy and stages tests. Only the D29 and first-kill tests were watched failing.
   6. **Note (D28 class):** a resume to a checkpoint before a first kill loses that +100 from the run's `G.bio`; the profile's `meta.bio` keeps it, and the replayed kill pays nothing.
-  7. **ui-programmer (S4, pre-existing, not G's):** on the pause screen the MUTATIONS panel overprints ABANDON SHIP and MUSIC (art-director, seen in `ls1-g-long4-pause-gluttony.png`).
+  7. **ui-programmer (S4, pre-existing, not G's):** on the pause screen the MUTATIONS panel overprints ABANDON SHIP (D34: now SURFACE) and MUSIC (art-director, seen in `ls1-g-long4-pause-gluttony.png`).
   8. **audio (optional):** the FIRST KILL payout has no sound of its own; the midboss roar covers it.
   9. **systems-designer + qa-lead, the other LS1 exit gaps G measured (producer):**
      - **Grades:** only Open Orbit is shown with a mortal bot (A vs A). Biome and Drive grades need the same mortal-bot fix as item 1.
@@ -195,6 +195,93 @@ LS4 "New biomes" (Keel, then Loom): gated on round 2 (meridian, idiom, sound); v
    - a behavioural test for the Maw single rupture (`__mawFx`);
    - seal meta writes on jump runs;
    - add the LS2 midboss kinds to `UNITS`.
+
+**Carry-forward from the LS1 studio audit (ls1-audit, 2026-11-07; report `production/qa/evidence/ls1-audit.md`).** Fixed items are in the report. These are the backlog items, grouped by owner. D31 owns the `layout.ts` items (the stale header, the Drive depth-bar tick, `StageRow`'s held-midboss field, the Orbit run-up, the Drive floor slot).
+1. **Render and HUD (technical-artist, ui-programmer):**
+   - the TORN APART kill title overprints the tally card;
+   - gore draws over the player ship;
+   - the kill counter overprints the LV bar;
+   - an Orbit mid-stage landmark;
+   - the title eye's lids;
+   - a check of midboss name length against the HP bar;
+   - Furnace and Sinus crossover tints still to be checked by eye;
+   - the crossover half-gib is clipped near the screen edge (`gore.ts:86`);
+   - a per-gib array allocation (`fx/spawn.ts:103`);
+   - per-frame gradients in `mid/choir.ts:127` and `mid/ufo.ts:366` (pool lanes);
+   - the hell flashes ramp waits on round 2.
+2. **Audio (audio-director, sound-designer):**
+   - move the Maw death sound to the sim kill path (it still plays from render, `maw.ts:1003`), and give the Drive death (`drive.ts:735`) `prio`;
+   - a fight music mix;
+   - biome bosses enter through `miniWarn` and so get the midboss stinger (adds to F7).
+3. **Sim and AI (ai-programmer, gameplay-programmer):**
+   - the held midboss leave clock runs while the player is dead (long4-only fix);
+   - the DRIFT exit is computed from the Orbit row's `exitLead` even in a biome slot (the shared DRIFT helper is due before the Calving Shelf);
+   - slot A has no rule-2 guard;
+   - a gap between slot B's WARNING and midboss A's death;
+   - the Drive filler window's `INTERIOR_MIX` floor kinds (.16) spawn nothing with no terrain;
+   - `fillSpawn` uses one `u` for the variant and the y, so crew stack at PH/2 (~6%);
+   - filler `hatch()` picks front or rear at spawn time, so a rear hatch lands 100 px late, unseen by the build (moving the draw re-baselines long4);
+   - the cells and fire's `behind` mix kind stay unclamped (only set-piece rear waves use `rearY`);
+   - change the fork shuffle `sort(() => R() - .5)` to Fisher-Yates in the next re-baseline;
+   - X, Backspace and pad B unpause, so mashing POWER at a pause resumes play (use `hardBack` or ~20 f of grace).
+   - the 100 f rear-wave telegraph (`rearWarn`) is a literal in `spawn.ts` and is restated in `biomes.ts` REAR.lead and the tests: export it as one constant (fm1 review);
+   - the filler `hatch` from behind can land ~20 px into breath 1 (acid/snot slot 1) or 60 px into the run-up (snot slot 0); `biomebeats.test.ts` holds it as `it.fails` for game-designer.
+4. **Layout and level (level-designer, D31 lane):**
+   - cell pools are 2× slots, so from D2 the picker alternates (S2, for Matt: grow pools to 3× or dual-tag cells; is the D1 opener as the D3 intro acceptable?);
+   - `o.swarm`'s sentry sits 60 px before the Saucer WARNING;
+   - drones are 32-53% of Orbit spawns;
+   - rest points in late Orbit and the Drive approach;
+   - a from-behind filler beat, if wanted;
+   - beat-probe long4 build density is 0.50-0.81/s against the spec's ~1.0/s, with no intro-to-build ramp in acid or snot (re-run after LS2-mv).
+5. **Resume and saves (gameplay-programmer, security-engineer):**
+   - the main loop has no catch, so a resume that throws later freezes the game and leaves RESUME offered (catch the first throw within ~600 f of a resume, `clearRun`, rethrow);
+   - a refused `removeItem` in `clearRun` leaves a stale RE-ENTER (write a tombstone);
+   - on picker layouts, require `seed`/`mb`/`picks` at or past biome slot 0;
+   - CP1 upper bound and telemetry;
+   - Orbit and Drive CP1 still sit after the release;
+   - option b may need a CP2 after midboss B if Q2 = b;
+   - `@ts-nocheck` on `runsave`, `checkpoint`, `gradekey` (probably clean) and `stagebuild`.
+6. **Tools and tests (tools-programmer, qa-tester, devops-engineer):**
+   - `useLayout` confirms the layout through its own `import('/src/layout.ts')`: re-check it from the game's module graph and exit 2 on a mismatch;
+   - `pilot.mjs`'s `safe` misses flayer whips and orb shots, so label pilot readings "pilot-biased";
+   - the pilot ignores the speed perk;
+   - 5 pilot seeds are too few;
+   - `pod-probe` now defaults to long4, where the plain bot dies in the first biome, so read it with `--pilot`;
+   - saved density-probe, perk-pace and playtest results were recorded on short;
+   - `density-probe` misses Orbit and the Drive, and `world-shots` misses late Orbit;
+   - `jumpBlob` zeros `visitNo`, so the D3 scenarios skip the remix beats;
+   - jump-check doesn't check the warm-up `routeArt` against the jumped stage;
+   - the jump DEV gate test reads `main.ts` text (move the gate into `jump.ts` `devJump()`);
+   - the harness scenarios end on the last life (assert `play` when `want` is first seen);
+   - `midslot.test` stubs the Saucer's leave clock (test the real `spawnUfo` formula and the 420 floor);
+   - `layout.test` should check the exit +~110 px against the next WARNING, `slotClock` slot > 1, and filler kinds against the terrain;
+   - source-grep tests to make behavioural (`warmplan.test.ts:113` BOSS_ART, `midhooks` 143-146, `midhost`, `midreg` 76-98, `cadence` 63, `runsave` 220);
+   - a `#ps` visibility predicate test;
+   - a pilot stopped-scroll self-check;
+   - `back-check.mjs` in `verify`, or menus-level tests for the rest;
+   - the Playwright cache (`~/.cache/ms-playwright`; the apt step stays);
+   - upload `dist` from `verify` to android and web;
+   - shard `--scenario` if `verify` passes ~10 min (it is ~385 s now);
+   - a contrast, flash-rate and touch-target measurement pass;
+   - the touch footer string-fit shot at the lowest resolution;
+   - the Infirmary exit button's bottom edge is ~9 CSS px above the Android gesture strip (move it up ~6 px or respect the safe-area inset).
+   - the Infirmary BUY and level-up rows are ~9 px tall on the Fold: raise the touch row pitch, or arm-then-confirm on purchases (fm1 review, ux);
+   - device check: the title root's two-press exit assumes Android back never also arrives as a WebView keydown (which would disarm it).
+7. **Perf and warm-up (engine-programmer, performance-analyst):**
+   - the warm-up drop and rebuild loop mechanism;
+   - the crux `EYEC` eye canvases are never evicted;
+   - the `jump.ts:112` `visitNo` comment;
+   - the import cycle grew from 22 to 24 (pin the `textures.ts` boot draws);
+   - no midboss TTK band for D2+;
+   - spec §6.4 depth shares against `depth.ts:30`;
+   - drive canvas-hash nondeterminism (advisory).
+8. **Copy and docs (writer, narrative-director, producer):**
+   - one back label: `< RETURN` against `< BACK` (D8's one-noun rule; creative-director leans BACK);
+   - OPTIONS and LAB show both a BACK row and a BACK button;
+   - the desktop shop footer "X/ESC LEAVE" doesn't say the loop shop takes two presses;
+   - the armed DESCEND reads "ENDS SAVED RUN" (maybe "TAP AGAIN: ENDS RUN");
+   - the brief's stage beats get D31's rest breath when D31 lands, and it should say D32 and when the full abomination arrives (Descent 2);
+   - the build plan figures are duplicated (biome B wall time 148 against 181; Drive fight 180 against 183).
 
 ### Sprint 3 closeout: flip the default
 
@@ -246,7 +333,7 @@ With the recommended Q20 answer, M lands early in LS2 rather than at LS1 closeou
 - **Parallel lanes after LS2-0:** 6 (ice, acid, fire, snot, orbit+ship, mv). Each owns its own new files, and the only shared edits are one-line registry entries (trivial rebases).
 - **Exit:**
   - Every pool has ≥ 3 members, all shipped with art and Matt's names.
-  - No repeated midboss pair over 3 consecutive bot runs.
+  - Midboss pair repeats within 3 visits at or under spec §10's measured rate (about 1 in 5; ls1-audit changed §10 from an absolute).
   - All perf scenes are within budget.
   - Matt plays one descent ("two different midbosses every stage; did any of them feel unfair on touch?").
 - **Size:** about 2-3 weeks for pass 1 across 6 lanes. Pass 2 depends on idiom: about 1-2 weeks procedural, more for bitmap strips.
@@ -312,11 +399,11 @@ With the recommended Q20 answer, M lands early in LS2 rather than at LS1 closeou
 **LS1 (one session, about 20 min on the Fold):**
 - [ ] M1 + M2 on the short layout: the existing M2 questions (fire fun or mean, Drive length, hell-flash A/B).
 - [ ] Set LAB → layout LONG on the title screen (D2), one descent. Does a stage feel like a Gradius stage or like padding? Two midbosses per biome stage: too many fights? (Orbit has only the Saucer and the Drive approach none in this build.)
-- [ ] Kill the app after the first midboss, then reopen and RESUME. Did you land where you expected?
-- [ ] **Q2, the checkpoint:** optionally set LAB → checkpoint RESTART and die once. Resume point only (a), or Gradius restart on death (b)? While there, pause and ABANDON SHIP once: the run is kept and RESUME appears on the title. Does the name ABANDON SHIP still fit, or does it need new wording or a separate path that ends the run? (The quit-to-resume undo is already accepted as known, D28.)
+- [ ] Kill the app after the first midboss, then reopen and RE-ENTER (D34: was RESUME). Did you land where you expected?
+- [ ] **Q2, the checkpoint:** optionally set LAB → checkpoint RESTART and die once. Resume point only (a), or Gradius restart on death (b)? While there, pause and SURFACE (D34: was ABANDON SHIP) once: the run is kept and RE-ENTER (D34: was RESUME) appears on the title. ~~Does the name ABANDON SHIP still fit, or does it need new wording or a separate path that ends the run?~~ (D34: renamed SURFACE.) Does SURFACE fit in play? (The quit-to-resume undo is already accepted as known, D28.)
 - [ ] **Long-stage economy (LS1-G, creative-director):** on a returning profile at the Descent 1 Infirmary, can you afford one meaningful buy per visit at the long stages' ×0.65 biomass? And on the phone, does the green FIRST KILL +100 pop read in motion over the gore burst?
 - [ ] **Q20:** flip long to the default now with one Orbit midboss, or wait for the derelict tug?
-- [ ] Answer the spec's Q1, Q3, Q7, Q9-Q12 and Q17. Approve or edit the Pillar 4 text.
+- [ ] Answer the spec's Q1, Q3, Q7, Q9-Q12 and Q17. ~~Approve or edit the Pillar 4 text.~~ (D34: done.)
 
 **LS2:**
 - [ ] Name the new midbosses and pick kill words, from a list offered.
