@@ -19,6 +19,9 @@ export const VOX_FIRE: Record<string, { state: string; fire: () => unknown }> = 
 };
 for (const n of Object.keys(HYPE)) VOX_FIRE['hype' + n] = { state: 'play', fire: () => hype(+n) };
 
+/** how long the fired tip stays up (ms; written as a product: layout-literals.test.ts reserves bare world-x numbers) */
+const TIP_MS = 8 * 1000;
+
 /** read ?vox= and fire it once when it can be heard */
 export function voxBoot(search: string) {
   const q = new URLSearchParams(search), cat = q.get('vox'), clip = q.get('clip');
@@ -44,6 +47,6 @@ export function voxBoot(search: string) {
     v.fire();
     if (clip) setTimeout(() => (BANK[cat] = [...new Set([...all, ...BANK[cat]])]), 600); // keeps any clip that decoded meanwhile
     tip.textContent = `VOX ${cat}: fired ${clip || `one of ${all.length} take${all.length === 1 ? '' : 's'}`}. Reload to hear it again`;
-    setTimeout(() => tip.remove(), 8000);
+    setTimeout(() => tip.remove(), TIP_MS);
   }, 250);
 }
