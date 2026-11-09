@@ -291,7 +291,9 @@ On the title the leave prompt sits under the LAB row. This replaces the y 205-21
 - short PASS; 12/12 scenarios; long4 PASS; build OK; back-check pass; resume S1 CP1, S2 CP0 and option b PASS.
 - Parity failed on `ab78198`: six runs timed out in the loop shop, because the bots pressed back once and the shop now needs two presses. `0ff2e13` presses at frames 56 and 60, so the bots still leave on frame 60. After that, parity was identical over 7/7 runs.
 
-### Merge 2, final: `b127be3`, rebased onto ls2-eye (`547926e`)
+### Merge 2: `b127be3`, rebased onto ls2-eye (`547926e`)
+
+The full gates, including parity. `a675dd5` then changed `flow.ts`; see the delta review below.
 
 These are the numbers for the merge. The only commit on top of `b127be3` is this report and its shots, folded in. Each heavy job ran one at a time, in a worktree with its own Vite cache.
 
@@ -311,13 +313,34 @@ These are the numbers for the merge. The only commit on top of `b127be3` is this
 
 Not rerun on this tip: set-shots (last on `40c910f`; nothing since touches spawns or terrain) and the option b page rig below (on `5b0525f`; the only source change after it is three HUD colours, plus ls2-eye's merge).
 
+### Delta review of `86a1463`, gates on `a675dd5`
+
+`a675dd5` changes only `src/flow.ts` and `tests/unit/deathrestart.test.ts`, so full parity was not rerun, as the review allowed. The commit on top of it is this report, the spec line and one evidence frame.
+
+| Gate on `a675dd5` | Result |
+|---|---|
+| typecheck | 0 errors |
+| vitest | 1113 passed + 1 expected fail (55 files) |
+| short harness | PASS vs baseline @ `8ff9ba4` |
+| long4 harness | PASS vs baseline @ `88d9525` |
+| 12 scenarios | 12/12 PASS (165 s) |
+| resume-check | PASS: S1 CP1, S2 CP0, S1 CP1 with option b |
+| option b page rig | pods `[3,1,4,5,5]`, `[3,1,5]`, none; 2 at the checkpoint, 3 live: 1 after |
+| option b in-place page rig | checkpoint at 0, 1 live: same run, scroll stays 360, 0 lives, still playing; the next death is game over |
+
+**Lives clamp (systems-designer, would block): my clamp at 0 was wrong.** A run could loop forever: on a checkpoint at 0 lives, a spare paid for a rewind at 0, and the rewind could bring the same spare back (a scripted pickup past `cpX`, a score extend). `deathRestart` now returns false when there's no life to take, so that death respawns in place as option a: the spare is spent, nothing rewinds, and the run isn't lost. The life is also never more than `G0.lives - 1`. Three mutants of the rule each fail at least one test. The loop test models the spare's return by adding the life after each rewind. No real pickup or score extend was flown.
+
+**HUD colour (art-director, approve with notes).** `#cfd9e3` stays. `flown-cryovault.png` is retaken on `a675dd5` with the real pixel font. The glyphs hold over the textured ice, so the condition for the 4 diagonal taps isn't met and they weren't added. There's no backing plate.
+
+**Correction: the frame behind the "regression" below was in the fallback font.** It came from `resume-check` serving itself from a worktree with symlinked `node_modules`, where Vite refuses the fonts. That frame overstated how badly `#8fa3b8` read, and the old colour was never compared with the real font. The colour's approval rests on the new frame. **Any `resume-check --out` frame from such a worktree needs a dev server under the evidence config.** Still not seen on a phone, and the accessibility figures are still for the old colour.
+
 ### Fix merge 2 Studio review (10 of 10 APPROVE WITH NOTES)
 
 **Option b, the death's pods (game-designer S2).** `deathRestart` lost the BLACK BOX pods and the boss-fight lifeline, because `resumeRun` clears `caps` and builds a new `G`. They now drop by the restored ship, from the loadout that died. No `R()`; option a behaves as before.
 
-**Option b, the life (systems-designer S2).** The life came off the live count, so a life gained after the checkpoint (SPARE MEAT) was kept and then earned again on the replay, which made the death free. It now comes off the checkpoint's count. I added a clamp at 0, which the review didn't ask for: a checkpoint on the last life with a spare gained since would otherwise give -1 lives. That death costs the spare.
+**Option b, the life (systems-designer S2).** The life came off the live count, so a life gained after the checkpoint (SPARE MEAT) was kept and then earned again on the replay, which made the death free. It now comes off the checkpoint's count. I added a clamp at 0, which the review didn't ask for; the delta review above found it could loop and it's gone.
 
-`tests/unit/deathrestart.test.ts` covers both; five mutants of `flow.ts` each fail one test. In the real page, on `5b0525f`:
+`tests/unit/deathrestart.test.ts` covers both; at this point, five mutants of `flow.ts` each fail one test. In the real page, on `5b0525f`:
 
 | Death | Pods | Lives |
 |---|---|---|
@@ -329,7 +352,7 @@ The pods aren't in the re-written checkpoint, so quitting after the restart lose
 
 **The biomass mark.** `newGame` clears it, and a dev jump (`G.jump`) neither reads nor writes it. **Dev-seed note:** the mark is keyed on the run seed, and `?seed=` can repeat one on a profile, so a jump would have paid nothing until it passed that seed's mark. Skipping the mark on jumps removes that. A real run draws its own seed. The seed key stays, to guard an app kill before the save. "Nothing subtracts from `G.bio` during a run" is commented on `bankBio` and pinned by a source scan, which also fails if a new pay site writes `G.bio` or `meta.bio` directly.
 
-**`STAGE 1-1 OPEN ORBIT` in the HUD shots is a rig artefact (art-director).** `startStage` is queued on `G.pend` at the gate (`biomes.ts:469`), and the rig's `clr()` empties `G.pend`, so `G.stage` stays 0. A really flown frame (`ls1-audit-art/hud/flown-cryovault.png`, from `resume-check --death`) reads `STAGE 1-2 THE CRYOVAULT`.
+**`STAGE 1-1 OPEN ORBIT` in the HUD shots is a rig artefact (art-director).** `startStage` is queued on `G.pend` at the gate (`biomes.ts:469`), and the rig's `clr()` empties `G.pend`, so `G.stage` stays 0. A really flown frame (`ls1-audit-art/hud/flown-cryovault.png`, from `resume-check --death`, retaken on `a675dd5`) reads `STAGE 1-2 THE CRYOVAULT`.
 
 **A regression that frame showed: HUD text over ice.** With the strip gone, `#8fa3b8` sank into the pale ice ceiling in the flown frame. The earlier checks missed it because the HUD rig shot only snot, fire and acid, and the reviewers' re-check used those shots. HI, STAGE and DEPTH are now `#cfd9e3`, the same as SCORE, and the rig now shoots ice too. Side by side it reads clearly better, at the cost of the hierarchy between SCORE and the other rows. **No lead has seen this colour, and it hasn't been seen on a phone.** The accessibility figures in the art check above were for the old colour.
 
