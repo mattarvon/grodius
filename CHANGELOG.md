@@ -2,6 +2,15 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-09 (new names)
+
+- The Open Orbit midboss is now SQUID SAUCER 2000. When it dies, the screen reads SEVERED.
+- The Cryovault's boss is now THE BLOAT, on its gate plate (FROZEN // BLOAT) and its health bar. Both stage bosses' kill banners now read TAKEN DOWN. This closes the known issue from 2026-11-08.
+- A 5-kill chain now reads OPENED.
+- The chain lines are new: THAT ONE / HAD A NAME, WE WILL NEED / A BIGGER BAG, FILE IT / UNDER LOSSES, THE GATE / KNOWS YOUR NAME, YOU ARE / PART OF IT NOW.
+- When a chain line has no voice, the comms window opens with nobody in it.
+- The Sinus has a new stage card: IT IS BREATHING. YOU ARE IN THE AIRWAY.
+
 ## 2026-11-09 (every boss, repainted)
 
 - Every boss and midboss has been repainted from scratch: wetter, darker and more anatomical, with real photographic flesh and bone under the paint.

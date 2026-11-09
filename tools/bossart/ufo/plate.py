@@ -1,4 +1,4 @@
-"""THE SQUIDFUCKED SAUCER bake: the Phase 1 concept toolkit (bosspick/ufo/lib.py), ported unchanged except the game-sprite
+"""SQUID SAUCER 2000 bake: the Phase 1 concept toolkit (bosspick/ufo/lib.py), ported unchanged except the game-sprite
 helpers, which Baker (../bake.py) replaces. Saucer concept toolkit: PIL-only float painting (numpy is not installed), after scratchpad/eyes/gen_eyes.py.
 
 Hero canvas is 1024x512; the game sprite is the same picture BOX-reduced x8 to 128x64, then hard-alpha'd, palette-

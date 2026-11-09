@@ -177,7 +177,6 @@ const VOICE = {
   'keyster-easter': [4, 'THE KEYSTER'],
   'lesley-yeah-baby': [5, 'LESLEY, MISSION CONTROL']
 };
-const BY_CAT = { hype: 'hell-yeah', corpsevoice: 'stop-killing-me', bossreward: 'keyster-easter', startgame: 'lesley-yeah-baby' };
 const voiceOf = (clip = '') => {
   // clip = file stem, e.g. 'hell-yeah-matty-1': match on the line, not the take
   for (const k in VOICE) if (clip === k || clip.startsWith(k + '-')) return VOICE[k];
@@ -191,7 +190,9 @@ const vLive = (v, now) => v && now > v.t0 - .3 && now < v.t1 + .25;
 function hypeSource(now) {
   const v = AU.voice;
   if (vLive(v, now)) return { v, clip: v.clip, L: /^hype/.test(v.cat) && $.G.hype ? $.G.hype.L : null };
-  if ($.G.hype) return { clip: BY_CAT.hype, L: $.G.hype.L };
+  // an unvoiced chain caption (the hype bank is shelved, D39) has no caller: no face and no tag (the held renames,
+  // D42 item 1). It used to fall back to SGT. RAMROD SLAB's face
+  if ($.G.hype) return { clip: '', L: $.G.hype.L };
   return null;
 }
 export function drawHype() {
@@ -210,7 +211,8 @@ export function drawHype() {
   } else if (cur && !cur.out) cur.out = T;
   if (!cur) return;
   if (cur.out && T - cur.out > CLOSE) return void (cur = null);
-  const [face, tag, cap] = voiceOf(cur.clip), L = cap || cur.L;
+  const blind = !cur.clip; // nobody on the line: signal and the caption only
+  const [face, tag, cap] = blind ? [0, '', null] : voiceOf(cur.clip), L = cap || cur.L;
   const age = T - cur.t, out = cur.out ? (T - cur.out) / CLOSE : 0;
   const talking = !out && (cur.v ? now >= cur.v.t0 && now < cur.v.t1 : age > STATIC && age < 90);
   // syllables: two beating sines, quantised to shut / half / wide
@@ -235,7 +237,8 @@ export function drawHype() {
     ctx.imageSmoothingEnabled = false;
     for (let y = 0; y < FH; y += 4) {
       const o = tear && srnd() < .5 ? Math.round((srnd() - .5) * 18 * tear) : 0;
-      ctx.drawImage(S.img, fx, y, S.fw, 4, wx + o, wy + 1 + y, S.fw, 4);
+      // the tear's srnd() draws run either way: the render stream feeds later gib counts (harness st)
+      if (!blind) ctx.drawImage(S.img, fx, y, S.fw, 4, wx + o, wy + 1 + y, S.fw, 4);
     }
     if (tear > .2) {
       // chroma tear: a red and a sick-green bar riding the worst slices
@@ -286,10 +289,12 @@ export function drawHype() {
     ctx.globalAlpha = sstep(STATIC, STATIC + 8, age) * .88;
     const tx = wx - 5;
     ctx.font = `7px ${FONT_H}`;
-    const tw = ctx.measureText(tag).width;
-    ctx.fillStyle = 'rgba(0,0,0,.6)';
-    ctx.fillRect(tx - tw - 3, wy, tw + 6, 9);
-    txt(tag, tx, wy + 1, '#ffd23a', 'right', 7);
+    if (tag) {
+      const tw = ctx.measureText(tag).width;
+      ctx.fillStyle = 'rgba(0,0,0,.6)';
+      ctx.fillRect(tx - tw - 3, wy, tw + 6, 9);
+      txt(tag, tx, wy + 1, '#ffd23a', 'right', 7);
+    }
     if (L) {
       L.forEach((l, i) => {
         ctx.font = `11px ${FONT_D}`;

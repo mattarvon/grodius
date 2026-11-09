@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""THE SQUIDFUCKED SAUCER, Matt's pick c3 Natural-History Plate, baked for the game. Run: python3 -I tools/bossart/ufo/bake.py
+"""SQUID SAUCER 2000, Matt's pick c3 Natural-History Plate, baked for the game. Run: python3 -I tools/bossart/ufo/bake.py
 Writes src/sprites/boss/ufo.png + .json (read by src/render/gross/mid/ufo.ts). Origin is the boss's (0,0).
 Wound stages s = 0..3 follow the six hull cracks' hp thresholds (paint.STAGE_HP): 0 whole, 1 from .85, 2 from .55, 3 from .3.
 Lists:

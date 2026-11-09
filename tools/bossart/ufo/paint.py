@@ -1,4 +1,4 @@
-"""THE SQUIDFUCKED SAUCER, Matt's pick c3 Natural-History Plate (bosspick/ufo/gen.py c3), ported for the bake.
+"""SQUID SAUCER 2000, Matt's pick c3 Natural-History Plate (bosspick/ufo/gen.py c3), ported for the bake.
 Ivory scratchboard on black, blood the only colour. Hero canvas 1024x512 = 8 x the 128x64 game box; the boss origin
 (0,0) is hero (512,192) (plate.gp). Parts sit where the sim puts them (src/enemies/mid/ufo.ts: LASH_O, TUMOURS, HATCH_O,
 the r15 eye-core), so nothing here moves gameplay.

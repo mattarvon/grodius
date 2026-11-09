@@ -74,7 +74,7 @@ export function driveFor(base: number, lvl: Lvl): number {
 /** the kill layer per biome, played in sfx.gore() after the splat/thud/bone/silly/explode layers.
  *  vol = vol + min(KILL_LAYER.volCap, sz * sizeVol). A row with `synth` falls back to synth when its clips are not in the bank. */
 export const BIOME_KILL: Record<string, { cat: string; chance: number; vol: number; sizeVol: number; rate: number; minSz: number; at: number; synth?: string }> = {
-  // ice: brittle frozen-meat crack (the Bloated Bitch's own clips: the boss and the stage's fodder share one sound)
+  // ice: brittle frozen-meat crack (the Bloat's own clips: the boss and the stage's fodder share one sound)
   // rate 1 (tone pass 2026-11-07): sped-up clips go chirpy; at pitch the crack is colder and heavier
   ice: { cat: 'gicecrack', chance: .5, vol: .45, sizeVol: .05, rate: 1, minSz: 0, at: .015 },
   // acid: a short fizz. The gfizz clips are a follow-up (tools/gen_bossgross_sfx.py); until they ship, the synth fizz plays

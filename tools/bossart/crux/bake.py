@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""THE BLOATED BITCH (crux), Matt's pick c5 Engorged Frost Leech, baked for the game. Run: python3 -I tools/bossart/crux/bake.py
+"""THE BLOAT (crux), Matt's pick c5 Engorged Frost Leech, baked for the game. Run: python3 -I tools/bossart/crux/bake.py
 A blood-gorged leech clamped at both ends to a bent iron stake, the crop distended with frozen blood. Writes
 src/sprites/boss/crux.png + .json, read by src/render/gross/crux.ts. Origin is the boss's (0,0); a nail bar's frames are
 offset to the bar's own origin (ox = -24 - 7i, oy 0), so the runtime draws each at the bar entity.

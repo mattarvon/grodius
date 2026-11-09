@@ -27,6 +27,7 @@ const NOT_X: Record<string, number[]> = {
   'music.ts': [2400], // filter Hz
   'economy.ts': [2100, 2400], // BIO_LONG bio bands
   'enemies/spawn.ts': [800], // kill score
+  'enemies/mid/roster.ts': [2000], // part of a name: SQUID SAUCER 2000 (Matt, 2026-11-09)
   'flow.ts': [5000], // the lives bonus score
   'fx/spawn.ts': [4800], // the drop-array cap
   'midpick.ts': [1080], // a midboss leave clock in frames

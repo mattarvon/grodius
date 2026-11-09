@@ -217,9 +217,9 @@ export function updateFX() {
   }
 }
 /** frames between hype calls: chains hit 10 / 20 constantly with a strong build and the comms
- *  saturated. The chain word (MESSY, GRISLY...) still shows on every milestone. */
+ *  saturated. The chain word (OPENED, GRISLY...) still shows on every milestone. */
 export const HYPE_CD = 1200;
-export const CARN = [[5, 'MESSY'], [10, 'GRISLY'], [20, 'VISCERAL'], [35, 'ABATTOIR'], [50, 'MEAT GRINDER'], [75, 'BEYOND THE GATE'], [100, 'HELL IS SHIPWIDE']];
+export const CARN = [[5, 'OPENED'], [10, 'GRISLY'], [20, 'VISCERAL'], [35, 'ABATTOIR'], [50, 'MEAT GRINDER'], [75, 'BEYOND THE GATE'], [100, 'HELL IS SHIPWIDE']];
 export function updateCombo() {
   if ($.G.comboT > 0) {
     $.G.comboT--;
@@ -249,12 +249,13 @@ export function updateCombo() {
   if ($.G.hype && --$.G.hype.t <= 0) $.G.hype = null;
 }
 export const HYPE = {
-  10: ['HELL YEAH', 'BROTHER!'],
-  20: ['CLEAN-UP CREW', 'IS NOT COMING'], // tone.md A8: the only HYPE line re-voiced so far, since the surfer no longer covers it
-  35: ['SPLATTER', "'EM, BROTHER!"],
-  50: ['GLORIOUS', 'CARNAGE!'],
-  75: ['THE GATE', 'FEARS YOU!'],
-  100: ['HELL IS', 'YOUR HOUSE!']
+  // tone note §4(A)8 (D39): grim understatement from a tired controller, no exclamation marks
+  10: ['THAT ONE', 'HAD A NAME'],
+  20: ['CLEAN-UP CREW', 'IS NOT COMING'],
+  35: ['WE WILL NEED', 'A BIGGER BAG'],
+  50: ['FILE IT', 'UNDER LOSSES'],
+  75: ['THE GATE', 'KNOWS YOUR NAME'],
+  100: ['YOU ARE', 'PART OF IT NOW']
 };
 export function hype(n) {
   const L = HYPE[n];

@@ -642,7 +642,7 @@ export function killEnemy(e, dir = 1) {
       limbs: 3,
       skull: 2
     });
-    banner(e.k === 'crux' ? 'UNCRUCIFIED' : 'BUTCHERED', '', undefined, 130);
+    banner('TAKEN DOWN', '', undefined, 130); // tone note §4(A)9 (D39): one cold readout for either stage boss
     $.G.hitstop = Math.max($.G.hitstop, 18);
     $.G.white = SET.flashes ? .6 : .25;
     sfx.roar();

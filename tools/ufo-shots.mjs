@@ -1,4 +1,4 @@
-// UFO shots: THE SQUIDFUCKED SAUCER (Open Orbit midboss, enemies/mid/ufo.ts + render/gross/mid/ufo.ts) at 2x: the WARNING, idle, each
+// UFO shots: SQUID SAUCER 2000 (Open Orbit midboss, enemies/mid/ufo.ts + render/gross/mid/ufo.ts) at 2x: the WARNING, idle, each
 // attack's telegraph and release, wounded (last damage sheet + hull cracks), and the death (hull split, tentacle flood).
 // Saves full-frame + close-up PNGs.
 // Usage: node tools/ufo-shots.mjs <url> <outDir> [--layout long4|short]   (WARNING at src/layout.ts ufoAt(); needs the VITE dev server: imports live modules)

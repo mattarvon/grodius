@@ -1050,7 +1050,7 @@ import { drawButcher as drawButcherBaked } from './gross/butcher';
 import { drawCrux as drawCruxBaked, drawCruxNail } from './gross/crux';
 import { drawChoirNail } from './gross/mid/choir';
 export function drawCrux(c, e) {
-  drawCruxBaked(c, e); // THE BLOATED BITCH (ice biome boss, kind 'crux'): baked, src/render/gross/crux.ts (LS2-bossart)
+  drawCruxBaked(c, e); // THE BLOAT (ice biome boss, kind 'crux'): baked, src/render/gross/crux.ts (LS2-bossart)
 }
 export function drawButcher(c, e) {
   drawButcherBaked(c, e); // THE BURNING BUTCHER: baked, src/render/gross/butcher.ts (LS2-bossart)

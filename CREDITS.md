@@ -128,7 +128,7 @@ All repainted toward the game's palette; CC-BY / OGA-BY rows are the ones that r
 | Snot slime (`slime-*`) | Blob Sprite | Woostar | CC0 | https://opengameart.org/content/blob-sprite |
 | Hulking mutant (`mutant-*`) | Zombie - Fully Animated | Cethiel | CC0 | https://opengameart.org/content/zombie-fully-animated |
 | Security drone (`sentry`), corridor plating (`src/img/tex-derelict.png`) | Enemy sprite | mieki256 | CC0 | https://opengameart.org/content/enemy-sprite |
-| THE SQUIDFUCKED SAUCER (`ufo1-3`) | Alien Boss Set (Infested UFO Boss) | The_Scientist___ | CC0 | https://opengameart.org/content/alien-boss-set |
+| SQUID SAUCER 2000 (`ufo1-3`) | Alien Boss Set (Infested UFO Boss) | The_Scientist___ | CC0 | https://opengameart.org/content/alien-boss-set |
 | Hit sparks (`hit_*`) | Sparks (Fire, Ice, Blood) | Clint Bellanger | CC-BY 3.0 | https://opengameart.org/content/sparks-fire-ice-blood |
 | Explosions (`boom_*`) | Space Sprites: "Sinistar clone", "Hard Vacuum" & "Remastered Tyrian" graphics by Daniel Cook (Lostgarden.com), collected by titmouse001 | Daniel Cook | CC-BY 3.0 | https://opengameart.org/content/space-sprites-0 |
 | Eye irises (`iris_grey`, `pupil`) | Eyeballs | sunburn | CC-BY 3.0 | https://opengameart.org/content/eyeballs |

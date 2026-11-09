@@ -600,7 +600,8 @@ APPROVE or APPROVE WITH NOTES except qa-lead, whose BLOCK (gates on the rebased 
 **Rollback point:** tag `pre-ls2-bossart` on `eede936`.
 
 **Owned items (backlog, S3):**
-1. art: the Saucer reads clean and dry; repaint it waterlogged for THE DROWNED LANDER, with rim grime; the emoji-like
+1. art: the Saucer reads clean and dry; keep the current flesh-and-tentacle art and push it darker with rim grime in
+   Worklist B (restated in D48: "waterlogged" came from the dropped DROWNED LANDER name); the emoji-like
    round skulls in `biomeart.ts`; Butcher and Apprentice value lift against the fire biome; the acid Maw's belly too
    pink; the shared kill burst hides the first death frames.
 2. Matt decides: the Nail Choir's single eye against D41's no-single-big-eye rule (narrative-director, creative-director).
@@ -608,3 +609,47 @@ APPROVE or APPROVE WITH NOTES except qa-lead, whose BLOCK (gates on the rebased 
    pin PIL and hash the photos; crux and gravity frame time on the perf backlog before release.
 4. release: spot-check ~5 Flickr CC BY rows and the 4 creatorless rawpixel rows before a tagged release.
 5. Matt on the Fold: does any boss open on the fallback mass.
+
+### D48 Held renames and SQUID SAUCER 2000 merged — 2026-11-09 (Matt: "start the held renames and change the squidfucked saucer to Squid Saucer 2000"; parent merge)
+
+**What merged** (ls2-names, `44890d2..22c803c`): D42 owned item 1, all of it, with one swap on Matt's instruction.
+- The Open Orbit midboss is SQUID SAUCER 2000 (roster `name`; the 12-character probe `label` stays SQUID SAUCER; code key
+  `ufo` unchanged). Its kill word is SEVERED, per D39.
+- THE BLOAT (gate plate FROZEN // BLOAT, HP bar); TAKEN DOWN for both stage bosses; OPENED at a 5-chain; HYPE 10/35/50/
+  75/100 to the D39 lines; the chain caption with no voice shows no face and no tag; the Sinus sub IT IS BREATHING. YOU
+  ARE IN THE AIRWAY; CREDITS.md, README, docs, tool docstrings and tests follow. Old QA evidence is left as history.
+- `tests/unit/warngate.test.ts`: the warm-up WARNING gate keys off the banner `warn` flag, not its text.
+
+**Naming exception.** SQUID SAUCER 2000 is Matt's named exception to Pillar 5 for this one name only. It overrides D39's
+THE DROWNED LANDER, does not reopen D39, and is not precedent for THE EXPECTORANT, THE SCENT ORGAN, CHARON-6 or any later
+name. Later lanes must not "fix" it. Read "2000" as a MERIDIAN model number; the fight, art, sound and death stay straight
+horror. SEVERED stays unless Matt asks for a kill word to match.
+
+**Gates** on 22c803c: typecheck 0; vitest 1122 pass plus the 1 known `it.fails` (qa-lead re-ran both); build 0; harness
+short, long4 and 12 scenarios PASS with no `--update`; layout-parity 7/7 against a baseline edited for the two titles
+only (19 values; qa-lead proved the old file with the names swapped is byte-identical to the new one). The parent
+build-checked the merged tree. Evidence: `production/qa/evidence/ls2-names.md` and `ls2-names/`.
+
+**Studio review.** In-lane narrative-director, web-specialist and qa-lead. All 8 leads and all 3 directors APPROVE WITH
+NOTES; no block. The S2s (CHANGELOG closes the 2026-11-08 known issue; this exception record; D47 item 1 restated) are
+done in this merge.
+
+**Rollback point:** tag `pre-ls2-names` on `44890d2`.
+
+**Owned items (backlog, S3):**
+1. README: the pre-D39 audio text at :111 and the Orbit midboss in the Mini-bosses list, folded into the D42 item 3 TTS
+   commit (web-specialist). The TTS removal is next.
+2. Screenshots (qa-lead, next pass): the 75- and 100-chain captions (shrunk to fit), THE BLOAT on HP bar and plate, the
+   Sinus card, the SQUID SAUCER 2000 HP-bar title beside the score.
+3. Playtest reads (game-designer): OPENED as an unlock, FILE IT / UNDER LOSSES as "you are losing". Change only on a
+   real misread.
+4. Hype window polish (web-specialist; art-director, audio-director spec; after D31): a dead-feed mark on the faceless
+   window ($.T only, no srnd()), a plate or outline behind the caption, the caption jitter off when blind, a comms-open
+   static tick, the stale comments at `hype.ts`:166-172 and :188.
+5. The VOICE `hell-yeah` -> SGT. RAMROD SLAB row (`hype.ts`:173): retag or drop when the hype bank is re-recorded.
+6. qa hygiene from the next lane: export BANNER_T; gate logs start with the commit and `git status`; keep the vitest
+   tail; build logs keep only the tail. Evidence size: smaller shots (WebP/JPEG) before the first tagged release.
+7. Glossary, when a string table exists: "2000" stays literal digits; each HYPE pair translates as one unit.
+8. tools (lead-programmer; tell localization-lead): key the layout-parity dump's `minis` on the roster `k`, not the
+   display title, so copy changes stop moving the parity baseline; note the 22c803c title substitution in the
+   baseline's `commit` field when it is next touched.

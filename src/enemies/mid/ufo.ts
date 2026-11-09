@@ -1,6 +1,6 @@
 // @ts-nocheck
 // =====================================================================
-//  THE SQUIDFUCKED SAUCER - the Open Orbit midboss: a wrecked saucer gone to meat, smothered in tentacles.
+//  SQUID SAUCER 2000 - the Open Orbit midboss: a wrecked saucer gone to meat, smothered in tentacles.
 //  Gameplay only (art: src/render/gross/mid/ufo.ts). Three telegraphed attacks, cycled lash / volley / lash / brood:
 //   LASH   (42f): a tentacle uncoils and a dashed line tracks you, then locks; it whips out ~220 px along it and back
 //   VOLLEY (36f): three tumours on the hull swell and glow, then burst into aimed 3-fans of pus globs
@@ -165,7 +165,7 @@ function ufoKilled(e) {
 defineMid('ufo', {
   // r is the eye-core; the saucer's wings are extra hitboxes (e.hb)
   et: { hp: 80, r: 15, gsz: 5, score: 6000, bio: 70, eyes: 3, teeth: 4, limbs: 4, big: 1, mini: 1, mid: 1 },
-  word: 'CALAMARI SERVED',
+  word: 'SEVERED', // tone note §4(A)9 (D39): kill words are sensor readings
   update: updUfo,
   kill: ufoKilled,
 });

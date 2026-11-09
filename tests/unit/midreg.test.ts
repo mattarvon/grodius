@@ -42,7 +42,7 @@ describe('the roster', () => {
     expect(MID_HOME).toMatchObject({ choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot' });
     expect(Object.keys(MID_BODY).slice(0, 4)).toEqual(['choir', 'cyst', 'prentice', 'brood']);
     expect(HOME_FIT).toContain('brood');
-    expect(MID_NAMES.ufo).toBe('THE SQUIDFUCKED SAUCER');
+    expect(MID_NAMES.ufo).toBe('SQUID SAUCER 2000');
     expect(BOOT_ART).toEqual(['hero', 'eyes', 'derelict', 'maw:orbit', ...ROSTER.filter((r) => r.boot && !r.wip).map((r) => r.k), 'drive']);
     expect(BOOT_ART).toContain('ufo');
   });
