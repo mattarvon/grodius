@@ -1,0 +1,19 @@
+86a639fe82dc9bf6bf077906a62db84b6619ded2
+?? production/qa/evidence/ls2-tts/gate-build.txt
+PASS vs baseline @ 8ff9ba4
+short exit 0
+PASS (long4) vs baseline @ 88d9525
+long4 exit 0
+PASS (orbit) vs baseline @ 5c8c3eb
+PASS (saucer) vs baseline @ 5c8c3eb
+PASS (breath2) vs baseline @ ffd6b77
+PASS (drive) vs baseline @ 5c8c3eb
+PASS (maw-d1) vs baseline @ 5c8c3eb
+PASS (maw-d3) vs baseline @ 5c8c3eb
+PASS (drive-d1) vs baseline @ 5c8c3eb
+PASS (drive-d3) vs baseline @ 5c8c3eb
+PASS (crux-d1) vs baseline @ 5c8c3eb
+PASS (crux-d3) vs baseline @ 5c8c3eb
+PASS (butcher-d1) vs baseline @ 5c8c3eb
+PASS (butcher-d3) vs baseline @ 5c8c3eb
+scen exit 0

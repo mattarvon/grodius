@@ -1,0 +1,13 @@
+b46a8d53e6023a1278b5dad54307d744bb9d78ae
+ M README.md
+ M android/app/capacitor.build.gradle
+ M android/capacitor.settings.gradle
+ M docs/architecture/architecture-overview.md
+ M docs/architecture/stack-reference.md
+ M package-lock.json
+ M package.json
+ M tests/unit/voicebank.test.ts
+?? production/qa/evidence/ls2-tts/gate-typecheck.txt
+npm notice run grodius@0.2.0 typecheck
+npm notice run tsc --noEmit
+typecheck exit 0
