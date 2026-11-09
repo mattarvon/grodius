@@ -78,10 +78,11 @@ const SLOTS = [
   ['Bosses and midbosses', [
     { id: 'maw', name: 'THE MAW (and its biome variants)', now: G + 'maw/maw-orbit-idle-zoom.png', what: 'Open Orbit stage boss.',
       pick: 'keep', why: 'Rebuilt in the Oct 25 gross-out pass, and the code art is wetter than any pick.', alts: ['boss-mouth'] },
+    // G + 'biomebosses/' is tools/biomeboss-shots.mjs's capture folder (the render module it was named after is gone: LS2-bossart)
     { id: 'crux', name: 'THE BLOATED BITCH', now: G + 'biomebosses/crux-1-shielded-zoom.png', what: 'Ice biome boss.',
-      pick: 'keep', why: 'Just rebuilt and renamed.', alts: [] },
+      pick: 'keep', why: "Repainted from Matt's pick, c5 Engorged Frost Leech (D46, render/gross/crux.ts).", alts: [] },
     { id: 'butcher', name: 'THE BUTCHER', now: G + 'biomebosses/butcher-1-idle-zoom.png', what: 'Fire/derelict biome boss.',
-      pick: 'keep', why: 'Just rebuilt.', alts: [] },
+      pick: 'keep', why: "Repainted from Matt's pick, c1 The Split Side (D46, render/gross/butcher.ts).", alts: [] },
     { id: 'midbosses', name: 'Biome midbosses', now: G + 'midbosses/midboss-snot-zoom.png', what: 'Nail Choir, Dissolving Womb, Butcher\'s Apprentice, Brood Mother.',
       pick: 'keep', why: 'Just rebuilt.', alts: ['tentacle-teeth'] },
     { id: 'drive', name: 'Gravity Drive', now: G + 'drive/drive-1-full.png', what: 'The final boss of every descent: a living organ engine.',

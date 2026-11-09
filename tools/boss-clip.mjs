@@ -3,10 +3,12 @@
 // the left and not firing; hits come from enemies/update.ts hurt(). Measures nothing, writes only under <outDir>. Not measured: a real
 // player's shots and the bullet read under fire (each clip does keep the boss's own bullets).
 // Usage: node tools/boss-clip.mjs <url> <outDir> <subject> [...]   subjects: crux butcher maw acidmaw snotmaw drive choir cyst prentice brood ufo
+//   --from-spawn: render and keep every frame from the spawn (render-side state such as fades runs as in play); default skips
+//   the first 260 frames unrendered.
 //   Needs the Vite dev server. Writes <outDir>/<subject>/f0000.png at the game's 480x270, every 2nd game frame. Pack: tools/boss_clip_pack.py
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
-const [url, OUT, ...subs] = process.argv.slice(2);
+const args = process.argv.slice(2), FROM_SPAWN = args.includes('--from-spawn'), [url, OUT, ...subs] = args.filter((a) => a !== '--from-spawn');
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
@@ -68,8 +70,9 @@ await p.evaluate(async () => {
 for (const k of subs) {
   const dir = `${OUT}/${k}`; mkdirSync(dir, { recursive: true }); let f = 0;
   const keep = async (n) => { const fr = await p.evaluate((n) => window.__c.run(n, true), n); for (const d of fr) writeFileSync(`${dir}/f${String(f++).padStart(4, '0')}.png`, Buffer.from(d.split(',')[1], 'base64')); };
-  await p.evaluate(([k, bio]) => { window.__c.start(k, bio); window.__c.run(k === 'drive' ? 420 : 260, false); window.__c.run(2, true); }, [k, MID[k] || null]);
+  await p.evaluate(([k, bio]) => { window.__c.start(k, bio); window.__c.run(2, true); }, [k, MID[k] || null]);
   await p.waitForTimeout(700); // the baked atlas: its first draw starts the load, which needs real time (the game's warm-up does this earlier)
+  if (FROM_SPAWN) await keep(k === 'drive' ? 420 : 260); else await p.evaluate((k) => window.__c.run(k === 'drive' ? 420 : 260, false), k);
   await keep(k === 'ufo' ? 140 : 240); console.log(k, 'fight', await p.evaluate(() => window.__c.info()));
   for (const fr of [.8, .6, .45, .3, .15, .08]) { await p.evaluate((fr) => window.__c.hit(fr), fr); await keep(k === 'ufo' ? 40 : fr > .5 ? 80 : 110); /* the Saucer drifts off on its own clock: a slow clip loses the kill */ console.log(k, 'at', fr, await p.evaluate(() => window.__c.info())); }
   await p.evaluate(() => window.__c.kill()); await keep(k === 'drive' ? 400 : 200);

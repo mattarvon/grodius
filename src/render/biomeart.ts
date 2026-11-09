@@ -12,6 +12,7 @@ import { HUD_TOP, glow, light } from './util';
 import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
 import { drawMoveProps } from './moveprops';
+import { tankFadeNew, tankFadeStep } from './tankfade';
 import { MOTIFW, PREVW, WOUND, acidFlakes, drainedBodies, fireAsh, iceDrips, iceWash, wBuilt, wlay, wPts, woundBuilt, woundLive, woundLook } from './wounds';
 import { PERKS, pk } from '../perks';
 import { PLATE, plateBox, plateLines, plateRight } from './gateplate';
@@ -289,14 +290,11 @@ function tankBodies(key, pts) {
     }
   }));
 }
-let wombVis = 1, wombT = -1;
-/** 1 shows the vat dead, 0 hides them: eases to 0 over ~40 frames while the Womb lives, back over ~90 once it is gone */
+const TANKF = tankFadeNew();
+/** the vat dead's alpha: 1 shows them, 0 hides them while the Womb lives (render/tankfade.ts) */
 function tankBodyAlpha() {
-  const T = $.T || 0, dt = wombT < 0 || T < wombT ? 0 : Math.min(4, T - wombT), m = $.G && $.G.mini;
-  wombT = T;
-  const up = !!m && m.k === 'cyst' && !m.dead;
-  wombVis = up ? Math.max(0, wombVis - dt / 40) : Math.min(1, wombVis + dt / 90);
-  return wombVis * wombVis * (3 - 2 * wombVis);
+  const m = $.G && $.G.mini;
+  return tankFadeStep(TANKF, $.T || 0, !!m && m.k === 'cyst' && !m.dead);
 }
 
 // the infected ropes' strokes, built on first use: WOUND must not be read at load (wounds.ts and this file import each other)
