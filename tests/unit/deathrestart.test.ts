@@ -47,7 +47,8 @@ beforeEach(() => {
   H.trigger = 'b';
   H.blob = cpBlob();
   H.R.mockClear();
-  vi.mocked(writeCp).mockClear();
+  vi.mocked(writeCp).mockReset();
+  $.state = 'play';
   $.meta = { bio: 0, lv: {} } as any;
 });
 
@@ -99,12 +100,36 @@ describe('option b restart: the life it costs', () => {
     expect($.G!.lives).toBe(1);
   });
 
-  it('stops at 0 when the checkpoint was on the last life and a spare was gained since', () => {
+  it('is never more than the live count allows', () => {
     died({ lives: 1 });
-    H.blob = cpBlob({ lives: 0 });
+    H.blob = cpBlob({ lives: 3 });
     F.respawn();
     expect($.G!.lives).toBe(0);
-    expect($.state).toBe('play'); // the spare paid for it: the run goes on
+  });
+
+  it('respawns in place when the checkpoint was on the last life and a spare was gained since', () => {
+    died({ lives: 1 });
+    H.blob = cpBlob({ lives: 0 });
+    const G = $.G;
+    try { F.respawn(); } catch { /* resetPlayer's far side, as option a below */ }
+    expect($.G).toBe(G); // no rewind
+    expect(writeCp).not.toHaveBeenCalled();
+    expect(G!.lives).toBe(0); // the spare is spent
+    expect($.state).toBe('play'); // the run isn't lost
+  });
+
+  it('cannot loop: a spare picked up again after every restart still ends in game over', () => {
+    died({ lives: 1 });
+    H.blob = cpBlob({ lives: 1 });
+    vi.mocked(writeCp).mockImplementation(() => { H.blob = cpBlob({ lives: $.G!.lives }); }); // the checkpoint keeps the cost
+    let deaths = 0;
+    for (; deaths < 8 && $.state !== 'over'; deaths++) {
+      const G = $.G;
+      try { F.respawn(); } catch { /* resetPlayer's far side on the in-place respawn */ }
+      if ($.G !== G) $.G!.lives++; // rewound past the spare: the replay gives it back (scripted pickup, score extend)
+    }
+    expect($.state).toBe('over');
+    expect(deaths).toBe(3); // restart at 1 life, the spare back: in place, then out
   });
 });
 

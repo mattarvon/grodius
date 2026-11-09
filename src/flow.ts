@@ -322,14 +322,17 @@ function recoverPods(ty) {
  *  life spent and the normal death cost paid on the restored ship (D32: guns stripped as respawn's resetPlayer(true),
  *  grafts down a level, the power cursor reset); the stage keeps its higher deaths and hits for its grade. The
  *  checkpoint is re-written with the life and the cost taken, so an app kill can't give them back. False when there is
- *  no checkpoint (respawn in place, as option a) */
+ *  no checkpoint, or no life on its count to take (respawn in place, as option a) */
 function deathRestart() {
   const G0 = $.G, P0 = $.P, recover = G0.recover, deaths = G0.st ? G0.st.deaths : 0, hits = G0.st ? G0.st.hits || 0 : 0, d = lastCp();
   if (!d || d.g.loop !== G0.loop || d.g.stage !== G0.stage) return false; // only this stage's checkpoint
   // one life off the CHECKPOINT's count, not the live one: a life gained since (SPARE MEAT at a level-up) is earned again
-  // on the replay, so keeping it made the death free (systems-designer). No lower than 0: a checkpoint taken on the last
-  // life, with a spare gained since, costs that spare; the death doesn't end the run on the count
-  const lives = Math.max(0, d.g.lives - 1);
+  // on the replay, so keeping it made the death free (systems-designer). Never more than the live count allows
+  const lives = Math.min(G0.lives - 1, d.g.lives - 1);
+  // A checkpoint on the last life, with a spare gained since: no life to rewind on. Rewinding at 0 would bring the same
+  // spare back (a scripted pickup past cpX, a score extend) and the run could loop forever, so this death spends the
+  // spare in place, as option a: no rewind, and the run isn't lost (systems-designer)
+  if (lives < 0) return false;
   if (!tryResume(d)) return false; // the ordinary respawn then runs on the untouched run
   $.G.lives = lives;
   $.G.st.deaths = Math.max($.G.st.deaths || 0, deaths);
