@@ -47,4 +47,9 @@ describe('an empty voice bank', () => {
   it('has no text-to-speech path left in the code that plays voice lines', () => {
     for (const f of ['src/audio.ts', 'src/fx/update.ts', 'src/render/hype.ts', 'src/platform.ts']) expect(code(f), f).not.toMatch(/speechSynthesis|SpeechSynthesisUtterance|TextToSpeech|nativeSay/);
   });
+
+  it('ships no text-to-speech plugin: package.json does not depend on it and the Android gradle files do not include it', () => {
+    expect(JSON.parse(code('package.json')).dependencies).not.toHaveProperty('@capacitor-community/text-to-speech');
+    for (const f of ['android/capacitor.settings.gradle', 'android/app/capacitor.build.gradle']) expect(code(f), f).not.toMatch(/text-to-speech/);
+  });
 });

@@ -25,7 +25,7 @@ npm run android      # build + copy into the Android project (open android/ in A
 - `src/core.ts` constants, canvases, math, palette; `src/state.ts` the few globals reassigned across modules (`$.G`, `$.P`, `$.state`, ...)
 - simulation: `world` `flow` `step` `player` `shots` `mutations` `enemies/` `boss/` `fx/` `menus` `save` `audio` `input`
 - drawing: `src/render/*`
-- `src/platform.ts` Android glue (haptics, native text-to-speech for voice lines); lifecycle (pause on background, back button, keep screen awake) in `src/main.ts`
+- `src/platform.ts` Android glue (haptics); lifecycle (pause on background, back button, keep screen awake) in `src/main.ts`
 - Type checking is off per file (`// @ts-nocheck`) after the split; remove it module by module while typing.
 
 ## Android notes
@@ -83,7 +83,8 @@ Enemies that come from behind are telegraphed with a BEHIND warning, enter in th
 - Rank: the more powered up you are, the faster enemy bullets fly and the more often mini-bosses fire.
 
 ## Mini-bosses
-The scroll stops until they die.
+The scroll stops until they die (except the Saucer).
+- SQUID SAUCER 2000: mid-Open Orbit. A wrecked saucer gone to meat; it drifts alongside you and the scroll keeps going, and it leaves if you are slow. Whips a tentacle along a dashed aimed line, bursts its tumours into glob fans, drops hatchling litters; below half HP the lash and the volley come twice. Kill word CALAMARI SERVED.
 - THE MAW: ends the open-orbit section (and returns inside).
 - THE BLOAT (was THE BLOATED BITCH, before that THE CRUCIFER): end of the hull. A flayed, frostbitten body hung upside down on a frozen rack; its heart sits behind 4 nail barriers you have to shoot through (Big Core homage). Spike fans, hand rings; below half HP a blood spiral and glob rain.
 - THE BUTCHER: inside, before the gate. Hangs on chains; telegraphed cleaver sweep (red wedge), thrown meathook (dashed line), gib spit. Below half HP it snaps a chain and swings, adding ring bursts.
@@ -105,8 +106,9 @@ Buys options and comfort, never raw power: REINFORCED HULL (+1 ship, max 2), HAR
 - One looping track per slot (title, each stage, Gravity Drive fight, Infirmary/game over), mapped in `src/music.ts` `TRACKS`. Crossfades on change, drops under the pause menu and under voice lines, MUSIC on/off in title and pause menus. Files in `src/music/`, loudness-matched to -16 LUFS.
 
 ## Sound
-- Kill sounds, explosions and death come from sample folders under `src/sfx/<category>/`: `splat_s` (drones, hatchlings), `splat_m`, `splat_l` (heavies, minis), `thud` (body-impact layer under medium and big splats), `bone` (layered on half of the bigger kills), `silly` (comedy layer on ~1 in 7 kills), `explode_s` (missiles), `explode_l` (mini-boss/boss deaths, your death). Every play picks a random clip (never the same twice in a row) with pitch and volume jitter.
+- Kill sounds, explosions and death come from sample folders under `src/sfx/<category>/`: `splat_s` (drones, hatchlings), `splat_m`, `splat_l` (heavies, minis), `thud` (body-impact layer under medium and big splats), `bone` (layered on half of the bigger kills), `explode_s` (missiles), `explode_l` (mini-boss/boss deaths, your death). Every play picks a random clip (never the same twice in a row) with pitch and volume jitter.
 - `kenney-*.ogg` are from Kenney's Impact Sounds (CC0, kenney.nl).
 - The `gen-*.ogg` files are synthesized by `python3 tools/gen_sfx.py` (original, no license strings). Drop any `.ogg/.wav/.mp3` into a folder and it joins the rotation on the next build. Use CC0/public-domain files only while the repo is public.
-- Hype man voice lines: `src/sfx/hype<N>/` holds a recorded line for the N-kill chain (hype10: "hell yeah" / "shamalama"); `src/sfx/babe20/` is the 20-chain surfer ("little stinker" / "shamalama"). `src/sfx/fart_nav/` and `fart_ok/` are the title-menu cursor and select sounds; `src/sfx/startgame/` plays instead when you pick DESCEND. `src/sfx/bossreward/` plays when you beat a stage boss ("keyster easter"). Several files in a folder = random pick. Missing milestones fall back to text-to-speech.
+- Voice lines are recorded clips only; there is no text-to-speech. `src/sfx/startgame/` plays when you pick DESCEND; `src/sfx/corpsevoice/` on every 5th corpse kill. A kill chain plays `src/sfx/hype<N>/` if that folder exists; none ships now, so a chain is its comms window and the sting. Title menu: `gross_pop` on cursor moves, `splat_s` on select. Several files in a folder = random pick.
+- Shelved clips (the chain hype lines, the boss-reward line, the surfer, the `silly` kill layer, the menu farts) sit in `src/sfx-shelved/` and are not bundled; its README says what each did and how to bring one back.
 - Anything not covered by a sample (shots, pickups, alarms, UI) is still synthesized live in `src/audio.ts`.
