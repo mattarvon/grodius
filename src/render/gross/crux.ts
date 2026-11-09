@@ -1,5 +1,5 @@
 // @ts-nocheck
-// THE BLOATED BITCH (ice biome boss, kind 'crux'): Matt's pick c5, the Engorged Frost Leech. A blood-gorged parasite
+// THE BLOAT (ice biome boss, kind 'crux'): Matt's pick c5, the Engorged Frost Leech. A blood-gorged parasite
 // clamped at both ends to a bent iron stake, the crop distended with frozen blood; the four nail bars are iron driven through
 // its flank. Art: tools/bossart/crux/bake.py -> sprites/boss/crux.png. Sim: enemies/update.ts 'crux' / 'nailbar'.
 // Render only: reads sim fields, never writes them; RNG is the render streams (midbosses rnd, srnd); no per-frame allocation.
@@ -49,7 +49,7 @@ const DEATH = {
 };
 
 const tells = { fan: 0, ring: 0, glob: 0, fanR: 0, ringR: 0 };
-/** THE BLOATED BITCH's body, at boss origin (render/enemies.ts translates to e.x, e.y) */
+/** THE BLOAT's body, at boss origin (render/enemies.ts translates to e.x, e.y) */
 export function drawCrux(c, e) {
   const s = fxs(e), t = e.t, f = s.f;
   stepParts(s);

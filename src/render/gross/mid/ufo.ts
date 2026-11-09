@@ -1,6 +1,6 @@
 // @ts-nocheck
 // =====================================================================
-//  THE SQUIDFUCKED SAUCER, the Open Orbit midboss: Matt's pick c3, the Natural-History Plate. A flying disc engraved like
+//  SQUID SAUCER 2000, the Open Orbit midboss: Matt's pick c3, the Natural-History Plate. A flying disc engraved like
 //  a specimen plate and reversed to ivory scratchboard on black; George Shaw's cuttlefish arms (CC0) hang under it;
 //  blood is the only colour. Art: tools/bossart/ufo/bake.py -> sprites/boss/ufo.png (+ .json).
 //  Render-only. Gameplay (HP, attacks, hitboxes, timing) is enemies/mid/ufo.ts; everything here reads entity fields

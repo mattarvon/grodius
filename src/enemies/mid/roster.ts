@@ -56,7 +56,7 @@ const CORE: readonly MidRow[] = [
   // of her inside them on 28% of on-screen frames (LS1 P0 matrix); the other three never clip at home
   { k: 'brood', name: 'THE BROOD MOTHER', label: 'BROOD MOM', tag: 'CROWD', pool: 'snot', min: 0, fit: { up: 28, dn: 28, hw: 26 }, homeFit: true },
   // Open Orbit slot A, its row's drift entry (src/layout.ts). boot: every descent flies Orbit
-  { k: 'ufo', name: 'THE SQUIDFUCKED SAUCER', label: 'SQUID SAUCER', tag: 'DRIFT', pool: 'orbit', min: 0, boot: true },
+  { k: 'ufo', name: 'SQUID SAUCER 2000', label: 'SQUID SAUCER', tag: 'DRIFT', pool: 'orbit', min: 0, boot: true },
 ];
 /** LS2-ice: the Cryosleeper, the Hanging Spine */
 const ICE: readonly MidRow[] = [];

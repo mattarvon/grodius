@@ -376,7 +376,7 @@ export function stageScript(i, rs) {
       if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // the Saucer: only generator filler sits in its window
     } else {
       play('oA', ORBIT_A);
-      if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // THE SQUIDFUCKED SAUCER, the Open Orbit midboss (enemies/mid/ufo.ts): eats the filler while it's up
+      if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // SQUID SAUCER 2000, the Open Orbit midboss (enemies/mid/ufo.ts): eats the filler while it's up
       play('oC', ORBIT_C);
       play('oD', ORBIT_D);
     }

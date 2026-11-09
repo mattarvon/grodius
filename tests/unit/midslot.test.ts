@@ -52,7 +52,7 @@ const { BIOME_FILL, MID_HP, fillerQuiet, isFiller, meetMid, midHpMul, miniUp, re
 
 /** the stub DRIFT member: the Saucer's spawner as enemies/mid/ufo.ts registers it (a drift mini forced out at exitX) */
 const UFO_EXIT_SPEED = 1.6, UFO_OFF = 180; // ufo.ts: it slides off at 1.6 px/f from about tx (W - 96) to W + 80
-registerDrift('ufo', 'THE SQUIDFUCKED SAUCER', (exitX: number, leave: number) => { note('mid:ufo'); $.G.mini = { k: 'ufo', drift: 1, exitX, leave, t: 0 }; });
+registerDrift('ufo', 'SQUID SAUCER 2000', (exitX: number, leave: number) => { note('mid:ufo'); $.G.mini = { k: 'ufo', drift: 1, exitX, leave, t: 0 }; });
 
 /** the run state the build and the play loop read */
 const run = (over: Record<string, unknown> = {}) => ({ loop: 0, seed: 0xc0ffee, pend: [], rank: 0, scroll: 0, script: [], si: 0, route: [null, null], visitNo: [0, 0], ...over });
@@ -153,7 +153,7 @@ describe('midboss slots on long4 (item F)', () => {
     });
 
     it('still holds breath 2s WARNING when the DRIFT midboss ignores its forced exit (the backstop)', () => {
-      registerDrift('ufo', 'THE SQUIDFUCKED SAUCER', (exitX: number, leave: number) => { note('mid:ufo'); $.G.mini = { k: 'ufo', drift: 1, exitX: 1e9, leave: 1e9, t: 0, x0: exitX }; });
+      registerDrift('ufo', 'SQUID SAUCER 2000', (exitX: number, leave: number) => { note('mid:ufo'); $.G.mini = { k: 'ufo', drift: 1, exitX: 1e9, leave: 1e9, t: 0, x0: exitX }; });
       try {
         const S = stage(['ufo', 'choir']), P = L.beatPlan(r(), gate(), false);
         play(S, P.warns[1] + 400);
@@ -162,7 +162,7 @@ describe('midboss slots on long4 (item F)', () => {
         play(S, P.warns[1] + 402);
         expect(log.find(([k]) => k === 'warn:' + MID_NAMES.choir)![2]).toBe(false);
       } finally {
-        registerDrift('ufo', 'THE SQUIDFUCKED SAUCER', (exitX: number, leave: number) => { note('mid:ufo'); $.G.mini = { k: 'ufo', drift: 1, exitX, leave, t: 0 }; });
+        registerDrift('ufo', 'SQUID SAUCER 2000', (exitX: number, leave: number) => { note('mid:ufo'); $.G.mini = { k: 'ufo', drift: 1, exitX, leave, t: 0 }; });
       }
     });
 

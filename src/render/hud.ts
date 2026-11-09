@@ -25,7 +25,7 @@ import { drawBakedDeaths } from './gross/baked';
 import { drawUfoFx } from './gross/mid/ufo';
 import { MID_NAMES } from '../enemies/mid/roster';
 /** the health bar's name for a G.mini without a title: the bosses that can take G.mini, and every midboss */
-const MINI_NAMES: Record<string, string> = { maw: 'THE MAW', crux: 'THE BLOATED BITCH', butcher: 'THE BUTCHER', ...MID_NAMES };
+const MINI_NAMES: Record<string, string> = { maw: 'THE MAW', crux: 'THE BLOAT', butcher: 'THE BUTCHER', ...MID_NAMES };
 import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
 import { drawBG, drawDecor, drawLighting, drawTerrain } from '../render/terrain';

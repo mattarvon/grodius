@@ -32,10 +32,10 @@ export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, spl
 
 export const BIOMES = {
   ice: {
-    name: 'THE CRYOVAULT', tag: 'FROZEN // BLOATED BITCH', sub: 'THE CREW IS STILL IN HERE. FROZEN MID-SCREAM', col: '#9fd8ff', rgb: '160,215,255',
+    name: 'THE CRYOVAULT', tag: 'FROZEN // BLOAT', sub: 'THE CREW IS STILL IN HERE. FROZEN MID-SCREAM', col: '#9fd8ff', rgb: '160,215,255',
     dark: .55, mist: '90,10,26', bg: ['#02060e', '#0e2840'], edge: '#f2fbff', fog: '120,180,230',
     gore: ['#7a1222', '#300610', '#d8efff', '#0c0809', '#8cc4ee', '#ffffff'], blood: ['#7a1222', '#300610', '#c8506a'],
-    boss: 'crux', bossName: 'THE BLOATED BITCH', haz: 'icicle', hazEvery: 110,
+    boss: 'crux', bossName: 'THE BLOAT', haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
     gap: 115, dbl: .55, set: 'morgue', sig: 'corpse',
     mix: [['corpse', 4], ['cross', 3], ['mutant', 2.5], ['flayer', 2], ['eye', 2], ['hook', 2], ['sine', 2]],
@@ -70,7 +70,7 @@ export const BIOMES = {
       'THE ASH HAS FINGERPRINTS.', 'COOLANT LINES CUT BY HAND. SOMEONE WANTED IT HOT.'],
   },
   snot: {
-    name: 'THE SINUS', tag: 'MUCUS // MAW', sub: 'THE SHIP HAS A COLD', col: '#ecd25a', rgb: '236,210,90',
+    name: 'THE SINUS', tag: 'MUCUS // MAW', sub: 'IT IS BREATHING. YOU ARE IN THE AIRWAY', col: '#ecd25a', rgb: '236,210,90',
     dark: .4, mist: '160,140,40', bg: ['#0a0503', '#2a1c08'], edge: '#f4e49a', fog: '200,180,70',
     gore: ['#d0b840', '#7a4a18', '#f4e6a0', '#3a1a0a', '#fff4c8', '#a83a24'], blood: ['#c8ac3a', '#6a4a14', '#f2e08a'],
     boss: 'maw', bossName: 'THE MUCUS MAW', haz: 'strand', hazEvery: 150,

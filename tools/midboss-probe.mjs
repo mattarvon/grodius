@@ -1,6 +1,6 @@
 // Midboss probe: time-to-kill for each biome midboss (docs/pacing.md 3.2) across boss-probe's loadout tiers, with the
 // Maw midboss (maw(false)) as the yardstick. Each fight runs inside its real biome (fork gate taken, terrain rewritten,
-// palette on); THE SQUIDFUCKED SAUCER (ufo) runs in Open Orbit at its real scroll x, with the scroll moving (it doesn't hold it)
+// palette on); SQUID SAUCER 2000 (ufo) runs in Open Orbit at its real scroll x, with the scroll moving (it doesn't hold it)
 // and its forced exit before the Maw's run-up. Invincible bot parks at x=90 and tracks the midboss's y, holding fire.
 // Usage: node tools/midboss-probe.mjs <url> [shotsDir] [zoomDir]   (also saves a rendered mid-fight midboss-<kind>.png, and a close-up)
 //        node tools/midboss-probe.mjs <url> matrix [shotsDir]   (LS1 P0 crossovers: each of the 4 biome midbosses in each of

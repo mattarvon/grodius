@@ -351,7 +351,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 | | The Sniffer | SPACE | Inhales for 120 f, pulling 0.35 px/f, then a sneeze fan | 110 | W1 |
 | | The Polyp | ANGLE | Face ×0.2; the sac on its back ×1; slip behind it through the strands | 100 | W1 |
 | | The Catarrh | RACE | Every 240 f alive it grows, adds a glob and cools down faster (6 steps max) | 85 | W2 |
-| **Orbit** | THE SQUIDFUCKED SAUCER | DRIFT | Existing; slot A; guaranteed in Descent 1 | 80 | E |
+| **Orbit** | SQUID SAUCER 2000 | DRIFT | Existing; slot A; guaranteed in Descent 1 | 80 | E |
 | | Derelict tug | ANGLE | Armoured nose; engines hittable from behind | ~100 | W1 (first new midboss: gives Orbit its slot B) |
 | | Tethered crewman | LINE | Pendulum swing that shows its arc | ~95 | W1 |
 | **Ship pool** (interiors and the Drive approach; per-descent exclusion) | Escape shuttle that never left | WINDOW | — | ~110 | W1 (with the first interior) |

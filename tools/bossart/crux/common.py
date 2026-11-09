@@ -1,4 +1,4 @@
-"""THE BLOATED BITCH (crux), Matt's pick c5 Engorged Frost Leech: the Phase 1 painter's helpers, ported (own copy; the lane's
+"""THE BLOAT (crux), Matt's pick c5 Engorged Frost Leech: the Phase 1 painter's helpers, ported (own copy; the lane's
 kit in tools/bossart is imported, never edited). Hero canvas 864x920 = 8x the real 108x115 footprint; G() maps boss-local px."""
 import sys, os, random, math, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
