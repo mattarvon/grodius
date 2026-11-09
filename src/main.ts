@@ -110,6 +110,9 @@ import { RST, rigFX, rigged } from './contraptions';
 import { AU as __AU } from './audio';
 (window as any).__au = () => ({ state: __AU.c && __AU.c.state, last: __AU.lastCat, gate: $.gate });
 (window as any).__sfx = () => Object.fromEntries(Object.entries(BANK).map(([k, v]) => [k, v.length]));
+// ?vox=<cat>: the voice booth's "test in game" (src/vox.ts, tools/booth/README.md). Dev server only: a build drops
+// the branch and the chunk with it (the dist grep in production/qa/evidence/ls2-booth.md)
+if (import.meta.env.DEV) import('./vox').then((m) => m.voxBoot(location.search));
 
 // ---------------- android lifecycle ----------------
 import { App } from '@capacitor/app';
