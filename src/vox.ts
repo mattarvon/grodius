@@ -13,7 +13,8 @@ import { HYPE, hype } from './fx/update';
 /** the game's call for each wired voice slot; the sample() options are the call sites' own (enemies/update.ts
  *  corpse kill, stages.ts boss reward, menus.ts DESCEND), tests/unit/booth.test.ts checks they still match */
 export const VOX_FIRE: Record<string, { state: string; fire: () => unknown }> = {
-  corpsevoice: { state: 'play', fire: () => sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true }) },
+  // the plea's own call (enemies/update.ts, after corpseKilled): fired straight, so G.st.corpseN/corpseVo stay as the run left them
+  corpsevoice: { state: 'play', fire: () => sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true, prio: true }) },
   bossreward: { state: 'play', fire: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) },
   startgame: { state: 'title', fire: () => sample('startgame', { vol: 1.15, spread: .02, wet: .14 }) },
 };

@@ -73,8 +73,7 @@ you just kept; otherwise it plays one of the folder's takes.
   name (`src/render/hype.ts`), and mapping these folders to SGT. RAMROD SLAB is a follow-up after LS2-tts.
 
 Lines marked **recorded, not wired** are not played by the game yet: the midboss kill words (`kill-<kind>`) and OPENED
-(`carn5`). Record them now; wiring them through the comms window is the same follow-up. The UFO's word is changing
-in LS2-tts, so record `kill-ufo` after that merges, or rename the file.
+(`carn5`). Record them now; wiring them through the comms window is the same follow-up.
 
 ## Adding a line
 

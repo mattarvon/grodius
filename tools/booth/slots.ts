@@ -66,7 +66,7 @@ export const SLOTS: Slot[] = [
     cat: 'corpsevoice',
     slug: 'stop-killing-me',
     copy: { lines: ['STOP KILLING ME', 'WITH YOUR SPACESHIP, SIR'], from: 'src/render/hype.ts', lit: "['STOP KILLING ME', 'WITH YOUR SPACESHIP, SIR']" },
-    when: 'every 5th crew corpse you shoot (enemies/update.ts killEnemy)',
+    when: 'once a stage, on one of its first 5 crew corpse kills (enemies/corpsevoice.ts corpseKilled)',
     caller: 'CREWMAN #5 // DECEASED',
     wired: true,
     test: 'stage=orbit&vox=corpsevoice',
