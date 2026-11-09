@@ -1,11 +1,8 @@
-86a639fe82dc9bf6bf077906a62db84b6619ded2
-?? production/qa/evidence/ls2-tts/gate-build.txt
-?? production/qa/evidence/ls2-tts/gate-typecheck.txt
-?? production/qa/evidence/ls2-tts/gate-vitest.txt
+54f574f735c484366040eb7be1881887526b7397
+ M production/qa/evidence/ls2-tts/gate-build.txt
+ M production/qa/evidence/ls2-tts/gate-harness.txt
+ M production/qa/evidence/ls2-tts/gate-typecheck.txt
+ M production/qa/evidence/ls2-tts/gate-vitest.txt
 build exit 0
-[plugin builtin:vite-reporter] 
-(!) Some chunks are larger than 500 kB after minification. Consider:
-- Using dynamic import() to code-split the application
 - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
-✓ built in 520ms

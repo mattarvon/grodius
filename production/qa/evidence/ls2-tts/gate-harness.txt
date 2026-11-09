@@ -1,5 +1,13 @@
-86a639fe82dc9bf6bf077906a62db84b6619ded2
-?? production/qa/evidence/ls2-tts/gate-build.txt
+54f574f735c484366040eb7be1881887526b7397
+ M production/qa/evidence/ls2-tts/gate-build.txt
+ M production/qa/evidence/ls2-tts/gate-harness.txt
+ M production/qa/evidence/ls2-tts/gate-typecheck.txt
+ M production/qa/evidence/ls2-tts/gate-vitest.txt
+{"st":{"state":"over","score":1243,"scroll":3538,"lives":0,"px":50,"py":143.25,"en":0,"gibs":0,"drops":0,"caps":0},"hashes":["eb7833e268","2963d468f2","8685cbf67e","0431e5c939","fbe86423fd","08e82b599d"],"errs":[]}
+note: 6/6 canvas hashes differ (advisory)
+short exit 0
+{"st":{"state":"over","score":6096,"scroll":3538,"lives":0,"px":50,"py":153.25,"en":2,"gibs":0,"drops":13,"caps":0},"hashes":["6d7c4fac15","5f0d9e526d","59237145ee","d524a09a70","3bdec01694","0280418232"],"errs":[]}
+note: 6/6 canvas hashes differ (advisory)
 PASS vs baseline @ 8ff9ba4
 short exit 0
 PASS (long4) vs baseline @ 88d9525

@@ -6,7 +6,9 @@ Branch `ls2-tts` off `1f7f142`. Local commits only (not pushed).
 |---|---|
 | `b46a8d5` feat | SQUID SAUCER 2000's kill word is CALAMARI SERVED again (Matt 2026-11-09, "keep CALAMARI SERVED"); overrides D39's SEVERED for this enemy only (`src/enemies/mid/ufo.ts:168`, comment says so) |
 | `86a639f` chore | `@capacitor-community/text-to-speech` removed: package.json, package-lock.json, Android gradle wiring, README, architecture docs, a guard test |
-| (this) docs | this report and the gate logs |
+| `c24e677` feat | Scope add (Matt 2026-11-09, "'stop killing me' is too often"): the crew corpse pleads at most once per stage, on a kill that varies by stage |
+| `54f574f` fix | Review N1/N2: the plea plays with `prio` (never dropped at the voice cap); a death restart keeps the played flag |
+| `1e2736d` + final docs | this report and the gate logs |
 
 ## What changed
 
@@ -18,6 +20,18 @@ Branch `ls2-tts` off `1f7f142`. Local commits only (not pushed).
 - **Docs.** `docs/architecture/architecture-overview.md` (:15, :42, :77) and `stack-reference.md` (the plugin row) no longer list TTS.
 - **Test.** `tests/unit/voicebank.test.ts`: package.json does not depend on the plugin and neither gradle file includes it. Seen failing against the `b46a8d5` files (1 failed / 4 passed), passing on `86a639f`.
 
+- **Corpse plea (scope add).** `src/enemies/corpsevoice.ts` is a pure leaf with no imports. `corpseVoiceAt(stage, loop)` picks kill 1..`CORPSE_VOICE.span` (5) from a multiplicative integer hash; it makes no `R()` or `srnd()` draw. In Descent 1, stages 0-11 land on kills 4 3 1 4 3 2 5 4 3 1 4 3. `corpseKilled(st, ...)` counts in the stage stats as `G.st.corpseN` and sets `G.st.corpseVo` once. `src/enemies/update.ts` calls it in place of the old `$.G.corpseN % 5`.
+  - **Lifecycle:**
+    - `startStage` builds a fresh `G.st`, so every stage starts at 0 and unplayed.
+    - The checkpoint stores `G.st` (`runsave.ts` `st: isObj`), and `resumeRun` merges it back. RE-ENTER resumes the count and the flag as they stood at the checkpoint.
+    - `deathRestart` now also carries `corpseVo` over the restore, as it already does deaths and hits, so a plea played since the checkpoint is not replayed.
+    - The old `$.G.corpseN` was never reset or saved. It is gone.
+  - **Quiet stages:** a stage with fewer corpse kills than its target (about 1 in 5 stages has a target of 5) stays quiet. That is a tuning question for game-designer.
+  - **Tests:**
+    - `tests/unit/corpsevoice.test.ts`: the plea fires once per stage, never twice even with the count wound back, the target varies across stages and loops, and a stage below its target stays quiet.
+    - `runsave.test.ts`: the fixture round-trips `corpseN` and `corpseVo`.
+    - `deathrestart.test.ts`: the flag carry, and its absence when the plea had not played. The carry test was seen failing without the `flow.ts` change. The new corpsevoice suite could not run against the old code, because its module didn't exist.
+
 ## Acceptance checklist
 
 - [x] Kill word CALAMARI SERVED, screenshot looked at: `ls2-tts/saucer-kill-calamari-served.png` (`tools/ufo-shots.mjs`, long4, real blackletter font via a gate-only `fs.allow`). The banner sits over the "FIRST KILL +100" popup's left edge; that popup was there before too, and the longer word only covers more of it.
@@ -26,16 +40,20 @@ Branch `ls2-tts` off `1f7f142`. Local commits only (not pushed).
 - [x] CI regenerates the same files: the android job runs `npm ci`, `npm run build`, `npx cap sync android`, gradle
 - [x] No TTS code in src; the bundle has no `text-to-speech`/`TextToSpeech` string (`grep -ric dist`: 0 files)
 - [x] README :28, :111, Mini-bosses
-- [ ] Device boot check: Matt, below
+- [x] Corpse plea at most once per stage on a varying kill, with no new sim or render draw. Harness `st` is identical and parity is identical.
+- [x] corpseN and corpseVo: reset at stage start, kept through save and RE-ENTER, kept through a death restart
+- [ ] Device boot check: Matt, below. Add one step: corpse kills in a stage give at most one "stop killing me".
 
 ## Gates (logs in `ls2-tts/`, each starts with the commit and `git status --short`)
 
-Run on `86a639f` with a clean tree except the untracked gate logs. Heavy jobs ran under `/tmp/grodius-heavy.lock`, with Tctl at 48-56 °C. The lane used its own Vite server, which had its own `cacheDir` in the scratchpad and `fs.allow` for the shared node_modules.
+The final gates ran on **`54f574f`** (all src and tests; the tree held only the gate logs). The same set also passed on `86a639f` (the TTS commit) and on `c24e677`, and harness and build passed again after the fix.
+- Heavy jobs ran under `/tmp/grodius-heavy.lock`, with Tctl at 48-60 °C.
+- The lane ran its own Vite server, restarted after every src change. It had its own `cacheDir` in the scratchpad and `fs.allow` for the shared node_modules.
 
 - typecheck: exit 0 (`gate-typecheck.txt`)
-- vitest: 57 files, 1123 pass + 1 expected fail (1122 before + the new guard) (`gate-vitest.txt`)
+- vitest: 58 files, 1132 pass + 1 expected fail (`gate-vitest.txt`). That is the 1122 from before, plus the TTS guard, the 7 corpsevoice tests and the 2 restart tests.
 - build: exit 0, tail only (`gate-build.txt`)
-- harness, no `--update`: short PASS @8ff9ba4, long4 PASS @88d9525, 12/12 scenarios PASS (`gate-harness.txt`). Sim state `st` is unchanged.
+- harness, no `--update`: short PASS @8ff9ba4, long4 PASS @88d9525, 12/12 scenarios PASS (`gate-harness.txt`). Sim state `st` is unchanged. Canvas hashes differ, which is advisory and was already so in the ls2-names and ls2-read logs.
 - layout-parity, no `--update`: PARITY PASS; runs 3, 6, 7, 11, 15, 3x3 and 7m are identical (`gate-parity.txt`). The kill word is not in parity's record (it records titles).
 
 ## Device boot check (for Matt; devops-engineer)
@@ -52,6 +70,8 @@ After the merge, in the **main checkout** first: `git pull && npm ci && npx cap 
 
 ## Not measured
 
+- The corpse plea was not heard in a live run. The harness removes AudioContext, and the bot rarely kills enough corpses in one stage. The pick, the count and the restart carry are unit-tested; the `sample` call is one line.
+
 - No CI APK build or device run from this lane (local commits only). The gradle build is checked only by matching the generator's output.
 - `npm ci` against the new lock was not run (the node_modules is shared). The match between package.json and the lock was checked by reading them.
 
@@ -66,4 +86,5 @@ After the merge, in the **main checkout** first: `git pull && npm ci && npx cap 
 | Agent | What it did |
 |---|---|
 | web-specialist | Built commit 2: the lockfile uninstall, gradle edits, README, docs and the guard test; left the `.claude/` config lines alone |
+| web-specialist (2nd) | Reviewed `c24e677`: APPROVE WITH NOTES. N1 (`prio`) and N2 (restart carry) were fixed in `54f574f`. N3 (quiet stages) is open for game-designer. |
 | devops-engineer | Reviewed the Android/CI side against the Capacitor generator and the workflow: APPROVE WITH NOTES. Wrote the boot check and the local post-merge steps |
