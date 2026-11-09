@@ -21,9 +21,9 @@ vi.mock('../../src/render/gross/drive', () => ({ warmDrive: () => false }));
 vi.mock('../../src/render/gross/maw', () => ({
   warmMawVariant: (v: string) => A.unit('maw:' + v).warm(), dropMawVariant: (v: string) => A.unit('maw:' + v).drop(), mawVariantBuilt: (v: string) => A.unit('maw:' + v).built(),
 }));
-vi.mock('../../src/render/gross/biomebosses', () => ({
-  warmBiomeBoss: (k: string) => A.unit(k).warm(), dropBiomeBoss: (k: string) => A.unit(k).drop(), biomeBossBuilt: (k: string) => A.unit(k).built(),
-}));
+// the stage bosses' baked art (LS2-bossart: one module each, replacing gross/biomebosses)
+vi.mock('../../src/render/gross/crux', () => ({ warmCrux: () => A.unit('crux').warm(), dropCrux: () => A.unit('crux').drop(), cruxBuilt: () => A.unit('crux').built() }));
+vi.mock('../../src/render/gross/butcher', () => ({ warmButcher: () => A.unit('butcher').warm(), dropButcher: () => A.unit('butcher').drop(), butcherBuilt: () => A.unit('butcher').built() }));
 vi.mock('../../src/render/gross/mid', async () => {
   const { ROSTER: rows } = await import('../../src/enemies/mid/roster');
   return { MID_ART: Object.fromEntries(rows.map((r) => [r.k, A.unit(r.k)])) };

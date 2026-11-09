@@ -2,6 +2,15 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-09 (every boss, repainted)
+
+- Every boss and midboss has been repainted from scratch: wetter, darker and more anatomical, with real photographic flesh and bone under the paint.
+- The Maw is now a lamprey's mouth: rings of hooked teeth around a throat that never closes. In the acid and sinus biomes it is dissolving or choked with mucus.
+- The Squidfucked Saucer is an old natural-history engraving come to life: ivory linework on black, and the only colour is blood.
+- The Cryovault boss is a frozen, engorged leech. The Burning Butcher is a carcass split down one side. The Drive's boss is a wheel of spine. The Nail Choir is an enucleated eye. The Dissolving Womb is a torn placenta. The Butcher's Apprentice has grown into its blade. The Brood Mother is a knot of tapeworm.
+- Bosses tear open as you wound them and die harder.
+- Image credits for the new art are in CREDITS.md.
+
 ## 2026-11-08 (resumed runs that cost what they should, a cleaner HUD)
 
 - Dying after a checkpoint restart now costs what any other death costs. You lose a life from the count you had at the checkpoint, not a life you picked up afterwards. If that checkpoint held no spare life, you respawn where you fell instead.

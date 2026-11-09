@@ -216,15 +216,9 @@ const P = {
       for (let k = 0; k < 5; k++) { const tx = cx - w / 2 + 4 + r() * (w - 20), tw = 6 + r() * 12, ty = fy + 2 + r() * (fh - 4); x.fillStyle = 'rgba(70,22,14,.55)'; x.beginPath(); x.moveTo(tx, ty); x.lineTo(tx + tw, ty - .8 - r() * 1.2); x.lineTo(tx + tw * .7, ty + 1 + r()); x.closePath(); x.fill(); }
       x.fillStyle = '#1c120a'; x.fillRect(cx - w / 2 - 3, base, w + 6, 4); x.fillStyle = '#3e2412'; x.fillRect(cx - w / 2 - 3, base, w + 6, 1); // the tank floor plate
       x.fillStyle = 'rgba(63,232,200,.5)'; x.fillRect(cx - w / 2, lvl | 0, w, 1);
-      // the crew collapsed on the tank floor: bones lying flat
-      for (let k = 0; k < 2; k++) {
-        const bx = cx - 14 + k * 24 + r() * 6, s = 1.5 + r() * .3, dir = k ? -1 : 1;
-        x.strokeStyle = 'rgba(170,164,150,.75)'; x.lineWidth = .8;
-        x.beginPath(); x.moveTo(bx - 9 * s * dir, fy - 1); x.lineTo(bx + 5 * s * dir, fy - 1.5); x.stroke(); // spine
-        for (let q = 0; q < 4; q++) { const rx = bx + (q * 1.8 - 3) * s * dir; x.beginPath(); x.arc(rx, fy - 1.5, 2 * s, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); }
-        x.beginPath(); x.moveTo(bx - 9 * s * dir, fy - 1); x.lineTo(bx - 15 * s * dir, fy - .5); x.moveTo(bx - 9 * s * dir, fy - 1); x.lineTo(bx - 14 * s * dir, fy - 3); x.stroke(); // legs
-        remains(x, bx + 8 * s * dir, fy - 2 * s, s * .8, 'rgba(170,164,150,.85)', dir);
-      }
+      // a grown crewman collapsed on the tank floor: bones lying flat (D46: nothing child-sized in the tanks)
+      // its bones live in their own layer (drainedBodies) so they can fade out while the Womb is up (D46, Matt's call b)
+      const body = [cx + 4 + r() * 4, fy, 2.2 + r() * .2, r() < .5 ? -1 : 1];
       // cracks in the glass
       const nc = 2 + (r() < .5);
       x.strokeStyle = 'rgba(200,240,230,.35)'; x.lineWidth = .7;
@@ -234,28 +228,18 @@ const P = {
       x.fillStyle = '#2c1a0e'; x.fillRect(cx - w / 2 - 4, top - 8, w + 8, 9); x.fillRect(cx - w / 2 - 3, lvl - 12, w + 6, 3);
       x.fillStyle = '#5e3416'; x.fillRect(cx - w / 2 - 4, top - 8, w + 8, 2);
       x.fillStyle = '#1c100a'; x.fillRect(cx - 4, 0, 8, top - 8);
-      pts.push({ x: cx, y: fy, w });
+      pts.push({ x: cx, y: fy, w, body });
     }
   },
-  acidMidW: (x, r) => {
+  acidMidW: (x, r, pts) => {
     // the same gantry; the teal drips have dried to stains with a crust bead; the hung crewman is bone
     const by = 22 + r() * 10;
     wrap(x, () => { x.fillStyle = '#1e130c'; x.fillRect(0, by, LW, 7); x.fillStyle = '#3e2412'; x.fillRect(0, by, LW, 1); });
     for (let i = 0; i < 18; i++) { const hx = r() * LW, hr = 1 + r() * 2.2; wrap(x, () => { x.fillStyle = '#040302'; x.beginPath(); x.arc(hx, by + 3.5, hr, 0, TAU); x.fill(); }); }
     for (let i = 0; i < 26; i++) { const dx = r() * LW | 0, l = 6 + r() * 46; wrap(x, () => { x.fillStyle = 'rgba(120,90,60,.25)'; x.fillRect(dx, by + 7, 1, l); x.fillStyle = 'rgba(220,215,200,.6)'; x.fillRect(dx, by + 7 + l, 1, 1); }); }
     for (let i = 0; i < 4; i++) { const sx = 20 + i * 80 + r() * 30; wrap(x, () => { x.strokeStyle = '#1a100a'; x.lineWidth = 4; x.beginPath(); x.moveTo(sx, by + 6); x.lineTo(sx + 24, by + 46); x.stroke(); }); }
-    const hx = 60 + r() * 200;
-    x.strokeStyle = '#140c08'; x.lineWidth = 1; x.beginPath(); x.moveTo(hx, by + 7); x.lineTo(hx, by + 30); x.stroke();
-    x.strokeStyle = 'rgba(180,172,155,.8)'; x.lineWidth = 1.2; x.beginPath();
-    x.moveTo(hx, by + 32); x.lineTo(hx, by + 56); // spine
-    x.moveTo(hx, by + 34); x.lineTo(hx - 4, by + 44); x.lineTo(hx - 4, by + 52); x.moveTo(hx, by + 34); x.lineTo(hx + 4, by + 44); x.lineTo(hx + 5, by + 51); // arms
-    x.moveTo(hx, by + 56); x.lineTo(hx - 3, by + 68); x.lineTo(hx - 3, by + 78); x.moveTo(hx, by + 56); x.lineTo(hx + 3, by + 68); x.lineTo(hx + 4, by + 77); // legs
-    x.stroke();
-    x.lineWidth = .8; for (let q = 0; q < 4; q++) { x.beginPath(); x.arc(hx, by + 37 + q * 3.4, 3.6, Math.PI * 1.15, Math.PI * 1.85); x.stroke(); }
-    // what is left of the head: the cranium's back half, the jaw hanging on below it
-    x.fillStyle = 'rgba(180,172,155,.85)'; x.beginPath(); x.moveTo(hx - 3.5, by + 30); x.lineTo(hx - 3.2, by + 26); x.lineTo(hx - .5, by + 23.5); x.lineTo(hx + 2.5, by + 25); x.lineTo(hx + 1, by + 28); x.lineTo(hx + 2.2, by + 30.5); x.closePath(); x.fill();
-    x.fillStyle = '#0a0806'; x.fillRect(hx - 1.8, by + 26.5, 1.2, 1);
-    x.strokeStyle = 'rgba(180,172,155,.8)'; x.lineWidth = 1; x.beginPath(); x.moveTo(hx - 2.5, by + 31.5); x.lineTo(hx - .5, by + 34); x.lineTo(hx + 1.8, by + 32.5); x.stroke();
+    // the hung crewman's bones: own layer (drainedHung) so they fade while the Womb is up (D46, Matt's call b)
+    pts.push({ hang: [60 + r() * 200, by] });
   },
   // two passes (two warm slices): one pass measured 5.8 ms at 4x, over the 4 ms slice limit
   snotFarW: [(x, r) => {
@@ -307,6 +291,36 @@ function step(key) {
   if (B.i < ps.length) return false;
   WL[key] = B.c; WPT[key] = B.pts; delete BUILD[key];
   return true;
+}
+/** the drained gantry's hung crewman, from acidMidW's point list onto its own layer (render/biomeart.ts fades it) */
+export function drainedHung(x, pts) {
+  for (const p of pts) {
+    if (!p.hang) continue;
+    const [hx, by] = p.hang;
+      x.strokeStyle = '#140c08'; x.lineWidth = 1; x.beginPath(); x.moveTo(hx, by + 7); x.lineTo(hx, by + 30); x.stroke();
+      x.strokeStyle = 'rgba(180,172,155,.8)'; x.lineWidth = 1.2; x.beginPath();
+      x.moveTo(hx, by + 32); x.lineTo(hx, by + 56); // spine
+      x.moveTo(hx, by + 34); x.lineTo(hx - 4, by + 44); x.lineTo(hx - 4, by + 52); x.moveTo(hx, by + 34); x.lineTo(hx + 4, by + 44); x.lineTo(hx + 5, by + 51); // arms
+      x.moveTo(hx, by + 56); x.lineTo(hx - 3, by + 68); x.lineTo(hx - 3, by + 78); x.moveTo(hx, by + 56); x.lineTo(hx + 3, by + 68); x.lineTo(hx + 4, by + 77); // legs
+      x.stroke();
+      x.lineWidth = .8; for (let q = 0; q < 4; q++) { x.beginPath(); x.arc(hx, by + 37 + q * 3.4, 3.6, Math.PI * 1.15, Math.PI * 1.85); x.stroke(); }
+      // what is left of the head: the cranium's back half, the jaw hanging on below it
+      x.fillStyle = 'rgba(180,172,155,.85)'; x.beginPath(); x.moveTo(hx - 3.5, by + 30); x.lineTo(hx - 3.2, by + 26); x.lineTo(hx - .5, by + 23.5); x.lineTo(hx + 2.5, by + 25); x.lineTo(hx + 1, by + 28); x.lineTo(hx + 2.2, by + 30.5); x.closePath(); x.fill();
+      x.fillStyle = '#0a0806'; x.fillRect(hx - 1.8, by + 26.5, 1.2, 1);
+      x.strokeStyle = 'rgba(180,172,155,.8)'; x.lineWidth = 1; x.beginPath(); x.moveTo(hx - 2.5, by + 31.5); x.lineTo(hx - .5, by + 34); x.lineTo(hx + 1.8, by + 32.5); x.stroke();
+  }
+}
+/** the drained tanks' dead, painted from acidFarW's point list onto their own layer: render/biomeart.ts fades it while the Womb is up */
+export function drainedBodies(x, pts) {
+  for (const p of pts) {
+    if (!p.body) continue;
+    const [bx, fy, s, dir] = p.body;
+    x.strokeStyle = 'rgba(170,164,150,.75)'; x.lineWidth = .8;
+    x.beginPath(); x.moveTo(bx - 9 * s * dir, fy - 1); x.lineTo(bx + 5 * s * dir, fy - 1.5); x.stroke(); // spine
+    for (let q = 0; q < 4; q++) { const rx = bx + (q * 1.8 - 3) * s * dir; x.beginPath(); x.arc(rx, fy - 1.5, 2 * s, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); }
+    x.beginPath(); x.moveTo(bx - 9 * s * dir, fy - 1); x.lineTo(bx - 15 * s * dir, fy - .5); x.moveTo(bx - 9 * s * dir, fy - 1); x.lineTo(bx - 14 * s * dir, fy - 3); x.stroke(); // legs
+    remains(x, bx + 8 * s * dir, fy - 2 * s, s * .8, 'rgba(170,164,150,.85)', dir);
+  }
 }
 /** a wound layer, built now if it is not yet (the lazy path: the warm-up should have built it, see warmWound) */
 export function wlay(key) {

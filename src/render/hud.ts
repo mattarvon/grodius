@@ -21,11 +21,11 @@ import { drawShots } from '../render/bullets';
 import { drawContraptionFX } from '../contraptions';
 import { drawEnemy } from '../render/enemies';
 import { drawMawFx } from './gross/maw';
+import { drawBakedDeaths } from './gross/baked';
 import { drawUfoFx } from './gross/mid/ufo';
 import { MID_NAMES } from '../enemies/mid/roster';
 /** the health bar's name for a G.mini without a title: the bosses that can take G.mini, and every midboss */
 const MINI_NAMES: Record<string, string> = { maw: 'THE MAW', crux: 'THE BLOATED BITCH', butcher: 'THE BUTCHER', ...MID_NAMES };
-import { drawBiomeBossFX } from '../render/gross/biomebosses';
 import { drawBoss } from '../render/boss';
 import { drawDecals, drawDrops, drawGibs, drawMists } from '../render/gore';
 import { drawBG, drawDecor, drawLighting, drawTerrain } from '../render/terrain';
@@ -323,13 +323,13 @@ export function drawWorld() {
   drawBoss($.G.boss); // null = the Gravity Drive's aftermath (bile rain, carcass) if it just burst
   drawMawFx(); // src/render/gross/maw.ts: the Maw's pus / vomit / gas / death rupture (render-only particles)
   drawUfoFx(); // src/render/gross/mid/ufo.ts: the Open Orbit midboss's particles and its death (hull burst, tentacle flood)
+  drawBakedDeaths(ctx); // src/render/gross/baked.ts: the baked bosses' corpses and their gore
   drawTerrain();
   drawDecor();
   drawDecals();
   for (const e of enemies) if (e.k === 'eye') drawEnemy(e);
   drawGibs();
   drawDrops();
-  drawBiomeBossFX(); // render-only gore of the Crucifer / Butcher (gross/biomebosses.ts)
   drawBiomeFX();
   for (const o of orbs) {
     const p = .6 + .4 * Math.sin($.T * .3 + o.x);

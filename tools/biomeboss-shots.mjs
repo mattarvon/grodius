@@ -1,6 +1,6 @@
 // Biome boss screenshots: THE BLOATED BITCH (crux) and THE BURNING BUTCHER fought inside their own biome by the
 // boss-probe bot (STAGE 1 kit, invincible, parked at x=90 tracking the boss), rendered every frame so the
-// render-side gore (src/render/gross/biomebosses.ts) animates. Saves full frames + 2x close-ups per beat:
+// render-side gore (src/render/gross/crux.ts, butcher.ts) animates. Saves full frames + 2x close-ups per beat:
 //   crux:    shielded (bars up), exposed (bars broken), half HP, death
 //   butcher: idle, spit, chain snapped (half HP), death
 // Usage: node tools/biomeboss-shots.mjs <url> <outDir> [--layout long4|short]   (fights in biome slot 0 of src/layout.ts, stage-relative x 1000)

@@ -561,3 +561,50 @@ all of the bosses. need to upgrade all of them. more realistic, more gross shit"
   George Shaw's cuttlefish, CC0).
 - The LS2-bossart lane (art-director leading) audits all ten bosses and midbosses, offers 6 directions per remaining
   boss (one in the engraving style), then builds Matt's picks as baked sprites, render-only, gameplay unchanged.
+
+### D46 Boss picks built; content cut in the repaint — 2026-11-09 (Matt)
+
+Matt picked the remaining seven bosses from the LS2-bossart picker: **crux c5 Engorged Frost Leech, butcher c1 The Split
+Side, drive c3 Spine Wheel, choir c3 The Enucleated Eye, cyst c2 The Torn Placenta, prentice c2 Grown Into the Blade, brood
+c3 Tapeworm Knot** (Maw and Saucer: D45). All nine are built as baked, animated art, render only (LS2-bossart report:
+`production/qa/evidence/ls2-bossart.md`).
+
+Content, Matt: "cut it in the repaint" (no hotfix on main):
+- the Womb's child figure and kicking limb removed (the new Womb is placenta, cord and membrane only);
+- the Butcher's breasts removed (the old art deleted);
+- the small figure in the snot-biome egg pods replaced by a dark clot;
+- the child-sized skeletons in the acid tanks replaced by one adult body per tank; adult corpses and gore stay;
+- Matt's call **b** ("b, looks cool merge it"): the acid-tank bodies fade out while THE DISSOLVING WOMB is up and back after
+  it dies, because a tank skull over the placenta read as the boss's head (art-director block, cleared on recheck).
+
+**D46 addendum (parent, 2026-11-09).** To clear art-director's recheck block, call b was extended: the hanging acid
+corpses (hooks and the gantry crewman, full and drained visits) also fade while THE DISSOLVING WOMB is up, and the
+Womb's cord lip was re-baked as dark meat (a pale stump read as a face). Only while the Womb is up; told to Matt.
+
+### D47 LS2-bossart merged — 2026-11-09 (parent; Matt: "b, looks cool merge it")
+
+**What merged** (ls2-bossart, `eede936..01736aa`): all nine boss picks (D45, D46) as baked, animated atlases in
+`src/sprites/boss/`, drawn by `src/render/gross/baked.ts` and per-boss modules; the old `gross/biomebosses.ts` deleted;
+the D46 cuts; the Womb tank fade (`src/render/tankfade.ts`, tested); the painters in `tools/bossart/` (the committed PNGs
+are the source of truth; photos stay in git-ignored `assets-raw/`). Render only: no sim file changed.
+
+**Gates** on code tip 03d041c, clean tree: unit 1117 pass; harness short and long4 PASS; 12 scenarios PASS; layout-parity
+PASS; rng-probe 11/11 fights identical. Option-b proof retained: `production/qa/evidence/ls2-bossart/d46-womb-fade.jpg`.
+The parent built the merged tree before the push: `vite build` exit 0, `dist` 46,178,713 bytes (APK about +1.4 MB).
+
+**Studio review.** In-lane art-director and technical-artist sign-off (the frame-time block fixed). All 8 leads
+APPROVE or APPROVE WITH NOTES except qa-lead, whose BLOCK (gates on the rebased tip; no option-b proof) closed in
+95fa2e5/03d041c/01736aa. creative-director, technical-director and producer APPROVE WITH NOTES. Licensing:
+91 photos (CC BY 2.0/4.0, CC0, PDM) plus 3 sources, all in CREDITS.md, no NC/ND.
+
+**Rollback point:** tag `pre-ls2-bossart` on `eede936`.
+
+**Owned items (backlog, S3):**
+1. art: the Saucer reads clean and dry; repaint it waterlogged for THE DROWNED LANDER, with rim grime; the emoji-like
+   round skulls in `biomeart.ts`; Butcher and Apprentice value lift against the fire biome; the acid Maw's belly too
+   pink; the shared kill burst hides the first death frames.
+2. Matt decides: the Nail Choir's single eye against D41's no-single-big-eye rule (narrative-director, creative-director).
+3. tech: atlas onerror retry and a bounded ready-wait at the boss gate (a slow phone can open on the fallback mass);
+   pin PIL and hash the photos; crux and gravity frame time on the perf backlog before release.
+4. release: spot-check ~5 Flickr CC BY rows and the 4 creatorless rawpixel rows before a tagged release.
+5. Matt on the Fold: does any boss open on the fallback mass.
