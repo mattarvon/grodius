@@ -324,7 +324,7 @@ function recoverPods(ty) {
  *  checkpoint is re-written with the life and the cost taken, so an app kill can't give them back. False when there is
  *  no checkpoint, or no life on its count to take (respawn in place, as option a) */
 function deathRestart() {
-  const G0 = $.G, P0 = $.P, recover = G0.recover, deaths = G0.st ? G0.st.deaths : 0, hits = G0.st ? G0.st.hits || 0 : 0, d = lastCp();
+  const G0 = $.G, P0 = $.P, recover = G0.recover, deaths = G0.st ? G0.st.deaths : 0, hits = G0.st ? G0.st.hits || 0 : 0, corpseVo = !!(G0.st && G0.st.corpseVo), d = lastCp();
   if (!d || d.g.loop !== G0.loop || d.g.stage !== G0.stage) return false; // only this stage's checkpoint
   // one life off the CHECKPOINT's count, not the live one: a life gained since (SPARE MEAT at a level-up) is earned again
   // on the replay, so keeping it made the death free (systems-designer). Never more than the live count allows
@@ -337,6 +337,7 @@ function deathRestart() {
   $.G.lives = lives;
   $.G.st.deaths = Math.max($.G.st.deaths || 0, deaths);
   $.G.st.hits = Math.max($.G.st.hits || 0, hits);
+  if (corpseVo) $.G.st.corpseVo = true; // a plea played since the checkpoint is not played again on the replay (corpsevoice.ts)
   const y = $.P.y;
   resetPlayer(true); // D32: option a's respawn strip, on the restored loadout
   $.P.y = y; // where resumeRun placed it, with the resume's longer i-frames

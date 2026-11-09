@@ -144,3 +144,20 @@ describe('option a is untouched', () => {
     expect(G!.lives).toBe(2);
   });
 });
+
+describe('option b restart: the crew corpse plea (enemies/corpsevoice.ts)', () => {
+  it('keeps a plea played since the checkpoint, so the replay does not play it again', () => {
+    died({ st: { deaths: 1, hits: 2, corpseN: 4, corpseVo: true } });
+    H.blob = cpBlob({ st: { deaths: 0, hits: 0, corpseN: 1 } }); // the checkpoint came before the plea
+    F.respawn();
+    expect($.G!.st.corpseVo).toBe(true);
+    expect($.G!.st.corpseN).toBe(1); // the count rewinds with the replay
+  });
+
+  it('leaves the plea unplayed when it had not played before the death', () => {
+    died({ st: { deaths: 1, hits: 2, corpseN: 2 } });
+    H.blob = cpBlob({ st: { deaths: 0, hits: 0, corpseN: 1 } });
+    F.respawn();
+    expect($.G!.st.corpseVo).toBeFalsy();
+  });
+});

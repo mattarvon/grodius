@@ -667,7 +667,7 @@ export function killEnemy(e, dir = 1) {
     sfx.roar();
   }
   // a crew corpse pleads at most once a stage, on a kill that varies by stage (corpsevoice.ts; every 5th wore thin)
-  if (e.k === 'corpse' && $.G.st && corpseKilled($.G.st, $.G.stage | 0, $.G.loop | 0)) sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true });
+  if (e.k === 'corpse' && $.G.st && corpseKilled($.G.st, $.G.stage | 0, $.G.loop | 0)) sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true, prio: true }); // prio: a stage's one plea must not die at the voice cap on a gore-heavy frame
   if (e.k === 'maw') {
     if (e.stageBoss) {
       miniReward(e);
