@@ -1,17 +1,21 @@
 # LS2-booth: a dev-only voice booth that records into the game
 
-Branch `ls2-booth`, off main `1f7f142`. The commits:
-- `81abc2a` feat: the booth;
-- `8e80bc6` fix: the studio review fixes;
-- `192910a` fix: the vox tip literal;
-- `e2f517b` docs: the processTake comment;
-- the report commit.
+Branch `ls2-booth`, now rebased onto **`ls2-slab` @ `6e85b81`**, which sits on main `c8ed43b` (LS2-tts merged). It was
+built off `1f7f142`, rebased onto `c8ed43b`, then onto `ls2-slab`, per the parent. The commits since `6e85b81`:
+- feat: the booth;
+- fix: the studio review fixes;
+- fix: the vox tip literal;
+- docs: the processTake comment;
+- docs: this report;
+- fix: vox follows LS2-tts (the corpse plea's new call);
+- feat: the slab base (all slots wired, the game's own faces, kill-word and OPENED calls).
 
-Matt, 2026-11-09: "laptop mic for now and booth", in place of RecForge → Drive → agent. His ruling the same day:
+`git log 6e85b81..ls2-booth` has the SHAs.
+
+Matt, 2026-11-09: "laptop mic for now and booth", in place of RecForge → Drive → agent. His rulings the same day:
 - every new line (hype10-100, bossreward, the kill words, carn5) is spoken by **SGT. RAMROD SLAB**;
-- kill-`<k>` and carn5 are listed as **recorded, not wired**;
-- wiring them, and the SLAB face, is the parent's follow-up after LS2-tts, because `src/render/hype.ts` is that
-  lane's file.
+- LS2-slab wired the kill words and OPENED through the comms window with Matt's own head, so on this base every
+  booth slot is **wired**.
 
 **Booth URL:** `npm run dev`, then **http://localhost:5173/booth.html**, or the port Vite prints. The lane's own
 server ran on :5297.
@@ -41,7 +45,7 @@ drift: whichever of LS2-booth and LS2-tts merges second re-runs it.
 | 1. Dev only, never shipped | **PASS.** `apply: 'serve'`; `?vox=` sits behind `import.meta.env.DEV`. The dist grep finds 0 files for all 21 booth strings and no vox/booth chunk (gate log below). |
 | 1. Endpoint writes only `src/sfx/<cat>/`, sanitised `[a-z0-9-]` name, no traversal | **PASS.** The folder must be a slot (allowlist) and a real directory inside its base, never a symlink. The slug goes through `slugify`, the number through `nextTake`, and delete accepts `TAKE_RE` names only. Tested live: `../music`, `warning`, `..` slug, `../../main.ts` delete, and a 27 MB body. Unit tests cover the rest. |
 | 1. No LAN exposure beyond the dev server's | **PASS, and tighter.** `npm run dev` is `vite --host`, so the server listens on wlan0 and tailscale0. The booth answers loopback only: the LAN IP gets 403. Requests also need a per-process token from the page, a local Host, Origin = Host on writes, and no proxy headers. `assets-raw/` is now refused to everyone, LAN included. |
-| 2. One source of truth for slots, text from the game | **PASS.** `slots.ts`. HYPE, CARN and the midboss words come from the game at runtime (the booth showed "SEVERED" for the ufo, today's word). Three lines are copies pinned by tests: TAKEN DOWN, the corpse caption, and YEAH BABY (which is only a clip name in the game). |
+| 2. One source of truth for slots, text from the game | **PASS.** `slots.ts`. HYPE, CARN and the midboss words come from the game at runtime (the booth shows "CALAMARI SERVED" for the ufo, from LS2-tts). Three lines are copies pinned by tests: TAKEN DOWN, the corpse caption, and YEAH BABY (which is only a clip name in the game). |
 | 2. Wired: hype10-100, bossreward, corpsevoice, startgame. Not wired: kill-ufo/brood/choir/cyst/prentice, carn5 | **PASS.** A test checks wired == `VOICE_CAT` (audio.ts) == has a test query == has a `VOX_FIRE` entry. |
 | 2. Take counts per slot | **PASS.** `GET /__booth/takes`. |
 | 3. getUserMedia, mic picker, meter, record/stop, raw playback, keep/discard, keys | **PASS.** Covered by the e2e below. Space, Enter, Backspace and the arrows work, plus T (test). The browser's AGC, noise suppression and echo cancellation are off. |
@@ -275,24 +279,47 @@ loads `/@vite/client`.
 - The APK: the dist grep covers what `cap sync` copies, but `cap sync` was not run (android/ is LS2-tts's).
 - Whether the processed takes sound good. No one listened. The audio-director's review was by reading only (no shell); every number here was measured by the lane.
 
-## Stubs and open risks (for the parent)
+## Rebase onto ls2-tts (c8ed43b), then ls2-slab (6e85b81)
 
-1. **The SLAB face (follow-up, `src/render/hype.ts`).** `voiceOf()` maps a face by clip-name prefix, so new
-   hype/bossreward takes show UNKNOWN CALLER. The tools-programmer's proposal: map by category after the clip lookup.
-   ```ts
-   [/^(hype|bossreward|kill-|carn)/, [0, 'SGT. RAMROD SLAB']]
-   ```
-   Pass `cat` through `hypeSource` and `cur`. Don't add a VOICE key per hype slug, because those slugs change with the
-   text.
-2. **Wiring kill-`<k>` and carn5 (the same follow-up).**
-   - Add the folders to `VOICE_CAT` (`src/audio.ts:111`): voice ducking, the face, and protection from the voice cap.
-   - Play them through the comms window.
-   - Flip `wired`, and add `test` and a `VOX_FIRE` row. `booth.test.ts` enforces all of it together.
-3. **kill-ufo's word changes in LS2-tts** (to CALAMARI SERVED). A take recorded before that merges is named `severed-…`.
-4. **Delete works on shipped clips too.** The confirm says so, and `git checkout` restores them.
+**LS2-tts.**
+- The crew corpse's plea now goes through `src/enemies/corpsevoice.ts`: once a stage, with `prio: true`.
+  `?vox=corpsevoice` makes that same `sample()` call. It never runs the count: `G.st.corpseN` and `corpseVo` stay
+  untouched, checked live (`G.st` was `{}` before and after).
+- kill-ufo reads **CALAMARI SERVED** from the game (live).
+
+**LS2-slab.** All kill-`<k>` and carn5 slots are **wired**, each with a test query (`stage=orbit&vox=kill-<k>`,
+`stage=orbit&vox=carn5`). `?vox=` makes the game's own calls:
+- the kill word: `sample('kill-' + k, { vol: 1.15, spread: .02, wet: .16, at: KILL_WORD_AT })`, killEnemy's call,
+  built once every kind has registered;
+- OPENED: `sample('carn5', { …, queue: false })`, `opened()`'s call, without its OPENED_GAP cooldown (it tests the
+  line, not the rule).
+
+New tests pin both calls and pin that the hook never touches the corpse count or the cooldown. They also pin that
+`render/hype.ts`'s `SLAB_CAT` folder rule gives SLAB's face to exactly the slots the booth calls his. Each new test was
+watched failing on a mutation: the kill options changed, `$.G.st.corpseN` written in vox, carn5's caller changed.
+
+**The booth shows the game's own face and tag.** The text frame asks `voiceOf(<take name>, cat)` from
+`render/hype.ts` (exported by LS2-slab) and draws that frame from `src/sprites/slab@3.png` (Matt's head) or
+`hface@18.png` (the Reticulans).
+- `booth-slab-face.png`: kill-ufo / CALAMARI SERVED with SLAB's face. Its "No mic" line is because that headless run
+  had no fake mic.
+- `game-vox-kill-ufo.png`: the game firing `?vox=kill-ufo`, with SGT. RAMROD SLAB on the comms.
+- `?vox=carn5` fired too.
+
+Both used a temporary take (one of Matt's existing clips re-levelled), which was deleted afterwards through the
+endpoint. `src/sfx/` holds no test take.
+
+## Open risks (for the parent)
+
+1. **Delete works on shipped clips too.** The confirm says so, and `git checkout` restores them.
+2. **`?vox=hypeN` runs the real `hype()`**, which writes `$.G.hype` from a timer. It's harmless in a hand test, but
+   must never go in a harness scenario.
+3. The old UNKNOWN CALLER notes in the screenshots above (`booth-kept.png`) predate the slab base. The booth now shows
+   the game's own caller for every slot.
 
 ## Merge order
 
-Independent of LS2-tts except for the drift tests: `booth.test.ts` reads `fx/update.ts`, `enemies/update.ts`,
-`render/hype.ts` and the mid files. Whichever lane merges second runs `npx vitest run tests/unit/booth.test.ts`.
-`vite.config.ts` and `src/main.ts` (3 lines after the `__sfx` hook) are the only shared-file hunks.
+This branch sits on `ls2-slab`, so merge `ls2-slab` first, or merge this branch, which carries it. `booth.test.ts`
+reads `fx/update.ts`, `enemies/update.ts`, `render/hype.ts`, `audio.ts` and the mid files for drift, so a later change
+to those re-runs it. The only shared-file hunks are `vite.config.ts` and `src/main.ts` (3 lines after the `__sfx`
+hook).

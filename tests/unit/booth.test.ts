@@ -149,8 +149,8 @@ describe('the slot list', () => {
     for (const s of SLOTS) expect(s.cat).toMatch(CAT_RE);
     expect(slotOf('warning')).toBe(undefined);
   });
-  it('wires exactly the folders the game plays as voice today', () => {
-    expect(SLOTS.filter((s) => s.wired).map((s) => s.cat)).toEqual(['hype10', 'hype20', 'hype35', 'hype50', 'hype75', 'hype100', 'bossreward', 'corpsevoice', 'startgame']);
+  it('wires every slot since LS2-slab, each a folder the game plays as voice', () => {
+    expect(SLOTS.filter((s) => !s.wired).map((s) => s.cat)).toEqual([]);
     for (const s of SLOTS) expect(voiceCat.test(s.cat)).toBe(s.wired); // unwired folders aren't voice in audio.ts yet
     for (const s of SLOTS) expect(!!s.test).toBe(s.wired);
   });
@@ -185,24 +185,37 @@ describe('the slot list', () => {
       if (s.slug) expect(src('src/render/hype.ts').includes(`'${s.slug}'`), s.slug).toBe(true); // the face is keyed by this clip slug
     }
   });
+  it("gives SGT. RAMROD SLAB's face to exactly the slots the booth says are his (render/hype.ts SLAB_CAT, by folder)", () => {
+    const re = new RegExp(/const SLAB_CAT = \/(.+)\/;/.exec(src('src/render/hype.ts'))![1]);
+    for (const s of SLOTS) expect(re.test(s.cat), s.cat).toBe(s.caller === 'SGT. RAMROD SLAB');
+  });
 });
 
 describe('?vox= hook', () => {
   const vox = src('src/vox.ts');
   it('makes the same sample() call as each line it fires', () => {
-    const where: Record<string, string> = { corpsevoice: 'src/enemies/update.ts', bossreward: 'src/stages.ts', startgame: 'src/menus.ts' };
-    expect(Object.keys(where).sort()).toEqual(SLOTS.filter((s) => s.wired && !s.cat.startsWith('hype')).map((s) => s.cat).sort());
+    const where: Record<string, string> = { corpsevoice: 'src/enemies/update.ts', bossreward: 'src/stages.ts', startgame: 'src/menus.ts', carn5: 'src/fx/update.ts' };
+    expect(Object.keys(where).sort()).toEqual(SLOTS.filter((s) => s.wired && !/^(hype|kill-)/.test(s.cat)).map((s) => s.cat).sort());
     for (const [cat, f] of Object.entries(where)) {
       const call = new RegExp(`sample\\('${cat}', \\{[^}]*\\}\\)`).exec(vox)?.[0];
       expect(call, cat).toBeTruthy();
       expect(src(f).includes(call!), `${f} no longer calls ${call}`).toBe(true);
     }
+    // the kill words: one call for every kind, with killEnemy's options (it builds the folder as 'kill-' + e.k)
+    const kill = /sample\('kill-' \+ k, (\{[^}]*\})\)/.exec(vox)?.[1];
+    expect(kill).toBeTruthy();
+    expect(src('src/enemies/update.ts').includes(`sample('kill-' + e.k, ${kill})`), `killEnemy no longer calls sample('kill-' + e.k, ${kill})`).toBe(true);
+  });
+  it('never runs the once-a-stage corpse count or the OPENED cooldown (it tests the line, not the rule)', () => {
+    const code = vox.replace(/^\s*\/\/.*$/gm, ''); // the header says what it skips, in words
+    expect(code).not.toMatch(/corpseKilled|corpseN|corpseVo|\.st\b|opened\(|openedAt/);
   });
   it('fires every wired slot, and every test query names its own folder', () => {
     const hypeKeys = [...src('src/fx/update.ts').matchAll(/^\s*(\d+): \[/gm)].map((m) => 'hype' + m[1]);
     for (const s of SLOTS.filter((x) => x.wired)) {
       expect(new URLSearchParams(s.test!).get('vox'), s.cat).toBe(s.cat);
-      expect(hypeKeys.includes(s.cat) || vox.includes(`sample('${s.cat}', {`), `${s.cat} has no VOX_FIRE entry`).toBe(true);
+      const fires = hypeKeys.includes(s.cat) || vox.includes(`sample('${s.cat}', {`) || (s.cat.startsWith('kill-') && vox.includes("sample('kill-' + k, {"));
+      expect(fires, `${s.cat} has no VOX_FIRE entry`).toBe(true);
     }
   });
   it('is loaded by main.ts on the dev server only', () => {

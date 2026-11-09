@@ -25,16 +25,17 @@ export interface Slot {
   copy?: { lines: string[]; from: string; lit: string };
   /** when the game plays it */
   when: string;
-  /** who speaks it: the face and tag on the comms window (render/hype.ts) */
+  /** who speaks it: the tag on the comms window. The booth shows the game's own voiceOf() face and tag beside it, and
+   *  tests/unit/booth.test.ts checks the two agree */
   caller: string;
-  /** the game plays this folder today. false: recorded, not wired (the parent wires it after LS2-tts) */
+  /** the game plays this folder today. false: recorded, not wired (none since LS2-slab) */
   wired: boolean;
   /** query the booth's "test in game" button opens the game with (src/vox.ts fires the moment) */
   test?: string;
 }
 
-// Matt, 2026-11-09: every new recorded line (hype, bossreward, the kill words, carn5) is SGT. RAMROD SLAB. The kill
-// words and OPENED will play through the comms window like a hype line; that wiring is the parent's follow-up
+// Matt, 2026-11-09: every new recorded line (hype, bossreward, the kill words, carn5) is SGT. RAMROD SLAB, his own face
+// on the comms window (LS2-slab: render/hype.ts maps these folders to it; the booth shows the game's own mapping)
 const SLAB = 'SGT. RAMROD SLAB';
 const hype = (n: number): Slot => ({
   cat: 'hype' + n,
@@ -47,9 +48,10 @@ const hype = (n: number): Slot => ({
 const kill = (k: string): Slot => ({
   cat: 'kill-' + k,
   text: { mid: k },
-  when: `the ${k} midboss dies (its kill word banner, enemies/update.ts killEnemy)`,
+  when: `the ${k} midboss dies: its kill word, after the roar (enemies/update.ts killEnemy, KILL_WORD_AT)`,
   caller: SLAB,
-  wired: false,
+  wired: true,
+  test: `stage=orbit&vox=kill-${k}`,
 });
 
 export const SLOTS: Slot[] = [
@@ -81,7 +83,14 @@ export const SLOTS: Slot[] = [
     test: 'vox=startgame',
   },
   kill('ufo'), kill('brood'), kill('choir'), kill('cyst'), kill('prentice'),
-  { cat: 'carn5', text: { carn: 5 }, when: 'a 5-kill chain (the chain word, fx/update.ts CARN)', caller: SLAB, wired: false },
+  {
+    cat: 'carn5',
+    text: { carn: 5 },
+    when: 'a 5-kill chain (fx/update.ts opened): skipped while another line talks, at most once per OPENED_GAP',
+    caller: SLAB,
+    wired: true,
+    test: 'stage=orbit&vox=carn5',
+  },
 ];
 
 /** the slot for a category, or undefined: the plugin's allowlist */

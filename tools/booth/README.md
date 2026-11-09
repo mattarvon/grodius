@@ -29,7 +29,8 @@ tunnel is the one way in from outside.
    - If the mic is unplugged, the booth says so. Pick another, or press Space to retry the default.
 2. **Pick a line** on the left.
    - The script is the game's own text (the HYPE captions, the kill words, the chain word), read from the game modules.
-   - Each row shows its folder, its take count, its caller, and whether the game plays it yet.
+   - Each row shows its folder, its take count, its caller, and whether the game plays it yet. The caller's face and
+     tag are the game's own (`voiceOf` in `src/render/hype.ts`): SGT. RAMROD SLAB is Matt's head.
 3. **Record:** **Space** starts recording and **Space** stops it. Let the last word ring out a beat before you stop:
    the stop key's click is cut, and with it the last 0.2 s. The raw take plays back. A take stops itself after 15 s.
 4. **Keep or discard:** **Enter** keeps it, **Backspace** throws it away, and **Space** records it again.
@@ -69,11 +70,9 @@ game tab to start the audio; the line then fires once, through the comms window.
 you just kept; otherwise it plays one of the folder's takes.
 
 - Each keep or delete reloads the game tab, with the new take in the bank. Click again to hear it.
-- The hype lines and TAKEN DOWN show an UNKNOWN CALLER face in the game for now. The comms window maps faces by clip
-  name (`src/render/hype.ts`), and mapping these folders to SGT. RAMROD SLAB is a follow-up after LS2-tts.
-
-Lines marked **recorded, not wired** are not played by the game yet: the midboss kill words (`kill-<kind>`) and OPENED
-(`carn5`). Record them now; wiring them through the comms window is the same follow-up.
+- Every line comes through the comms window with its caller's face. The kill words play just after the midboss's
+  roar. OPENED (`carn5`) is skipped while another line talks and plays at most once per 20 s in a real run; the test
+  switch skips that rule, and the corpse plea's once-a-stage count, so the line always plays.
 
 ## Adding a line
 

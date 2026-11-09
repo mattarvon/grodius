@@ -26,7 +26,7 @@ const S = {
   phase: 'idle' as Phase,
   msg: '',
   tone: '' as '' | 'err' | 'warn',
-  text: {} as Record<string, { lines: string[]; name?: string; err?: string }>,
+  text: {} as Record<string, { lines: string[]; name?: string; err?: string; face?: number; tag?: string }>,
   takes: {} as Record<string, Take[]>,
   stream: null as MediaStream | null,
   rec: null as MediaRecorder | null,
@@ -42,6 +42,14 @@ const errText = (e: unknown) => String((e as Error)?.message ?? e);
 
 const linesOf = (s: Slot) => S.text[s.cat]?.lines?.length ? S.text[s.cat].lines : s.copy?.lines ?? [];
 const slugOf = (s: Slot) => s.slug ?? slugify(linesOf(s).join(' '));
+/** the caller's face from the game's own sheets, first jaw frame, 2x: SLAB_FACE (-1) is Matt's sheet, 0-5 the
+ *  Reticulans' (render/hype.ts draws them the same way: frame (face * 3 + jaw) * 48) */
+const FACE_W = 48, FACE_H = 52;
+function faceImg(face?: number) {
+  if (face == null) return '';
+  const [url, i, n] = face < 0 ? ['/src/sprites/slab@3.png', 0, 3] : ['/src/sprites/hface@18.png', face * 3, 18];
+  return `<div class="face" role="img" aria-label="caller face" style="background-image:url('${url}');background-size:${n * FACE_W * 2}px ${FACE_H * 2}px;background-position:-${i * FACE_W * 2}px 0"></div>`;
+}
 
 // ---------------- the game's words (text.ts posts them) ----------------
 addEventListener('message', (ev) => {
@@ -273,15 +281,16 @@ function draw() {
     return `<div class="slot${i === S.sel ? ' sel' : ''}" role="option" aria-selected="${i === S.sel}" data-i="${i}">
       <div class="t">${esc(linesOf(x).join(' / ') || '?')}</div>
       <div class="m"><span>${esc(x.cat)}/</span><span>${n} take${n === 1 ? '' : 's'}</span>
-      <span class="tag ${x.wired ? 'w' : 'nw'}">${x.wired ? 'wired' : 'recorded, not wired'}</span><span>${esc(x.caller)}</span>${err ? `<span style="color:var(--red)">${esc(err)}</span>` : ''}</div>
+      <span class="tag ${x.wired ? 'w' : 'nw'}">${x.wired ? 'wired' : 'recorded, not wired'}</span><span>${esc(S.text[x.cat]?.tag ?? x.caller)}</span>${err ? `<span style="color:var(--red)">${esc(err)}</span>` : ''}</div>
     </div>`;
   }).join('');
   ($id('mic') as HTMLSelectElement).disabled = P === 'rec' || P === 'arming';
   $id('stage').classList.toggle('rec', P === 'rec');
-  // the comms window picks a face by clip name (render/hype.ts voiceOf): only the fixed slugs have one today
-  const face = s.wired && !s.slug ? `<br><b class="warn">In game today:</b> the comms window shows UNKNOWN CALLER for this folder until render/hype.ts maps it to ${esc(s.caller)} (a follow-up after LS2-tts).` : '';
+  // the game's own face and tag for a take of this slot (text.ts asks render/hype.ts voiceOf)
+  const g = S.text[s.cat], tag = g?.tag ?? s.caller;
+  const face = g?.tag && g.tag !== s.caller ? `<br><b class="warn">In game:</b> the comms window calls this ${esc(g.tag)}, not ${esc(s.caller)}.` : '';
   $id('view').innerHTML = `
-    <div class="caller">${esc(s.caller)}</div>
+    <div class="who">${faceImg(g?.face)}<div class="caller">${esc(tag)}</div></div>
     <div class="line">${linesOf(s).map(esc).join('<br>') || '?'}</div>
     <div class="when">${esc(s.when)}${mid ? ' &middot; ' + esc(mid) : ''} &middot; files as <code>src/sfx/${esc(s.cat)}/${esc(slugOf(s))}-matty-N.ogg</code>
       ${s.wired ? '' : '<br><b class="warn">Recorded, not wired:</b> the game does not play this folder yet.'}${face}</div>
