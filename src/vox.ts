@@ -1,10 +1,11 @@
 // @ts-nocheck
-// ?vox=<cat>: the voice booth's "test in game" (LS2-booth, tools/booth/README.md). Dev server only: main.ts imports
-// this behind import.meta.env.DEV, so a build drops it with the import. Once audio is running and the category's
-// clips have decoded, it fires the game's own trigger for that line once: hype(n) for a chain line (the comms window,
-// the sting and the clip), the same sample() call killEnemy / the stage clear / the title make for the rest.
-// It runs from a timer, outside step(), and only when the URL asks for it, so a run without ?vox= is untouched;
-// sample() draws the audio RNG ar(), never the sim RNG.
+// ?vox=<cat>[&clip=<stem>]: the voice booth's "test in game" (LS2-booth, tools/booth/README.md). Dev server only:
+// main.ts imports this behind import.meta.env.DEV, so a build drops it with the import. Once audio is running and the
+// category's clips have decoded, it fires the game's own trigger for that line once: hype(n) for a chain line (the
+// sting, the caption and the clip through the comms window), the call site's own sample() for the rest. clip= narrows
+// the bank to that take, so the booth hears the take it just kept rather than the shuffle bag's next pick.
+// hype(n) is the real thing: it writes $.G.hype (run state) from a timer outside step(). Harmless in a hand test;
+// never put ?vox= in a harness scenario. Without ?vox= nothing here runs. No sim RNG is drawn (sample() uses ar()).
 import { $ } from './state';
 import { BANK, audioRunning, sample } from './audio';
 import { HYPE, hype } from './fx/update';
@@ -20,7 +21,7 @@ for (const n of Object.keys(HYPE)) VOX_FIRE['hype' + n] = { state: 'play', fire:
 
 /** read ?vox= and fire it once when it can be heard */
 export function voxBoot(search: string) {
-  const cat = new URLSearchParams(search).get('vox');
+  const q = new URLSearchParams(search), cat = q.get('vox'), clip = q.get('clip');
   if (!cat) return;
   const v = VOX_FIRE[cat];
   const tip = document.createElement('div');
@@ -30,14 +31,19 @@ export function voxBoot(search: string) {
   let waited = 0;
   const id = setInterval(() => {
     if (!audioRunning()) return void (tip.textContent = `VOX ${cat}: click or press a key to start audio`);
-    if (!BANK[cat]?.length) {
-      if ((waited += 250) > 4000) tip.textContent = `VOX ${cat}: no takes in src/sfx/${cat}/`;
+    const all = BANK[cat] || [], pick = clip ? all.filter((b) => b.clip === clip) : all;
+    if (!pick.length) {
+      // clips decode one by one after the audio starts: give them a few seconds before calling one missing
+      if ((waited += 250) > 4000) tip.textContent = clip ? `VOX ${cat}: no take ${clip} in src/sfx/${cat}/` : `VOX ${cat}: no takes in src/sfx/${cat}/`;
       return;
     }
     if ($.state !== v.state) return void (tip.textContent = `VOX ${cat}: waiting for the ${v.state} screen`);
     clearInterval(id);
+    // hype() plays its clip 120 ms after the sting: the narrowed bank stays up until that has been picked
+    if (clip) BANK[cat] = pick;
     v.fire();
-    tip.textContent = `VOX ${cat}: fired (${BANK[cat].length} take${BANK[cat].length === 1 ? '' : 's'}). Reload to hear another`;
-    setTimeout(() => tip.remove(), 6000);
+    if (clip) setTimeout(() => (BANK[cat] = [...new Set([...all, ...BANK[cat]])]), 600); // keeps any clip that decoded meanwhile
+    tip.textContent = `VOX ${cat}: fired ${clip || `one of ${all.length} take${all.length === 1 ? '' : 's'}`}. Reload to hear it again`;
+    setTimeout(() => tip.remove(), 8000);
   }, 250);
 }

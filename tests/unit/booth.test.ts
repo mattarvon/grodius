@@ -2,7 +2,7 @@
 // slot list against the game it describes, and the ?vox= hook's calls against the call sites they copy.
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
-import { CAT_RE, SLUG_MAX, TAKE_RE, gainTo, nextTake, okCat, rawExt, slugify, takeName } from '../../tools/booth/names';
+import { CAT_RE, SLUG_MAX, TAKE_MAX, TAKE_RE, gainTo, nextTake, okCat, rawExt, slugify, takeName } from '../../tools/booth/names';
 import { SLOTS, slotOf } from '../../tools/booth/slots';
 import { guard } from '../../tools/booth/plugin';
 
@@ -24,6 +24,11 @@ describe('slugify', () => {
   it('is empty for nothing usable, and never starts or ends with a dash', () => {
     for (const s of ['', '..', '///', '  ', null, undefined, 'ÉÀ']) expect(slugify(s)).toBe('');
     expect(slugify('-a-')).toBe('a');
+  });
+  it('keeps exactly SLUG_MAX characters of one long word, and a capped slug still makes a valid take name', () => {
+    expect(slugify('a'.repeat(100))).toBe('a'.repeat(SLUG_MAX));
+    expect(TAKE_RE.test(takeName(slugify('word '.repeat(40)), 1))).toBe(true);
+    expect(slugify(0)).toBe('0');
   });
   it('caps the length without leaving a trailing dash', () => {
     const out = slugify('word '.repeat(40));
@@ -52,6 +57,15 @@ describe('nextTake', () => {
     expect(nextTake(names, 'that-one')).toBe(1);
     expect(nextTake(names, 'that-one-had-a-name')).toBe(8);
   });
+  it('caps at TAKE_MAX, the last number a take name can carry (the plugin refuses a keep past it)', () => {
+    expect(TAKE_RE.test(takeName('x', TAKE_MAX))).toBe(true);
+    expect(TAKE_RE.test(takeName('x', TAKE_MAX + 1))).toBe(false);
+    expect(nextTake(['x-matty-9999.ogg'], 'x')).toBeGreaterThan(TAKE_MAX);
+  });
+  it('ignores a number past the cap or with a leading zero, and another slug that shares a prefix', () => {
+    expect(nextTake(['x-matty-12345.ogg', 'x-matty-0.ogg'], 'x')).toBe(1);
+    expect(nextTake(['x-y-matty-4.ogg'], 'x')).toBe(1);
+  });
   it('gives names the delete endpoint accepts, and only those', () => {
     expect(TAKE_RE.test(takeName('taken-down', 12))).toBe(true);
     for (const n of ['../x-matty-1.ogg', 'x-matty-1.ogg/..', 'x-matty-0.ogg', 'x-matty-1.wav', 'X-matty-1.ogg', 'lesley.ogg']) expect(TAKE_RE.test(n)).toBe(false);
@@ -62,6 +76,10 @@ describe('rawExt and gainTo', () => {
   it('maps recorder types to an extension and refuses anything else', () => {
     expect(rawExt('audio/webm;codecs=opus')).toBe('webm');
     expect(rawExt('audio/ogg; codecs=opus')).toBe('ogg');
+    expect(rawExt('AUDIO/WEBM')).toBe('webm');
+    expect(rawExt('audio/x-wav')).toBe('wav');
+    expect(rawExt('audio/mp4')).toBe('m4a');
+    for (const t of ['', 'audio/webm/../x', 'audio/webmx', 'video/webm']) expect(rawExt(t), t).toBe(null);
     expect(rawExt('text/html')).toBe(null);
     expect(rawExt(undefined)).toBe(null);
   });
@@ -70,28 +88,57 @@ describe('rawExt and gainTo', () => {
     expect(gainTo(-12, -9.5)).toBe(-2.5);
     expect(gainTo(-12, -70)).toBe(null);
     expect(gainTo(-12, null)).toBe(null);
+    expect(gainTo(-12, -60)).toBe(null);
+    expect(gainTo(-12, -59.99)).toBe(47.99);
+    for (const m of [NaN, Infinity, -Infinity]) expect(gainTo(-12, m)).toBe(null);
   });
 });
 
 describe('guard', () => {
-  const req = (o: { ip?: string; method?: string; headers?: Record<string, string> }) =>
-    ({ method: o.method ?? 'GET', socket: { remoteAddress: o.ip ?? '127.0.0.1' }, headers: { host: 'localhost:5173', ...o.headers } }) as any;
-  const write = { method: 'POST', headers: { origin: 'http://localhost:5173', 'x-booth': '1' } };
-  it('lets this machine read and write', () => {
-    expect(guard(req({}))).toBe(null);
-    expect(guard(req({ ip: '::1' }))).toBe(null);
-    expect(guard(req({ ip: '::ffff:127.0.0.1', ...write }))).toBe(null);
+  const TOK = 'a'.repeat(32);
+  const req = (o: { ip?: string | undefined; method?: string; headers?: Record<string, any>; noSocket?: boolean }) =>
+    ({ method: o.method ?? 'GET', socket: o.noSocket ? undefined : { remoteAddress: 'ip' in o ? o.ip : '127.0.0.1' }, headers: { host: 'localhost:5173', ...o.headers } }) as any;
+  const write = { method: 'POST', headers: { origin: 'http://localhost:5173', 'x-booth': TOK } };
+  it('serves the page to this machine without a token, for GET only', () => {
+    expect(guard(req({}), null)).toBe(null);
+    expect(guard(req({ ip: '::1' }), null)).toBe(null);
+    expect(guard(req({ method: 'POST' }), null)).toMatch(/method/);
+  });
+  it('lets this machine read and write the endpoints with the token', () => {
+    expect(guard(req({ headers: { 'x-booth': TOK } }), TOK)).toBe(null);
+    expect(guard(req({ ip: '::ffff:127.0.0.1', ...write }), TOK)).toBe(null);
+  });
+  it('refuses the endpoints without the token, or with a wrong one, even for a read', () => {
+    expect(guard(req({}), TOK)).toMatch(/token/);
+    expect(guard(req({ headers: { 'x-booth': '1' } }), TOK)).toMatch(/token/);
+    expect(guard(req({ headers: { 'x-booth': [TOK] } }), TOK)).toMatch(/token/);
+    expect(guard(req({ method: 'POST', headers: { origin: 'http://localhost:5173', 'x-booth': 'b'.repeat(32) } }), TOK)).toMatch(/token/);
   });
   it('refuses the LAN even with every header right (npm run dev passes --host)', () => {
-    expect(guard(req({ ip: '10.0.0.13', ...write }))).toMatch(/loopback/);
+    expect(guard(req({ ip: '10.0.0.13', ...write }), TOK)).toMatch(/loopback/);
+    expect(guard(req({ ip: '10.0.0.13' }), null)).toMatch(/loopback/);
   });
-  it('refuses a foreign Host (DNS rebinding)', () => {
-    expect(guard(req({ headers: { host: 'evil.example:5173' } }))).toMatch(/Host/);
+  it('refuses a LAN or odd loopback-looking peer', () => {
+    for (const ip of ['::ffff:10.0.0.13', '::ffff:192.168.1.5', '127.0.0.2', '::ffff:7f00:1', '0.0.0.0', '', undefined])
+      expect(guard(req({ ip }), null), String(ip)).toMatch(/loopback/);
+    expect(guard(req({ noSocket: true }), null)).toMatch(/loopback/);
   });
-  it('refuses a write from another origin or without the booth header', () => {
-    expect(guard(req({ method: 'POST', headers: { origin: 'http://evil.example', 'x-booth': '1' } }))).toMatch(/Origin/);
-    expect(guard(req({ method: 'POST', headers: { 'x-booth': '1' } }))).toMatch(/Origin/);
-    expect(guard(req({ method: 'DELETE', headers: { origin: 'http://localhost:5173' } }))).toMatch(/x-booth/);
+  it('refuses anything a proxy or tunnel forwarded, though it arrives on loopback', () => {
+    for (const h of ['x-forwarded-for', 'x-forwarded-host', 'forwarded', 'via', 'x-real-ip'])
+      expect(guard(req({ ...write, headers: { ...write.headers, [h]: '1.2.3.4' } }), TOK), h).toMatch(/forwarded/);
+  });
+  it('accepts the local Host forms and refuses ones that only look local (DNS rebinding)', () => {
+    for (const host of ['localhost', 'localhost:5173', '127.0.0.1:5173', '[::1]:5173']) expect(guard(req({ headers: { host } }), null), host).toBe(null);
+    for (const host of ['evil.example:5173', 'localhost.', 'localhost.:5173', 'LOCALHOST:5173', '127.0.0.1.nip.io:5173', 'localhost.evil.example',
+      'user@localhost:5173', 'localhost:5173@evil.example', 'localhost:5173 ', ' localhost', 'localhost:', 'localhost:5173:1', '[::ffff:127.0.0.1]:5173', '::1', ''])
+      expect(guard(req({ headers: { host } }), null), host).toMatch(/Host/);
+    expect(guard(req({ headers: { host: undefined } }), null)).toMatch(/Host/);
+  });
+  it('refuses a write from any other origin, another local port included (Vite answers its preflight)', () => {
+    const w = (origin: string | undefined, host = 'localhost:5173') => guard(req({ method: 'POST', headers: { host, origin, 'x-booth': TOK } }), TOK);
+    for (const o of ['http://localhost:3000', 'http://evil.example', 'null', 'https://localhost:5173', 'http://localhost:5173/', undefined]) expect(w(o), String(o)).toMatch(/Origin/);
+    expect(w('http://localhost:5173', '127.0.0.1:5173')).toMatch(/Origin/);
+    for (const method of ['DELETE', 'PUT', 'HEAD', 'OPTIONS']) expect(guard(req({ method, headers: { 'x-booth': TOK } }), TOK), method).toMatch(/Origin/);
   });
 });
 
@@ -119,6 +166,18 @@ describe('the slot list', () => {
       expect(/word: '/.test(src(f)), f).toBe(true);
     }
   });
+  it('has a kill slot for exactly the midboss kinds defineMid registers with a word, keyed by kind, not file name', () => {
+    const dir = 'src/enemies/mid';
+    const kinds = fs.readdirSync(dir).filter((f) => f.endsWith('.ts') && !['index.ts', 'roster.ts'].includes(f) && !f.startsWith('_'))
+      .flatMap((f) => [...src(`${dir}/${f}`).matchAll(/defineMid\('([a-z0-9-]+)', \{[\s\S]*?\bword: '/g)].map((m) => m[1]));
+    const slots = SLOTS.filter((s) => s.text && 'mid' in s.text).map((s) => (s.text as any).mid);
+    expect([...slots].sort()).toEqual([...kinds].sort());
+    for (const k of slots) expect(slotOf('kill-' + k), k).toBeTruthy();
+  });
+  it('shows only copied words the source literal contains (YEAH BABY is booth-only text: the game has just the clip name)', () => {
+    for (const s of SLOTS) if (s.copy && s.cat !== 'startgame')
+      for (const l of s.copy.lines) expect(s.copy.lit.includes(l), `${s.cat}: '${l}' not in ${s.copy.lit}`).toBe(true);
+  });
   it('copies only words the game still says, with callers the comms window knows', () => {
     for (const s of SLOTS) {
       if (s.copy) expect(src(s.copy.from).includes(s.copy.lit), `${s.cat}: ${s.copy.from} no longer has ${s.copy.lit}`).toBe(true);
@@ -132,14 +191,40 @@ describe('?vox= hook', () => {
   const vox = src('src/vox.ts');
   it('makes the same sample() call as each line it fires', () => {
     const where: Record<string, string> = { corpsevoice: 'src/enemies/update.ts', bossreward: 'src/stages.ts', startgame: 'src/menus.ts' };
+    expect(Object.keys(where).sort()).toEqual(SLOTS.filter((s) => s.wired && !s.cat.startsWith('hype')).map((s) => s.cat).sort());
     for (const [cat, f] of Object.entries(where)) {
       const call = new RegExp(`sample\\('${cat}', \\{[^}]*\\}\\)`).exec(vox)?.[0];
       expect(call, cat).toBeTruthy();
       expect(src(f).includes(call!), `${f} no longer calls ${call}`).toBe(true);
     }
   });
+  it('fires every wired slot, and every test query names its own folder', () => {
+    const hypeKeys = [...src('src/fx/update.ts').matchAll(/^\s*(\d+): \[/gm)].map((m) => 'hype' + m[1]);
+    for (const s of SLOTS.filter((x) => x.wired)) {
+      expect(new URLSearchParams(s.test!).get('vox'), s.cat).toBe(s.cat);
+      expect(hypeKeys.includes(s.cat) || vox.includes(`sample('${s.cat}', {`), `${s.cat} has no VOX_FIRE entry`).toBe(true);
+    }
+  });
   it('is loaded by main.ts on the dev server only', () => {
     expect(src('src/main.ts')).toMatch(/if \(import\.meta\.env\.DEV\) import\('\.\/vox'\)/);
     expect(vox).not.toMatch(/\bR\(|Math\.random|Date\.now/);
+  });
+});
+
+describe('the booth page', () => {
+  it('never pulls in the Vite client, so a keep cannot reload it: no CSS, no HMR, no import outside tools/booth', () => {
+    for (const f of ['tools/booth/booth.ts', 'tools/booth/slots.ts', 'tools/booth/names.ts']) {
+      const t = src(f);
+      expect(t, f).not.toMatch(/\.css['"]/);
+      expect(t, f).not.toMatch(/import\.meta\.hot/);
+      for (const m of t.matchAll(/^import [^'"]*['"]([^'"]+)['"]/gm)) expect(m[1], f).toMatch(/^\.\/[a-z]+$/);
+    }
+  });
+  it('keeps the text frame from writing the save or acting on input before any game module runs', () => {
+    const h = src('tools/booth/text.html');
+    const guardAt = h.indexOf('Storage.prototype.setItem'), modAt = h.indexOf('type="module"');
+    expect(guardAt).toBeGreaterThan(0);
+    expect(guardAt).toBeLessThan(modAt);
+    for (const ev of ['pagehide', 'blur', 'visibilitychange', 'keydown']) expect(h).toContain(`'${ev}'`);
   });
 });

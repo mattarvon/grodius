@@ -5,6 +5,7 @@
 import '/src/core';
 import '/src/save';
 import '/src/audio';
+import '/src/input';
 import '/src/world';
 import '/src/fx/spawn';
 import '/src/enemies/spawn';

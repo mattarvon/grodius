@@ -6,6 +6,8 @@
 export const SLUG_MAX = 48;
 /** a category folder name the booth will write into (also checked against the slot list) */
 export const CAT_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+/** highest take number: the plugin refuses a keep past it, so every name it hands out matches TAKE_RE */
+export const TAKE_MAX = 9999;
 /** a processed take's file name: <slug>-matty-<n>.ogg */
 export const TAKE_RE = /^([a-z0-9]+(?:-[a-z0-9]+)*)-matty-([1-9]\d{0,3})\.ogg$/;
 

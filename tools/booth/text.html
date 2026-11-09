@@ -1,11 +1,21 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>booth text frame</title></head>
+<head><meta charset="utf-8"><title>booth text frame</title>
+<script>
+  // This frame only reads the game's words. It loads the game modules, and with them input.ts, whose pagehide / blur
+  // / visibilitychange handlers save: here that would write this frame's stale copy over the save the game tab owns.
+  // So, before any game module runs: no storage writes in this frame, and no input or page events reach the game's
+  // listeners (capture on window runs before them)
+  Storage.prototype.setItem = Storage.prototype.removeItem = Storage.prototype.clear = function () {};
+  for (const t of ['pagehide', 'beforeunload', 'blur', 'focus', 'visibilitychange', 'keydown', 'keyup', 'pointerdown', 'pointerup', 'pointermove', 'click', 'touchstart', 'touchend', 'resize'])
+    addEventListener(t, (e) => e.stopImmediatePropagation(), true);
+</script>
+</head>
 <body>
 <!-- The booth's hidden text frame (LS2-booth): the game modules expect the game page's DOM at import time
      (core.ts reads #c, #wrap, #crt, #pw, #ps), so this frame carries the same skeleton, imports them and posts the
-     line text up to tools/booth/booth.html. Kept in its own frame so the game's input listeners and its HMR reloads
-     stay out of the booth. -->
+     line text up to tools/booth/booth.html. Served raw by tools/booth/plugin.ts (no Vite client), so a keep does not
+     reload it. -->
 <div id="wrap" hidden>
   <canvas id="c" width="480" height="270"></canvas>
   <div id="crt"></div>
