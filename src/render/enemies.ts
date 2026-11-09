@@ -1026,6 +1026,8 @@ export function drawEnemy(e) {
   }
 }
 export function drawNailbar(c, e) {
+  if (e.par && e.par.k === 'crux') return drawCruxNail(c, e); // the leech's nails: baked with it (gross/crux.ts)
+  if (e.par && e.par.k === 'choir') return drawChoirNail(c, e); // the eye's tendon bars: baked with it (gross/mid/choir.ts)
   c.fillStyle = '#14171b';
   c.fillRect(-3.5, -15, 7, 30);
   c.fillStyle = '#3e454e';
@@ -1044,12 +1046,14 @@ export function drawNailbar(c, e) {
   c.fillRect(1, -13, 1, 1);
   c.fillRect(1, 12, 1, 1);
 }
-import { drawButcherGross, drawCruxGross } from './gross/biomebosses';
+import { drawButcher as drawButcherBaked } from './gross/butcher';
+import { drawCrux as drawCruxBaked, drawCruxNail } from './gross/crux';
+import { drawChoirNail } from './gross/mid/choir';
 export function drawCrux(c, e) {
-  drawCruxGross(c, e); // THE BLOATED BITCH (ice biome boss, kind 'crux'): src/render/gross/biomebosses.ts
+  drawCruxBaked(c, e); // THE BLOATED BITCH (ice biome boss, kind 'crux'): baked, src/render/gross/crux.ts (LS2-bossart)
 }
 export function drawButcher(c, e) {
-  drawButcherGross(c, e); // THE BURNING BUTCHER: src/render/gross/biomebosses.ts
+  drawButcherBaked(c, e); // THE BURNING BUTCHER: baked, src/render/gross/butcher.ts (LS2-bossart)
 }
 // --- biome midbosses ---
 const blob = (c, n, r0, f) => { c.beginPath(); for (let i = 0; i <= n; i++) { const a = i / n * TAU, r = f(a, i % n) * r0; i ? c.lineTo(Math.cos(a) * r, Math.sin(a) * r) : c.moveTo(Math.cos(a) * r, Math.sin(a) * r); } c.closePath(); };

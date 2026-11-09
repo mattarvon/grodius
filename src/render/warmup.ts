@@ -14,21 +14,21 @@ import { warmDerelict } from './terrain';
 import { dropMawVariant, mawVariantBuilt, warmMawVariant } from './gross/maw';
 import { warmDrive } from './gross/drive';
 import { MID_ART } from './gross/mid';
-import { dropBiomeBoss, biomeBossBuilt, warmBiomeBoss } from './gross/biomebosses';
+import { butcherBuilt, dropButcher, warmButcher } from './gross/butcher';
+import { cruxBuilt, dropCrux, warmCrux } from './gross/crux';
 import { dropWound, warmWound, woundBuilt, woundHeld } from './wounds';
 
 /** one piece of art. warm: build one slice, true while more slices remain. drop: free it (route art only) */
 /** held: for the drop check when it differs from built (a unit built in slices can be half there; default built) */
 interface Unit { warm: () => boolean; drop?: () => void; built?: () => boolean; held?: () => boolean }
 const mawV = (v: string): Unit => ({ warm: () => warmMawVariant(v), drop: () => dropMawVariant(v), built: () => mawVariantBuilt(v) });
-const bb = (k: string): Unit => ({ warm: () => warmBiomeBoss(k), drop: () => dropBiomeBoss(k), built: () => biomeBossBuilt(k) });
 // 2 slices, far then mid (snot 3). built (warm check) wants both layers whole; held (drop check) is any layer or pass
 const wnd = (b: string): Unit => ({ warm: () => warmWound(b), drop: () => dropWound(b), built: () => woundBuilt(b), held: () => woundHeld(b) });
 const UNITS: Record<string, Unit> = {
   hero: { warm: warmHeroEye }, eyes: { warm: warmEyes }, derelict: { warm: warmDerelict },
   'maw:orbit': mawV('orbit'), drive: { warm: warmDrive },
   ...MID_ART, // every midboss (render/gross/mid/): its art carries warm, built and drop
-  crux: bb('crux'), butcher: bb('butcher'), 'maw:acid': mawV('acid'), 'maw:snot': mawV('snot'),
+  crux: { warm: warmCrux, built: cruxBuilt, drop: dropCrux }, butcher: { warm: warmButcher, built: butcherBuilt, drop: dropButcher }, 'maw:acid': mawV('acid'), 'maw:snot': mawV('snot'),
   'wound:ice': wnd('ice'), 'wound:acid': wnd('acid'), 'wound:fire': wnd('fire'), 'wound:snot': wnd('snot'),
 };
 

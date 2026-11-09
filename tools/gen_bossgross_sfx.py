@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthesized one-shots for the gross biome bosses (src/render/gross/biomebosses.ts). Ours, no samples.
+"""Synthesized one-shots for the gross biome bosses (src/render/gross/crux.ts, butcher.ts). Ours, no samples.
   uv run --with numpy,scipy,imageio-ffmpeg python tools/gen_bossgross_sfx.py
 -> src/sfx/gsizzle/gen-NN.ogg   (grease hitting a hot floor, fat popping, guts frying)
    src/sfx/gicecrack/gen-NN.ogg (frozen meat / nail bar shattering)

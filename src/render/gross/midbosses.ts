@@ -107,25 +107,21 @@ export function stepParts(s) {
 }
 export function drawParts(c, s, e) {
   const ox = -e.x, oy = -e.y;
+  let hot = 0;
   for (const p of s.p) {
     const x = p.x + ox, y = p.y + oy, a = Math.min(1, p.l / p.ml * 2.5);
     c.globalAlpha = a;
     if (p.k === 0 || p.k === 4) {
-      const st = Math.min(4, Math.hypot(p.vx, p.vy) * 1.4);
+      // a streak along its velocity, by the ellipse's own rotation: no save/translate/rotate per particle (perf, LS2-bossart)
+      const v = Math.hypot(p.vx, p.vy), st = Math.min(4, v * 1.4), ux = v > 1e-4 ? p.vx / v : 0, uy = v > 1e-4 ? p.vy / v : 1;
       c.fillStyle = p.col;
-      c.save();
-      c.translate(x, y);
-      c.rotate(Math.atan2(p.vy, p.vx) - Math.PI / 2);
       c.beginPath();
-      c.ellipse(0, -st * .5, p.r * .55, p.r * .55 + st * .5, 0, 0, TAU);
+      c.ellipse(x - ux * st * .5, y - uy * st * .5, p.r * .55, p.r * .55 + st * .5, Math.atan2(p.vy, p.vx) - Math.PI / 2, 0, TAU);
       c.fill();
-      c.restore();
     } else if (p.k === 1) {
       c.fillStyle = p.col;
       c.fillRect(x - .5, y - .5, 1.2, 1.2);
-      c.globalCompositeOperation = 'lighter';
-      glowC(c, x, y, 3, '255,190,60', .5 * a * (SET.flashes ? 1 : .5));
-      c.globalCompositeOperation = 'source-over';
+      hot++;
     } else if (p.k === 2) {
       wiggler(c, x, y, Math.atan2(p.vy, p.vx) + Math.sin(p.l * .6 + p.ph) * .9, 1);
     } else {
@@ -135,12 +131,18 @@ export function drawParts(c, s, e) {
       c.fill();
     }
   }
+  if (hot) { // every fat spit's glow in one 'lighter' block, not a mode switch per particle
+    c.globalCompositeOperation = 'lighter';
+    const fl = SET.flashes ? 1 : .5;
+    for (const p of s.p) if (p.k === 1) glowC(c, p.x + ox, p.y + oy, 3, '255,190,60', .5 * Math.min(1, p.l / p.ml * 2.5) * fl);
+    c.globalCompositeOperation = 'source-over';
+  }
   c.globalAlpha = 1;
 }
 /** a gob hanging from (x,y): stretches over P frames, lets go as a falling drop, starts again */
 export function strand(c, s, e, id, x, y, len, w, col, P, tip = col, sway = 1.5) {
   if (GROSS <= 0) return;
-  const tt = e.t + hash(id) * P, f = (tt % P) / P, cyc = Math.floor(tt / P), key = 's' + id;
+  const tt = e.t + hash(id) * P, f = (tt % P) / P, cyc = Math.floor(tt / P), key = id; // a number key: no string built per strand per frame
   const L = len * Math.min(1.5, GROSS) * (.3 + .7 * f * f), sw = Math.sin(e.t * .05 + id) * sway * (L / len);
   if (s.sc[key] !== undefined && s.sc[key] !== cyc) emit(s, e.x + x + sw, e.y + y + L, sw * .03, .3, tip, w * 1.1 + .4, 0, 90);
   s.sc[key] = cyc;
@@ -160,7 +162,7 @@ export function strand(c, s, e, id, x, y, len, w, col, P, tip = col, sway = 1.5)
 /** a bubble that inflates over P frames and pops into a spray (or with k forced 0..1) */
 export function bubble(c, s, e, id, x, y, rmax, P, fill, rim, pc = rim, n = 4, kf = -1) {
   if (GROSS <= 0) return 0;
-  const tt = e.t + hash(id + 50) * P, f = kf >= 0 ? kf : (tt % P) / P, cyc = kf >= 0 ? 0 : Math.floor(tt / P), key = 'b' + id;
+  const tt = e.t + hash(id + 50) * P, f = kf >= 0 ? kf : (tt % P) / P, cyc = kf >= 0 ? 0 : Math.floor(tt / P), key = -1 - id; // bubbles below zero, strands at or above: no string per frame
   if (kf < 0 && s.sc[key] !== undefined && s.sc[key] !== cyc) { spray(s, e.x + x, e.y + y, n, pc, .9, .9); if (n >= 5) popSnd(s, .3); }
   s.sc[key] = cyc;
   const r = rmax * Math.pow(f, .6);

@@ -12,7 +12,7 @@ import { HUD_TOP, glow, light } from './util';
 import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
 import { drawMoveProps } from './moveprops';
-import { MOTIFW, PREVW, WOUND, acidFlakes, fireAsh, iceDrips, iceWash, wBuilt, wlay, wPts, woundBuilt, woundLive, woundLook } from './wounds';
+import { MOTIFW, PREVW, WOUND, acidFlakes, drainedBodies, fireAsh, iceDrips, iceWash, wBuilt, wlay, wPts, woundBuilt, woundLive, woundLook } from './wounds';
 import { PERKS, pk } from '../perks';
 import { PLATE, plateBox, plateLines, plateRight } from './gateplate';
 
@@ -170,12 +170,8 @@ const L = {
       x.fillStyle = '#040b09'; x.fillRect(cx - w / 2, top, w, PH - top);
       const g = x.createLinearGradient(0, lvl, 0, PH); g.addColorStop(0, 'rgba(40,190,160,.42)'); g.addColorStop(1, 'rgba(6,50,44,.6)');
       x.fillStyle = g; x.fillRect(cx - w / 2, lvl, w, PH - lvl);
-      for (let k = 0; k < 2; k++) {
-        const bx = cx - 12 + k * 22 + r() * 6, by = lvl + 40 + r() * 50, s = 1.8 + r() * .4;
-        figure(x, bx, by, s, k ? 'reach' : pose, 'rgba(70,40,30,.75)', 'rgba(70,40,30,.75)');
-        x.strokeStyle = 'rgba(225,230,205,.75)'; x.lineWidth = .8; for (let q = 0; q < 4; q++) { x.beginPath(); x.arc(bx, by - 4 * s + q * 1.6 * s, 2.2 * s, Math.PI * 1.15, Math.PI * 1.85); x.stroke(); }
-        skull(x, bx, by - 9 * s, s * .85, 'rgba(225,230,205,.9)');
-      }
+      // one grown crewman per vat (D46: nothing child-sized). Painted on its own layer (tankBodies) so it fades while the Womb is up
+      const body = [cx - 4 + r() * 8, lvl + 50 + r() * 30, 2.8 + r() * .3, pose];
       for (let k = 0; k < 14; k++) { x.strokeStyle = 'rgba(160,255,230,.35)'; x.lineWidth = .6; x.beginPath(); x.arc(cx - w / 2 + 4 + r() * (w - 8), lvl + 4 + r() * (PH - lvl), .8 + r() * 1.8, 0, TAU); x.stroke(); }
       x.fillStyle = 'rgba(150,255,225,.7)'; x.fillRect(cx - w / 2, lvl, w, 1);
       x.strokeStyle = 'rgba(110,190,170,.4)'; x.lineWidth = 1.2; x.strokeRect(cx - w / 2 + .5, top + .5, w - 1, PH);
@@ -183,7 +179,7 @@ const L = {
       x.fillStyle = '#2c1a0e'; x.fillRect(cx - w / 2 - 4, top - 8, w + 8, 9); x.fillRect(cx - w / 2 - 3, lvl - 12, w + 6, 3);
       x.fillStyle = '#5e3416'; x.fillRect(cx - w / 2 - 4, top - 8, w + 8, 2);
       x.fillStyle = '#1c100a'; x.fillRect(cx - 4, 0, 8, top - 8);
-      pts.push({ x: cx, y: lvl, w });
+      pts.push({ x: cx, y: lvl, w, body });
     }
   },
   acidMid: (x, r) => {
@@ -278,6 +274,31 @@ function bgGrad(b, wd) {
   return (M[b] = g);
 }
 
+// ---- the dead in the acid vats, on their own layer: they fade out while THE DISSOLVING WOMB is up (D46, Matt's call b: a tank
+// skull sitting over the placenta read as the boss's head). Render only: reads $.G.mini, eases on $.T, never touches the sim
+const BODY = {};
+function tankBodies(key, pts) {
+  return BODY[key] || (BODY[key] = cnv(LW, PH, (x) => {
+    if (key === 'acidFarW') { drainedBodies(x, pts); return; }
+    for (const p of pts) {
+      if (!p.body) continue;
+      const [bx, by, s, pose] = p.body;
+      figure(x, bx, by, s, pose, 'rgba(70,40,30,.75)', 'rgba(70,40,30,.75)');
+      x.strokeStyle = 'rgba(225,230,205,.75)'; x.lineWidth = .8; for (let q = 0; q < 4; q++) { x.beginPath(); x.arc(bx, by - 4 * s + q * 1.6 * s, 2.2 * s, Math.PI * 1.15, Math.PI * 1.85); x.stroke(); }
+      skull(x, bx, by - 9 * s, s * .85, 'rgba(225,230,205,.9)');
+    }
+  }));
+}
+let wombVis = 1, wombT = -1;
+/** 1 shows the vat dead, 0 hides them: eases to 0 over ~40 frames while the Womb lives, back over ~90 once it is gone */
+function tankBodyAlpha() {
+  const T = $.T || 0, dt = wombT < 0 || T < wombT ? 0 : Math.min(4, T - wombT), m = $.G && $.G.mini;
+  wombT = T;
+  const up = !!m && m.k === 'cyst' && !m.dead;
+  wombVis = up ? Math.max(0, wombVis - dt / 40) : Math.min(1, wombVis + dt / 90);
+  return wombVis * wombVis * (3 - 2 * wombVis);
+}
+
 // the infected ropes' strokes, built on first use: WOUND must not be read at load (wounds.ts and this file import each other)
 let WROPE = null;
 export function drawBiomeBG(sc) {
@@ -301,6 +322,8 @@ export function drawBiomeBG(sc) {
       ctx.fillStyle = fg; ctx.fillRect(0, PH * .6, W, PH * .4); }
   } else if (b === 'acid') {
     drawLay(wd ? wlay('acidFarW') : lay('acidFar', L.acidFar), sc, .12);
+    { const key = wd ? 'acidFarW' : 'acidFar', ba = tankBodyAlpha(); // the vat dead, over the vat they were painted in
+      if (ba > 0) { ctx.globalAlpha = k * ba; drawLay(tankBodies(key, wd ? wPts(key) : LPT[key]), sc, .12); ctx.globalAlpha = k; } }
     if (wd) eachPt('acidFarW', sc, .12, (px, p) => {
       // drained: only a low glow on the residue (no bubbles: nothing lives in it now)
       lit(() => glow(px, p.y, p.w * .6, '40,200,170', wd.vat * k));
@@ -430,13 +453,16 @@ const charred = (v) => spr('char' + v, 26, 46, (x, r) => {
   for (let k = 0; k < 7; k++) { const yy = 4 + r() * 34; x.beginPath(); x.moveTo(10 + r() * 6, yy); x.lineTo(10 + r() * 6, yy + 1 + r() * 3); x.stroke(); }
   x.fillStyle = '#ffd070'; x.fillRect(12, 5, 1, 1); x.fillRect(14, 5, 1, 1);
 });
-// body cocooned in a mucus sac
+// a mucus sac clotted round something long past recognising: dark tissue and veins, no body shape (D46)
 const cocoon = (v) => spr('coc' + v, 34, 50, (x, r) => {
   x.fillStyle = 'rgba(190,175,70,.55)'; x.beginPath(); x.ellipse(17, 26, 14, 22, 0, 0, TAU); x.fill();
-  figure(x, 17, 30, 1.5, v ? 'curl' : 'scream', 'rgba(60,34,16,.9)', '#b8a078');
-  face(x, 17, 30, 1.5, '#1a0a04', '#3a0606');
-  x.fillStyle = 'rgba(215,200,100,.5)'; x.beginPath(); x.ellipse(17, 26, 14, 22, 0, 0, TAU); x.fill();
-  x.strokeStyle = 'rgba(120,20,16,.6)'; x.lineWidth = .7; for (let k = 0; k < 4; k++) { let px = 8 + r() * 18, py = 8 + r() * 30; x.beginPath(); x.moveTo(px, py); for (let q = 0; q < 3; q++) { px += r() * 8 - 4; py += r() * 8; x.lineTo(px, py); } x.stroke(); }
+  for (let k = 0; k < 9; k++) { // the clot: overlapping lumps, darkest at the core, hanging low in the sac
+    const lx = 17 + (r() - .5) * 18, ly = 38 + (r() - .5) * 8 + v * 2, lr = 2.5 + r() * 4;
+    x.fillStyle = k < 4 ? 'rgba(26,6,4,.95)' : k < 7 ? 'rgba(58,14,10,.9)' : 'rgba(92,26,16,.8)';
+    x.beginPath(); x.ellipse(lx, ly, lr * 1.3, lr * (.45 + r() * .3), (r() - .5) * .6, 0, TAU); x.fill(); // settled low and flat: sediment, not a shape
+  }
+  x.fillStyle = 'rgba(215,200,100,.36)'; x.beginPath(); x.ellipse(17, 26, 14, 22, 0, 0, TAU); x.fill();
+  x.strokeStyle = 'rgba(120,20,16,.6)'; x.lineWidth = .7; for (let k = 0; k < 5; k++) { let px = 8 + r() * 18, py = 8 + r() * 30; x.beginPath(); x.moveTo(px, py); for (let q = 0; q < 3; q++) { px += r() * 8 - 4; py += r() * 8; x.lineTo(px, py); } x.stroke(); }
   x.strokeStyle = 'rgba(250,245,190,.7)'; x.lineWidth = 1; x.beginPath(); x.ellipse(17, 26, 13, 21, 0, Math.PI * 1.05, Math.PI * 1.45); x.stroke();
   x.fillStyle = '#fffbe0'; x.fillRect(9, 12, 2, 1);
 });
@@ -600,7 +626,7 @@ export function drawBiomeDecor(sc) {
   } else if (b === 'snot') {
     // mucus glaze riding the walls
     for (const s of [1, -1]) { edgeBand(sc, s, (wx) => 1.5 + 1.5 * Math.sin(wx * .09 + t * .03) + 2 * hash(Math.floor(wx / 16)), 4, 'rgba(206,190,84,.72)'); edgeBand(sc, s, (wx) => .5 + 1.5 * Math.sin(wx * .09 + t * .03) + 2 * hash(Math.floor(wx / 16)), -1, 'rgba(255,248,200,.35)'); }
-    // signature: a pulsing boil cluster that squirts pus, or a crewman cocooned in snot
+    // signature: a pulsing boil cluster that squirts pus, or a clot sealed in a mucus sac
     slots(sc, 240, (n, hs) => {
       const wx = n * 240 + 40 + hs * 150, x = wx - sc, top = hash(n * 4.4) < .4, e = top ? ceilAt(wx) : floorAt(wx), s = top ? -1 : 1;
       if (top ? e < -10 : e > PH + 10) return;

@@ -144,5 +144,109 @@ All repainted toward the game's palette; CC-BY / OGA-BY rows are the ones that r
 | Title hero eye (`rot_*`), eye kit (`kit/eye_*`, not yet used in play) | original, procedural, `tools/gen_eyes.py` | made for Grodius | original, first-party (not CC) |
 | Title easter-egg head (`head_egg@3`) | title head: Matt Arvon (self-portrait) | Matt Arvon | original, first-party (not CC) |
 
+## Boss art photo sources (`src/sprites/boss/`, LS2-bossart)
+The baked boss atlases are painted by `tools/bossart/**` (Python, PIL). Real photographs give the tissue its micro-detail: each
+is warped, regraded and high-passed into a painted height field, never pasted whole. Raw files live in `assets-raw/bossart/`
+(git-ignored). Found with `tools/openverse.mjs` (CC0, CC BY and public domain only).
+
+| File | Title | Creator | License | Source |
+|---|---|---|---|---|
+| `angler_43.jpg` | 줄씬벵이, anglerfish, antenarius malabarski, cá lưỡi dong lông, fishing frog, frog fish, harige hengelaar, hispid frogfish, kelalawar, kertatok, krötenfisch, lepu, lepu harimau, shaggy angler, shaggy anglerfish, shaggy fishing frog, sôshi-izariuo | Dan Schofield | CC BY 4.0 | https://www.inaturalist.org/photos/57622222 |
+| `angler_45.jpg` | deep-water frogfish, deepwater frogfish, spiny-head anglerfish, 黑紋裸身躄魚, 黑纹裸身躄鱼 | Pauline Walsh Jacobson | CC BY 4.0 | https://www.inaturalist.org/photos/365386261 |
+| `angler_48.jpg` | clown anglerfish, kumadori-izariuo, laffe cinq doigts, laffe cochon, largespotted angler, marmoreret tudsefisk, wartskin frogfish, warty anglerfish, warty frogfish, warzen-anglerfisch, 大斑躄魚, 大斑躄鱼, 大点躄鱼, 大點躄魚, 瘤突躄魚, 瘤突躄鱼 | Pauline Walsh Jacobson | CC BY 4.0 | https://www.inaturalist.org/photos/365991140 |
+| `angler_49.jpg` | clown anglerfish, kumadori-izariuo, laffe cinq doigts, laffe cochon, largespotted angler, marmoreret tudsefisk, wartskin frogfish, warty anglerfish, warty frogfish, warzen-anglerfisch, 大斑躄魚, 大斑躄鱼, 大点躄鱼, 大點躄魚, 瘤突躄魚, 瘤突躄鱼 | Pauline Walsh Jacobson | CC BY 4.0 | https://www.inaturalist.org/photos/331992566 |
+| `carcass_142.jpg` | CARVING THE WHALE. Japanese whalers cutting a finback for meat and other uses | Thoth, God of Knowledge | CC BY 2.0 | https://www.flickr.com/photos/62025628@N00/4176675983 |
+| `carcass_180.jpg` | The Butcher Of Meizhou | tarotastic | CC BY 2.0 | https://www.flickr.com/photos/30674396@N00/510687517 |
+| `carcass_181.jpg` | the butcher shop | linh.ngan | CC BY 2.0 | https://www.flickr.com/photos/75199686@N00/3061818219 |
+| `carcass_183.jpg` | camel butcher | Paul Keller | CC BY 2.0 | https://www.flickr.com/photos/18259771@N00/3167787796 |
+| `carcass_286.jpg` | Bison Necropsy | USFWS Mountain Prairie | CC BY 2.0 | https://www.flickr.com/photos/51986662@N05/5789992293 |
+| `carcass_287.jpg` | Elk Necropsy | USFWS Mountain Prairie | CC BY 2.0 | https://www.flickr.com/photos/51986662@N05/5790549452 |
+| `chain_82.jpg` | Rusty Chains | Dave Hamster | CC BY 2.0 | https://www.flickr.com/photos/14265068@N00/52256349538 |
+| `chain_83.jpg` | The old rusty chain | muffinn | CC BY 2.0 | https://www.flickr.com/photos/26445715@N00/52918272967 |
+| `chain_84.jpg` | Rusty Chain | Abhinav fr | CC0 1.0 | https://stocksnap.io/photo/rusty-chain-8SXBFNYKZK |
+| `chain_85.jpg` | Rusty chain on wooden deck in Loddebo | AnnSophieQ | CC0 1.0 | https://www.flickr.com/photos/141281588@N05/51459378520 |
+| `chain_89.jpg` | Rusty iron tends to the sky | Audire Silentium | CC BY 2.0 | https://www.flickr.com/photos/155589534@N03/52410431505 |
+| `engr_247.jpg` | View of Viscera Page 82 | perpetualplum | CC BY 2.0 | https://www.flickr.com/photos/14277117@N03/3953862552 |
+| `engr_249.jpg` | 33-2 The abdominal viscera seen after removal of the mesentery, as well as the lungs, from the front. | Knowledge Collector | Public Domain Mark 1.0 | https://www.flickr.com/photos/133115863@N08/18693373442 |
+| `engr_250.jpg` | 33-1 The abdominal viscera (digestive tract, seen from the front); the thoracic organs seen, in part, between in situ ribs. | Knowledge Collector | Public Domain Mark 1.0 | https://www.flickr.com/photos/133115863@N08/18511949939 |
+| `engr_251.jpg` | 35-1 The thoracic and abdominal cavities are opened from the front and important lymph glands and their vessels are shown. Viscera of the left side are removed. | Knowledge Collector | Public Domain Mark 1.0 | https://www.flickr.com/photos/133115863@N08/18698347465 |
+| `engr_65.jpg` | Illustration placenta, additional parts shown | not listed (see source) | CC0 1.0 | https://www.rawpixel.com/image/13972876/illustration-placenta-with-additional-parts-shown-underneath |
+| `engr_66.jpg` | Several examples diseased placenta, numbered | not listed (see source) | CC0 1.0 | https://www.rawpixel.com/image/13995063/image-paper-cartoon-art |
+| `jaw_39.jpg` | Invasive sea lamprey | U.S. Fish and Wildlife Service - Midwest Region | Public Domain Mark 1.0 | https://www.flickr.com/photos/49208525@N08/54644439829 |
+| `jaw_40.jpg` | Gymnothorax moringa (spotted moray eel) (Bahamas) 2 | James St. John | CC BY 2.0 | https://www.flickr.com/photos/47445767@N05/51307209980 |
+| `jaw_41.jpg` | Gymnothorax moringa (spotted moray eel) (Bahamas) 3 | James St. John | CC BY 2.0 | https://www.flickr.com/photos/47445767@N05/51311384659 |
+| `leech_234.jpg` | Leeches Suck (but they are great creatures) | OakleyOriginals | CC BY 2.0 | https://www.flickr.com/photos/47264866@N00/3622999458 |
+| `leech_238.jpg` | Malagasy rainforest leech on my skin, Ranomafana National Park, Madagascar | Frank.Vassen | CC BY 2.0 | https://www.flickr.com/photos/42244964@N03/11916858975 |
+| `meat_134.jpg` | Tripe | Editor B | CC BY 2.0 | https://www.flickr.com/photos/11018968@N00/2629062392 |
+| `meat_146.jpg` | meat done right | In Memoriam: chrisbulle | CC BY 2.0 | https://www.flickr.com/photos/67726656@N00/4657658048 |
+| `meat_148.jpg` | Meat | Keith.Lee | CC BY 2.0 | https://www.flickr.com/photos/27413230@N00/5188818942 |
+| `mold_219.jpg` | Hemitrichia, Lava Lamp Slime Mold_2014-07-01-12.21.16 ZS PMax | Sam Droege | Public Domain Mark 1.0 | https://www.flickr.com/photos/54563451@N08/14367791348 |
+| `mold_222.jpg` | Wolf's Milk Slime | pellaea | CC BY 2.0 | https://www.flickr.com/photos/7147684@N03/1294205045 |
+| `mold_224.jpg` | Red Raspberry Slime Mold - Tubifera ferruginosa, Idylwild Wildlife Management Area, Federalsburg, Maryland | Judy Gallagher | CC BY 2.0 | https://www.flickr.com/photos/52450054@N04/48208953781 |
+| `mold_225.jpg` | Insect Egg Slime | pellaea | CC BY 2.0 | https://www.flickr.com/photos/7147684@N03/1018817344 |
+| `mold_226.jpg` | Slime mould. | Bernard Spragg | CC0 1.0 | https://www.flickr.com/photos/88123769@N02/17025090657 |
+| `mold_227.jpg` | Slime Mold | mountainamoeba | CC BY 2.0 | https://www.flickr.com/photos/8289791@N02/4877160857 |
+| `mold_228.jpg` | Wolf's milk slime. (Lycogala epidendrum,) | Bernard Spragg | CC0 1.0 | https://www.flickr.com/photos/88123769@N02/32204568210 |
+| `mold_231.jpg` | Hot pink slime mold | Benimoto | CC BY 2.0 | https://www.flickr.com/photos/44545509@N00/1485982215 |
+| `nail_100.jpg` | untitled | not listed (see source) | CC0 1.0 | https://www.rawpixel.com/image/6045320/free-public-domain-cc0-photo |
+| `nail_95.jpg` | Antique Square Nails with Hammer | ShebleyCL | CC BY 2.0 | https://www.flickr.com/photos/25636851@N03/51913861417 |
+| `nail_98.jpg` | Rust Never Nails | cogdogblog | CC0 1.0 | https://www.flickr.com/photos/37996646802@N01/54523785423 |
+| `nail_99.jpg` | Rusty nails on a shelf | Roy Tanck | CC0 1.0 | https://wordpress.org/photos/photo/1306350e2b/ |
+| `octo_303.jpg` | octopus | f10n4 | CC BY 2.0 | https://www.flickr.com/photos/52127651@N00/186861994 |
+| `octo_304.jpg` | octopus | mazaletel | CC BY 2.0 | https://www.flickr.com/photos/38928586@N07/5647796879 |
+| `octo_305.jpg` | octopus | mazaletel | CC BY 2.0 | https://www.flickr.com/photos/38928586@N07/5647799175 |
+| `octo_306.jpg` | octopus | mazaletel | CC BY 2.0 | https://www.flickr.com/photos/38928586@N07/5647800611 |
+| `octo_308.jpg` | octopus! | Web-Betty | CC BY 2.0 | https://www.flickr.com/photos/17017714@N04/35718125972 |
+| `octo_309.jpg` | Octopuses | michael-day | CC BY 2.0 | https://www.flickr.com/photos/63328822@N00/6969745466 |
+| `octo_311.jpg` | Octopus | quinet | CC BY 2.0 | https://www.flickr.com/photos/91994044@N00/6061582220 |
+| `octo_313.jpg` | Suckers! | jblyberg | CC BY 2.0 | https://www.flickr.com/photos/36813960@N00/3738440099 |
+| `octo_316.jpg` | sucker! | Web-Betty | CC BY 2.0 | https://www.flickr.com/photos/17017714@N04/35718191992 |
+| `path_191.jpg` | Mixed Germ Cell Tumor of Testis | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/3260625567 |
+| `path_192.jpg` | Proliferating Mucinous Tumor of the Ovary (1) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/2669292762 |
+| `path_193.jpg` | Mixed Germ Cell Tumor of Testis (w/ ruler) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/3261449706 |
+| `path_196.jpg` | Proliferating Mucinous Tumor of the Ovary (8) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/2669296576 |
+| `path_197.jpg` | Proliferating Mucinous Tumor of the Ovary (6) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/2668475303 |
+| `path_198.jpg` | Stomach: Gastrointestinal stromal tumor (2001, gross) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/5924349274 |
+| `path_199.jpg` | Brenner Tumor of Ovary | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/218889488 |
+| `path_200.jpg` | Proliferating Mucinous Tumor of the Ovary (3) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/2668473213 |
+| `path_201.jpg` | Proliferating Mucinous Tumor of the Ovary (7) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/2669291138 |
+| `path_202.jpg` | Proliferating Mucinous Tumor of the Ovary (2) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/2669292092 |
+| `path_203.jpg` | Proliferating Mucinous Tumor of the Ovary (5) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/2668474643 |
+| `path_204.jpg` | Uterine Tumor in a 33-Year-Old (2) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/2145764413 |
+| `path_364.jpg` | Leiomyoma | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/119271509 |
+| `path_365.jpg` | Seminoma of the Testis | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/267781607 |
+| `path_367.jpg` | Cervical Carcinoma with Adnexa | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/218889486 |
+| `path_368.jpg` | Gastric Adenocarcinoma | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/138614039 |
+| `path_369.jpg` | Seminoma of the Testis (with ruler) | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/267781611 |
+| `path_372.jpg` | Mucinous Cystadenoma of Ovary | euthman | CC BY 2.0 | https://www.flickr.com/photos/78147607@N00/218889489 |
+| `rust_101.jpg` | Door Nail | themet | CC0 1.0 | https://www.rawpixel.com/image/8301801/door-nail |
+| `rust_103.jpg` | Plate and Nail | themet | CC0 1.0 | https://www.rawpixel.com/image/8301577/plate-and-nail |
+| `rust_105.jpg` | Rusted Metal Texture | not listed (see source) | CC0 1.0 | https://www.rawpixel.com/image/5966510/rusted-metal-texture |
+| `rust_107.jpg` | Rusty Tin Study #1 | Calsidyrose | CC BY 2.0 | https://www.flickr.com/photos/17557997@N02/21691570786 |
+| `rust_113.jpg` | Hinge o' Rust | cogdogblog | CC BY 2.0 | https://www.flickr.com/photos/37996646802@N01/16788659529 |
+| `rust_331.jpg` | Rust - Rouille | fred_v | CC BY 2.0 | https://www.flickr.com/photos/8514720@N04/36982461846 |
+| `rust_334.jpg` | Rust texture | Baron Von Horrible | CC BY 2.0 | https://www.flickr.com/photos/69029705@N07/6277711154 |
+| `rust_335.jpg` | Rust | kevin dooley | CC BY 2.0 | https://www.flickr.com/photos/12836528@N00/8687598298 |
+| `rust_336.jpg` | Rust texture | Baron Von Horrible | CC BY 2.0 | https://www.flickr.com/photos/69029705@N07/6277710330 |
+| `rust_337.jpg` | Rust Knight | enneafive | CC BY 2.0 | https://www.flickr.com/photos/75612671@N03/8483029696 |
+| `rust_340.jpg` | Rusted Fence | longhorndave | CC BY 2.0 | https://www.flickr.com/photos/99255685@N00/171769833 |
+| `rust_341.jpg` | Rust - Dark 004 | Asbestos Bill | CC BY 2.0 | https://www.flickr.com/photos/9516941@N08/2902675259 |
+| `rust_343.jpg` | texture 151 rust | Nasos3 | CC BY 2.0 | https://www.flickr.com/photos/34413757@N02/5260896766 |
+| `rust_386.jpg` | Mechanistic Skin Disease | FeatheredTar | CC BY 2.0 | https://www.flickr.com/photos/55915190@N00/2848783965 |
+| `rust_88.jpg` | Chain Drive | Me in ME | CC BY 2.0 | https://www.flickr.com/photos/12357841@N02/51497829373 |
+| `shell_56.jpg` | Placenticeras placenta (fossil ammonite) (Upper Cretaceous; Black Hills area, South Dakota, USA) | James St. John | CC BY 2.0 | https://www.flickr.com/photos/47445767@N05/53536698868 |
+| `shell_57.jpg` | Placenticeras placenta (fossil ammonite) (Upper Cretaceous; western North America) 5 | James St. John | CC BY 2.0 | https://www.flickr.com/photos/47445767@N05/53535569342 |
+| `shell_60.jpg` | Placenticeras placenta (fossil ammonite) (Upper Cretaceous; western North America) 1 | James St. John | CC BY 2.0 | https://www.flickr.com/photos/47445767@N05/53536632243 |
+| `shell_61.jpg` | Placenticeras placenta (fossil ammonite) (Upper Cretaceous; western North America) 2 | James St. John | CC BY 2.0 | https://www.flickr.com/photos/47445767@N05/53536632808 |
+| `squid_317.jpg` | cuttlefish squid | BioDivLibrary | Public Domain Mark 1.0 | https://www.flickr.com/photos/61021753@N02/5883845425 |
+| `squid_321.jpg` | Squid! | watchsmart | CC BY 2.0 | https://www.flickr.com/photos/7741046@N06/2874911007 |
+| `squid_322.jpg` | squid and shrimps | Michele Milidoni | CC BY 2.0 | https://www.flickr.com/photos/18119763@N07/6590232275 |
+| `squid_323.jpg` | vampire squid | snigl3t | CC BY 2.0 | https://www.flickr.com/photos/58598613@N00/2111032672 |
+| `maw_open_wide.jpg` | Open wide | U.S. Fish and Wildlife Service - Midwest Region | CC BY 2.0 | https://www.flickr.com/photos/49208525@N08/27969592266 |
+| `rawpixel_teeth_6266016.jpg` | Vintage teeth illustration | public domain, via rawpixel | CC0 1.0 | https://www.rawpixel.com/image/6266016/png-vintage-public-domain |
+| `tools/bossart/ufo/shaw_arms.png` | Back viewed eight armed cuttlefish (George Shaw) | NYPL, via rawpixel | CC0 1.0 | cut from the plate; see `tools/bossart/ufo/paint.py` |
+
+Changes: cropped, warped, regraded and filtered into original paintings. CC BY licences: https://creativecommons.org/licenses/.
+
 ## Fonts
 Silkscreen and Grenze Gotisch via @fontsource (SIL Open Font License 1.1).

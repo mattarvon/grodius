@@ -561,3 +561,18 @@ all of the bosses. need to upgrade all of them. more realistic, more gross shit"
   George Shaw's cuttlefish, CC0).
 - The LS2-bossart lane (art-director leading) audits all ten bosses and midbosses, offers 6 directions per remaining
   boss (one in the engraving style), then builds Matt's picks as baked sprites, render-only, gameplay unchanged.
+
+### D46 Boss picks built; content cut in the repaint — 2026-11-09 (Matt)
+
+Matt picked the remaining seven bosses from the LS2-bossart picker: **crux c5 Engorged Frost Leech, butcher c1 The Split
+Side, drive c3 Spine Wheel, choir c3 The Enucleated Eye, cyst c2 The Torn Placenta, prentice c2 Grown Into the Blade, brood
+c3 Tapeworm Knot** (Maw and Saucer: D45). All nine are built as baked, animated art, render only (LS2-bossart report:
+`production/qa/evidence/ls2-bossart.md`).
+
+Content, Matt: "cut it in the repaint" (no hotfix on main):
+- the Womb's child figure and kicking limb removed (the new Womb is placenta, cord and membrane only);
+- the Butcher's breasts removed (the old art deleted);
+- the small figure in the snot-biome egg pods replaced by a dark clot;
+- the child-sized skeletons in the acid tanks replaced by one adult body per tank; adult corpses and gore stay;
+- Matt's call **b** ("b, looks cool merge it"): the acid-tank bodies fade out while THE DISSOLVING WOMB is up and back after
+  it dies, because a tank skull over the placenta read as the boss's head (art-director block, cleared on recheck).
