@@ -311,6 +311,7 @@ Matt: "it should be more evil and not cartoonish", then "need gore, and darkness
 **Approved strings:**
 - Kill banners: 10 THAT ONE / HAD A NAME; 20 CLEAN-UP CREW / IS NOT COMING; 35 WE WILL NEED / A BIGGER BAG; 50 FILE IT / UNDER LOSSES; 75 THE GATE / KNOWS YOUR NAME; 100 YOU ARE / PART OF IT NOW. CARN: MESSY becomes OPENED.
 - Names: THE DROWNED LANDER (was the Squid Saucer), THE BLOAT, SEVERED, TAKEN DOWN.
+  - *Later (Matt, 2026-11-09):* the Saucer is SQUID SAUCER 2000 (D48) with kill word CALAMARI SERVED (D49). It is the single pun exception, Matt's call, and no precedent: every other name and kill word stays in this register.
 - LS2 names, in docs and specs only for now: THE EXPECTORANT (Spit), THE SCENT ORGAN (Sniffer), CHARON-6 (the tug), CREWMAN #2 // TETHERED.
 - Log, perk and menu lines as listed in the tone note §4(A) item 9.
 
@@ -623,7 +624,7 @@ APPROVE or APPROVE WITH NOTES except qa-lead, whose BLOCK (gates on the rebased 
 **Naming exception.** SQUID SAUCER 2000 is Matt's named exception to Pillar 5 for this one name only. It overrides D39's
 THE DROWNED LANDER, does not reopen D39, and is not precedent for THE EXPECTORANT, THE SCENT ORGAN, CHARON-6 or any later
 name. Later lanes must not "fix" it. Read "2000" as a MERIDIAN model number; the fight, art, sound and death stay straight
-horror. SEVERED stays unless Matt asks for a kill word to match.
+horror. SEVERED stays unless Matt asks for a kill word to match. *Closed in D49: Matt asked for CALAMARI SERVED.*
 
 **Gates** on 22c803c: typecheck 0; vitest 1122 pass plus the 1 known `it.fails` (qa-lead re-ran both); build 0; harness
 short, long4 and 12 scenarios PASS with no `--update`; layout-parity 7/7 against a baseline edited for the two titles
@@ -653,3 +654,42 @@ done in this merge.
 8. tools (lead-programmer; tell localization-lead): key the layout-parity dump's `minis` on the roster `k`, not the
    display title, so copy changes stop moving the parity baseline; note the 22c803c title substitution in the
    baseline's `commit` field when it is next touched.
+
+### D49 LS2-tts merged — 2026-11-09 (Matt: "yes and keep CALAMARI SERVED"; "stop killing me ... too often", picked once per stage on corpses; parent merge)
+
+**What merged** (ls2-tts, `1f7f142..d7ad788`):
+- SQUID SAUCER 2000's kill word is CALAMARI SERVED again (`src/enemies/mid/ufo.ts`:168). Matt's override of D39's SEVERED for
+  this one enemy; the code comment says so. No other kill word follows it.
+- D42 owned item 3 closed: `@capacitor-community/text-to-speech` removed from package.json, the lockfile and the two gradle
+  files (hand-edited to match what `cap sync` generates; CI runs `npm ci` + `cap sync`). A guard test fails if it returns.
+  README audio text and Mini-bosses list brought up to date (D48 item 1); the plugin also dropped from the two studio stack
+  docs (`.claude/agents/web-specialist.md`, `.claude/docs/technical-preferences.md`) by the parent in the merge.
+- The corpse plea ("stop killing me") plays at most once per stage, on corpse kill 1-5 picked by an integer hash of stage
+  and loop (`src/enemies/corpsevoice.ts`; no R()/srnd() draw). `corpseN`/`corpseVo` live in `G.st`: reset per stage, kept
+  through checkpoints, RE-ENTER and death restarts. Quiet stages are accepted (game-designer, creative-director).
+
+**Gates** on 54f574f (logs start with the sha): typecheck 0; vitest 1132 pass + the known `it.fails`; build 0; harness
+short, long4 and 12 scenarios PASS with no `--update`, `st` identical; parity 7/7. qa-lead re-ran typecheck and vitest.
+The parent build-checked the merged tree.
+
+**Studio review.** In-lane web-specialist x2 and devops-engineer. All 8 leads and all 3 directors APPROVE WITH NOTES; no
+block. S2s fixed in the merge: the README corpse line, the lane report's popup-overlap sentence (SEVERED did not overlap;
+CALAMARI SERVED covers "FIR" of FIRST KILL +100) and its `cap sync` claim, boot-check step 8, the CHANGELOG entry.
+
+**Open:** Matt's device boot check of the CI APK (`production/qa/evidence/ls2-tts.md`, steps 1-8, including whether once a
+stage still feels too often). In the main checkout first: `git pull`, `npm ci`, `npx cap sync android`, expect a clean
+`git status android/`. If the APK fails to boot, revert 86a639f on its own.
+
+**Rollback point:** tag `pre-ls2-tts` on `1f7f142`.
+
+**Owned items (backlog, S3):**
+1. ui-programmer: move the score popup clear of the kill-word banner; a measureText shrink-to-fit in `banner()` (hud.ts:225).
+2. game-designer: per-stage corpse counts in a probe, the measured quiet-stage rate, a 3-6 range comment on
+   `CORPSE_VOICE.span`; mixing `G.seed` into the hash is optional. Next lever if still too often: a per-descent cap.
+3. sound-designer: spend the stage's plea only when the clip actually sounds (audio-side only, never via `G.st`); add the
+   plea to the prio-cue comment at audio.ts:139.
+4. qa-tester: a vi.mock test that a corpse kill calls `corpseKilled` with `prio: true`; a RE-ENTER-after-restart check.
+5. web-specialist: extend the TTS guard to package-lock.json and add `speechSynthesis` to the bundle grep.
+6. gameplay-programmer: move the inline comment above update.ts:670. writer: README :85-86 mixes stage bosses into the
+   Mini-bosses heading.
+7. localization-lead, once i18n is scoped: kill-word keys (CALAMARI SERVED: "rewrite the joke") and voice-line captions.

@@ -12,7 +12,7 @@
 | Bundler / dev | Vite 8 (`base:'./'`, `assetsInlineLimit:0`) | `vite.config.ts`, `package.json:6-12` |
 | Rendering | Canvas 2D only (no WebGL) | `src/core.ts:13-32` |
 | Audio | Web Audio graph plus HTMLAudioElement music | `src/audio.ts`, `src/music.ts` |
-| Mobile | Capacitor 8 Android shell (haptics, TTS, keep-awake, app lifecycle) | `capacitor.config.ts`, `android/`, `src/platform.ts` |
+| Mobile | Capacitor 8 Android shell (haptics, keep-awake, app lifecycle) | `capacitor.config.ts`, `android/`, `src/platform.ts` |
 | Fonts | @fontsource Silkscreen 400, Grenze Gotisch 600/900 | `src/main.ts:3-5` |
 | CI/CD | GitHub Actions: debug APK to a rolling `latest` prerelease, `dist/` force-pushed to gh-pages | `.github/workflows/build.yml` |
 | Tooling | Playwright probes and shot rigs (`tools/*.mjs`), Python asset pipeline (`tools/prep_*.py`, `gen_*_sfx.py`) | `tools/` |
@@ -39,7 +39,7 @@ The modules form a flat ES-module graph. `main.ts` imports almost every module p
 | Audio | `audio.ts`, `music.ts` | Sample banks with shuffle bags, synth fallbacks, a 14-voice cap, drone bed, master compressor. Music tracks per biome with ducking |
 | Menus | `menus.ts` | Title, pause, game-over and Infirmary (shop) item lists and navigation |
 | Persistence | `save.ts` | `SET` settings plus `$.meta` in localStorage `grodius.v1`, with a v1-to-v2 refund migration |
-| Platform | `platform.ts` | `NATIVE`/`TOUCH`, haptics `buzz()`, native TTS `nativeSay()`. One of only 2 type-checked files |
+| Platform | `platform.ts` | `NATIVE`/`TOUCH`, haptics `buzz()`. One of only 2 type-checked files |
 | Perf | `perf.ts` | `?perf` phase timer (`pIn/pOut/pFrame`) |
 
 ## 3. Game loop
@@ -74,7 +74,7 @@ DOM listeners in `input.ts` write into raw key and touch state. `pollInput()` tu
 
 ## 7. Audio
 
-All sound sums into `AU.m` (gain .55), then one `DynamicsCompressor` (-16 dB, 5:1), then the destination (`audio.ts:22-28`). That covers SFX, voice, reverb return, an always-on 41-82 Hz drone (`audio.ts:47-86`) and the music bus (`music.ts:86`). `sample()` enforces a 14-voice cap with no priority (`audio.ts:127`). Voice lines are samples with a TTS fallback: `speechSynthesis` on the web, `nativeSay` on Android. Render modules trigger sounds through five ad-hoc `snd()` wrappers in `render/gross/*`.
+All sound sums into `AU.m` (gain .55), then one `DynamicsCompressor` (-16 dB, 5:1), then the destination (`audio.ts:22-28`). That covers SFX, voice, reverb return, an always-on 41-82 Hz drone (`audio.ts:47-86`) and the music bus (`music.ts:86`). `sample()` enforces a 14-voice cap with no priority (`audio.ts:127`). Voice lines are recorded samples only, with no TTS fallback: a missing clip is silent (decision D39). Render modules trigger sounds through five ad-hoc `snd()` wrappers in `render/gross/*`.
 
 ## 8. Persistence
 

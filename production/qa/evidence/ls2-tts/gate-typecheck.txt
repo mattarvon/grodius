@@ -1,0 +1,7 @@
+54f574f735c484366040eb7be1881887526b7397
+ M production/qa/evidence/ls2-tts/gate-build.txt
+ M production/qa/evidence/ls2-tts/gate-harness.txt
+ M production/qa/evidence/ls2-tts/gate-typecheck.txt
+ M production/qa/evidence/ls2-tts/gate-vitest.txt
+npm notice run tsc --noEmit
+typecheck exit 0

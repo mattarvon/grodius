@@ -2,6 +2,12 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-09 (CALAMARI SERVED, a rarer plea)
+
+- SQUID SAUCER 2000's kill word is CALAMARI SERVED again.
+- The dead crewman says "stop killing me" at most once a stage now, and not always on the same kill. Some stages stay quiet.
+- The Android app no longer carries the unused text-to-speech plugin.
+
 ## 2026-11-09 (new names)
 
 - The Open Orbit midboss is now SQUID SAUCER 2000. When it dies, the screen reads SEVERED.
