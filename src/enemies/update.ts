@@ -19,6 +19,7 @@ import { onKillContraptions } from '../contraptions';
 import './mid';
 import { MID_SIM, midMul, midRow } from './mid/roster';
 import { eliteKill, eliteTick } from './elite';
+import { corpseKilled } from './corpsevoice';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
 
 // --- enemy behaviour ---
@@ -665,8 +666,8 @@ export function killEnemy(e, dir = 1) {
     $.G.hitstop = Math.max($.G.hitstop || 0, 10);
     sfx.roar();
   }
-  // every 5th crew corpse you shoot pleads (it was every one, and wore thin)
-  if (e.k === 'corpse' && ($.G.corpseN = ($.G.corpseN || 0) + 1) % 5 === 0) sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true });
+  // a crew corpse pleads at most once a stage, on a kill that varies by stage (corpsevoice.ts; every 5th wore thin)
+  if (e.k === 'corpse' && $.G.st && corpseKilled($.G.st, $.G.stage | 0, $.G.loop | 0)) sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true });
   if (e.k === 'maw') {
     if (e.stageBoss) {
       miniReward(e);
