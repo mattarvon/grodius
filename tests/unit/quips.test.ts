@@ -34,8 +34,8 @@ describe('pickQuip', () => {
   });
 
   it('plays when the roll is just under the chance and not when it is at the chance', () => {
-    expect(pickQuip(['a'], bag(), seq(QUIP.chance - 1e-9, 0))).toBe('a');
-    expect(pickQuip(['a'], bag(), seq(QUIP.chance, 0))).toBeNull();
+    expect(pickQuip(['a'], bag(), seq(QUIP.chance.mid - 1e-9, 0))).toBe('a');
+    expect(pickQuip(['a'], bag(), seq(QUIP.chance.mid, 0))).toBeNull();
   });
 
   it('draws one roll on a miss, and on a hit only the roll while the bag has a quip left', () => {
@@ -223,7 +223,7 @@ function fakeCtx() {
     state: 'running',
     currentTime: 0,
     createBufferSource() {
-      const s: any = { ...node(), buffer: null, playbackRate: param(), at: null, stopped: false, onended: null, start(t: number) { s.at = t; }, stop() { s.stopped = true; } };
+      const s: any = { ...node(), buffer: null, playbackRate: param(), at: null, stopped: false, onended: null, start(t: number) { s.at = t; }, stop(t?: number) { s.stopped = true; s.stopAt = t; } };
       srcs.push(s);
       return s;
     },
@@ -239,8 +239,12 @@ const code = (f: string) => readFileSync(new URL('../../' + f, import.meta.url),
 beforeAll(() => stubDom());
 afterAll(() => vi.unstubAllGlobals());
 /** fresh modules; Math.random is spied before the import so core.ts's R captures the spy */
+/** the audio RNG's boot seed (audio.ts: crypto.getRandomValues), pinned so every roll in this file is the same each run
+ *  (qa-lead: no unpinned randomness) */
+const AUDIO_SEED = 0x9e3779b9;
 async function load() {
   vi.resetModules();
+  vi.stubGlobal('crypto', { getRandomValues: (a: Uint32Array) => { a[0] = AUDIO_SEED; return a; } });
   rand = vi.spyOn(Math, 'random');
   ({ $ } = await import('../../src/state'));
   ({ SET } = await import('../../src/save'));
@@ -348,17 +352,30 @@ describe('quipAfterKill', () => {
     expect(rand).not.toHaveBeenCalled();
   });
 
-  it(`hits at about QUIP.chance (${QUIP.chance}) over 200 kills`, () => {
+  // seeded (AUDIO_SEED): the same rolls every run, so the counts below are exact for this seed; the band is what the
+  // rule promises (sd at n=200 is ~0.034, so any seed lands inside it)
+  for (const [moment, p] of Object.entries(QUIP.chance)) it(`hits at about QUIP.chance.${moment} (${p}) over 200 kills`, () => {
     A.BANK['quip-closed-casket'] = take('a');
     A.BANK['quip-dead-weight'] = take('b');
     let hits = 0;
     for (let k = 0; k < 200; k++) {
-      if (A.quipAfterKill('TAKEN DOWN') != null) hits++;
+      if (A.quipAfterKill('TAKEN DOWN', 0, false, { moment }) != null) hits++;
       A.voiceStopAll();
     }
-    // sd at n=200 is ~0.034: this band is more than 4 sd either side
-    expect(hits / 200).toBeGreaterThan(.2);
-    expect(hits / 200).toBeLessThan(.5);
+    expect(hits / 200).toBeGreaterThan(p - .14);
+    expect(hits / 200).toBeLessThan(p + .14);
+  });
+
+  it('rolls the same with the same audio seed (no unpinned randomness)', async () => {
+    const run = async () => {
+      await load();
+      A.BANK['quip-closed-casket'] = take('a');
+      A.BANK['quip-dead-weight'] = take('b');
+      const out: (string | null)[] = [];
+      for (let k = 0; k < 40; k++) { out.push(A.quipAfterKill('TAKEN DOWN')); A.voiceStopAll(); }
+      return out;
+    };
+    expect(await run()).toEqual(await run());
   });
 
   it('is dropped at game over while still queued', () => {
@@ -415,8 +432,8 @@ describe('quipAfterKill', () => {
     for (let k = 0; k < 100; k++) expect(A.quipAfterKill('TAKEN DOWN')).toBeNull();
   });
 
-  it(`is skipped when it could not start within QUIP.maxLate (${QUIP.maxLate} s) of the kill`, () => {
-    A.BANK['kill-ufo'] = take('k', QUIP.maxLate); // .45 + maxLate + the gap: past the limit
+  it(`is skipped when it could not start within QUIP.maxLate.mid (${QUIP.maxLate.mid} s) of the kill`, () => {
+    A.BANK['kill-ufo'] = take('k', QUIP.maxLate.mid); // .45 + maxLate + the gap: past the limit
     A.BANK['quip-closed-casket'] = take('a', 1);
     for (let k = 0; k < 100; k++) {
       A.voiceStopAll();
@@ -502,6 +519,88 @@ describe('voiceOf for a quip folder', () => {
   });
 });
 
+describe('the studio review batch (LS2-quips)', () => {
+  beforeEach(load);
+
+  it('fades a talking quip over VOICE_CUT on a death, while the kill word talking with it finishes', () => {
+    A.BANK['kill-ufo'] = take('k', 1);
+    A.BANK['quip-closed-casket'] = take('a', 1);
+    A.BANK['hype10'] = take('h', 1);
+    A.quipAfterKill('', 0, true); // the quip talks now
+    A.AU.c.currentTime = .3;
+    A.voiceCutQuips();
+    expect(srcs[0].stopped).toBe(true);
+    expect(srcs[0].stopAt).toBeCloseTo(.3 + A.VOICE_CUT, 6);
+    expect(A.AU.voiceQ).toEqual([]);
+    expect(A.AU.voice).toBeNull();
+    // a kill word talking at the death is not a quip: it finishes (D50)
+    A.sample('kill-ufo');
+    A.AU.c.currentTime = .5;
+    A.voiceCutQuips();
+    expect(srcs[1].stopped).toBeFalsy();
+    expect(A.AU.voice.cat).toBe('kill-ufo');
+  });
+
+  it('drops a quip still queued behind the kill word at a death, and the kill word finishes', () => {
+    A.BANK['kill-ufo'] = take('k', 1);
+    A.BANK['quip-closed-casket'] = take('a', 1);
+    A.sample('kill-ufo', { at: .45 });
+    A.quipAfterKill('', .45, true);
+    A.AU.c.currentTime = .6;
+    A.voiceCutQuips();
+    expect(srcs[1].stopped).toBe(true);
+    expect(srcs[0].stopped).toBeFalsy();
+    expect(A.AU.voiceQ.map((v: any) => v.cat)).toEqual(['kill-ufo']);
+  });
+
+  it('is cut on every lost life and at game over (flow.ts killPlayer and gameOver)', () => {
+    const f = code('src/flow.ts');
+    const body = (name: string) => f.slice(f.indexOf(`export function ${name}(`), f.indexOf('\nexport function', f.indexOf(`export function ${name}(`) + 10));
+    expect(body('killPlayer')).toMatch(/\$\.P\.alive = false;[\s\S]*voiceCutQuips\(\)/);
+    expect(body('gameOver')).toMatch(/voiceDropQueued\(\);[^\n]*\n\s*voiceCutQuips\(\);/);
+  });
+
+  it('counts a stage-boss quip late from the death: a bossreward take at its booth warning still leaves room', () => {
+    A.BANK['bossreward'] = take('r', 2.5); // TAKEN DOWN at its warning: 2 s target + 0.5 slack
+    A.BANK['quip-closed-casket'] = take('a', 1);
+    let hit = null;
+    for (let k = 0; k < 100 && hit == null; k++) {
+      A.voiceStopAll();
+      A.sample('bossreward');
+      hit = A.quipAfterKill('TAKEN DOWN', 0, false, { moment: 'boss', since: 50 / 60 });
+    }
+    expect(hit).toBe('closed-casket');
+  });
+
+  it('skips a stage-boss quip past QUIP.maxLate.boss from the death', () => {
+    A.BANK['bossreward'] = take('r', QUIP.maxLate.boss);
+    A.BANK['quip-closed-casket'] = take('a', 1);
+    for (let k = 0; k < 100; k++) {
+      A.voiceStopAll();
+      A.sample('bossreward');
+      expect(A.quipAfterKill('TAKEN DOWN', 0, false, { moment: 'boss', since: 50 / 60 })).toBeNull();
+    }
+  });
+
+  it('keeps the gate boss (GATE SEALED) in play past BOSS_REWARD_WAIT, so it gets its quip too', () => {
+    const clearT = +/\$\.G\.clearT = (\d+);/.exec(code('src/boss/update.ts'))![1];
+    const wait = +/export const BOSS_REWARD_WAIT = (\d+);/.exec(code('src/stages.ts'))![1];
+    expect(clearT).toBeGreaterThan(wait); // endLoop (the shop) comes clearT frames after the gate boss dies
+    expect(code('src/step.ts')).toMatch(/\$\.state === 'play' && \$\.G\.clearT > 0 && --\$\.G\.clearT === 0\) endLoop\(\)/);
+  });
+
+  it('leaves a queued quip alone when a solo line returns early still talking (drop only for a line that plays)', () => {
+    A.BANK['corpsevoice'] = take('c', 1);
+    A.BANK['quip-closed-casket'] = take('a', 1);
+    A.sample('corpsevoice', { solo: true }); // talking until 1
+    A.quipAfterKill('', 0, true); // queued behind it
+    A.AU.c.currentTime = .2;
+    expect(A.sample('corpsevoice', { solo: true })).toBe(true); // the previous take still talks: early return
+    expect(srcs[1].stopped).toBeFalsy();
+    expect(A.AU.voiceQ.map((v: any) => v.cat)).toEqual(['corpsevoice', 'quip-closed-casket']);
+  });
+});
+
 describe('the call sites', () => {
   it('enemies/update.ts calls quipAfterKill with the kill word right after the kill-word sample', () => {
     expect(code('src/enemies/update.ts')).toMatch(/sample\('kill-' \+ e\.k, \{[^}]*at: KILL_WORD_AT \}\);\s*(\/\/[^\n]*\n\s*)*quipAfterKill\(M\?\.word, KILL_WORD_AT\);/);
@@ -509,7 +608,8 @@ describe('the call sites', () => {
 
   it('stages.ts calls quipAfterKill with every stage-boss readout right after the bossreward sample, only in play', () => {
     const st = code('src/stages.ts');
-    expect(st).toMatch(/if \(\$\.state !== 'play'\) return; sample\('bossreward', \{[^}]*\}\); quipAfterKill\(BOSS_READOUTS\);/);
+    expect(st).toMatch(/if \(\$\.state !== 'play'\) return; sample\('bossreward', \{[^}]*\}\); quipAfterKill\(BOSS_READOUTS, 0, false, \{ moment: 'boss', since: BOSS_REWARD_WAIT \/ 60 \}\);/);
+    expect(st).toMatch(/G\.pend\.push\(\{ t: BOSS_REWARD_WAIT, f: \(\) => \{ if \(\$\.state !== 'play'\) return; sample\('bossreward'/);
     expect(st).toContain("const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED'] as const;");
     // each readout is a banner a stage-boss kill really shows
     const shown = code('src/enemies/update.ts') + code('src/boss/update.ts');

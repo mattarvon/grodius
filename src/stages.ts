@@ -68,10 +68,13 @@ export function stageBanner(i) {
  *  normalised entries read it (short has gradeRef null) */
 export const stageTs = (i = $.G.stage || 0) => { const r = row(i); return r ? (r.x1 - r.x0) / 60 : 0; };
 
-/** call when the stage's boss dies (or escapes). Returns the seal tier broken, or 0. */
 /** the banner each stage-boss kill shows (enemies/update.ts crux/butcher and the maw, boss/update.ts the gate boss):
  *  a SLAB quip saying one of them never follows it (LS2-quips) */
 const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED'] as const;
+/** frames from a stage boss's death to its reward line (and the quip behind it): the death roar lands first. The gate
+ *  boss's descent end (boss/update.ts clearT 480) stays in play past it (tests/unit/quips.test.ts) */
+export const BOSS_REWARD_WAIT = 50;
+/** call when the stage's boss dies (or escapes). Returns the seal tier broken, or 0. */
 export function clearStage(escaped = false) {
   const G = $.G, st = G.st;
   if (!st || st.done) return 0;
@@ -97,11 +100,11 @@ export function clearStage(escaped = false) {
   sfx.stageClear();
   buzz('heavy');
   // boss-kill reward line (src/sfx/bossreward/, random pick if there are several; none loaded since Matt shelved THE KEYSTER, see src/sfx-shelved/README.md, so sample() returns false and nothing plays); waits out the death roar
-  // then, at QUIP.chance, one of SLAB's quips queued behind it (LS2-quips; audio only, ar() draws). The boss's own
+  // then, at QUIP.chance.boss, one of SLAB's quips queued behind it (LS2-quips; audio only, ar() draws). The boss's own
   // readout is any of BOSS_READOUTS (crux/butcher, the maw, the gate boss): a quip with those words never follows. Not
   // once the run is over: the pend still steps on the game-over screen, after voiceDropQueued (gameplay-programmer);
   // the check only reads $, so the sim is untouched
-  if (!escaped) G.pend.push({ t: 50, f: () => { if ($.state !== 'play') return; sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }); quipAfterKill(BOSS_READOUTS); } });
+  if (!escaped) G.pend.push({ t: BOSS_REWARD_WAIT, f: () => { if ($.state !== 'play') return; sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }); quipAfterKill(BOSS_READOUTS, 0, false, { moment: 'boss', since: BOSS_REWARD_WAIT / 60 }); } });
   const breakSeal = () => { if (seal > (G.seal || 0)) { G.seal = seal; banner('SEAL BROKEN', 'UNLOCKED: ' + SEAL_TXT[seal], '#ffd23a', 230); sfx.alarm(); } };
   const r = row(G.stage), seg = forkAfter(G.stage); // seg: the biome slot whose fork this clear opens, or -1
   // at a fork the seal waits until you're through the gate (its banner would bury the gate prompt), see startStage

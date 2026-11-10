@@ -11,7 +11,7 @@ let simDraws = 0;
 const draw = <T,>(v: T) => () => { simDraws++; return v; };
 vi.mock('../../src/core', () => ({ PH: 270, R: draw(0), clamp: (v: number) => v, dist2: () => 1e9, pick: (a: any[]) => { simDraws++; return a[0]; }, ri: draw(0), rr: draw(0), swapRm: () => {} }));
 vi.mock('../../src/save', () => ({ lv: () => 0, save: () => {} }));
-vi.mock('../../src/audio', () => ({ sfx: { shield: () => {}, die: () => {} } }));
+vi.mock('../../src/audio', () => ({ sfx: { shield: () => {}, die: () => {} }, voiceCutQuips: () => {} }));
 vi.mock('../../src/platform', () => ({ buzz: () => {} }));
 vi.mock('../../src/world', () => ({ ALL: [], buildTerrain: () => {}, caps: [], ceilAt: () => 0, eshots: [], floorAt: () => 270 }));
 vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, gore: () => {}, spark: () => {}, splat: () => {} }));

@@ -5,7 +5,7 @@ import { $ } from '../../src/state';
 
 vi.mock('../../src/core', () => ({ PH: 270, R: () => 0, clamp: (v: number) => v, dist2: () => 1e9, pick: (a: any[]) => a[0], ri: () => 0, rr: () => 0, swapRm: () => {} }));
 vi.mock('../../src/save', () => ({ lv: () => 0, save: () => {} }));
-vi.mock('../../src/audio', () => ({ sfx: new Proxy({}, { get: () => () => {} }), resetOpened: () => {}, voiceDropQueued: () => {}, voiceStopAll: () => {} }));
+vi.mock('../../src/audio', () => ({ sfx: new Proxy({}, { get: () => () => {} }), resetOpened: () => {}, voiceDropQueued: () => {}, voiceCutQuips: () => {}, voiceStopAll: () => {} }));
 vi.mock('../../src/platform', () => ({ buzz: () => {} }));
 vi.mock('../../src/world', () => ({ ALL: [], buildTerrain: () => {}, caps: [], ceilAt: () => 0, eshots: [], floorAt: () => 270 }));
 vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, gore: () => {}, spark: () => {}, splat: () => {} }));

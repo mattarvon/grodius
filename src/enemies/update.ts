@@ -666,7 +666,7 @@ export function killEnemy(e, dir = 1) {
     // `at` lets the death roar land first; a line already talking puts it in the queue (audio.ts sample). Audio only:
     // sample() draws ar(), never R(), and returns false at once with no context (the harness)
     sample('kill-' + e.k, { vol: 1.15, spread: .02, wet: .16, at: KILL_WORD_AT });
-    // then, at QUIP.chance, one of his quips queued behind it (LS2-quips; audio only, ar() draws)
+    // then, at QUIP.chance.mid, one of his quips queued behind it (LS2-quips; audio only, ar() draws)
     quipAfterKill(M?.word, KILL_WORD_AT);
     if (M?.kill) M.kill(e);
     // first-kill pay is for the midboss kinds (e.mid: the biome midbosses and the Saucer), the ones a player discovers

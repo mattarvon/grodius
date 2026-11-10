@@ -140,7 +140,7 @@ export const quipSlot = (q: Quip): Slot => ({
   slug: q.id,
   quip: q,
   copy: { lines: quipLines(q.text), from: 'src/voice/quips.json', lit: q.text },
-  when: `a quip: after a midboss's kill word or a stage boss's TAKEN DOWN, ${Math.round(QUIP.chance * 100)}% of the time, each recorded quip once before any repeats (audio.ts quipAfterKill)`,
+  when: `a quip: after a midboss's kill word or a stage boss's TAKEN DOWN, ${Math.round(QUIP.chance.mid * 100)}% of the time after a midboss, ${Math.round(QUIP.chance.boss * 100)}% after a stage boss, each recorded quip once before any repeats (audio.ts quipAfterKill)`,
   caller: SLAB,
   wired: true,
   test: `stage=orbit&vox=${quipCat(q.id)}`,

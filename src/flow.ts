@@ -3,7 +3,7 @@ import { $ } from './state';
 import { PH, R, clamp, dist2, pick, ri, rr, swapRm } from './core';
 import { lv, save } from './save';
 import { applyRun } from './runsave';
-import { resetOpened, sfx, voiceDropQueued, voiceStopAll } from './audio';
+import { resetOpened, sfx, voiceCutQuips, voiceDropQueued, voiceStopAll } from './audio';
 import { buzz } from './platform';
 import { ALL, buildTerrain, ceilAt, eshots, floorAt } from './world';
 import { drop, flash, gore, spark, splat } from './fx/spawn';
@@ -268,6 +268,7 @@ export function killPlayer() {
   if (!$.P.alive) return;
   $.P.alive = false;
   $.G.deadT = 150;
+  voiceCutQuips(); // SLAB's quip never talks over the player's own death; other lines finish (LS2-quips, audio only)
   buzz('death');
   if ($.G.st) $.G.st.deaths++;
   blackBox();
@@ -354,6 +355,7 @@ function deathRestart() {
 }
 export function gameOver() {
   voiceDropQueued(); // the line talking finishes; nothing queued behind it starts over the game-over screen (audio only)
+  voiceCutQuips(); // but a quip talking fades out (LS2-quips review)
   clearRun(); // spec §4: game over clears the checkpoint
   $.state = 'over';
   $.G.overT = 0;

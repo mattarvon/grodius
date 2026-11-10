@@ -99,16 +99,30 @@ export function parseQuips(raw: unknown): { quips: Quip[]; errors: string[] } {
 
 /** when a quip follows a big kill (LS2-quips; audio-director ruling on the frequency and the queue) */
 export const QUIP = {
-  /** chance a quip follows a midboss kill word or TAKEN DOWN. Matt chose "on big moments" only; a run of four stages
-   *  with two midbosses and a boss each is ~12 big kills, so ~4 quips a run: one every third big kill, a treat rather
-   *  than a habit. The shuffle bag (pickQuip) plays all nine before any repeats, about two runs. Raise it once more
-   *  lines are recorded */
-  chance: 0.35,
-  /** latest a quip may start, seconds after the kill that called it. The clean midboss case is KILL_WORD_AT .45 + a
-   *  1.2 s kill word + VOICE_GAP .25 = 1.9 s; 2.5 still lets a kill word run to its booth warning (1.7 s). Later than
-   *  that it lands in the next fight as flavour nobody asked for, so it is skipped (audio-director) */
-  maxLate: 2.5,
+  /** chance a quip follows a big kill, by moment (game-designer, LS2-quips review). Matt chose "on big moments" only.
+   *  A long4 run of four stages meets ~8 midbosses and ~4 stage bosses: 8 x .3 + 4 x .5 = 4.4 quips a run, one every
+   *  third big kill, a treat rather than a habit, weighted to the bigger kill. The shuffle bag (pickQuip) plays all
+   *  nine before any repeats, about two runs. Raise them once more lines are recorded */
+  chance: {
+    /** after a midboss's kill word: the common big kill, and the next fight is close */
+    mid: 0.3,
+    /** after a stage boss's readout: the rarest kill, over the tally card with no fight to talk over */
+    boss: 0.5,
+  },
+  /** latest a quip may start, seconds after the death that earned it (audio-director; game-designer: counted from the
+   *  death, not from the call). Later than that it is flavour nobody asked for, and it is skipped */
+  maxLate: {
+    /** KILL_WORD_AT .45 + a 1.2 s kill word + VOICE_GAP .25 = 1.9 s in the clean case; 2.5 still lets a kill word run
+     *  to its booth warning (1.7 s). Past it the quip lands in the next fight */
+    mid: 2.5,
+    /** the stage-boss call comes BOSS_REWARD_WAIT (50 frames, .83 s) after the death, behind bossreward: .83 + a
+     *  bossreward take up to its booth warning (2.5 s) + VOICE_GAP .25 = 3.6 s, so a long TAKEN DOWN take can never
+     *  silently skip every stage-boss quip. It plays over the tally card */
+    boss: 3.6,
+  },
 } as const;
+/** which big kill a quip follows: QUIP's chance and lateness are per moment */
+export type QuipMoment = keyof typeof QUIP.chance;
 
 /** the quip shuffle bag: ids still to play this round, and the one said last. Module state in audio.ts that a new
  *  game keeps, so the nine lines go round across runs */
@@ -120,7 +134,7 @@ export type QuipBag = { q: string[]; last: string | null };
  *  quip plays once before any repeats, a new bag never opens with the last one said, and an avoided id stays in the
  *  bag for the next kill. The bag drops ids no longer recorded and refills (a Fisher-Yates shuffle, `rnd()` draws)
  *  when nothing in it may play. `rnd` is the audio RNG (audio.ts ar()), never the sim's */
-export function pickQuip(ready: readonly string[], bag: QuipBag, rnd: () => number, chance: number = QUIP.chance, avoid: readonly string[] = []): string | null {
+export function pickQuip(ready: readonly string[], bag: QuipBag, rnd: () => number, chance: number = QUIP.chance.mid, avoid: readonly string[] = []): string | null {
   const ok = ready.filter((id) => !avoid.includes(id));
   if (!ok.length) return null;
   if (!(rnd() < chance)) return null;

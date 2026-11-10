@@ -139,7 +139,7 @@ you just kept; otherwise it plays one of the folder's takes.
 
 The **QUIPS** section under the fixed lines is Matt's own list (LS2-quips), kept in `src/voice/quips.json` as
 `{ id, text, note? }` rows. The game plays one, as SGT. RAMROD SLAB with the text as the caption, after a midboss's
-kill word or a stage boss's TAKEN DOWN, 35% of the time (`QUIP.chance` in `src/voice/quiplist.ts`). Only quips with a
+kill word (30% of the time) or a stage boss's readout (50%): `QUIP.chance` in `src/voice/quiplist.ts`, about 4 a run. Only quips with a
 take play; with none recorded, nothing changes in the game.
 
 - **Add:** type the words in the box at the foot of the list and press Enter (or **Add quip**). Caps are made for you;
@@ -160,9 +160,11 @@ take play; with none recorded, nothing changes in the game.
   the booth, which then refuses every quip edit until the file is fixed.
 
 In the game a quip is skipped (no roll) when anything but its own kill word is on the comms, or when it could not
-start within 2.5 s of the kill (`QUIP.maxLate`); any other voice line called while it still waits takes its place; a
-quip whose words are the kill word just said (CALAMARI SERVED after the Saucer) is never picked; and a shuffle bag
-plays every recorded quip once before any repeats. Game over and a new game treat it like any voice line (D50).
+start in time after the death (`QUIP.maxLate`: 2.5 s after a midboss, 3.6 s after a stage boss, whose quip waits for
+TAKEN DOWN over the tally card); any other voice line called while it still waits takes its place; a quip whose words
+are the readout just shown (CALAMARI SERVED after the Saucer) is never picked; and a shuffle bag plays every recorded
+quip once before any repeats. When the player dies (any life) or the run ends, a quip talking fades out and a queued
+one is dropped; kill words and other lines still finish (D50). A new game stops it like any line.
 
 ## Adding a line
 
