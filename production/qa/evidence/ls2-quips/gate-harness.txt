@@ -1,8 +1,8 @@
-61d24b41dcece88500dd333cb6521038cb18f1fb
-?? production/qa/evidence/ls2-quips/gate-build.txt
-?? production/qa/evidence/ls2-quips/gate-harness.txt
-?? production/qa/evidence/ls2-quips/gate-typecheck.txt
-?? production/qa/evidence/ls2-quips/gate-vitest.txt
+50b8e00fb3013084e47e7ba7f990fa45aa04d58f
+ M production/qa/evidence/ls2-quips/gate-build.txt
+ M production/qa/evidence/ls2-quips/gate-harness.txt
+ M production/qa/evidence/ls2-quips/gate-typecheck.txt
+ M production/qa/evidence/ls2-quips/gate-vitest.txt
 ---
 {"st":{"state":"over","score":1243,"scroll":3538,"lives":0,"px":50,"py":143.25,"en":0,"gibs":0,"drops":0,"caps":0},"hashes":["b9ce4a76ac","83207e90e2","deefef2cf3","cdff70c46c","8ecfcbedc1","0bc5cf3670"],"errs":[]}
 note: 6/6 canvas hashes differ (advisory)
@@ -19,7 +19,7 @@ PASS (saucer) vs baseline @ 5c8c3eb
 breath2: {"st":{"state":"play","score":0,"scroll":6861,"lives":0,"px":50,"py":82.065,"en":1,"gibs":30,"drops":20,"caps":0,"jump":true,"stage":1,"pair":"choir+cyst","loop":0,"pow":0,"rank":0,"lvl":6,"kills":0,"t":1180,"seen":"mini:cyst","sig":"95c5d0a33e"},"hashes":["bce528f5b2","9b01f55c8f"],"errs":[]}
 breath2: note: 2/2 canvas hashes differ (advisory)
 PASS (breath2) vs baseline @ ffd6b77
-drive: {"st":{"state":"play","score":7394,"scroll":12805,"lives":1,"px":50,"py":177.819,"en":12,"gibs":111,"drops":25,"caps":0,"jump":true,"stage":3,"pair":"","loop":0,"pow":0.032,"rank":0.032,"lvl":6,"kills":24,"t":1175,"seen":"","sig":"50480033ff"},"hashes":["6eebd570e9","d80505326e"],"errs":[]}
+drive: {"st":{"state":"play","score":7394,"scroll":12805,"lives":1,"px":50,"py":177.819,"en":12,"gibs":111,"drops":25,"caps":0,"jump":true,"stage":3,"pair":"","loop":0,"pow":0.032,"rank":0.032,"lvl":6,"kills":24,"t":1175,"seen":"","sig":"50480033ff"},"hashes":["68db3b52c6","d80505326e"],"errs":[]}
 drive: note: 2/2 canvas hashes differ (advisory)
 PASS (drive) vs baseline @ 5c8c3eb
 maw-d1: {"st":{"state":"play","score":500,"scroll":4248,"lives":0,"px":50,"py":122,"en":1,"gibs":24,"drops":129,"caps":3,"jump":true,"stage":0,"pair":"ufo","loop":0,"pow":0.5,"rank":0.5,"lvl":6,"kills":0,"t":1180,"seen":"mini:maw","sig":"6eb2462644"},"hashes":["7e9e7c69be","a574ae87a6"],"errs":[]}
@@ -46,5 +46,5 @@ PASS (butcher-d1) vs baseline @ 5c8c3eb
 butcher-d3: {"st":{"state":"play","score":1500,"scroll":7997,"lives":4,"px":50,"py":94.894,"en":1,"gibs":10,"drops":70,"caps":0,"jump":true,"stage":1,"pair":"prentice+choir","loop":2,"pow":1,"rank":1,"lvl":12,"kills":0,"t":1190,"seen":"mini:butcher","sig":"fdbf9b3478"},"hashes":["2ea3f91d7c","97eb2c46f1"],"errs":[]}
 butcher-d3: note: 2/2 canvas hashes differ (advisory)
 PASS (butcher-d3) vs baseline @ 5c8c3eb
-12 scenario(s) in 95 s
+12 scenario(s) in 91 s
 regress=0

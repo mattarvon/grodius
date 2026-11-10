@@ -1,7 +1,7 @@
-61d24b41dcece88500dd333cb6521038cb18f1fb
-?? production/qa/evidence/ls2-quips/gate-build.txt
-?? production/qa/evidence/ls2-quips/gate-typecheck.txt
-?? production/qa/evidence/ls2-quips/gate-vitest.txt
+50b8e00fb3013084e47e7ba7f990fa45aa04d58f
+ M production/qa/evidence/ls2-quips/gate-build.txt
+ M production/qa/evidence/ls2-quips/gate-typecheck.txt
+ M production/qa/evidence/ls2-quips/gate-vitest.txt
 ---
 npm notice run grodius@0.2.0 build
 npm notice run vite build
@@ -326,17 +326,17 @@ dist/assets/void-08-caves-gfrOlMBB.ogg                           3,543.02 kB
 dist/assets/void-02-institutional-values-H_Fqjk_4.ogg            3,576.72 kB
 dist/assets/void-12-not-done-here-yet-gxrc4hu3.ogg               3,598.95 kB
 dist/assets/index-W6VLO7vN.css                                       4.80 kB │ gzip:   1.43 kB
-dist/assets/web-DuWxGAqS.js                                          0.84 kB │ gzip:   0.40 kB
-dist/assets/web-D0fwszps.js                                          0.89 kB │ gzip:   0.46 kB
-dist/assets/web-DV1aKXXd.js                                          1.15 kB │ gzip:   0.46 kB
-dist/assets/index-Chk-EO_J.js                                      534.53 kB │ gzip: 195.68 kB
+dist/assets/web-D5uyYTuL.js                                          0.84 kB │ gzip:   0.40 kB
+dist/assets/web-Ih8ji28n.js                                          0.89 kB │ gzip:   0.45 kB
+dist/assets/web-D1bOHsYB.js                                          1.15 kB │ gzip:   0.46 kB
+dist/assets/index-D89DX7r7.js                                      535.00 kB │ gzip: 195.83 kB
 
-✓ built in 522ms
 [plugin builtin:vite-reporter] 
 (!) Some chunks are larger than 500 kB after minification. Consider:
 - Using dynamic import() to code-split the application
 - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 566ms
 build=0
 --- dist grep (booth, quip editor, vox hook)
 __booth: 0
@@ -348,4 +348,4 @@ QUIP_BODY: 0
 vox=: 0
 voxBoot: 0
 --- quips data that ships (expected):
-index-Chk-EO_J.js
+index-D89DX7r7.js

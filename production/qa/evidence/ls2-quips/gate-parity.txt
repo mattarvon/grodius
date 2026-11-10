@@ -1,9 +1,9 @@
-61d24b41dcece88500dd333cb6521038cb18f1fb
-?? production/qa/evidence/ls2-quips/gate-build.txt
-?? production/qa/evidence/ls2-quips/gate-harness.txt
-?? production/qa/evidence/ls2-quips/gate-parity.txt
-?? production/qa/evidence/ls2-quips/gate-typecheck.txt
-?? production/qa/evidence/ls2-quips/gate-vitest.txt
+50b8e00fb3013084e47e7ba7f990fa45aa04d58f
+ M production/qa/evidence/ls2-quips/gate-build.txt
+ M production/qa/evidence/ls2-quips/gate-harness.txt
+ M production/qa/evidence/ls2-quips/gate-parity.txt
+ M production/qa/evidence/ls2-quips/gate-typecheck.txt
+ M production/qa/evidence/ls2-quips/gate-vitest.txt
 ---
 run 3 (seed 3, 2 descents) gates 1001: shop 2, 8 stages, 30729 play frames, deaths 0, errors 0
 run 6 (seed 6, 2 descents) gates 1100: shop 2, 8 stages, 38325 play frames, deaths 0, errors 0

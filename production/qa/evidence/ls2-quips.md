@@ -5,21 +5,21 @@ booth". Asked when they play, he chose "On big moments": only after a midboss or
 the kill word.
 
 Branch `ls2-quips` off `ae0d137`. Commits: `251ce14` (build), `cf5ec8e` (review batch 1 + tests), `61d24b4` (review
-batch 2), and the report commit. Local only, not pushed (lane brief).
+batch 2), `b269354` (report), `50b8e00` (studio review batch) and the report update. Local only, not pushed (lane brief).
 
 ## What changed
 
 | Area | Files | What |
 |---|---|---|
 | Quip list | `src/voice/quips.json` | `[{ id, text, note? }]`: CALAMARI SERVED plus 8 lines (writer drafted, narrative-director cut two and checked tone) |
-| Quip rules | `src/voice/quiplist.ts` (new, a leaf with no imports) | caption rules (`normText`, `textError`: caps, 2 lines of 20, `A-Z 0-9 . , ' ? -`, no `!`, no stray `/`), `newId`, `parseQuips` (never throws, bad rows reported), `QUIP` tuning (`chance` .35, `maxLate` 2.5 s), `pickQuip` (a shuffle bag) |
+| Quip rules | `src/voice/quiplist.ts` (new, a leaf with no imports) | caption rules (`normText`, `textError`: caps, 2 lines of 20, `A-Z 0-9 . , ' ? -`, no `!`, no stray `/`), `newId`, `parseQuips` (never throws, bad rows reported), `QUIP` tuning by moment (`chance` midboss .3 / stage boss .5, `maxLate` 2.5 / 3.6 s from the death), `pickQuip` (a shuffle bag) |
 | Game list | `src/voice/quips.ts` (new) | imports the JSON through `parseQuips`; `quipCaption(cat)` |
 | Trigger | `src/audio.ts` | `quipAfterKill(word, at, force)`, `dropQueuedQuips()`; `VOICE_CAT` gains `quip-`; in `sample()`, any other voice line takes a queued quip's place, but only once that line is sure to play |
 | Call sites | `src/enemies/update.ts`, `src/stages.ts` | after a midboss's kill word (`quipAfterKill(M?.word, KILL_WORD_AT)`); in the stage-boss pend after `bossreward` (`quipAfterKill(BOSS_READOUTS)`, only while `$.state` is `play`) |
 | Comms window | `src/render/hype.ts` | `quip-<id>` is SLAB's (`SLAB_CAT`), captioned with the quip's own words |
 | Test hook | `src/vox.ts` | `?vox=quip-<id>` (the booth's T) and `?vox=quip` (the game's own pick, forced) |
 | Booth | `tools/booth/{plugin,booth,slots,args}.ts`, `booth.html`, `reprocess.mjs`, `README.md` | the Quips section: add, edit, delete; stale-take flag; `GET/POST /__booth/quips`; quip folders as voice slots for keep, delete and reprocess; pause squeeze default off for quips |
-| Tests | `tests/unit/quips.test.ts`, `tests/integration/booth-quips.test.ts` (new); `booth.test.ts`, `firstkill.test.ts`, `midhooks.test.ts` (mocks and pins) | 56 + 24 new tests |
+| Tests | `tests/unit/quips.test.ts`, `tests/integration/booth-quips.test.ts` (new); `booth.test.ts`, `firstkill.test.ts`, `midhooks.test.ts`, `deathrestart.test.ts`, `flowclear.test.ts`, `resumeguard.test.ts` (mocks and pins) | 89 new tests (65 + 24) |
 
 ### Choices
 
@@ -38,18 +38,22 @@ batch 2), and the report commit. Local only, not pushed (lane brief).
 
 ### In the game
 
-- After a midboss kill word or a stage boss's readout, 35% of the time (`QUIP.chance`: about 4 of a run's ~12 big
-  kills), one recorded quip plays as SGT. RAMROD SLAB with its words as the caption, queued behind the kill word on the
+- After a midboss kill word (30%) or a stage boss's readout (50%) (`QUIP.chance`: 8 x .3 + 4 x .5 = about 4.4 a
+  long4 run), one recorded quip plays as SGT. RAMROD SLAB with its words as the caption, queued behind the kill word on the
   audio clock.
 - **Shuffle bag:** every recorded quip plays once before any repeats, and the bag carries across runs.
 - **Never one whose words are the readout just shown:** CALAMARI SERVED never follows the Saucer; the stage-boss call
   avoids TAKEN DOWN, TORN APART and GATE SEALED.
-- **Skipped, with no roll,** when anything but its own kill word is on the comms, or when it could not start within
-  2.5 s of the kill (`QUIP.maxLate`; the clean case is 1.9 s).
+- **Skipped, with no roll,** when anything but its own kill word is on the comms, or when it could not start in time,
+  counted from the death (`QUIP.maxLate`): 2.5 s after a midboss (the clean case is 1.9 s), 3.6 s after a stage boss,
+  whose call comes `BOSS_REWARD_WAIT` (50 frames) after the death, behind TAKEN DOWN, so a bossreward take up to its
+  booth warning (2.5 s) still leaves room. The gate boss stays in play 480 frames, so GATE SEALED gets its quip too.
 - **Gives way:** any other voice line called while the quip still waits takes its place; one already talking finishes.
 - **Silent** with nothing recorded (no draw at all), muted, or with no audio running (the harness).
-- **D50:** game over drops a queued quip, a new game or the title cuts a talking one, and the stage-boss pend no longer
-  speaks once the run is over.
+- **The player's death:** on every lost life and at game over, a quip talking fades out over `VOICE_CUT` and a queued
+  one is dropped (`voiceCutQuips`, studio review: a gallows one-liner never lands over the player's own death). Kill
+  words and every other line keep D50's rule and finish. A new game or the title stops it like any line, and the
+  stage-boss pend no longer speaks once the run is over.
 - **Determinism:** the roll, the shuffle and the take pick draw only `ar()`. No `R()`, no `srnd()`, no sim state read
   or written beyond `$.state` in the pend guard. With no AudioContext, `quipAfterKill` returns before any draw.
 
@@ -60,7 +64,7 @@ batch 2), and the report commit. Local only, not pushed (lane brief).
 - [x] Booth Quips section: add, edit, delete (with a confirm and its takes), record like any slot (SLAB, deadpan, 2 s
       target); writes only the list and `src/sfx/quip-*/` through the guarded endpoint. Screenshot below.
 - [x] Seed list: CALAMARI SERVED + 8 (writer, narrative-director). No recordings made.
-- [x] Game trigger after a midboss kill word and a stage-boss kill, at a named 35% with rationale, `ar()` only, a
+- [x] Game trigger after a midboss kill word and a stage-boss kill, at named per-moment chances (midboss .3, stage boss .5) with rationale, `ar()` only, a
       random recorded quip never the same as the last (a shuffle bag: never the same until all have played), comms
       queue as SLAB with the quip caption, silent with no takes, D50 voice rules kept. Unit-tested with a stubbed
       `BANK`.
@@ -86,33 +90,55 @@ batch 2), and the report commit. Local only, not pushed (lane brief).
   boundary, the bag: all before a repeat, a new bag never opens with the last, an avoided quip stays for the next kill,
   a gone quip leaves the bag), the caption rules, the shipped list (9, zero errors), `quipAfterKill` with a stubbed
   `BANK` and a fake context (fires only with takes, silent with no context / suspended / muted / empty, the readout
-  skip, queued behind the kill word, `Math.random` never called, hit rate 0.2-0.5 over 200 kills), the busy skip, the
-  max lateness, preemption by another line, OPENED skipped behind the kill word leaving the quip queued, the comms
-  window caption, game over and new game, and source pins on both call sites.
+  skip, queued behind the kill word, `Math.random` never called, the hit rate per moment over 200 kills), the busy
+  skip, the max lateness (midboss, and the stage boss counted from the death), preemption by another line, OPENED
+  skipped behind the kill word and a solo line returning early both leaving the quip queued, the death cut (a talking
+  quip fades over `VOICE_CUT`, a queued one drops, the kill word finishes; pinned in `killPlayer` and `gameOver`), the
+  gate boss in play past the wait, the comms window caption, game over and new game, and source pins on both call
+  sites. The audio RNG is seeded in the test loader (`AUDIO_SEED`): no unpinned randomness, and a test checks two
+  seeded runs roll the same.
 - `tests/integration/booth-quips.test.ts` (qa-tester): `editQuips` on a temp repo (add, edit, delete with and without
   takes, every refusal and its code, a broken list refused and left byte-identical, the written file, no temp file
   left), `quipSlot` / `voiceSlot`, and `parseArgs` with quips.
 - **Watched failing:** the four queue-rule tests against `audio.ts` without the rules (4 failed); the OPENED test
   against the old `sample()` order (1 failed); qa-tester broke `audio.ts` twice (no-repeat and the readout skip: 3 and
-  2 failed).
+  2 failed); the studio batch's lateness-from-the-death and drop-after-the-early-returns tests against the previous
+  rule and order (2 failed).
 
 ## Gates
 
-All on `61d24b4` (each log starts with the sha and `git status`; only the gate logs themselves were untracked).
+All on `50b8e00` (each log starts with the sha and `git status`; only the gate logs themselves were untracked).
 Heavy jobs ran one at a time under `/tmp/grodius-heavy.lock`, each after a Tctl wait at 80 °C. Harness and parity ran
 against the lane's own dev server (port 5322, private cacheDir), stopped by PID afterwards; no source was edited while
-they ran.
+they ran. The same gates also passed on `61d24b4` before the studio batch.
 
 | Gate | Result | Log |
 |---|---|---|
 | `npm run typecheck` | `typecheck=0` | `ls2-quips/gate-typecheck.txt` |
-| `npx vitest run` | 1315 passed, 1 expected fail (the known `it.fails`); `vitest=0` | `ls2-quips/gate-vitest.txt` |
+| `npx vitest run` | 1324 passed, 1 expected fail (the known `it.fails`); `vitest=0` | `ls2-quips/gate-vitest.txt` |
 | `npm run build` + dist grep | `build=0`; `__booth`, `x-booth`, `booth-token`, `editQuips`, `quipOp`, `QUIP_BODY`, `vox=`, `voxBoot`: 0 files each. The quip list itself ships in the game bundle (by design: the captions) | `ls2-quips/gate-build.txt` |
 | harness short, long4, 12 scenarios (no `--update`) | all 14 PASS vs their baselines; `regress=0`; no baseline moved | `ls2-quips/gate-harness.txt` |
 | `node tools/layout-parity.mjs` (no `--update`) | PARITY PASS; `parity=0` | `ls2-quips/gate-parity.txt` |
 
-The harness has no AudioContext, so `quipAfterKill` returns before any draw there: short and long4 staying identical
-is the proof that the trigger leaves the sim alone.
+The harness has no AudioContext, so `quipAfterKill` and `voiceCutQuips` return before doing anything there: short and
+long4 staying identical is the proof that the quips leave the sim alone.
+
+## Studio review batch (on `b269354`: all 8 leads APPROVE WITH NOTES)
+
+Applied in `50b8e00`:
+
+1. **The death cut** (game-designer S2, audio-director, narrative-director; the parent's default, told to Matt): a quip
+   talking when the player loses a life or at game over fades out over `VOICE_CUT`, and a queued one drops
+   (`voiceCutQuips()` in `flow.ts` `killPlayer` and `gameOver`). Kill words and other lines keep D50's rule.
+2. **By moment** (game-designer): `QUIP.chance` midboss .3, stage boss .5 (~4.4 a run). Lateness counts from the
+   death (`QUIP.maxLate` 2.5 s / 3.6 s; the stage-boss call passes `since: BOSS_REWARD_WAIT / 60`), so a long
+   bossreward take can't silently skip every stage-boss quip. The gate boss keeps the state in play for 480 frames,
+   well past the 50-frame wait, so GATE SEALED gets a quip (pinned).
+3. **Drop order** (lead-programmer, audio-director): `dropQueuedQuips()` runs after the solo early return, so only a
+   line that really plays drops a queued quip (a voice line always passes the cap).
+4. **Seeded tests** (qa-lead): `tests/unit/quips.test.ts` pins the audio RNG's seed in its loader.
+5. **Doc order** (lead-programmer): `BOSS_READOUTS` (and the new `BOSS_REWARD_WAIT`) sit above `clearStage`'s doc
+   comment.
 
 ## Agents used
 
@@ -139,12 +165,9 @@ leads-and-directors review is the parent's.
 
 ## Open risks and notes for the hierarchy pass
 
-- **Matt's call (audio-director S3):** a quip already talking finishes on game over (D50, like any line). REST IN
-  PIECES or DEAD WEIGHT / LEAVE IT over the player's own death could read as SLAB mocking the player. Cutting a
-  talking quip at game over is a one-line rule if he wants it.
-- **Game-designer to confirm:** the gate boss (GATE SEALED) counts as a big kill and can get a quip.
-- **Optional (audio-director S3):** weight the chance by moment (stage boss .5, midboss .3, the same ~4 a run); one
-  shared `SLAB_MIX` for the kill words, bossreward, hype and quips.
+- **Told to Matt (the parent's default):** a quip talking at a death or game over is cut; kill words still finish.
+- **Backlog (the parent records it):** one shared `SLAB_MIX` for the kill words, bossreward, hype and quips, and the
+  other studio-review notes.
 - **Stale flags are per machine:** they read the raw take's record in git-ignored `assets-raw/`.
 - **A deleted quip's id** is held back only while its leftover raw folder exists.
 - **Localisation:** every quip is a pun; a translation needs a local equivalent, not a literal one (writer's note).
