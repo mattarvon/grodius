@@ -16,11 +16,15 @@ const store = {
 const TOKEN = document.querySelector<HTMLMetaElement>('meta[name=booth-token]')?.content ?? '';
 /** a take running this long was forgotten: stop it */
 const AUTO_STOP = 15;
+/** the meter's marks, linear sample peaks (LS2-booth2, audio-director): HOT past -3 dBFS (the loudest syllable belongs
+ *  at -10 to -6: the band booth.html draws), CLIP at -0.5 and above, where the plugin refuses the keep (plugin.ts
+ *  rawVerdict, on the same rule; the plugin leaves the key clicks out, so a CLIP on a hard Space alone is kept) */
+const HOT = 10 ** (-3 / 20), CLIP = 10 ** (-0.5 / 20);
 
 // arming: Space pressed, the recorder not running yet (a second Space is ignored until it is)
 type Phase = 'idle' | 'arming' | 'rec' | 'review' | 'saving' | 'saved' | 'error';
 type Take = { name: string; raw: boolean };
-type Kept = { name: string; url: string; lufs: number | null; peak: number | null; dur: number | null; gain: number; warn?: string; src: string };
+type Kept = { name: string; url: string; lufs: number | null; peak: number | null; dur: number | null; gain: number; warn?: string; long?: string; squeezed?: number; src: string };
 const S = {
   sel: Math.max(0, SLOTS.findIndex((s) => s.cat === store.get('slot'))),
   phase: 'idle' as Phase,
@@ -34,6 +38,10 @@ const S = {
   raw: null as Blob | null,
   rawUrl: '',
   clipped: false,
+  hot: false,
+  /** shorten the take's pauses over 0.4 s to 0.25 s (plugin.ts VOX.squeeze): per take, back on after a keep or a line
+   *  change (not on record: it may be unticked before Space) */
+  squeeze: true,
   kept: null as Kept | null,
   t0: 0,
 };
@@ -59,13 +67,13 @@ addEventListener('message', (ev) => {
 });
 
 // ---------------- takes on disk ----------------
-async function api(method: 'GET' | 'POST' | 'DELETE', q: Record<string, string>, body?: Blob) {
+async function api(method: 'GET' | 'POST' | 'DELETE', q: Record<string, string>, body?: Blob, ep?: string) {
   const qs = Object.keys(q).length ? '?' + new URLSearchParams(q) : '';
-  const r = await fetch('/__booth/' + (method === 'GET' ? 'takes' : 'take') + qs, {
+  const r = await fetch('/__booth/' + (ep ?? (method === 'GET' ? 'takes' : 'take')) + qs, {
     method, body, headers: { 'x-booth': TOKEN, ...(body ? { 'content-type': body.type || 'audio/webm' } : {}) },
   });
   const j = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
-  if (!r.ok) throw new Error(j.error || r.statusText);
+  if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), { clipped: !!j.clipped });
   return j;
 }
 async function refreshTakes() {
@@ -76,7 +84,7 @@ async function refreshTakes() {
 // ---------------- mic, meter ----------------
 let actx: AudioContext | null = null, an: AnalyserNode | null = null, src: MediaStreamAudioSourceNode | null = null;
 const buf = new Float32Array(2048);
-let hold = 0, clipUntil = 0, opening: Promise<void> | null = null;
+let hold = 0, clipUntil = 0, hotUntil = 0, opening: Promise<void> | null = null;
 function openMic(id?: string | null): Promise<void> {
   return (opening ||= (async () => {
     S.stream?.getTracks().forEach((t) => t.stop());
@@ -142,11 +150,13 @@ function meter() {
   let p = 0;
   for (const v of buf) p = Math.max(p, Math.abs(v));
   hold = Math.max(p, hold * .96);
-  if (p >= .99) { clipUntil = now + 1500; if (S.phase === 'rec') S.clipped = true; }
+  if (p >= CLIP) { clipUntil = now + 1500; if (S.phase === 'rec') S.clipped = true; }
+  if (p > HOT) { hotUntil = now + 1500; if (S.phase === 'rec') S.hot = true; }
   const db = p > 0 ? 20 * Math.log10(p) : -Infinity;
   ($id('lvl') as HTMLElement).style.width = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + '%';
   $id('pk').textContent = (hold > 0 ? (20 * Math.log10(hold)).toFixed(1) : '-inf') + ' dB';
   $id('clip').classList.toggle('on', now < clipUntil);
+  $id('hot').classList.toggle('on', now < hotUntil && now >= clipUntil);
   if (S.phase === 'rec') {
     const t = (now - S.t0) / 1000, el = document.getElementById('clock');
     if (el) el.textContent = t.toFixed(1) + ' s';
@@ -167,6 +177,7 @@ async function record() {
     discard(true);
     S.kept = null;
     S.clipped = false;
+    S.hot = false;
     S.chunks = [];
     const rec = (S.rec = new MediaRecorder(S.stream, { mimeType: MIME || undefined, audioBitsPerSecond: 256000 }));
     rec.ondataavailable = (e) => e.data.size && S.chunks.push(e.data);
@@ -179,7 +190,8 @@ async function record() {
       S.phase = 'review';
       if (S.tone !== 'warn') say('');
       say((S.msg ? S.msg + ' ' : '') + 'Raw take: Enter keeps it, Backspace throws it away, Space records it again.' +
-        (S.clipped ? ' This take CLIPPED: back off the mic or lower the input gain.' : ''), S.clipped || S.msg ? 'warn' : '');
+        (S.clipped ? ' This take hit CLIP (-0.5 dBFS): unless that was only the key click, the booth will refuse it. Lower the mic level and record it again.'
+          : S.hot ? ' Peaks went past -3 dBFS: usable, but back off a little.' : ''), S.clipped || S.hot || S.msg ? 'warn' : '');
       draw();
       (document.getElementById('rawplay') as HTMLAudioElement | null)?.play().catch(() => {});
     };
@@ -208,21 +220,58 @@ async function keep() {
   say('Processing...');
   draw();
   try {
-    const k = await api('POST', { cat: s.cat, slug: slugOf(s) }, S.raw);
+    const k = await api('POST', { cat: s.cat, slug: slugOf(s), ...(S.squeeze ? {} : { squeeze: '0' }) }, S.raw);
     // the processed player's src is fixed here: a redraw must not restart it
     S.kept = { ...k, src: `${k.url}?t=${Date.now()}` };
+    S.squeeze = true; // per take: the next one starts squeezed again
     discard(true);
     S.phase = 'saved';
-    // a take past its slot's length target lands over the next moment (a kill word over the next fight)
-    const long = s.maxLen && k.dur > s.maxLen ? ` Longer than the ${s.maxLen} s target for this line: tighten the read.` : '';
-    say(`Kept ${k.name}: ${k.lufs} LUFS, peak ${k.peak} dBTP, ${k.dur?.toFixed?.(2)} s (gain ${k.gain > 0 ? '+' : ''}${k.gain} dB).` + (k.warn ? ' ' + k.warn + '.' : '') + long, k.warn || long ? 'warn' : '');
+    // the plugin's warnings: a quiet or hot input, and a take past its slot's length target + slots.ts LEN_SLACK (it
+    // lands over the next moment: a kill word over the next fight)
+    const sq = k.squeezed ? `, ${k.squeezed} s of pauses cut` : '';
+    say(`Kept ${k.name}: ${k.lufs} LUFS, peak ${k.peak} dBTP, ${k.dur?.toFixed?.(2)} s (gain ${k.gain > 0 ? '+' : ''}${k.gain} dB${sq}).` +
+      (k.warn ? ' ' + k.warn + '.' : '') + (k.long ? ' ' + k.long + '.' : ''), k.warn || k.long ? 'warn' : '');
     await refreshTakes();
     (document.getElementById('keptplay') as HTMLAudioElement | null)?.play().catch(() => {});
   } catch (e) {
+    // a clipped take: the plugin saved the raw and refused the keep; this one can only be recorded again
+    if ((e as { clipped?: boolean }).clipped) {
+      discard(true);
+      S.phase = 'idle';
+      say(`Not kept: ${errText(e)} (Space). Its raw take is saved in assets-raw/voice/${s.cat}/.`, 'err');
+      await refreshTakes();
+      return;
+    }
     S.phase = 'review'; // the raw take is still here: try again or discard
     say('Keep failed: ' + errText(e), 'err');
     draw();
   }
+}
+/** re-runs the current chain on this line's kept raw takes (plugin.ts reprocess): each processed take is rewritten */
+async function redo() {
+  const s = SLOTS[S.sel];
+  if (S.phase === 'arming' || S.phase === 'rec' || S.phase === 'saving' || S.phase === 'review') return;
+  if (!confirm(`Reprocess every take of ${s.cat}/ that has a raw take, with the current chain? Each keeps the pause setting it was ` +
+    `kept with (takes from before that was saved: ${S.squeeze ? 'pauses shortened' : 'pauses kept'}, the checkbox). ` +
+    'Each processed take is rewritten; a raw take that clipped is skipped.')) return;
+  S.phase = 'saving';
+  say('Reprocessing...');
+  draw();
+  try {
+    const { takes } = await api('POST', { cat: s.cat, ...(S.squeeze ? {} : { squeeze: '0' }) }, undefined, 'reprocess') as
+      { takes: { name: string; done: boolean; why?: string; long?: string; warn?: string }[] };
+    const done = takes.filter((t) => t.done), skip = takes.filter((t) => !t.done);
+    const notes = [...done.filter((t) => t.long || t.warn).map((t) => `${t.name}: ${[t.long, t.warn].filter(Boolean).join('; ')}`),
+      ...skip.map((t) => `${t.name} skipped: ${t.why}`)];
+    S.phase = 'idle';
+    S.kept = null;
+    say(takes.length ? `Reprocessed ${done.length} of ${takes.length} take${takes.length === 1 ? '' : 's'}.` + (notes.length ? ' ' + notes.join(' / ') : '')
+      : 'No raw takes for this line in assets-raw/voice/ (shipped clips have none).', skip.length || notes.length ? 'warn' : '');
+  } catch (e) {
+    S.phase = 'idle';
+    say('Reprocess failed: ' + errText(e), 'err');
+  }
+  refreshTakes();
 }
 async function del(t: Take) {
   const s = SLOTS[S.sel];
@@ -241,6 +290,7 @@ function move(d: number) {
   if (!d || S.phase === 'arming' || S.phase === 'rec' || S.phase === 'saving') return;
   if (S.phase === 'review') return void (say('Keep (Enter) or discard (Backspace) this take first.', 'warn'), draw());
   S.sel = (S.sel + d + SLOTS.length) % SLOTS.length;
+  S.squeeze = true;
   store.set('slot', SLOTS[S.sel].cat);
   S.kept = null;
   if (S.phase !== 'error') { S.phase = 'idle'; say(''); } // a mic error stays up until a mic opens
@@ -301,6 +351,7 @@ function draw() {
       <button id="b-rec" class="rec${P === 'rec' ? ' on' : ''}" ${P === 'saving' || P === 'arming' ? 'disabled' : ''}>${P === 'rec' ? 'Stop' : P === 'review' ? 'Record again' : 'Record'} <kbd>Space</kbd></button>
       <span class="state" id="clock">${P === 'rec' ? '0.0 s' : ''}</span>${P === 'rec' ? '<span class="recdot">&#9679; REC</span><span class="state">let the last word ring out a beat before Stop</span>' : ''}
       ${s.test ? `<button id="b-test">Test in game <kbd>T</kbd></button>` : ''}
+      <label class="opt" title="pauses inside the take longer than 0.4 s are cut to 0.25 s when it is kept"><input type="checkbox" id="b-sq"${S.squeeze ? ' checked' : ''}${P === 'rec' || P === 'saving' ? ' disabled' : ''}> shorten pauses over 0.4 s</label>
     </div>
     ${S.rawUrl ? `<div class="row"><span class="state">Raw:</span><audio id="rawplay" controls src="${S.rawUrl}"></audio>
       <button id="b-keep" ${P !== 'review' ? 'disabled' : ''}>Keep <kbd>Enter</kbd></button>
@@ -314,8 +365,10 @@ function draw() {
   $id('takes').innerHTML = `<h2>Takes in src/sfx/${esc(s.cat)}/ (${takes.length})</h2>
     ${takes.map((t, i) => `<div class="take"><audio controls preload="none" src="/src/sfx/${esc(s.cat)}/${esc(t.name)}"></audio><span>${esc(t.name)}</span>
       ${/-matty-\d+\.ogg$/.test(t.name) ? `<button data-del="${i}">Delete</button>` : ''}</div>`).join('') || '<div class="state">None yet.</div>'}
+    ${takes.some((t) => t.raw) ? `<div class="row"><button id="b-redo" ${P === 'idle' || P === 'saved' || P === 'error' ? '' : 'disabled'}>Reprocess this line's takes</button>
+      <span class="state">re-runs the current chain on the kept raw takes (no re-recording)</span></div>` : ''}
     <div class="keys"><kbd>Space</kbd> record / stop &middot; <kbd>Enter</kbd> keep &middot; <kbd>Backspace</kbd> discard (or delete the take just kept) &middot;
-      <kbd>&uarr;</kbd><kbd>&darr;</kbd> line &middot; <kbd>T</kbd> test in game. Takes are mono 44.1 kHz Vorbis at -12 LUFS; the raw take stays in
+      <kbd>&uarr;</kbd><kbd>&darr;</kbd> line &middot; <kbd>T</kbd> test in game. Takes are mono 44.1 kHz Vorbis at -12 LUFS, the gaps between phrases turned down; the raw take stays in
       <code>assets-raw/voice/</code> (git-ignored). A take stops itself at ${AUTO_STOP} s.</div>`;
   document.querySelectorAll<HTMLElement>('.slot').forEach((el) => (el.onclick = () => move(+el.dataset.i! - S.sel)));
   document.querySelectorAll<HTMLElement>('[data-del]').forEach((el) => (el.onclick = () => { el.blur(); del(takes[+el.dataset.del!]); }));
@@ -325,6 +378,9 @@ function draw() {
   on('b-drop', () => discard());
   on('b-undo', () => S.kept && del({ name: S.kept.name, raw: true }));
   on('b-test', () => testGame(s));
+  on('b-redo', redo);
+  const sqb = document.getElementById('b-sq') as HTMLInputElement | null;
+  if (sqb) sqb.onchange = () => { S.squeeze = sqb.checked; sqb.blur(); };
 }
 
 draw();

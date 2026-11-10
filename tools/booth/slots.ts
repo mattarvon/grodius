@@ -45,8 +45,19 @@ export const DIRECTION: Record<string, string> = {
   'CREWMAN #5 // DECEASED': 'Not SLAB: a dead crewman, thinner and wetter, pleading and still polite to the end ("sir").',
   'LESLEY, MISSION CONTROL': 'Mission control at the launch: the one line that is not grim. Keep it apart from SLAB.',
 };
-/** per-kind length targets, seconds */
+/** per-kind length targets, seconds: the read to aim for (the booth shows it on the line) */
 export const MAX_LEN = { hype: 2, bossreward: 2, kill: 1.2, carn5: .8 } as const;
+/** how far past its target a processed take may run before the booth warns (LS2-booth2, audio-director): half a second
+ *  over is still a usable line; past that a kill word lands over the next fight. A warning, never a refusal */
+export const LEN_SLACK = 0.5;
+/** the length (s, after the trim) past which the booth warns about a slot's take; null for a slot with no target */
+export const lenLimit = (s: Pick<Slot, 'maxLen'>): number | null => (s.maxLen == null ? null : Math.round((s.maxLen + LEN_SLACK) * 100) / 100);
+/** the booth's long-take warning for a processed take's length, or undefined */
+export function lenWarn(s: Pick<Slot, 'maxLen'>, dur: number | null): string | undefined {
+  const lim = lenLimit(s);
+  if (lim == null || dur == null || !(dur > lim)) return undefined;
+  return `long take (${dur.toFixed(2)} s, over ${lim} s; the target is ${s.maxLen} s): read it as one breath, tighter`;
+}
 
 // Matt, 2026-11-09: every new recorded line (hype, bossreward, the kill words, carn5) is SGT. RAMROD SLAB, his own face
 // on the comms window (LS2-slab: render/hype.ts maps these folders to it; the booth shows the game's own mapping)

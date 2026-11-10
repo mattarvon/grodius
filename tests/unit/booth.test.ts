@@ -2,9 +2,9 @@
 // slot list against the game it describes, and the ?vox= hook's calls against the call sites they copy.
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
-import { CAT_RE, SLUG_MAX, TAKE_MAX, TAKE_RE, gainTo, nextTake, okCat, rawExt, slugify, takeName } from '../../tools/booth/names';
-import { DIRECTION, MAX_LEN, SLOTS, slotOf } from '../../tools/booth/slots';
-import { guard } from '../../tools/booth/plugin';
+import { CAT_RE, SLUG_MAX, TAKE_MAX, TAKE_RE, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName } from '../../tools/booth/names';
+import { DIRECTION, LEN_SLACK, MAX_LEN, SLOTS, lenLimit, lenWarn, slotOf } from '../../tools/booth/slots';
+import { Clipped, RAW_RE, VOX, guard, levels, rawVerdict, skipWhy, squeezeParam } from '../../tools/booth/plugin';
 
 const src = (f: string) => fs.readFileSync(f, 'utf8');
 
@@ -206,6 +206,154 @@ describe('delivery direction and length targets (LS2 review)', () => {
       const want = s.cat === 'carn5' ? .8 : s.cat.startsWith('kill-') ? 1.2 : /^(hype|bossreward)/.test(s.cat) ? 2 : undefined;
       expect(s.maxLen, s.cat).toBe(want);
     }
+  });
+});
+
+describe('the long-take warning (LS2-booth2)', () => {
+  it('warns past target + 0.5 s: hype and TAKEN DOWN 2.5 s, kill words 1.7 s, OPENED 1.3 s; nothing for an untimed slot', () => {
+    expect(LEN_SLACK).toBe(0.5);
+    const want: Record<string, number | null> = {};
+    for (const s of SLOTS) want[s.cat] = s.cat === 'carn5' ? 1.3 : s.cat.startsWith('kill-') ? 1.7 : /^(hype|bossreward)/.test(s.cat) ? 2.5 : null;
+    expect(Object.fromEntries(SLOTS.map((s) => [s.cat, lenLimit(s)]))).toEqual(want);
+  });
+  it('is quiet at exactly the limit and warns just past it, naming the length, the limit and the target', () => {
+    const hype = slotOf('hype10')!;
+    expect(lenWarn(hype, 2.5)).toBeUndefined();
+    expect(lenWarn(hype, 2.51)).toMatch(/2\.51 s, over 2\.5 s; the target is 2 s/);
+    expect(lenWarn(hype, 4.31)).toMatch(/long take/);
+  });
+  it('is quiet at exactly 1.7 s for a kill word and 1.3 s for OPENED, and warns just past', () => {
+    expect(lenWarn(slotOf('kill-ufo')!, 1.7)).toBeUndefined();
+    expect(lenWarn(slotOf('carn5')!, 1.3)).toBeUndefined();
+    expect(lenWarn(slotOf('kill-ufo')!, 1.71)).toMatch(/over 1\.7 s/);
+    expect(lenWarn(slotOf('carn5')!, 1.31)).toMatch(/over 1\.3 s/);
+  });
+  it('never warns without a length or a target (corpsevoice has none)', () => {
+    expect(lenWarn(slotOf('hype10')!, NaN)).toBeUndefined();
+    expect(lenWarn(slotOf('hype10')!, null)).toBeUndefined();
+    expect(lenWarn(slotOf('corpsevoice')!, 9)).toBeUndefined();
+  });
+});
+
+describe('the chain levels (LS2-booth2, audio-director)', () => {
+  it('pins the signed-off numbers: expander trough+15, 3:1, -20 dB range, 5/150 ms, knee 4, trough clamp [-80, -45]; lowpass 14 kHz; clip at -0.5, hot past -3', () => {
+    expect(VOX.expand).toEqual({ over: 15, ratio: 3, range: 0.1, attack: 5, release: 150, knee: 4, min: -80, max: -45 });
+    expect(VOX.lowpass).toBe(14000);
+    expect(VOX.clipAt).toBe(-0.5);
+    expect(VOX.hotAt).toBe(-3);
+    expect(VOX.squeeze).toEqual({ over: 0.4, keep: 0.25, after: 0.15, xfade: 0.005 });
+    expect(VOX.denoise).toBe('afftdn=nr=10:nf=-50:tn=1'); // kept at nr=10 (audio-director)
+  });
+  it('sets the trim gate from the noise floor and the expander from the RMS trough, each over its own offset', () => {
+    // a floor (windowed peak minimum) of -60 and a trough (RMS) of -66, both inside their clamps
+    expect(levels(-60, -66)).toEqual({ gate: -60 + VOX.gate.over, expand: -66 + VOX.expand.over });
+  });
+  it('clamps a loud room to the top of each range, and a dead-silent one to the bottom', () => {
+    expect(levels(-20, -30)).toEqual({ gate: VOX.gate.max, expand: VOX.expand.max + VOX.expand.over });
+    expect(levels(-120, -140)).toEqual({ gate: VOX.gate.min, expand: VOX.expand.min + VOX.expand.over });
+  });
+  it('never sets the expander above -30 dBFS RMS, 8 dB under a spoken phrase, however loud the room', () => {
+    expect(levels(-10, -20).expand).toBe(-30);
+  });
+  it('rounds a fractional floor and trough to whole dB', () => {
+    expect(levels(-60.4, -66.6)).toEqual({ gate: -46, expand: -52 });
+  });
+  it('takes the top of each clamp when the room cannot be measured', () => {
+    expect(levels(NaN, -Infinity)).toEqual({ gate: VOX.gate.max, expand: VOX.expand.max + VOX.expand.over });
+  });
+  it('says how hot a clipped take was and what to do', () => {
+    const e = new Clipped(5.1);
+    expect(e.rawPeak).toBe(5.1);
+    expect(e.message).toBe('input clipped (raw peak +5.1 dBFS): lower the mic level and record it again');
+    expect(new Clipped(-0.4).message).toMatch(/raw peak -0\.4 dBFS/);
+  });
+  it("keeps the page's HOT and CLIP marks on the plugin's thresholds and its rule: HOT past, CLIP at or above", () => {
+    const b = src('tools/booth/booth.ts');
+    expect(b).toContain(`HOT = 10 ** (${VOX.hotAt} / 20), CLIP = 10 ** (${VOX.clipAt} / 20)`);
+    expect(b).toContain('if (p >= CLIP)');
+    expect(b).toContain('if (p > HOT)');
+  });
+  it('draws the meter band at -10 to -6 dBFS on its -60..0 scale', () => {
+    const h = src('tools/booth/booth.html');
+    expect(h).toMatch(/\.meter b \{[^}]*left: 83\.333%; width: 6\.667%;/); // (60 - 10) / 60, 4 / 60
+  });
+});
+
+describe('rawVerdict (the clip guard)', () => {
+  it('refuses at exactly -0.5 dBFS and above, and keeps -0.51 as hot', () => {
+    expect(rawVerdict(-0.5)).toBe('clip');
+    expect(rawVerdict(5.1)).toBe('clip');
+    expect(rawVerdict(-0.51)).toBe('hot');
+  });
+  it('is hot only past -3 dBFS, the same rule as the meter, and silent for an unmeasured peak', () => {
+    expect(rawVerdict(-3)).toBeNull();
+    expect(rawVerdict(-2.99)).toBe('hot');
+    expect(rawVerdict(-7.9)).toBeNull();
+    expect(rawVerdict(null)).toBeNull();
+    expect(rawVerdict(-Infinity)).toBeNull();
+  });
+});
+
+describe('reprocess rules', () => {
+  it('matches raw takes only: never a temp file, a record, a zero or a capital', () => {
+    expect(RAW_RE.exec('hype-matty-3.webm')?.[1]).toBe('hype-matty-3');
+    for (const f of ['hype-matty-3.ogg.part.ogg', 'hype-matty-3.json', 'hype-matty-0.wav', 'HYPE-matty-1.wav', 'hype-matty-3.ogg.sq.wav', 'x.webm'])
+      expect(RAW_RE.test(f), f).toBe(false);
+  });
+  it('reads a Clipped error as a take kept as it was', () => {
+    expect(skipWhy(new Clipped(0.4))).toBe('input clipped (raw peak +0.4 dBFS): kept as it was');
+    expect(skipWhy(new Error('spawn ffmpeg ENOENT'))).toBe('spawn ffmpeg ENOENT');
+  });
+  it('squeezes unless the request says squeeze=0', () => {
+    expect(squeezeParam(new URLSearchParams(''))).toBe(true);
+    expect(squeezeParam(new URLSearchParams('squeeze=1'))).toBe(true);
+    expect(squeezeParam(new URLSearchParams('squeeze=0'))).toBe(false);
+  });
+  it('resets the page checkbox after a keep and a line change, never on record (it may be unticked before Space)', () => {
+    const b = src('tools/booth/booth.ts');
+    const rec = b.slice(b.indexOf('async function record()'), b.indexOf('function stop()'));
+    expect(rec).not.toContain('S.squeeze');
+    expect(b).toMatch(/squeeze: true,/);
+    expect(b.slice(b.indexOf('async function keep()'), b.indexOf('async function del('))).toContain('S.squeeze = true');
+    expect(b.slice(b.indexOf('function move('), b.indexOf('function testGame('))).toContain('S.squeeze = true');
+  });
+});
+
+describe('squeezeCuts', () => {
+  const Q = { over: 0.4, keep: 0.25, after: 0.15 };
+  it('cuts a 1 s pause to 0.25 s, keeping 0.15 s after the word and 0.1 s before the next', () => {
+    const [[a, b]] = squeezeCuts([1.0], [2.0], Q);
+    expect(a).toBeCloseTo(1.15, 9);
+    expect(b).toBeCloseTo(1.9, 9);
+    expect(1.0 - (b - a)).toBeCloseTo(Q.keep, 9);
+  });
+  it('leaves a pause of 0.4 s or less alone (a breath between words stays as read)', () => {
+    expect(squeezeCuts([1.0, 2.0], [1.4, 2.39], Q)).toEqual([]);
+    expect(squeezeCuts([0], [0.4], Q)).toEqual([]);
+    expect(squeezeCuts([0], [0.41], Q).length).toBe(1);
+  });
+  it('cuts nothing when the pause is shorter than what it keeps', () => {
+    expect(squeezeCuts([0], [0.5], { over: 0.1, keep: 0.6, after: 0.15 })).toEqual([]);
+  });
+  it('ignores an unmatched end and a pause that is not a number', () => {
+    expect(squeezeCuts([1], [2, 3], Q).length).toBe(1);
+    expect(squeezeCuts([NaN], [1], Q)).toEqual([]);
+  });
+  it('leaves a pause that ends at the end of the file to the tail trim (ffmpeg reports one at EOF)', () => {
+    expect(squeezeCuts([1, 3], [2, 4], Q, 4)).toEqual([[expect.closeTo(1.15, 9), expect.closeTo(1.9, 9)]]);
+  });
+  it('cuts only the long pauses of several, in order', () => {
+    const cuts = squeezeCuts([0.5, 1.2, 2.0], [0.7, 1.9, 2.5], Q);
+    expect(cuts.length).toBe(2);
+    expect(cuts[0][0]).toBeCloseTo(1.35, 9);
+    expect(cuts[1][1]).toBeCloseTo(2.4, 9);
+  });
+  it('ignores a pause that runs into the end of the file (no end: the tail trim owns it)', () => {
+    expect(squeezeCuts([1.0, 3.0], [2.0], Q).length).toBe(1);
+  });
+  it('treats a negative start (silencedetect at the file head) as 0', () => {
+    const [[a]] = squeezeCuts([-0.01], [0.6], Q);
+    expect(a).toBeCloseTo(0.15, 9);
   });
 });
 
