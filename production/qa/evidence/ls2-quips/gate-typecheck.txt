@@ -1,0 +1,6 @@
+61d24b41dcece88500dd333cb6521038cb18f1fb
+?? production/qa/evidence/ls2-quips/gate-typecheck.txt
+---
+npm notice run grodius@0.2.0 typecheck
+npm notice run tsc --noEmit
+typecheck=0
