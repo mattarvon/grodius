@@ -18,7 +18,7 @@ the short harness only, per the brief.
 | `tools/booth/booth.html`, `booth.ts` | Meter band **-10 to -6**, **HOT** past -3, **CLIP** at -0.5, on the plugin's rule. A **"shorten pauses over 0.4 s"** checkbox, per take, default on. It resets after a keep or a line change, never on record. **Reprocess this line's takes** button. A clipped keep shows "Not kept: input clipped...", and the long, hot and quiet warnings come from the plugin. |
 | `tools/booth/reprocess.mjs` (new) | CLI: `node tools/booth/reprocess.mjs <folder>... \| --all [--no-squeeze] [--root <repo>]`. A bare `--root`, or a root without `src/sfx`, is refused. |
 | `tools/booth/chain-probe.mjs` (new) | The synthetic proof: generates clean, hot, clipped and 4 s takes, runs the real chain, and prints gaps, length and verdict. `--real <raws>` adds real takes. |
-| `tools/booth/README.md` | The **input-level checklist** (`amixer -c 2 sset 'Internal Mic Boost' 1`, source ~70%, 20-30 cm, -10 to -6 on the meter, wait 0.5 s after Space, one breath per line). Also the new chain steps, the checkbox, the refusal, and reprocess. |
+| `tools/booth/README.md` | The **input-level checklist** (after the review batch: boost 0, set through PipeWire; source about 40%; then set by the meter, -10 to -6; 20-30 cm; wait 0.5 s after Space; one breath, unhurried). Also the new chain steps, the checkbox, the refusal, and reprocess. |
 | `tests/unit/booth.test.ts` | 33 → 65 tests (below). |
 
 ## The chain numbers (audio-director signed off, with changes; all applied)
@@ -204,3 +204,62 @@ PASS vs baseline @ 8ff9ba4
 - `assets-raw/voice/hype10/` in this worktree holds the e2e's synthetic raws and records. It is git-ignored, and
   nothing in `src/sfx/` remains.
 - Merge order: this lane touches only `tools/booth/` and its test, so it sits cleanly on main `98d07f2`.
+
+## Studio review batch (on `d1b956a`; fixed in `e012f37`)
+
+All 8 leads approved, with notes. The parent named this batch; everything else is backlog, which the parent records.
+
+1. **audio-director:** the README's input checklist contradicted the real setting.
+   - The parent set the source to 40%. PipeWire drives Internal Mic Boost on this path and set it to 0, so a
+     manual amixer change gets overwritten. The **mixer reading in "Not measured" above is superseded** by this.
+   - The checklist now says: boost 0 (set through PipeWire or KDE, not amixer), and why boost 0 keeps the clip guard
+     trustworthy; source about 40% (set 2026-11-09); then set the level by the meter (-10 to -6; peaks under -14,
+     raise to 50-60%; HOT, drop 5%).
+   - The chain list now puts the clip guard first, on the raw take, before the highpass.
+2. **narrative-director:**
+   - "One breath, unhurried: a short beat between the two caption lines is fine (pauses up to 0.4 s are kept); a
+     long gap is what puts a line over its target."
+   - The long-take warning ends "fewer or shorter pauses, not a faster read" (`slots.ts lenWarn`).
+   - The face/tag sentence moved to the direction bullets.
+   - Untick the squeeze when the pause is the joke (the beat before SERVED).
+3. **lead-programmer, qa-lead:**
+   - The CLI's argument rules are now a pure `parseArgs` (`tools/booth/args.ts`). The four refusals are pinned (a
+     bare `--root`, `--root --all`, a root without `src/sfx`, `../etc`), plus no folders, an unknown flag,
+     dedupe and the defaults.
+   - `reprocess()` takes an injectable `process` step. `tests/integration/booth-reprocess.test.ts` runs on a temp
+     root with no ffmpeg and covers:
+     - `readOpts`: a saved choice, a broken record, a wrong type, none;
+     - a deleted processed take, never revived;
+     - a clipped raw, left as it was with no temp file behind;
+     - the per-take `.json` winning over the run's `--no-squeeze`, and an older take getting the run's setting;
+     - files that are not raw takes, ignored;
+     - a bad folder, refused before any take is touched.
+   - A source pin keeps `peakOf` on `sample_fmts=flt` with no `channel_layouts=mono`.
+   - **Watched fail:** three mutations against these tests, each caught by its own test, then restored:
+     - squeeze precedence swapped (`o.squeeze ?? readOpts`);
+     - the mono downmix put back in `peakOf`;
+     - deleted takes revived.
+   - The CLI was re-run on the scratch root. The four refusals print their message, and the same 2 redone and
+     2 skipped as before; the long-take line carries the new wording.
+
+**Gates on `e012f37`.** Only `tools/booth/` and the tests changed, so there is no harness run, per the parent.
+
+```text
+e012f37d30291e418de9d6372b680782b750d357
+--- typecheck
+tsc exit 0
+--- vitest
+ Test Files  62 passed (62)
+      Tests  1235 passed | 1 expected fail (1236)
+build exit 0
+✓ built in 309ms
+--- dist grep: files containing each string
+__booth 0 · booth.html 0 · text.html 0 · textframe 0 · grodius-voice-booth 0 · GRODIUS VOICE BOOTH 0 · x-booth 0
+booth-token 0 · ?vox= 0 · VOX_FIRE 0 · afftdn 0 · ebur128 0 · silenceremove 0 · silencedetect 0 · agate 0
+acrossfade 0 · ffmpeg 0 · assets-raw 0 · tools/booth 0 · reprocess 0 · rawVerdict 0 · squeezeCuts 0 · parseArgs 0
+input clipped 0 · long take 0 · hot take 0 · shorten pauses 0 · not a faster read 0 · chain-probe 0
+--- chunks named vox/booth: 0
+```
+
+`tools/booth/args.ts` also passes `tsc --strict` with the other booth modules. The booth page doesn't import it,
+so the page's import pin is unchanged.
