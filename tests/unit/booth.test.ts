@@ -201,8 +201,8 @@ describe('delivery direction and length targets (LS2 review)', () => {
   it('reads CALAMARI SERVED, and only it, as a joke', () => {
     expect(SLOTS.filter((s) => /joke/i.test(s.note ?? '')).map((s) => s.cat)).toEqual(['kill-ufo']);
   });
-  it('sets the length target by kind: OPENED .8 s, kill words 1.2 s, hype and TAKEN DOWN 2 s', () => {
-    expect(MAX_LEN).toEqual({ hype: 2, bossreward: 2, kill: 1.2, carn5: .8 });
+  it('sets the length target by kind: OPENED .8 s, kill words 1.2 s, hype, TAKEN DOWN and quips 2 s', () => {
+    expect(MAX_LEN).toEqual({ hype: 2, bossreward: 2, kill: 1.2, carn5: .8, quip: 2 });
     for (const s of SLOTS) {
       const want = s.cat === 'carn5' ? .8 : s.cat.startsWith('kill-') ? 1.2 : /^(hype|bossreward)/.test(s.cat) ? 2 : undefined;
       expect(s.maxLen, s.cat).toBe(want);
@@ -310,13 +310,14 @@ describe('reprocess rules', () => {
     expect(squeezeParam(new URLSearchParams('squeeze=1'))).toBe(true);
     expect(squeezeParam(new URLSearchParams('squeeze=0'))).toBe(false);
   });
-  it('resets the page checkbox after a keep and a line change, never on record (it may be unticked before Space)', () => {
+  it("resets the page checkbox to the line's default after a keep and a line change (off for a quip), never on record", () => {
     const b = src('tools/booth/booth.ts');
     const rec = b.slice(b.indexOf('async function record()'), b.indexOf('function stop()'));
     expect(rec).not.toContain('S.squeeze');
     expect(b).toMatch(/squeeze: true,/);
-    expect(b.slice(b.indexOf('async function keep()'), b.indexOf('async function del('))).toContain('S.squeeze = true');
-    expect(b.slice(b.indexOf('function move('), b.indexOf('function testGame('))).toContain('S.squeeze = true');
+    expect(b.slice(b.indexOf('async function keep()'), b.indexOf('async function del('))).toContain('S.squeeze = sqDefault(s)');
+    expect(b.slice(b.indexOf('function move('), b.indexOf('function testGame('))).toContain('S.squeeze = sqDefault(ALL[S.sel])');
+    expect(b).toContain('const sqDefault = (s: Slot) => !s.quip;');
   });
 });
 
@@ -332,7 +333,7 @@ describe('parseArgs (the reprocess CLI)', () => {
     expect(parseArgs(['hype10', '--root', '/tmp'], REPO, (r) => r === REPO)).toEqual({ error: 'not a Grodius repo (no src/sfx): /tmp' });
   });
   it('refuses a folder that is not a voice slot, ../etc included, before anything runs', () => {
-    expect(parseArgs(['../etc'], REPO, yes)).toEqual({ error: '"../etc" is not a voice slot (tools/booth/slots.ts)' });
+    expect(parseArgs(['../etc'], REPO, yes)).toEqual({ error: '"../etc" is not a voice slot (tools/booth/slots.ts) or a quip (src/voice/quips.json)' });
     expect(parseArgs(['hype10', 'bogus'], REPO, yes)).toMatchObject({ error: expect.stringContaining('"bogus"') });
   });
   it('refuses no folders at all, and an unknown flag', () => {
@@ -427,13 +428,15 @@ describe('?vox= hook', () => {
 });
 
 describe('the booth page', () => {
-  it('never pulls in the Vite client, so a keep cannot reload it: no CSS, no HMR, no import outside tools/booth', () => {
-    for (const f of ['tools/booth/booth.ts', 'tools/booth/slots.ts', 'tools/booth/names.ts']) {
+  it('never pulls in the Vite client, so a keep cannot reload it: no CSS, no HMR, no import outside tools/booth but the quip rules', () => {
+    // LS2-quips: src/voice/quiplist.ts, the one game file the page and slots.ts read, is itself a leaf with no imports
+    for (const f of ['tools/booth/booth.ts', 'tools/booth/slots.ts', 'tools/booth/names.ts', 'src/voice/quiplist.ts']) {
       const t = src(f);
       expect(t, f).not.toMatch(/\.css['"]/);
       expect(t, f).not.toMatch(/import\.meta\.hot/);
-      for (const m of t.matchAll(/^import [^'"]*['"]([^'"]+)['"]/gm)) expect(m[1], f).toMatch(/^\.\/[a-z]+$/);
+      for (const m of t.matchAll(/^import [^'"]*['"]([^'"]+)['"]/gm)) expect(m[1], f).toMatch(/^(\.\/[a-z]+|\.\.\/\.\.\/src\/voice\/quiplist(\.ts)?)$/);
     }
+    expect(src('src/voice/quiplist.ts')).not.toMatch(/^import /m);
   });
   it('keeps the text frame from writing the save or acting on input before any game module runs', () => {
     const h = src('tools/booth/text.html');

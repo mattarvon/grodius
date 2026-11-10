@@ -5,6 +5,7 @@ import { drawChain, poly, txt } from '../render/util';
 import { drawEShots } from '../render/hud';
 import { SPR, srnd } from '../sprites';
 import { AU, VOICE_GAP } from '../audio';
+import { quipCaption } from '../voice/quips';
 
 // --- hype man: SGT. RAMROD SLAB ---
 export function drawSlab(c, jaw, t) {
@@ -173,7 +174,8 @@ export function drawSlab(c, jaw, t) {
 // kept outside the repo, beside the private source), not a Reticulan. SLAB_FACE picks that sheet
 const SLAB_FACE = -1, SLAB = 'SGT. RAMROD SLAB';
 // every new recorded line is his (LS2-slab): matched on the folder, since the booth names a take after its words
-const SLAB_CAT = /^(hype\d+|bossreward|kill-[a-z]+|carn5)$/;
+// (quip-<id>: his one-liners after a big kill, LS2-quips, captioned with the quip's own words)
+const SLAB_CAT = /^(hype\d+|bossreward|kill-[a-z]+|carn5|quip-[a-z0-9-]+)$/;
 const VOICE = {
   'hell-yeah': [SLAB_FACE, SLAB],
   shamalama: [1, 'BROTHER SHAMALAMA'],
@@ -184,7 +186,10 @@ const VOICE = {
 };
 /** [face, caller tag, caption?] for a voice clip: by its folder for SGT. RAMROD SLAB's, else by its file stem */
 export const voiceOf = (clip = '', cat = '') => {
-  if (SLAB_CAT.test(cat)) return [SLAB_FACE, SLAB];
+  if (SLAB_CAT.test(cat)) {
+    const cap = quipCaption(cat);
+    return cap ? [SLAB_FACE, SLAB, cap] : [SLAB_FACE, SLAB];
+  }
   // clip = file stem, e.g. 'hell-yeah-matty-1': match on the line, not the take
   for (const k in VOICE) if (clip === k || clip.startsWith(k + '-')) return VOICE[k];
   let h = 0; // a clip nobody mapped yet still gets the same face every time

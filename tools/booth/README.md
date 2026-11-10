@@ -135,6 +135,37 @@ you just kept; otherwise it plays one of the folder's takes.
   roar. OPENED (`carn5`) is skipped while another line talks and plays at most once per 20 s in a real run; the test
   switch skips that rule, and the corpse plea's once-a-stage count, so the line always plays.
 
+## Quips: SLAB's one-liners after a big kill
+
+The **QUIPS** section under the fixed lines is Matt's own list (LS2-quips), kept in `src/voice/quips.json` as
+`{ id, text, note? }` rows. The game plays one, as SGT. RAMROD SLAB with the text as the caption, after a midboss's
+kill word (30% of the time) or a stage boss's readout (50%): `QUIP.chance` in `src/voice/quiplist.ts`, about 4 a run. Only quips with a
+take play; with none recorded, nothing changes in the game.
+
+- **Add:** type the words in the box at the foot of the list and press Enter (or **Add quip**). Caps are made for you;
+  ` / ` splits the two caption lines. At most 2 lines of 20 characters; letters, digits, spaces and `. , ' ? -` only (no
+  `!`: SLAB never yells).
+- **Edit:** change the words in the box under the line and press Enter. The id (the folder `src/sfx/quip-<id>/` and
+  the take names) never changes, so no take is orphaned. A take recorded to the old words is marked **stale: says
+  ...** in the take list (the words are saved with each take's raw record in `assets-raw/`, so only on the machine
+  that recorded it); record it again and delete the stale one.
+- **Delete:** **Delete quip** asks first; with takes, it deletes its processed takes too. The raw takes stay in
+  `assets-raw/voice/quip-<id>/`, and while that folder exists the id is not handed out again (a fresh clone without
+  `assets-raw/` could reuse it).
+- **Record** like any line. The pause squeeze starts **off** for a quip (the beat is usually the joke); the target is
+  2 s, and a take up to 2.5 s is fine.
+- **Test in game** (**T**) opens `?vox=quip-<id>`; `?vox=quip` plays one through the game's own pick.
+- **By hand:** the JSON may be edited directly; only `id`, `text` and `note` are kept (a booth edit rewrites the file
+  without other keys). A row the game can't read is dropped from the game and shown in red in
+  the booth, which then refuses every quip edit until the file is fixed.
+
+In the game a quip is skipped (no roll) when anything but its own kill word is on the comms, or when it could not
+start in time after the death (`QUIP.maxLate`: 2.5 s after a midboss, 3.6 s after a stage boss, whose quip waits for
+TAKEN DOWN over the tally card); any other voice line called while it still waits takes its place; a quip whose words
+are the readout just shown (CALAMARI SERVED after the Saucer) is never picked; and a shuffle bag plays every recorded
+quip once before any repeats. When the player dies (any life) or the run ends, a quip talking fades out and a queued
+one is dropped; kill words and other lines still finish (D50). A new game stops it like any line.
+
 ## Adding a line
 
 Add a row to `tools/booth/slots.ts`. Point `text` at the game's export where one exists; otherwise use `copy`, with

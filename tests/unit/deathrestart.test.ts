@@ -8,7 +8,7 @@ import { $ } from '../../src/state';
 const H = vi.hoisted(() => ({ caps: [] as any[], salvage: 0, trigger: 'b', blob: null as any, R: vi.fn(() => 0) }));
 vi.mock('../../src/core', () => ({ PH: 270, R: H.R, clamp: (v: number, a: number, b: number) => Math.max(a, Math.min(b, v)), dist2: () => 1e9, pick: (a: any[]) => a[0], ri: () => 0, rr: () => 0, W: 480, H: 270, TAU: 6.28 }));
 vi.mock('../../src/save', () => ({ lv: (k: string) => (k === 'salvage' ? H.salvage : 0), save: () => {} }));
-vi.mock('../../src/audio', () => ({ sfx: new Proxy({}, { get: () => () => {} }), resetOpened: () => {}, voiceDropQueued: () => {}, voiceStopAll: () => {} }));
+vi.mock('../../src/audio', () => ({ sfx: new Proxy({}, { get: () => () => {} }), resetOpened: () => {}, voiceDropQueued: () => {}, voiceCutQuips: () => {}, voiceStopAll: () => {} }));
 vi.mock('../../src/platform', () => ({ buzz: () => {} }));
 vi.mock('../../src/world', () => ({ ALL: [H.caps], buildTerrain: () => {}, caps: H.caps, ceilAt: () => 0, eshots: [], floorAt: () => 270, enemies: [], drops: [], gibs: [], shots: [] }));
 vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, gore: () => {}, spark: () => {}, splat: () => {} }));

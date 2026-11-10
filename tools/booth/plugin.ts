@@ -12,7 +12,11 @@
 //   DELETE /__booth/take?cat=<cat>&name=<file> removes one processed take (a raw take stays in assets-raw/)
 //   POST   /__booth/reprocess?cat=<cat>[&squeeze=0]  re-runs the current chain on that slot's kept raw takes and
 //          rewrites the matching src/sfx takes (reprocess() below; the CLI is tools/booth/reprocess.mjs)
-// Every path is built from slots.ts (the category must be a slot) and names.ts (sanitised slug, numbered name),
+//   GET    /__booth/quips                      -> { quips: [{ id, text, note? }], errors: [...] } (src/voice/quips.json)
+//   POST   /__booth/quips  body JSON { op: 'add', text } | { op: 'edit', id, text } | { op: 'del', id, takes? }
+//          edits SLAB's quip list (LS2-quips, editQuips() below): writes only src/voice/quips.json and, for a delete
+//          with takes: true, the processed takes in src/sfx/quip-<id>/ (its raw takes stay in assets-raw/)
+// Every path is built from slots.ts (the category must be a slot or a quip in the list) and names.ts (sanitised slug, numbered name),
 // never from the request as written. Requires ffmpeg and ffprobe on PATH.
 import type { Plugin, ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -21,7 +25,8 @@ import { promisify } from 'node:util';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { lenWarn, slotOf, SLOTS } from './slots.ts';
+import { lenWarn, quipSlot, SLOTS, voiceSlot } from './slots.ts';
+import { newId, normText, parseQuips, QUIP_ID_MAX, QUIP_ID_RE, quipCat, quipLines, textError, type Quip } from '../../src/voice/quiplist.ts';
 import { TAKE_MAX, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, TAKE_RE } from './names.ts';
 
 const exec = promisify(execFile);
@@ -307,9 +312,10 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
   }
 }
 
-/** a category folder that is a real directory inside its base (created if missing): never a symlink out of it */
-function realDir(base: string, cat: string): string | null {
-  if (!okCat(cat) || !slotOf(cat)) return null;
+/** a category folder that is a real directory inside its base (created if missing): never a symlink out of it. The
+ *  category must be a fixed slot or a quip in `quips` */
+function realDir(base: string, cat: string, quips: readonly Quip[] = []): string | null {
+  if (!okCat(cat) || !voiceSlot(cat, quips)) return null;
   const d = path.join(base, cat);
   if (path.dirname(d) !== base) return null; // belt and braces: okCat already forbids dots and slashes
   fs.mkdirSync(d, { recursive: true });
@@ -324,14 +330,16 @@ export const RAW_RE = /^([a-z0-9]+(?:-[a-z0-9]+)*-matty-[1-9]\d{0,3})\.(webm|ogg
 export const skipWhy = (e: unknown) => (e instanceof Clipped ? e.message.replace(/: lower.*/, ': kept as it was') : String((e as Error)?.message ?? e));
 
 /** the per-take record kept beside a raw take (<take>.json in assets-raw/voice/<cat>/): the choices a reprocess must
- *  repeat. Only the pause squeeze today */
-export type TakeOpts = { squeeze: boolean };
+ *  repeat (the pause squeeze), and the words the take was recorded to (LS2-quips: a quip whose text changed since
+ *  shows its older takes as stale) */
+export type TakeOpts = { squeeze: boolean; text?: string };
 const optsFile = (rdir: string, name: string) => path.join(rdir, name.replace(/\.ogg$/, '.json'));
 /** a take's saved choices, or null for a take kept before LS2-booth2 (or an unreadable record) */
 export function readOpts(rdir: string, name: string): TakeOpts | null {
   try {
     const j = JSON.parse(fs.readFileSync(optsFile(rdir, name), 'utf8'));
-    return typeof j?.squeeze === 'boolean' ? { squeeze: j.squeeze } : null;
+    if (typeof j?.squeeze !== 'boolean') return null;
+    return typeof j.text === 'string' ? { squeeze: j.squeeze, text: j.text } : { squeeze: j.squeeze };
   } catch { return null; }
 }
 
@@ -345,13 +353,13 @@ export type Redone = { cat: string; name: string; done: boolean; why?: string; l
 export async function reprocess(root: string, cats: string[], o: { squeeze?: boolean; log?: (r: Redone) => void; process?: typeof processTake } = {}): Promise<Redone[]> {
   const proc = o.process ?? processTake; // a test stands in for ffmpeg here (tests/integration/booth-reprocess.test.ts)
   const out: Redone[] = [];
-  const sfx = path.join(root, 'src', 'sfx'), rawBase = path.join(root, 'assets-raw', 'voice');
+  const sfx = path.join(root, 'src', 'sfx'), rawBase = path.join(root, 'assets-raw', 'voice'), quips = readQuips(root).quips;
   // every name checked before any take is touched: a typo must not leave the run half done
-  for (const cat of cats) if (!okCat(cat) || !slotOf(cat)) throw new Error(`booth: ${JSON.stringify(cat)} is not a voice slot`);
+  for (const cat of cats) if (!okCat(cat) || !voiceSlot(cat, quips)) throw new Error(`booth: ${JSON.stringify(cat)} is not a voice slot`);
   for (const cat of [...new Set(cats)]) {
-    const slot = slotOf(cat)!;
+    const slot = voiceSlot(cat, quips)!;
     if (!fs.existsSync(path.join(rawBase, cat))) continue;
-    const dir = realDir(sfx, cat), rdir = realDir(rawBase, cat);
+    const dir = realDir(sfx, cat, quips), rdir = realDir(rawBase, cat, quips);
     if (!dir || !rdir) throw new Error(`booth: the ${cat} folder is not a plain folder`);
     for (const f of list(rdir).sort()) {
       const m = RAW_RE.exec(f);
@@ -376,6 +384,124 @@ export async function reprocess(root: string, cats: string[], o: { squeeze?: boo
     }
   }
   return out;
+}
+
+// ---------------- SLAB's quips (LS2-quips) ----------------
+/** where the quip list lives, relative to the repo */
+export const QUIP_FILE = path.join('src', 'voice', 'quips.json');
+/** the quip list on disk, parsed (src/voice/quiplist.ts parseQuips): a missing or broken file is no quips, with why */
+export function readQuips(root: string): { quips: Quip[]; errors: string[] } {
+  let raw: unknown;
+  try { raw = JSON.parse(fs.readFileSync(path.join(root, QUIP_FILE), 'utf8')); } catch (e) {
+    return { quips: [], errors: [`${QUIP_FILE}: ${String((e as Error)?.message ?? e)}`] };
+  }
+  return parseQuips(raw);
+}
+/** the list as written: one quip a line, so a hand edit and a diff stay readable */
+export const quipJson = (quips: readonly Quip[]) =>
+  '[\n' + quips.map((q) => '  { ' + (['id', 'text', 'note'] as const).filter((k) => q[k] != null).map((k) => `${JSON.stringify(k)}: ${JSON.stringify(q[k])}`).join(', ') + ' }').join(',\n') + '\n]\n';
+
+/** a quip edit refused for the client's reason (4xx), not a server fault */
+export class QuipRefused extends Error {
+  readonly code: number;
+  // a plain field, not a parameter property: the CLI runs this file under Node's type stripping
+  constructor(msg: string, code = 400) { super(msg); this.code = code; }
+}
+/** the audio files in a quip's src/sfx folder (none when it has no folder) */
+const quipTakes = (sfx: string, id: string) => list(path.join(sfx, quipCat(id))).filter((f) => /\.(ogg|wav|mp3|m4a)$/.test(f));
+
+/** apply one edit ({ op: 'add', text } | { op: 'edit', id, text } | { op: 'del', id, takes? }) to the quip list in
+ *  `root` and write it back; -> the new list and, for an add, the new quip.
+ *  Refuses (QuipRefused) a malformed request, words textError() turns down, an unknown id, a delete of a quip with
+ *  takes unless `takes: true` (then only its processed takes, all named <slug>-matty-<n>.ogg, are removed with it;
+ *  its raw takes stay in assets-raw/, and the id is never handed out again while they do), and any write while
+ *  quips.json has rows it cannot read (a write would drop them: fix the file by hand first). The list is written
+ *  through a temp file in assets-raw/ and renamed in, so the game's import never reads half a file */
+export function editQuips(root: string, op: unknown): { quips: Quip[]; quip?: Quip } {
+  const sfx = path.join(root, 'src', 'sfx'), rawBase = path.join(root, 'assets-raw', 'voice');
+  const o = (op ?? {}) as Record<string, unknown>;
+  const { quips, errors } = readQuips(root);
+  if (errors.length) throw new QuipRefused(`${QUIP_FILE} has rows the booth cannot read (${errors.join('; ')}): fix it by hand first`, 409);
+  const find = () => {
+    const id = o.id;
+    if (typeof id !== 'string' || !QUIP_ID_RE.test(id)) throw new QuipRefused('booth: not a quip id');
+    const i = quips.findIndex((q) => q.id === id);
+    if (i < 0) throw new QuipRefused(`booth: no quip ${JSON.stringify(id)}`, 404);
+    return i;
+  };
+  const words = () => {
+    const text = normText(o.text), bad = textError(text);
+    if (bad) throw new QuipRefused(`booth: ${bad}`);
+    return text;
+  };
+  let next: Quip[], made: Quip | undefined;
+  if (o.op === 'add') {
+    const text = words();
+    if (quips.some((q) => q.text === text)) throw new QuipRefused('booth: that quip is already in the list', 409);
+    // the id is new against the list and every folder left on disk (a deleted quip's raw takes)
+    const left = [...list(sfx), ...list(rawBase)].filter((f) => f.startsWith('quip-')).map((f) => f.slice(5));
+    made = { id: newId(text, [...quips.map((q) => q.id), ...left]), text };
+    next = [...quips, made];
+  } else if (o.op === 'edit') {
+    const i = find(), text = words();
+    if (quips.some((q, k) => k !== i && q.text === text)) throw new QuipRefused('booth: another quip already says that', 409);
+    // the id stays: its takes keep their names, and the booth flags the ones recorded to the old words
+    next = quips.map((q, k) => (k === i ? { ...q, text } : q));
+  } else if (o.op === 'del') {
+    const i = find(), id = quips[i].id, takes = quipTakes(sfx, id);
+    if (takes.length) {
+      if (o.takes !== true) throw new QuipRefused(`booth: ${id} has ${takes.length} take${takes.length === 1 ? '' : 's'}: confirm to delete them too`, 409);
+      if (takes.some((f) => !TAKE_RE.test(f))) throw new QuipRefused(`booth: src/sfx/${quipCat(id)}/ holds files the booth did not make: delete it by hand`, 409);
+      const dir = realDir(sfx, quipCat(id), quips);
+      if (!dir) throw new Error('booth: the quip folder is not a plain folder');
+      // the list is written first (security review SEC-001): a failed write leaves the quip and its takes as they were.
+      // A take left behind by a failed delete is harmless: the game plays only the quips in the list
+      next = quips.filter((_, k) => k !== i);
+      writeQuips(root, next);
+      for (const f of takes) fs.rmSync(path.join(dir, f), { force: true });
+      if (!list(dir).length) fs.rmdirSync(dir);
+      return { quips: next };
+    }
+    next = quips.filter((_, k) => k !== i);
+  } else throw new QuipRefused('booth: op must be add, edit or del');
+  if (made && (made.id.length > QUIP_ID_MAX || !QUIP_ID_RE.test(made.id))) throw new Error(`booth: made a bad quip id ${made.id}`);
+  writeQuips(root, next);
+  return { quips: next, ...(made ? { quip: made } : {}) };
+}
+
+/** the list to src/voice/quips.json: through a temp file in assets-raw/voice/ (git-ignored, unwatched: Vite never sees
+ *  it) renamed in, so the game's import never reads half a file. Refuses a symlinked src/voice or quips.json, and an
+ *  assets-raw/ on another disk, where the rename cannot be atomic (security review SEC-002) */
+function writeQuips(root: string, quips: readonly Quip[]) {
+  const vdir = path.join(root, 'src', 'voice'), file = path.join(root, QUIP_FILE), rawBase = path.join(root, 'assets-raw', 'voice');
+  if (fs.lstatSync(vdir).isSymbolicLink() || fs.lstatSync(file).isSymbolicLink()) throw new Error('booth: src/voice is not a plain folder');
+  fs.mkdirSync(rawBase, { recursive: true });
+  if (fs.statSync(rawBase).dev !== fs.statSync(vdir).dev) throw new Error('booth: assets-raw/voice is on another disk than src/voice: the quip list cannot be written safely');
+  const tmp = path.join(rawBase, '.quips.json.tmp');
+  fs.rmSync(tmp, { force: true });
+  fs.writeFileSync(tmp, quipJson(quips), { flag: 'wx' }); // never through a planted link
+  fs.renameSync(tmp, file);
+}
+
+/** a quip edit's body is a few hundred bytes */
+const QUIP_BODY = 4096;
+/** the whole JSON body of a quip edit, or a rejection */
+function readJson(req: IncomingMessage): Promise<unknown> {
+  return new Promise((ok, no) => {
+    if (!/^application\/json\b/.test(String(req.headers['content-type'] ?? ''))) return no(new QuipRefused('booth: body must be JSON', 415));
+    if (+(req.headers['content-length'] ?? 0) > QUIP_BODY) return no(new QuipRefused('booth: body too large', 413));
+    const parts: Buffer[] = [];
+    let n = 0;
+    req.setTimeout(10_000, () => { no(new Error('booth: upload stalled')); req.destroy(); });
+    req.on('data', (c: Buffer) => {
+      n += c.length;
+      if (n > QUIP_BODY) { no(new QuipRefused('booth: body too large', 413)); req.destroy(); return; }
+      parts.push(c);
+    });
+    req.on('end', () => { try { ok(JSON.parse(Buffer.concat(parts).toString('utf8'))); } catch { no(new QuipRefused('booth: body is not JSON')); } });
+    req.on('error', no);
+    req.on('close', () => { if (!req.complete) no(new QuipRefused('booth: body aborted')); });
+  });
 }
 
 /** the per-take pause squeeze from a request: on unless squeeze=0 (the booth's checkbox, default on) */
@@ -414,16 +540,34 @@ export function booth(): Plugin {
         }
         const cat = u.searchParams.get('cat') ?? '';
         if (u.pathname === '/__booth/takes' && req.method === 'GET') {
-          const out: Record<string, { name: string; raw: boolean }[]> = {};
-          for (const s of SLOTS) {
-            const raws = list(path.join(rawDir, s.cat));
+          const out: Record<string, { name: string; raw: boolean; was?: string }[]> = {};
+          for (const s of [...SLOTS, ...readQuips(root).quips.map(quipSlot)]) {
+            const rd = path.join(rawDir, s.cat), raws = list(rd), now = s.quip ? quipLines(s.quip.text).join(' ') : '';
             out[s.cat] = list(path.join(sfx, s.cat)).filter((f) => /\.(ogg|wav|mp3|m4a)$/.test(f)).sort()
-              .map((name) => ({ name, raw: raws.some((r) => r.startsWith(name.replace(/\.ogg$/, '.'))) }));
+              .map((name) => {
+                // a quip's take recorded to words it no longer has: `was` is what it says (the booth marks it stale)
+                const said = s.quip ? readOpts(rd, name)?.text : undefined;
+                return { name, raw: raws.some((r) => r.startsWith(name.replace(/\.ogg$/, '.'))), ...(said != null && said !== now ? { was: said } : {}) };
+              });
           }
           return send(res, 200, out);
         }
+        if (u.pathname === '/__booth/quips') {
+          if (req.method === 'GET') return send(res, 200, readQuips(root));
+          if (req.method !== 'POST') return send(res, 405, { error: 'booth: method' });
+          // in the keep queue: an edit never lands while a keep is filing a take under the list it read
+          const job = readJson(req).then((body) => {
+            const step = queue.then(() => editQuips(root, body));
+            queue = step.catch(() => {});
+            return step;
+          });
+          return void job.then((r) => send(res, 200, r), (e) => send(res, e instanceof QuipRefused ? e.code : 500,
+            { error: String(e?.message ?? e).replace(/^booth: /, '') }));
+        }
         if (u.pathname !== '/__booth/take' && u.pathname !== '/__booth/reprocess') return send(res, 404, { error: 'booth: no such endpoint' });
-        if (!okCat(cat) || !slotOf(cat)) return send(res, 400, { error: `booth: ${JSON.stringify(cat)} is not a voice slot` });
+        // the quip list read fresh for every request: the booth may have just added or deleted one
+        const quips = readQuips(root).quips;
+        if (!okCat(cat) || !voiceSlot(cat, quips)) return send(res, 400, { error: `booth: ${JSON.stringify(cat)} is not a voice slot` });
         const squeeze = squeezeParam(u.searchParams);
         if (u.pathname === '/__booth/reprocess') {
           if (req.method !== 'POST') return send(res, 405, { error: 'booth: method' });
@@ -435,10 +579,12 @@ export function booth(): Plugin {
         if (req.method === 'DELETE') {
           const name = u.searchParams.get('name') ?? '';
           if (!TAKE_RE.test(name)) return send(res, 400, { error: 'booth: not a take name' });
-          const dir = realDir(sfx, cat);
+          const dir = realDir(sfx, cat, quips);
           if (!dir) return send(res, 400, { error: 'booth: the slot folder is not a plain folder' });
-          fs.rmSync(path.join(dir, name), { force: true });
-          return send(res, 200, { deleted: name });
+          // in the keep queue (security review): a reprocess renaming this take back in can't undo the delete
+          const step = queue.then(() => fs.rmSync(path.join(dir, name), { force: true }));
+          queue = step.catch(() => {});
+          return void step.then(() => send(res, 200, { deleted: name }), (e) => send(res, 500, { error: String(e?.message ?? e) }));
         }
         if (req.method !== 'POST') return send(res, 405, { error: 'booth: method' });
         const slug = slugify(u.searchParams.get('slug'));
@@ -448,20 +594,23 @@ export function booth(): Plugin {
         const job = readBody(req).then((body) => {
           if (body.length < 256) throw new Error('booth: empty take');
           const step = queue.then(async () => {
-            const dir = realDir(sfx, cat), rdir = realDir(rawDir, cat);
+            // the list again, inside the queue: a quip deleted while this take uploaded is not filed
+            const now = readQuips(root).quips, s = voiceSlot(cat, now);
+            if (!s) throw new Error(`booth: ${cat} is no longer a voice slot`);
+            const dir = realDir(sfx, cat, now), rdir = realDir(rawDir, cat, now);
             if (!dir || !rdir) throw new Error('booth: the slot folder is not a plain folder');
             const n = nextTake([...list(dir), ...list(rdir)], slug);
             if (n > TAKE_MAX) throw new Error(`booth: ${TAKE_MAX} takes of one line; delete some first`);
             const name = takeName(slug, n), raw = path.join(rdir, name.replace(/\.ogg$/, '.' + ext));
             fs.writeFileSync(raw, body, { flag: 'wx' }); // never over an existing file
-            fs.writeFileSync(optsFile(rdir, name), JSON.stringify({ squeeze } satisfies TakeOpts));
+            fs.writeFileSync(optsFile(rdir, name), JSON.stringify((s.quip ? { squeeze, text: quipLines(s.quip.text).join(' ') } : { squeeze }) satisfies TakeOpts));
             // processed beside the raw and renamed in, so the audio glob never sees a half-written .ogg
             const part = path.join(rdir, name + '.part.ogg'), dest = path.join(dir, name);
             try {
               const r = await processTake(raw, part, { squeeze });
               if (fs.existsSync(dest)) throw new Error(`booth: ${name} appeared meanwhile; not overwritten`);
               fs.renameSync(part, dest);
-              return { name, url: `/src/sfx/${cat}/${name}`, raw: path.relative(root, raw), ...r, long: lenWarn(slotOf(cat)!, r.dur) };
+              return { name, url: `/src/sfx/${cat}/${name}`, raw: path.relative(root, raw), ...r, long: lenWarn(s, r.dur) };
             } finally {
               fs.rmSync(part, { force: true });
             }

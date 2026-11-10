@@ -3,8 +3,9 @@
 // at the moment that plays it. Imports only the leaf modules (slots, names) and no CSS: anything that pulls in the
 // Vite client would make every keep reload this page (tests/unit/booth.test.ts pins it). The words come from the
 // game through the hidden text frame (text.ts).
-import { DIRECTION, SLOTS, type Slot } from './slots';
+import { DIRECTION, SLOTS, quipSlot, type Slot } from './slots';
 import { slugify } from './names';
+import { normText, quipLines, textError, type Quip } from '../../src/voice/quiplist';
 
 const $id = (id: string) => document.getElementById(id)!;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -23,10 +24,16 @@ const HOT = 10 ** (-3 / 20), CLIP = 10 ** (-0.5 / 20);
 
 // arming: Space pressed, the recorder not running yet (a second Space is ignored until it is)
 type Phase = 'idle' | 'arming' | 'rec' | 'review' | 'saving' | 'saved' | 'error';
-type Take = { name: string; raw: boolean };
+/** was: a quip's take recorded to words the quip no longer has (plugin.ts TakeOpts.text) */
+type Take = { name: string; raw: boolean; was?: string };
 type Kept = { name: string; url: string; lufs: number | null; peak: number | null; dur: number | null; gain: number; warn?: string; long?: string; squeezed?: number; src: string };
+/** every line the booth shows: the fixed slots, then SLAB's quips (src/voice/quips.json, LS2-quips), rebuilt whenever
+ *  the list is read or edited */
+let ALL: Slot[] = [...SLOTS];
 const S = {
   sel: Math.max(0, SLOTS.findIndex((s) => s.cat === store.get('slot'))),
+  /** what quips.json holds that the booth could not read (a hand edit): shown, and every edit refused until fixed */
+  quipErr: [] as string[],
   phase: 'idle' as Phase,
   msg: '',
   tone: '' as '' | 'err' | 'warn',
@@ -48,7 +55,10 @@ const S = {
 const say = (msg: string, tone: '' | 'err' | 'warn' = '') => { S.msg = msg; S.tone = tone; };
 const errText = (e: unknown) => String((e as Error)?.message ?? e);
 
-const linesOf = (s: Slot) => S.text[s.cat]?.lines?.length ? S.text[s.cat].lines : s.copy?.lines ?? [];
+/** the pause squeeze a line's takes start with: on, except a quip's (LS2-quips, audio-director: the beat in a quip is
+ *  usually the joke, and its notes ask for the pause) */
+const sqDefault = (s: Slot) => !s.quip;
+const linesOf = (s: Slot) => s.quip ? quipLines(s.quip.text) : S.text[s.cat]?.lines?.length ? S.text[s.cat].lines : s.copy?.lines ?? [];
 const slugOf = (s: Slot) => s.slug ?? slugify(linesOf(s).join(' '));
 /** the caller's face from the game's own sheets, first jaw frame, 2x: SLAB_FACE (-1) is Matt's sheet, 0-5 the
  *  Reticulans' (render/hype.ts draws them the same way: frame (face * 3 + jaw) * 48) */
@@ -70,7 +80,7 @@ addEventListener('message', (ev) => {
 async function api(method: 'GET' | 'POST' | 'DELETE', q: Record<string, string>, body?: Blob, ep?: string) {
   const qs = Object.keys(q).length ? '?' + new URLSearchParams(q) : '';
   const r = await fetch('/__booth/' + (ep ?? (method === 'GET' ? 'takes' : 'take')) + qs, {
-    method, body, headers: { 'x-booth': TOKEN, ...(body ? { 'content-type': body.type || 'audio/webm' } : {}) },
+    method, body, headers: { 'x-booth': TOKEN, ...(body ? { 'content-type': body.type || (ep === 'quips' ? 'application/json' : 'audio/webm') } : {}) },
   });
   const j = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
   if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), { clipped: !!j.clipped });
@@ -79,6 +89,73 @@ async function api(method: 'GET' | 'POST' | 'DELETE', q: Record<string, string>,
 async function refreshTakes() {
   try { S.takes = await api('GET', {}); } catch (e) { say('Could not list takes: ' + errText(e), 'err'); }
   draw();
+}
+
+// ---------------- SLAB's quips (LS2-quips) ----------------
+/** the list from the plugin -> ALL; the selection follows its line by folder (an edit or delete moves the rows) */
+function setQuips(quips: Quip[], errors: string[] = S.quipErr, keep = ALL[S.sel]?.cat) {
+  ALL = [...SLOTS, ...quips.map(quipSlot)];
+  S.quipErr = errors;
+  const was = ALL[S.sel]?.cat, i = ALL.findIndex((s) => s.cat === keep);
+  S.sel = i >= 0 ? i : Math.min(S.sel, ALL.length - 1);
+  if (ALL[S.sel].cat !== was || i < 0) S.squeeze = sqDefault(ALL[S.sel]); // landed on another line: its default
+}
+async function refreshQuips() {
+  try {
+    const r = await api('GET', {}, undefined, 'quips') as { quips: Quip[]; errors: string[] };
+    setQuips(r.quips, r.errors, store.get('slot') ?? ALL[S.sel]?.cat);
+  } catch (e) { say('Could not read the quip list: ' + errText(e), 'err'); }
+  draw();
+}
+const busy = () => S.phase === 'arming' || S.phase === 'rec' || S.phase === 'saving' || S.phase === 'review';
+/** one edit through the plugin (editQuips); the new list comes back */
+async function quipOp(body: Record<string, unknown>) {
+  const r = await api('POST', {}, new Blob([JSON.stringify(body)], { type: 'application/json' }), 'quips') as { quips: Quip[]; quip?: Quip };
+  return r;
+}
+async function addQuip(raw: string) {
+  const text = normText(raw), bad = textError(text);
+  if (bad) return void (say(`Not added: ${bad}.`, 'err'), draw());
+  if (busy()) return void (say('Finish this take first (keep or discard it).', 'warn'), draw());
+  try {
+    const r = await quipOp({ op: 'add', text });
+    setQuips(r.quips, S.quipErr, r.quip ? 'quip-' + r.quip.id : undefined);
+    store.set('slot', ALL[S.sel].cat);
+    S.kept = null;
+    S.phase = 'idle';
+    const box = document.getElementById('q-new') as HTMLInputElement | null;
+    if (box) { box.value = ''; box.blur(); }
+    say(`Added ${text}: record it with Space.`);
+  } catch (e) { say('Add failed: ' + errText(e), 'err'); await refreshQuips(); }
+  await refreshTakes();
+}
+async function editQuip(s: Slot, raw: string) {
+  const text = normText(raw), bad = textError(text), takes = S.takes[s.cat] ?? [];
+  if (!s.quip || text === s.quip.text) return;
+  if (bad) return void (say(`Not saved: ${bad}.`, 'err'), draw());
+  if (busy()) return void (say('Finish this take first (keep or discard it).', 'warn'), draw());
+  if (takes.length && !confirm(`Change the words to ${text}? Its ${takes.length} take${takes.length === 1 ? '' : 's'} keep their file names and are marked stale: they still say the old words until you record it again.`)) return draw();
+  try {
+    setQuips((await quipOp({ op: 'edit', id: s.quip.id, text })).quips);
+    // out of the box, or the next Space types into it instead of recording (tools-programmer)
+    (document.getElementById('q-text') as HTMLInputElement | null)?.blur();
+    say(`Saved: ${text}.` + (takes.length ? ' Its older takes are marked stale.' : ''));
+  } catch (e) { say('Save failed: ' + errText(e), 'err'); await refreshQuips(); }
+  await refreshTakes();
+}
+async function delQuip(s: Slot) {
+  if (!s.quip) return;
+  if (busy()) return void (say('Finish this take first (keep or discard it).', 'warn'), draw());
+  const n = (S.takes[s.cat] ?? []).length;
+  if (!confirm(n ? `Delete the quip ${s.quip.text} AND its ${n} take${n === 1 ? '' : 's'} in src/sfx/${s.cat}/? Raw takes stay in assets-raw/voice/${s.cat}/.` : `Delete the quip ${s.quip.text}?`)) return;
+  try {
+    setQuips((await quipOp({ op: 'del', id: s.quip.id, ...(n ? { takes: true } : {}) })).quips, S.quipErr, '');
+    store.set('slot', ALL[S.sel].cat);
+    S.kept = null;
+    S.phase = 'idle';
+    say(`Deleted ${s.quip.text}${n ? ` and its ${n} take${n === 1 ? '' : 's'}` : ''}.`);
+  } catch (e) { say('Delete failed: ' + errText(e), 'err'); await refreshQuips(); }
+  await refreshTakes();
 }
 
 // ---------------- mic, meter ----------------
@@ -214,7 +291,7 @@ function discard(quiet = false) {
   if (!quiet) { S.phase = 'idle'; say('Discarded.'); draw(); }
 }
 async function keep() {
-  const s = SLOTS[S.sel];
+  const s = ALL[S.sel];
   if (!S.raw || S.phase !== 'review') return;
   S.phase = 'saving';
   say('Processing...');
@@ -223,7 +300,7 @@ async function keep() {
     const k = await api('POST', { cat: s.cat, slug: slugOf(s), ...(S.squeeze ? {} : { squeeze: '0' }) }, S.raw);
     // the processed player's src is fixed here: a redraw must not restart it
     S.kept = { ...k, src: `${k.url}?t=${Date.now()}` };
-    S.squeeze = true; // per take: the next one starts squeezed again
+    S.squeeze = sqDefault(s); // per take: the next one starts at the line's default again
     discard(true);
     S.phase = 'saved';
     // the plugin's warnings: a quiet or hot input, and a take past its slot's length target + slots.ts LEN_SLACK (it
@@ -249,7 +326,7 @@ async function keep() {
 }
 /** re-runs the current chain on this line's kept raw takes (plugin.ts reprocess): each processed take is rewritten */
 async function redo() {
-  const s = SLOTS[S.sel];
+  const s = ALL[S.sel];
   if (S.phase === 'arming' || S.phase === 'rec' || S.phase === 'saving' || S.phase === 'review') return;
   if (!confirm(`Reprocess every take of ${s.cat}/ that has a raw take, with the current chain? Each keeps the pause setting it was ` +
     `kept with (takes from before that was saved: ${S.squeeze ? 'pauses shortened' : 'pauses kept'}, the checkbox). ` +
@@ -274,7 +351,7 @@ async function redo() {
   refreshTakes();
 }
 async function del(t: Take) {
-  const s = SLOTS[S.sel];
+  const s = ALL[S.sel];
   const where = t.raw ? `Its raw take stays in assets-raw/voice/${s.cat}/.` : 'It has no raw take here: if it is a shipped clip, git checkout restores it.';
   if (!confirm(`Delete ${t.name}? ${where}`)) return;
   try {
@@ -289,9 +366,9 @@ async function del(t: Take) {
 function move(d: number) {
   if (!d || S.phase === 'arming' || S.phase === 'rec' || S.phase === 'saving') return;
   if (S.phase === 'review') return void (say('Keep (Enter) or discard (Backspace) this take first.', 'warn'), draw());
-  S.sel = (S.sel + d + SLOTS.length) % SLOTS.length;
-  S.squeeze = true;
-  store.set('slot', SLOTS[S.sel].cat);
+  S.sel = (S.sel + d + ALL.length) % ALL.length;
+  S.squeeze = sqDefault(ALL[S.sel]);
+  store.set('slot', ALL[S.sel].cat);
   S.kept = null;
   if (S.phase !== 'error') { S.phase = 'idle'; say(''); } // a mic error stays up until a mic opens
   draw();
@@ -307,7 +384,8 @@ function testGame(s: Slot) {
 // capture: runs before a focused <audio> or button acts on the key
 addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement, k = e.key;
-  if (t.tagName === 'SELECT' || e.ctrlKey || e.metaKey || e.altKey) return;
+  // typing a quip's words: the keys are the text box's (its own Enter saves)
+  if (t.tagName === 'SELECT' || t.tagName === 'INPUT' && (t as HTMLInputElement).type === 'text' || e.ctrlKey || e.metaKey || e.altKey) return;
   // a button reached with Tab works from the keyboard (Record is the booth's own key anyway)
   if (t.tagName === 'BUTTON' && t.id !== 'b-rec' && (k === 'Enter' || k === ' ')) return;
   const ours = [' ', 'Enter', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 't', 'T'].includes(k);
@@ -322,29 +400,40 @@ addEventListener('keydown', (e) => {
     else if (S.phase === 'saved' && S.kept) del({ name: S.kept.name, raw: true });
   } else if (k === 'ArrowDown' || k === 'ArrowRight') move(1);
   else if (k === 'ArrowUp' || k === 'ArrowLeft') move(-1);
-  else if (k === 't' || k === 'T') testGame(SLOTS[S.sel]);
+  else if (k === 't' || k === 'T') testGame(ALL[S.sel]);
 }, true);
 
 // ---------------- view ----------------
 function draw() {
-  const s = SLOTS[S.sel], P = S.phase, mid = S.text[s.cat]?.name, takes = S.takes[s.cat] ?? [];
-  $id('slots').innerHTML = SLOTS.map((x, i) => {
-    const n = (S.takes[x.cat] ?? []).length, err = S.text[x.cat]?.err;
-    return `<div class="slot${i === S.sel ? ' sel' : ''}" role="option" aria-selected="${i === S.sel}" data-i="${i}">
+  const s = ALL[S.sel], P = S.phase, mid = S.text[s.cat]?.name, takes = S.takes[s.cat] ?? [];
+  const nq = ALL.length - SLOTS.length;
+  // a redraw rebuilds the text boxes: what is being typed (and the caret) survives it
+  const typing = document.activeElement as HTMLInputElement | null, was = { new: (document.getElementById('q-new') as HTMLInputElement | null)?.value ?? '',
+    text: (document.getElementById('q-text') as HTMLInputElement | null)?.dataset.cat === s.cat ? (document.getElementById('q-text') as HTMLInputElement).value : null, focus: typing?.id ?? '', a: typing?.selectionStart ?? null, b: typing?.selectionEnd ?? null };
+  $id('slots').innerHTML = ALL.map((x, i) => {
+    const n = (S.takes[x.cat] ?? []).length, err = S.text[x.cat]?.err, stale = (S.takes[x.cat] ?? []).filter((t) => t.was != null).length;
+    // the Quips section: a heading before the first quip (or before the add box when there are none)
+    const head = i === SLOTS.length ? quipHead() : '';
+    return `${head}<div class="slot${x.quip ? ' quip' : ''}${i === S.sel ? ' sel' : ''}" role="option" aria-selected="${i === S.sel}" data-i="${i}">
       <div class="t">${esc(linesOf(x).join(' / ') || '?')}</div>
-      <div class="m"><span>${esc(x.cat)}/</span><span>${n} take${n === 1 ? '' : 's'}</span>
-      <span class="tag ${x.wired ? 'w' : 'nw'}">${x.wired ? 'wired' : 'recorded, not wired'}</span><span>${esc(S.text[x.cat]?.tag ?? x.caller)}</span>${err ? `<span style="color:var(--red)">${esc(err)}</span>` : ''}</div>
+      <div class="m"><span>${esc(x.cat)}/</span><span>${n} take${n === 1 ? '' : 's'}</span>${stale ? `<span class="warn">${stale} stale</span>` : ''}
+      <span class="tag ${x.wired ? 'w' : 'nw'}">${x.quip ? 'quip' : x.wired ? 'wired' : 'recorded, not wired'}</span><span>${esc(S.text[x.cat]?.tag ?? x.caller)}</span>${err ? `<span style="color:var(--red)">${esc(err)}</span>` : ''}</div>
     </div>`;
-  }).join('');
+  }).join('') + (nq ? '' : quipHead()) + `<div class="qadd"><input type="text" id="q-new" maxlength="48" placeholder="NEW QUIP (/ splits two lines)" aria-label="new quip words" autocomplete="off" spellcheck="false">
+      <button id="q-add">Add quip</button></div>`;
   ($id('mic') as HTMLSelectElement).disabled = P === 'rec' || P === 'arming';
   $id('stage').classList.toggle('rec', P === 'rec');
-  // the game's own face and tag for a take of this slot (text.ts asks render/hype.ts voiceOf)
-  const g = S.text[s.cat], tag = g?.tag ?? s.caller;
+  // the game's own face and tag for a take of this slot (text.ts asks render/hype.ts voiceOf); a quip is SLAB's
+  // (render/hype.ts SLAB_CAT, pinned by tests/unit/quips.test.ts), whose face the text frame never sees
+  const g = s.quip ? { face: -1, tag: s.caller } : S.text[s.cat], tag = g?.tag ?? s.caller;
   const face = g?.tag && g.tag !== s.caller ? `<br><b class="warn">In game:</b> the comms window calls this ${esc(g.tag)}, not ${esc(s.caller)}.` : '';
   $id('view').innerHTML = `
     <div class="who">${faceImg(g?.face)}<div><div class="caller">${esc(tag)}</div>
       <div class="dir">${esc(DIRECTION[tag] ?? '')}${s.note ? ' <b>' + esc(s.note) + '</b>' : ''}</div></div></div>
     <div class="line">${linesOf(s).map(esc).join('<br>') || '?'}</div>
+    ${s.quip ? `<div class="row qedit"><input type="text" id="q-text" data-cat="${esc(s.cat)}" maxlength="48" value="${esc(s.quip.text)}" aria-label="quip words" autocomplete="off" spellcheck="false">
+      <button id="q-save">Save words <kbd>Enter</kbd></button><button id="q-del">Delete quip</button>
+      <span class="state">the folder and take names stay <code>${esc(s.quip.id)}</code> when the words change</span></div>` : ''}
     <div class="when">${esc(s.when)}${mid ? ' &middot; ' + esc(mid) : ''} &middot; files as <code>src/sfx/${esc(s.cat)}/${esc(slugOf(s))}-matty-N.ogg</code>${s.maxLen ? ` &middot; <b>${s.maxLen} s or less</b>` : ''}
       ${s.wired ? '' : '<br><b class="warn">Recorded, not wired:</b> the game does not play this folder yet.'}${face}</div>
     <div class="row">
@@ -363,7 +452,7 @@ function draw() {
   st.className = 'state' + (S.tone ? ' ' + S.tone : '');
   st.style.color = S.tone === 'err' ? 'var(--red)' : S.tone === 'warn' ? 'var(--warn)' : '';
   $id('takes').innerHTML = `<h2>Takes in src/sfx/${esc(s.cat)}/ (${takes.length})</h2>
-    ${takes.map((t, i) => `<div class="take"><audio controls preload="none" src="/src/sfx/${esc(s.cat)}/${esc(t.name)}"></audio><span>${esc(t.name)}</span>
+    ${takes.map((t, i) => `<div class="take"><audio controls preload="none" src="/src/sfx/${esc(s.cat)}/${esc(t.name)}"></audio><span>${esc(t.name)}</span>${t.was != null ? `<span class="warn">stale: says ${esc(t.was)}</span>` : ''}
       ${/-matty-\d+\.ogg$/.test(t.name) ? `<button data-del="${i}">Delete</button>` : ''}</div>`).join('') || '<div class="state">None yet.</div>'}
     ${takes.some((t) => t.raw) ? `<div class="row"><button id="b-redo" ${P === 'idle' || P === 'saved' || P === 'error' ? '' : 'disabled'}>Reprocess this line's takes</button>
       <span class="state">re-runs the current chain on the kept raw takes (no re-recording)</span></div>` : ''}
@@ -379,11 +468,31 @@ function draw() {
   on('b-undo', () => S.kept && del({ name: S.kept.name, raw: true }));
   on('b-test', () => testGame(s));
   on('b-redo', redo);
+  const qne = document.getElementById('q-new') as HTMLInputElement | null, qte = document.getElementById('q-text') as HTMLInputElement | null;
+  if (qne) qne.value = was.new;
+  if (qte && was.text != null) qte.value = was.text;
+  if (was.focus === 'q-new' || was.focus === 'q-text') {
+    const el = document.getElementById(was.focus) as HTMLInputElement | null;
+    el?.focus();
+    if (el && was.a != null) el.setSelectionRange(was.a, was.b ?? was.a); // the caret too, not just the focus
+  }
+  on('q-del', () => delQuip(s));
+  on('q-save', () => editQuip(s, ($id('q-text') as HTMLInputElement).value));
+  on('q-add', () => addQuip(($id('q-new') as HTMLInputElement).value));
+  const qt = document.getElementById('q-text') as HTMLInputElement | null, qn = document.getElementById('q-new') as HTMLInputElement | null;
+  // Escape drops the unsaved words: the box must never look saved when it isn't
+  if (qt) qt.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); editQuip(s, qt.value); } else if (e.key === 'Escape') { qt.value = s.quip!.text; qt.blur(); } };
+  if (qn) qn.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addQuip(qn.value); } else if (e.key === 'Escape') qn.blur(); };
   const sqb = document.getElementById('b-sq') as HTMLInputElement | null;
   if (sqb) sqb.onchange = () => { S.squeeze = sqb.checked; sqb.blur(); };
 }
 
+/** the Quips section's heading in the line list */
+function quipHead() {
+  return `<div class="qhead">QUIPS <span>SLAB, after a midboss or boss kill (src/voice/quips.json)</span>${S.quipErr.length ? `<div class="err">quips.json: ${S.quipErr.map(esc).join('; ')}. Fix it by hand; the booth will not edit it until then.</div>` : ''}</div>`;
+}
+
 draw();
-refreshTakes();
+refreshQuips().then(refreshTakes);
 meter();
 openMic(store.get('mic'));

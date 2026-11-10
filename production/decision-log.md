@@ -311,7 +311,7 @@ Matt: "it should be more evil and not cartoonish", then "need gore, and darkness
 **Approved strings:**
 - Kill banners: 10 THAT ONE / HAD A NAME; 20 CLEAN-UP CREW / IS NOT COMING; 35 WE WILL NEED / A BIGGER BAG; 50 FILE IT / UNDER LOSSES; 75 THE GATE / KNOWS YOUR NAME; 100 YOU ARE / PART OF IT NOW. CARN: MESSY becomes OPENED.
 - Names: THE DROWNED LANDER (was the Squid Saucer), THE BLOAT, SEVERED, TAKEN DOWN.
-  - *Later (Matt, 2026-11-09):* the Saucer is SQUID SAUCER 2000 (D48) with kill word CALAMARI SERVED (D49). It is the single pun exception, Matt's call, and no precedent: every other name and kill word stays in this register.
+  - *Later (Matt, 2026-11-09):* the Saucer is SQUID SAUCER 2000 (D48) with kill word CALAMARI SERVED (D49). It is the single pun exception, Matt's call, and no precedent: every other name and kill word stays in this register. *Amended in D52: CALAMARI SERVED is still the only pun kill word, and also one line in SLAB's quip pool.*
 - LS2 names, in docs and specs only for now: THE EXPECTORANT (Spit), THE SCENT ORGAN (Sniffer), CHARON-6 (the tug), CREWMAN #2 // TETHERED.
 - Log, perk and menu lines as listed in the tone note §4(A) item 9.
 
@@ -782,3 +782,44 @@ says untick (decide after the listen); B4 quiet-take expander release; B5 a 4-po
 (extract processTake, skipWhy coupling, RAW_RE match, brittle source pins, queue/422 test; one writeTake() if a third caller
 appears); B7 kill-word timing probe and proportional slack (game-designer); B8 smaller spectrogram PNGs; B9 per-locale voice
 limits if dubbing is ever in scope.
+
+### D52 SLAB's quips — merged 2026-11-10 (parent; Matt: "add calamari served and some other random cheesy one liners I can customize as needed in the sound booth"; picked "On big moments")
+
+**Ruling (creative-director, narrative-director).** SLAB's quips are puns Matt authorized: flavour inside Pillar 5's comms
+valve, not a tone exception. A line is a quip only if all four hold: Matt's own voice as SLAB; the comms window with the SLAB
+tag; only after a midboss or stage-boss kill; never over the player's death. A deadpan (D50 register) line in
+`src/voice/quips.json` that meets those is in tone, and later tone lanes must not "fix" it. Matt may add, edit or delete quips
+in the booth without a studio pass on the text; the takes still need the D50/D51 audio and narrative listen. No precedent for
+names, kill words, banners, HUD, log or lore text. CALAMARI SERVED stays the Saucer's kill word (D49, the only pun kill word)
+and is also a quip. This amends D39 and D48's "single pun exception".
+
+**What merged** (ls2-quips, `ae0d137..f020135`): `src/voice/quips.json` (CALAMARI SERVED plus 8 seed lines with delivery
+notes; ids stay stable when the words change, and old takes are flagged stale); a booth Quips section (add, edit, delete,
+record into `src/sfx/quip-<id>/`, squeeze off by default); the trigger: after a midboss kill word (chance .3) or a stage-boss
+kill (.5, GATE SEALED included), a shuffle bag (each quip once before repeats), never the kill word just said, skipped when
+the comms is busy or it would start more than 2.5 s (midboss) / 3.6 s (stage boss) after the death, dropped by any other
+voice line, silent with no takes. **Death cut** (the parent's default, told to Matt; all leads and directors agreed): a quip
+talking when the player loses a life or at game over fades out; kill words still finish (D50). Audio RNG only; harness and
+parity unchanged. `?vox=quip` test hook (dev only).
+
+**Gates** on 50b8e00: typecheck, vitest 1324 + the known `it.fails`, build + dist grep, harness short/long4/12 scenarios,
+parity, all with no `--update`. The parent re-ran typecheck, vitest and build on the merged tree.
+
+**Studio review.** In-lane writer, narrative-director, audio-director, security-engineer, qa-tester, tools-programmer,
+gameplay-programmer. All 8 leads and all 3 directors APPROVE WITH NOTES; no block. Lead S2s fixed in 50b8e00.
+
+**Rollback point:** tag `pre-ls2-quips` on `ae0d137`.
+
+**Next (Matt):** restart the dev server; record quips in the same SLAB session as the other open lines; one audio + narrative
+listen (-12 LUFS, deadpan, quip level against the kill word); booth stale count 0; one batch commit with a studio pass. That
+batch is the documented playtest: a real midboss kill and a real stage-boss kill into a quip, shot in a real build and once on
+the Fold. "SLAB quips" goes into the player changelog only with that batch.
+
+**Owned items (backlog, S3):** a shared SLAB_MIX, quip no louder than the kill word (audio-director); un-duck the music when a
+quip is dropped (audio-director, gameplay-programmer); BOSS_READOUTS from one source or pinned (lead-programmer); stubbed-AU
+tests for the busy/lateness branches and `?vox=quip` (qa-lead, qa-tester); a pre-push stale-take check if quips are edited
+often (release-manager, tools-programmer); playtest watch: DEAD WEIGHT / LEAVE IT read as "skip the pod", the real heard rate
+(game-designer); an optional per-quip "after" list so CALAMARI SERVED follows tentacled kills (narrative-director, if Matt
+wants it); i18n when scoped: quips.json in the inventory, the no-repeat rule keyed on ids, transcreation, captions vs
+subtitles (localization-lead).
+
