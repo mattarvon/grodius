@@ -693,3 +693,56 @@ stage still feels too often). In the main checkout first: `git pull`, `npm ci`, 
 6. gameplay-programmer: move the inline comment above update.ts:670. writer: README :85-86 mixes stage bosses into the
    Mini-bosses heading.
 7. localization-lead, once i18n is scoped: kill-word keys (CALAMARI SERVED: "rewrite the joke") and voice-line captions.
+
+### D50 Matt is SGT. RAMROD SLAB; the voice booth — merged 2026-11-09 (parent; Matt: "I am RAMROD SLAB", "ramrod slab, through the comms", "laptop mic for now and booth")
+
+**Decisions (Matt, 2026-11-09):**
+- **SLAB returns as Matt's own caller.** This reverses D39's shelving of SGT. RAMROD SLAB as a caller. He speaks every new
+  recorded line: hype10-100, bossreward (TAKEN DOWN), the midboss kill words (`kill-ufo/brood/choir/cyst/prentice`) and
+  OPENED (`carn5`), in a flat, low, gallows-deadpan register, never a hype yell (creative-director). The kill words and
+  OPENED play through the comms window, which keeps them inside Pillar 5's release valve. The old `hell-yeah` clip stays
+  shelved; its VOICE row maps to SLAB (settles D48 item 5).
+- **His face** is Matt's 8-bit head (picker take 2, option 2, 48x52, eye straightened; "I like it"), a separate sprite
+  `src/sprites/slab@3.png`; the six aliens stay for other callers. Only the baked sprite is in the repo; the generator and
+  the source photo stay outside it. Canon: SLAB and the title easter-egg head (D41/D43) are one man.
+- **D9 closed: record.** Recording moves from RecForge -> Google Drive to a dev-only booth (`tools/booth/`, `npm run dev`,
+  `/booth.html`): the script comes from the game's strings, takes are cleaned with ffmpeg to -12 LUFS and saved as
+  `src/sfx/<folder>/<line>-matty-<n>.ogg`, raw takes go to git-ignored `assets-raw/voice/`, and a dev-only `?vox=` hook
+  plays a line in game. Nothing of the booth reaches dist or the APK (dist grep: 0 hits).
+- **Game over** drops voice lines still waiting and lets the talking one finish; a new game or the title stops all voice
+  (game-designer and audio-director's recommendation, told to Matt).
+
+**What merged** (ls2-slab `a70bddf..6e85b81` and ls2-booth on top, tip `a889b75`, off `c8ed43b`): one voice at a time
+(a kill word waits 0.45 s after the death and queues behind a talking line; OPENED at most every 20 s and skipped when the
+comms is busy); voice lines pass the 15-sound cap by evicting an ordinary sound; voice gain jitter 0.95-1.05; empty
+folders stay silent with no window. No sim change: `sample()` draws only the audio RNG.
+
+**Gates** on 8e6319a (logs start with the sha): typecheck, vitest 1195 + the known `it.fails`, build + dist grep, harness
+short/long4/12 scenarios with no `--update`, parity PASS (a first parity run failed from a stale dev server after a booth
+keep in `src/sfx/`; it passed on a fresh server). The parent re-ran build, typecheck and vitest on the merged tree.
+
+**Studio review.** In-lane art-director, technical-artist, web-specialist x2, qa-tester x2, security-engineer,
+tools-programmer, ux-designer, audio-director. All 8 leads and all 3 directors APPROVE WITH NOTES; no block. The lead S2s
+were fixed in 35720c3; this record is the directors' S2.
+
+**Rollback point:** tag `pre-ls2-voice` on `c8ed43b`.
+
+**Next (Matt's time):** record the 13 SLAB lines in the booth from the main checkout (check PipeWire isn't running its own
+echo-cancel or noise module first); then audio-director's listen-check (pumping, hiss, length, "is it deadpan?") and
+`git status src/sfx` before the takes are committed as one batch with a hierarchy pass; then qa-lead's real midboss-death
+check (jaw open and shut, the real caption font, gore masking on the Fold speaker). No SLAB line is done until that passes.
+
+**Owned items (backlog, S3):**
+1. Matt decides after hearing dry takes: a runtime radio filter on SLAB (band-pass ~250 Hz-4 kHz, light saturation, never
+   baked into takes) (audio-director).
+2. A max wait (~1-1.5 s) for queued ordinary lines, with a test; measure lateness first (audio-director, game-designer).
+3. Gore masking the kill word: listen first, then an SFX bus and dip only if needed (audio-director).
+4. Booth: export and test `realDir()` and the POST/DELETE paths; 4xx for client faults; flag stale takes whose slug no
+   longer matches the text; typecheck `tools/booth`; test every wired slot against VOICE_CAT (qa-tester,
+   tools-programmer, lead-programmer).
+5. Slab art in the off-repo generator: 2-3 darker gore values, a 1 px frame gutter (technical-artist; art-director signs).
+6. Delete the dead vector `drawSlab` (hype.ts:9-60, hell.ts:112); caption/audio mismatches (a kill word under a HYPE
+   caption, a banner ending before its queued word) with D48 item 4 (gameplay-programmer, ux-designer).
+7. D18 canon: Matt's face is both the title head and SLAB (narrative-director, writer).
+8. Strip $HOME paths from committed gate logs; smaller evidence PNGs (release-manager).
+

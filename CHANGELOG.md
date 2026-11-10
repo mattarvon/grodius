@@ -2,6 +2,13 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-09 (SGT. RAMROD SLAB is on the line)
+
+- SGT. RAMROD SLAB has a new face on the comms, and it is human. Half of it has been opened up, and one eye is all blood.
+- He calls the kill chains, the stage-boss kills, the midboss kill words and OPENED. A line he hasn't recorded yet stays silent.
+- One voice talks at a time. A kill word, or the dead crewman's plea, waits for the line in front of it, and a voice line is no longer lost on a crowded death frame.
+- When a run ends, lines still waiting are dropped. A new game starts quiet.
+
 ## 2026-11-09 (CALAMARI SERVED, a rarer plea)
 
 - SQUID SAUCER 2000's kill word is CALAMARI SERVED again.

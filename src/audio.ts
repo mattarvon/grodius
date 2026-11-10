@@ -104,11 +104,14 @@ const arr = (a, b) => a + ar() * (b - a);
 // The voice cap (was `voices > 14`: 15 sound at once). A wall of 30 splats in one frame is mud anyway, so ordinary sounds
 // past it are dropped. LIVE is oldest-first so a priority cue can take the oldest ordinary voice's slot.
 export const VOICE_CAP = 15;
+/** seconds of air between a voice line and the one queued behind it */
+export const VOICE_GAP = .25;
 // AU.c is created once. If the context is ever recreated, clear LIVE with it: a dead context's sources never fire onended
-const LIVE: { s: any; g: any; prio: boolean; cat: string }[] = [];
+const LIVE: { s: any; g: any; prio: boolean; cat: string; t0: number }[] = [];
 // voice lines: they duck the music and set AU.voice/SOLO, so evicting one would cut it mid-word and leave those pointing
 // at a dead take. Eviction skips them (sound-designer review)
-const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame)/;
+// (kill-<k>: a midboss's kill word; carn5: OPENED, the 5-chain. Both folders are SGT. RAMROD SLAB's, LS2-slab)
+const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|kill-|carn5)/;
 function loadBank(A) {
   for (const [p, u] of Object.entries(SFX_URLS)) {
     const cat = p.split('/')[2];
@@ -131,9 +134,20 @@ function nextClip(cat, n) {
 /** play a random clip from a category with pitch/volume jitter. false if the category isn't loaded (caller falls back to
  *  synth), or if it was dropped at the voice cap and the call set `fb`. `prio`: never dropped (see the cap below) */
 const SOLO: Record<string, number> = {};
-export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number; solo?: boolean; prio?: boolean; fb?: boolean } = {}) {
+export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number; solo?: boolean; prio?: boolean; fb?: boolean; queue?: boolean } = {}) {
   const L = BANK[cat];
   if (!AU.c || !L || !L.length || SET.muted || AU.c.state !== 'running') return false;
+  // one caller on the comms at a time (LS2-slab): a voice line that lands while another still talks waits for it on
+  // the audio clock, a beat after it ends; `queue: false` (OPENED, the 5-chain: common and minor) is skipped instead
+  const voice = VOICE_CAT.test(cat);
+  let at = o.at ?? 0;
+  if (voice) {
+    const v = AU.voice, now = AU.c.currentTime;
+    if (v && v.t1 + VOICE_GAP > now + at) {
+      if (o.queue === false) return false;
+      at = v.t1 - now + VOICE_GAP;
+    }
+  }
   if (o.solo && AU.c && AU.c.currentTime < (SOLO[cat] || 0)) return true; // previous take still talking
   // LS1 audit #5/#6: a drop used to return true, so siren()'s alarm() fallback never ran, and the Maw could die silent
   // (its death frame is the busiest gore frame). A priority cue (Maw and Drive deaths, WARNING siren, stinger, forkopen) is never
@@ -141,8 +155,10 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   // priority cue or a voice line it plays over the cap (there are only a handful). An ordinary sound is still swallowed, and reports
   // false only when the caller marked a fallback (`fb`): gore's synth fallback would only add mud to a full frame
   // (producer ruling, option b)
+  // a voice line passes the cap like a priority cue: a midboss's kill word fires on its death frame, the busiest gore
+  // frame there is, and a swallowed line would lose its comms window with it (LS2-slab, qa-tester and web-specialist)
   if (LIVE.length >= VOICE_CAP) {
-    if (!o.prio) return !o.fb;
+    if (!o.prio && !voice) return !o.fb;
     const k = LIVE.findIndex((v) => !v.prio && !VOICE_CAT.test(v.cat)); // none left (all priority or voice): play over the cap
     if (k >= 0) {
       const v = LIVE.splice(k, 1)[0], t = AU.c.currentTime;
@@ -155,22 +171,65 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   const s = AU.c.createBufferSource(), g = AU.c.createGain();
   s.buffer = L[i];
   s.playbackRate.value = (o.rate ?? 1) * (1 + (ar() * 2 - 1) * (o.spread ?? .14));
-  g.gain.value = (o.vol ?? 1) * (.8 + ar() * .3);
+  // a voice line's level jitters less (.95-1.05): the booth already matched every take to -12 LUFS, and a line coming in
+  // 2 dB quiet reads as a different mic (audio-director, LS2 review). Still one ar() draw either way
+  g.gain.value = (o.vol ?? 1) * (voice ? .95 + ar() * .1 : .8 + ar() * .3);
   s.connect(g);
   route(g, o.wet ?? .2);
-  const v = { s, g, prio: !!o.prio, cat };
+  const v = { s, g, prio: !!o.prio, cat, t0: AU.c.currentTime + at };
   LIVE.push(v);
   AU.lastCat = cat; // test hook
   s.onended = () => { const k = LIVE.indexOf(v); if (k >= 0) LIVE.splice(k, 1); };
-  s.start(AU.c.currentTime + (o.at ?? 0));
-  if (o.solo) SOLO[cat] = AU.c.currentTime + (o.at ?? 0) + L[i].duration / s.playbackRate.value;
-  if (VOICE_CAT.test(cat)) duckMusic(L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, o.at ?? 0);
+  s.start(AU.c.currentTime + at);
+  if (o.solo) SOLO[cat] = AU.c.currentTime + at + L[i].duration / s.playbackRate.value;
+  if (VOICE_CAT.test(cat)) duckMusic(at + L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, at);
   return true;
 }
 /** the voice line now talking: render/hype.ts puts a comms-window face to it (clip = file stem, t0/t1 = AU.c clock) */
 export function voiceOn(cat, buf, rate = 1, at = 0) {
-  const t0 = (AU.c ? AU.c.currentTime : 0) + at;
+  const now = AU.c ? AU.c.currentTime : 0, t0 = now + at;
   AU.voice = { cat, clip: buf.clip || cat, t0, t1: t0 + buf.duration / rate };
+  // every line still talking or waiting its turn, in order: the comms window shows the one talking now (AU.voice is
+  // the last one scheduled, which the queue in sample() waits behind)
+  AU.voiceQ = (AU.voiceQ || []).filter((v) => v.t1 + VOICE_GAP > now).concat(AU.voice);
+}
+/** game over: every voice line queued but not yet started is dropped; the one already talking finishes (audio only) */
+export function voiceDropQueued() {
+  if (!AU.c) return;
+  const now = AU.c.currentTime;
+  for (let k = LIVE.length - 1; k >= 0; k--) {
+    const v = LIVE[k];
+    if (!VOICE_CAT.test(v.cat) || v.t0 <= now) continue;
+    v.s.onended = null;
+    v.s.stop(); // a source stopped before its start time never plays
+    LIVE.splice(k, 1);
+  }
+  AU.voiceQ = (AU.voiceQ || []).filter((v) => v.t0 <= now);
+  AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
+}
+/** a new game forgets the last spoken OPENED (fx/update.ts opened), so a fresh run's first 5-chain speaks */
+export function resetOpened() {
+  AU.openedAt = -1e9;
+}
+/** seconds the voice fades over when a new game or the title cuts it off: short enough to feel cut, long enough not to click */
+export const VOICE_CUT = .06;
+/** a new game or the title: every voice line (talking or queued) stops with a VOICE_CUT fade, and the comms window
+ *  has nothing left to show (audio only) */
+export function voiceStopAll() {
+  if (AU.c) {
+    const now = AU.c.currentTime;
+    for (let k = LIVE.length - 1; k >= 0; k--) {
+      const v = LIVE[k];
+      if (!VOICE_CAT.test(v.cat)) continue;
+      v.s.onended = null;
+      v.g.gain.setTargetAtTime(0, now, VOICE_CUT / 3);
+      v.s.stop(now + VOICE_CUT);
+      LIVE.splice(k, 1);
+    }
+  }
+  for (const k in SOLO) if (VOICE_CAT.test(k)) delete SOLO[k];
+  AU.voice = null;
+  AU.voiceQ = [];
 }
 export function thr(k, ms) {
   const n = performance.now();

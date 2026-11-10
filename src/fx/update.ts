@@ -220,6 +220,17 @@ export function updateFX() {
  *  saturated. The chain word (OPENED, GRISLY...) still shows on every milestone. */
 export const HYPE_CD = 1200;
 export const CARN = [[5, 'OPENED'], [10, 'GRISLY'], [20, 'VISCERAL'], [35, 'ABATTOIR'], [50, 'MEAT GRINDER'], [75, 'BEYOND THE GATE'], [100, 'HELL IS SHIPWIDE']];
+/** seconds between spoken OPENEDs: a 5-chain comes round every few seconds in a busy stretch; the same 20 s as HYPE_CD */
+export const OPENED_GAP = 20;
+// AU.openedAt: the audio-clock time of the last spoken OPENED, audio-only state that nothing in the sim reads. It counts
+// audio SECONDS (OPENED_GAP, AU.c.currentTime), while HYPE_CD counts sim frames: the cooldown follows what was heard,
+// not play time. audio.ts resetOpened() clears it on newGame
+/** OPENED, the 5-chain word, in SGT. RAMROD SLAB's voice (src/sfx/carn5/). Audio only, timed on the audio clock: skipped
+ *  while another line talks (queue: false) and inside OPENED_GAP, silent and windowless while the folder is empty */
+function opened() {
+  if (!AU.c || AU.c.currentTime < (AU.openedAt ?? -1e9) + OPENED_GAP) return;
+  if (sample('carn5', { vol: 1.15, spread: .02, wet: .16, queue: false })) AU.openedAt = AU.c.currentTime;
+}
 export function updateCombo() {
   if ($.G.comboT > 0) {
     $.G.comboT--;
@@ -234,6 +245,7 @@ export function updateCombo() {
       w,
       t: 90
     };
+    if (n === 5) opened();
     if (n >= 10 && !($.G.hypeCD > 0)) {
       $.G.hypeCD = HYPE_CD;
       // tone pass (D39): the 20-chain surfer flyby is cut and gets the hype sting like every other milestone. The

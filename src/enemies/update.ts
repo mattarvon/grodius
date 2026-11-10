@@ -22,6 +22,9 @@ import { eliteKill, eliteTick } from './elite';
 import { corpseKilled } from './corpsevoice';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
 
+/** seconds from a midboss's death to its spoken kill word: the roar (sfx.roar) gets the first beat */
+export const KILL_WORD_AT = .45;
+
 // --- enemy behaviour ---
 export function updEnemy(e) {
   e.t++;
@@ -659,6 +662,10 @@ export function killEnemy(e, dir = 1) {
     splat(rr(150, 330), rr(60, 160), 3);
     const M = MID_SIM[e.k];
     banner(M?.word, '', undefined, 90);
+    // SGT. RAMROD SLAB says the kill word over the comms (src/sfx/kill-<k>/; an empty folder stays silent, no window).
+    // `at` lets the death roar land first; a line already talking puts it in the queue (audio.ts sample). Audio only:
+    // sample() draws ar(), never R(), and returns false at once with no context (the harness)
+    sample('kill-' + e.k, { vol: 1.15, spread: .02, wet: .16, at: KILL_WORD_AT });
     if (M?.kill) M.kill(e);
     // first-kill pay is for the midboss kinds (e.mid: the biome midbosses and the Saucer), the ones a player discovers
     // (spec §6.4, the meta.mb kinds). Maws don't pay: one recurs every Open Orbit, so it is never a kind to discover

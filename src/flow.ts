@@ -3,7 +3,7 @@ import { $ } from './state';
 import { PH, R, clamp, dist2, pick, ri, rr, swapRm } from './core';
 import { lv, save } from './save';
 import { applyRun } from './runsave';
-import { sfx } from './audio';
+import { resetOpened, sfx, voiceDropQueued, voiceStopAll } from './audio';
 import { buzz } from './platform';
 import { ALL, buildTerrain, ceilAt, eshots, floorAt } from './world';
 import { drop, flash, gore, spark, splat } from './fx/spawn';
@@ -61,6 +61,8 @@ const baseG = () => ({
     feed: null
   });
 export function newGame(startL = 0) {
+  voiceStopAll(); // the last run's voice lines don't talk over a new one (audio only)
+  resetOpened(); // OPENED's 20 s audio cooldown starts fresh with the run
   clearRun(); // a new game drops the old checkpoint (spec §4); this run's CP0 replaces it at its first safe step
   delete $.meta.bioS; delete $.meta.bioV; // the biomass mark (economy.ts bankBio) is this run's alone
   resumedFrom = null;
@@ -351,6 +353,7 @@ function deathRestart() {
   return true;
 }
 export function gameOver() {
+  voiceDropQueued(); // the line talking finishes; nothing queued behind it starts over the game-over screen (audio only)
   clearRun(); // spec §4: game over clears the checkpoint
   $.state = 'over';
   $.G.overT = 0;
