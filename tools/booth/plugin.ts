@@ -342,7 +342,8 @@ export type Redone = { cat: string; name: string; done: boolean; why?: string; l
  *  take with no processed take (deleted on purpose: never brought back), and one whose raw clipped (the old take
  *  stays as it is). One take at a time; each is processed beside its raw and renamed in. The booth's reprocess
  *  endpoint and tools/booth/reprocess.mjs both call it */
-export async function reprocess(root: string, cats: string[], o: { squeeze?: boolean; log?: (r: Redone) => void } = {}): Promise<Redone[]> {
+export async function reprocess(root: string, cats: string[], o: { squeeze?: boolean; log?: (r: Redone) => void; process?: typeof processTake } = {}): Promise<Redone[]> {
+  const proc = o.process ?? processTake; // a test stands in for ffmpeg here (tests/integration/booth-reprocess.test.ts)
   const out: Redone[] = [];
   const sfx = path.join(root, 'src', 'sfx'), rawBase = path.join(root, 'assets-raw', 'voice');
   // every name checked before any take is touched: a typo must not leave the run half done
@@ -361,7 +362,7 @@ export async function reprocess(root: string, cats: string[], o: { squeeze?: boo
       else {
         try {
           // the take's own choice when it has one; o.squeeze only for a take kept before the record existed
-          const p = await processTake(path.join(rdir, f), part, { squeeze: readOpts(rdir, name)?.squeeze ?? o.squeeze });
+          const p = await proc(path.join(rdir, f), part, { squeeze: readOpts(rdir, name)?.squeeze ?? o.squeeze });
           fs.renameSync(part, dest);
           r = { cat, name, done: true, lufs: p.lufs, dur: p.dur, long: lenWarn(slot, p.dur), warn: p.warn };
         } catch (e) {

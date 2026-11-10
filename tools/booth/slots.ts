@@ -56,7 +56,7 @@ export const lenLimit = (s: Pick<Slot, 'maxLen'>): number | null => (s.maxLen ==
 export function lenWarn(s: Pick<Slot, 'maxLen'>, dur: number | null): string | undefined {
   const lim = lenLimit(s);
   if (lim == null || dur == null || !(dur > lim)) return undefined;
-  return `long take (${dur.toFixed(2)} s, over ${lim} s; the target is ${s.maxLen} s): read it as one breath, tighter`;
+  return `long take (${dur.toFixed(2)} s, over ${lim} s; the target is ${s.maxLen} s): fewer or shorter pauses, not a faster read`;
 }
 
 // Matt, 2026-11-09: every new recorded line (hype, bossreward, the kill words, carn5) is SGT. RAMROD SLAB, his own face

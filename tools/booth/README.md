@@ -31,13 +31,18 @@ tunnel is the one way in from outside.
 Matt's first three takes clipped by about 18 dB: the laptop mic had +60 dB of gain on it. No processing can remove
 clipping, so a clipped take is refused. Before a session:
 
-1. **Mic boost down:** `amixer -c 2 sset 'Internal Mic Boost' 1` (+10 dB; 0 is off). Check it in `alsamixer -c 2`, F4.
-2. **Source volume about 70%:** `pactl set-source-volume @DEFAULT_SOURCE@ 70%`, or the KDE audio settings.
+1. **Mic boost 0.** Check it in `alsamixer -c 2` (F4, Internal Mic Boost). PipeWire drives the boost on this path,
+   so it is set there (or in the KDE audio settings), not with amixer: a manual amixer change gets overwritten. Boost 0
+   is what keeps the clip guard trustworthy: with boost on, the mic clips in its own preamp before the booth sees it.
+2. **Source volume about 40%** (set 2026-11-09): `pactl set-source-volume @DEFAULT_SOURCE@ 40%`, or the KDE audio
+   settings.
 3. **20-30 cm from the mic**, off-axis from the keyboard.
-4. **Read a test line and watch the meter:** the loudest syllable should land in the marked band, **-10 to -6 dBFS**.
-   **HOT** lights past **-3**: back off a little. **CLIP** lights at **-0.5**, and a take that reaches it is refused.
+4. **Then set the level by the meter:** read a test line. The loudest syllable belongs in the marked band, **-10 to
+   -6 dBFS**. Peaks under -14: raise the source to 50-60%. **HOT** (past **-3**): drop it 5%. **CLIP** lights at
+   **-0.5**, and a take that reaches it is refused.
 5. **Wait about 0.5 s after Space** before the first word: the denoise learns the room from it.
-6. **One breath per line.** A pause in the middle is what puts a line over its length target.
+6. **One breath, unhurried:** a short beat between the two caption lines is fine (pauses up to 0.4 s are kept); a
+   long gap is what puts a line over its target.
 
 ## Record
 
@@ -52,14 +57,17 @@ clipping, so a clipped take is refused. Before a session:
      - **SGT. RAMROD SLAB**: flat, low, unhurried gallows deadpan, not a hype yell. CALAMARI SERVED is his one line
        read as a joke.
      - **CREWMAN #5**: a distinct voice.
+     - The caller's face and tag are the game's own (`voiceOf` in `src/render/hype.ts`): SGT. RAMROD SLAB is Matt's
+       head.
      - **Length targets**: OPENED 0.8 s or less, kill words 1.2 s, hype lines and TAKEN DOWN 2 s. A take more than
-       0.5 s over its target (after the trim: 1.3 s, 1.7 s, 2.5 s) is kept, with a warning. The caller's face and
-     tag are the game's own (`voiceOf` in `src/render/hype.ts`): SGT. RAMROD SLAB is Matt's head.
+       0.5 s over its target (after the trim: 1.3 s, 1.7 s, 2.5 s) is kept, with a warning: the fix is fewer or
+       shorter pauses, not a faster read.
 3. **Record:** **Space** starts recording and **Space** stops it. Let the last word ring out a beat before you stop:
    the stop key's click is cut, and with it the last 0.2 s. The raw take plays back. A take stops itself after 15 s.
 4. **Keep or discard:** **Enter** keeps it, **Backspace** throws it away, and **Space** records it again.
    - **Shorten pauses over 0.4 s** (on by default, for every new take): a pause inside the take longer than 0.4 s is
-     cut to 0.25 s when it is kept. Untick it before Enter for a line whose pause is part of the read.
+     cut to 0.25 s when it is kept. Untick it before Enter for a line whose pause is part of the read, and when the
+     pause is the joke (the beat before SERVED in CALAMARI SERVED).
    - **A clipped take is refused** ("input clipped: lower the mic level"). Its raw recording is still saved in
      `assets-raw/voice/<folder>/`, so nothing is lost; lower the level and record it again.
 5. **Move on:** **↑/↓** (or ←/→) move between lines once the take is kept or discarded. **T** opens the line in the
@@ -76,10 +84,10 @@ brings one back.
 
 ffmpeg does it, in `tools/booth/plugin.ts` (`VOX`), and the audio-director signed it off. The steps:
 
+- first, the clip guard, on the raw take as recorded: a peak at -0.5 dBFS or above (the key clicks aside) is refused;
 - mono;
 - the key clicks at the start and the end cut;
 - an 80 Hz highpass;
-- the clip guard: a raw take peaking at -0.5 dBFS or above (the key clicks aside) is refused;
 - a 14 kHz lowpass (the laptop's hiss lives above it);
 - a light FFT denoise;
 - an **expander between the phrases**: it turns the room down by up to 20 dB wherever the take falls quiet, from a

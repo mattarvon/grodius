@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import { CAT_RE, SLUG_MAX, TAKE_MAX, TAKE_RE, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName } from '../../tools/booth/names';
+import { USAGE, parseArgs } from '../../tools/booth/args';
 import { DIRECTION, LEN_SLACK, MAX_LEN, SLOTS, lenLimit, lenWarn, slotOf } from '../../tools/booth/slots';
 import { Clipped, RAW_RE, VOX, guard, levels, rawVerdict, skipWhy, squeezeParam } from '../../tools/booth/plugin';
 
@@ -316,6 +317,41 @@ describe('reprocess rules', () => {
     expect(b).toMatch(/squeeze: true,/);
     expect(b.slice(b.indexOf('async function keep()'), b.indexOf('async function del('))).toContain('S.squeeze = true');
     expect(b.slice(b.indexOf('function move('), b.indexOf('function testGame('))).toContain('S.squeeze = true');
+  });
+});
+
+describe('parseArgs (the reprocess CLI)', () => {
+  const REPO = '/repo', yes = () => true;
+  it('refuses a bare --root rather than reading it as the current folder', () => {
+    expect(parseArgs(['hype10', '--root'], REPO, yes)).toEqual({ error: USAGE });
+  });
+  it('refuses --root followed by a flag (--root --all is not a root called --all)', () => {
+    expect(parseArgs(['--root', '--all'], REPO, yes)).toEqual({ error: USAGE });
+  });
+  it('refuses a root without src/sfx', () => {
+    expect(parseArgs(['hype10', '--root', '/tmp'], REPO, (r) => r === REPO)).toEqual({ error: 'not a Grodius repo (no src/sfx): /tmp' });
+  });
+  it('refuses a folder that is not a voice slot, ../etc included, before anything runs', () => {
+    expect(parseArgs(['../etc'], REPO, yes)).toEqual({ error: '"../etc" is not a voice slot (tools/booth/slots.ts)' });
+    expect(parseArgs(['hype10', 'bogus'], REPO, yes)).toMatchObject({ error: expect.stringContaining('"bogus"') });
+  });
+  it('refuses no folders at all, and an unknown flag', () => {
+    expect(parseArgs([], REPO, yes)).toEqual({ error: USAGE });
+    expect(parseArgs(['--squeeze'], REPO, yes)).toEqual({ error: USAGE });
+  });
+  it('takes folders, --all, --no-squeeze and --root, defaulting to the script\'s repo and squeezing', () => {
+    expect(parseArgs(['hype10', 'hype10', 'carn5'], REPO, yes)).toEqual({ root: REPO, cats: ['hype10', 'carn5'], squeeze: true });
+    expect(parseArgs(['--all', '--no-squeeze', '--root', '/other'], REPO, yes)).toEqual({ root: '/other', cats: SLOTS.map((s) => s.cat), squeeze: false });
+  });
+});
+
+describe('the clip guard reads the raw as recorded', () => {
+  it('measures the float peak over the channels, never a mono downmix (Chrome writes two identical channels: +3 dB)', () => {
+    const p = src('tools/booth/plugin.ts');
+    const peak = p.slice(p.indexOf('async function peakOf('), p.indexOf('export function levels('));
+    expect(peak).toContain('sample_fmts=flt');
+    expect(peak).not.toContain('channel_layouts=mono');
+    expect(peak).toContain('Peak_level');
   });
 });
 

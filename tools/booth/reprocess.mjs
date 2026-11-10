@@ -16,20 +16,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { reprocess } from './plugin.ts';
-import { SLOTS } from './slots.ts';
+import { parseArgs } from './args.ts';
 
-const args = process.argv.slice(2);
-const flag = (f) => { const i = args.indexOf(f); if (i < 0) return false; args.splice(i, 1); return true; };
-const usage = () => { console.error('usage: node tools/booth/reprocess.mjs <folder>... | --all [--no-squeeze] [--root <repo>]'); process.exit(2); };
-const ri = args.indexOf('--root');
-// a bare --root (or one followed by a flag) is a mistake, never "the current folder": it would rewrite that repo's takes
-const rootArg = ri >= 0 ? args.splice(ri, 2)[1] : null;
-if (ri >= 0 && (!rootArg || rootArg.startsWith('-'))) usage();
-const root = path.resolve(rootArg ?? path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..'));
-if (!fs.existsSync(path.join(root, 'src', 'sfx'))) { console.error(`not a Grodius repo (no src/sfx): ${root}`); process.exit(2); }
-const squeeze = !flag('--no-squeeze');
-const cats = flag('--all') ? SLOTS.map((s) => s.cat) : args;
-if (!cats.length || cats.some((c) => c.startsWith('-'))) usage();
+const here = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const parsed = parseArgs(process.argv.slice(2), here, (r) => fs.existsSync(path.join(path.resolve(r), 'src', 'sfx')));
+if ('error' in parsed) { console.error(parsed.error); process.exit(2); }
+const { cats, squeeze } = parsed, root = path.resolve(parsed.root);
 let done = 0, skipped = 0;
 try {
   await reprocess(root, cats, {
