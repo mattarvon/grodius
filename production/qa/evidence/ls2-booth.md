@@ -8,7 +8,10 @@ built off `1f7f142`, rebased onto `c8ed43b`, then onto `ls2-slab`, per the paren
 - docs: the processTake comment;
 - docs: this report;
 - fix: vox follows LS2-tts (the corpse plea's new call);
-- feat: the slab base (all slots wired, the game's own faces, kill-word and OPENED calls).
+- feat: the slab base (all slots wired, the game's own faces, kill-word and OPENED calls);
+- docs: gate logs on the slab base;
+- fix: the combined slab+booth review batch (`35720c3`);
+- docs: the retaken booth screenshots (`8e6319a`).
 
 `git log 6e85b81..ls2-booth` has the SHAs.
 
@@ -116,21 +119,28 @@ If the trim cuts a breath, wait a beat before Stop (the booth says so while reco
 ## Test, gate and evidence output
 
 Gates ran on the lane's dev server (:5297, private Vite cacheDir), one at a time under `/tmp/grodius-heavy.lock`,
-with Tctl 39-60 C. Every gate ran at `93064be` (on `ls2-slab` 6e85b81, after both rebases). Every log begins with
-`git rev-parse HEAD` and `git status --short`. Build output is trimmed to the tail. (Before the rebases the same gates
-passed at `192910a`/`e2f517b` on `1f7f142`.)
+with Tctl 39-60 C. Every gate ran at `8e6319a` (on `ls2-slab` 6e85b81, with the review batch). Every log begins with
+`git rev-parse HEAD` and `git status --short`. Build output is trimmed to the tail. (The same gates passed at
+`93064be` after the rebases, and at `192910a`/`e2f517b` on `1f7f142` before them.)
+
+**Parity failed once on a stale dev server, then passed on a fresh one.** The first parity run at `8e6319a` reported
+seeds 15, 3x3 and 7m with no hazards (`hazHash` = the empty-hash value 2166136261). The run used a dev server that had
+been up through the booth e2e, whose keep and delete in `src/sfx/` made Vite re-stamp modules, so parity's own `/src/`
+imports reached a second, empty module instance. Restarted fresh: parity PASSED with identical runs. The harness
+(short, long4, 12 scenarios) was also re-run on the fresh server, and the logs below are those. **Lesson for booth
+users:** restart the dev server after recording before running any probe or harness against it.
 
 ```text
-93064be7a63a50fc7c707cb8991f1e758c11156b
+8e6319a39f7336d61d37a8c8470d746e4511a53b
 --- typecheck
 npm notice run tsc --noEmit
 --- vitest
- Test Files  60 passed (60)
-      Tests  1185 passed | 1 expected fail (1186)
+ Test Files  61 passed (61)
+      Tests  1195 passed | 1 expected fail (1196)
 ```
 
 ```text
-93064be7a63a50fc7c707cb8991f1e758c11156b
+8e6319a39f7336d61d37a8c8470d746e4511a53b
 --- npm run build (tail)
 (!) Some chunks are larger than 500 kB after minification. Consider:
 - Using dynamic import() to code-split the application
@@ -164,22 +174,22 @@ none
 ```
 
 ```text
-93064be7a63a50fc7c707cb8991f1e758c11156b
---- harness short
-{"st":{"state":"over","score":1243,"scroll":3538,"lives":0,"px":50,"py":143.25,"en":0,"gibs":0,"drops":0,"caps":0},"hashes":["b9ce4a76ac","83207e90e2","deefef2cf3","cdff70c46c","8ecfcbedc1","0bc5cf3670"],"errs":[]}
+8e6319a39f7336d61d37a8c8470d746e4511a53b
+ M production/qa/evidence/ls2-booth.md
+--- harness short (fresh dev server)
+{"st":{"state":"over","score":1243,"scroll":3538,"lives":0,"px":50,"py":143.25,"en":0,"gibs":0,"drops":0,"caps":0},"hashes":["f5e5bb6fae","83207e90e2","deefef2cf3","cdff70c46c","8ecfcbedc1","0bc5cf3670"],"errs":[]}
 note: 6/6 canvas hashes differ (advisory)
 PASS vs baseline @ 8ff9ba4
-exit 0
 
-93064be7a63a50fc7c707cb8991f1e758c11156b
---- harness long4
+8e6319a39f7336d61d37a8c8470d746e4511a53b
+--- harness long4 (fresh dev server)
 {"st":{"state":"over","score":6096,"scroll":3538,"lives":0,"px":50,"py":153.25,"en":2,"gibs":0,"drops":13,"caps":0},"hashes":["4aa9c205a8","1a73c77a52","7f6273bddd","338ffbcd59","a91a9eb7c1","81feb21ab0"],"errs":[]}
 note: 6/6 canvas hashes differ (advisory)
 PASS (long4) vs baseline @ 88d9525
 ```
 
 ```text
---- harness scenarios
+--- harness scenarios (fresh dev server)
 PASS (orbit) vs baseline @ 5c8c3eb
 PASS (saucer) vs baseline @ 5c8c3eb
 PASS (breath2) vs baseline @ ffd6b77
@@ -192,12 +202,13 @@ PASS (crux-d1) vs baseline @ 5c8c3eb
 PASS (crux-d3) vs baseline @ 5c8c3eb
 PASS (butcher-d1) vs baseline @ 5c8c3eb
 PASS (butcher-d3) vs baseline @ 5c8c3eb
-12 scenario(s) in 101 s
+12 scenario(s) in 96 s
 ```
 
 ```text
-93064be7a63a50fc7c707cb8991f1e758c11156b
---- layout-parity
+8e6319a39f7336d61d37a8c8470d746e4511a53b
+ M production/qa/evidence/ls2-booth.md
+--- layout-parity (fresh dev server)
 run 3 (seed 3, 2 descents) gates 1001: shop 2, 8 stages, 30729 play frames, deaths 0, errors 0
 run 6 (seed 6, 2 descents) gates 1100: shop 2, 8 stages, 38325 play frames, deaths 0, errors 0
 run 7 (seed 7, 2 descents) gates 1010: shop 2, 8 stages, 28428 play frames, deaths 0, errors 0
@@ -302,13 +313,63 @@ watched failing on a mutation: the kill options changed, `$.G.st.corpseN` writte
 Both used a temporary take (one of Matt's existing clips re-levelled), which was deleted afterwards through the
 endpoint. `src/sfx/` holds no test take.
 
+## Combined slab+booth review batch (35720c3)
+
+All 8 leads gave APPROVE WITH NOTES at `c707c82`. The parent's batch:
+
+1. **Named gaps (lead-programmer).** `audio.ts` `voiceOn` prunes its queue by `VOICE_GAP`. `render/hype.ts` imports
+   `VOICE_GAP` for `vLive` and for the hype caption's hold.
+2. **OPENED clock (lead-programmer, game-designer).** The clock now lives on `AU.openedAt`, as audio-only state.
+   `resetOpened()` in `audio.ts` clears it, and `newGame` calls it. The comment says it counts audio seconds, while
+   HYPE_CD counts frames. Putting it in `fx/update.ts` would have meant importing that file into `flow.ts`, which
+   changes the boot order, and the texture builders draw `R()` at boot.
+3. **Voice at a run's end (game-designer, audio-director).**
+   - `gameOver` calls `voiceDropQueued()`: every voice line queued but not started is stopped before its start time,
+     and the line already talking finishes.
+   - `newGame` and the three title returns in `menus.ts` call `voiceStopAll()`: every voice line fades out over 60 ms
+     (`VOICE_CUT`), and `AU.voice`, `AU.voiceQ` and the voice SOLO locks are cleared.
+   - Audio only: no `R()`, and both are no-ops without an AudioContext (the harness).
+4. **Gain jitter (audio-director).** Voice lines now jitter .95-1.05 instead of .8-1.1. It is still one `ar()` draw
+   per sample.
+5. **Private path (release-manager).** `ls2-slab.md` and the `render/hype.ts` comment no longer name the generator's
+   path; they say it is kept outside the repo, beside the private source.
+   - The remaining mentions predate slab and stay: `decision-log.md`, `ls2-eye.md`, `titlehead.ts`, all present at
+     `1f7f142`.
+   - The commit message of `a70bddf` on `ls2-slab` still names the path. It was not rewritten here.
+6. **Booth (narrative-director, game-designer, audio-director).** Each caller's delivery direction:
+   - SLAB: flat, low, unhurried gallows deadpan, not a hype yell. CALAMARI SERVED is his one line read as a joke.
+   - CREWMAN #5: distinct from SLAB.
+
+   Also added:
+   - a length target per slot, which warns on keep: carn5 0.8 s, kill words 1.2 s, hype lines and bossreward 2 s;
+   - a -18 to -6 dBFS target band on the meter;
+   - a README check that PipeWire isn't running an echo-cancel or noise module on the mic.
+
+**Tests.** `tests/unit/voicecut.test.ts` has 7 tests:
+- drop-queued: the talking line finishes, the queued one never starts;
+- stop-all: fade, stop time and queue cleared;
+- the solo lock reset;
+- no AudioContext;
+- jitter bounds;
+- the OPENED reset.
+
+`booth.test.ts` adds the direction and length-target tests. The audio mocks in `backmenu`, `deathrestart` and
+`flowclear` gained the new exports. Each new test was watched failing on a mutation:
+- the jitter reverted;
+- drop-queued made a no-op;
+- the SOLO reset removed;
+- `resetOpened` made a no-op.
+
+**Screenshots** retaken at `8e6319a`:
+- `booth-kept.png`: SLAB's face and direction, the 2 s target with its warning on the synthetic 2.6 s take, and the
+  meter band;
+- `booth-recording.png` and `game-vox-hype10.png`: the same exact-take test-in-game.
+
 ## Open risks (for the parent)
 
 1. **Delete works on shipped clips too.** The confirm says so, and `git checkout` restores them.
 2. **`?vox=hypeN` runs the real `hype()`**, which writes `$.G.hype` from a timer. It's harmless in a hand test, but
    must never go in a harness scenario.
-3. The old UNKNOWN CALLER notes in the screenshots above (`booth-kept.png`) predate the slab base. The booth now shows
-   the game's own caller for every slot.
 
 ## Merge order
 
