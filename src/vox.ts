@@ -27,9 +27,9 @@ export const VOX_FIRE: Record<string, { state: string; fire: () => unknown }> = 
   carn5: { state: 'play', fire: () => sample('carn5', { vol: 1.15, spread: .02, wet: .16, queue: false }) },
 };
 for (const n of Object.keys(HYPE)) VOX_FIRE['hype' + n] = { state: 'play', fire: () => hype(+n) };
-// SLAB's quips (LS2-quips): ?vox=quip-<id> plays that quip with the game's own call (audio.ts quipAfterKill, the roll
-// skipped); ?vox=quip plays one of the recorded quips, as after a big kill, with the roll skipped and the no-repeat rule
-// kept. The booth's T opens quip-<id>
+// SLAB's quips (LS2-quips): ?vox=quip-<id> plays that quip straight, with the sample() options quipAfterKill uses (the
+// booth's T opens it); ?vox=quip goes through quipAfterKill itself, forced: the roll and the busy rules skipped, the
+// shuffle bag kept
 for (const q of QUIPS) VOX_FIRE[quipCat(q.id)] = { state: 'play', fire: () => sample(quipCat(q.id), { vol: 1.15, spread: .02, wet: .16 }) };
 VOX_FIRE.quip = { state: 'play', fire: () => quipAfterKill('', 0, true) };
 /** a midboss's kill word (enemies/update.ts killEnemy, the same call); added at boot, once every kind has registered */

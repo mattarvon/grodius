@@ -3,7 +3,7 @@ import { SET } from './save';
 import { duckMusic, curBiome } from './music';
 import { BIOME_KILL, KILL_LAYER } from './audiomix';
 import { QUIPS } from './voice/quips';
-import { normText, pickQuip, quipCat, quipLines } from './voice/quiplist';
+import { QUIP, normText, pickQuip, quipCat, quipLines, type QuipBag } from './voice/quiplist';
 
 // ---------------- audio ----------------
 export const AU = {
@@ -144,6 +144,9 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   // the audio clock, a beat after it ends; `queue: false` (OPENED, the 5-chain: common and minor) is skipped instead
   const voice = VOICE_CAT.test(cat);
   let at = o.at ?? 0;
+  // any other voice line beats a quip that has not started yet: feedback (a chain line, a kill word) before flavour
+  // (LS2-quips, audio-director)
+  if (voice && !cat.startsWith('quip-')) dropQueuedQuips();
   if (voice) {
     const v = AU.voice, now = AU.c.currentTime;
     if (v && v.t1 + VOICE_GAP > now + at) {
@@ -188,25 +191,52 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   if (VOICE_CAT.test(cat)) duckMusic(at + L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, at);
   return true;
 }
-/** the quip said last: the next one is another, while another is recorded */
-let lastQuip: string | null = null;
+/** the quips' shuffle bag (quiplist.ts pickQuip): kept across runs, so the lines go round rather than restart */
+const QBAG: QuipBag = { q: [], last: null };
 /** after a big kill (a midboss's kill word, a stage boss's TAKEN DOWN), maybe one of SLAB's quips
- *  (src/voice/quips.json, LS2-quips): QUIP.chance of one, picked among the quips with a take in the bank, never the
- *  last one again, never one whose words are the kill word just said. It queues behind that line on the audio clock
- *  (sample()), so game over drops it and a new game cuts it like any voice line (D50). Audio only: the roll and the
- *  pick draw ar(), never R(), and with no running context (the harness, muted) nothing is drawn at all. `force`
- *  skips the roll (the ?vox=quip test hook). Returns the quip id played, or null */
+ *  (src/voice/quips.json, LS2-quips): QUIP.chance of one, from the shuffle bag of quips with a take in the bank,
+ *  never one whose words are the kill word just said. It queues behind that line on the audio clock (sample()), so
+ *  game over drops it and a new game cuts it like any voice line (D50), and any other voice line called before it
+ *  starts takes its place (dropQueuedQuips). Skipped, with no roll drawn, when the comms is busy with anything but the
+ *  line it follows, or when it could not start within QUIP.maxLate of the kill (audio-director: flavour never lands in
+ *  the next fight). Audio only: the roll and the pick draw ar(), never R(); with no running context (the harness,
+ *  muted) nothing is drawn at all. `force` skips the roll and the busy rules (the ?vox=quip test hook). Returns the
+ *  quip id played, or null */
 export function quipAfterKill(word = '', at = 0, force = false): string | null {
   if (!AU.c || SET.muted || AU.c.state !== 'running') return null;
+  const now = AU.c.currentTime;
+  if (!force) {
+    // the lines still talking or waiting: at most the one this quip follows (a kill word, TAKEN DOWN)
+    const live = (AU.voiceQ || []).filter((v) => v.t1 + VOICE_GAP > now);
+    if (live.length > 1 || (live.length === 1 && !/^(kill-|bossreward$)/.test(live[0].cat))) return null;
+    const v = AU.voice, start = v && v.t1 + VOICE_GAP > now + at ? v.t1 - now + VOICE_GAP : at;
+    if (start > QUIP.maxLate) return null;
+  }
   const said = normText(word), ready: string[] = [], avoid: string[] = [];
   for (const q of QUIPS) {
     if (!BANK[quipCat(q.id)]?.length) continue;
     ready.push(q.id);
     if (said && quipLines(q.text).join(' ') === said) avoid.push(q.id);
   }
-  const id = pickQuip(ready, lastQuip, ar, force ? 1 : undefined, avoid);
+  const id = pickQuip(ready, QBAG, ar, force ? 1 : undefined, avoid);
   if (id == null || !sample(quipCat(id), { vol: 1.15, spread: .02, wet: .16, at })) return null;
-  return (lastQuip = id);
+  return id;
+}
+/** a quip queued behind another line and not started yet is dropped: the voice line now being called goes first
+ *  (audio only; a quip already talking finishes) */
+function dropQueuedQuips() {
+  if (!AU.c || !AU.voiceQ?.length) return;
+  const now = AU.c.currentTime;
+  if (!AU.voiceQ.some((v) => v.cat.startsWith('quip-') && v.t0 > now)) return;
+  for (let k = LIVE.length - 1; k >= 0; k--) {
+    const v = LIVE[k];
+    if (!v.cat.startsWith('quip-') || v.t0 <= now) continue;
+    v.s.onended = null;
+    v.s.stop(); // a source stopped before its start time never plays
+    LIVE.splice(k, 1);
+  }
+  AU.voiceQ = AU.voiceQ.filter((v) => !(v.cat.startsWith('quip-') && v.t0 > now));
+  AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
 }
 /** the voice line now talking: render/hype.ts puts a comms-window face to it (clip = file stem, t0/t1 = AU.c clock) */
 export function voiceOn(cat, buf, rate = 1, at = 0) {

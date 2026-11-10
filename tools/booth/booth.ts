@@ -55,6 +55,9 @@ const S = {
 const say = (msg: string, tone: '' | 'err' | 'warn' = '') => { S.msg = msg; S.tone = tone; };
 const errText = (e: unknown) => String((e as Error)?.message ?? e);
 
+/** the pause squeeze a line's takes start with: on, except a quip's (LS2-quips, audio-director: the beat in a quip is
+ *  usually the joke, and its notes ask for the pause) */
+const sqDefault = (s: Slot) => !s.quip;
 const linesOf = (s: Slot) => s.quip ? quipLines(s.quip.text) : S.text[s.cat]?.lines?.length ? S.text[s.cat].lines : s.copy?.lines ?? [];
 const slugOf = (s: Slot) => s.slug ?? slugify(linesOf(s).join(' '));
 /** the caller's face from the game's own sheets, first jaw frame, 2x: SLAB_FACE (-1) is Matt's sheet, 0-5 the
@@ -93,8 +96,9 @@ async function refreshTakes() {
 function setQuips(quips: Quip[], errors: string[] = S.quipErr, keep = ALL[S.sel]?.cat) {
   ALL = [...SLOTS, ...quips.map(quipSlot)];
   S.quipErr = errors;
-  const i = ALL.findIndex((s) => s.cat === keep);
+  const was = ALL[S.sel]?.cat, i = ALL.findIndex((s) => s.cat === keep);
   S.sel = i >= 0 ? i : Math.min(S.sel, ALL.length - 1);
+  if (ALL[S.sel].cat !== was || i < 0) S.squeeze = sqDefault(ALL[S.sel]); // landed on another line: its default
 }
 async function refreshQuips() {
   try {
@@ -293,7 +297,7 @@ async function keep() {
     const k = await api('POST', { cat: s.cat, slug: slugOf(s), ...(S.squeeze ? {} : { squeeze: '0' }) }, S.raw);
     // the processed player's src is fixed here: a redraw must not restart it
     S.kept = { ...k, src: `${k.url}?t=${Date.now()}` };
-    S.squeeze = true; // per take: the next one starts squeezed again
+    S.squeeze = sqDefault(s); // per take: the next one starts at the line's default again
     discard(true);
     S.phase = 'saved';
     // the plugin's warnings: a quiet or hot input, and a take past its slot's length target + slots.ts LEN_SLACK (it
@@ -360,7 +364,7 @@ function move(d: number) {
   if (!d || S.phase === 'arming' || S.phase === 'rec' || S.phase === 'saving') return;
   if (S.phase === 'review') return void (say('Keep (Enter) or discard (Backspace) this take first.', 'warn'), draw());
   S.sel = (S.sel + d + ALL.length) % ALL.length;
-  S.squeeze = true;
+  S.squeeze = sqDefault(ALL[S.sel]);
   store.set('slot', ALL[S.sel].cat);
   S.kept = null;
   if (S.phase !== 'error') { S.phase = 'idle'; say(''); } // a mic error stays up until a mic opens

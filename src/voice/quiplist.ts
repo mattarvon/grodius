@@ -58,6 +58,8 @@ export function textError(text: string): string | null {
   const L = quipLines(text);
   if (!L.length) return 'empty';
   if (L.length > QUIP_LINES || text.split('/').length > QUIP_LINES) return `at most ${QUIP_LINES} lines (one /)`;
+  // a '/' splits two lines: one with nothing on a side would be drawn as a stray slash (qa-tester)
+  if (text.split('/').some((part) => !part.trim())) return 'a / goes between two lines of words';
   if (L.some((l) => l.length > QUIP_LINE_MAX)) return `at most ${QUIP_LINE_MAX} characters a line: split it with /`;
   return null;
 }
@@ -66,9 +68,13 @@ export function textError(text: string): string | null {
  *  and folders left on disk, so a deleted quip's leftover raw takes are never filed under different words) */
 export function newId(text: string, taken: Iterable<string>): string {
   const used = new Set(taken);
-  const base = String(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, QUIP_ID_MAX - 3).replace(/-+$/, '') || 'quip';
+  const base = String(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, QUIP_ID_MAX).replace(/-+$/, '') || 'quip';
   if (!used.has(base)) return base;
-  for (let n = 2; ; n++) if (!used.has(`${base}-${n}`)) return `${base}-${n}`;
+  // the base is cut to leave room for the suffix it gets, so even the 100th clash fits QUIP_ID_MAX (security review)
+  for (let n = 2; ; n++) {
+    const sfx = `-${n}`, id = base.slice(0, QUIP_ID_MAX - sfx.length).replace(/-+$/, '') + sfx;
+    if (!used.has(id)) return id;
+  }
 }
 
 /** the list as read from quips.json: the valid quips (normalised; a duplicate id keeps the first) and what was wrong
@@ -89,22 +95,48 @@ export function parseQuips(raw: unknown): { quips: Quip[]; errors: string[] } {
   return { quips, errors };
 }
 
-/** when a quip follows a big kill (LS2-quips; audio-director on the frequency) */
+/** when a quip follows a big kill (LS2-quips; audio-director ruling on the frequency and the queue) */
 export const QUIP = {
-  /** chance a quip follows a midboss kill word or TAKEN DOWN. Matt chose "on big moments" only; at ~35% a run of four
-   *  stages with two midbosses and a boss each (12 big kills) hears about four, so a line still lands as a treat and
-   *  nine lines take a few runs to repeat. Raise it once more lines are recorded */
+  /** chance a quip follows a midboss kill word or TAKEN DOWN. Matt chose "on big moments" only; a run of four stages
+   *  with two midbosses and a boss each is ~12 big kills, so ~4 quips a run: one every third big kill, a treat rather
+   *  than a habit. The shuffle bag (pickQuip) plays all nine before any repeats, about two runs. Raise it once more
+   *  lines are recorded */
   chance: 0.35,
+  /** latest a quip may start, seconds after the kill that called it. The clean midboss case is KILL_WORD_AT .45 + a
+   *  1.2 s kill word + VOICE_GAP .25 = 1.9 s; 2.5 still lets a kill word run to its booth warning (1.7 s). Later than
+   *  that it lands in the next fight as flavour nobody asked for, so it is skipped (audio-director) */
+  maxLate: 2.5,
 } as const;
+
+/** the quip shuffle bag: ids still to play this round, and the one said last. Module state in audio.ts that a new
+ *  game keeps, so the nine lines go round across runs */
+export type QuipBag = { q: string[]; last: string | null };
 
 /** the quip to play after a big kill, or null. `ready`: the recorded ids; `avoid`: ids that must not follow this kill
  *  (one whose words are the kill word just said: CALAMARI SERVED after the Saucer). Nothing left: null, with no draw
- *  at all. Else one `rnd()` roll against `chance` and, on a hit, one `rnd()` pick, never `last` while another is
- *  left. `rnd` is the audio RNG (audio.ts ar()), never the sim's */
-export function pickQuip(ready: readonly string[], last: string | null, rnd: () => number, chance: number = QUIP.chance, avoid: readonly string[] = []): string | null {
+ *  at all. Else one `rnd()` roll against `chance`; on a hit the next id from the shuffle bag `bag`: every recorded
+ *  quip plays once before any repeats, a new bag never opens with the last one said, and an avoided id stays in the
+ *  bag for the next kill. The bag drops ids no longer recorded and refills (a Fisher-Yates shuffle, `rnd()` draws)
+ *  when nothing in it may play. `rnd` is the audio RNG (audio.ts ar()), never the sim's */
+export function pickQuip(ready: readonly string[], bag: QuipBag, rnd: () => number, chance: number = QUIP.chance, avoid: readonly string[] = []): string | null {
   const ok = ready.filter((id) => !avoid.includes(id));
   if (!ok.length) return null;
   if (!(rnd() < chance)) return null;
-  const pool = ok.length > 1 ? ok.filter((id) => id !== last) : ok;
-  return pool[Math.min(pool.length - 1, Math.floor(rnd() * pool.length))];
+  bag.q = bag.q.filter((id) => ready.includes(id));
+  if (!bag.q.some((id) => ok.includes(id))) {
+    const q = [...ready];
+    for (let k = q.length - 1; k > 0; k--) { const j = Math.min(k, Math.floor(rnd() * (k + 1))); [q[k], q[j]] = [q[j], q[k]]; }
+    bag.q = q;
+  }
+  // the next one out (the bag's end) that may play now, and not the last one said while another may
+  const may = (id: string) => ok.includes(id);
+  let k = -1;
+  for (let i = bag.q.length - 1; i >= 0; i--) if (may(bag.q[i]) && bag.q[i] !== bag.last) { k = i; break; }
+  if (k < 0) {
+    // only the last one said may play: from the bag if it is there, else it is the one recorded quip left
+    k = bag.q.findIndex(may);
+    if (k < 0) return (bag.last = ok[0]);
+  }
+  const id = bag.q.splice(k, 1)[0];
+  return (bag.last = id);
 }

@@ -26,7 +26,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { lenWarn, quipSlot, SLOTS, voiceSlot } from './slots.ts';
-import { newId, normText, parseQuips, QUIP_ID_RE, quipCat, quipLines, textError, type Quip } from '../../src/voice/quiplist.ts';
+import { newId, normText, parseQuips, QUIP_ID_MAX, QUIP_ID_RE, quipCat, quipLines, textError, type Quip } from '../../src/voice/quiplist.ts';
 import { TAKE_MAX, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, TAKE_RE } from './names.ts';
 
 const exec = promisify(execFile);
@@ -454,17 +454,33 @@ export function editQuips(root: string, op: unknown): { quips: Quip[]; quip?: Qu
       if (takes.some((f) => !TAKE_RE.test(f))) throw new QuipRefused(`booth: src/sfx/${quipCat(id)}/ holds files the booth did not make: delete it by hand`, 409);
       const dir = realDir(sfx, quipCat(id), quips);
       if (!dir) throw new Error('booth: the quip folder is not a plain folder');
+      // the list is written first (security review SEC-001): a failed write leaves the quip and its takes as they were.
+      // A take left behind by a failed delete is harmless: the game plays only the quips in the list
+      next = quips.filter((_, k) => k !== i);
+      writeQuips(root, next);
       for (const f of takes) fs.rmSync(path.join(dir, f), { force: true });
       if (!list(dir).length) fs.rmdirSync(dir);
+      return { quips: next };
     }
     next = quips.filter((_, k) => k !== i);
   } else throw new QuipRefused('booth: op must be add, edit or del');
-  if (fs.lstatSync(path.join(root, 'src', 'voice')).isSymbolicLink() || fs.lstatSync(path.join(root, QUIP_FILE)).isSymbolicLink()) throw new Error('booth: src/voice is not a plain folder');
-  fs.mkdirSync(rawBase, { recursive: true });
-  const tmp = path.join(rawBase, '.quips.json.tmp');
-  fs.writeFileSync(tmp, quipJson(next));
-  fs.renameSync(tmp, path.join(root, QUIP_FILE));
+  if (made && (made.id.length > QUIP_ID_MAX || !QUIP_ID_RE.test(made.id))) throw new Error(`booth: made a bad quip id ${made.id}`);
+  writeQuips(root, next);
   return { quips: next, ...(made ? { quip: made } : {}) };
+}
+
+/** the list to src/voice/quips.json: through a temp file in assets-raw/voice/ (git-ignored, unwatched: Vite never sees
+ *  it) renamed in, so the game's import never reads half a file. Refuses a symlinked src/voice or quips.json, and an
+ *  assets-raw/ on another disk, where the rename cannot be atomic (security review SEC-002) */
+function writeQuips(root: string, quips: readonly Quip[]) {
+  const vdir = path.join(root, 'src', 'voice'), file = path.join(root, QUIP_FILE), rawBase = path.join(root, 'assets-raw', 'voice');
+  if (fs.lstatSync(vdir).isSymbolicLink() || fs.lstatSync(file).isSymbolicLink()) throw new Error('booth: src/voice is not a plain folder');
+  fs.mkdirSync(rawBase, { recursive: true });
+  if (fs.statSync(rawBase).dev !== fs.statSync(vdir).dev) throw new Error('booth: assets-raw/voice is on another disk than src/voice: the quip list cannot be written safely');
+  const tmp = path.join(rawBase, '.quips.json.tmp');
+  fs.rmSync(tmp, { force: true });
+  fs.writeFileSync(tmp, quipJson(quips), { flag: 'wx' }); // never through a planted link
+  fs.renameSync(tmp, file);
 }
 
 /** a quip edit's body is a few hundred bytes */
@@ -484,6 +500,7 @@ function readJson(req: IncomingMessage): Promise<unknown> {
     });
     req.on('end', () => { try { ok(JSON.parse(Buffer.concat(parts).toString('utf8'))); } catch { no(new QuipRefused('booth: body is not JSON')); } });
     req.on('error', no);
+    req.on('close', () => { if (!req.complete) no(new QuipRefused('booth: body aborted')); });
   });
 }
 
@@ -564,8 +581,10 @@ export function booth(): Plugin {
           if (!TAKE_RE.test(name)) return send(res, 400, { error: 'booth: not a take name' });
           const dir = realDir(sfx, cat, quips);
           if (!dir) return send(res, 400, { error: 'booth: the slot folder is not a plain folder' });
-          fs.rmSync(path.join(dir, name), { force: true });
-          return send(res, 200, { deleted: name });
+          // in the keep queue (security review): a reprocess renaming this take back in can't undo the delete
+          const step = queue.then(() => fs.rmSync(path.join(dir, name), { force: true }));
+          queue = step.catch(() => {});
+          return void step.then(() => send(res, 200, { deleted: name }), (e) => send(res, 500, { error: String(e?.message ?? e) }));
         }
         if (req.method !== 'POST') return send(res, 405, { error: 'booth: method' });
         const slug = slugify(u.searchParams.get('slug'));

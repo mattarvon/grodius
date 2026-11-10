@@ -310,13 +310,14 @@ describe('reprocess rules', () => {
     expect(squeezeParam(new URLSearchParams('squeeze=1'))).toBe(true);
     expect(squeezeParam(new URLSearchParams('squeeze=0'))).toBe(false);
   });
-  it('resets the page checkbox after a keep and a line change, never on record (it may be unticked before Space)', () => {
+  it("resets the page checkbox to the line's default after a keep and a line change (off for a quip), never on record", () => {
     const b = src('tools/booth/booth.ts');
     const rec = b.slice(b.indexOf('async function record()'), b.indexOf('function stop()'));
     expect(rec).not.toContain('S.squeeze');
     expect(b).toMatch(/squeeze: true,/);
-    expect(b.slice(b.indexOf('async function keep()'), b.indexOf('async function del('))).toContain('S.squeeze = true');
-    expect(b.slice(b.indexOf('function move('), b.indexOf('function testGame('))).toContain('S.squeeze = true');
+    expect(b.slice(b.indexOf('async function keep()'), b.indexOf('async function del('))).toContain('S.squeeze = sqDefault(s)');
+    expect(b.slice(b.indexOf('function move('), b.indexOf('function testGame('))).toContain('S.squeeze = sqDefault(ALL[S.sel])');
+    expect(b).toContain('const sqDefault = (s: Slot) => !s.quip;');
   });
 });
 
