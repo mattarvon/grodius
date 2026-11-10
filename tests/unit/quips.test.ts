@@ -449,6 +449,37 @@ describe('quipAfterKill', () => {
     expect(A.AU.voiceQ.map((v: any) => v.cat)).toEqual(['quip-closed-casket', 'hype10']);
   });
 
+  it('stays queued when OPENED is skipped behind the kill word (an OPENED that does not play takes nothing)', () => {
+    A.BANK['kill-ufo'] = take('k', 1);
+    A.BANK['quip-closed-casket'] = take('a', 1);
+    A.BANK['carn5'] = take('o', .6);
+    A.sample('kill-ufo', { at: .45 });
+    A.quipAfterKill('', .45, true);
+    A.AU.c.currentTime = .6; // the kill word is talking
+    expect(A.sample('carn5', { queue: false })).toBe(false);
+    expect(srcs[1].stopped).toBeFalsy();
+    expect(A.AU.voiceQ.map((v: any) => v.cat)).toEqual(['kill-ufo', 'quip-closed-casket']);
+    expect(A.AU.voice.cat).toBe('quip-closed-casket');
+  });
+
+  it('gives its place to an OPENED that would play at once (the comms otherwise clear)', () => {
+    A.BANK['quip-closed-casket'] = take('a', 1);
+    A.BANK['carn5'] = take('o', .6);
+    A.quipAfterKill('', .45, true); // queued for .45, nothing talking
+    expect(A.sample('carn5', { queue: false })).toBe(true);
+    expect(srcs[0].stopped).toBe(true);
+    expect(A.AU.voiceQ.map((v: any) => v.cat)).toEqual(['carn5']);
+  });
+
+  it('avoids every readout the moment may have shown', () => {
+    A.BANK['quip-calamari-served'] = take('a');
+    A.BANK['quip-rest-in-pieces'] = take('b');
+    for (let k = 0; k < 10; k++) {
+      expect(A.quipAfterKill(['TAKEN DOWN', 'CALAMARI SERVED'], 0, true)).toBe('rest-in-pieces');
+      A.voiceStopAll();
+    }
+  });
+
   it('goes round every recorded quip before repeating, across calls', () => {
     const ids = ['closed-casket', 'dead-weight', 'rest-in-pieces'];
     for (const id of ids) A.BANK['quip-' + id] = take(id);
@@ -476,14 +507,19 @@ describe('the call sites', () => {
     expect(code('src/enemies/update.ts')).toMatch(/sample\('kill-' \+ e\.k, \{[^}]*at: KILL_WORD_AT \}\);\s*(\/\/[^\n]*\n\s*)*quipAfterKill\(M\?\.word, KILL_WORD_AT\);/);
   });
 
-  it('stages.ts calls quipAfterKill with TAKEN DOWN right after the bossreward sample', () => {
-    expect(code('src/stages.ts')).toMatch(/sample\('bossreward', \{[^}]*\}\); quipAfterKill\('TAKEN DOWN'\);/);
+  it('stages.ts calls quipAfterKill with every stage-boss readout right after the bossreward sample, only in play', () => {
+    const st = code('src/stages.ts');
+    expect(st).toMatch(/if \(\$\.state !== 'play'\) return; sample\('bossreward', \{[^}]*\}\); quipAfterKill\(BOSS_READOUTS\);/);
+    expect(st).toContain("const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED'] as const;");
+    // each readout is a banner a stage-boss kill really shows
+    const shown = code('src/enemies/update.ts') + code('src/boss/update.ts');
+    for (const w of ['TAKEN DOWN', 'TORN APART', 'GATE SEALED']) expect(shown).toContain(`banner('${w}'`);
   });
 
   it('neither call site line nor quipAfterKill draws R( or Math.random', () => {
     const upd = code('src/enemies/update.ts'), st = code('src/stages.ts'), au = code('src/audio.ts');
     const line = (src: string, needle: string) => src.split('\n').find((l) => l.includes(needle) && !l.trim().startsWith('//'))!;
-    for (const l of [line(upd, 'quipAfterKill(M'), line(st, "quipAfterKill('TAKEN"), line(upd, "sample('kill-' + e.k")]) {
+    for (const l of [line(upd, 'quipAfterKill(M'), line(st, 'quipAfterKill(BOSS_READOUTS'), line(upd, "sample('kill-' + e.k")]) {
       expect(l).toBeDefined();
       expect(l).not.toMatch(/\bR\(|Math\.random/);
     }

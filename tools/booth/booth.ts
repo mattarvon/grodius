@@ -126,7 +126,7 @@ async function addQuip(raw: string) {
     const box = document.getElementById('q-new') as HTMLInputElement | null;
     if (box) { box.value = ''; box.blur(); }
     say(`Added ${text}: record it with Space.`);
-  } catch (e) { say('Add failed: ' + errText(e), 'err'); }
+  } catch (e) { say('Add failed: ' + errText(e), 'err'); await refreshQuips(); }
   await refreshTakes();
 }
 async function editQuip(s: Slot, raw: string) {
@@ -137,12 +137,15 @@ async function editQuip(s: Slot, raw: string) {
   if (takes.length && !confirm(`Change the words to ${text}? Its ${takes.length} take${takes.length === 1 ? '' : 's'} keep their file names and are marked stale: they still say the old words until you record it again.`)) return draw();
   try {
     setQuips((await quipOp({ op: 'edit', id: s.quip.id, text })).quips);
+    // out of the box, or the next Space types into it instead of recording (tools-programmer)
+    (document.getElementById('q-text') as HTMLInputElement | null)?.blur();
     say(`Saved: ${text}.` + (takes.length ? ' Its older takes are marked stale.' : ''));
-  } catch (e) { say('Save failed: ' + errText(e), 'err'); }
+  } catch (e) { say('Save failed: ' + errText(e), 'err'); await refreshQuips(); }
   await refreshTakes();
 }
 async function delQuip(s: Slot) {
-  if (!s.quip || busy()) return;
+  if (!s.quip) return;
+  if (busy()) return void (say('Finish this take first (keep or discard it).', 'warn'), draw());
   const n = (S.takes[s.cat] ?? []).length;
   if (!confirm(n ? `Delete the quip ${s.quip.text} AND its ${n} take${n === 1 ? '' : 's'} in src/sfx/${s.cat}/? Raw takes stay in assets-raw/voice/${s.cat}/.` : `Delete the quip ${s.quip.text}?`)) return;
   try {
@@ -151,7 +154,7 @@ async function delQuip(s: Slot) {
     S.kept = null;
     S.phase = 'idle';
     say(`Deleted ${s.quip.text}${n ? ` and its ${n} take${n === 1 ? '' : 's'}` : ''}.`);
-  } catch (e) { say('Delete failed: ' + errText(e), 'err'); }
+  } catch (e) { say('Delete failed: ' + errText(e), 'err'); await refreshQuips(); }
   await refreshTakes();
 }
 
@@ -406,7 +409,7 @@ function draw() {
   const nq = ALL.length - SLOTS.length;
   // a redraw rebuilds the text boxes: what is being typed (and the caret) survives it
   const typing = document.activeElement as HTMLInputElement | null, was = { new: (document.getElementById('q-new') as HTMLInputElement | null)?.value ?? '',
-    text: (document.getElementById('q-text') as HTMLInputElement | null)?.dataset.cat === s.cat ? (document.getElementById('q-text') as HTMLInputElement).value : null, focus: typing?.id ?? '' };
+    text: (document.getElementById('q-text') as HTMLInputElement | null)?.dataset.cat === s.cat ? (document.getElementById('q-text') as HTMLInputElement).value : null, focus: typing?.id ?? '', a: typing?.selectionStart ?? null, b: typing?.selectionEnd ?? null };
   $id('slots').innerHTML = ALL.map((x, i) => {
     const n = (S.takes[x.cat] ?? []).length, err = S.text[x.cat]?.err, stale = (S.takes[x.cat] ?? []).filter((t) => t.was != null).length;
     // the Quips section: a heading before the first quip (or before the add box when there are none)
@@ -468,12 +471,17 @@ function draw() {
   const qne = document.getElementById('q-new') as HTMLInputElement | null, qte = document.getElementById('q-text') as HTMLInputElement | null;
   if (qne) qne.value = was.new;
   if (qte && was.text != null) qte.value = was.text;
-  if (was.focus === 'q-new' || was.focus === 'q-text') document.getElementById(was.focus)?.focus();
+  if (was.focus === 'q-new' || was.focus === 'q-text') {
+    const el = document.getElementById(was.focus) as HTMLInputElement | null;
+    el?.focus();
+    if (el && was.a != null) el.setSelectionRange(was.a, was.b ?? was.a); // the caret too, not just the focus
+  }
   on('q-del', () => delQuip(s));
   on('q-save', () => editQuip(s, ($id('q-text') as HTMLInputElement).value));
   on('q-add', () => addQuip(($id('q-new') as HTMLInputElement).value));
   const qt = document.getElementById('q-text') as HTMLInputElement | null, qn = document.getElementById('q-new') as HTMLInputElement | null;
-  if (qt) qt.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); editQuip(s, qt.value); } else if (e.key === 'Escape') qt.blur(); };
+  // Escape drops the unsaved words: the box must never look saved when it isn't
+  if (qt) qt.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); editQuip(s, qt.value); } else if (e.key === 'Escape') { qt.value = s.quip!.text; qt.blur(); } };
   if (qn) qn.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addQuip(qn.value); } else if (e.key === 'Escape') qn.blur(); };
   const sqb = document.getElementById('b-sq') as HTMLInputElement | null;
   if (sqb) sqb.onchange = () => { S.squeeze = sqb.checked; sqb.blur(); };

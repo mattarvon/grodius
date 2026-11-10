@@ -147,13 +147,16 @@ take play; with none recorded, nothing changes in the game.
   `!`: SLAB never yells).
 - **Edit:** change the words in the box under the line and press Enter. The id (the folder `src/sfx/quip-<id>/` and
   the take names) never changes, so no take is orphaned. A take recorded to the old words is marked **stale: says
-  ...** in the take list (the words are saved with each take's raw record); record it again and delete the stale one.
-- **Delete:** **Delete quip**. A quip with takes asks first and deletes its processed takes with it; the raw takes
-  stay in `assets-raw/voice/quip-<id>/`, and that id is never handed out again.
+  ...** in the take list (the words are saved with each take's raw record in `assets-raw/`, so only on the machine
+  that recorded it); record it again and delete the stale one.
+- **Delete:** **Delete quip** asks first; with takes, it deletes its processed takes too. The raw takes stay in
+  `assets-raw/voice/quip-<id>/`, and while that folder exists the id is not handed out again (a fresh clone without
+  `assets-raw/` could reuse it).
 - **Record** like any line. The pause squeeze starts **off** for a quip (the beat is usually the joke); the target is
   2 s, and a take up to 2.5 s is fine.
 - **Test in game** (**T**) opens `?vox=quip-<id>`; `?vox=quip` plays one through the game's own pick.
-- **By hand:** the JSON may be edited directly. A row the game can't read is dropped from the game and shown in red in
+- **By hand:** the JSON may be edited directly; only `id`, `text` and `note` are kept (a booth edit rewrites the file
+  without other keys). A row the game can't read is dropped from the game and shown in red in
   the booth, which then refuses every quip edit until the file is fixed.
 
 In the game a quip is skipped (no roll) when anything but its own kill word is on the comms, or when it could not

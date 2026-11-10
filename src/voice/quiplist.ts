@@ -88,9 +88,11 @@ export function parseQuips(raw: unknown): { quips: Quip[]; errors: string[] } {
     if (seen.has(id)) return void errors.push(`row ${i + 1}: duplicate id ${id}`);
     const bad = textError(text);
     if (bad) return void errors.push(`row ${i + 1} (${id}): ${bad}`);
-    seen.add(id);
     const note = (r as Quip).note;
-    quips.push(typeof note === 'string' && note.trim() ? { id, text, note: note.trim().slice(0, QUIP_NOTE_MAX) } : { id, text });
+    // a bad note is reported, never cut or dropped in silence: a booth write would lose the hand edit (tools-programmer)
+    if (note != null && (typeof note !== 'string' || note.length > QUIP_NOTE_MAX)) return void errors.push(`row ${i + 1} (${id}): note must be text of at most ${QUIP_NOTE_MAX} characters`);
+    seen.add(id);
+    quips.push(typeof note === 'string' && note.trim() ? { id, text, note: note.trim() } : { id, text });
   });
   return { quips, errors };
 }

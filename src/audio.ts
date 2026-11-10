@@ -144,15 +144,18 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   // the audio clock, a beat after it ends; `queue: false` (OPENED, the 5-chain: common and minor) is skipped instead
   const voice = VOICE_CAT.test(cat);
   let at = o.at ?? 0;
-  // any other voice line beats a quip that has not started yet: feedback (a chain line, a kill word) before flavour
-  // (LS2-quips, audio-director)
-  if (voice && !cat.startsWith('quip-')) dropQueuedQuips();
   if (voice) {
-    const v = AU.voice, now = AU.c.currentTime;
+    const now = AU.c.currentTime, other = !cat.startsWith('quip-');
+    // any other voice line beats a quip that has not started yet: feedback (a chain line, a kill word) before flavour
+    // (LS2-quips, audio-director). So such a line waits only behind what is left without those quips, and drops them
+    // only once it is sure to play (gameplay-programmer: OPENED skipped behind the kill word must not take the quip
+    // with it)
+    const q = AU.voiceQ || [], v = other ? q.filter((x) => !(x.cat.startsWith('quip-') && x.t0 > now)).pop() || null : AU.voice;
     if (v && v.t1 + VOICE_GAP > now + at) {
       if (o.queue === false) return false;
       at = v.t1 - now + VOICE_GAP;
     }
+    if (other) dropQueuedQuips();
   }
   if (o.solo && AU.c && AU.c.currentTime < (SOLO[cat] || 0)) return true; // previous take still talking
   // LS1 audit #5/#6: a drop used to return true, so siren()'s alarm() fallback never ran, and the Maw could die silent
@@ -195,14 +198,14 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
 const QBAG: QuipBag = { q: [], last: null };
 /** after a big kill (a midboss's kill word, a stage boss's TAKEN DOWN), maybe one of SLAB's quips
  *  (src/voice/quips.json, LS2-quips): QUIP.chance of one, from the shuffle bag of quips with a take in the bank,
- *  never one whose words are the kill word just said. It queues behind that line on the audio clock (sample()), so
+ *  never one whose words are the kill word just said (`word`: the word, or every word the moment may have shown). It queues behind that line on the audio clock (sample()), so
  *  game over drops it and a new game cuts it like any voice line (D50), and any other voice line called before it
  *  starts takes its place (dropQueuedQuips). Skipped, with no roll drawn, when the comms is busy with anything but the
  *  line it follows, or when it could not start within QUIP.maxLate of the kill (audio-director: flavour never lands in
  *  the next fight). Audio only: the roll and the pick draw ar(), never R(); with no running context (the harness,
  *  muted) nothing is drawn at all. `force` skips the roll and the busy rules (the ?vox=quip test hook). Returns the
  *  quip id played, or null */
-export function quipAfterKill(word = '', at = 0, force = false): string | null {
+export function quipAfterKill(word: string | readonly string[] = '', at = 0, force = false): string | null {
   if (!AU.c || SET.muted || AU.c.state !== 'running') return null;
   const now = AU.c.currentTime;
   if (!force) {
@@ -212,11 +215,11 @@ export function quipAfterKill(word = '', at = 0, force = false): string | null {
     const v = AU.voice, start = v && v.t1 + VOICE_GAP > now + at ? v.t1 - now + VOICE_GAP : at;
     if (start > QUIP.maxLate) return null;
   }
-  const said = normText(word), ready: string[] = [], avoid: string[] = [];
+  const said = (typeof word === 'string' ? [word] : word).map(normText).filter(Boolean), ready: string[] = [], avoid: string[] = [];
   for (const q of QUIPS) {
     if (!BANK[quipCat(q.id)]?.length) continue;
     ready.push(q.id);
-    if (said && quipLines(q.text).join(' ') === said) avoid.push(q.id);
+    if (said.includes(quipLines(q.text).join(' '))) avoid.push(q.id);
   }
   const id = pickQuip(ready, QBAG, ar, force ? 1 : undefined, avoid);
   if (id == null || !sample(quipCat(id), { vol: 1.15, spread: .02, wet: .16, at })) return null;
