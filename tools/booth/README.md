@@ -26,12 +26,29 @@ the KDE audio settings) that the input you pick is the plain device, not an `ech
 Never tunnel or port-forward the dev server (ngrok, cloudflared, ssh -L). The booth refuses forwarded requests, but a
 tunnel is the one way in from outside.
 
+## Set the input level first
+
+Matt's first three takes clipped by about 18 dB: the laptop mic had +60 dB of gain on it. No processing can remove
+clipping, so a clipped take is refused. Before a session:
+
+1. **Mic boost 0.** Check it in `alsamixer -c 2` (F4, Internal Mic Boost). PipeWire drives the boost on this path,
+   so it is set there (or in the KDE audio settings), not with amixer: a manual amixer change gets overwritten. Boost 0
+   is what keeps the clip guard trustworthy: with boost on, the mic clips in its own preamp before the booth sees it.
+2. **Source volume about 40%** (set 2026-11-09): `pactl set-source-volume @DEFAULT_SOURCE@ 40%`, or the KDE audio
+   settings.
+3. **20-30 cm from the mic**, off-axis from the keyboard.
+4. **Then set the level by the meter:** read a test line. The loudest syllable belongs in the marked band, **-10 to
+   -6 dBFS**. Peaks under -14: raise the source to 50-60%. **HOT** (past **-3**): drop it 5%. **CLIP** lights at
+   **-0.5**, and a take that reaches it is refused.
+5. **Wait about 0.5 s after Space** before the first word: the denoise learns the room from it.
+6. **One breath, unhurried:** a short beat between the two caption lines is fine (pauses up to 0.4 s are kept); a
+   long gap is what puts a line over its target.
+
 ## Record
 
 1. **Pick the mic** in the header. The laptop mic works now; plug in a USB mic later and choose it, and the booth
    remembers the choice.
-   - The meter shows the input level. Aim your peaks inside the marked band, about **-18 to -6 dBFS**. **CLIP**
-     lights when you hit full scale, and a clipped take says so.
+   - The meter shows the input level: see the checklist above. A take that went HOT or CLIPPED says so when you stop.
    - If the mic is unplugged, the booth says so. Pick another, or press Space to retry the default.
 2. **Pick a line** on the left.
    - The script is the game's own text (the HYPE captions, the kill words, the chain word), read from the game modules.
@@ -40,12 +57,19 @@ tunnel is the one way in from outside.
      - **SGT. RAMROD SLAB**: flat, low, unhurried gallows deadpan, not a hype yell. CALAMARI SERVED is his one line
        read as a joke.
      - **CREWMAN #5**: a distinct voice.
-     - **Length targets**: OPENED 0.8 s or less, kill words 1.2 s, hype lines and TAKEN DOWN 2 s. A longer take is kept,
-       with a warning. The caller's face and
-     tag are the game's own (`voiceOf` in `src/render/hype.ts`): SGT. RAMROD SLAB is Matt's head.
+     - The caller's face and tag are the game's own (`voiceOf` in `src/render/hype.ts`): SGT. RAMROD SLAB is Matt's
+       head.
+     - **Length targets**: OPENED 0.8 s or less, kill words 1.2 s, hype lines and TAKEN DOWN 2 s. A take more than
+       0.5 s over its target (after the trim: 1.3 s, 1.7 s, 2.5 s) is kept, with a warning: the fix is fewer or
+       shorter pauses, not a faster read.
 3. **Record:** **Space** starts recording and **Space** stops it. Let the last word ring out a beat before you stop:
    the stop key's click is cut, and with it the last 0.2 s. The raw take plays back. A take stops itself after 15 s.
 4. **Keep or discard:** **Enter** keeps it, **Backspace** throws it away, and **Space** records it again.
+   - **Shorten pauses over 0.4 s** (on by default, for every new take): a pause inside the take longer than 0.4 s is
+     cut to 0.25 s when it is kept. Untick it before Enter for a line whose pause is part of the read, and when the
+     pause is the joke (the beat before SERVED in CALAMARI SERVED).
+   - **A clipped take is refused** ("input clipped: lower the mic level"). Its raw recording is still saved in
+     `assets-raw/voice/<folder>/`, so nothing is lost; lower the level and record it again.
 5. **Move on:** **↑/↓** (or ←/→) move between lines once the take is kept or discarded. **T** opens the line in the
    game.
 
@@ -60,19 +84,41 @@ brings one back.
 
 ffmpeg does it, in `tools/booth/plugin.ts` (`VOX`), and the audio-director signed it off. The steps:
 
+- first, the clip guard, on the raw take as recorded: a peak at -0.5 dBFS or above (the key clicks aside) is refused;
 - mono;
 - the key clicks at the start and the end cut;
 - an 80 Hz highpass;
+- a 14 kHz lowpass (the laptop's hiss lives above it);
 - a light FFT denoise;
+- an **expander between the phrases**: it turns the room down by up to 20 dB wherever the take falls quiet, from a
+  threshold set per take from the room's level, so the gain below doesn't lift the room in every gap. The gaps land
+  around -35 to -45 dBFS, like the shipped corpsevoice clip, and word tails decay rather than chop;
 - the silence trimmed from the head and tail. The gate is set from the room's noise floor, and 90 ms is kept before
   the first word and 250 ms after the last;
+- pauses over 0.4 s cut to 0.25 s (the checkbox above);
 - the gain brought to **-12 LUFS**, the level of the voice clips that ship;
 - a gentle 3:1 voice compressor;
 - a 4x-oversampled limiter at -1.2 dBFS;
 - 44.1 kHz Vorbis q5.
 
 A take that needs more than +18 dB gets a **quiet take** warning. Move closer or raise the input gain, or the room's
-hiss comes up with it.
+hiss comes up with it. A raw peak past -3 dBFS gets a **hot take** warning.
+
+`node tools/booth/chain-probe.mjs` runs synthetic takes through the chain and prints what it did (the gap level, the
+length, the refusal); `production/qa/evidence/ls2-booth2.md` has its numbers.
+
+### Reprocess old takes
+
+When the chain changes, takes kept under the old one can be redone from their raw recordings, without recording again:
+
+- **In the booth:** **Reprocess this line's takes** under the take list (shown when the line has raw takes). It uses
+  the pause checkbox's setting.
+- **From the shell:** `node tools/booth/reprocess.mjs hype10 hype35` (folders), or `--all`. Add `--no-squeeze` to
+  keep the pauses as recorded.
+
+Each `src/sfx/<folder>/<line>-matty-<n>.ogg` that has a raw take is rewritten in place. Skipped: a raw take whose raw
+clipped (its processed take stays as it was), and one whose processed take was deleted (it is not brought back). The
+shipped clips have no raw take, so they are never touched. Don't reprocess while a gate runs against the dev server.
 
 ## Hear it in the game
 

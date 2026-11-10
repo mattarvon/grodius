@@ -55,3 +55,18 @@ export function gainTo(target: number, measured: number | null): number | null {
   if (measured == null || !Number.isFinite(measured) || measured <= -60) return null;
   return Math.round((target - measured) * 100) / 100;
 }
+
+/** the stretches (s) to cut from a take so each pause longer than `over` keeps `keep` s: `after` of it after the last
+ *  word (its tail), the rest before the next. Pauses come as silencedetect's starts and ends, in order. A pause that
+ *  runs into the end of the file (no end, or an end within 10 ms of `len`; ffmpeg 9 reports one at EOF) is the tail
+ *  trim's business and is left alone, as is anything unpaired or not a number */
+export function squeezeCuts(starts: number[], ends: number[], o: { over: number; keep: number; after: number }, len = Infinity): [number, number][] {
+  const cuts: [number, number][] = [];
+  for (let i = 0; i < Math.min(starts.length, ends.length); i++) {
+    const a = Math.max(0, starts[i]), b = ends[i];
+    if (!(b - a > o.over) || !(b < len - 0.01)) continue;
+    const from = a + o.after, to = b - (o.keep - o.after);
+    if (to > from) cuts.push([from, to]);
+  }
+  return cuts;
+}

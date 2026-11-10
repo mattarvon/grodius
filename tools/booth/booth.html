@@ -22,14 +22,18 @@
   button.rec { background: #5a1018; border-color: var(--red); }
   button.on { background: var(--red); color: #000; }
   .meter { position: relative; width: 160px; height: 10px; background: #000; border: 1px solid var(--line2); border-radius: 5px; overflow: hidden; }
-  /* the target band: peaks about -18 to -6 dBFS (the meter spans -60 to 0) */
-  .meter b { position: absolute; top: 0; bottom: 0; left: 70%; width: 20%; border-left: 1px solid #fff8; border-right: 1px solid #fff8; background: #ffffff14; pointer-events: none; }
+  /* the target band: the loudest syllable at -10 to -6 dBFS (the meter spans -60 to 0; LS2-booth2, audio-director) */
+  .meter b { position: absolute; top: 0; bottom: 0; left: 83.333%; width: 6.667%; border-left: 1px solid #fff8; border-right: 1px solid #fff8; background: #ffffff14; pointer-events: none; }
   .dir { color: var(--ink); font-size: 13px; max-width: 70ch; margin-top: 4px; }
   .dir b { color: var(--warn); font-weight: 600; }
   /* the gradient is sized to the track, not the bar, so red shows only when the level reaches it */
-  .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--ok) 70%, var(--warn) 85%, var(--red)) 0 0 / 160px 100% no-repeat; }
+  /* green to -6 dBFS, amber -6 to -3, red past -3 */
+  .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--ok) 90%, var(--warn) 90%, var(--warn) 95%, var(--red) 95%) 0 0 / 160px 100% no-repeat; }
   .clip { font-size: 11px; font-weight: 800; color: #000; background: var(--red); border-radius: 4px; padding: 0 5px; visibility: hidden; }
   .clip.on { visibility: visible; }
+  .hot { font-size: 11px; font-weight: 800; color: #000; background: var(--warn); border-radius: 4px; padding: 0 5px; visibility: hidden; }
+  .hot.on { visibility: visible; }
+  label.opt { color: var(--dim); font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
   .hint { color: var(--warn); font-size: 12px; }
   #stage.rec { box-shadow: inset 0 0 0 3px var(--red); }
   .recdot { color: var(--red); font-weight: 800; letter-spacing: .1em; }
@@ -65,9 +69,10 @@
 <header>
   <h1>GRODIUS VOICE BOOTH</h1>
   <label>Mic <select id="mic"><option>(allow the mic)</option></select></label>
-  <div class="meter" title="input level: aim your peaks inside the marked band, about -18 to -6 dBFS"><i id="lvl"></i><b></b></div>
-  <span class="peak">aim -18 to -6</span>
+  <div class="meter" title="input level: the loudest syllable inside the marked band, -10 to -6 dBFS, never past -3"><i id="lvl"></i><b></b></div>
+  <span class="peak">aim -10 to -6, never past -3</span>
   <span class="peak" id="pk">-inf dB</span>
+  <span class="hot" id="hot" aria-hidden="true">HOT</span>
   <span class="clip" id="clip" aria-hidden="true">CLIP</span>
   <span class="hint" id="hint"></span>
 </header>

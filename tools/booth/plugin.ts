@@ -7,7 +7,11 @@
 //   POST   /__booth/take?cat=<cat>&slug=<s>    body: the raw recording (audio/webm|ogg|wav|mp4, <= 25 MB)
 //          saves the raw take to assets-raw/voice/<cat>/ (git-ignored), runs the ffmpeg chain below and writes
 //          src/sfx/<cat>/<slug>-matty-<n>.ogg; -> { name, url, lufs, peak, dur, gain, warn? }
+//          &squeeze=0 keeps the mid-take pauses as recorded (default: shortened, VOX.squeeze). A raw take that clipped
+//          (VOX.clipAt) is saved but refused: 422 { error, clipped: true, rawPeak }
 //   DELETE /__booth/take?cat=<cat>&name=<file> removes one processed take (a raw take stays in assets-raw/)
+//   POST   /__booth/reprocess?cat=<cat>[&squeeze=0]  re-runs the current chain on that slot's kept raw takes and
+//          rewrites the matching src/sfx takes (reprocess() below; the CLI is tools/booth/reprocess.mjs)
 // Every path is built from slots.ts (the category must be a slot) and names.ts (sanitised slug, numbered name),
 // never from the request as written. Requires ffmpeg and ffprobe on PATH.
 import type { Plugin, ViteDevServer } from 'vite';
@@ -17,8 +21,8 @@ import { promisify } from 'node:util';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { slotOf, SLOTS } from './slots.ts';
-import { TAKE_MAX, gainTo, nextTake, okCat, rawExt, slugify, takeName, TAKE_RE } from './names.ts';
+import { lenWarn, slotOf, SLOTS } from './slots.ts';
+import { TAKE_MAX, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, TAKE_RE } from './names.ts';
 
 const exec = promisify(execFile);
 /** every ffmpeg/ffprobe call: a hung decoder must not hold the keep queue for ever */
@@ -37,6 +41,9 @@ export const VOX = {
   release: 80,
   /** rumble and desk thumps off; the lowest male fundamental is above it. A 2-pole filter: 50 Hz hum loses ~8 dB */
   highpass: 80,
+  /** the laptop's hiss fills the band above 14 kHz (audio-director, LS2-booth2 listen); the shipped reference rolls off
+   *  near 17 kHz anyway, and nothing in a voice the game needs lives up there */
+  lowpass: 14000,
   /** light FFT denoise for the laptop mic: 10 dB reduction against a tracked noise floor (it learns the room in the
    *  lead-in). Never above 12: consonants start to smear at 15-20 dB. A quiet take is a gain problem, see quiet */
   denoise: 'afftdn=nr=10:nf=-50:tn=1',
@@ -44,10 +51,36 @@ export const VOX = {
    *  or the trim stops at the click and keeps it. A reaction to Space is longer than the head cut */
   click: { head: 0.12, tail: 0.2 },
   /** the head/tail trim's silence gate (peak detection), set per take from the room: the quietest 50 ms of the
-   *  cleaned-up take (astats noise floor, an RMS) plus `over`, which clears the noise's own peaks, clamped to
-   *  [min, max]. A fixed -45 cut soft onsets (the S of SEVERED) on a quiet take; a fixed -55 kept a noisy room's
-   *  tail. Measured before the gain, after the denoise */
+   *  cleaned-up take (astats noise floor: a windowed peak minimum, not an RMS) plus `over`, clamped to [min, max].
+   *  A fixed -45 cut soft onsets (the S of SEVERED) on a quiet take; a fixed -55 kept a noisy room's tail. Measured
+   *  after the denoise, before the expander (which then turns the gaps down under it) and the gain */
   gate: { over: 14, min: -60, max: -40 },
+  /** the downward expander between the phrases (LS2-booth2, audio-director): right after the denoise, before the trim
+   *  and long before the gain and compressor, which otherwise lift the room in every gap to -19..-25 dBFS (the
+   *  reference's gaps sit at -32..-39). Threshold = the room's RMS (astats RMS trough: the quietest 50 ms window,
+   *  clamped to [min, max]) + `over` dB, RMS detection; ratio 3, at most `range` (0.1 = -20 dB) of reduction, a 5 ms
+   *  attack so a word's onset opens it, a 150 ms release so a word's tail decays rather than chops (200 left ~150 ms
+   *  of room at -21 dBFS after each phrase; the audio-director's check: word dips within 1.5 dB of the chain without
+   *  the expander). The trough's clamp tops out at -45, so the threshold never passes -30 dBFS RMS, 8 dB under a
+   *  phrase: a noisy room gets less expansion, never chewed words.
+   *  Not the trim gate's floor: astats' "noise floor" is a windowed *peak* minimum, ~8 dB over the room's RMS, so
+   *  floor + 12 sat on the voice. Before the trim, so the trim gate and the squeeze see the gaps already turned down
+   *  (a -40 dBFS RMS room peaks over the -40 trim gate; untouched, it kept its lead-in room and every pause).
+   *  Measured: production/qa/evidence/ls2-booth2.md */
+  expand: { over: 15, ratio: 3, range: 0.1, attack: 5, release: 150, knee: 4, min: -80, max: -45 },
+  /** a pause inside the take longer than `over` s is cut down to `keep` s, `after` of it kept after the last word
+   *  (its tail and the expander's release) and the rest before the next: a breath between two phrases is what puts a
+   *  hype line past its target. Found with silencedetect at the trim gate, cut with atrim and joined with an `xfade` s
+   *  crossfade (names.ts squeezeCuts);
+   *  silenceremove can't do it, since the pause it keeps is tied to the length that triggers it. Per take, default
+   *  on (the booth's checkbox, ?squeeze=0) */
+  squeeze: { over: 0.4, keep: 0.25, after: 0.15, xfade: 0.005 },
+  /** a raw take whose sample peak (the key clicks cut) reaches this, dBFS, clipped at the input: no processing can
+   *  undo it (Matt's first three takes peaked at +4.8 to +5.9), so the keep is refused and the raw is kept */
+  clipAt: -0.5,
+  /** a raw peak past this, dBFS, is kept with a warning: the booth's meter target is the loudest syllable at -10 to -6
+   *  and never past -3 (audio-director) */
+  hotAt: -3,
   /** kept before the first word and after the last: a soft onset, and the breath or growl a grim line ends on */
   head: 0.09,
   tail: 0.25,
@@ -142,26 +175,96 @@ export async function measure(file: string): Promise<{ lufs: number | null; peak
 /** the demuxer for a raw take, forced: ffmpeg must not probe the bytes into a playlist or any other format */
 const DEMUX: Record<string, string> = { webm: 'matroska', ogg: 'ogg', wav: 'wav', m4a: 'mov' };
 
-/** raw take -> the game's clip: mono, the key clicks cut, highpass, denoise, head/tail trim, fades at the cuts, gain
+/** what a raw take's peak (dBFS) says about the input: 'clip' at or above VOX.clipAt (refused), 'hot' past VOX.hotAt
+ *  (kept, with a warning), else null. The page's meter lights CLIP and HOT on the same rule (booth.ts) */
+export function rawVerdict(peak: number | null): 'clip' | 'hot' | null {
+  if (peak == null || !Number.isFinite(peak)) return null;
+  return peak >= VOX.clipAt ? 'clip' : peak > VOX.hotAt ? 'hot' : null;
+}
+
+/** a raw take that clipped at the input: refused, with its peak */
+export class Clipped extends Error {
+  readonly rawPeak: number;
+  // a plain field, not a parameter property: the CLI (reprocess.mjs) runs this file under Node's type stripping
+  constructor(rawPeak: number) {
+    super(`input clipped (raw peak ${rawPeak > 0 ? '+' : ''}${rawPeak.toFixed(1)} dBFS): lower the mic level and record it again`);
+    this.rawPeak = rawPeak;
+  }
+}
+
+/** the raw take's sample peak, dBFS, over what the chain keeps (the key clicks at both ends cut: a hard Space must not
+ *  fail a good take); null if ffmpeg reports none */
+async function peakOf(input: string[]): Promise<number | null> {
+  // float: left to negotiate, astats takes s16 and an Opus overshoot past full scale reads as 0.0. No mono downmix:
+  // Chrome's MediaRecorder writes two identical channels even for a mono track, and the downmix (0.707 L + 0.707 R)
+  // reads them 3 dB hot, which refused a -1.9 dBFS take as +1.1 (LS2-booth2 e2e). The peak over the channels is
+  // the input's own
+  const af = ['aformat=sample_fmts=flt', `atrim=start=${VOX.click.head}`, 'areverse', `atrim=start=${VOX.click.tail}`, 'areverse',
+    'astats=measure_overall=Peak_level:measure_perchannel=0'].join(',');
+  const { stderr } = await run('ffmpeg', [...input, '-nostats', '-af', af, '-f', 'null', '-']);
+  const m = /Peak level dB:\s*(-?[\d.]+|-?inf)/.exec(stderr);
+  return m && Number.isFinite(+m[1]) ? Math.round(+m[1] * 10) / 10 : null;
+}
+
+const clampTo = (v: number, lo: number, hi: number) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : hi);
+/** the per-take levels, dBFS, from the room after the denoise: the trim gate from astats' noise floor (a windowed
+ *  peak minimum; the gate uses peak detection), clamped to VOX.gate, and the expander threshold from the RMS trough
+ *  (RMS detection), clamped to VOX.expand. Either unmeasurable takes its clamp's top */
+export function levels(floor: number, trough: number): { gate: number; expand: number } {
+  const G = VOX.gate, E = VOX.expand;
+  return { gate: Math.round(clampTo(floor + G.over, G.min, G.max)), expand: Math.round(clampTo(trough, E.min, E.max) + E.over) };
+}
+
+/** raw take -> the game's clip: the clip guard, mono, the key clicks cut, highpass, lowpass, denoise, the expander
+ *  between phrases, head/tail trim, fades at the cuts, the long pauses shortened (unless o.squeeze is false), gain
  *  to VOX.lufs into a gentle voice compressor, the gain again, a 4x-oversampled limiter at the ceiling, 44.1 kHz
  *  Vorbis. Measured after the trim, after the compressor and after the encode (one makeup pass if the limiter still
  *  took the take short) */
-export async function processTake(raw: string, out: string) {
+export async function processTake(raw: string, out: string, o: { squeeze?: boolean } = {}) {
   const ext = path.extname(raw).slice(1), tmp = out.replace(/\.ogg$/, '.tmp.wav');
   const input = ['-hide_banner', '-protocol_whitelist', 'file', '-f', DEMUX[ext], '-i', raw, '-t', '120'];
-  const clean = ['aformat=channel_layouts=mono', `atrim=start=${VOX.click.head}`, 'asetpts=PTS-STARTPTS', `highpass=f=${VOX.highpass}`, VOX.denoise];
-  // pass 0: the room's noise floor under the denoise, for the trim gate
-  const { stderr } = await run('ffmpeg', [...input, '-nostats', '-af', [...clean, 'astats=measure_overall=Noise_floor:measure_perchannel=0'].join(','), '-f', 'null', '-']);
-  const floor = +(/Noise floor dB:\s*(-?[\d.]+)/.exec(stderr)?.[1] ?? NaN);
-  const gate = Number.isFinite(floor) ? Math.round(Math.min(VOX.gate.max, Math.max(VOX.gate.min, floor + VOX.gate.over))) : VOX.gate.max;
+  // the clip guard first: a take that clipped at the input is refused before any work (the raw stays in assets-raw/)
+  const rawPeak = await peakOf(input);
+  if (rawVerdict(rawPeak) === 'clip') throw new Clipped(rawPeak!);
+  const clean = ['aformat=channel_layouts=mono', `atrim=start=${VOX.click.head}`, 'asetpts=PTS-STARTPTS', `highpass=f=${VOX.highpass}`, `lowpass=f=${VOX.lowpass}`, VOX.denoise];
+  // pass 0: the room under the denoise: its noise floor for the trim gate, its RMS trough for the expander (the whole
+  // overall set: astats only reports the trough with it; ffmpeg spells it "RMS through")
+  const { stderr } = await run('ffmpeg', [...input, '-nostats', '-af', [...clean, 'astats=measure_perchannel=0'].join(','), '-f', 'null', '-']);
+  const num = (re: RegExp) => +(re.exec(stderr)?.[1] ?? NaN);
+  const { gate, expand } = levels(num(/Noise floor dB:\s*(-?[\d.]+)/), num(/RMS th?rough dB:\s*(-?[\d.]+)/));
   const trim = (s: number) => `silenceremove=start_periods=1:start_threshold=${gate}dB:start_silence=${s}:detection=peak`;
+  const E = VOX.expand, Q = VOX.squeeze;
   const chain = [
     ...clean,
+    `agate=threshold=${(10 ** (expand / 20)).toFixed(6)}:ratio=${E.ratio}:range=${E.range}:attack=${E.attack}:release=${E.release}:knee=${E.knee}:detection=rms`,
     trim(VOX.head), `afade=t=in:d=${VOX.fadeIn}`,
     'areverse', `atrim=start=${VOX.click.tail}`, 'asetpts=PTS-STARTPTS', trim(VOX.tail), `afade=t=in:d=${VOX.fadeOut}`, 'areverse',
   ].join(',');
   try {
     await run('ffmpeg', [...input, '-loglevel', 'error', '-y', '-af', chain, '-ar', '44100', '-ac', '1', tmp]);
+    let squeezed = 0;
+    const sq = out.replace(/\.ogg$/, '.sq.wav');
+    if (o.squeeze !== false) try {
+      // the long pauses: silencedetect at the trim gate (sample peaks, like the trim), then one aselect over the cuts
+      const sd = await run('ffmpeg', ['-hide_banner', '-nostats', '-f', 'wav', '-i', tmp, '-af', `silencedetect=n=${gate}dB:d=${Q.over}`, '-f', 'null', '-']);
+      const at = (k: string) => [...sd.stderr.matchAll(new RegExp(`silence_${k}: (-?[\\d.]+)`, 'g'))].map((m) => +m[1]);
+      const len = (await measure(tmp)).dur ?? Infinity;
+      const cuts = squeezeCuts(at('start'), at('end'), Q, len);
+      if (cuts.length) {
+        // cut at the sample (atrim; aselect drops whole 4096-sample frames, up to 93 ms off) and join the kept
+        // stretches with a short crossfade (the audio-director: no hard splice in the room)
+        const segs: [number, number | null][] = cuts.map(([a], i) => [i ? cuts[i - 1][1] : 0, a]);
+        segs.push([cuts[cuts.length - 1][1], null]);
+        const g = segs.map(([a, b], i) => `[0:a]atrim=start=${a.toFixed(5)}${b == null ? '' : `:end=${b.toFixed(5)}`},asetpts=PTS-STARTPTS[s${i}]`);
+        let last = 's0';
+        for (let i = 1; i < segs.length; i++) { g.push(`[${last}][s${i}]acrossfade=d=${Q.xfade}:c1=tri:c2=tri[x${i}]`); last = `x${i}`; }
+        await run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', tmp, '-filter_complex', g.join(';'), '-map', `[${last}]`, '-c:a', 'pcm_f32le', '-f', 'wav', sq]);
+        fs.renameSync(sq, tmp);
+        squeezed = Math.round(cuts.reduce((n, [a, b]) => n + b - a, 0) * 100) / 100;
+      }
+    } finally {
+      fs.rmSync(sq, { force: true });
+    }
     const pre = await measure(tmp);
     let g = gainTo(VOX.lufs, pre.lufs);
     if (g == null) throw new Error('the take is silent or too short to measure (did the mic pick anything up?)');
@@ -194,8 +297,11 @@ export async function processTake(raw: string, out: string) {
     } finally {
       fs.rmSync(sat, { force: true });
     }
-    const warn = first > VOX.quiet ? `quiet take (+${first} dB to reach ${VOX.lufs} LUFS): move closer or raise the input gain, or the room's hiss comes up with it` : undefined;
-    return { gain: Math.round(g * 100) / 100, gate, ...m, warn };
+    const warn = [
+      first > VOX.quiet ? `quiet take (+${first} dB to reach ${VOX.lufs} LUFS): move closer or raise the input gain, or the room's hiss comes up with it` : '',
+      rawVerdict(rawPeak) === 'hot' ? `hot take (raw peak ${rawPeak} dBFS, past ${VOX.hotAt}): back off the mic a little` : '',
+    ].filter(Boolean).join('; ') || undefined;
+    return { gain: Math.round(g * 100) / 100, gate, expand, rawPeak, squeeze: o.squeeze !== false, squeezed, ...m, warn };
   } finally {
     fs.rmSync(tmp, { force: true });
   }
@@ -210,6 +316,70 @@ function realDir(base: string, cat: string): string | null {
   if (!fs.lstatSync(d).isDirectory() || fs.lstatSync(base).isSymbolicLink()) return null;
   return fs.realpathSync(d).startsWith(fs.realpathSync(base) + path.sep) ? d : null;
 }
+
+/** a raw take's file name: <slug>-matty-<n>.<ext>, for an extension the chain can demux */
+export const RAW_RE = /^([a-z0-9]+(?:-[a-z0-9]+)*-matty-[1-9]\d{0,3})\.(webm|ogg|wav|m4a)$/;
+
+/** why reprocess left a take as it was, from the error processTake threw */
+export const skipWhy = (e: unknown) => (e instanceof Clipped ? e.message.replace(/: lower.*/, ': kept as it was') : String((e as Error)?.message ?? e));
+
+/** the per-take record kept beside a raw take (<take>.json in assets-raw/voice/<cat>/): the choices a reprocess must
+ *  repeat. Only the pause squeeze today */
+export type TakeOpts = { squeeze: boolean };
+const optsFile = (rdir: string, name: string) => path.join(rdir, name.replace(/\.ogg$/, '.json'));
+/** a take's saved choices, or null for a take kept before LS2-booth2 (or an unreadable record) */
+export function readOpts(rdir: string, name: string): TakeOpts | null {
+  try {
+    const j = JSON.parse(fs.readFileSync(optsFile(rdir, name), 'utf8'));
+    return typeof j?.squeeze === 'boolean' ? { squeeze: j.squeeze } : null;
+  } catch { return null; }
+}
+
+export type Redone = { cat: string; name: string; done: boolean; why?: string; lufs?: number | null; dur?: number | null; long?: string; warn?: string };
+/** re-runs the current chain on every kept raw take of these slots (assets-raw/voice/<cat>/) and rewrites the matching
+ *  src/sfx/<cat>/ take in place, with the pause squeeze the take was kept with (its .json record; o.squeeze for an
+ *  older take), so takes recorded under an older chain are redone without re-recording. Skips a raw
+ *  take with no processed take (deleted on purpose: never brought back), and one whose raw clipped (the old take
+ *  stays as it is). One take at a time; each is processed beside its raw and renamed in. The booth's reprocess
+ *  endpoint and tools/booth/reprocess.mjs both call it */
+export async function reprocess(root: string, cats: string[], o: { squeeze?: boolean; log?: (r: Redone) => void; process?: typeof processTake } = {}): Promise<Redone[]> {
+  const proc = o.process ?? processTake; // a test stands in for ffmpeg here (tests/integration/booth-reprocess.test.ts)
+  const out: Redone[] = [];
+  const sfx = path.join(root, 'src', 'sfx'), rawBase = path.join(root, 'assets-raw', 'voice');
+  // every name checked before any take is touched: a typo must not leave the run half done
+  for (const cat of cats) if (!okCat(cat) || !slotOf(cat)) throw new Error(`booth: ${JSON.stringify(cat)} is not a voice slot`);
+  for (const cat of [...new Set(cats)]) {
+    const slot = slotOf(cat)!;
+    if (!fs.existsSync(path.join(rawBase, cat))) continue;
+    const dir = realDir(sfx, cat), rdir = realDir(rawBase, cat);
+    if (!dir || !rdir) throw new Error(`booth: the ${cat} folder is not a plain folder`);
+    for (const f of list(rdir).sort()) {
+      const m = RAW_RE.exec(f);
+      if (!m) continue;
+      const name = m[1] + '.ogg', dest = path.join(dir, name), part = path.join(rdir, name + '.part.ogg');
+      let r: Redone;
+      if (!fs.existsSync(dest)) r = { cat, name, done: false, why: 'no processed take in src/sfx (deleted, or refused when kept): left alone' };
+      else {
+        try {
+          // the take's own choice when it has one; o.squeeze only for a take kept before the record existed
+          const p = await proc(path.join(rdir, f), part, { squeeze: readOpts(rdir, name)?.squeeze ?? o.squeeze });
+          fs.renameSync(part, dest);
+          r = { cat, name, done: true, lufs: p.lufs, dur: p.dur, long: lenWarn(slot, p.dur), warn: p.warn };
+        } catch (e) {
+          r = { cat, name, done: false, why: skipWhy(e) };
+        } finally {
+          fs.rmSync(part, { force: true });
+        }
+      }
+      o.log?.(r);
+      out.push(r);
+    }
+  }
+  return out;
+}
+
+/** the per-take pause squeeze from a request: on unless squeeze=0 (the booth's checkbox, default on) */
+export const squeezeParam = (q: URLSearchParams) => q.get('squeeze') !== '0';
 
 /** the booth plugin: dev server only */
 export function booth(): Plugin {
@@ -252,8 +422,16 @@ export function booth(): Plugin {
           }
           return send(res, 200, out);
         }
-        if (u.pathname !== '/__booth/take') return send(res, 404, { error: 'booth: no such endpoint' });
+        if (u.pathname !== '/__booth/take' && u.pathname !== '/__booth/reprocess') return send(res, 404, { error: 'booth: no such endpoint' });
         if (!okCat(cat) || !slotOf(cat)) return send(res, 400, { error: `booth: ${JSON.stringify(cat)} is not a voice slot` });
+        const squeeze = squeezeParam(u.searchParams);
+        if (u.pathname === '/__booth/reprocess') {
+          if (req.method !== 'POST') return send(res, 405, { error: 'booth: method' });
+          // in the keep queue: a reprocess and a keep never write the same folder at once
+          const step = queue.then(() => reprocess(root, [cat], { squeeze }));
+          queue = step.catch(() => {});
+          return void step.then((r) => send(res, 200, { takes: r }), (e) => send(res, 500, { error: String(e?.message ?? e).replace(/^booth: /, '') }));
+        }
         if (req.method === 'DELETE') {
           const name = u.searchParams.get('name') ?? '';
           if (!TAKE_RE.test(name)) return send(res, 400, { error: 'booth: not a take name' });
@@ -276,13 +454,14 @@ export function booth(): Plugin {
             if (n > TAKE_MAX) throw new Error(`booth: ${TAKE_MAX} takes of one line; delete some first`);
             const name = takeName(slug, n), raw = path.join(rdir, name.replace(/\.ogg$/, '.' + ext));
             fs.writeFileSync(raw, body, { flag: 'wx' }); // never over an existing file
+            fs.writeFileSync(optsFile(rdir, name), JSON.stringify({ squeeze } satisfies TakeOpts));
             // processed beside the raw and renamed in, so the audio glob never sees a half-written .ogg
             const part = path.join(rdir, name + '.part.ogg'), dest = path.join(dir, name);
             try {
-              const r = await processTake(raw, part);
+              const r = await processTake(raw, part, { squeeze });
               if (fs.existsSync(dest)) throw new Error(`booth: ${name} appeared meanwhile; not overwritten`);
               fs.renameSync(part, dest);
-              return { name, url: `/src/sfx/${cat}/${name}`, raw: path.relative(root, raw), ...r };
+              return { name, url: `/src/sfx/${cat}/${name}`, raw: path.relative(root, raw), ...r, long: lenWarn(slotOf(cat)!, r.dur) };
             } finally {
               fs.rmSync(part, { force: true });
             }
@@ -290,7 +469,10 @@ export function booth(): Plugin {
           queue = step.catch(() => {});
           return step;
         });
-        job.then((r) => send(res, 200, r), (e) => send(res, 500, { error: String(e?.message ?? e).replace(/^booth: /, '') }));
+        // a clipped take is the singer's to fix, not a server fault: 422, with the peak, and the raw kept
+        job.then((r) => send(res, 200, r), (e) => e instanceof Clipped
+          ? send(res, 422, { error: e.message, clipped: true, rawPeak: e.rawPeak })
+          : send(res, 500, { error: String(e?.message ?? e).replace(/^booth: /, '') }));
       });
     },
   };

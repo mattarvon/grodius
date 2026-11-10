@@ -746,3 +746,39 @@ check (jaw open and shut, the real caption font, gore masking on the Fold speake
 7. D18 canon: Matt's face is both the title head and SLAB (narrative-director, writer).
 8. Strip $HOME paths from committed gate logs; smaller evidence PNGs (release-manager).
 
+
+### D51 Voice booth chain after Matt's first takes — merged 2026-11-09 (parent; Matt: "yes set the levels and do the booth change")
+
+**Why.** Matt's first three takes clipped: the laptop mic had +60 dB of gain (Internal Mic Boost +30, Capture +30, source
+100%). audio-director's listen verdict: redo all three; the input was the cause, and the chain also lifted room noise into
+the gaps. The parent set the source to 40% (about -24 dB); PipeWire drives the boost on this path and set it to 0.
+
+**What merged** (ls2-booth2, `98d07f2..7ad5725`, tools/booth and tests only; no game code, nothing in dist): an expander
+between phrases (room average + 15 dB, capped 8 dB under speech, 150 ms release; gaps land about -37 to -41 dBFS); a raw
+clip guard at -0.5 dBFS per channel (the raw is still saved); a length warning (target + 0.5 s; never refuses); a pause
+squeeze (pauses over 0.4 s to 0.25 s, per-take checkbox, default on, the choice saved with the take); meter band -10..-6 with
+HOT at -3 and CLIP at -0.5; reprocess (booth button and `node tools/booth/reprocess.mjs`) over kept raws, skipping clipped
+raws and deleted takes. README: the real input level and "unhurried, fewer pauses, not a faster read".
+
+**Ruling (creative-director):** on CALAMARI SERVED the joke wins over the length target: untick the squeeze and keep the
+beat before SERVED, LONG warning accepted. Squeeze default on is right for SLAB's other lines.
+
+**Gates** on e012f37: typecheck, vitest 1235 + the known `it.fails`, build + dist grep 0 hits. The parent re-ran all three
+on the merged tree. Harness not needed (no src/ change).
+
+**Studio review.** In-lane audio-director, tools-programmer, qa-tester. All 8 leads (localization: no impact) and all 3
+directors APPROVE WITH NOTES; no block. Lead S2s fixed in e012f37.
+
+**Rollback point:** tag `pre-ls2-booth2` on `98d07f2`.
+
+**Next (Matt):** restart the dev server; one test line to confirm peaks land -10..-6 at 40%; re-record the clipped slots;
+audio-director listen (expander tails on real voice) and narrative-director listen (deadpan, one hype line squeeze on/off)
+before the keepers are committed as one batch with their own studio pass. Reprocessed .ogg files always get their own
+commit.
+
+**Owned items (backlog, S3):** B1 meter readability (art-director spec, tools-programmer); B2 flat-top clip warning
+(audio-director); B3 squeeze rules: cap long pauses at 0.4 s, default off for slots with no length target, the ufo note
+says untick (decide after the listen); B4 quiet-take expander release; B5 a 4-pole lowpass if hiss is heard; B6 code health
+(extract processTake, skipWhy coupling, RAW_RE match, brittle source pins, queue/422 test; one writeTake() if a third caller
+appears); B7 kill-word timing probe and proportional slack (game-designer); B8 smaller spectrogram PNGs; B9 per-locale voice
+limits if dubbing is ever in scope.
