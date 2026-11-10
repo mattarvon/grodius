@@ -7,6 +7,10 @@
 // (tools/booth/text.ts) imports HYPE and CARN from src/fx/update.ts and each midboss's kill word from its
 // defineMid() row. `copy` is the fallback for a line the game only has as a literal inside a function (TAKEN DOWN,
 // the corpse's caption, LESLEY's clip name); tests/unit/booth.test.ts fails if a copy drifts from the source.
+//
+// SLAB's quips (LS2-quips) are not in SLOTS: they come from src/voice/quips.json, which the booth edits, so their
+// slots are built from the list (quipSlot) and every allowlist check goes through voiceSlot(cat, quips).
+import { QUIP, quipCat, quipLines, type Quip } from '../../src/voice/quiplist.ts';
 
 /** where the game holds the words for a slot */
 export type TextSrc =
@@ -37,6 +41,8 @@ export interface Slot {
   maxLen?: number;
   /** a delivery note for this one line, on top of its caller's DIRECTION */
   note?: string;
+  /** one of SLAB's quips (src/voice/quips.json): the words are its text, the booth can edit or delete it */
+  quip?: Quip;
 }
 
 /** how each caller reads (LS2 review: narrative-director, game-designer, audio-director) */
@@ -46,7 +52,7 @@ export const DIRECTION: Record<string, string> = {
   'LESLEY, MISSION CONTROL': 'Mission control at the launch: the one line that is not grim. Keep it apart from SLAB.',
 };
 /** per-kind length targets, seconds: the read to aim for (the booth shows it on the line) */
-export const MAX_LEN = { hype: 2, bossreward: 2, kill: 1.2, carn5: .8 } as const;
+export const MAX_LEN = { hype: 2, bossreward: 2, kill: 1.2, carn5: .8, quip: 2 } as const;
 /** how far past its target a processed take may run before the booth warns (LS2-booth2, audio-director): half a second
  *  over is still a usable line; past that a kill word lands over the next fight. A warning, never a refusal */
 export const LEN_SLACK = 0.5;
@@ -126,3 +132,26 @@ export const SLOTS: Slot[] = [
 
 /** the slot for a category, or undefined: the plugin's allowlist */
 export const slotOf = (cat: string) => SLOTS.find((s) => s.cat === cat);
+
+/** a quip's slot: SLAB's, filed under its fixed id (the text may change, the take names never do), wired through
+ *  audio.ts quipAfterKill */
+export const quipSlot = (q: Quip): Slot => ({
+  cat: quipCat(q.id),
+  slug: q.id,
+  quip: q,
+  copy: { lines: quipLines(q.text), from: 'src/voice/quips.json', lit: q.text },
+  when: `a quip: after a midboss's kill word or a stage boss's TAKEN DOWN, ${Math.round(QUIP.chance * 100)}% of the time, never twice running (audio.ts quipAfterKill)`,
+  caller: SLAB,
+  wired: true,
+  test: `stage=orbit&vox=${quipCat(q.id)}`,
+  maxLen: MAX_LEN.quip,
+  ...(q.note ? { note: q.note } : {}),
+});
+
+/** the slot for a category among the fixed slots and the quip list, or undefined: the plugin's allowlist */
+export const voiceSlot = (cat: string, quips: readonly Quip[]): Slot | undefined => {
+  const s = slotOf(cat);
+  if (s) return s;
+  const q = quips.find((x) => quipCat(x.id) === cat);
+  return q ? quipSlot(q) : undefined;
+};

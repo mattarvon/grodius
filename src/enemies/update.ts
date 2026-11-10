@@ -5,7 +5,7 @@ const VOL = { on: 0 };
 import { clearStage, deepPay } from '../stages';
 import { FIRE, PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '../core';
 import { SET, lv } from '../save';
-import { sample, sfx } from '../audio';
+import { quipAfterKill, sample, sfx } from '../audio';
 import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world';
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
@@ -666,6 +666,8 @@ export function killEnemy(e, dir = 1) {
     // `at` lets the death roar land first; a line already talking puts it in the queue (audio.ts sample). Audio only:
     // sample() draws ar(), never R(), and returns false at once with no context (the harness)
     sample('kill-' + e.k, { vol: 1.15, spread: .02, wet: .16, at: KILL_WORD_AT });
+    // then, at QUIP.chance, one of his quips queued behind it (LS2-quips; audio only, ar() draws)
+    quipAfterKill(M?.word, KILL_WORD_AT);
     if (M?.kill) M.kill(e);
     // first-kill pay is for the midboss kinds (e.mid: the biome midbosses and the Saucer), the ones a player discovers
     // (spec §6.4, the meta.mb kinds). Maws don't pay: one recurs every Open Orbit, so it is never a kind to discover

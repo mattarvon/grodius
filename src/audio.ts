@@ -2,6 +2,8 @@
 import { SET } from './save';
 import { duckMusic, curBiome } from './music';
 import { BIOME_KILL, KILL_LAYER } from './audiomix';
+import { QUIPS } from './voice/quips';
+import { normText, pickQuip, quipCat, quipLines } from './voice/quiplist';
 
 // ---------------- audio ----------------
 export const AU = {
@@ -110,8 +112,9 @@ export const VOICE_GAP = .25;
 const LIVE: { s: any; g: any; prio: boolean; cat: string; t0: number }[] = [];
 // voice lines: they duck the music and set AU.voice/SOLO, so evicting one would cut it mid-word and leave those pointing
 // at a dead take. Eviction skips them (sound-designer review)
-// (kill-<k>: a midboss's kill word; carn5: OPENED, the 5-chain. Both folders are SGT. RAMROD SLAB's, LS2-slab)
-const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|kill-|carn5)/;
+// (kill-<k>: a midboss's kill word; carn5: OPENED, the 5-chain; quip-<id>: Matt's one-liners after a big kill,
+// LS2-quips. All SGT. RAMROD SLAB's)
+const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|kill-|carn5|quip-)/;
 function loadBank(A) {
   for (const [p, u] of Object.entries(SFX_URLS)) {
     const cat = p.split('/')[2];
@@ -184,6 +187,26 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   if (o.solo) SOLO[cat] = AU.c.currentTime + at + L[i].duration / s.playbackRate.value;
   if (VOICE_CAT.test(cat)) duckMusic(at + L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, at);
   return true;
+}
+/** the quip said last: the next one is another, while another is recorded */
+let lastQuip: string | null = null;
+/** after a big kill (a midboss's kill word, a stage boss's TAKEN DOWN), maybe one of SLAB's quips
+ *  (src/voice/quips.json, LS2-quips): QUIP.chance of one, picked among the quips with a take in the bank, never the
+ *  last one again, never one whose words are the kill word just said. It queues behind that line on the audio clock
+ *  (sample()), so game over drops it and a new game cuts it like any voice line (D50). Audio only: the roll and the
+ *  pick draw ar(), never R(), and with no running context (the harness, muted) nothing is drawn at all. `force`
+ *  skips the roll (the ?vox=quip test hook). Returns the quip id played, or null */
+export function quipAfterKill(word = '', at = 0, force = false): string | null {
+  if (!AU.c || SET.muted || AU.c.state !== 'running') return null;
+  const said = normText(word), ready: string[] = [], avoid: string[] = [];
+  for (const q of QUIPS) {
+    if (!BANK[quipCat(q.id)]?.length) continue;
+    ready.push(q.id);
+    if (said && quipLines(q.text).join(' ') === said) avoid.push(q.id);
+  }
+  const id = pickQuip(ready, lastQuip, ar, force ? 1 : undefined, avoid);
+  if (id == null || !sample(quipCat(id), { vol: 1.15, spread: .02, wet: .16, at })) return null;
+  return (lastQuip = id);
 }
 /** the voice line now talking: render/hype.ts puts a comms-window face to it (clip = file stem, t0/t1 = AU.c clock) */
 export function voiceOn(cat, buf, rate = 1, at = 0) {

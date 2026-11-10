@@ -4,8 +4,9 @@
 // take stays as it was), and so is one whose processed take was deleted (never brought back).
 //
 // Usage: node tools/booth/reprocess.mjs <folder>... | --all [--no-squeeze] [--root <repo>]
-//   <folder>      a voice slot folder (hype10, bossreward, kill-ufo, ...): tools/booth/slots.ts
-//   --all         every slot
+//   <folder>      a voice slot folder (hype10, bossreward, kill-ufo, ...): tools/booth/slots.ts, or a quip's
+//                 (quip-<id>, src/voice/quips.json)
+//   --all         every slot and every quip
 //   --no-squeeze  for a take kept before LS2-booth2 (no .json record beside its raw): keep the mid-take pauses as
 //                 recorded (default: pauses over 0.4 s shortened to 0.25 s). A newer take repeats its own setting
 //   --root        the repo to work in (default: the one this file is in)
@@ -15,11 +16,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { reprocess } from './plugin.ts';
+import { readQuips, reprocess } from './plugin.ts';
 import { parseArgs } from './args.ts';
 
 const here = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const parsed = parseArgs(process.argv.slice(2), here, (r) => fs.existsSync(path.join(path.resolve(r), 'src', 'sfx')));
+const parsed = parseArgs(process.argv.slice(2), here, (r) => fs.existsSync(path.join(path.resolve(r), 'src', 'sfx')), (r) => readQuips(path.resolve(r)).quips);
 if ('error' in parsed) { console.error(parsed.error); process.exit(2); }
 const { cats, squeeze } = parsed, root = path.resolve(parsed.root);
 let done = 0, skipped = 0;

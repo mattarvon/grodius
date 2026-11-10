@@ -9,7 +9,9 @@
 // hype(n) is the real thing: it writes $.G.hype (run state) from a timer outside step(). Harmless in a hand test;
 // never put ?vox= in a harness scenario. Without ?vox= nothing here runs. No sim RNG is drawn (sample() uses ar()).
 import { $ } from './state';
-import { BANK, audioRunning, sample } from './audio';
+import { BANK, audioRunning, quipAfterKill, sample } from './audio';
+import { QUIPS } from './voice/quips';
+import { quipCat } from './voice/quiplist';
 import { HYPE, hype } from './fx/update';
 import { KILL_WORD_AT } from './enemies/update';
 import { MID_SIM } from './enemies/mid/roster';
@@ -25,6 +27,11 @@ export const VOX_FIRE: Record<string, { state: string; fire: () => unknown }> = 
   carn5: { state: 'play', fire: () => sample('carn5', { vol: 1.15, spread: .02, wet: .16, queue: false }) },
 };
 for (const n of Object.keys(HYPE)) VOX_FIRE['hype' + n] = { state: 'play', fire: () => hype(+n) };
+// SLAB's quips (LS2-quips): ?vox=quip-<id> plays that quip with the game's own call (audio.ts quipAfterKill, the roll
+// skipped); ?vox=quip plays one of the recorded quips, as after a big kill, with the roll skipped and the no-repeat rule
+// kept. The booth's T opens quip-<id>
+for (const q of QUIPS) VOX_FIRE[quipCat(q.id)] = { state: 'play', fire: () => sample(quipCat(q.id), { vol: 1.15, spread: .02, wet: .16 }) };
+VOX_FIRE.quip = { state: 'play', fire: () => quipAfterKill('', 0, true) };
 /** a midboss's kill word (enemies/update.ts killEnemy, the same call); added at boot, once every kind has registered */
 const killFire = () => {
   for (const k in MID_SIM) VOX_FIRE['kill-' + k] ||= { state: 'play', fire: () => sample('kill-' + k, { vol: 1.15, spread: .02, wet: .16, at: KILL_WORD_AT }) };
@@ -46,7 +53,8 @@ export function voxBoot(search: string) {
   let waited = 0;
   const id = setInterval(() => {
     if (!audioRunning()) return void (tip.textContent = `VOX ${cat}: click or press a key to start audio`);
-    const all = BANK[cat] || [], pick = clip ? all.filter((b) => b.clip === clip) : all;
+    // ?vox=quip has no folder of its own: it is ready once any quip has a take
+    const all = cat === 'quip' ? QUIPS.flatMap((q) => BANK[quipCat(q.id)] || []) : BANK[cat] || [], pick = clip ? all.filter((b) => b.clip === clip) : all;
     if (!pick.length) {
       // clips decode one by one after the audio starts: give them a few seconds before calling one missing
       if ((waited += 250) > 4000) tip.textContent = clip ? `VOX ${cat}: no take ${clip} in src/sfx/${cat}/` : `VOX ${cat}: no takes in src/sfx/${cat}/`;
@@ -55,7 +63,7 @@ export function voxBoot(search: string) {
     if ($.state !== v.state) return void (tip.textContent = `VOX ${cat}: waiting for the ${v.state} screen`);
     clearInterval(id);
     // hype() plays its clip 120 ms after the sting: the narrowed bank stays up until that has been picked
-    if (clip) BANK[cat] = pick;
+    if (clip && cat !== 'quip') BANK[cat] = pick;
     v.fire();
     if (clip) setTimeout(() => (BANK[cat] = [...new Set([...all, ...BANK[cat]])]), 600); // keeps any clip that decoded meanwhile
     tip.textContent = `VOX ${cat}: fired ${clip || `one of ${all.length} take${all.length === 1 ? '' : 's'}`}. Reload to hear it again`;

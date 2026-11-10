@@ -4,7 +4,7 @@
 // An escaped boss grades C and pays its score but no biomass; it still counts toward the seals (D5b).
 import { $ } from './state';
 import { save } from './save';
-import { sample, sfx } from './audio';
+import { quipAfterKill, sample, sfx } from './audio';
 import { banner } from './enemies/spawn';
 import { buzz } from './platform';
 import { BIOMES, openFork, holdForFork, biomeExit } from './biomes';
@@ -94,7 +94,8 @@ export function clearStage(escaped = false) {
   sfx.stageClear();
   buzz('heavy');
   // boss-kill reward line (src/sfx/bossreward/, random pick if there are several; none loaded since Matt shelved THE KEYSTER, see src/sfx-shelved/README.md, so sample() returns false and nothing plays); waits out the death roar
-  if (!escaped) G.pend.push({ t: 50, f: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) });
+  // then, at QUIP.chance, one of SLAB's quips queued behind TAKEN DOWN (LS2-quips; audio only, ar() draws)
+  if (!escaped) G.pend.push({ t: 50, f: () => { sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }); quipAfterKill('TAKEN DOWN'); } });
   const breakSeal = () => { if (seal > (G.seal || 0)) { G.seal = seal; banner('SEAL BROKEN', 'UNLOCKED: ' + SEAL_TXT[seal], '#ffd23a', 230); sfx.alarm(); } };
   const r = row(G.stage), seg = forkAfter(G.stage); // seg: the biome slot whose fork this clear opens, or -1
   // at a fork the seal waits until you're through the gate (its banner would bury the gate prompt), see startStage

@@ -8,7 +8,7 @@ const noop = () => {};
 const pops: string[] = [];
 vi.mock('../../src/core', () => ({ FIRE: {}, PH: 270, R: () => .99, TAU: Math.PI * 2, W: 480, clamp: (v: number) => v, dist2: () => 1e9, lerp: (a: number) => a, pick: (a: any[]) => a[0], ri: () => 0, rr: () => 0, sstep: (v: number) => v }));
 vi.mock('../../src/save', () => ({ SET: {}, lv: () => 0 }));
-vi.mock('../../src/audio', () => ({ sample: () => {}, sfx: new Proxy({}, { get: () => () => {} }) }));
+vi.mock('../../src/audio', () => ({ sample: () => {}, quipAfterKill: () => null, sfx: new Proxy({}, { get: () => () => {} }) }));
 vi.mock('../../src/world', () => ({ caps: [], ceilAt: () => 0, enemies: [], eshots: [], floorAt: () => 270, geysers: [], orbs: [] }));
 vi.mock('../../src/fx/spawn', () => ({ drop: noop, flash: noop, gib: noop, gore: noop, mist: noop, pop: (_x: number, _y: number, t: string) => pops.push(t), spark: noop, splat: noop }));
 vi.mock('../../src/perks', () => ({ gainXP: () => {}, pk: () => 0, spillSlick: () => {} }));
