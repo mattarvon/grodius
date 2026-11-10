@@ -107,7 +107,7 @@ export const VOICE_CAP = 15;
 /** seconds of air between a voice line and the one queued behind it */
 export const VOICE_GAP = .25;
 // AU.c is created once. If the context is ever recreated, clear LIVE with it: a dead context's sources never fire onended
-const LIVE: { s: any; g: any; prio: boolean; cat: string }[] = [];
+const LIVE: { s: any; g: any; prio: boolean; cat: string; t0: number }[] = [];
 // voice lines: they duck the music and set AU.voice/SOLO, so evicting one would cut it mid-word and leave those pointing
 // at a dead take. Eviction skips them (sound-designer review)
 // (kill-<k>: a midboss's kill word; carn5: OPENED, the 5-chain. Both folders are SGT. RAMROD SLAB's, LS2-slab)
@@ -171,10 +171,12 @@ export function sample(cat, o: { vol?: number; rate?: number; spread?: number; w
   const s = AU.c.createBufferSource(), g = AU.c.createGain();
   s.buffer = L[i];
   s.playbackRate.value = (o.rate ?? 1) * (1 + (ar() * 2 - 1) * (o.spread ?? .14));
-  g.gain.value = (o.vol ?? 1) * (.8 + ar() * .3);
+  // a voice line's level jitters less (.95-1.05): the booth already matched every take to -12 LUFS, and a line coming in
+  // 2 dB quiet reads as a different mic (audio-director, LS2 review). Still one ar() draw either way
+  g.gain.value = (o.vol ?? 1) * (voice ? .95 + ar() * .1 : .8 + ar() * .3);
   s.connect(g);
   route(g, o.wet ?? .2);
-  const v = { s, g, prio: !!o.prio, cat };
+  const v = { s, g, prio: !!o.prio, cat, t0: AU.c.currentTime + at };
   LIVE.push(v);
   AU.lastCat = cat; // test hook
   s.onended = () => { const k = LIVE.indexOf(v); if (k >= 0) LIVE.splice(k, 1); };
@@ -189,7 +191,45 @@ export function voiceOn(cat, buf, rate = 1, at = 0) {
   AU.voice = { cat, clip: buf.clip || cat, t0, t1: t0 + buf.duration / rate };
   // every line still talking or waiting its turn, in order: the comms window shows the one talking now (AU.voice is
   // the last one scheduled, which the queue in sample() waits behind)
-  AU.voiceQ = (AU.voiceQ || []).filter((v) => v.t1 + .25 > now).concat(AU.voice);
+  AU.voiceQ = (AU.voiceQ || []).filter((v) => v.t1 + VOICE_GAP > now).concat(AU.voice);
+}
+/** game over: every voice line queued but not yet started is dropped; the one already talking finishes (audio only) */
+export function voiceDropQueued() {
+  if (!AU.c) return;
+  const now = AU.c.currentTime;
+  for (let k = LIVE.length - 1; k >= 0; k--) {
+    const v = LIVE[k];
+    if (!VOICE_CAT.test(v.cat) || v.t0 <= now) continue;
+    v.s.onended = null;
+    v.s.stop(); // a source stopped before its start time never plays
+    LIVE.splice(k, 1);
+  }
+  AU.voiceQ = (AU.voiceQ || []).filter((v) => v.t0 <= now);
+  AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
+}
+/** a new game forgets the last spoken OPENED (fx/update.ts opened), so a fresh run's first 5-chain speaks */
+export function resetOpened() {
+  AU.openedAt = -1e9;
+}
+/** seconds the voice fades over when a new game or the title cuts it off: short enough to feel cut, long enough not to click */
+export const VOICE_CUT = .06;
+/** a new game or the title: every voice line (talking or queued) stops with a VOICE_CUT fade, and the comms window
+ *  has nothing left to show (audio only) */
+export function voiceStopAll() {
+  if (AU.c) {
+    const now = AU.c.currentTime;
+    for (let k = LIVE.length - 1; k >= 0; k--) {
+      const v = LIVE[k];
+      if (!VOICE_CAT.test(v.cat)) continue;
+      v.s.onended = null;
+      v.g.gain.setTargetAtTime(0, now, VOICE_CUT / 3);
+      v.s.stop(now + VOICE_CUT);
+      LIVE.splice(k, 1);
+    }
+  }
+  for (const k in SOLO) if (VOICE_CAT.test(k)) delete SOLO[k];
+  AU.voice = null;
+  AU.voiceQ = [];
 }
 export function thr(k, ms) {
   const n = performance.now();

@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // menus.ts pulls in audio, input, flow and contraptions, which touch the canvas, DOM or audio at import time
-vi.mock('../../src/audio', () => ({ auInit: () => {}, sample: () => false, setMute: () => {}, sfx: { menu: () => {}, deny: () => {}, power: () => {} } }));
+vi.mock('../../src/audio', () => ({ auInit: () => {}, sample: () => false, setMute: () => {}, voiceStopAll: () => {}, sfx: { menu: () => {}, deny: () => {}, power: () => {} } }));
 vi.mock('../../src/input', () => ({ I: {}, PR: new Set() }));
 const { I } = await import('../../src/input');
 vi.mock('../../src/platform', () => ({ NATIVE: false }));

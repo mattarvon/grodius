@@ -32,7 +32,21 @@ export interface Slot {
   wired: boolean;
   /** query the booth's "test in game" button opens the game with (src/vox.ts fires the moment) */
   test?: string;
+  /** longest the processed take should run, seconds: past it the booth warns (LS2 review: a kill word lands over the
+   *  next fight, OPENED over the next chain) */
+  maxLen?: number;
+  /** a delivery note for this one line, on top of its caller's DIRECTION */
+  note?: string;
 }
+
+/** how each caller reads (LS2 review: narrative-director, game-designer, audio-director) */
+export const DIRECTION: Record<string, string> = {
+  'SGT. RAMROD SLAB': 'Flat, low, unhurried: gallows deadpan from a tired controller. Not a hype yell; no exclamation marks.',
+  'CREWMAN #5 // DECEASED': 'Not SLAB: a dead crewman, thinner and wetter, pleading and still polite to the end ("sir").',
+  'LESLEY, MISSION CONTROL': 'Mission control at the launch: the one line that is not grim. Keep it apart from SLAB.',
+};
+/** per-kind length targets, seconds */
+export const MAX_LEN = { hype: 2, bossreward: 2, kill: 1.2, carn5: .8 } as const;
 
 // Matt, 2026-11-09: every new recorded line (hype, bossreward, the kill words, carn5) is SGT. RAMROD SLAB, his own face
 // on the comms window (LS2-slab: render/hype.ts maps these folders to it; the booth shows the game's own mapping)
@@ -44,6 +58,7 @@ const hype = (n: number): Slot => ({
   caller: SLAB,
   wired: true,
   test: `stage=orbit&vox=hype${n}`,
+  maxLen: MAX_LEN.hype,
 });
 const kill = (k: string): Slot => ({
   cat: 'kill-' + k,
@@ -52,6 +67,9 @@ const kill = (k: string): Slot => ({
   caller: SLAB,
   wired: true,
   test: `stage=orbit&vox=kill-${k}`,
+  maxLen: MAX_LEN.kill,
+  // the Saucer's word is Matt's one joke in the kill words (CALAMARI SERVED, LS2-tts)
+  ...(k === 'ufo' ? { note: 'The one line read as a joke: a dry punchline, still in his deadpan.' } : {}),
 });
 
 export const SLOTS: Slot[] = [
@@ -63,6 +81,7 @@ export const SLOTS: Slot[] = [
     caller: SLAB,
     wired: true,
     test: 'stage=orbit&vox=bossreward',
+    maxLen: MAX_LEN.bossreward,
   },
   {
     cat: 'corpsevoice',
@@ -90,6 +109,7 @@ export const SLOTS: Slot[] = [
     caller: SLAB,
     wired: true,
     test: 'stage=orbit&vox=carn5',
+    maxLen: MAX_LEN.carn5,
   },
 ];
 

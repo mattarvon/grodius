@@ -4,7 +4,7 @@ import { C, FONT_D, FONT_H, TAU, W, ctx, sstep } from '../core';
 import { drawChain, poly, txt } from '../render/util';
 import { drawEShots } from '../render/hud';
 import { SPR, srnd } from '../sprites';
-import { AU } from '../audio';
+import { AU, VOICE_GAP } from '../audio';
 
 // --- hype man: SGT. RAMROD SLAB ---
 export function drawSlab(c, jaw, t) {
@@ -169,8 +169,8 @@ export function drawSlab(c, jaw, t) {
 // incoming transmission, flaps its jaw while the clip plays (audio.ts voiceOn() stamps clip name + start/end on the
 // audio clock) and glitches out after. Without recorded audio (muted, or a shelved bank) it follows $.G.hype.
 // Render-only: all flicker comes from srnd() / $.T, never the gameplay RNG.
-// SGT. RAMROD SLAB is Matt (2026-11-09: 'I am RAMROD SLAB'): his own baked head, src/sprites/slab@3.png (generator outside
-// the repo, ~/Pictures/grodius-head/gen_comms2.py, beside the private source), not a Reticulan. SLAB_FACE picks that sheet
+// SGT. RAMROD SLAB is Matt (2026-11-09: 'I am RAMROD SLAB'): his own baked head, src/sprites/slab@3.png (baked by a generator
+// kept outside the repo, beside the private source), not a Reticulan. SLAB_FACE picks that sheet
 const SLAB_FACE = -1, SLAB = 'SGT. RAMROD SLAB';
 // every new recorded line is his (LS2-slab): matched on the folder, since the booth names a take after its words
 const SLAB_CAT = /^(hype\d+|bossreward|kill-[a-z]+|carn5)$/;
@@ -193,13 +193,14 @@ export const voiceOf = (clip = '', cat = '') => {
 };
 const FW = 48, FH = 52, OPEN = 7, STATIC = 12, CLOSE = 16;
 let cur = null; // { clip, cat, v (linked AU.voice), t ($.T opened), out ($.T closing), L }
-const vLive = (v, now) => v && now > v.t0 - .3 && now < v.t1 + .25;
+// the window holds VOICE_GAP after a line ends: the air sample() leaves before the next queued line
+const vLive = (v, now) => v && now > v.t0 - .3 && now < v.t1 + VOICE_GAP;
 function hypeSource(now) {
   // lines queue on the audio clock (audio.ts sample): the window shows the one talking now, or, in the hand-over, the
   // one about to
   const q = AU.voiceQ || [], v = q.find((x) => vLive(x, now) && now < x.t1) || q.find((x) => vLive(x, now));
   // a chain's caption shows from its hype call, even while its line waits behind another caller's
-  const hypeL = $.G.hype && q.some((x) => /^hype/.test(x.cat) && now < x.t1 + .25) ? $.G.hype.L : null;
+  const hypeL = $.G.hype && q.some((x) => /^hype/.test(x.cat) && now < x.t1 + VOICE_GAP) ? $.G.hype.L : null;
   if (v) return { v, clip: v.clip, cat: v.cat, L: hypeL };
   // an unvoiced chain caption (the hype bank is shelved, D39) has no caller: no face and no tag (the held renames,
   // D42 item 1). It used to fall back to SGT. RAMROD SLAB's face

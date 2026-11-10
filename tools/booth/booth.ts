@@ -3,7 +3,7 @@
 // at the moment that plays it. Imports only the leaf modules (slots, names) and no CSS: anything that pulls in the
 // Vite client would make every keep reload this page (tests/unit/booth.test.ts pins it). The words come from the
 // game through the hidden text frame (text.ts).
-import { SLOTS, type Slot } from './slots';
+import { DIRECTION, SLOTS, type Slot } from './slots';
 import { slugify } from './names';
 
 const $id = (id: string) => document.getElementById(id)!;
@@ -213,7 +213,9 @@ async function keep() {
     S.kept = { ...k, src: `${k.url}?t=${Date.now()}` };
     discard(true);
     S.phase = 'saved';
-    say(`Kept ${k.name}: ${k.lufs} LUFS, peak ${k.peak} dBTP, ${k.dur?.toFixed?.(2)} s (gain ${k.gain > 0 ? '+' : ''}${k.gain} dB).` + (k.warn ? ' ' + k.warn + '.' : ''), k.warn ? 'warn' : '');
+    // a take past its slot's length target lands over the next moment (a kill word over the next fight)
+    const long = s.maxLen && k.dur > s.maxLen ? ` Longer than the ${s.maxLen} s target for this line: tighten the read.` : '';
+    say(`Kept ${k.name}: ${k.lufs} LUFS, peak ${k.peak} dBTP, ${k.dur?.toFixed?.(2)} s (gain ${k.gain > 0 ? '+' : ''}${k.gain} dB).` + (k.warn ? ' ' + k.warn + '.' : '') + long, k.warn || long ? 'warn' : '');
     await refreshTakes();
     (document.getElementById('keptplay') as HTMLAudioElement | null)?.play().catch(() => {});
   } catch (e) {
@@ -290,9 +292,10 @@ function draw() {
   const g = S.text[s.cat], tag = g?.tag ?? s.caller;
   const face = g?.tag && g.tag !== s.caller ? `<br><b class="warn">In game:</b> the comms window calls this ${esc(g.tag)}, not ${esc(s.caller)}.` : '';
   $id('view').innerHTML = `
-    <div class="who">${faceImg(g?.face)}<div class="caller">${esc(tag)}</div></div>
+    <div class="who">${faceImg(g?.face)}<div><div class="caller">${esc(tag)}</div>
+      <div class="dir">${esc(DIRECTION[tag] ?? '')}${s.note ? ' <b>' + esc(s.note) + '</b>' : ''}</div></div></div>
     <div class="line">${linesOf(s).map(esc).join('<br>') || '?'}</div>
-    <div class="when">${esc(s.when)}${mid ? ' &middot; ' + esc(mid) : ''} &middot; files as <code>src/sfx/${esc(s.cat)}/${esc(slugOf(s))}-matty-N.ogg</code>
+    <div class="when">${esc(s.when)}${mid ? ' &middot; ' + esc(mid) : ''} &middot; files as <code>src/sfx/${esc(s.cat)}/${esc(slugOf(s))}-matty-N.ogg</code>${s.maxLen ? ` &middot; <b>${s.maxLen} s or less</b>` : ''}
       ${s.wired ? '' : '<br><b class="warn">Recorded, not wired:</b> the game does not play this folder yet.'}${face}</div>
     <div class="row">
       <button id="b-rec" class="rec${P === 'rec' ? ' on' : ''}" ${P === 'saving' || P === 'arming' ? 'disabled' : ''}>${P === 'rec' ? 'Stop' : P === 'review' ? 'Record again' : 'Record'} <kbd>Space</kbd></button>

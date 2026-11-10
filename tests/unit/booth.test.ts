@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import { CAT_RE, SLUG_MAX, TAKE_MAX, TAKE_RE, gainTo, nextTake, okCat, rawExt, slugify, takeName } from '../../tools/booth/names';
-import { SLOTS, slotOf } from '../../tools/booth/slots';
+import { DIRECTION, MAX_LEN, SLOTS, slotOf } from '../../tools/booth/slots';
 import { guard } from '../../tools/booth/plugin';
 
 const src = (f: string) => fs.readFileSync(f, 'utf8');
@@ -188,6 +188,24 @@ describe('the slot list', () => {
   it("gives SGT. RAMROD SLAB's face to exactly the slots the booth says are his (render/hype.ts SLAB_CAT, by folder)", () => {
     const re = new RegExp(/const SLAB_CAT = \/(.+)\/;/.exec(src('src/render/hype.ts'))![1]);
     for (const s of SLOTS) expect(re.test(s.cat), s.cat).toBe(s.caller === 'SGT. RAMROD SLAB');
+  });
+});
+
+describe('delivery direction and length targets (LS2 review)', () => {
+  it('gives every caller a delivery note, and SLAB is a deadpan, not a hype yell', () => {
+    for (const s of SLOTS) expect(DIRECTION[s.caller], s.caller).toBeTruthy();
+    expect(DIRECTION['SGT. RAMROD SLAB']).toMatch(/deadpan/i);
+    expect(DIRECTION['SGT. RAMROD SLAB']).toMatch(/not a hype yell/i);
+  });
+  it('reads CALAMARI SERVED, and only it, as a joke', () => {
+    expect(SLOTS.filter((s) => /joke/i.test(s.note ?? '')).map((s) => s.cat)).toEqual(['kill-ufo']);
+  });
+  it('sets the length target by kind: OPENED .8 s, kill words 1.2 s, hype and TAKEN DOWN 2 s', () => {
+    expect(MAX_LEN).toEqual({ hype: 2, bossreward: 2, kill: 1.2, carn5: .8 });
+    for (const s of SLOTS) {
+      const want = s.cat === 'carn5' ? .8 : s.cat.startsWith('kill-') ? 1.2 : /^(hype|bossreward)/.test(s.cat) ? 2 : undefined;
+      expect(s.maxLen, s.cat).toBe(want);
+    }
   });
 });
 

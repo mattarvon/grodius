@@ -18,6 +18,11 @@ Open **http://localhost:5173/booth.html**, or whichever port Vite prints. Use `l
 
 Allow the mic when the browser asks, then click once anywhere so the level meter starts.
 
+**Check the mic path is raw.** The booth turns off the browser's echo cancel, noise suppression and auto gain. PipeWire
+can still run its own echo-cancel or noise-suppression module on the mic: the booth then records a pumping, gated
+voice, and its own denoise works on top of that. Check with `pw-cli ls Node | grep -i -E "echo|noise|rnnoise"` (or
+the KDE audio settings) that the input you pick is the plain device, not an `echo-cancel` / `rnnoise` virtual source.
+
 Never tunnel or port-forward the dev server (ngrok, cloudflared, ssh -L). The booth refuses forwarded requests, but a
 tunnel is the one way in from outside.
 
@@ -25,11 +30,18 @@ tunnel is the one way in from outside.
 
 1. **Pick the mic** in the header. The laptop mic works now; plug in a USB mic later and choose it, and the booth
    remembers the choice.
-   - The meter shows the input level. **CLIP** lights when you hit full scale, and a clipped take says so.
+   - The meter shows the input level. Aim your peaks inside the marked band, about **-18 to -6 dBFS**. **CLIP**
+     lights when you hit full scale, and a clipped take says so.
    - If the mic is unplugged, the booth says so. Pick another, or press Space to retry the default.
 2. **Pick a line** on the left.
    - The script is the game's own text (the HYPE captions, the kill words, the chain word), read from the game modules.
-   - Each row shows its folder, its take count, its caller, and whether the game plays it yet. The caller's face and
+   - Each row shows its folder, its take count, its caller, and whether the game plays it yet. The line shows its
+     delivery direction and a length target:
+     - **SGT. RAMROD SLAB**: flat, low, unhurried gallows deadpan, not a hype yell. CALAMARI SERVED is his one line
+       read as a joke.
+     - **CREWMAN #5**: a distinct voice.
+     - **Length targets**: OPENED 0.8 s or less, kill words 1.2 s, hype lines and TAKEN DOWN 2 s. A longer take is kept,
+       with a warning. The caller's face and
      tag are the game's own (`voiceOf` in `src/render/hype.ts`): SGT. RAMROD SLAB is Matt's head.
 3. **Record:** **Space** starts recording and **Space** stops it. Let the last word ring out a beat before you stop:
    the stop key's click is cut, and with it the last 0.2 s. The raw take plays back. A take stops itself after 15 s.

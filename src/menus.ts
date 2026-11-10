@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { $ } from './state';
 import { SET, UPG, exportSave, importSave, lv, save } from './save';
-import { auInit, sample, setMute, sfx } from './audio';
+import { auInit, sample, setMute, sfx, voiceStopAll } from './audio';
 import { I, PR } from './input';
 import { newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
 import { clearRun, runInfo } from './runsave';
@@ -175,6 +175,7 @@ export function overItems() {
     l: 'SURFACE',
     a: () => {
       $.state = 'title';
+      voiceStopAll(); // back on the title: no voice line runs on from the game (audio only)
       $.menuSel = 0;
     }
   }];
@@ -209,6 +210,7 @@ export function pauseItems() {
       if ($.G.score > $.hi) $.hi = $.G.score;
       save();
       $.state = 'title';
+      voiceStopAll(); // back on the title: no voice line runs on from the game (audio only)
       $.menuSel = 0;
     }
   }];
@@ -347,6 +349,7 @@ export function leaveShop() {
   $.shopMsg = null;
   if (shopNext === 'loop') startLoop($.G.loop + 1);else {
     $.state = 'title';
+    voiceStopAll(); // back on the title: no voice line runs on from the game (audio only)
     $.menuSel = 0;
   }
 }
