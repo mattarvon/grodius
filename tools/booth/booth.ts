@@ -6,6 +6,7 @@
 import { DIRECTION, SLOTS, quipSlot, type Slot } from './slots';
 import { slugify } from './names';
 import { normText, quipLines, textError, type Quip } from '../../src/voice/quiplist';
+import { EFFECTS, PRESETS, cleanFx, defaults, fxName, fxOn, randomFx, type FxSet } from './fx';
 
 const $id = (id: string) => document.getElementById(id)!;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -25,7 +26,7 @@ const HOT = 10 ** (-3 / 20), CLIP = 10 ** (-0.5 / 20);
 // arming: Space pressed, the recorder not running yet (a second Space is ignored until it is)
 type Phase = 'idle' | 'arming' | 'rec' | 'review' | 'saving' | 'saved' | 'error';
 /** was: a quip's take recorded to words the quip no longer has (plugin.ts TakeOpts.text) */
-type Take = { name: string; raw: boolean; was?: string };
+type Take = { name: string; raw: boolean; was?: string; fx?: string };
 type Kept = { name: string; url: string; lufs: number | null; peak: number | null; dur: number | null; gain: number; warn?: string; long?: string; squeezed?: number; src: string };
 /** every line the booth shows: the fixed slots, then SLAB's quips (src/voice/quips.json, LS2-quips), rebuilt whenever
  *  the list is read or edited */
@@ -51,6 +52,14 @@ const S = {
   squeeze: true,
   kept: null as Kept | null,
   t0: 0,
+  /** the FX rack (fx.ts): what a keep, a preview and "apply to this line" use. Remembered across reloads */
+  fx: (() => { try { return cleanFx(JSON.parse(store.get('fx') ?? '{}')); } catch { return {}; } })() as FxSet,
+  /** the last take recorded (kept or not): the FX preview's source when nothing else is picked */
+  lastRaw: null as Blob | null,
+  /** a kept take on disk picked for the FX preview (its raw take in assets-raw/voice/) */
+  prevName: '',
+  prev: null as { url: string; info: { lufs?: number; dur?: number; fx?: string; warn?: string } } | null,
+  prevBusy: false,
 };
 const say = (msg: string, tone: '' | 'err' | 'warn' = '') => { S.msg = msg; S.tone = tone; };
 const errText = (e: unknown) => String((e as Error)?.message ?? e);
@@ -263,6 +272,8 @@ async function record() {
     rec.onstop = () => {
       if (S.phase === 'error') return; // the mic went away mid-take; nothing usable
       S.raw = new Blob(S.chunks, { type: rec.mimeType || MIME || 'audio/webm' });
+      S.lastRaw = S.raw;
+      S.prevName = '';
       S.rawUrl = URL.createObjectURL(S.raw);
       S.phase = 'review';
       if (S.tone !== 'warn') say('');
@@ -297,7 +308,7 @@ async function keep() {
   say('Processing...');
   draw();
   try {
-    const k = await api('POST', { cat: s.cat, slug: slugOf(s), ...(S.squeeze ? {} : { squeeze: '0' }) }, S.raw);
+    const k = await api('POST', { cat: s.cat, slug: slugOf(s), ...(S.squeeze ? {} : { squeeze: '0' }), ...(fxOn(S.fx) ? { fx: JSON.stringify(S.fx) } : {}) }, S.raw);
     // the processed player's src is fixed here: a redraw must not restart it
     S.kept = { ...k, src: `${k.url}?t=${Date.now()}` };
     S.squeeze = sqDefault(s); // per take: the next one starts at the line's default again
@@ -306,7 +317,7 @@ async function keep() {
     // the plugin's warnings: a quiet or hot input, and a take past its slot's length target + slots.ts LEN_SLACK (it
     // lands over the next moment: a kill word over the next fight)
     const sq = k.squeezed ? `, ${k.squeezed} s of pauses cut` : '';
-    say(`Kept ${k.name}: ${k.lufs} LUFS, peak ${k.peak} dBTP, ${k.dur?.toFixed?.(2)} s (gain ${k.gain > 0 ? '+' : ''}${k.gain} dB${sq}).` +
+    say(`Kept ${k.name}${k.fx ? ' with ' + k.fx : ''}: ${k.lufs} LUFS, peak ${k.peak} dBTP, ${k.dur?.toFixed?.(2)} s (gain ${k.gain > 0 ? '+' : ''}${k.gain} dB${sq}).` +
       (k.warn ? ' ' + k.warn + '.' : '') + (k.long ? ' ' + k.long + '.' : ''), k.warn || k.long ? 'warn' : '');
     await refreshTakes();
     (document.getElementById('keptplay') as HTMLAudioElement | null)?.play().catch(() => {});
@@ -325,17 +336,20 @@ async function keep() {
   }
 }
 /** re-runs the current chain on this line's kept raw takes (plugin.ts reprocess): each processed take is rewritten */
-async function redo() {
+async function redo(apply = false) {
   const s = ALL[S.sel];
   if (S.phase === 'arming' || S.phase === 'rec' || S.phase === 'saving' || S.phase === 'review') return;
-  if (!confirm(`Reprocess every take of ${s.cat}/ that has a raw take, with the current chain? Each keeps the pause setting it was ` +
+  const rack = fxName(S.fx) || 'no FX (clean)';
+  if (!confirm(apply
+    ? `Apply the current FX (${rack}) to every take of ${s.cat}/ that has a raw take? Each processed take is rewritten from its raw take with this rack, and remembers it. A raw take that clipped is skipped.`
+    : `Reprocess every take of ${s.cat}/ that has a raw take, with the current chain? Each keeps the pause setting and FX it was ` +
     `kept with (takes from before that was saved: ${S.squeeze ? 'pauses shortened' : 'pauses kept'}, the checkbox). ` +
     'Each processed take is rewritten; a raw take that clipped is skipped.')) return;
   S.phase = 'saving';
   say('Reprocessing...');
   draw();
   try {
-    const { takes } = await api('POST', { cat: s.cat, ...(S.squeeze ? {} : { squeeze: '0' }) }, undefined, 'reprocess') as
+    const { takes } = await api('POST', { cat: s.cat, ...(S.squeeze ? {} : { squeeze: '0' }), ...(apply ? { fx: JSON.stringify(S.fx) } : {}) }, undefined, 'reprocess') as
       { takes: { name: string; done: boolean; why?: string; long?: string; warn?: string }[] };
     const done = takes.filter((t) => t.done), skip = takes.filter((t) => !t.done);
     const notes = [...done.filter((t) => t.long || t.warn).map((t) => `${t.name}: ${[t.long, t.warn].filter(Boolean).join('; ')}`),
@@ -368,6 +382,7 @@ function move(d: number) {
   if (S.phase === 'review') return void (say('Keep (Enter) or discard (Backspace) this take first.', 'warn'), draw());
   S.sel = (S.sel + d + ALL.length) % ALL.length;
   S.squeeze = sqDefault(ALL[S.sel]);
+  S.prevName = '';
   store.set('slot', ALL[S.sel].cat);
   S.kept = null;
   if (S.phase !== 'error') { S.phase = 'idle'; say(''); } // a mic error stays up until a mic opens
@@ -388,7 +403,9 @@ addEventListener('keydown', (e) => {
   if (t.tagName === 'SELECT' || t.tagName === 'INPUT' && (t as HTMLInputElement).type === 'text' || e.ctrlKey || e.metaKey || e.altKey) return;
   // a button reached with Tab works from the keyboard (Record is the booth's own key anyway)
   if (t.tagName === 'BUTTON' && t.id !== 'b-rec' && (k === 'Enter' || k === ' ')) return;
-  const ours = [' ', 'Enter', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 't', 'T'].includes(k);
+  // a focused FX slider keeps the arrows (fine-tuning a knob), everything else is the booth's
+  if (t.tagName === 'INPUT' && (t as HTMLInputElement).type === 'range' && k.startsWith('Arrow')) return;
+  const ours = [' ', 'Enter', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 't', 'T', 'p', 'P'].includes(k);
   if (!ours) return;
   e.preventDefault();
   (document.activeElement as HTMLElement | null)?.blur?.();
@@ -401,6 +418,7 @@ addEventListener('keydown', (e) => {
   } else if (k === 'ArrowDown' || k === 'ArrowRight') move(1);
   else if (k === 'ArrowUp' || k === 'ArrowLeft') move(-1);
   else if (k === 't' || k === 'T') testGame(ALL[S.sel]);
+  else if (k === 'p' || k === 'P') preview();
 }, true);
 
 // ---------------- view ----------------
@@ -452,22 +470,26 @@ function draw() {
   st.className = 'state' + (S.tone ? ' ' + S.tone : '');
   st.style.color = S.tone === 'err' ? 'var(--red)' : S.tone === 'warn' ? 'var(--warn)' : '';
   $id('takes').innerHTML = `<h2>Takes in src/sfx/${esc(s.cat)}/ (${takes.length})</h2>
-    ${takes.map((t, i) => `<div class="take"><audio controls preload="none" src="/src/sfx/${esc(s.cat)}/${esc(t.name)}"></audio><span>${esc(t.name)}</span>${t.was != null ? `<span class="warn">stale: says ${esc(t.was)}</span>` : ''}
+    ${takes.map((t, i) => `<div class="take"><audio controls preload="none" src="/src/sfx/${esc(s.cat)}/${esc(t.name)}"></audio><span>${esc(t.name)}</span>${t.fx ? `<span class="fxtag">${esc(t.fx)}</span>` : ''}${t.was != null ? `<span class="warn">stale: says ${esc(t.was)}</span>` : ''}
+      ${t.raw ? `<button data-fxp="${i}" title="hear this take's raw recording through the current FX rack">FX preview</button>` : ''}
       ${/-matty-\d+\.ogg$/.test(t.name) ? `<button data-del="${i}">Delete</button>` : ''}</div>`).join('') || '<div class="state">None yet.</div>'}
     ${takes.some((t) => t.raw) ? `<div class="row"><button id="b-redo" ${P === 'idle' || P === 'saved' || P === 'error' ? '' : 'disabled'}>Reprocess this line's takes</button>
-      <span class="state">re-runs the current chain on the kept raw takes (no re-recording)</span></div>` : ''}
+      <button id="b-apply" ${P === 'idle' || P === 'saved' || P === 'error' ? '' : 'disabled'}>Apply current FX to this line's takes</button>
+      <span class="state">re-runs the chain on the kept raw takes (no re-recording): each with its own FX, or all with the rack's</span></div>` : ''}
     <div class="keys"><kbd>Space</kbd> record / stop &middot; <kbd>Enter</kbd> keep &middot; <kbd>Backspace</kbd> discard (or delete the take just kept) &middot;
-      <kbd>&uarr;</kbd><kbd>&darr;</kbd> line &middot; <kbd>T</kbd> test in game. Takes are mono 44.1 kHz Vorbis at -12 LUFS, the gaps between phrases turned down; the raw take stays in
+      <kbd>&uarr;</kbd><kbd>&darr;</kbd> line &middot; <kbd>P</kbd> FX preview &middot; <kbd>T</kbd> test in game. Takes are mono 44.1 kHz Vorbis at -12 LUFS, the gaps between phrases turned down; the raw take stays in
       <code>assets-raw/voice/</code> (git-ignored). A take stops itself at ${AUTO_STOP} s.</div>`;
   document.querySelectorAll<HTMLElement>('.slot').forEach((el) => (el.onclick = () => move(+el.dataset.i! - S.sel)));
   document.querySelectorAll<HTMLElement>('[data-del]').forEach((el) => (el.onclick = () => { el.blur(); del(takes[+el.dataset.del!]); }));
+  document.querySelectorAll<HTMLElement>('[data-fxp]').forEach((el) => (el.onclick = () => { el.blur(); S.prevName = takes[+el.dataset.fxp!].name; preview(); }));
   const on = (id: string, f: () => void) => { const b = document.getElementById(id); if (b) b.onclick = (e) => { (e.currentTarget as HTMLElement).blur(); f(); }; };
   on('b-rec', () => (S.phase === 'rec' ? stop() : record()));
   on('b-keep', keep);
   on('b-drop', () => discard());
   on('b-undo', () => S.kept && del({ name: S.kept.name, raw: true }));
   on('b-test', () => testGame(s));
-  on('b-redo', redo);
+  on('b-redo', () => redo());
+  on('b-apply', () => redo(true));
   const qne = document.getElementById('q-new') as HTMLInputElement | null, qte = document.getElementById('q-text') as HTMLInputElement | null;
   if (qne) qne.value = was.new;
   if (qte && was.text != null) qte.value = was.text;
@@ -487,12 +509,117 @@ function draw() {
   if (sqb) sqb.onchange = () => { S.squeeze = sqb.checked; sqb.blur(); };
 }
 
+// ---------------- the FX rack (fx.ts) ----------------
+/** its own element, drawn only when the rack's shape changes: draw() rebuilds the stage on every redraw, which would
+ *  drop a slider out from under the mouse */
+function drawFx() {
+  const el = $id('fx'), on = fxOn(S.fx);
+  const preset = PRESETS.find((p) => JSON.stringify(p.fx) === JSON.stringify(S.fx))?.name ?? '';
+  const src = S.prevName ? S.prevName + ' (kept take)' : S.raw && S.phase === 'review' ? 'the take you just recorded' : S.lastRaw ? 'your last take' : '';
+  el.innerHTML = `<h2>FX rack <span class="state">${on ? esc(fxName(S.fx)) : 'off: takes are kept clean'}</span></h2>
+    <div class="row"><label class="opt">Preset <select id="fx-preset"><option value="">${preset ? '' : 'custom'}</option>${PRESETS.map((p, i) => `<option value="${i}"${p.name === preset ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <button id="fx-rand" title="2-5 random effects at random settings">Randomize</button>
+      <button id="fx-off">All off</button>
+      <button id="fx-prev" ${src && !S.prevBusy ? '' : 'disabled'}>${S.prevBusy ? 'Rendering...' : 'Preview'} <kbd>P</kbd></button>
+      <label class="opt" title="re-render the preview whenever a knob moves"><input type="checkbox" id="fx-auto"${store.get('fxauto') !== '0' ? ' checked' : ''}> auto preview</label>
+      <span class="state">${src ? 'source: ' + esc(src) : 'record a take (or press FX preview on a kept take) to hear the rack'}</span></div>
+    ${S.prev ? `<div class="row"><span class="state">FX preview:</span><audio id="fxplay" controls src="${S.prev.url}"></audio>
+      <span class="state">${esc([S.prev.info.fx || 'clean', S.prev.info.dur != null ? S.prev.info.dur.toFixed(2) + ' s' : '', S.prev.info.lufs != null ? S.prev.info.lufs + ' LUFS' : ''].filter(Boolean).join(' / '))}</span>
+      ${S.prev.info.warn ? `<span class="warn">${esc(S.prev.info.warn)}</span>` : ''}</div>` : ''}
+    <div class="rack">${EFFECTS.map((e) => {
+      const v = S.fx[e.id];
+      return `<div class="fx${v ? ' on' : ''}"><label class="fxh"><input type="checkbox" data-fx="${e.id}"${v ? ' checked' : ''}> ${esc(e.label)}</label>
+        <div class="blurb">${esc(e.blurb)}</div>
+        ${e.knobs.map((k) => {
+          const x = v ? v[k.k] : k.def;
+          return `<label class="knob"><span>${esc(k.label)}</span><input type="range" data-e="${e.id}" data-k="${k.k}" min="${k.min}" max="${k.max}" step="${k.step}" value="${x}"${v ? '' : ' disabled'}>
+            <output id="o-${e.id}-${k.k}">${esc(knobText(k, x))}</output></label>`;
+        }).join('')}</div>`;
+    }).join('')}</div>`;
+  ($id('fx-preset') as HTMLSelectElement).onchange = (ev) => {
+    const i = (ev.target as HTMLSelectElement).value;
+    (ev.target as HTMLElement).blur();
+    if (i !== '') setFx(structuredClone(PRESETS[+i].fx) as FxSet);
+  };
+  $id('fx-rand').onclick = (ev) => { (ev.currentTarget as HTMLElement).blur(); setFx(randomFx()); };
+  $id('fx-off').onclick = (ev) => { (ev.currentTarget as HTMLElement).blur(); setFx({}); };
+  $id('fx-prev').onclick = (ev) => { (ev.currentTarget as HTMLElement).blur(); preview(); };
+  ($id('fx-auto') as HTMLInputElement).onchange = (ev) => { store.set('fxauto', (ev.target as HTMLInputElement).checked ? '1' : '0'); (ev.target as HTMLElement).blur(); };
+  el.querySelectorAll<HTMLInputElement>('[data-fx]').forEach((c) => (c.onchange = () => {
+    const id = c.dataset.fx!, next = { ...S.fx };
+    if (c.checked) next[id] = defaults(id); else delete next[id];
+    c.blur();
+    setFx(next);
+  }));
+  el.querySelectorAll<HTMLInputElement>('input[type=range]').forEach((r) => {
+    r.oninput = () => {
+      const e = r.dataset.e!, k = r.dataset.k!, knob = EFFECTS.find((x) => x.id === e)!.knobs.find((x) => x.k === k)!;
+      if (!S.fx[e]) return;
+      S.fx = { ...S.fx, [e]: { ...S.fx[e], [k]: +r.value } };
+      const o = document.getElementById(`o-${e}-${k}`);
+      if (o) o.textContent = knobText(knob, +r.value);
+      store.set('fx', JSON.stringify(S.fx));
+    };
+    // let go of the knob: the preview follows (the slider keeps focus, so the arrows can still nudge it)
+    r.onchange = () => { autoPreview(); drawFxHead(); };
+  });
+}
+/** the rack's title and the preset box only (a knob moved: the sliders stay where they are) */
+function drawFxHead() {
+  const preset = PRESETS.findIndex((p) => JSON.stringify(p.fx) === JSON.stringify(cleanFx(S.fx)));
+  const sel = document.getElementById('fx-preset') as HTMLSelectElement | null;
+  if (sel) { sel.value = preset >= 0 ? String(preset) : ''; sel.options[0].textContent = preset >= 0 ? '' : 'custom'; }
+  const h = document.querySelector('#fx h2 .state');
+  if (h) h.textContent = fxOn(S.fx) ? fxName(S.fx) : 'off: takes are kept clean';
+}
+const knobText = (k: { opts?: readonly string[]; unit?: string; step: number }, x: number) =>
+  k.opts ? k.opts[Math.round(x)] ?? String(x) : (k.step < 1 ? (+x).toFixed(k.step < 0.1 ? 2 : k.step < 1 ? (String(k.step).split('.')[1]?.length ?? 1) : 0) : String(x)) + (k.unit ? ' ' + k.unit : '');
+function setFx(fx: FxSet) {
+  S.fx = cleanFx(fx);
+  store.set('fx', JSON.stringify(S.fx));
+  drawFx();
+  autoPreview();
+}
+let fxTimer = 0, fxSeq = 0;
+function autoPreview() {
+  if (store.get('fxauto') === '0') return;
+  clearTimeout(fxTimer);
+  fxTimer = setTimeout(preview, 250) as unknown as number;
+}
+/** the source through the chain and the rack on the dev server (POST /__booth/preview): nothing is written to src/ */
+async function preview() {
+  const s = ALL[S.sel], body = S.prevName ? null : S.phase === 'review' && S.raw ? S.raw : S.lastRaw;
+  if (!S.prevName && !body) { say('Record a take first (or press FX preview on a kept take), then the rack has something to play.', 'warn'); return draw(); }
+  const seq = ++fxSeq;
+  S.prevBusy = true;
+  drawFx();
+  try {
+    const q = new URLSearchParams({ cat: s.cat, fx: JSON.stringify(S.fx), ...(S.squeeze ? {} : { squeeze: '0' }), ...(S.prevName ? { name: S.prevName } : {}) });
+    const r = await fetch('/__booth/preview?' + q, { method: 'POST', body: body ?? undefined, headers: { 'x-booth': TOKEN, ...(body ? { 'content-type': body.type || 'audio/webm' } : {}) } });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({ error: 'HTTP ' + r.status }))).error);
+    const info = JSON.parse(decodeURIComponent(r.headers.get('x-booth-info') ?? '%7B%7D'));
+    const url = URL.createObjectURL(await r.blob());
+    if (seq !== fxSeq) return URL.revokeObjectURL(url); // a newer preview is on its way
+    if (S.prev) URL.revokeObjectURL(S.prev.url);
+    S.prev = { url, info };
+  } catch (e) {
+    if (seq === fxSeq) { say('FX preview failed: ' + errText(e), 'err'); draw(); }
+  } finally {
+    if (seq === fxSeq) {
+      S.prevBusy = false;
+      drawFx();
+      (document.getElementById('fxplay') as HTMLAudioElement | null)?.play().catch(() => {});
+    }
+  }
+}
+
 /** the Quips section's heading in the line list */
 function quipHead() {
   return `<div class="qhead">QUIPS <span>SLAB, after a midboss or boss kill (src/voice/quips.json)</span>${S.quipErr.length ? `<div class="err">quips.json: ${S.quipErr.map(esc).join('; ')}. Fix it by hand; the booth will not edit it until then.</div>` : ''}</div>`;
 }
 
 draw();
+drawFx();
 refreshQuips().then(refreshTakes);
 meter();
 openMic(store.get('mic'));

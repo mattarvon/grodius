@@ -182,7 +182,9 @@ const VOICE = {
   sfriend: [2, 'SURF CONTROL'],
   'stop-killing-me': [3, 'CREWMAN #5 // DECEASED', ['STOP KILLING ME', 'WITH YOUR SPACESHIP, SIR']],
   'keyster-easter': [4, 'THE KEYSTER'],
-  'lesley-yeah-baby': [5, 'LESLEY, MISSION CONTROL']
+  'lesley-yeah-baby': [5, 'LESLEY, MISSION CONTROL'],
+  // Matt's own DESCEND line (2026-11-13, "call it grodius bitch"), in the startgame folder beside Lesley's: keyed by clip
+  'grodius-bitch': [SLAB_FACE, SLAB, ['GRODIUS BITCH']]
 };
 /** [face, caller tag, caption?] for a voice clip: by its folder for SGT. RAMROD SLAB's, else by its file stem */
 export const voiceOf = (clip = '', cat = '') => {

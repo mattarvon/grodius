@@ -70,6 +70,18 @@
   .qadd { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
   input[type=text] { flex: 1; min-width: 0; background: #000; color: var(--ink); border: 1px solid var(--line2); border-radius: 6px; padding: 5px 8px; font: inherit; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
   .qedit input[type=text] { flex: 0 1 26ch; }
+  /* the FX rack (fx.ts) */
+  #fx { border-top: 1px solid var(--line); margin-top: 14px; }
+  #fx h2 .state { text-transform: none; letter-spacing: 0; margin-left: 8px; color: var(--warn); }
+  .rack { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; margin-top: 8px; }
+  .fx { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--panel); opacity: .6; }
+  .fx.on { opacity: 1; border-color: var(--red); box-shadow: inset 3px 0 var(--red); }
+  .fxh { font-weight: 700; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .blurb { color: var(--dim); font-size: 11px; margin: 2px 0 4px; }
+  .knob { display: grid; grid-template-columns: 64px 1fr 58px; gap: 6px; align-items: center; font-size: 12px; color: var(--dim); }
+  .knob input { width: 100%; accent-color: var(--red); }
+  .knob output { font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; }
+  .fxtag { color: var(--warn); font-size: 11px; border: 1px solid #5a4a2a; border-radius: 9px; padding: 0 6px; }
 </style>
 </head>
 <body>
@@ -85,7 +97,7 @@
 </header>
 <main>
   <nav id="slots" role="listbox" aria-label="voice lines"></nav>
-  <section id="stage"><div id="view"></div><div id="status" role="status" aria-live="polite" class="state"></div><div id="takes"></div></section>
+  <section id="stage"><div id="view"></div><div id="fx"></div><div id="status" role="status" aria-live="polite" class="state"></div><div id="takes"></div></section>
 </main>
 <iframe id="textframe" src="/tools/booth/text.html" hidden title="game text"></iframe>
 <script type="module" src="/tools/booth/booth.ts"></script>

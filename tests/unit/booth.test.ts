@@ -188,7 +188,9 @@ describe('the slot list', () => {
   });
   it("gives SGT. RAMROD SLAB's face to exactly the slots the booth says are his (render/hype.ts SLAB_CAT, by folder)", () => {
     const re = new RegExp(/const SLAB_CAT = \/(.+)\/;/.exec(src('src/render/hype.ts'))![1]);
-    for (const s of SLOTS) expect(re.test(s.cat), s.cat).toBe(s.caller === 'SGT. RAMROD SLAB');
+    // by folder, or (startgame's GRODIUS BITCH, 2026-11-13) by a clip slug VOICE maps to SLAB's face
+    const bySlug = (s: (typeof SLOTS)[number]) => !!s.slug && src('src/render/hype.ts').includes(`'${s.slug}': [SLAB_FACE, SLAB`);
+    for (const s of SLOTS) expect(re.test(s.cat) || bySlug(s), s.cat).toBe(s.caller === 'SGT. RAMROD SLAB');
   });
 });
 

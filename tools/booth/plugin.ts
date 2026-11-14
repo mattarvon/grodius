@@ -12,6 +12,9 @@
 //   DELETE /__booth/take?cat=<cat>&name=<file> removes one processed take (a raw take stays in assets-raw/)
 //   POST   /__booth/reprocess?cat=<cat>[&squeeze=0]  re-runs the current chain on that slot's kept raw takes and
 //          rewrites the matching src/sfx takes (reprocess() below; the CLI is tools/booth/reprocess.mjs)
+//   POST   /__booth/preview?cat=<cat>&fx=<json>[&squeeze=0][&name=<take>]  runs the chain plus the FX rack (fx.ts) on the
+//          posted raw take, or on the kept raw take <name> of that slot, into a temp file and answers the .ogg itself
+//          (x-booth-info: its numbers). Writes nothing in src/; a clipped take is previewed anyway, with a warning
 //   GET    /__booth/quips                      -> { quips: [{ id, text, note? }], errors: [...] } (src/voice/quips.json)
 //   POST   /__booth/quips  body JSON { op: 'add', text } | { op: 'edit', id, text } | { op: 'del', id, takes? }
 //          edits SLAB's quip list (LS2-quips, editQuips() below): writes only src/voice/quips.json and, for a delete
@@ -28,6 +31,7 @@ import path from 'node:path';
 import { lenWarn, quipSlot, SLOTS, voiceSlot } from './slots.ts';
 import { newId, normText, parseQuips, QUIP_ID_MAX, QUIP_ID_RE, quipCat, quipLines, textError, type Quip } from '../../src/voice/quiplist.ts';
 import { TAKE_MAX, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, TAKE_RE } from './names.ts';
+import { cleanFx, fxGraph, fxName, fxOn, type FxSet } from './fx.ts';
 
 const exec = promisify(execFile);
 /** every ffmpeg/ffprobe call: a hung decoder must not hold the keep queue for ever */
@@ -225,12 +229,13 @@ export function levels(floor: number, trough: number): { gate: number; expand: n
  *  to VOX.lufs into a gentle voice compressor, the gain again, a 4x-oversampled limiter at the ceiling, 44.1 kHz
  *  Vorbis. Measured after the trim, after the compressor and after the encode (one makeup pass if the limiter still
  *  took the take short) */
-export async function processTake(raw: string, out: string, o: { squeeze?: boolean } = {}) {
+export async function processTake(raw: string, out: string, o: { squeeze?: boolean; fx?: FxSet | null; allowClip?: boolean } = {}) {
   const ext = path.extname(raw).slice(1), tmp = out.replace(/\.ogg$/, '.tmp.wav');
   const input = ['-hide_banner', '-protocol_whitelist', 'file', '-f', DEMUX[ext], '-i', raw, '-t', '120'];
   // the clip guard first: a take that clipped at the input is refused before any work (the raw stays in assets-raw/)
   const rawPeak = await peakOf(input);
-  if (rawVerdict(rawPeak) === 'clip') throw new Clipped(rawPeak!);
+  // (a preview runs a clipped take anyway, to audition the FX, and says so)
+  if (rawVerdict(rawPeak) === 'clip' && !o.allowClip) throw new Clipped(rawPeak!);
   const clean = ['aformat=channel_layouts=mono', `atrim=start=${VOX.click.head}`, 'asetpts=PTS-STARTPTS', `highpass=f=${VOX.highpass}`, `lowpass=f=${VOX.lowpass}`, VOX.denoise];
   // pass 0: the room under the denoise: its noise floor for the trim gate, its RMS trough for the expander (the whole
   // overall set: astats only reports the trough with it; ffmpeg spells it "RMS through")
@@ -270,6 +275,18 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
     } finally {
       fs.rmSync(sq, { force: true });
     }
+    // the FX rack (fx.ts): on the cleaned-up, trimmed, squeezed take, before the gain to the target, so a take with
+    // FX still lands at VOX.lufs under the same compressor and limiter
+    const graph = fxGraph(o.fx);
+    if (graph) {
+      const fxw = out.replace(/\.ogg$/, '.fx.wav');
+      try {
+        await run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', tmp, '-filter_complex', graph, '-map', '[fx]', '-c:a', 'pcm_f32le', '-f', 'wav', fxw]);
+        fs.renameSync(fxw, tmp);
+      } finally {
+        fs.rmSync(fxw, { force: true });
+      }
+    }
     const pre = await measure(tmp);
     let g = gainTo(VOX.lufs, pre.lufs);
     if (g == null) throw new Error('the take is silent or too short to measure (did the mic pick anything up?)');
@@ -304,9 +321,10 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
     }
     const warn = [
       first > VOX.quiet ? `quiet take (+${first} dB to reach ${VOX.lufs} LUFS): move closer or raise the input gain, or the room's hiss comes up with it` : '',
+      rawVerdict(rawPeak) === 'clip' ? `clipped input (raw peak ${rawPeak} dBFS): a preview only, the booth refuses to keep it` : '',
       rawVerdict(rawPeak) === 'hot' ? `hot take (raw peak ${rawPeak} dBFS, past ${VOX.hotAt}): back off the mic a little` : '',
     ].filter(Boolean).join('; ') || undefined;
-    return { gain: Math.round(g * 100) / 100, gate, expand, rawPeak, squeeze: o.squeeze !== false, squeezed, ...m, warn };
+    return { gain: Math.round(g * 100) / 100, gate, expand, rawPeak, squeeze: o.squeeze !== false, squeezed, fx: fxName(o.fx), ...m, warn };
   } finally {
     fs.rmSync(tmp, { force: true });
   }
@@ -332,14 +350,18 @@ export const skipWhy = (e: unknown) => (e instanceof Clipped ? e.message.replace
 /** the per-take record kept beside a raw take (<take>.json in assets-raw/voice/<cat>/): the choices a reprocess must
  *  repeat (the pause squeeze), and the words the take was recorded to (LS2-quips: a quip whose text changed since
  *  shows its older takes as stale) */
-export type TakeOpts = { squeeze: boolean; text?: string };
+export type TakeOpts = { squeeze: boolean; text?: string; fx?: FxSet };
 const optsFile = (rdir: string, name: string) => path.join(rdir, name.replace(/\.ogg$/, '.json'));
 /** a take's saved choices, or null for a take kept before LS2-booth2 (or an unreadable record) */
 export function readOpts(rdir: string, name: string): TakeOpts | null {
   try {
     const j = JSON.parse(fs.readFileSync(optsFile(rdir, name), 'utf8'));
     if (typeof j?.squeeze !== 'boolean') return null;
-    return typeof j.text === 'string' ? { squeeze: j.squeeze, text: j.text } : { squeeze: j.squeeze };
+    const o: TakeOpts = { squeeze: j.squeeze };
+    if (typeof j.text === 'string') o.text = j.text;
+    // the FX rack the take was kept with (none: a take from before the rack, or kept clean)
+    if (fxOn(cleanFx(j.fx))) o.fx = cleanFx(j.fx);
+    return o;
   } catch { return null; }
 }
 
@@ -350,7 +372,7 @@ export type Redone = { cat: string; name: string; done: boolean; why?: string; l
  *  take with no processed take (deleted on purpose: never brought back), and one whose raw clipped (the old take
  *  stays as it is). One take at a time; each is processed beside its raw and renamed in. The booth's reprocess
  *  endpoint and tools/booth/reprocess.mjs both call it */
-export async function reprocess(root: string, cats: string[], o: { squeeze?: boolean; log?: (r: Redone) => void; process?: typeof processTake } = {}): Promise<Redone[]> {
+export async function reprocess(root: string, cats: string[], o: { squeeze?: boolean; fx?: FxSet; log?: (r: Redone) => void; process?: typeof processTake } = {}): Promise<Redone[]> {
   const proc = o.process ?? processTake; // a test stands in for ffmpeg here (tests/integration/booth-reprocess.test.ts)
   const out: Redone[] = [];
   const sfx = path.join(root, 'src', 'sfx'), rawBase = path.join(root, 'assets-raw', 'voice'), quips = readQuips(root).quips;
@@ -370,8 +392,11 @@ export async function reprocess(root: string, cats: string[], o: { squeeze?: boo
       else {
         try {
           // the take's own choice when it has one; o.squeeze only for a take kept before the record existed
-          const p = await proc(path.join(rdir, f), part, { squeeze: readOpts(rdir, name)?.squeeze ?? o.squeeze });
+          // the FX: o.fx replaces the take's own rack (the booth's "apply the current FX"), else the one it was kept with
+          const had = readOpts(rdir, name), fx = o.fx ?? had?.fx;
+          const p = await proc(path.join(rdir, f), part, { squeeze: had?.squeeze ?? o.squeeze, ...(fx ? { fx } : {}) });
           fs.renameSync(part, dest);
+          if (o.fx) fs.writeFileSync(optsFile(rdir, name), JSON.stringify({ ...(had ?? { squeeze: o.squeeze !== false }), fx: o.fx } satisfies TakeOpts));
           r = { cat, name, done: true, lufs: p.lufs, dur: p.dur, long: lenWarn(slot, p.dur), warn: p.warn };
         } catch (e) {
           r = { cat, name, done: false, why: skipWhy(e) };
@@ -506,6 +531,12 @@ function readJson(req: IncomingMessage): Promise<unknown> {
 
 /** the per-take pause squeeze from a request: on unless squeeze=0 (the booth's checkbox, default on) */
 export const squeezeParam = (q: URLSearchParams) => q.get('squeeze') !== '0';
+/** the FX rack from a request (?fx=<json>, cleanFx'd), or undefined when there is none */
+export function fxParam(q: URLSearchParams): FxSet | undefined {
+  const s = q.get('fx');
+  if (s == null || s.length > 4000) return undefined;
+  try { return cleanFx(JSON.parse(s)); } catch { return undefined; }
+}
 
 /** the booth plugin: dev server only */
 export function booth(): Plugin {
@@ -516,6 +547,40 @@ export function booth(): Plugin {
   // per dev-server process: the booth page carries it; a page on another local port, a tunnel peer or a script
   // without the page never sees it
   const token = randomBytes(16).toString('hex');
+  /** an FX preview (POST /__booth/preview): the posted raw take, or the slot's kept raw take `name`, through the chain
+   *  and the rack into assets-raw/voice/.preview/ (git-ignored, never served), read back and deleted. Outside the keep
+   *  queue: it writes nothing a keep or a reprocess reads */
+  async function preview(req: IncomingMessage, cat: string, quips: readonly Quip[], name: string | null, squeeze: boolean, fx: FxSet | undefined) {
+    const rawBase = path.join(root, 'assets-raw', 'voice'), pdir = path.join(rawBase, '.preview');
+    fs.mkdirSync(pdir, { recursive: true });
+    if (fs.lstatSync(pdir).isSymbolicLink()) throw new Error('booth: the preview folder is not a plain folder');
+    const id = randomBytes(6).toString('hex');
+    let raw: string, made = false;
+    if (name) {
+      if (!TAKE_RE.test(name)) throw new Error('booth: not a take name');
+      const rdir = realDir(rawBase, cat, quips);
+      const f = rdir && list(rdir).find((x) => RAW_RE.exec(x)?.[1] + '.ogg' === name);
+      if (!rdir || !f) throw new Error(`booth: no raw take for ${name}`);
+      raw = path.join(rdir, f);
+      req.resume();
+    } else {
+      const ext = rawExt(req.headers['content-type']);
+      if (!ext) throw new Error('booth: body must be recorded audio');
+      const body = await readBody(req);
+      if (body.length < 256) throw new Error('booth: empty take');
+      raw = path.join(pdir, `${id}.${ext}`);
+      fs.writeFileSync(raw, body, { flag: 'wx' });
+      made = true;
+    }
+    const out = path.join(pdir, `${id}.ogg`);
+    try {
+      const r = await processTake(raw, out, { squeeze, allowClip: true, ...(fxOn(fx) ? { fx } : {}) });
+      return { file: fs.readFileSync(out), info: { lufs: r.lufs, peak: r.peak, dur: r.dur, fx: r.fx, warn: r.warn } };
+    } finally {
+      fs.rmSync(out, { force: true });
+      if (made) fs.rmSync(raw, { force: true });
+    }
+  }
   return {
     name: 'grodius-voice-booth',
     apply: 'serve',
@@ -540,14 +605,14 @@ export function booth(): Plugin {
         }
         const cat = u.searchParams.get('cat') ?? '';
         if (u.pathname === '/__booth/takes' && req.method === 'GET') {
-          const out: Record<string, { name: string; raw: boolean; was?: string }[]> = {};
+          const out: Record<string, { name: string; raw: boolean; was?: string; fx?: string }[]> = {};
           for (const s of [...SLOTS, ...readQuips(root).quips.map(quipSlot)]) {
             const rd = path.join(rawDir, s.cat), raws = list(rd), now = s.quip ? quipLines(s.quip.text).join(' ') : '';
             out[s.cat] = list(path.join(sfx, s.cat)).filter((f) => /\.(ogg|wav|mp3|m4a)$/.test(f)).sort()
               .map((name) => {
                 // a quip's take recorded to words it no longer has: `was` is what it says (the booth marks it stale)
-                const said = s.quip ? readOpts(rd, name)?.text : undefined;
-                return { name, raw: raws.some((r) => r.startsWith(name.replace(/\.ogg$/, '.'))), ...(said != null && said !== now ? { was: said } : {}) };
+                const o = readOpts(rd, name), said = s.quip ? o?.text : undefined, fx = fxName(o?.fx);
+                return { name, raw: raws.some((r) => r.startsWith(name.replace(/\.ogg$/, '.'))), ...(fx ? { fx } : {}), ...(said != null && said !== now ? { was: said } : {}) };
               });
           }
           return send(res, 200, out);
@@ -564,15 +629,26 @@ export function booth(): Plugin {
           return void job.then((r) => send(res, 200, r), (e) => send(res, e instanceof QuipRefused ? e.code : 500,
             { error: String(e?.message ?? e).replace(/^booth: /, '') }));
         }
-        if (u.pathname !== '/__booth/take' && u.pathname !== '/__booth/reprocess') return send(res, 404, { error: 'booth: no such endpoint' });
+        if (u.pathname !== '/__booth/take' && u.pathname !== '/__booth/reprocess' && u.pathname !== '/__booth/preview') return send(res, 404, { error: 'booth: no such endpoint' });
         // the quip list read fresh for every request: the booth may have just added or deleted one
         const quips = readQuips(root).quips;
         if (!okCat(cat) || !voiceSlot(cat, quips)) return send(res, 400, { error: `booth: ${JSON.stringify(cat)} is not a voice slot` });
-        const squeeze = squeezeParam(u.searchParams);
+        const squeeze = squeezeParam(u.searchParams), fx = fxParam(u.searchParams);
+        if (u.pathname === '/__booth/preview') {
+          if (req.method !== 'POST') return send(res, 405, { error: 'booth: method' });
+          return void preview(req, cat, quips, u.searchParams.get('name'), squeeze, fx).then(({ file, info }) => {
+            res.statusCode = 200;
+            res.setHeader('content-type', 'audio/ogg');
+            res.setHeader('cache-control', 'no-store');
+            res.setHeader('x-booth-info', encodeURIComponent(JSON.stringify(info)));
+            res.end(file);
+          }, (e) => send(res, 500, { error: String(e?.message ?? e).replace(/^booth: /, '') }));
+        }
         if (u.pathname === '/__booth/reprocess') {
           if (req.method !== 'POST') return send(res, 405, { error: 'booth: method' });
-          // in the keep queue: a reprocess and a keep never write the same folder at once
-          const step = queue.then(() => reprocess(root, [cat], { squeeze }));
+          // in the keep queue: a reprocess and a keep never write the same folder at once. ?fx= applies that rack to
+          // every take of the line (and records it with each); without it, each take keeps its own
+          const step = queue.then(() => reprocess(root, [cat], { squeeze, ...(fx ? { fx } : {}) }));
           queue = step.catch(() => {});
           return void step.then((r) => send(res, 200, { takes: r }), (e) => send(res, 500, { error: String(e?.message ?? e).replace(/^booth: /, '') }));
         }
@@ -603,11 +679,12 @@ export function booth(): Plugin {
             if (n > TAKE_MAX) throw new Error(`booth: ${TAKE_MAX} takes of one line; delete some first`);
             const name = takeName(slug, n), raw = path.join(rdir, name.replace(/\.ogg$/, '.' + ext));
             fs.writeFileSync(raw, body, { flag: 'wx' }); // never over an existing file
-            fs.writeFileSync(optsFile(rdir, name), JSON.stringify((s.quip ? { squeeze, text: quipLines(s.quip.text).join(' ') } : { squeeze }) satisfies TakeOpts));
+            const rack = fxOn(fx) ? { fx } : {};
+            fs.writeFileSync(optsFile(rdir, name), JSON.stringify((s.quip ? { squeeze, text: quipLines(s.quip.text).join(' '), ...rack } : { squeeze, ...rack }) satisfies TakeOpts));
             // processed beside the raw and renamed in, so the audio glob never sees a half-written .ogg
             const part = path.join(rdir, name + '.part.ogg'), dest = path.join(dir, name);
             try {
-              const r = await processTake(raw, part, { squeeze });
+              const r = await processTake(raw, part, { squeeze, ...(fxOn(fx) ? { fx } : {}) });
               if (fs.existsSync(dest)) throw new Error(`booth: ${name} appeared meanwhile; not overwritten`);
               fs.renameSync(part, dest);
               return { name, url: `/src/sfx/${cat}/${name}`, raw: path.relative(root, raw), ...r, long: lenWarn(s, r.dur) };

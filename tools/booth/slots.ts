@@ -111,10 +111,12 @@ export const SLOTS: Slot[] = [
   },
   {
     cat: 'startgame',
-    slug: 'lesley-yeah-baby',
-    copy: { lines: ['YEAH BABY'], from: 'src/render/hype.ts', lit: "'lesley-yeah-baby'" },
+    // Matt's own DESCEND line (2026-11-13, "keep the new audio in YEAH BABY and call it grodius bitch"): new takes
+    // file as grodius-bitch-matty-N beside Lesley's shipped clip, and the game picks either (render/hype.ts VOICE)
+    slug: 'grodius-bitch',
+    copy: { lines: ['GRODIUS BITCH'], from: 'src/render/hype.ts', lit: "['GRODIUS BITCH']" },
     when: 'DESCEND on the title (menus.ts)',
-    caller: 'LESLEY, MISSION CONTROL',
+    caller: 'SGT. RAMROD SLAB',
     wired: true,
     test: 'vox=startgame',
   },
