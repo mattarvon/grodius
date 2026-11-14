@@ -47,16 +47,17 @@ export function cleanFx(x: unknown): FxSet {
   const out: FxSet = {};
   if (!x || typeof x !== 'object' || Array.isArray(x)) return out;
   for (const e of EFFECTS) {
-    const v = (x as Record<string, unknown>)[e.id];
+    const v = Object.hasOwn(x, e.id) ? (x as Record<string, unknown>)[e.id] : undefined;
     if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
     out[e.id] = Object.fromEntries(e.knobs.map((k) => {
-      const n = (v as Record<string, unknown>)[k.k];
+      const n = Object.hasOwn(v, k.k) ? (v as Record<string, unknown>)[k.k] : undefined;
       return [k.k, Math.round(snap(typeof n === 'number' && Number.isFinite(n) ? n : k.def, k) * 1e4) / 1e4];
     }));
   }
   return out;
 }
-export const fxOn = (fx: FxSet | null | undefined) => !!fx && Object.keys(fx).some((id) => BY[id]);
+// own keys of BY only: BY is a plain object, so BY.constructor / BY.toString would otherwise count as effects
+export const fxOn = (fx: FxSet | null | undefined) => !!fx && Object.keys(fx).some((id) => Object.hasOwn(BY, id));
 /** "robot + radio band" for a take list */
 export const fxName = (fx: FxSet | null | undefined) => (fx ? EFFECTS.filter((e) => fx[e.id]).map((e) => e.label.toLowerCase()).join(' + ') : '');
 

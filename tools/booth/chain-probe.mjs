@@ -12,8 +12,10 @@
 // Gaps: 50 ms RMS windows of the processed take; the gap is the median of the longest run 20 dB under the loudest.
 // Dips: the mean 50 ms dip between syllables (word tails), compared with the chain run with no expander.
 //
-// Usage: node tools/booth/chain-probe.mjs [outdir] [--real <raw take>...]
+// Usage: node tools/booth/chain-probe.mjs [outdir] [--fx] [--real <raw take>...]
 //   outdir   where the takes and processed files go (default: <os tmpdir>/booth-chain-probe)
+//   --fx     also run the clean take through every FX preset (fx.ts PRESETS: LUFS, length, verdict), and every effect
+//            alone at its knobs' minimums and maximums (only a failure is printed)
 //   --real   also run these raw takes (e.g. copies of assets-raw/voice/*/*.webm) through the clip guard and chain
 // Output: a table on stdout. Needs ffmpeg, ffprobe and a Node that strips TypeScript. Not measured: a real voice,
 // a real room, delivery (judge those by ear in the booth).
@@ -23,8 +25,11 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { Clipped, VOX, processTake } from './plugin.ts';
 import { lenWarn, slotOf } from './slots.ts';
+import { EFFECTS, PRESETS, fxOn } from './fx.ts';
 
-const args = process.argv.slice(2), ri = args.indexOf('--real');
+const args = process.argv.slice(2), fi = args.indexOf('--fx'), withFx = fi >= 0;
+if (withFx) args.splice(fi, 1);
+const ri = args.indexOf('--real');
 const real = ri >= 0 ? args.splice(ri).slice(1) : [];
 const out = path.resolve(args[0] ?? path.join(os.tmpdir(), 'booth-chain-probe'));
 const SR = 48000;
@@ -156,3 +161,38 @@ VOX.expand.range = 1;
 await run1(files[0], ' (no expander)', { squeeze: false });
 VOX.expand.range = range;
 console.log(`\nexpander: RMS trough + ${VOX.expand.over} dB, ${VOX.expand.ratio}:1, range ${VOX.expand.range}; squeeze: pauses > ${VOX.squeeze.over} s to ${VOX.squeeze.keep} s; hype10 warns past ${2.5} s. Files: ${out}`);
+
+if (withFx) {
+  // the FX rack on the clean take: every preset must still land at VOX.lufs under the limiter
+  const frow = (...c) => console.log(c.map((v, i) => String(v).padEnd([30, 7, 7, 8, 30][i] ?? 0)).join(' '));
+  console.log('\nFX presets on the clean take (fx.ts PRESETS):');
+  frow('preset', 'LUFS', 'dBTP', 'length', 'verdict');
+  const fxRun = async (fx, name) => {
+    try {
+      const r = await processTake(files[0], path.join(out, 'fx-' + name.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.ogg'), { fx });
+      // against the clean take's own level (the synth lands ~1.3 LU under VOX.lufs: its crest, ls2-booth2.md)
+      const under = base == null ? 0 : base - r.lufs;
+      const notes = [under > 2 && `${under.toFixed(1)} LU UNDER CLEAN`, lenWarn(hype, r.dur) && 'LONG', r.warn && r.warn.split(' (')[0].toUpperCase()].filter(Boolean).join(', ');
+      return { ok: true, r, verdict: 'kept' + (notes ? ': ' + notes : '') };
+    } catch (e) {
+      return { ok: false, verdict: 'ERROR ' + String(e.message).split('\n').slice(0, 3).join(' | ') };
+    }
+  };
+  let bad = 0, base = null;
+  for (const p of PRESETS) {
+    const { ok, r, verdict } = await fxRun(fxOn(p.fx) ? p.fx : undefined, p.name);
+    if (!ok) bad++;
+    if (!fxOn(p.fx) && r) base = r.lufs;
+    frow(p.name, f1(r?.lufs), f1(r?.peak), r ? r.dur.toFixed(2) + ' s' : '', verdict);
+  }
+  // every effect alone at the corners of its knobs: ffmpeg must accept the graph at both ends
+  let n = 0, failed = 0;
+  for (const e of EFFECTS) for (const end of ['min', 'max']) {
+    const fx = { [e.id]: Object.fromEntries(e.knobs.map((k) => [k.k, k[end]])) };
+    n++;
+    const { ok, r, verdict } = await fxRun(fx, `${e.id}-${end}`);
+    if (!ok) { failed++; frow(`${e.label} at ${end}`, f1(r?.lufs), f1(r?.peak), r ? r.dur.toFixed(2) + ' s' : '', verdict); }
+  }
+  console.log(`\n${PRESETS.length - bad}/${PRESETS.length} presets rendered; effects alone at their min/max knobs: ${n - failed}/${n} rendered (failures listed above)`);
+  if (bad || failed) process.exitCode = 1;
+}

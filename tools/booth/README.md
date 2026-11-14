@@ -96,6 +96,7 @@ ffmpeg does it, in `tools/booth/plugin.ts` (`VOX`), and the audio-director signe
 - the silence trimmed from the head and tail. The gate is set from the room's noise floor, and 90 ms is kept before
   the first word and 250 ms after the last;
 - pauses over 0.4 s cut to 0.25 s (the checkbox above);
+- the **FX rack**, when an effect is on (below);
 - the gain brought to **-12 LUFS**, the level of the voice clips that ship;
 - a gentle 3:1 voice compressor;
 - a 4x-oversampled limiter at -1.2 dBFS;
@@ -119,6 +120,43 @@ When the chain changes, takes kept under the old one can be redone from their ra
 Each `src/sfx/<folder>/<line>-matty-<n>.ogg` that has a raw take is rewritten in place. Skipped: a raw take whose raw
 clipped (its processed take stays as it was), and one whose processed take was deleted (it is not brought back). The
 shipped clips have no raw take, so they are never touched. Don't reprocess while a gate runs against the dev server.
+
+## FX rack
+
+The **FX rack** under the line (`tools/booth/fx.ts`) puts cyborg filters and other weird stuff on a take: pitch, a
+sub-octave double, robot, whisper, ring mod, chopper, distortion, bitcrush, a radio band, clone army (chorus), flanger,
+phaser, vibrato, tremolo, echo and hull reverb. Tick an effect to turn it on; its sliders set it. Most effects that
+blend have a **mix** knob (0 is dry, 1 is all effect). With nothing ticked the rack is off and takes are kept clean.
+
+- **Where it runs:** after the cleanup, the trim and the pause squeeze, and **before** the gain to -12 LUFS, the
+  compressor and the limiter. So a take with FX still lands at the game's loudness and under the same ceiling (a
+  peaky rack such as Glitch or the ring mod can come back up to about 3 LU quieter: the makeup pass is capped). The
+  quiet-take warning is judged on the take before the rack, so it only fires for the mic. Echo and hull reverb pad the
+  end, so their tails ring out; that can push a line past its length target.
+- **Presets:** Clean (no FX), Comms radio, Robot, Robot radio, Cyborg, Android, Evil machine (ring mod), Demon,
+  Possessed, Ghost, Glitch, Busted PA, Clone army, Alien larva, Dying battery, Hive mind. A preset is a starting point:
+  every knob stays live, and the box reads **custom** once you move one.
+- **Randomize** picks 2 to 5 effects at random settings, mostly mild so the words survive. **All off** clears it.
+- **Preview** (**P**) renders the source through the whole chain and the rack on the dev server and plays it. The
+  source is the take you just recorded (before Enter), else your last take.
+- **Auto preview** (on by default) re-renders whenever a preset, Randomize or a tick changes the rack, or a slider is
+  let go. A focused slider keeps the arrow keys, to nudge it.
+- **FX preview** on a kept take (one with a raw take) makes that take's raw recording the preview source.
+- **Keep** (**Enter**) keeps the take with the rack as it stands. The take list tags each take with its rack
+  (`robot + radio band`).
+- **Each take remembers its rack**, in its record beside the raw take (`assets-raw/voice/<folder>/<take>.json`), so
+  **Reprocess this line's takes** redoes each take with its own rack.
+- **Apply current FX to this line's takes** rewrites every take of the line that has a raw take with the rack as it
+  stands, and records that rack with each (each keeps its own pause setting). With the rack off it strips the FX.
+  A raw take that clipped is skipped.
+- **Previews write nothing to `src/`:** they render into `assets-raw/voice/.preview/` (git-ignored, never served)
+  and are deleted once sent. A clipped take can be previewed, with a warning, but is still refused on a keep.
+- The rack setting is remembered by the browser across reloads.
+
+Only numbers reach ffmpeg: `cleanFx` keeps the known effects and knobs, clamps each value to its range and rounds it
+to its step, and `fxGraph` builds the filter graph from those numbers alone (`tests/unit/booth-fx.test.ts`).
+`node tools/booth/chain-probe.mjs --fx` runs the synthetic clean take through every preset, and every effect alone at
+its knobs' extremes, with real ffmpeg.
 
 ## Hear it in the game
 
@@ -165,6 +203,12 @@ TAKEN DOWN over the tally card); any other voice line called while it still wait
 are the readout just shown (CALAMARI SERVED after the Saucer) is never picked; and a shuffle bag plays every recorded
 quip once before any repeats. When the player dies (any life) or the run ends, a quip talking fades out and a queued
 one is dropped; kill words and other lines still finish (D50). A new game stops it like any line.
+
+## The DESCEND line (startgame)
+
+The `startgame` slot (DESCEND on the title) now records Matt's **GRODIUS BITCH**, as SGT. RAMROD SLAB: takes file as
+`src/sfx/startgame/grodius-bitch-matty-N.ogg`, beside Lesley's shipped YEAH BABY clip, and the game picks either
+(the face and caption by clip name, `VOICE` in `src/render/hype.ts`).
 
 ## Adding a line
 
