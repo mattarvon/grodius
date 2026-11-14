@@ -14,8 +14,9 @@
 //
 // Usage: node tools/booth/chain-probe.mjs [outdir] [--fx] [--real <raw take>...]
 //   outdir   where the takes and processed files go (default: <os tmpdir>/booth-chain-probe)
-//   --fx     also run the clean take through every FX preset (fx.ts PRESETS: LUFS, length, verdict), and every effect
-//            alone at its knobs' minimums and maximums (only a failure is printed)
+//   --fx     also run the clean take through every FX preset (fx.ts PRESETS: LUFS, length, the chain's time,
+//            verdict), every effect alone at its defaults (the same table), and every effect alone at its knobs'
+//            minimums and maximums (only a failure is printed)
 //   --real   also run these raw takes (e.g. copies of assets-raw/voice/*/*.webm) through the clip guard and chain
 // Output: a table on stdout. Needs ffmpeg, ffprobe and a Node that strips TypeScript. Not measured: a real voice,
 // a real room, delivery (judge those by ear in the booth).
@@ -164,12 +165,14 @@ console.log(`\nexpander: RMS trough + ${VOX.expand.over} dB, ${VOX.expand.ratio}
 
 if (withFx) {
   // the FX rack on the clean take: every preset must still land at VOX.lufs under the limiter
-  const frow = (...c) => console.log(c.map((v, i) => String(v).padEnd([30, 7, 7, 8, 30][i] ?? 0)).join(' '));
-  console.log('\nFX presets on the clean take (fx.ts PRESETS):');
-  frow('preset', 'LUFS', 'dBTP', 'length', 'verdict');
+  const frow = (...c) => console.log(c.map((v, i) => String(v).padEnd([30, 7, 7, 8, 8, 30][i] ?? 0)).join(' '));
+  console.log('\nFX presets on the clean take (fx.ts PRESETS; time = the whole chain, the FX pass included):');
+  frow('preset', 'LUFS', 'dBTP', 'length', 'time', 'verdict');
   const fxRun = async (fx, name) => {
+    const t0 = performance.now();
     try {
       const r = await processTake(files[0], path.join(out, 'fx-' + name.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.ogg'), { fx });
+      r.ms = performance.now() - t0;
       // against the clean take's own level (the synth lands ~1.3 LU under VOX.lufs: its crest, ls2-booth2.md)
       const under = base == null ? 0 : base - r.lufs;
       const notes = [under > 2 && `${under.toFixed(1)} LU UNDER CLEAN`, lenWarn(hype, r.dur) && 'LONG', r.warn && r.warn.split(' (')[0].toUpperCase()].filter(Boolean).join(', ');
@@ -183,7 +186,14 @@ if (withFx) {
     const { ok, r, verdict } = await fxRun(fxOn(p.fx) ? p.fx : undefined, p.name);
     if (!ok) bad++;
     if (!fxOn(p.fx) && r) base = r.lufs;
-    frow(p.name, f1(r?.lufs), f1(r?.peak), r ? r.dur.toFixed(2) + ' s' : '', verdict);
+    frow(p.name, f1(r?.lufs), f1(r?.peak), r ? r.dur.toFixed(2) + ' s' : '', r ? (r.ms / 1000).toFixed(2) + ' s' : '', verdict);
+  }
+  console.log('\nEvery effect alone at its defaults:');
+  frow('effect (group)', 'LUFS', 'dBTP', 'length', 'time', 'verdict');
+  for (const e of EFFECTS) {
+    const { ok, r, verdict } = await fxRun({ [e.id]: Object.fromEntries(e.knobs.map((k) => [k.k, k.def])) }, `${e.id}-def`);
+    if (!ok) bad++;
+    frow(`${e.label} (${e.group})`, f1(r?.lufs), f1(r?.peak), r ? r.dur.toFixed(2) + ' s' : '', r ? (r.ms / 1000).toFixed(2) + ' s' : '', verdict);
   }
   // every effect alone at the corners of its knobs: ffmpeg must accept the graph at both ends
   let n = 0, failed = 0;
@@ -191,8 +201,8 @@ if (withFx) {
     const fx = { [e.id]: Object.fromEntries(e.knobs.map((k) => [k.k, k[end]])) };
     n++;
     const { ok, r, verdict } = await fxRun(fx, `${e.id}-${end}`);
-    if (!ok) { failed++; frow(`${e.label} at ${end}`, f1(r?.lufs), f1(r?.peak), r ? r.dur.toFixed(2) + ' s' : '', verdict); }
+    if (!ok) { failed++; frow(`${e.label} at ${end}`, f1(r?.lufs), f1(r?.peak), r ? r.dur.toFixed(2) + ' s' : '', '', verdict); }
   }
-  console.log(`\n${PRESETS.length - bad}/${PRESETS.length} presets rendered; effects alone at their min/max knobs: ${n - failed}/${n} rendered (failures listed above)`);
+  console.log(`\n${PRESETS.length + EFFECTS.length - bad}/${PRESETS.length + EFFECTS.length} presets and effects at their defaults rendered; effects alone at their min/max knobs: ${n - failed}/${n} rendered (failures listed above)`);
   if (bad || failed) process.exitCode = 1;
 }

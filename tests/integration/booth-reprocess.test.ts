@@ -54,7 +54,7 @@ describe('readOpts', () => {
     expect(readOpts(raw, 'a-matty-2.ogg')).toEqual({ squeeze: true });
     expect(readOpts(raw, 'a-matty-3.ogg')).toEqual({ squeeze: true });
     expect(readOpts(raw, 'a-matty-4.ogg')).toEqual({ squeeze: false });
-    expect(readOpts(raw, 'a-matty-5.ogg')).toEqual({ squeeze: true, text: 'HI', fx: { pitch: { semi: 12 } } });
+    expect(readOpts(raw, 'a-matty-5.ogg')).toEqual({ squeeze: true, text: 'HI', fx: { pitch: { semi: 12, formant: 0 } } });
   });
 });
 

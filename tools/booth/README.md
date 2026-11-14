@@ -127,20 +127,65 @@ shipped clips have no raw take, so they are never touched. Don't reprocess while
 
 ## FX rack
 
-The **FX rack** under the line (`tools/booth/fx.ts`) puts cyborg filters and other weird stuff on a take: pitch, a
-sub-octave double, robot, whisper, ring mod, chopper, distortion, bitcrush, a radio band, clone army (chorus), flanger,
-phaser, vibrato, tremolo, echo and hull reverb. Tick an effect to turn it on; its sliders set it. Most effects that
-blend have a **mix** knob (0 is dry, 1 is all effect). With nothing ticked the rack is off and takes are kept clean.
+The **FX rack** under the line (`tools/booth/fx.ts`) is a voice-design rack: 40 effects in 9 groups, each a set of
+numeric knobs. Tick an effect to turn it on; its sliders set it. Most effects that blend have a **mix** knob (0 is
+dry, 1 is all effect). With nothing ticked the rack is off and takes are kept clean.
 
+| group (`GROUPS`, display order) | effects |
+| --- | --- |
+| Dynamics (`dynamics`) | Denoise (afftdn), Noise gate, Compressor (with make-up), De-esser |
+| Tone & EQ (`tone`) | 3-band EQ, Exciter, Crystalizer, Sub boost, Radio band |
+| Pitch & formant (`pitch`) | Pitch (rubberband, formant shifted / preserved), Formant, Tape speed, Sub octave, Harmonizer |
+| Synth & vocoder (`synth`) | Robot, Vocoder, Ring mod |
+| Dirt & comms (`dirt`) | Distortion, Wavefolder, Bitcrush, Lo-fi, Megaphone, Static |
+| Modulation (`mod`) | Chopper, Clone army (chorus), Flanger, Phaser, Auto-wah, Vibrato, Wow & flutter, Tremolo |
+| Time (`time`) | Stutter, Reverse, Echo |
+| Space (`space`) | Hull reverb (multi-tap), Convolution (hull / locker / cathedral / plate / sewer), Reverse reverb |
+| Weird (`weird`) | Whisper, Freq shifter (Bode), Comb filter |
+
+The graph runs them in `EFFECTS` order (the signal flow, not the page's grouping): clean-up and tone first, then
+pitch, synth, dirt, modulation, time and space last.
+
+- **Pitch** is rubberband at high quality (it was resample + atempo). Its **formant** knob: *shifted* is the old sound
+  (chipmunk up, ogre down), *preserved* keeps the throat; rubberband preserves formants well going up and only a
+  little going down. **Formant** moves the throat and not the note (rubberband shifts the pitch by 1/r keeping the
+  formants, then the take is resampled by r): down is a giant (measured: -6 st moves the formants 0.73x, ideal 0.71),
+  up is an imp but subtler (+6 st: 1.12x). **Tape speed** moves pitch and tempo together, so it changes the length.
+- **Vocoder:** a channel vocoder. The voice is the modulator; the carrier is generated in the graph (`aevalsrc`: saw,
+  pulse, a minor-triad chord, white noise, or saw + hiss) at the **note** (Hz) and runs as long as the take. 8-24
+  log-spaced bands from 110 Hz to 7 kHz: each band of the voice and of the carrier goes through the same pair of
+  band-passes, the voice band's envelope (|x| through a 40 Hz low-pass) multiplies the carrier band, and the bands
+  sum. Each carrier band is turned up by its computed power, so the output follows the voice's spectrum (and level)
+  whatever the carrier, note or band count. **hiss** mixes the voice's own top (6 kHz up) back in so consonants stay
+  words. A 2.3 s take renders in about 0.1 s.
+- **Convolution:** a real reverb (`afir`) with an impulse response grown in the graph: decaying noise
+  (`exp(-6.9 t / decay)`, RT60 = **decay**) with an onset build-up, filtered for the **room** (hull: metal modes;
+  locker: small, boxy, flutter; cathedral: dark, slow bloom; plate: bright, instant; sewer: dark brick tube with a
+  flutter echo), scaled by **size**, after a **pre-delay**. No IR files. **Reverse reverb** runs the take backwards,
+  reverbs it into a **swell** of padding, and turns it forwards again: the reverb rises into each word (the swell
+  adds to the length). **Reverse** plays the take backwards (mixed in, a backmask).
 - **Where it runs:** after the cleanup, the trim and the pause squeeze, and **before** the gain to -12 LUFS, the
-  compressor and the limiter. So a take with FX still lands at the game's loudness and under the same ceiling (a
-  peaky rack such as Glitch or the ring mod can come back up to about 3 LU quieter: the makeup pass is capped). The
-  quiet-take warning is judged on the take before the rack, so it only fires for the mic. Echo and hull reverb pad the
-  end, so their tails ring out; that can push a line past its length target.
-- **Presets:** Clean (no FX), Comms radio, Robot, Robot radio, Cyborg, Android, Evil machine (ring mod), Demon,
-  Possessed, Ghost, Glitch, Busted PA, Clone army, Alien larva, Dying battery, Hive mind. A preset is a starting point:
-  every knob stays live, and the box reads **custom** once you move one.
-- **Randomize** picks 2 to 5 effects at random settings, mostly mild so the words survive. **All off** clears it.
+  compressor and the limiter. The rack first brings the take to -20 LUFS (`FX_LEVEL`), so the level-dependent
+  effects (drive, crush, gate, compressor, folder, static) treat a quiet take and a loud one the same; the new
+  effects carry a gain trim to come out about as loud as they went in, so a mix knob is a balance, not a level change
+  (the original sixteen effects are untouched, so a kept take reprocesses the same).
+- **Loudness:** a racked take gets a bigger makeup than a clean one (up to 8 dB over three passes, VOX.fxMakeup; then
+  a faster limiter release for a rack whose gaps hold the limiter down, VOX.fxRelease; and the ceiling lowered if the
+  encode overshoots past -0.5 dBTP, VOX.fxPeak). Glitch and Evil machine, 2-3.5 LU under the clean take before, now
+  land within about 1 LU of the target. The quiet-take warning is judged on the take before the rack, so it only
+  fires for the mic.
+- **Length:** echo and the reverbs pad the end so their tails ring out, but the rack adds at most 0.3 s
+  (`FX_TAIL`) past the voice, faded out over it. Tape speed, stutter and reverse reverb change the length on purpose.
+- **Presets:** Clean (no FX); the originals: Comms radio, Robot, Robot radio, Cyborg, Android, Evil machine (ring
+  mod), Demon, Possessed, Ghost, Glitch, Busted PA, Clone army, Alien larva, Dying battery, Hive mind; the controller:
+  Broadcast polish, Trailer voice, Cyborg sergeant, Station PA, Riot megaphone, Broken comms, Dead channel; machines:
+  Vocoder drone, Pulse drone, Machine whisper, Dying android, Overclocked AI, Meat grinder; the dead: Hive queen,
+  Corpse gurgle, Cathedral demon, Reverse-swell ghost, Backmasked, Tape horror, Slow-mo death, Helium leak, Xeno
+  hiss, Bode alien, Insectoid, Giant, Imp, Ring wraith, Corpse choir, Abyss calling; places: Vent crawler, Sewer
+  thing, Iron lung, Stuck signal. A preset is a starting point: every knob stays live, and the box reads **custom**
+  once you move one.
+- **Randomize** picks 2 to 5 effects at random settings, mostly mild so the words survive (never the clean-up tools:
+  dynamics, EQ, exciter, crystalizer, sub boost). **All off** clears it.
 - **Preview** (**P**) renders the source through the whole chain and the rack on the dev server and plays it. The
   source is the take you just recorded (before Enter), else your last take.
 - **Auto preview** (on by default) re-renders whenever a preset, Randomize or a tick changes the rack, or a slider is
@@ -158,9 +203,13 @@ blend have a **mix** knob (0 is dry, 1 is all effect). With nothing ticked the r
 - The rack setting is remembered by the browser across reloads.
 
 Only numbers reach ffmpeg: `cleanFx` keeps the known effects and knobs, clamps each value to its range and rounds it
-to its step, and `fxGraph` builds the filter graph from those numbers alone (`tests/unit/booth-fx.test.ts`).
-`node tools/booth/chain-probe.mjs --fx` runs the synthetic clean take through every preset, and every effect alone at
-its knobs' extremes, with real ffmpeg.
+to its step, and `fxGraph` builds the filter graph from those numbers alone; an enumeration (a carrier, a room) is an
+index into a fixed table in `fx.ts` (`tests/unit/booth-fx.test.ts`: every knob clamped, hostile input, every graph
+well-formed). `tests/integration/booth-fx-ffmpeg.test.ts` renders every effect alone and every preset through the real
+chain (finite, on target, under the ceiling, length bounded; it needs ffmpeg on PATH, skipped otherwise), and
+`node tools/booth/chain-probe.mjs --fx` prints the table: every preset and every effect alone (LUFS, peak, length,
+the chain's time), and every effect at its knobs' extremes. ffmpeg's `vibrato` now and then reads its delay line
+before writing it (NaN samples, a "silent take"); the rack runs it behind 20 ms of silence, cut off after.
 
 ## Hear it in the game
 
