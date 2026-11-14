@@ -105,6 +105,16 @@ export const VOX = {
   comp: 'acompressor=threshold=-20dB:ratio=3:attack=10:release=150:knee=6',
   /** most extra gain the second pass may add into the limiter: a peaky take comes back a little quiet, not crushed */
   makeup: 3,
+  /** the same for a take with FX, over up to `fxPasses` makeup passes: a rack can make a take far peakier than a voice
+   *  (a chopper's gaps, a ring mod, a bitcrush), and 3 dB left such racks 2-3.5 LU under the clean take. The FX
+   *  already owns the sound, so the limiter may work harder on it (measured: tools/booth/chain-probe.mjs --fx) */
+  fxMakeup: 8,
+  fxPasses: 3,
+  /** the limiter releases (ms) a racked take that is still short after the makeup is re-encoded with, in turn: the
+   *  Glitch preset lands 2.5 LU under the clean take at 80 ms, 0.8 at 20 (a voice's own low syllables want the 80) */
+  fxRelease: [40, 20],
+  /** the highest true peak (dBTP) a racked take may come out at: the clean chain lands -0.6 to -1.2 */
+  fxPeak: -0.5,
   /** a take needing more gain than this brings the room's hiss up with it: the booth says move closer / raise the
    *  input gain (the denoise is not turned up for it) */
   quiet: 18,
@@ -277,12 +287,15 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
     }
     // the FX rack (fx.ts): on the cleaned-up, trimmed, squeezed take, before the gain to the target, so a take with
     // FX still lands at VOX.lufs under the same compressor and limiter
-    const graph = fxGraph(o.fx);
+    const racked = fxOn(cleanFx(o.fx));
     // the quiet-take verdict is about the input (the mic level), so it is read on the dry take: a rack that thins the
     // voice (a radio band, a ring mod) takes more gain to the target without the take having been recorded quiet
     let dry: number | null = null;
-    if (graph) {
-      dry = gainTo(VOX.lufs, (await measure(tmp)).lufs);
+    if (racked) {
+      const d0 = await measure(tmp);
+      dry = gainTo(VOX.lufs, d0.lufs);
+      // the graph is told the take's length (the tails end FX_TAIL past it) and loudness (the rack runs at FX_LEVEL)
+      const graph = fxGraph(o.fx, { dur: d0.dur, lufs: d0.lufs })!;
       const fxw = out.replace(/\.ogg$/, '.fx.wav');
       try {
         await run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', tmp, '-filter_complex', graph, '-map', '[fx]', '-c:a', 'pcm_f32le', '-f', 'wav', fxw]);
@@ -306,16 +319,40 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
       const mid = await measure(sat);
       let g2 = gainTo(VOX.lufs, mid.lufs) ?? 0;
       // pass 2: the remaining gain under the ceiling, to Vorbis
+      let rel: number = VOX.release, ceil: number = VOX.ceil;
       const enc = (gain: number) => run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', sat,
         // the limiter runs 4x oversampled so it sees the peaks between samples (the encode would otherwise put them
         // back over the ceiling)
-        '-af', `volume=${gain}dB,aresample=176400,alimiter=limit=${VOX.ceil}:level=false:attack=1:release=${VOX.release},aresample=44100`,
+        '-af', `volume=${gain}dB,aresample=176400,alimiter=limit=${Math.round(ceil * 1e4) / 1e4}:level=false:attack=1:release=${rel},aresample=44100`,
         '-ar', '44100', '-ac', '1', '-c:a', 'libvorbis', '-q:a', String(VOX.q), '-f', 'ogg', out]);
       await enc(g2);
       m = await measure(out);
-      const short = m.lufs == null ? 0 : VOX.lufs - m.lufs;
-      if (short > VOX.tol) {
-        g2 += Math.min(short, VOX.makeup);
+      // the makeup: what the limiter took short of the target, added back (capped). A clean take gets one pass of at
+      // most VOX.makeup; a racked take up to fxPasses of at most fxMakeup in all (the limiter gives back less than it
+      // is given, so each later pass asks a little more)
+      const cap = racked ? VOX.fxMakeup : VOX.makeup;
+      let spent = 0;
+      for (let pass = 0; pass < (racked ? VOX.fxPasses : 1); pass++) {
+        const short = m.lufs == null ? 0 : VOX.lufs - m.lufs;
+        if (short <= VOX.tol || spent >= cap) break;
+        const add = Math.round(Math.min(short * (pass ? 1.4 : 1), cap - spent) * 100) / 100;
+        g2 += add;
+        spent += add;
+        await enc(g2);
+        m = await measure(out);
+      }
+      // a rack whose gaps hold the limiter down (a chopper, a deep ring mod: the 80 ms release spans the gaps) still
+      // short: the limiter lets go faster (VOX.fxRelease), only for that take
+      for (const r of racked ? VOX.fxRelease : []) {
+        if (m.lufs == null || VOX.lufs - m.lufs <= VOX.tol) break;
+        rel = r;
+        await enc(g2);
+        m = await measure(out);
+      }
+      // a limiter pushed that hard hands Vorbis a dense wave, and the encode overshoots: past VOX.fxPeak (dBTP) the
+      // ceiling comes down by the overshoot (and a little), at most twice
+      for (let i = 0; racked && i < 2 && m.peak != null && m.peak > VOX.fxPeak; i++) {
+        ceil *= 10 ** ((VOX.fxPeak - 0.3 - m.peak) / 20);
         await enc(g2);
         m = await measure(out);
       }
