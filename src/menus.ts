@@ -217,7 +217,7 @@ export function pauseItems() {
 }
 // title screen: every cursor move is a small wet valve pop (gross_pop), every selection a wet splat (splat_s), both low (tone pass D39: the farts are out)
 export const menuBlip = (ok) => {
-  // starting a run (DESCEND / DESCEND DEEPER) gets Lesley's "yeah baby" instead of the select splat
+  // starting a run (DESCEND / DESCEND DEEPER) gets SLAB's "grodius bitch" (Lesley's "yeah baby" removed 2026-11-13) instead of the select splat
   if ($.state === 'title' && ok && /^DESCEND/.test((titleItems()[$.menuSel] || {}).l || '') && sample('startgame', { vol: 1.15, spread: .02, wet: .14 })) return;
   if ($.state === 'title' && sample(ok ? 'splat_s' : 'gross_pop', { vol: ok ? .5 : .35, spread: .08, wet: .1 })) return;
   sfx.menu();
