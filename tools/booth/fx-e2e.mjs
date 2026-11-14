@@ -3,7 +3,7 @@
 // says. It keeps a take (with FX) in one slot, applies another rack to it, refuses a clipped take, and then deletes
 // every file the run made under src/sfx/ and assets-raw/voice/ (anything there before the run is left alone).
 //
-//   1. the page loads with no console errors; the rack shows 16 effect cards and the preset list
+//   1. the page loads with no console errors; the rack shows a card per effect (grouped) and the preset list
 //   2. pick a line, record ~1.5 s (Space, wait, Space), pick Cyborg, press P: an FX preview with a duration
 //   3. an effect on and a slider moved (input + change): the auto preview re-renders; the preset box says custom
 //   4. Randomize and All off work; the rack survives a reload (localStorage)
@@ -11,6 +11,9 @@
 //   6. Keep (Enter) with a rack: the take lands in src/sfx/<cat>/ with the rack's name in the takes list and an fx
 //      object in assets-raw/voice/<cat>/<take>.json; "Apply current FX to this line's takes" rewrites it
 //   7. a clipped take previews with the "preview only" warning, and Keep is refused
+//   8. the studio UI: the raw take's waveform, the live meter (take peak, peak hold), the preview deck's A and B
+//      lanes with their LUFS readouts, A/B (B key) keeping the playhead, K play/pause, cached renders, a user preset
+//      saved / loaded / exported / deleted / imported, the effect search, bypass keeping knob values, solo
 //   +  no horizontal overflow at 1280x800 and 760x900; screenshots of the rack at both into the OS temp dir
 //
 // Usage: node tools/booth/fx-e2e.mjs [base=http://localhost:5199] [cat=hype100]
@@ -24,6 +27,10 @@ import { randomBytes } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+// the rack itself (Node runs the .ts by stripping its types: fx.ts is a leaf with no imports)
+import { EFFECTS, PRESETS } from './fx.ts';
+const ORDER = EFFECTS.map((e) => e.id);
+const presetIds = (name) => Object.keys(PRESETS.find((p) => p.name === name)?.fx ?? {});
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const BASE = (process.argv[2] ?? 'http://localhost:5199').replace(/\/$/, '');
@@ -108,7 +115,7 @@ async function recordTake(page, ms = 1500) {
   await page.waitForSelector('#b-rec.on', { timeout: 10000 });
   await page.waitForTimeout(ms);
   await page.keyboard.press(' ');
-  await page.waitForSelector('#rawplay', { timeout: 10000 });
+  await page.waitForSelector('#rawplay', { state: 'attached', timeout: 10000 });
 }
 /** waits for an FX preview other than `was` to land (and not be rendering), then its duration */
 async function newPreview(page, was, timeout = 60000) {
@@ -125,7 +132,8 @@ async function newPreview(page, was, timeout = 60000) {
   }));
 }
 const presetText = (page) => page.evaluate(() => { const s = document.getElementById('fx-preset'); return s.options[s.selectedIndex]?.textContent ?? ''; });
-const onCards = (page) => page.evaluate(() => [...document.querySelectorAll('.fx.on [data-fx]')].map((c) => c.dataset.fx));
+/** the effects switched on, in chain order (the cards are grouped on screen) */
+const onCards = (page) => page.evaluate(() => [...document.querySelectorAll('.fx.on [data-fx]')].map((c) => c.dataset.fx)).then((a) => a.sort((x, y) => ORDER.indexOf(x) - ORDER.indexOf(y)));
 /** horizontal overflow at this viewport: the page, and any element of the stage past the right edge */
 const overflow = (page) => page.evaluate(() => {
   const vw = document.documentElement.clientWidth, out = [];
@@ -159,18 +167,111 @@ try {
   browsers.push(browser);
   check('1 page loads with no console errors', !errors.length, errors.join(' | '));
   const cards = await page.locator('#fx .fx').count(), opts = await page.locator('#fx-preset option').allTextContents();
-  check('1 rack renders 16 effect cards', cards === 16, `${cards} cards`);
-  check('1 preset list (Clean, Cyborg, ... 16 presets)', opts.filter(Boolean).length === 16 && opts.includes('Cyborg'), `${opts.length} options`);
+  check(`1 rack renders a card per effect (${EFFECTS.length})`, cards === EFFECTS.length, `${cards} cards`);
+  const factory = await page.locator('#fx-factory option').count();
+  check(`1 preset list holds the ${PRESETS.length} factory presets`, factory === PRESETS.length && opts.includes('Cyborg'), `${factory} factory, ${opts.length} options`);
+  const groups = await page.locator('#fx-rack .grp').count();
+  check('1 the rack is grouped', groups >= 2, `${groups} groups`);
 
   // 2. record, Cyborg, P
   await pickLine(page);
   await recordTake(page);
   check('2 Preview button enabled once a take is recorded', await page.locator('#fx-prev').isEnabled());
   await page.selectOption('#fx-preset', { label: 'Cyborg' });
-  check('2 Cyborg sets its 5 effects', JSON.stringify(await onCards(page)) === JSON.stringify(['pitch', 'robot', 'ring', 'radio', 'flanger']), (await onCards(page)).join(','));
+  check('2 Cyborg sets its effects', JSON.stringify(await onCards(page)) === JSON.stringify(presetIds('Cyborg')), (await onCards(page)).join(','));
   await page.keyboard.press('p');
   let dur = await newPreview(page, '');
   check('2 P renders an FX preview with a duration', dur > 0.3, `${dur?.toFixed?.(2)} s; ${await page.locator('#fx-out').innerText().catch(() => '')}`);
+
+  // 8. the studio UI, on the take in review and its Cyborg preview
+  const drawn = (sel) => page.waitForSelector(sel, { timeout: 20000 }).then(() => true, () => false);
+  check("8 the raw take's waveform and spectrogram draw", await drawn('#rv-wave canvas'));
+  await page.waitForFunction(() => /dBFS/.test(document.getElementById('rv-read')?.textContent ?? ''), null, { timeout: 10000 }).catch(() => {});
+  check("8 the raw take's readout shows its duration and peak", /DUR\s*[\d.]+ s[\s\S]*PEAK\s*-?[\d.]+ dBFS/.test(await page.locator('#rv-read').innerText()), await page.locator('#rv-read').innerText());
+  check('8 the meter held the take peak', /^-?[\d.]+ dBFS$/.test(await page.locator('#take-pk').innerText()), await page.locator('#take-pk').innerText());
+  check('8 the live scope and spectrum are drawn', await page.evaluate(() => ['scope', 'rta'].every((id) => { const c = document.getElementById(id); return c.width > 10 && c.height > 10; })));
+  check('8 the preview deck draws lane B (FX)', await drawn('#wave-b canvas'));
+  check('8 the preview deck draws lane A (clean)', await drawn('#wave-a canvas'));
+  await page.waitForFunction(() => /LUFS/.test(document.getElementById('read-a')?.textContent ?? ''), null, { timeout: 30000 }).catch(() => {});
+  const ra = await page.locator('#read-a').innerText(), rb = await page.locator('#read-b').innerText();
+  check('8 both lanes show LUFS / peak / duration from x-booth-info', /LUFS\s*-?[\d.]+/.test(ra) && /LUFS\s*-?[\d.]+/.test(rb) && /DUR/.test(rb), `A: ${ra} | B: ${rb}`);
+  const deckState = () => page.evaluate(() => {
+    const a = document.getElementById('cleanplay'), b = document.getElementById('fxplay');
+    return { ab: document.querySelector('.deck.ab')?.dataset.ab, aMuted: a.muted, bMuted: b.muted, aT: a.currentTime, bT: b.currentTime, aP: a.paused, bP: b.paused };
+  });
+  await page.keyboard.press('k');
+  await page.waitForTimeout(150);
+  let ds = await deckState();
+  if (ds.bP) { await page.keyboard.press('k'); await page.waitForTimeout(150); ds = await deckState(); } // it was still playing the autoplay: K paused it
+  check('8 K plays the preview deck, A and B together', !ds.aP && !ds.bP, JSON.stringify(ds));
+  await page.waitForTimeout(400);
+  await page.keyboard.press('b');
+  ds = await deckState();
+  check('8 B switches to A (clean): A heard, B muted', ds.ab === 'A' && !ds.aMuted && ds.bMuted, JSON.stringify(ds));
+  check('8 ... keeping the playhead', ds.aT > 0.15 && Math.abs(ds.aT - ds.bT) < 0.12, `A ${ds.aT.toFixed(2)} B ${ds.bT.toFixed(2)}`);
+  await page.keyboard.press('b');
+  ds = await deckState();
+  check('8 B again switches back to the FX', ds.ab === 'B' && ds.aMuted && !ds.bMuted, JSON.stringify(ds));
+  await page.keyboard.press('k');
+  ds = await deckState();
+  check('8 K pauses both', ds.aP && ds.bP, JSON.stringify(ds));
+  // a bypassed effect keeps its knobs; going back to a rendered rack is a cached render (the same blob)
+  const cyb = await fxSrc(page);
+  await page.locator('#fx [data-fx=echo]').check();
+  let u2 = await newPreview(page, cyb).then(() => fxSrc(page));
+  await page.locator('#fx input[type=range][data-e=echo][data-k=ms]').evaluate((r) => { r.value = '300'; r.dispatchEvent(new Event('input')); r.dispatchEvent(new Event('change')); });
+  const u3 = await newPreview(page, u2).then(() => fxSrc(page));
+  await page.locator('#fx [data-fx=echo]').uncheck();
+  await newPreview(page, u3);
+  check('8 bypassing an effect keeps its knob values', (await page.locator('#fx input[data-e=echo][data-k=ms]').inputValue()) === '300' && (await page.locator('#o-echo-ms').innerText()).startsWith('300'));
+  check('8 ... and the rack it went back to comes from the render cache', (await fxSrc(page)) === cyb);
+  await page.locator('#fx [data-fx=echo]').check();
+  await newPreview(page, cyb);
+  check('8 switching it back on brings its values back (cached render too)', (await fxSrc(page)) === u3 && (await onCards(page)).includes('echo'));
+  await page.locator('#fx [data-fx=echo]').uncheck();
+  await newPreview(page, u3);
+  // solo
+  await page.click('#fx [data-solo=robot]');
+  await newPreview(page, cyb);
+  const soloRow = await page.locator('#fx-out .row .state').first().innerText();
+  check('8 solo previews that effect alone', /^robot/.test(soloRow) && (await page.locator('#fx-chain .solonote').count()) === 1, soloRow);
+  check('8 ... and leaves the rack (and the keep) alone', JSON.stringify(await onCards(page)) === JSON.stringify(presetIds('Cyborg')));
+  const soloSrc = await fxSrc(page);
+  await page.click('#fx [data-solo=robot]');
+  await newPreview(page, soloSrc);
+  check('8 unsolo goes back to the whole rack', (await fxSrc(page)) === cyb && !(await page.locator('#fx-chain .solonote').count()));
+  // search
+  const shown = () => page.evaluate(() => [...document.querySelectorAll('#fx-rack .fx')].filter((c) => c.offsetParent).map((c) => c.dataset.id));
+  await page.fill('#fx-search', 'ring');
+  const hits = await shown();
+  check('8 the search filters the cards', hits.includes('ring') && hits.length < EFFECTS.length, hits.join(','));
+  await page.locator('#fx-search').press('Escape');
+  check('8 Escape clears the search', (await shown()).length === EFFECTS.length);
+  await page.click('#fx-rack .grph >> nth=0');
+  const folded = await page.evaluate(() => document.querySelector('#fx-rack .grp').classList.contains('shut'));
+  await page.click('#fx-rack .grph >> nth=0');
+  check('8 a group folds and unfolds', folded && !(await page.evaluate(() => document.querySelector('#fx-rack .grp').classList.contains('shut'))));
+  // a user preset: save, load, export, delete, import
+  const PN = 'E2E Hive ' + randomBytes(2).toString('hex');
+  await page.fill('#fx-pname', PN);
+  await page.locator('#fx-pname').press('Enter');
+  check('8 Save adds the rack to Yours', (await page.locator('#fx-yours option').allTextContents()).includes(PN));
+  check('8 ... and the preset box names it', (await presetText(page)) === PN, await presetText(page));
+  await page.click('#fx-off');
+  await page.selectOption('#fx-preset', { label: PN });
+  check('8 loading the user preset brings its rack back', JSON.stringify(await onCards(page)) === JSON.stringify(presetIds('Cyborg')), (await onCards(page)).join(','));
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#fx-export')]);
+  const exported = path.join(TMP, 'presets-export.json');
+  await dl.saveAs(exported);
+  const ej = JSON.parse(fs.readFileSync(exported, 'utf8'));
+  check('8 Export writes the presets as JSON', ej.presets?.some((p) => p.name === PN && Object.keys(p.fx).join(',') === presetIds('Cyborg').join(',')), JSON.stringify(ej).slice(0, 120));
+  await page.click('#fx-del');
+  check('8 Delete removes it', !(await page.locator('#fx-preset option', { hasText: PN }).count()));
+  await page.setInputFiles('#fx-file', exported);
+  await page.waitForFunction((n) => [...document.querySelectorAll('#fx-yours option')].some((o) => o.textContent === n), PN, { timeout: 5000 }).catch(() => {});
+  check('8 Import brings it back', (await page.locator('#fx-yours option').allTextContents()).includes(PN), await state(page));
+  await page.waitForFunction(() => !document.getElementById('fx-prev')?.textContent.includes('Rendering'), null, { timeout: 60000 });
+  await newPreview(page, '').catch(() => {});
 
   // 3. an effect on, a slider moved: the auto preview follows; the preset box says custom
   let was = await fxSrc(page);
@@ -205,6 +306,7 @@ try {
   check('4 the rack survives a reload', JSON.stringify(await onCards(page)) === JSON.stringify(rack) && (await page.locator('#fx input[data-e=echo][data-k=ms]').inputValue()) === '300',
     `${(await onCards(page)).join(',')} echo ${await page.locator('#fx input[data-e=echo][data-k=ms]').inputValue()}`);
   check('4 a reloaded custom rack still says custom', (await presetText(page)) === 'custom', await presetText(page));
+  check('8 the user preset survives a reload', (await page.locator('#fx-yours option').allTextContents()).includes(PN));
 
   // 5. arrows on a focused slider; Space still records
   await page.mouse.click(5, 5);
@@ -231,7 +333,7 @@ try {
   check('5 Space on a focused slider still records', recOn);
   await page.waitForTimeout(1500);
   await page.keyboard.press(' ');
-  await page.waitForSelector('#rawplay', { timeout: 10000 });
+  await page.waitForSelector('#rawplay', { state: 'attached', timeout: 10000 });
 
   // screenshots and layout at 1280x800
   await page.waitForFunction(() => !document.getElementById('fx-prev')?.textContent.includes('Rendering'), null, { timeout: 60000 });
