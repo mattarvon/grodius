@@ -278,10 +278,11 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
     // the FX rack (fx.ts): on the cleaned-up, trimmed, squeezed take, before the gain to the target, so a take with
     // FX still lands at VOX.lufs under the same compressor and limiter
     const graph = fxGraph(o.fx);
-    // the take's own level before the rack: the quiet-take warning is about the mic, not about an effect (robot,
-    // whisper, a radio band) that thins the take and so needs more gain to reach the target
-    const dry = graph ? gainTo(VOX.lufs, (await measure(tmp)).lufs) : null;
+    // the quiet-take verdict is about the input (the mic level), so it is read on the dry take: a rack that thins the
+    // voice (a radio band, a ring mod) takes more gain to the target without the take having been recorded quiet
+    let dry: number | null = null;
     if (graph) {
+      dry = gainTo(VOX.lufs, (await measure(tmp)).lufs);
       const fxw = out.replace(/\.ogg$/, '.fx.wav');
       try {
         await run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', tmp, '-filter_complex', graph, '-map', '[fx]', '-c:a', 'pcm_f32le', '-f', 'wav', fxw]);
