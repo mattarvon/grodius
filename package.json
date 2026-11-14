@@ -23,7 +23,8 @@
     "prettier": "^3.9.9",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
-    "vitest": "5.0.5"
+    "vitest": "5.0.5",
+    "wavesurfer.js": "8.0.4"
   },
   "dependencies": {
     "@capacitor-community/keep-awake": "^8.0.1",

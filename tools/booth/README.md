@@ -110,7 +110,8 @@ length, the refusal); `production/qa/evidence/ls2-booth2.md` has its numbers.
 
 `node tools/booth/fx-e2e.mjs [http://localhost:5199]` drives the real booth page in headless Chromium with a fake mic
 against this checkout's running dev server: the FX rack, its preview, a keep with FX, "apply current FX", a clipped take
-refused, the layout at 1280 and 760 wide. It records into `hype100` and deletes every file it made afterwards.
+refused, the studio UI (waveforms, meter, A/B, the render cache, bypass, solo, search, a user preset saved, exported,
+deleted and imported), the layout at 1280 and 760 wide. It records into `hype100` and deletes every file it made afterwards.
 
 ### Reprocess old takes
 
@@ -210,6 +211,37 @@ chain (finite, on target, under the ceiling, length bounded; it needs ffmpeg on 
 `node tools/booth/chain-probe.mjs --fx` prints the table: every preset and every effect alone (LUFS, peak, length,
 the chain's time), and every effect at its knobs' extremes. ffmpeg's `vibrato` now and then reads its delay line
 before writing it (NaN samples, a "silent take"); the rack runs it behind 20 ms of silence, cut off after.
+
+### The studio UI
+
+The page draws takes with [wavesurfer.js](https://wavesurfer.xyz) 8 (BSD-3-Clause, pinned in `package.json`) and its
+Spectrogram, Timeline, Hover and Regions plugins. `tools/booth/wave.ts` loads it at runtime from
+`/node_modules/wavesurfer.js/dist/` by URL, not with an import: the page's static graph stays leaf-only (no Vite client,
+no dep optimizer, `tests/unit/booth.test.ts`). Without the library every display falls back to a plain player.
+
+- **Input meter** (header): peak (bright) and RMS (dim) on a -60 to 0 dBFS scale, the target band, a white
+  peak-hold tick (holds 1.5 s), HOT and CLIP lights. **CLIP latches** for the take; click it to clear.
+- **Live monitor** under the line: a scrolling scope of the last ~6 s of input (green, amber past -3 dBFS, red at
+  CLIP; pinkish while recording) with the take's peak so far, and a 40-band spectrum with falling peak dots.
+- **Raw take deck** (in review): waveform, spectrogram (mel, 40 Hz-16 kHz), timeline, hover time; click to seek. Its
+  readout gives the duration and the raw peak (red at CLIP, amber when hot). After a keep it shows the processed take
+  with the plugin's LUFS, true peak, duration and gain.
+- **FX preview deck, A/B:** every preview renders the source twice: **B** through the rack, **A** clean (no FX). Both
+  lanes play together and **B** (key or button, or a click on a lane's title) switches which one you hear, so the
+  playhead is kept. The louder lane is turned down to the quieter one's LUFS (the MATCH readout), so the comparison is
+  the sound, not the level. Each lane shows LUFS, peak and duration from the render. **Drag** across the FX waveform
+  to **loop** a stretch (Clear loop drops it). Renders are cached per line, source, pause setting and rack (the last
+  24), so going back to a rack, or to clean, is instant.
+- **Rack:** effects in collapsible groups (the groups fx.ts names, or the booth's own until it does). Each card has a
+  switch (**on / bypass**: an effect switched off keeps its settings, remembered across reloads), **S** (solo: the
+  preview plays that effect alone; Keep still uses the whole rack) and **R** (back to its defaults). Double-click a
+  slider for its default. The **chain strip** shows what is on, in the order it runs; click a link to find its card.
+  **Search** (**/**) filters by name, blurb, group or knob; Escape clears it.
+- **Your presets:** type a name and **Save** (Enter); they join the preset box under *Yours*. **Delete** removes the
+  selected one; **Export** downloads them as JSON, **Import** loads such a file (same name replaces). They live in this
+  browser's storage; the page works without it.
+- **Keys:** **K** play / pause (the deck last used), **B** A/B, **/** search, as well as Space, Enter, Backspace, P, T
+  and the arrows (a focused slider keeps the arrows).
 
 ## Hear it in the game
 

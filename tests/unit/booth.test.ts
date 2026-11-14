@@ -432,13 +432,15 @@ describe('?vox= hook', () => {
 describe('the booth page', () => {
   it('never pulls in the Vite client, so a keep cannot reload it: no CSS, no HMR, no import outside tools/booth but the quip rules', () => {
     // LS2-quips: src/voice/quiplist.ts, the one game file the page and slots.ts read, is itself a leaf with no imports
-    for (const f of ['tools/booth/booth.ts', 'tools/booth/slots.ts', 'tools/booth/names.ts', 'src/voice/quiplist.ts']) {
+    for (const f of ['tools/booth/booth.ts', 'tools/booth/wave.ts', 'tools/booth/slots.ts', 'tools/booth/names.ts', 'src/voice/quiplist.ts']) {
       const t = src(f);
       expect(t, f).not.toMatch(/\.css['"]/);
       expect(t, f).not.toMatch(/import\.meta\.hot/);
       for (const m of t.matchAll(/^import [^'"]*['"]([^'"]+)['"]/gm)) expect(m[1], f).toMatch(/^(\.\/[a-z]+|\.\.\/\.\.\/src\/voice\/quiplist(\.ts)?)$/);
     }
     expect(src('src/voice/quiplist.ts')).not.toMatch(/^import /m);
+    // the waveform library comes in at runtime by URL (wave.ts), never through Vite's dep optimizer
+    expect(src('tools/booth/wave.ts')).not.toMatch(/^import /m);
   });
   it('keeps the text frame from writing the save or acting on input before any game module runs', () => {
     const h = src('tools/booth/text.html');
