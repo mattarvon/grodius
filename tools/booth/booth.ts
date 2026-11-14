@@ -54,8 +54,9 @@ const S = {
   t0: 0,
   /** the FX rack (fx.ts): what a keep, a preview and "apply to this line" use. Remembered across reloads */
   fx: (() => { try { return cleanFx(JSON.parse(store.get('fx') ?? '{}')); } catch { return {}; } })() as FxSet,
-  /** the last take recorded (kept or not): the FX preview's source when nothing else is picked */
-  lastRaw: null as Blob | null,
+  /** the last take recorded on a line (kept or not), with that line: the FX preview's source when nothing else is
+   *  picked, on that line only (a CLOSED CASKET take never previews under GRODIUS BITCH) */
+  lastRaw: null as { cat: string; blob: Blob } | null,
   /** a kept take on disk picked for the FX preview (its raw take in assets-raw/voice/) */
   prevName: '',
   prev: null as { url: string; info: { lufs?: number; dur?: number; fx?: string; warn?: string } } | null,
@@ -272,7 +273,7 @@ async function record() {
     rec.onstop = () => {
       if (S.phase === 'error') return; // the mic went away mid-take; nothing usable
       S.raw = new Blob(S.chunks, { type: rec.mimeType || MIME || 'audio/webm' });
-      S.lastRaw = S.raw;
+      S.lastRaw = { cat: ALL[S.sel].cat, blob: S.raw };
       S.prevName = '';
       S.rawUrl = URL.createObjectURL(S.raw);
       S.phase = 'review';
@@ -383,6 +384,7 @@ function move(d: number) {
   S.sel = (S.sel + d + ALL.length) % ALL.length;
   S.squeeze = sqDefault(ALL[S.sel]);
   S.prevName = '';
+  dropPrev();
   store.set('slot', ALL[S.sel].cat);
   S.kept = null;
   if (S.phase !== 'error') { S.phase = 'idle'; say(''); } // a mic error stays up until a mic opens
@@ -570,7 +572,15 @@ function drawFx() {
 let shownPrev: string | null = null;
 /** what a preview plays right now: a kept take picked with its FX preview button, the take in review, the last take
  *  recorded, or nothing */
-const fxSource = () => S.prevName ? S.prevName + ' (kept take)' : S.raw && S.phase === 'review' ? 'the take you just recorded' : S.lastRaw ? 'your last take' : '';
+const lineRaw = () => (S.lastRaw && S.lastRaw.cat === ALL[S.sel].cat ? S.lastRaw.blob : null);
+const fxSource = () => S.prevName ? S.prevName + ' (kept take)' : S.raw && S.phase === 'review' ? 'the take you just recorded' : lineRaw() ? 'your last take on this line' : '';
+/** a line change: the last line's preview player goes (and any render still on its way is ignored) */
+function dropPrev() {
+  fxSeq++;
+  S.prevBusy = false;
+  if (S.prev) URL.revokeObjectURL(S.prev.url);
+  S.prev = null;
+}
 /** the rack's title, the preset box, the Preview button, the source and the preview's player: never the sliders.
  *  draw() calls it too, so the button and the source follow a take being recorded, kept or discarded */
 function drawFxBar() {
@@ -611,7 +621,7 @@ function autoPreview() {
 /** the source through the chain and the rack on the dev server (POST /__booth/preview): nothing is written to src/ */
 async function preview() {
   clearTimeout(fxTimer); // P (or the button) while an auto preview waits: one render, not two
-  const s = ALL[S.sel], body = S.prevName ? null : S.phase === 'review' && S.raw ? S.raw : S.lastRaw;
+  const s = ALL[S.sel], body = S.prevName ? null : S.phase === 'review' && S.raw ? S.raw : lineRaw();
   if (!S.prevName && !body) { say('Record a take first (or press FX preview on a kept take), then the rack has something to play.', 'warn'); return draw(); }
   const seq = ++fxSeq;
   S.prevBusy = true;
