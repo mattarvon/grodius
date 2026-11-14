@@ -278,7 +278,11 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
     // the FX rack (fx.ts): on the cleaned-up, trimmed, squeezed take, before the gain to the target, so a take with
     // FX still lands at VOX.lufs under the same compressor and limiter
     const graph = fxGraph(o.fx);
+    // the quiet-take verdict is about the input (the mic level), so it is read on the dry take: a rack that thins the
+    // voice (a radio band, a ring mod) takes more gain to the target without the take having been recorded quiet
+    let dry: number | null = null;
     if (graph) {
+      dry = gainTo(VOX.lufs, (await measure(tmp)).lufs);
       const fxw = out.replace(/\.ogg$/, '.fx.wav');
       try {
         await run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', tmp, '-filter_complex', graph, '-map', '[fx]', '-c:a', 'pcm_f32le', '-f', 'wav', fxw]);
@@ -290,7 +294,7 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
     const pre = await measure(tmp);
     let g = gainTo(VOX.lufs, pre.lufs);
     if (g == null) throw new Error('the take is silent or too short to measure (did the mic pick anything up?)');
-    const first = g;
+    const first = dry ?? g;
     // pass 1, to float: the gain to the target, then a gentle voice compressor. Raw speech runs 15-18 LU
     // peak-to-loudness (syllable dynamics), the shipped clips ~11: under a -1.2 dBTP ceiling a limiter alone only
     // turns such a take down. The compressor evens the syllables out instead. (A tanh soft clip was tried: it

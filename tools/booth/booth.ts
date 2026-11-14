@@ -507,25 +507,25 @@ function draw() {
   if (qn) qn.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addQuip(qn.value); } else if (e.key === 'Escape') qn.blur(); };
   const sqb = document.getElementById('b-sq') as HTMLInputElement | null;
   if (sqb) sqb.onchange = () => { S.squeeze = sqb.checked; sqb.blur(); };
+  // the rack's Preview button and source follow the take (recorded, kept, discarded, another line)
+  drawFxBar();
 }
 
 // ---------------- the FX rack (fx.ts) ----------------
-/** its own element, drawn only when the rack's shape changes: draw() rebuilds the stage on every redraw, which would
- *  drop a slider out from under the mouse */
+/** the whole rack, drawn only when its shape changes (a preset, an effect on or off, Randomize): draw() rebuilds the
+ *  stage on every redraw, which would drop a slider out from under the mouse. What changes without the rack changing
+ *  (the title, the preset box, the Preview button, the source, the preview's player) is drawFxBar()'s, which never
+ *  touches the sliders: a preview landing keeps a focused knob focused, so its arrows stay the knob's */
 function drawFx() {
-  const el = $id('fx'), on = fxOn(S.fx);
-  const preset = PRESETS.find((p) => JSON.stringify(p.fx) === JSON.stringify(S.fx))?.name ?? '';
-  const src = S.prevName ? S.prevName + ' (kept take)' : S.raw && S.phase === 'review' ? 'the take you just recorded' : S.lastRaw ? 'your last take' : '';
-  el.innerHTML = `<h2>FX rack <span class="state">${on ? esc(fxName(S.fx)) : 'off: takes are kept clean'}</span></h2>
-    <div class="row"><label class="opt">Preset <select id="fx-preset"><option value="">${preset ? '' : 'custom'}</option>${PRESETS.map((p, i) => `<option value="${i}"${p.name === preset ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+  const el = $id('fx');
+  el.innerHTML = `<h2>FX rack <span class="state"></span></h2>
+    <div class="row"><label class="opt">Preset <select id="fx-preset"><option value="">custom</option>${PRESETS.map((p, i) => `<option value="${i}">${esc(p.name)}</option>`).join('')}</select></label>
       <button id="fx-rand" title="2-5 random effects at random settings">Randomize</button>
       <button id="fx-off">All off</button>
-      <button id="fx-prev" ${src && !S.prevBusy ? '' : 'disabled'}>${S.prevBusy ? 'Rendering...' : 'Preview'} <kbd>P</kbd></button>
+      <button id="fx-prev" disabled>Preview <kbd>P</kbd></button>
       <label class="opt" title="re-render the preview whenever a knob moves"><input type="checkbox" id="fx-auto"${store.get('fxauto') !== '0' ? ' checked' : ''}> auto preview</label>
-      <span class="state">${src ? 'source: ' + esc(src) : 'record a take (or press FX preview on a kept take) to hear the rack'}</span></div>
-    ${S.prev ? `<div class="row"><span class="state">FX preview:</span><audio id="fxplay" controls src="${S.prev.url}"></audio>
-      <span class="state">${esc([S.prev.info.fx || 'clean', S.prev.info.dur != null ? S.prev.info.dur.toFixed(2) + ' s' : '', S.prev.info.lufs != null ? S.prev.info.lufs + ' LUFS' : ''].filter(Boolean).join(' / '))}</span>
-      ${S.prev.info.warn ? `<span class="warn">${esc(S.prev.info.warn)}</span>` : ''}</div>` : ''}
+      <span class="state" id="fx-src"></span></div>
+    <div id="fx-out"></div>
     <div class="rack">${EFFECTS.map((e) => {
       const v = S.fx[e.id];
       return `<div class="fx${v ? ' on' : ''}"><label class="fxh"><input type="checkbox" data-fx="${e.id}"${v ? ' checked' : ''}> ${esc(e.label)}</label>
@@ -536,6 +536,8 @@ function drawFx() {
             <output id="o-${e.id}-${k.k}">${esc(knobText(k, x))}</output></label>`;
         }).join('')}</div>`;
     }).join('')}</div>`;
+  shownPrev = null;
+  drawFxBar();
   ($id('fx-preset') as HTMLSelectElement).onchange = (ev) => {
     const i = (ev.target as HTMLSelectElement).value;
     (ev.target as HTMLElement).blur();
@@ -561,16 +563,34 @@ function drawFx() {
       store.set('fx', JSON.stringify(S.fx));
     };
     // let go of the knob: the preview follows (the slider keeps focus, so the arrows can still nudge it)
-    r.onchange = () => { autoPreview(); drawFxHead(); };
+    r.onchange = () => { autoPreview(); drawFxBar(); };
   });
 }
-/** the rack's title and the preset box only (a knob moved: the sliders stay where they are) */
-function drawFxHead() {
-  const preset = PRESETS.findIndex((p) => JSON.stringify(p.fx) === JSON.stringify(cleanFx(S.fx)));
+/** the preview player on screen (its blob url): rebuilt only when the preview changes, or every draw() would restart it */
+let shownPrev: string | null = null;
+/** what a preview plays right now: a kept take picked with its FX preview button, the take in review, the last take
+ *  recorded, or nothing */
+const fxSource = () => S.prevName ? S.prevName + ' (kept take)' : S.raw && S.phase === 'review' ? 'the take you just recorded' : S.lastRaw ? 'your last take' : '';
+/** the rack's title, the preset box, the Preview button, the source and the preview's player: never the sliders.
+ *  draw() calls it too, so the button and the source follow a take being recorded, kept or discarded */
+function drawFxBar() {
   const sel = document.getElementById('fx-preset') as HTMLSelectElement | null;
-  if (sel) { sel.value = preset >= 0 ? String(preset) : ''; sel.options[0].textContent = preset >= 0 ? '' : 'custom'; }
+  if (!sel) return;
+  const preset = PRESETS.findIndex((p) => JSON.stringify(p.fx) === JSON.stringify(cleanFx(S.fx)));
+  sel.value = preset >= 0 ? String(preset) : '';
+  sel.options[0].textContent = preset >= 0 ? '' : 'custom';
   const h = document.querySelector('#fx h2 .state');
   if (h) h.textContent = fxOn(S.fx) ? fxName(S.fx) : 'off: takes are kept clean';
+  const src = fxSource(), b = $id('fx-prev') as HTMLButtonElement;
+  b.disabled = !src || S.prevBusy;
+  b.innerHTML = `${S.prevBusy ? 'Rendering...' : 'Preview'} <kbd>P</kbd>`;
+  $id('fx-src').textContent = src ? 'source: ' + src : 'record a take (or press FX preview on a kept take) to hear the rack';
+  const key = S.prev?.url ?? '';
+  if (key === shownPrev) return;
+  shownPrev = key;
+  $id('fx-out').innerHTML = S.prev ? `<div class="row"><span class="state">FX preview:</span><audio id="fxplay" controls src="${S.prev.url}"></audio>
+      <span class="state">${esc([S.prev.info.fx || 'clean', S.prev.info.dur != null ? S.prev.info.dur.toFixed(2) + ' s' : '', S.prev.info.lufs != null ? S.prev.info.lufs + ' LUFS' : ''].filter(Boolean).join(' / '))}</span>
+      ${S.prev.info.warn ? `<span class="warn">${esc(S.prev.info.warn)}</span>` : ''}</div>` : '';
 }
 const knobText = (k: { opts?: readonly string[]; unit?: string; step: number }, x: number) =>
   k.opts ? k.opts[Math.round(x)] ?? String(x) : (k.step < 1 ? (+x).toFixed(k.step < 0.1 ? 2 : k.step < 1 ? (String(k.step).split('.')[1]?.length ?? 1) : 0) : String(x)) + (k.unit ? ' ' + k.unit : '');
@@ -582,17 +602,20 @@ function setFx(fx: FxSet) {
 }
 let fxTimer = 0, fxSeq = 0;
 function autoPreview() {
-  if (store.get('fxauto') === '0') return;
+  // nothing to play yet: a preset picked before the first take is not a mistake to warn about (the warning would
+  // also be glued onto the next take's review message)
+  if (store.get('fxauto') === '0' || !fxSource()) return;
   clearTimeout(fxTimer);
   fxTimer = setTimeout(preview, 250) as unknown as number;
 }
 /** the source through the chain and the rack on the dev server (POST /__booth/preview): nothing is written to src/ */
 async function preview() {
+  clearTimeout(fxTimer); // P (or the button) while an auto preview waits: one render, not two
   const s = ALL[S.sel], body = S.prevName ? null : S.phase === 'review' && S.raw ? S.raw : S.lastRaw;
   if (!S.prevName && !body) { say('Record a take first (or press FX preview on a kept take), then the rack has something to play.', 'warn'); return draw(); }
   const seq = ++fxSeq;
   S.prevBusy = true;
-  drawFx();
+  drawFxBar();
   try {
     const q = new URLSearchParams({ cat: s.cat, fx: JSON.stringify(S.fx), ...(S.squeeze ? {} : { squeeze: '0' }), ...(S.prevName ? { name: S.prevName } : {}) });
     const r = await fetch('/__booth/preview?' + q, { method: 'POST', body: body ?? undefined, headers: { 'x-booth': TOKEN, ...(body ? { 'content-type': body.type || 'audio/webm' } : {}) } });
@@ -600,14 +623,17 @@ async function preview() {
     const info = JSON.parse(decodeURIComponent(r.headers.get('x-booth-info') ?? '%7B%7D'));
     const url = URL.createObjectURL(await r.blob());
     if (seq !== fxSeq) return URL.revokeObjectURL(url); // a newer preview is on its way
-    if (S.prev) URL.revokeObjectURL(S.prev.url);
+    // the old player goes before its blob url is revoked, or it logs a failed load
+    const old = S.prev;
     S.prev = { url, info };
+    drawFxBar();
+    if (old) URL.revokeObjectURL(old.url);
   } catch (e) {
     if (seq === fxSeq) { say('FX preview failed: ' + errText(e), 'err'); draw(); }
   } finally {
     if (seq === fxSeq) {
       S.prevBusy = false;
-      drawFx();
+      drawFxBar();
       (document.getElementById('fxplay') as HTMLAudioElement | null)?.play().catch(() => {});
     }
   }

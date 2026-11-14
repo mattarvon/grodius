@@ -107,6 +107,10 @@ hiss comes up with it. A raw peak past -3 dBFS gets a **hot take** warning.
 `node tools/booth/chain-probe.mjs` runs synthetic takes through the chain and prints what it did (the gap level, the
 length, the refusal); `production/qa/evidence/ls2-booth2.md` has its numbers.
 
+`node tools/booth/fx-e2e.mjs [http://localhost:5199]` drives the real booth page in headless Chromium with a fake mic
+against this checkout's running dev server: the FX rack, its preview, a keep with FX, "apply current FX", a clipped take
+refused, the layout at 1280 and 760 wide. It records into `hype100` and deletes every file it made afterwards.
+
 ### Reprocess old takes
 
 When the chain changes, takes kept under the old one can be redone from their raw recordings, without recording again:
