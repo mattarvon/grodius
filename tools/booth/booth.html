@@ -39,6 +39,10 @@
     padding: 5px 10px; font: inherit; font-size: 13px;
   }
   select, button { cursor: pointer; }
+  /* the dropdown list takes background-color, not the gradient: without these it is light text on Windows white */
+  select { background-color: #1b0e12; }
+  option { background: #1b0e12; color: var(--ink); }
+  optgroup { background: #120809; color: var(--red); font-style: normal; font-weight: bold; }
   button:hover:not(:disabled), select:hover { border-color: #7a3a44; background: linear-gradient(#2e171e, #211015); }
   button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
   button:disabled { opacity: .4; cursor: default; }
