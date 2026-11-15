@@ -4,8 +4,8 @@
  "atlas": "src/sprites/boss/keepsake-boss.png",
  "layout": "src/sprites/boss/keepsake-boss.json",
  "atlasSize": [
-  1024,
-  466
+  1022,
+  467
  ],
  "frame": {
   "size": [

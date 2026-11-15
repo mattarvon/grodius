@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { $ } from './state';
 import { SET, UPG, exportSave, importSave, lv, save } from './save';
-import { auInit, sample, setMute, sfx, voiceLive, voiceStopAll } from './audio';
+import { auInit, sample, setMute, sfx, voiceLive, voiceStopAll, bankWant } from './audio';
 import { I, PR } from './input';
 import { jumpRun, newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
 import { clearRun, runInfo, runSealed, sealRun } from './runsave';
@@ -165,7 +165,7 @@ function labItems() {
     // the phone reaches the stage boss without flying there. A jump run like JUMP TO MID: the run-save slot is sealed
     l: 'JUMP TO BOSS',
     r: 'KEEPSAKE',
-    a: () => midJumpRun(bossJump)
+    a: () => { bankWant('kboss_'); midJumpRun(bossJump); } // its lazy banks start decoding now, before the jump's WARNING (audio only)
   }] : []), {
     l: 'BACK', // the same close as Esc, Android back and the < BACK button: the cursor lands back on LAB
     a: () => doBack('closeSub')

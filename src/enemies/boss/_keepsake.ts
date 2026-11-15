@@ -64,6 +64,7 @@ export const KB = {
   //               the crown in the tightest arena (snot); the forks are drawn 33 px long (render: drawFork x2.2)
   mobVar: 1.5, //   per-fork extra thread, x ((i * 7 + 3) % 5): fixed per fork, no draw
   headTop: 58, //   the crown's top above the origin at tilt 0 (the art's bbox, tools/keepsake-boss-art.json)
+  mobFs: 2.2, //    the hanging forks' draw scale (render: drawFork, 15 px at 1 -> 33 px), the falling ones' too (render/hud.ts eshot fs)
   mobHit: 5, //     a hanging fork's contact radius (+ the ship's 2.6), at its tip, 11 px and 22 px up its length
   // ---- phase 3, CRACKED
   pvx: -24, pvy: -30, //    the rocker's pivot: where the crack opens, by the player-side eye
@@ -73,7 +74,7 @@ export const KB = {
   pRamp: 60, //     the first swing starts from rest and builds over this many frames
   pR: 9, //         the weight-and-eyes bob: a part that blocks shots (a tink) and kills on contact
   crx: -33, cry: -8, crR: 9, // the crier (the 'mama' voice box) seated in the split at the temple (the art lane's seat), a breakable part
-  crHp: 40, //      its HP (x depth, like every part): breaking it ends the wails for good (IT STOPPED CRYING)
+  crHp: 32, //      its HP (x depth, like every part): breaking it ends the wails for good (IT STOPPED CRYING). 32: the stage-1 kit breaks it in under 3 s level with it (boss-probe CRIER)
   mama: 44, mamaGap: 30, // the double cry: a 44 f tell, the first ring, then the second 30 f later rotated half a gap
   rain: 50, //      fork rain: every fork left on the mobile but one, columns marked
   // ---- pacing

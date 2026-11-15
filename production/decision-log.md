@@ -966,11 +966,11 @@ with the planned stage-order x1.4 applied (`HPX=1.4`):
 | kit | today (x1) | with x1.4 | band |
 |---|---|---|---|
 | NAKED | 43.3 s | 58.8 s | dies before the 75 s of clocks |
-| STAGE 1 kit | 25.1 s | 29.7 s | 28-34 s |
-| END DESCENT 1 | 18.8 s | 20.6 s | 20-26 s |
-| STRONG D1 | 16.3 s | 16.9 s | >= 15 s (the floor) |
+| STAGE 1 kit | 25.3 s | 29.9 s | 28-34 s |
+| END DESCENT 1 | 18.7 s | 20.7 s | 20-26 s |
+| STRONG D1 | 16.1 s | 16.9 s | >= 15 s (the floor) |
 
-Until the x1.4 lands the stage-1 kit sits ~3 s under the band.
+Until the x1.4 lands the stage-1 kit sits ~3 s under the band. (Re-measured after the studio-review fixes.)
 
 **Determinism and gates.** `bossFor` draws nothing. `short` is byte-identical (harness PASS, layout-parity PASS). The
 long4 harness also PASSES unchanged: its scripted run dies in Open Orbit (scroll 3538) and never reaches stage n-3, so
@@ -982,3 +982,24 @@ runs); the 12 existing scenarios PASS unchanged. rng-probe: 12 fights SAME (THE 
 from the stage's gate, not at boot (~26 MB decoded). SLAB's `boss-keepsake` readout and four barks are wired. The LAB
 gained JUMP TO BOSS (`jump.ts` bossJump; URL `?stage=<biome>&slot=1&x=boss&kit=full`); FORCE MID hides while the roster
 has no wip kind. D53's midboss record stands as history.
+
+**Studio review on 755f7e4 (8 leads + 3 directors): one BLOCK (game-designer), resolved; the rest APPROVE WITH NOTES.**
+- BLOCK, the crier couldn't be shot: it sits inside the head's body circle and shots.ts hit the first enemy in list
+  order. Fixed generically: an enemy may list `parts`, and a non-laser shot that meets a part and its body hits the part
+  (only THE KEEPSAKE sets `parts`, so no other enemy changes; harness short, long4 and all 14 scenarios PASS
+  unchanged). The crier's HP went 40 -> 32 (x depth). boss-probe's CRIER line: real stage-1-kit bolts break it in 2.9 s
+  with part priority and never (30 s cap) without it.
+- Notes fixed: the CRACKED brain re-baked asymmetric (folds, wet specular, the fork's stump, tissue spilling down the
+  crack: `prep_keepsake_boss.py` `brain()`); no eyeballs in the death burst (ET `eyes` 0); the pendulum arc at 2.5 px,
+  .4, and a hot rim on the weight; mobile drops fall at the mobile's scale (`eshot.fs`, hitbox r 5); the two subtitles
+  moved to `src/voice/keepsake.ts` (OUT OF TIME; IT HOLDS ON in place of the eyes line); JUMP TO BOSS asks for the lazy
+  banks at the jump and lands 180 px (~3 s) before the WARNING; shots on all four biomes; HP-bar ticks at 65% and 30%;
+  -2 dB on the second and later double cries in a phase. The STAGE 1-3 card and the OBJECT IN THE TRACT log line were
+  confirmed on a real jump into the run-up; the Orbit card in kb-1a was the shots rig's own (newGame's queued card).
+- Tests added: the fight through the real hurt()/killEnemy() (`keepsake-sim.test.ts`), the lazy banks
+  (`audio-lazy.test.ts`), JUMP TO BOSS's seal (`forcemid.test.ts`); the clamp and LAZY tests were seen failing first.
+
+**Deferred (recorded, not built):** SLAB's kill quips for it; the move to THE CREW DECK (LS3); the CHANGELOG (main owns
+the hub); passing the real damage into midMul for the slick and acid ticks (perks.ts:216, shots.ts:308 pass a nominal
+d, which phaseClamp reads); `checkBosses`'s hard-coded `bossFor(1, 0, true)` (it should walk every slot and descent
+bossFor can name).

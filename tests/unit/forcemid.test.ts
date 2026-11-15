@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // menus.ts pulls in audio, input, flow and contraptions, which touch the canvas, DOM or audio at import time (backmenu.test.ts's set)
-vi.mock('../../src/audio', () => ({ auInit: () => {}, sample: () => false, setMute: () => {}, voiceStopAll: () => {}, sfx: { menu: () => {}, deny: () => {}, power: () => {} } }));
+vi.mock('../../src/audio', () => ({ auInit: () => {}, bankWant: () => {}, sample: () => false, setMute: () => {}, voiceStopAll: () => {}, sfx: { menu: () => {}, deny: () => {}, power: () => {} } }));
 vi.mock('../../src/input', () => ({ I: {}, PR: new Set() }));
 vi.mock('../../src/platform', () => ({ NATIVE: false }));
 // a wip ship-pool row, so the FORCE MID machinery has a kind to force (the real roster has none since D55)
@@ -163,7 +163,7 @@ describe('JUMP TO BOSS (D55): THE KEEPSAKE from the LAB', () => {
     expect(r.slot).toBe(1);
     expect(j.loop).toBe(0);
     expect(j.kit).toBe('full');
-    expect(j.x + r.x0).toBe(r.bossX - 60);
+    expect(j.x + r.x0).toBe(r.bossX - 180); // JUMP.bossLead: ~3 s before the WARNING
     const p = parseJump(`?stage=${j.kind}&slot=1&x=boss&kit=full`)!;
     expect('jump' in p && p.jump).toEqual(j);
     expect(jumpBlob(j, 1).g.stage).toBe(j.stage);
@@ -173,6 +173,25 @@ describe('JUMP TO BOSS (D55): THE KEEPSAKE from the LAB', () => {
     tap('JUMP TO BOSS');
     expect(F.jumps).toEqual([bossJump()]);
     expect(runSealed()).toBe(true);
+  });
+  it('JUMP TO BOSS then DESCEND lifts the seal it set (the real run stores its checkpoint again)', () => {
+    tap('LAB');
+    tap('JUMP TO BOSS');
+    expect(runSealed()).toBe(true);
+    expect(M.titleSubOf()).toBe(null);
+    tap('DESCEND');
+    expect(F.games).toBe(1);
+    expect(runSealed()).toBe(false);
+  });
+  it('two JUMP TO BOSSes in a row, then DESCEND: the real run is unsealed', () => {
+    tap('LAB');
+    tap('JUMP TO BOSS');
+    tap('LAB');
+    tap('JUMP TO BOSS');
+    expect(F.jumps).toEqual([bossJump(), bossJump()]);
+    expect(runSealed()).toBe(true);
+    tap('DESCEND');
+    expect(runSealed()).toBe(false);
   });
   it('is not offered on short (THE KEEPSAKE is never placed there) and parses no slot past the layout', () => {
     expect(parseJump('?stage=ice&slot=7')).toHaveProperty('error');

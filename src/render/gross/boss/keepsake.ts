@@ -24,7 +24,7 @@ import { KB, lobFrames, pendXY, riseCap, rotXY } from '../../../enemies/boss/_ke
 import { glow } from '../../util';
 import { drawFork } from '../../fork';
 import { spr, sprReady } from '../../../sprites';
-import { drawParts, emit, fxs, GROSS, rn, rnd, spray, stepParts, strand } from '../midbosses';
+import { drawParts, emit, fxs, glowC, GROSS, rn, rnd, spray, stepParts, strand } from '../midbosses';
 import { bakedBuilt, bakedDrop, bakedReady, bakedWarm, bf, pour, trackDeath } from '../baked';
 
 // ---- the art contract (tools/keepsake-boss-art.json; the atlas's own json holds every frame's offset)
@@ -32,7 +32,7 @@ const K = 'keepsake-boss', MID = 'keepsake', FK = 'keepsake-fork';
 const TILTS = [-32, -16, 0, 16, 32].map((d) => (d * Math.PI) / 180); // the baked tilts, canvas radians (+ clockwise)
 const SWING = 18 * Math.PI / 180; //  rocker_*: 13 frames, -108..108 deg in 18 deg steps (index 6 hangs)
 const APEX = 10; //                   rocker_*'s anchor sits this far down the wire from the pivot (its weight 48 below it: KB.pLen 58)
-const MFORK = 2.2; //                 the hanging forks' scale (drawFork: 15 px at 1): 33 px
+const MFORK = KB.mobFs; //            the hanging forks' scale (drawFork: 15 px at 1): 33 px
 const EYE_L = ['eye_open', 'eye_half', 'eye_shut', 'eye_empty'], WOUND_L = ['wound_seat', 'wound_proud', 'wound_gape', 'wound_brain'], FACE_L = ['face0', 'face1', 'face2', 'face3'];
 const MS = 104 / 48; //              the midboss sprite's scale to the boss box (its origin (24, 31) lands on ~(52, 67))
 const EYE = [[-18, 0], [18, 0]]; //  the sockets at tilt 0 (the manifest's perTilt eyeL / eyeR)
@@ -266,11 +266,14 @@ function rocker(c, e, eye) {
   if (!e.rocker) return;
   const px = KB.pvx, py = KB.pvy;
   c.save();
-  c.globalAlpha = .22; c.strokeStyle = '#ffb070'; c.lineWidth = 1; c.setLineDash(ARC);
+  c.globalAlpha = .4; c.strokeStyle = '#ffb070'; c.lineWidth = 2.5; c.setLineDash(ARC); // a lethal hazard's path: 2.5 px, .4
   c.beginPath(); c.arc(px, py, KB.pLen, Math.PI / 2 - KB.pAmp, Math.PI / 2 + KB.pAmp); c.stroke();
   c.restore();
   pendXY(e.pa, Q);
   const bx = Q[0], by = Q[1], fl = e.rocker.flash > 0;
+  // the kill point: a hot rim round the weight, pulsing (drawn under the art, so the art reads on top of it)
+  c.save(); c.globalCompositeOperation = 'lighter'; glowC(c, bx, by, KB.pR + 8, '255,80,40', .5 + .2 * Math.sin($.T * .3)); c.restore();
+  c.strokeStyle = 'rgba(255,90,50,.85)'; c.lineWidth = 2; c.beginPath(); c.arc(bx, by, KB.pR + 1, 0, Math.PI * 2); c.stroke();
   if (bakedReady(K)) { // the wire to the frame's apex, then the swing frame nearest the angle
     const ax = px - Math.sin(e.pa) * APEX, ay = py + Math.cos(e.pa) * APEX, i = Math.max(0, Math.min(12, Math.round(e.pa / SWING) + 6));
     c.strokeStyle = '#a8b0b8'; c.lineWidth = 1; c.beginPath(); c.moveTo(px, py); c.lineTo(ax, ay); c.stroke();

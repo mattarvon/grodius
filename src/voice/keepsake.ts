@@ -16,6 +16,8 @@ export const KEEPSAKE_BANNERS = {
   cracked: 'IT CRACKED', // phase 2 -> 3
   quiet: 'IT STOPPED CRYING', // the crier broken (phase 3)
   hold: "IT WON'T LET GO", // a phase clock ran out
+  late: 'OUT OF TIME', // its subtitle when a phase is forced on
+  rage: 'IT HOLDS ON', // its subtitle on the last clock's enrage (the sockets are empty by then: nothing about eyes)
 } as const;
 /** the run-up log line, terminal and declarative. Placement A (stage 1-3's boss: the ship swallowed it) and, once THE
  *  CREW DECK exists, placement D */

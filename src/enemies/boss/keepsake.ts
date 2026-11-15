@@ -93,7 +93,7 @@ const SND = {
   crack: { vol: .6, wet: .3, spread: .02 }, hair: { vol: .3, rate: 1.2, wet: .3, spread: .02 },
   rocker: { vol: .17, wet: .25, spread: .04 },
   swing: { vol: .1, wet: .2, spread: .04 },
-  mama: { vol: .38, wet: .4, spread: .02, prio: true },
+  mama: { vol: .38, wet: .4, spread: .02, prio: true }, mamaQ: { vol: .38 * .794, wet: .4, spread: .02, prio: true }, // -2 dB: the second and later in a phase
   crierdie: { vol: .15, wet: .3, spread: .02, prio: true },
   enrage: { vol: .25, wet: .35, spread: .02, prio: true },
   shut3: [{ vol: .22, rate: 1, wet: .1, spread: .03 }, { vol: .22, rate: .9, wet: .1, spread: .03 }, { vol: .22, rate: .8, wet: .1, spread: .03 }],
@@ -172,7 +172,7 @@ const mobTip = (e, i) => e.my + KB.mobLen + e.ml[i];
 function dropFork(e, i) {
   const x = mobX(e, i), y = mobTip(e, i), n0 = eshots.length;
   lob(x, y, x, floorAt(x + $.G.scroll), 0);
-  if (eshots.length > n0) { eshots[n0].fk = 1; eshots[n0].land = forkLand; }
+  if (eshots.length > n0) { const f = eshots[n0]; f.fk = 1; f.fs = KB.mobFs; f.r = KB.mobHit; f.land = forkLand; } // drawn at the mobile's scale (render/hud.ts), its hitbox the hanging fork's
   e.ma[i] = 0;
 }
 /** the mobile's forks touch the ship (a contact hazard at the fork's middle and tip) */
@@ -254,7 +254,7 @@ function attack(e) {
   } else if (st === 'wail') {
     if (e.wt >= KB.wail) { ring(e.x, e.y - 10, KB.wailN, e.t * .05, KB.wailSp); rest(e); }
   } else if (st === 'mama') { // the first cry is the second's tell; the second is turned half a gap
-    if (e.wt === KB.mama) { e.ra = e.t * .05; ring(e.x + KB.crx, e.y + KB.cry, KB.wailN, e.ra, KB.wailSp); ks('kboss_mama', SND.mama, 'keep_wail', SND.wailFb, sfx.groan); }
+    if (e.wt === KB.mama) { e.ra = e.t * .05; ring(e.x + KB.crx, e.y + KB.cry, KB.wailN, e.ra, KB.wailSp); ks('kboss_mama', e.mamaN++ ? SND.mamaQ : SND.mama, 'keep_wail', SND.wailFb, sfx.groan); } // -2 dB after a phase's first
     if (e.wt >= KB.mama + KB.mamaGap) { ring(e.x + KB.crx, e.y + KB.cry, KB.wailN, e.ra + Math.PI / KB.wailN, KB.wailSp); rest(e); }
   } else if (st === 'drop' || st === 'rain') { // each fork shudders for its tell (staggered), then lets go
     const gap = st === 'rain' ? 6 : KB.dropGap, tel = st === 'rain' ? KB.rain : KB.drop;
@@ -268,8 +268,8 @@ function attack(e) {
 
 // ---------------- the phases ----------------
 function phaseTo(e, ph, late) {
-  e.ph = ph; e.pt = 0; e.tr = ph === 1 ? KB.tr1 : KB.tr2; e.st = 'idle'; e.wt = 0; e.cool = 30; e.att = 0; e.wins = 0;
-  if (late) { banner(KEEPSAKE_BANNERS.hold, 'OUT OF TIME', '#ff8a3a', 110); ks('kboss_enrage', SND.enrage, null, null, null); }
+  e.ph = ph; e.pt = 0; e.tr = ph === 1 ? KB.tr1 : KB.tr2; e.st = 'idle'; e.wt = 0; e.cool = 30; e.att = 0; e.wins = 0; e.mamaN = 0;
+  if (late) { banner(KEEPSAKE_BANNERS.hold, KEEPSAKE_BANNERS.late, '#ff8a3a', 110); ks('kboss_enrage', SND.enrage, null, null, null); }
   else banner(ph === 1 ? KEEPSAKE_BANNERS.woke : KEEPSAKE_BANNERS.cracked, '', undefined, 100);
   eyes(true);
   if (ph === 1) sample('bark-keepsake-woke', { vol: 1.15, spread: .02, wet: .16 }); // IT'S UP
@@ -291,6 +291,7 @@ function crack3(e) {
   const o = { par: e, hpm: KB.crHp / 16 }; // nailbar's 16 HP x 2.5 = 40, x depth (depthHP: a part takes its boss's factor)
   e.rocker = mk('nailbar', e.x + KB.pvx, e.y + KB.pvy + KB.pLen, { ...o, ox: KB.pvx, oy: KB.pvy + KB.pLen, r: KB.pR, kp: 'rocker', armor: rockArmor, score: 0, bio: 0 });
   e.crier = mk('nailbar', e.x + KB.crx, e.y + KB.cry, { ...o, ox: KB.crx, oy: KB.cry, r: KB.crR, kp: 'crier', score: 1200, bio: 6 });
+  e.parts = [e.rocker, e.crier]; // shots.ts: a shot meeting a part and the head takes the part (the crier sits over the face)
   e.p3t = 0;
 }
 
@@ -342,7 +343,7 @@ function update(e) {
       if (e.ph < 2) { if (e.ph === 1) e.wins = KB.p2MinWin; e.hp = Math.min(e.hp, floorOf(e)); e.late = 1; } // IT WON'T LET GO: forced on
       else { // the one capped enrage: never escapes, the grade capped at B
         e.rage = 1; e.pl = 0;
-        banner(KEEPSAKE_BANNERS.hold, 'IT KEEPS ITS EYES OPEN', '#ff3a2a', 140);
+        banner(KEEPSAKE_BANNERS.hold, KEEPSAKE_BANNERS.rage, '#ff3a2a', 140);
         ks('kboss_enrage', SND.enrage, 'keep_wail', SND.wailFb, sfx.roar);
         if ($.G.st) $.G.st.gcap = capGrade($.G.st.gcap || 'S', KB.rageGrade);
       }
@@ -379,7 +380,7 @@ function kill(e) {
   miniReward(e);
   clearStage();
   for (let i = 0; i < 4; i++) splat(rr(80, 400), rr(30, 210), rr(3, 4.5));
-  gore(e.x + KB.wx, e.y + KB.wy, 4, { eyes: 2, rope: 4 }); // the crown opens: glass eyes, wet rope; no bone, no teeth (D55 art rule)
+  gore(e.x + KB.wx, e.y + KB.wy, 4, { rope: 4 }); // the crown opens: wet rope; no eyeballs, no bone, no teeth (imply-only, D55 art rule: its glass eyes are on the rocker)
   banner(KEEPSAKE_READOUT, '', undefined, 130);
   sample('boss-keepsake', { vol: 1.15, spread: .02, wet: .16, at: .45 }); // SLAB's PUT TO BED after the roar (KILL_WORD_AT), the booth's boss-keepsake slot
   if (sample('kboss_musicend', SND.musicend)) duckMusic(7); // the box running down under the readout
@@ -404,7 +405,8 @@ function spawn(b) {
   e.fq = new Float32Array(8); e.fv = new Float32Array(8); e.fw = new Float32Array(8); e.lat = new Float32Array(3);
   e.ma = new Uint8Array(KB.mobN).fill(1); e.ml = new Float32Array(KB.mobN); e.dq = new Uint8Array(KB.mobN);
   for (let i = 0; i < KB.mobN; i++) e.ml[i] = ((i * 7 + 3) % 5) * KB.mobVar; // thread lengths: fixed per fork, no draw
-  e.rocker = null; e.crier = null; e.crierGone = 0; e.barked = 0; e.mbT = 0;
+  e.rocker = null; e.crier = null; e.crierGone = 0; e.barked = 0; e.mbT = 0; e.mamaN = 0;
+  e.ticks = [KB.cut1, KB.cut2]; // the HP bar's phase marks (render/hud.ts)
   $.G.mini = e;
 }
 /** BossSim.warn: on the WARNING, the music box winds up (audio only) */
@@ -417,7 +419,7 @@ defineBoss('keepsake', {
   // literals only at the top level (load order, src/CLAUDE.md). r is KB.r. HP 260 x depth (DEPTH.w.keepsake .6, the
   // Crux's: its guarded windows make extra HP count); tuned with tools/boss-probe.mjs to D55's band (28-34 s bot at the
   // stage-1 kit, >= 15 s strong). No skull, no teeth (the art rule): it is vinyl, the meat is the ship's
-  et: { hp: 320, r: 44, gsz: 5, score: 16000, bio: 100, eyes: 2, teeth: 0, skull: 0, big: 1, mini: 1 },
+  et: { hp: 320, r: 44, gsz: 5, score: 16000, bio: 100, eyes: 0, teeth: 0, skull: 0, big: 1, mini: 1 },
   // the words are src/voice/keepsake.ts's: a leaf with no imports, so it is loaded before this file's top level runs
   name: KEEPSAKE_NAME,
   word: KEEPSAKE_READOUT,

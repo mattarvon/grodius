@@ -33,6 +33,7 @@ await p.evaluate(async (biome) => {
   G.gm = { cal: 1 }; G.pk = { dmg: 1 }; G.lvl = 10;
   W.enemies.length = 0; W.eshots.length = 0; W.caps.length = 0; W.shots.length = 0;
   G.st = { kills: 0, spawned: 0, hits: 0, deaths: 0, chain: 0, t0: G.t };
+  G.pend.length = 0; G.banner = null; G.logQ.length = 0; G.log = null; // newGame queued STAGE 1-1's card: this is stage 1-3
   REG.BOSS_SIM.keepsake.spawn(biome);
   window.__k = { $, ST, C, render, W };
   window.__kStep = (n, cond) => {
@@ -55,6 +56,7 @@ let last = { x: 360, y: 160 };
 const shot = async (name) => {
   const r = await p.evaluate(() => { const c = document.getElementById('c').getBoundingClientRect(), g = window.__k.$.G.mini; return { x: c.x, y: c.y, s: c.width / 480, g: g ? { x: g.x, y: g.y } : null }; });
   if (r.g) last = r.g;
+  name = name.replace(/^kb-/, `kb-${BIOME}-`);
   await p.screenshot({ path: `${OUT}/${name}-core.png` });
   await p.screenshot({ path: `${OUT}/${name}-core-zoom.png`, clip: { x: r.x + (last.x - 150) * r.s, y: r.y, width: 220 * r.s, height: Math.min(254, last.y + 70) * r.s } });
   console.log('shot', name, await p.evaluate(() => { const g = window.__k.$.G.mini; return g ? `ph=${g.ph} st=${g.st} wt=${g.wt} tr=${g.tr} th=${(g.th * 57.3).toFixed(0)} hp=${(g.hp / g.max * 100).toFixed(0)}% rage=${g.rage}` : 'dead'; }));

@@ -483,6 +483,72 @@ def wound(gaping, rng, sc=1.0):
     return to_img(rgb, al)
 
 
+def brain(rng, sc=1.45):
+    """the phase-3 brain (wound_brain, die): studio review 2026-11-15 read the old one (wound() at sc > 1, lobes in a
+    ring round the wound under a star rim) as a rose. This one breaks the radial symmetry: an irregular rim pulled down
+    and left along the crack, gyri as warped noise folds rather than petals, the tissue spilling down the crack, wet
+    specular highlights, and the snapped stump of the fork still in it. The ship's tissue, never bone"""
+    wx, wy = pk.WOUND
+    L = pk.layer()
+    d = ImageDraw.Draw(L)
+    # the rim: an asymmetric hull (low-order harmonics, not a star), heavier toward the crack (screen down-left)
+    pts = []
+    for i in range(32):
+        t = i / 32 * math.tau
+        k = 1 + .32 * math.sin(t + .9) + .16 * math.sin(2 * t + 2.1) + .08 * math.sin(5 * t + .4) + rng.uniform(-.06, .06)
+        pts.append((wx - 6 * sc + math.cos(t) * 44 * sc * k, wy + 8 * sc + math.sin(t) * 22 * sc * k))
+    d.polygon(pk.P(pts), fill=(140, 100, 78, 255))
+    sp = pk.arr(L)
+    # tissue: uneven masses, the biggest off-centre, trailing down the crack toward the screen-left brow
+    lobes = [(-20, -3, 21, 12), (-1, -11, 13, 8), (15, -3, 19, 9), (31, 5, 9, 7), (-38, 9, 13, 8), (3, 7, 11, 6),
+             (-30, 21, 10, 7), (-40, 33, 7, 6), (-45, 45, 6, 5), (-49, 56, 4, 4)]
+    hmax = np.zeros((pk.WH, pk.WW), np.float32)
+    cov = np.zeros((pk.WH, pk.WW), np.float32)
+    for dx, dy, rx, ry in lobes:
+        dx, dy, rx, ry = dx * sc, dy * sc, rx * sc, ry * sc
+        u = pk.ell_u(wx + dx, wy + dy, rx, ry)
+        hmax = np.maximum(hmax, np.sqrt(np.clip(1 - u * u, 0, 1)) * (1 + .15 * rng.uniform(-1, 1)))
+        cov = np.maximum(cov, pk.ell_a(wx + dx, wy + dy, rx, ry, 1.2))
+    # gyri: two warped noise fields folded together, so the fold lines wander instead of radiating from the wound
+    n1, n2, n3 = pk.vnoise(5.5 * pk.Q, 41), pk.vnoise(2.2 * pk.Q, 42), pk.vnoise(3.3 * pk.Q, 43)
+    fld = np.abs(((n1 * .65 + n3 * .35) * 3.2) % 1 - .5)
+    folds = 1 - pk.sstep(.0, .09, fld)
+    hmax = hmax * (.82 + .18 * (1 - folds))
+    col = np.array([.70, .46, .48], np.float32) * (.42 + .62 * hmax)[..., None]
+    col = col * (1 - .62 * folds)[..., None] + np.array([.26, .07, .10], np.float32) * (.62 * folds)[..., None]
+    col = col * (.88 + .24 * n2)[..., None] * np.array([.86, .66, .66], np.float32)
+    # wet: a hard specular on the crests and a few glints, the light from the top as on the vinyl
+    gy, gx = np.gradient(hmax * 14 * pk.Q)
+    nn = np.stack([-gx, -gy, np.ones_like(hmax)], -1)
+    nn /= np.linalg.norm(nn, axis=-1, keepdims=True)
+    H = np.array([-.14, -.43, .89], np.float32)
+    H /= np.linalg.norm(H)
+    gloss = np.clip((nn * H).sum(-1), 0, 1) ** 30 * (.5 + .5 * n2)
+    col = col + gloss[..., None] * .95
+    # the hole where the fork came out, off-centre, and the dark seep down the crack
+    r0 = 15
+    hole = np.clip(pk.ell_a(wx + 3, wy + 1, r0, r0 * .7, 1.5) * (.7 + .5 * pk.vnoise(3 * pk.Q, 44)), 0, 1)
+    col = col * (1 - hole[..., None]) + np.array([.07, 0, .01], np.float32) * hole[..., None]
+    seep = pk.ell_a(wx - 44 * sc, wy + 40 * sc, 6 * sc, 22 * sc, 3) * .7
+    col = col * (1 - seep[..., None]) + np.array([.30, .02, .05], np.float32) * seep[..., None]
+    cov = np.maximum(cov, seep)
+    rgb = sp[..., :3] * (1 - cov[..., None]) + col * cov[..., None]
+    al = np.maximum(sp[..., 3], cov)
+    im = to_img(rgb, al)
+    # the fork's snapped stump, leaning out of the hole: silver, a bright spine, a jagged break (a toy part, not bone)
+    d = ImageDraw.Draw(im)
+    bx, by, ang, ln, w = wx + 3, wy - 2, math.radians(-62), 30 * pk.Q, 4.5 * pk.Q
+    ux, uy, vx, vy = math.cos(ang), math.sin(ang), -math.sin(ang), math.cos(ang)
+    tip = [(bx + ux * ln + vx * w * .9, by + uy * ln + vy * w * .9), (bx + ux * (ln - 5 * pk.Q), by + uy * (ln - 5 * pk.Q)),
+           (bx + ux * (ln + 2 * pk.Q) - vx * w * .4, by + uy * (ln + 2 * pk.Q) - vy * w * .4), (bx + ux * (ln - 2 * pk.Q) - vx * w, by + uy * (ln - 2 * pk.Q) - vy * w)]
+    body = [(bx + vx * w, by + vy * w)] + tip + [(bx - vx * w, by - vy * w)]
+    d.polygon(pk.P(body), fill=(18, 18, 20, 255))
+    d.polygon(pk.P([(bx + vx * w * .7, by + vy * w * .7), (bx + ux * (ln - 3 * pk.Q) + vx * w * .6, by + uy * (ln - 3 * pk.Q) + vy * w * .6),
+                    (bx + ux * (ln - 3 * pk.Q) - vx * w * .7, by + uy * (ln - 3 * pk.Q) - vy * w * .7), (bx - vx * w * .7, by - vy * w * .7)]), fill=(176, 184, 192, 255))
+    d.line(pk.P([(bx + vx * w * .2, by + vy * w * .2), (bx + ux * (ln - 4 * pk.Q) + vx * w * .2, by + uy * (ln - 4 * pk.Q) + vy * w * .2)]), fill=(236, 242, 248, 255), width=max(1, int(1.2 * pk.Q)))
+    return im
+
+
 # ---------------- the fork ----------------
 FORK_G = (15, 50, 38)    # the big fork: game w, h, entry y (where it goes into the skull: the tine roots stay above it)
 MFORK_G = (11, 46)       # a mobile fork, tines down, hung from its top
@@ -807,7 +873,7 @@ def bake(d):
         print(f'  eyes {e}')
     w_seat = padw(wound(False, np.random.default_rng(5)))
     w_gape = padw(wound(True, np.random.default_rng(5)))
-    w_brain = padw(wound(True, np.random.default_rng(5), 1.45))
+    w_brain = padw(brain(np.random.default_rng(5), 1.45)) # its own painter (studio review: the old ring of lobes read as a rose)
     fork_big = paint_fork(*FORK_G[:2], blood_from=FORK_G[2] - 1)
     f_seat, slot = fork_overlay(fork_big, 0)
     f_proud, _ = fork_overlay(fork_big, 9)

@@ -83,6 +83,24 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX]) => {
     }
     out[name] = row;
   }
+  // THE KEEPSAKE's crier (D55 studio review): real STAGE 1 kit bolts at it, the bot parked level with it, from the frame
+  // it appears (HP set to CRACKED's cut). Twice: as the game runs (shots.ts gives a boss's parts the hit first) and with
+  // e.parts removed (the old order: the head's body circle took every shot). Want: broken in under ~3 s
+  const crier = [];
+  if (hasKeep) for (const prio of [true, false]) {
+    setup(...L[1].slice(1), 0);
+    const sx = keepStage(); $.G.scroll = sx; $.G.si = $.G.script.length; W.enemies.length = 0; REG.BOSS_SIM.keepsake.spawn('fire');
+    const m = $.G.mini; m.hp = m.max * .299; m.wins = 9;
+    let f = 0, t0 = -1, r = '--';
+    for (; f < 60 * 30; f++) {
+      if (m.crier && t0 < 0) { t0 = f; if (!prio) m.parts = null; }
+      if (m.crier && m.crier.dead) { r = ((f - t0) / 60).toFixed(1); break; }
+      park(C.clamp(m.crier ? m.crier.y : m.y, 8, C.PH - 8)); $.G.lives = 9; W.eshots.length = 0;
+      if (m.hp < m.max * .05) m.hp = m.max * .2; // keep the head alive while the crier is under fire
+      ST.step();
+    }
+    crier.push(r);
+  }
   // laser lethality: full WARD (3), parked dead in the beam's path for the whole sweep
   const lz = [];
   setup({ wardLv: 2 }, {}, {}, LY.bossAt()); BU.startBoss();
@@ -100,11 +118,12 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX]) => {
     ST.step();
   }
   const rank = out.rank; delete out.rank; delete out.kp;
-  return { out, lz, rank };
+  return { out, lz, rank, crier };
 }, [L, BOSSES, +CAP, HPX]);
 console.log('rank per loadout:', JSON.stringify(res.rank));
 console.log('loadout'.padEnd(16), ...['MAW', 'CRUCIFER', 'BUTCHER', 'GRAV DRIVE', 'KEEPSAKE'].map((s) => s.padStart(11)));
 for (const [n, r] of Object.entries(res.out)) console.log(n.padEnd(16), ...BOSSES.map((k) => String(r[k]).padStart(11)));
 if (res.out['STRONG D1'] && res.out['STRONG D1'].keepsake !== 'n/a') { const v = parseFloat(res.out['STRONG D1'].keepsake); console.log(`KEEPSAKE FLOOR (STRONG D1 >= 15 s): ${isNaN(v) ? res.out['STRONG D1'].keepsake : v >= 15 ? 'PASS ' + v : 'FAIL ' + v}${HPX !== 1 ? ` (HP x${HPX})` : ''}`); }
+if (res.crier.length) console.log(`KEEPSAKE CRIER (STAGE 1 kit, bot level with it): broken in ${res.crier[0]} s with part priority (want < 3: ${parseFloat(res.crier[0]) < 3 ? 'PASS' : 'FAIL'}); ${res.crier[1]} s without it (the old hit order)`);
 console.log('LASER sweeps vs full WARD (3):', res.lz.map((s) => `${s.hits} hits${s.died ? ' DEAD' : ''}`).join(', ') || 'none observed');
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('boss-probe'); await b.close();

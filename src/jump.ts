@@ -19,8 +19,9 @@ export const JUMP = {
   maxLoop: 9,
   /** rank= is G.pow: every()/BS()/formation() cap it at 2, so more would change nothing */
   maxRank: 2,
-  /** x=boss and the LAB's JUMP TO BOSS: this many px of scroll before the stage's boss WARNING (bossX) */
-  bossLead: 60,
+  /** x=boss and the LAB's JUMP TO BOSS: this many px of scroll before the stage's boss WARNING (bossX): ~3 s, so a lazy
+   *  sound bank asked for at the jump (audio.ts bankWant: THE KEEPSAKE's music box and bark) has decoded by the WARNING */
+  bossLead: 180,
 };
 
 /** the loadouts kit= names. Levels are the ship's own (player.ts slotLv) and raw power follows src/power.ts. A kit is
