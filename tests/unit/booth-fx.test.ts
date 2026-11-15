@@ -3,7 +3,7 @@
 // The graphs themselves are run through real ffmpeg by tests/integration/booth-fx-ffmpeg.test.ts and
 // `node tools/booth/chain-probe.mjs --fx`.
 import { describe, expect, it } from 'vitest';
-import { EFFECTS, FX_LEVEL, FX_TAIL, GROUPS, PRESETS, cleanFx, defaults, fxGraph, fxName, fxOn, randomFx, type FxSet } from '../../tools/booth/fx';
+import { EFFECTS, FX_CHAIN, FX_LEVEL, FX_TAIL, GROUPS, fxPreGain, PRESETS, cleanFx, defaults, fxGraph, fxName, fxOn, randomFx, type FxSet } from '../../tools/booth/fx';
 import { fxParam } from '../../tools/booth/plugin';
 
 /** a seeded LCG, as chain-probe.mjs uses */
@@ -257,6 +257,29 @@ describe('fxGraph', () => {
     expect(hive).toContain('flanger=delay=5:depth=5:regen=70:speed=0.2:width=70');
     expect(hive).toContain('apad=pad_dur=0.12');
     expect(hive).toContain('aecho=0.8:0.8:40:0.4');
+  });
+  // golden: the shipped DESCEND take (startgame/grodius-bitch-matty-1) carries Hive mind, and processTake always passes
+  // the take's length and loudness (plugin.ts). Any drift in this graph changes how that rack reprocesses: if this
+  // fails on purpose, bump FX_CHAIN (fx.ts) so the booth warns before it rewrites takes kept under the old graph
+  const HIVE = PRESETS.find((p) => p.name === 'Hive mind')!.fx;
+  const HIVE_BODY = "[a0]asplit[d1][w1];[w1]aeval=exprs='val(0)*sin(2*PI*120*t)':c=same[s2];[d1][s2]amix=inputs=2:weights='0.65 0.35':normalize=0:duration=first[s1];" +
+    '[s1]chorus=0.6:0.8:35|49|63|77:0.45|0.4|0.35|0.3:0.2|0.33|0.46|0.59:6|6|6|6[s3];[s3]flanger=delay=5:depth=5:regen=70:speed=0.2:width=70[s4];' +
+    '[s4]apad=pad_dur=0.12[s5];[s5]aecho=0.8:0.8:40:0.4[s6]';
+  it('golden: Hive mind with no take info (the graph alone)', () => {
+    expect(fxGraph(HIVE)).toBe('[0:a]aformat=sample_fmts=flt:channel_layouts=mono,aresample=44100[a0];' + HIVE_BODY + ';[s6]anull[fx]');
+  });
+  it('golden: Hive mind with take info, as processTake builds it (pre-gain to FX_LEVEL, tail faded and cut)', () => {
+    expect(fxGraph(HIVE, { dur: 1.234, lufs: -23.4 })).toBe(
+      '[0:a]aformat=sample_fmts=flt:channel_layouts=mono,aresample=44100,volume=3.4dB[a0];' + HIVE_BODY +
+      ';[s6]afade=t=out:st=1.234:d=0.12,atrim=end=1.354[s7];[s7]anull[fx]');
+    expect(FX_CHAIN).toBe(2);
+  });
+  it('fxPreGain is the graph\'s first-step gain (what processTake adds to the gain it reports)', () => {
+    expect(fxPreGain(-23.4)).toBe(3.4);
+    expect(fxPreGain(-95)).toBe(40);
+    expect(fxPreGain(10)).toBe(-30);
+    for (const bad of [null, undefined, NaN, Infinity, -101, 21]) expect(fxPreGain(bad as number), String(bad)).toBe(0);
+    expect(fxGraph(HIVE, { lufs: -31.25 })!.split(';')[0]).toMatch(new RegExp(`,volume=${fxPreGain(-31.25)}dB\\[a0\\]$`));
   });
 });
 

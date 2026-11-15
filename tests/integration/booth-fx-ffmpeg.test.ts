@@ -3,6 +3,8 @@
 // made here: voiced 120 Hz bursts over a -40 dBFS room, never a real recording. Every effect alone at its defaults and
 // every preset is rendered: each must come out a finite, audible take near the target loudness, under the ceiling,
 // and no longer than its rack allows.
+// The skip is loud: a run without ffmpeg reports a SKIPPED test and a warning, and fails on CI (build.yml installs
+// ffmpeg with librubberband, so a CI run that cannot find it is a broken workflow, not a pass).
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -13,6 +15,13 @@ import { EFFECTS, FX_TAIL, PRESETS, defaults, fxOn, type FxSet } from '../../too
 
 const has = (bin: string) => { try { execFileSync(bin, ['-version'], { stdio: 'ignore' }); return true; } catch { return false; } };
 const FF = has('ffmpeg') && has('ffprobe');
+const SKIP = 'SKIPPED: the real-ffmpeg FX sweep (booth-fx-ffmpeg) did not run: ffmpeg/ffprobe are not on PATH';
+if (!FF) {
+  console.warn(SKIP);
+  it(SKIP, () => {
+    if (process.env.CI) throw new Error(`${SKIP} on CI: build.yml must install ffmpeg before the tests`);
+  });
+}
 
 const SR = 48000;
 function synth(file: string) {
@@ -109,4 +118,28 @@ describe.skipIf(!FF)('processTake with the FX rack (real ffmpeg)', () => {
     // nothing left behind but the takes
     expect(fs.readdirSync(sub).every((f) => /^(clean|fx-\d+)\.ogg$/.test(f))).toBe(true);
   }, 600_000);
+
+  // fx.ts vib(): without the 20 ms of padding ahead of it, ffmpeg's vibrato came out NaN (read as a silent take) about
+  // 1 run in 7. Ten renders in a row must all be finite and audible
+  it('renders the vibrato 10 times in a row, finite and audible every time (the NaN workaround)', async () => {
+    const sub = fs.mkdtempSync(path.join(dir, 'vib-')), bad: string[] = [];
+    for (let i = 0; i < 10; i += 5) {
+      await Promise.all([0, 1, 2, 3, 4].map(async (j) => {
+        const r = await processTake(raw, path.join(sub, `v-${i + j}.ogg`), { fx: { vibrato: defaults('vibrato') } });
+        if (!(Number.isFinite(r.lufs) && Number.isFinite(r.peak) && r.lufs! > VOX.lufs - 3)) bad.push(`run ${i + j}: ${r.lufs} LUFS, peak ${r.peak}`);
+      }));
+    }
+    expect(bad).toEqual([]);
+  }, 300_000);
+
+  it('an aborted render (a preview the page replaced) kills ffmpeg, rejects, and leaves no temp file', async () => {
+    const sub = fs.mkdtempSync(path.join(dir, 'abort-')), ac = new AbortController();
+    const p = processTake(raw, path.join(sub, 'a.ogg'), { fx: robot, signal: ac.signal });
+    setTimeout(() => ac.abort(), 150);
+    await expect(p).rejects.toThrow(/aborted/);
+    expect(fs.readdirSync(sub)).toEqual([]);
+    // already aborted: nothing runs
+    await expect(processTake(raw, path.join(sub, 'b.ogg'), { signal: ac.signal })).rejects.toThrow(/aborted/);
+    expect(fs.readdirSync(sub)).toEqual([]);
+  }, 60_000);
 });

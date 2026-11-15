@@ -117,9 +117,11 @@ async function api(method: 'GET' | 'POST' | 'DELETE', q: Record<string, string>,
     method, body, headers: { 'x-booth': TOKEN, ...(body ? { 'content-type': body.type || (ep === 'quips' ? 'application/json' : 'audio/webm') } : {}) },
   });
   const j = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
-  if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), { clipped: !!j.clipped });
+  if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), { clipped: !!j.clipped, legacy: Array.isArray(j.legacy) ? j.legacy as Legacy[] : null });
   return j;
 }
+/** a take kept before fx-dsp that a reprocess would change (plugin.ts legacyTakes: the 409's list) */
+type Legacy = { cat: string; name: string; why: string };
 async function refreshTakes() {
   try { S.takes = await api('GET', {}); } catch (e) { say('Could not list takes: ' + errText(e), 'err'); }
   draw();
@@ -470,11 +472,30 @@ async function redo(apply = false) {
   say('Reprocessing...');
   draw();
   try {
-    const { takes } = await api('POST', { cat: s.cat, ...(S.squeeze ? {} : { squeeze: '0' }), ...(apply ? { fx: JSON.stringify(S.fx) } : {}) }, undefined, 'reprocess') as
-      { takes: { name: string; done: boolean; why?: string; long?: string; warn?: string }[] };
-    const done = takes.filter((t) => t.done), skip = takes.filter((t) => !t.done);
+    const q = { cat: s.cat, ...(S.squeeze ? {} : { squeeze: '0' }), ...(apply ? { fx: JSON.stringify(S.fx) } : {}) };
+    type Res = { takes: { name: string; done: boolean; why?: string; long?: string; warn?: string; legacy?: string }[] };
+    /** takes kept before fx-dsp (no chain stamp) this run would change: asked about first, or nothing is rewritten */
+    const ask = (old: Legacy[]) => confirm(`WARNING: this will change ${old.length === 1 ? 'a shipped take' : old.length + ' shipped takes'}: listen first.\n\n` +
+      old.map((t) => `${t.name}: ${t.why}`).join('\n') +
+      '\n\nThey were kept before fx-dsp, and the rack no longer renders them the same (level, tail, pitch, makeup). Rewrite them anyway? git checkout restores a shipped take.');
+    const cancel = () => { S.phase = 'idle'; say('Reprocess cancelled: nothing was rewritten.', 'warn'); draw(); };
+    // asked before the run (GET /__booth/legacy); the plugin refuses them without confirm=1 anyway (a 409, below)
+    const { legacy: old } = await api('GET', q, undefined, 'legacy') as { legacy: Legacy[] };
+    if (old.length && !ask(old)) return cancel();
+    let res: Res;
+    try {
+      res = await api('POST', old.length ? { ...q, confirm: '1' } : q, undefined, 'reprocess') as Res;
+    } catch (e) {
+      const late = (e as { legacy?: Legacy[] | null }).legacy;
+      if (!late?.length) throw e;
+      if (!ask(late)) return cancel();
+      res = await api('POST', { ...q, confirm: '1' }, undefined, 'reprocess') as Res;
+    }
+    const { takes } = res;
+    const done = takes.filter((t) => t.done), skip = takes.filter((t) => !t.done), changed = done.filter((t) => t.legacy);
     const notes = [...done.filter((t) => t.long || t.warn).map((t) => `${t.name}: ${[t.long, t.warn].filter(Boolean).join('; ')}`),
-      ...skip.map((t) => `${t.name} skipped: ${t.why}`)];
+      ...skip.map((t) => `${t.name} skipped: ${t.why}`),
+      ...(changed.length ? [`shipped take${changed.length === 1 ? '' : 's'} changed, listen first: ${changed.map((t) => t.name).join(', ')}`] : [])];
     S.phase = 'idle';
     S.kept = null;
     say(takes.length ? `Reprocessed ${done.length} of ${takes.length} take${takes.length === 1 ? '' : 's'}.` + (notes.length ? ' ' + notes.join(' / ') : '')
@@ -1096,19 +1117,30 @@ let blobN = 0;
 const srcKey = (body: Blob | null) => (body ? 'b' + (blobIds.get(body) ?? (blobIds.set(body, ++blobN), blobN)) : 'take:' + S.prevName);
 const inUse = (u: string) => S.prev?.url === u || S.prev?.clean?.url === u;
 const drop = (p: Promise<Render>) => p.then((r) => { if (!inUse(r.url)) URL.revokeObjectURL(r.url); }, () => {});
+const renderKey = (fx: FxSet, body: Blob | null) => [ALL[S.sel].cat, srcKey(body), S.squeeze ? 1 : 0, JSON.stringify(cleanFx(fx))].join('|');
+/** the renders still on their way, by cache key: one preview's worth at a time (its B and its clean A) */
+const inflight = new Map<string, AbortController>();
+/** aborts every render on its way but these (a newer preview replaced it; the plugin kills its ffmpeg) and forgets it,
+ *  so a later preview of the same rack asks again instead of getting the aborted one */
+function abortStale(keep: string[] = []) {
+  for (const [k, ac] of inflight) if (!keep.includes(k)) { ac.abort(); inflight.delete(k); cache.delete(k); }
+}
 function render(fx: FxSet, body: Blob | null): Promise<Render> {
-  const s = ALL[S.sel], clean = cleanFx(fx), key = [s.cat, srcKey(body), S.squeeze ? 1 : 0, JSON.stringify(clean)].join('|');
+  const s = ALL[S.sel], clean = cleanFx(fx), key = renderKey(fx, body);
   let p = cache.get(key);
   if (p) { cache.delete(key); cache.set(key, p); return p; } // most recent last
+  const ac = new AbortController();
+  inflight.set(key, ac);
   p = (async () => {
     const q = new URLSearchParams({ cat: s.cat, fx: JSON.stringify(clean), ...(S.squeeze ? {} : { squeeze: '0' }), ...(S.prevName && !body ? { name: S.prevName } : {}) });
-    const r = await fetch('/__booth/preview?' + q, { method: 'POST', body: body ?? undefined, headers: { 'x-booth': TOKEN, ...(body ? { 'content-type': body.type || 'audio/webm' } : {}) } });
+    const r = await fetch('/__booth/preview?' + q, { method: 'POST', signal: ac.signal, body: body ?? undefined, headers: { 'x-booth': TOKEN, ...(body ? { 'content-type': body.type || 'audio/webm' } : {}) } });
     if (!r.ok) throw new Error((await r.json().catch(() => ({ error: 'HTTP ' + r.status }))).error);
     const info = JSON.parse(decodeURIComponent(r.headers.get('x-booth-info') ?? '%7B%7D')) as Info;
     return { url: URL.createObjectURL(await r.blob()), info };
   })();
   cache.set(key, p);
-  p.catch(() => cache.get(key) === p && cache.delete(key));
+  const done = () => { if (inflight.get(key) === ac) inflight.delete(key); };
+  p.then(done, () => { done(); if (cache.get(key) === p) cache.delete(key); });
   while (cache.size > 24) {
     const [k, old] = cache.entries().next().value!;
     cache.delete(k);
@@ -1119,6 +1151,7 @@ function render(fx: FxSet, body: Blob | null): Promise<Render> {
 /** a line change: the last line's preview deck goes (and any render still on its way is ignored), then its renders */
 function dropPrev() {
   fxSeq++;
+  abortStale();
   clearTimeout(fxTimer);
   S.prevBusy = false;
   S.prev = null;
@@ -1134,6 +1167,8 @@ async function preview() {
   clearTimeout(fxTimer); // P (or the button) while an auto preview waits: one render, not two
   const body = S.prevName ? null : S.phase === 'review' && S.raw ? S.raw : lineRaw();
   if (!S.prevName && !body) { say('Record a take first (or press FX preview on a kept take), then the rack has something to play.', 'warn'); return draw(); }
+  // one preview in flight per page: a render of an older rack is aborted (its server-side ffmpeg killed)
+  abortStale([renderKey(rackFx(), body), renderKey({}, body)]);
   const seq = ++fxSeq, pB = render(rackFx(), body), pA = render({}, body);
   S.prevBusy = true;
   drawFxBar();

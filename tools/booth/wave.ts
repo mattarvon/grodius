@@ -15,9 +15,13 @@ type Lib = {
 };
 const DIST = '/node_modules/wavesurfer.js/dist/';
 let lib: Promise<Lib | null> | null = null;
+/** import() kept out of Vite's sight: a dynamic import Vite can see is rewritten through /@vite/client (injectQuery),
+ *  which puts the HMR client on the booth page, and a keep (a new file the audio glob sees) then reloads the booth
+ *  mid-take. The page must have no Vite client (plugin.ts serves it as written) */
+const load = new Function('u', 'return import(u)') as (u: string) => Promise<any>;
 /** the library and its plugins, loaded once (each plugin bundle is self-contained). null when it can't load */
 export const loadWave = () => (lib ||= Promise.all(['wavesurfer.esm.js', 'plugins/spectrogram.esm.js', 'plugins/timeline.esm.js', 'plugins/hover.esm.js', 'plugins/regions.esm.js']
-  .map((f) => import(/* @vite-ignore */ DIST + f)))
+  .map((f) => load(DIST + f)))
   .then(([w, s, t, h, r]) => ({ WaveSurfer: w.default, Spectrogram: s.default, Timeline: t.default, Hover: h.default, Regions: r.default }))
   .catch((e) => { console.warn('booth: wavesurfer.js did not load; plain players instead.', e); return null; }));
 

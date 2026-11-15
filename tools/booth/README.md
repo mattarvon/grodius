@@ -126,6 +126,18 @@ Each `src/sfx/<folder>/<line>-matty-<n>.ogg` that has a raw take is rewritten in
 clipped (its processed take stays as it was), and one whose processed take was deleted (it is not brought back). The
 shipped clips have no raw take, so they are never touched. Don't reprocess while a gate runs against the dev server.
 
+**Takes kept before fx-dsp do not reprocess the same.** Each keep now stamps its record
+(`assets-raw/voice/<folder>/<take>.json`) with `"chain": 2` (`FX_CHAIN` in `fx.ts`). A racked take with no stamp was
+kept under the old rack, which the current one renders close to, but not the same as: the pre-gain to -20 LUFS, the
+rubberband pitch shifter, the vibrato padding, echo and cave tails cut at 0.3 s and faded, and the bigger makeup (the
+list is in `fx.ts`, above `COMP`). The shipped DESCEND take (`startgame/grodius-bitch-matty-1`, Hive mind) would come
+out 123 ms shorter, at -1.5 dBTP instead of -0.4, and 0.3 LU quieter. So a reprocess that would rewrite such a take,
+and an **Apply current FX** over any unstamped take, stops before it touches anything and warns: **this will change a
+shipped take: listen first**. The booth asks (OK rewrites them, Cancel leaves everything as it was); the CLI lists
+them and exits 3, and `--yes` rewrites them anyway. A rewritten take is stamped, and the run's summary names the
+shipped takes that changed: listen to each before a commit (`git checkout` restores a shipped take). A clean take's
+plain reprocess is the chain's own and does not ask.
+
 ## FX rack
 
 The **FX rack** under the line (`tools/booth/fx.ts`) is a voice-design rack: 40 effects in 9 groups, each a set of
@@ -168,8 +180,9 @@ pitch, synth, dirt, modulation, time and space last.
 - **Where it runs:** after the cleanup, the trim and the pause squeeze, and **before** the gain to -12 LUFS, the
   compressor and the limiter. The rack first brings the take to -20 LUFS (`FX_LEVEL`), so the level-dependent
   effects (drive, crush, gate, compressor, folder, static) treat a quiet take and a loud one the same; the new
-  effects carry a gain trim to come out about as loud as they went in, so a mix knob is a balance, not a level change
-  (the original sixteen effects are untouched, so a kept take reprocesses the same).
+  effects carry a gain trim to come out about as loud as they went in, so a mix knob is a balance, not a level change.
+  The original sixteen effects have no trim, but a rack kept before fx-dsp still reprocesses close to, not the same
+  as, what ships (see Reprocess old takes: the booth warns first).
 - **Loudness:** a racked take gets a bigger makeup than a clean one (up to 8 dB over three passes, VOX.fxMakeup; then
   a faster limiter release for a rack whose gaps hold the limiter down, VOX.fxRelease; and the ceiling lowered if the
   encode overshoots past -0.5 dBTP, VOX.fxPeak). Glitch and Evil machine, 2-3.5 LU under the clean take before, now
@@ -201,13 +214,18 @@ pitch, synth, dirt, modulation, time and space last.
   A raw take that clipped is skipped.
 - **Previews write nothing to `src/`:** they render into `assets-raw/voice/.preview/` (git-ignored, never served)
   and are deleted once sent. A clipped take can be previewed, with a warning, but is still refused on a keep.
+- **One preview at a time:** a new preview (a knob let go, a preset) aborts the renders still on their way from the
+  last one, and the dev server kills their ffmpeg and deletes their temp files.
 - The rack setting is remembered by the browser across reloads.
 
 Only numbers reach ffmpeg: `cleanFx` keeps the known effects and knobs, clamps each value to its range and rounds it
 to its step, and `fxGraph` builds the filter graph from those numbers alone; an enumeration (a carrier, a room) is an
 index into a fixed table in `fx.ts` (`tests/unit/booth-fx.test.ts`: every knob clamped, hostile input, every graph
 well-formed). `tests/integration/booth-fx-ffmpeg.test.ts` renders every effect alone and every preset through the real
-chain (finite, on target, under the ceiling, length bounded; it needs ffmpeg on PATH, skipped otherwise), and
+chain (finite, on target, under the ceiling, length bounded), renders the vibrato ten times in a row (finite every
+time) and aborts a render (no temp file left). It needs ffmpeg on PATH: without it the run warns and shows a
+`SKIPPED: ...` test, and on CI (`CI` set) that test fails, since `.github/workflows/build.yml` installs Ubuntu's ffmpeg
+(checked for rubberband, afir, afreqshift, afftdn, aevalsrc, alimiter) before the tests. And
 `node tools/booth/chain-probe.mjs --fx` prints the table: every preset and every effect alone (LUFS, peak, length,
 the chain's time), and every effect at its knobs' extremes. ffmpeg's `vibrato` now and then reads its delay line
 before writing it (NaN samples, a "silent take"); the rack runs it behind 20 ms of silence, cut off after.
@@ -225,7 +243,9 @@ no dep optimizer, `tests/unit/booth.test.ts`). Without the library every display
   CLIP; pinkish while recording) with the take's peak so far, and a 40-band spectrum with falling peak dots.
 - **Raw take deck** (in review): waveform, spectrogram (mel, 40 Hz-16 kHz), timeline, hover time; click to seek. Its
   readout gives the duration and the raw peak (red at CLIP, amber when hot). After a keep it shows the processed take
-  with the plugin's LUFS, true peak, duration and gain.
+  with the plugin's LUFS, true peak, duration and gain. The GAIN counts every plain gain stage from the cleaned-up take
+  to the clip, the rack's pre-gain to -20 LUFS included (before, a racked take's GAIN left it out and read up to
+  ~8 dB low), but not the effects' own levels.
 - **FX preview deck, A/B:** every preview renders the source twice: **B** through the rack, **A** clean (no FX). Both
   lanes play together and **B** (key or button, or a click on a lane's title) switches which one you hear, so the
   playhead is kept. The louder lane is turned down to the quieter one's LUFS (the MATCH readout), so the comparison is

@@ -202,6 +202,14 @@ const SR = 44100;
 /** the level the graph works at (LUFS) when fxGraph is told the take's: the drive, crush, gate, compressor, folder
  *  and static are level-dependent, so a quiet take and a loud one get the same rack */
 export const FX_LEVEL = -20;
+/** the gain (dB) the graph's first step gives a take of this loudness (LUFS) to bring it to FX_LEVEL (clamped to
+ *  +-40), or 0 when the loudness is unknown or not a sane number. processTake adds it to the gain it reports */
+export const fxPreGain = (lufs: number | null | undefined) =>
+  typeof lufs === 'number' && Number.isFinite(lufs) && lufs >= -100 && lufs <= 20 ? Math.round(Math.max(-40, Math.min(40, FX_LEVEL - lufs)) * 1e4) / 1e4 : 0;
+/** the version of the FX chain a take is kept with, stamped into its record (assets-raw/voice/<cat>/<take>.json,
+ *  `chain`): 2 is fx-dsp (this rack, the FX_LEVEL pre-gain, plugin.ts's racked-take makeup). A racked take with no
+ *  stamp was kept before fx-dsp: a reprocess renders it close to, not the same as, what ships (see COMP) */
+export const FX_CHAIN = 2;
 /** the most a rack adds after the voice ends (s): echo and reverb tails ring into it and fade out by its end. The
  *  hype lines' limit is 2.5 s for a 2 s target (slots.ts), and a take already keeps 0.25 s after its last word */
 export const FX_TAIL = 0.3;
@@ -211,8 +219,15 @@ const f4 = (n: number) => String(Math.round(n * 1e4) / 1e4);
 const f6 = (n: number) => String(Math.round(n * 1e6) / 1e6);
 const lin = (db: number) => 10 ** (db / 20);
 /** gain (dB) that brings a new effect's output back to about its input's loudness (measured with the chain probe's
- *  voice at the defaults), so its mix knob is a balance and not a level change. The original sixteen effects have
- *  none: kept takes name them, and a reprocess must sound the same */
+ *  voice at the defaults), so its mix knob is a balance and not a level change. The original sixteen effects get none,
+ *  so a rack kept before fx-dsp keeps its balance. But it renders close to, NOT the same as, the pre-fx-dsp chain
+ *  (eb4fc47): the take is first brought to FX_LEVEL (the level-dependent effects see another level); pitch and octave
+ *  are rubberband (they were asetrate + atempo); the vibratos run behind 20 ms of padding; echo and cave tails end
+ *  FX_TAIL past the voice, faded (they rang up to 1.5 s, unfaded); and plugin.ts gives a racked take up to
+ *  VOX.fxMakeup of makeup over VOX.fxPasses passes, the faster VOX.fxRelease limiter releases and the VOX.fxPeak
+ *  ceiling (it got one 3 dB pass). The shipped DESCEND take (startgame/grodius-bitch-matty-1, Hive mind) reprocessed:
+ *  123 ms shorter, -1.5 dBTP instead of -0.4, 0.3 LU quieter. So the booth warns before it reprocesses a racked take
+ *  with no FX_CHAIN stamp (plugin.ts legacyTakes) */
 const COMP: Record<string, number> = { vocoder: 5.5, fold: -12, lofi: -1, wah: -1, comb: 5 };
 
 /** the rubberband pitch shifter at high quality: r = the pitch ratio */
@@ -288,7 +303,7 @@ export function fxGraph(raw: FxSet | null | undefined, take: TakeInfo | null = {
   let n = 0, cur = 'a0';
   /** the voice's length so far (null: unknown); the tail padded on so far; whether the voice's length changed */
   let len = num(take?.dur, 0.01, 600), padded = 0, moved = false;
-  const pre = lufs == null ? '' : `,volume=${f4(Math.max(-40, Math.min(40, FX_LEVEL - lufs)))}dB`;
+  const pre = lufs == null ? '' : `,volume=${f4(fxPreGain(lufs))}dB`;
   g.push(`[0:a]aformat=sample_fmts=flt:channel_layouts=mono,aresample=${SR}${pre}[a0]`);
   const lbl = (p: string) => `${p}${++n}`;
   const step = (ins: string[], f: string, outs: string[]) => g.push(`${ins.map((i) => `[${i}]`).join('')}${f}${outs.map((o) => `[${o}]`).join('')}`);

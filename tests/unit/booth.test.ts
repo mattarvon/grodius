@@ -343,8 +343,13 @@ describe('parseArgs (the reprocess CLI)', () => {
     expect(parseArgs(['--squeeze'], REPO, yes)).toEqual({ error: USAGE });
   });
   it('takes folders, --all, --no-squeeze and --root, defaulting to the script\'s repo and squeezing', () => {
-    expect(parseArgs(['hype10', 'hype10', 'carn5'], REPO, yes)).toEqual({ root: REPO, cats: ['hype10', 'carn5'], squeeze: true });
-    expect(parseArgs(['--all', '--no-squeeze', '--root', '/other'], REPO, yes)).toEqual({ root: '/other', cats: SLOTS.map((s) => s.cat), squeeze: false });
+    expect(parseArgs(['hype10', 'hype10', 'carn5'], REPO, yes)).toEqual({ root: REPO, cats: ['hype10', 'carn5'], squeeze: true, yes: false });
+    expect(parseArgs(['--all', '--no-squeeze', '--root', '/other'], REPO, yes)).toEqual({ root: '/other', cats: SLOTS.map((s) => s.cat), squeeze: false, yes: false });
+  });
+  it('takes --yes (rewrite takes kept before fx-dsp too), off by default', () => {
+    expect(parseArgs(['hype10', '--yes'], REPO, yes)).toEqual({ root: REPO, cats: ['hype10'], squeeze: true, yes: true });
+    expect(parseArgs(['--yes', '--all'], REPO, yes)).toMatchObject({ yes: true });
+    expect(USAGE).toMatch(/--yes/);
   });
 });
 
@@ -441,6 +446,14 @@ describe('the booth page', () => {
     expect(src('src/voice/quiplist.ts')).not.toMatch(/^import /m);
     // the waveform library comes in at runtime by URL (wave.ts), never through Vite's dep optimizer
     expect(src('tools/booth/wave.ts')).not.toMatch(/^import /m);
+    // ... and no runtime import() Vite can see: Vite rewrites a non-literal one through /@vite/client (injectQuery),
+    // which put the HMR client on the page and reloaded it on every keep (found by fx-e2e, booth-followups). Type-level
+    // import('...') (a type alias, a typeof) is erased and fine
+    for (const f of ['tools/booth/booth.ts', 'tools/booth/wave.ts', 'tools/booth/slots.ts', 'tools/booth/names.ts', 'src/voice/quiplist.ts']) {
+      const code = src(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '').replace(/'[^'\n]*'/g, "''")
+        .replace(/^\s*(export )?type .*$/gm, '').replace(/typeof import\(/g, '');
+      expect(code, f).not.toMatch(/(^|[^.\w])import\s*\(/m);
+    }
   });
   it('keeps the text frame from writing the save or acting on input before any game module runs', () => {
     const h = src('tools/booth/text.html');
