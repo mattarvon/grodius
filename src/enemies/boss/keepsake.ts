@@ -56,7 +56,7 @@
 // =====================================================================
 import { $ } from '../../state';
 import { PH, R, W, dist2, lerp, rr } from '../../core';
-import { sample, sfx, thr } from '../../audio';
+import { bankWant, sample, sfx, thr } from '../../audio';
 import { duckMusic } from '../../music';
 import { SET } from '../../save';
 import { eshots, floorAt } from '../../world';
@@ -423,5 +423,6 @@ defineBoss('keepsake', {
   word: KEEPSAKE_READOUT,
   runup: KEEPSAKE_LOG.tract,
   spawn, update, kill, warn,
+  prep: () => bankWant('kboss_'), // its banks are lazy (audio.ts LAZY): they decode from the stage's gate on
   arena: kbArena,
 });

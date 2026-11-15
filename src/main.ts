@@ -145,8 +145,10 @@ screen.orientation?.addEventListener?.('change', fit);
 import { auInit, audioRunning } from './audio';
 import { startWarm, warmLog } from './render/warmup';
 import { checkMids } from './render/gross/mid';
+import { checkBosses } from './render/gross/boss';
 
 checkMids(); // a roster row with no sim or render file stops the boot here, not at its first WARNING
+checkBosses(); // the same for a registered stage boss (D55): bossFor must never name a boss with no sim or art
 (window as any).__warm = () => warmLog; // tools/perf-probe.mjs
 import { pFrame, pIn, pOut } from './perf';
 auInit();

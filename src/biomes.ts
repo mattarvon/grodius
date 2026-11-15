@@ -154,7 +154,11 @@ export const ARENA_GAP = 150;
 /** the registered stage boss (enemies/boss/registry.ts, D55) that ends biome slot seg this descent, or null for the
  *  biome's own: by slot and descent, never world x, and no RNG (bossFor). Its arena, WARNING, spawn and run-up line come
  *  from its BossSim */
-export const slotBoss = (seg) => { const k = bossFor(seg, ($.G && $.G.loop) || 0, !!layout().picker); return k ? BOSS_SIM[k] : null; };
+export const slotBoss = (seg) => {
+  const k = bossFor(seg, ($.G && $.G.loop) || 0, !!layout().picker);
+  if (k && !BOSS_SIM[k]) throw new Error(`stage boss '${k}' is placed but not registered (enemies/boss/${k}.ts defineBoss)`);
+  return k ? BOSS_SIM[k] : null;
+};
 const AR = [0, 0];
 function arena(b, ce, fl) {
   const [c0, f0] = REST[b] || REST.snot;
@@ -324,6 +328,7 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
   at(a - 40, () => logLine(logs[0]), 'log');
   if (legacy) at(mid, () => logLine(logs[1]), 'log'); // short: line 2 at the span's midpoint
   const SB = slotBoss(seg); // a registered stage boss ends this slot (D55), or null for the biome's own
+  if (SB && SB.prep) SB.prep(); // its lazy sound banks start decoding now, a minute before its WARNING (audio only)
   if (!legacy) at(BP.runup, () => logLine((SB && SB.runup) || logs[2]), 'log'); // arena run-up: line 3 (line 2 is the release, below), or the boss's own
   const sig = () => (rs() < .6 ? X.sig : roll()), sets = X.sets.map(P), two = secondKind(X);
   let setN = 0; // which drawn set piece is next (setIds)

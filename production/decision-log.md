@@ -825,6 +825,8 @@ subtitles (localization-lead).
 
 ### D53 THE KEEPSAKE, a ship-pool ANGLE midboss, pass 1 (wip) — 2026-11-15 (Matt designed it; branch `keepsake`)
 
+**Superseded 2026-11-15 by D55:** the midboss row retired; its kit is THE KEEPSAKE stage boss's phase 1.
+
 **What.** Matt's own midboss, added outside the §6.2 plan as a fifth ship-pool member (the pool's planned four are
 WINDOW, RANGE, CROWD and SPACE; ANGLE was free): a crew kid's vinyl baby-doll head grown to midboss size, a silver
 dinner fork rammed into the soft spot. Its face takes x.15; only the crown round the fork (hits at or above the crown
@@ -924,3 +926,59 @@ the rack's pre-gain (GRODIUS BITCH read +31.3 dB, about 8 dB low).
 **Next (Matt):** the D52 audio + narrative listen for CLOSED CASKET take 2 before it is committed with the quip batch.
 Don't reprocess DESCEND (or any take kept before fx-dsp) unless you mean to change it; if you do, listen first and commit
 the new .ogg on its own. The first CI run after merge shows whether Ubuntu's ffmpeg passes the real sweep.
+
+### D55 THE KEEPSAKE becomes a stage boss; the midboss row retires into its phase 1 — 2026-11-15 (Matt picked the recommended option on every decision; branches `kboss-core`, `kboss-art`, `kboss-audio`)
+
+**Matt's decisions** (design proposal "THE KEEPSAKE as a stage boss", section 9): (1) **placement A**: the boss of the
+second biome stage (stage n-3 on long4), always in Descent 1; from Descent 2 it alternates with that biome's own boss
+by descent number (D2, D4 home; D3, D5 THE KEEPSAKE), no RNG draw; `short` unchanged. Later it moves to THE CREW DECK.
+(2) **"It won't let go"**: it never escapes; a phase whose 25 s clock runs out is forced on (IT WON'T LET GO), and the
+last one's runout is one capped enrage (eyes open for good, cooldowns x.75, the stage grade capped at B). Winnable with
+no kit. (3) **Retire the midboss**: the wip ship-pool row, its files and LAB FORCE MID's only entry go; its kit is phase
+1 and its pure helpers moved to `enemies/boss/_keepsake.ts`. (4) Readout **PUT TO BED** (in `stages.ts`
+BOSS_READOUTS). (5) TTK band 28-34 s bot at the stage-1 kit, a >= 15 s floor at the strong kit. (6) Phase-3 interior:
+the sleep-eye rocker swinging as a pendulum and the crier ('mama' voice box) as a breakable part.
+
+**The fight** (`src/enemies/boss/keepsake.ts`, tuning in `_keepsake.ts` KB): a 104x124 head resting on the arena floor.
+DOZING (100-65%): the midboss's fountain (48 f tell), open window, aimed throw (46 f). IT WOKE UP (90 f): a hoop mobile of
+six forks lowers (a ring seen edge-on, never crossed bars). AWAKE (65-30%): the head rocks +-32 deg on a 220 f cycle with a
+clack at each extreme; crown toward the ship is the window; mobile drops (50 f per fork, never all), boomerang (54 f),
+wail ring (44 f); at least 3 windows before it can crack (a staged floor). IT CRACKED (120 f): the rocker drops out.
+CRACKED (30-0%): the rocker swings on a 3 s period (arc drawn, first swing from rest over 60 f), its weight blocks shots
+and kills on contact; the crier (40 HP x depth) ends the cries when broken (IT STOPPED CRYING); double cry (44 + 30 f),
+fork rain (50 f), Fountain II (48 f). PUT TO BED: three clacks shut on the rocker's eyes, the head tips over, the kill.
+ANGLE is rotated with the tilt (`keepHurtRot`; the proposal's formula had a sign slip, corrected and unit-tested), the
+crown line drops from 26 to 12 in CRACKED, area hits stay face hits, and no damage carries past a phase cut
+(`phaseClamp`). Every killing attack keeps a >= 44 f tell; nothing punishes shooting.
+
+**Architecture.** A stage-boss registry (`enemies/boss/registry.ts`: `defineBoss`, `bossFor`, `capGrade`), the
+`defineMid` pattern; art in `render/gross/boss/`. One hook line each in `enemies/update.ts` (update, kill),
+`enemies/mid/roster.ts` (`midMul`/`midHitSnd` read the entity's own `armor`/`hitSnd`, so every damage path, burn and
+area included, asks it), `biomes.ts` (`slotBoss`: spawn, WARNING, run-up log line, arena terrain), `stages.ts` (grade
+cap, readout), `warmplan.ts` (its atlas is route art). The crux, butcher and Maws are untouched (rng-probe SAME).
+Placement is by slot and descent, never world x, so D31's stretched rows carry it. Its HP goes through `mk()` and
+`depthHP` like every stage boss (`DEPTH.w.keepsake` .6, the Crux's), so a stage-order HP multiplier applies to it
+uniformly.
+
+**HP and TTK** (`tools/boss-probe.mjs`, long4, slot 1 built for real, invincible bot on the wound). Base HP 320, tuned
+with the planned stage-order x1.4 applied (`HPX=1.4`):
+
+| kit | today (x1) | with x1.4 | band |
+|---|---|---|---|
+| NAKED | 43.3 s | 58.8 s | dies before the 75 s of clocks |
+| STAGE 1 kit | 25.1 s | 29.7 s | 28-34 s |
+| END DESCENT 1 | 18.8 s | 20.6 s | 20-26 s |
+| STRONG D1 | 16.3 s | 16.9 s | >= 15 s (the floor) |
+
+Until the x1.4 lands the stage-1 kit sits ~3 s under the band.
+
+**Determinism and gates.** `bossFor` draws nothing. `short` is byte-identical (harness PASS, layout-parity PASS). The
+long4 harness also PASSES unchanged: its scripted run dies in Open Orbit (scroll 3538) and never reaches stage n-3, so
+no long4 re-baseline was needed. New harness scenarios `keepsake-d1`/`keepsake-d3` (new baselines, deterministic over 2
+runs); the 12 existing scenarios PASS unchanged. rng-probe: 12 fights SAME (THE KEEPSAKE added, the midboss row gone).
+
+**Also.** The art lane's atlas (`src/sprites/boss/keepsake-boss.*`) is drawn through `bf()`; the midboss sprite at
+104/48 stands in while it loads. The audio lane's 17 `kboss_*` banks are lazy (`audio.ts` LAZY/bankWant): they decode
+from the stage's gate, not at boot (~26 MB decoded). SLAB's `boss-keepsake` readout and four barks are wired. The LAB
+gained JUMP TO BOSS (`jump.ts` bossJump; URL `?stage=<biome>&slot=1&x=boss&kit=full`); FORCE MID hides while the roster
+has no wip kind. D53's midboss record stands as history.

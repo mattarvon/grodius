@@ -51,8 +51,8 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
      `e.r`, so a small hittable part (the Spine's eye) also needs `e.hb` or a 0 off the part.
    - `hitSnd(e, m, hx, hy)`: the kind's own sound for a hit that landed with share `m` (> 0), in place of the
      shared tink (`m` < 1) or hit (`m` 1); return true when it played one. Audio only: `sample()`/`ar()`, never `R()`.
-     THE KEEPSAKE's vinyl thud and wound squelch. An enemy shot can carry `land(s)`, called when it strikes the floor or
-     ceiling (its fork tink), on the same audio-only terms.
+     (THE KEEPSAKE stage boss's vinyl thud and wound squelch use the same hook, D55.) An enemy shot can carry `land(s)`, called
+     when it strikes the floor or ceiling (a fork tink), on the same audio-only terms.
    - `leave(e)`: once, when the withdraw clock runs out (reset a lake, a counter). `midLeave` fires it; a
      DRIFT kind withdraws on its own (see `ufo.ts`) and must call `MID_SIM[e.k]?.leave?.(e)` once itself.
    - `kidKill(kid, owner)`: a child spawned with `own: e` (and `kid: 1`) died. Count your
@@ -63,7 +63,7 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
    from a hash-timed hitch; `tell(e)` returns the telegraph strength from 0 to 1 and splits a seam down its front
    that opens to wound red and throws light; it has no
    cached layer, so no `built` or `drop`, and the warm-up skips it). A telegraph the seam can't carry (a landing mark,
-   an aimed line) or a thrown part goes in an optional `under(e)`: `greybox({ col, r, tell, under })` (see `keepsake.ts`). In
+   an aimed line) or a thrown part goes in an optional `under(e)`: `greybox({ col, r, tell, under })`. In
    pass 2, `export default { draw, warm, built, drop }`, plus `under` for a telegraph or
    chain beneath the body. Keep each `warm()` slice under about 4 ms on the phone. Copy `cyst.ts`; the shared particles, layers and crossover
    tint are in `../midbosses.ts`.
@@ -101,9 +101,9 @@ line to add. Every `.ts` there is a kind, except `_name.ts`, which is a shared h
   into the stage: `stagebuild.ts` `fixedMids`, the `scripts.ts` Orbit table, or the
   Drive table. Until then, fly a `wip` one with `?mid=<kind>` (`lab.ts` `forcedMid`): it takes slot A of every
   biome stage on a picker layout, any descent, so give it a `fit` and call `bandFit` when `e.host` is set (the
-  Keepsake does). `?mid=` works on any web build, deployed included; add `&stage=<biome>&x=<slot A WARNING - 30>&kit=mid`
+  retired midboss KEEPSAKE did, D53). `?mid=` works on any web build, deployed included; add `&stage=<biome>&x=<slot A WARNING - 30>&kit=mid`
   (the jump switch, dev server only) to start at its WARNING. **On the phone** (the APK has no query string): title
-  LAB > FORCE MID cycles off / each `wip` kind in roster order (stored in `grodius.lab` as `mid`, off by default),
+  LAB > FORCE MID (shown only while the roster has a `wip` kind) cycles off / each `wip` kind in roster order (stored in `grodius.lab` as `mid`, off by default),
   and while one is forced JUMP TO MID (`jump.ts` `midJump`) flies that same URL jump from the LAB: Descent 1, the
   first biome stage, mid kit, 30 px before slot A's WARNING, run-save slot sealed until the next DESCEND or RE-ENTER.
   Precedence: a `?mid=` naming a `wip` kind beats the row; any other `?mid=` is ignored and the row applies. Both
@@ -125,6 +125,29 @@ line to add. Every `.ts` there is a kind, except `_name.ts`, which is a shared h
   mocks. A kind file that uses an import at its top level, outside a function, can fail them.
 - **Not yet shared:** a DRIFT kind repeats the Saucer's spawn and forced exit (`ufo.ts`);
   a shared helper is due before the first wave-2 DRIFT kind (the Calving Shelf).
+
+## Adding a stage boss
+
+The registry (D55, THE KEEPSAKE first): a boss that ends a stage, not a midboss. The crux, butcher and Maws predate it and
+stay in `enemies/update.ts`'s switch.
+
+1. **`src/enemies/boss/<k>.ts`**: one `defineBoss('<k>', { et, name, word, spawn, update, kill, ... })`
+   (`enemies/boss/registry.ts` BossSim). `et` has `big: 1, mini: 1`, **never `mid`** (killEnemy's midboss branch would
+   fire a second banner and first-kill pay). Its HP goes through `mk()`/`depthHP` like every stage boss; add a
+   `DEPTH.w` entry. `spawn(b)` sets `$.G.mini`. Damage rules go on the entity at spawn: `e.armor(e, d, hx, hy, dir)` and
+   `e.hitSnd(e, m)` (`roster.ts` midMul / midHitSnd read them, so every damage path asks). A part reuses `nailbar`
+   (`par: e`, its own `armor`), drawn by the boss (`render/enemies.ts` drawNailbar skips the boss's parts). `kill(e)`
+   pays the reward (`miniReward`, `clearStage`) and shows the readout, which goes in `stages.ts` BOSS_READOUTS.
+   Optional: `warn` (audio on the WARNING), `prep` (audio at the stage's build: lazy banks, `audio.ts` bankWant),
+   `runup` (the run-up log line), `arena` (movement C over its fight, `biomes.ts` rewriteTerrain).
+2. **`src/render/gross/boss/<k>.ts`**: `export default { draw, under, warm, built, drop }`; the warm-up treats it as
+   route art when `warmplan.ts` routeArt names it.
+3. **Placement**: `registry.ts` `bossFor(slot, loop, picker)`, pure, by slot and descent (never world x, never RNG),
+   picker layouts only so `short` keeps parity. `biomes.ts` `slotBoss` reads it.
+
+Both folders load by file name; `main.ts` `checkBosses` refuses to boot when a placed boss has no sim or art file.
+Measure with `tools/boss-probe.mjs` (it stages THE KEEPSAKE at slot 1), `rng-probe`, `perf-probe` and its shots rig
+(`tools/keepsake-shots.mjs`).
 
 ## Specialist
 

@@ -28,7 +28,7 @@ import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Nod
 const [url, THR = '4', SC = 'all', PROF = ''] = process.argv.slice(2);
 const HELD = ROSTER.filter((r) => BIOME_POOLS.includes(r.pool)), REST = ROSTER.filter((r) => !BIOME_POOLS.includes(r.pool)); // the registry, WIP kinds too
 const KINDS = HELD.map((r) => r.k), HOSTS = BIOME_POOLS;
-const SCENES = ['orbit', 'maw', ...REST.map((r) => r.k), ...KINDS, 'crux', 'butcher', 'gravity'];
+const SCENES = ['orbit', 'maw', ...REST.map((r) => r.k), ...KINDS, 'crux', 'butcher', 'keepsake', 'gravity']; // keepsake: the registered stage boss (D55), at slot 1 where bossFor places it
 const cells = (pre) => KINDS.flatMap((k) => HOSTS.map((h) => `${pre}:${k}@${h}`));
 const GROUPS = { mid8: cells('mid8'), cold: cells('cold'), peak: HOSTS.map((h) => `peak:${h}`), floor: HOSTS.map((h) => `floor:${h}`), route: ['route:ice+acid', 'route:fire+snot'] };
 const want = SC === 'all' ? SCENES : SC.split(',').flatMap((s) => GROUPS[s] || [s]);
@@ -61,7 +61,7 @@ async function reloadCold() {
 if (PROF) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 200 }); }
 
 const STRONG = [{ speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }];
-const BIOME = { ...Object.fromEntries(HELD.map((r) => [r.k, r.pool])), crux: 'ice', butcher: 'fire', maw: null, ufo: null, orbit: null, gravity: null };
+const BIOME = { ...Object.fromEntries(HELD.map((r) => [r.k, r.pool])), crux: 'ice', butcher: 'fire', keepsake: null, maw: null, ufo: null, orbit: null, gravity: null };
 const XHOST = process.env.XHOST || '';
 if (XHOST) for (const k of KINDS) BIOME[k] = XHOST;
 
@@ -90,19 +90,26 @@ async function scene(k, { biome = BIOME[k], elite = +(process.env.ELITE || 0), x
       else if (k === 'maw') SP.maw(true);
       else if (k === 'ufo') { const UF = await import('/src/enemies/mid/ufo.ts'); $.G.scroll = LY.ufoAt() + 150; $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); } // Open Orbit midboss
       else if (k === 'crux' || k === 'butcher') { SP[k](); if ($.G.mini) $.G.mini.biome = biome; }
+      else if (k === 'keepsake') { // slot 1 built as a run builds it (its arena), the scroll where the fight holds, its atlas decoded first
+        const G = $.G, r1 = LY.slotRow(1), r0 = LY.slotRow(0), BK = await import('/src/render/gross/baked.ts');
+        G.route = ['ice', 'fire']; G.bx = [r0.gateLate ?? r0.x0, r1.gateLate ?? r1.x0, null]; G.visitNo = [0, 0];
+        BI.biomeStage(1, G.bx[1]); G.scroll = r1.bossX + 200; G.si = G.script.length; W.enemies.length = 0;
+        BK.bakedWarm('keepsake-boss'); for (let i = 0; i < 100 && !BK.bakedReady('keepsake-boss'); i++) await new Promise((r) => setTimeout(r, 30));
+        (await import('/src/enemies/boss/registry.ts')).BOSS_SIM.keepsake.spawn('fire');
+      }
       else SP.midboss(k, BI.MID_NAMES[k], xhost || undefined);
     }
     $.G.pick = null; $.G.pickQ = 0; $.G.tally = null;
     const EL = elite && biome ? await import('/src/enemies/elite.ts') : null;
     // scenes staged without a real route: build what the route would have (a real flight: the route scene)
-    (await import('/src/render/warmup.ts')).warmNow(k === 'crux' || k === 'butcher' ? [k] : k === 'maw' ? [] : [k, 'crux', 'butcher', 'maw:acid', 'maw:snot']);
+    (await import('/src/render/warmup.ts')).warmNow(k === 'crux' || k === 'butcher' || k === 'keepsake' ? [k] : k === 'maw' ? [] : [k, 'crux', 'butcher', 'maw:acid', 'maw:snot']);
     const st = [], rt = [];
     let deadAt = -1, f = 0;
     const MAX = k === 'orbit' ? 900 : 2400;
     for (; f < MAX; f++) {
       if (EL && f % 40 === 0 && W.enemies.filter((e) => (e.elite || e.crowd) && !e.dead).length < 8) { const n0 = W.enemies.length; [() => SP.corpse(C.rr(40, 200)), () => SP.flayer(C.rr(50, 200)), () => SP.crawler(1), () => SP.hatch(3, false)][(f / 40) % 4](); for (const e of W.enemies.slice(n0)) if (elite === 1) EL.eliteify(e); else e.crowd = 1; }
       const m = $.G.mini, B = $.G.boss;
-      const tgt = k === 'gravity' ? (B ? B.y : $.P.y) : k === 'orbit' ? 135 + Math.sin(f * .02) * 70 : (m ? m.y : $.P.y);
+      const tgt = k === 'gravity' ? (B ? B.y : $.P.y) : k === 'orbit' ? 135 + Math.sin(f * .02) * 70 : (m ? m.y + (k === 'keepsake' ? m.wy || 0 : 0) : $.P.y);
       const y = C.clamp(tgt + Math.sin(f * .05) * 6, 8, C.PH - 8);
       $.P.hist.unshift({ x: 90, y }); if ($.P.hist.length > 80) $.P.hist.pop();
       Object.assign($.P, { x: 90, y, alive: true, inv: 30 }); $.G.pick = null; $.G.pickQ = 0;

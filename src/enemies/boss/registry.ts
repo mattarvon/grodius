@@ -34,6 +34,9 @@ export interface BossSim {
   kill: (e: any) => void;
   /** on its WARNING (biomes.ts biomeScript): audio only (a sting), no sim state */
   warn?: () => void;
+  /** when its stage is built (biomes.ts biomeScript, at the gate, a minute before the fight): audio only, e.g. start
+   *  decoding its lazy sound banks (audio.ts bankWant). No sim state, no R() */
+  prep?: () => void;
   /** the run-up log line in place of the biome's (biomes.ts biomeScript) */
   runup?: string;
   /** movement C over its arena (biomes.ts rewriteTerrain): [c0, f0] the biome's rest edges, (ce, fl) the column's
