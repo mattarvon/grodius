@@ -5,7 +5,7 @@
  "layout": "src/sprites/boss/keepsake-boss.json",
  "atlasSize": [
   1024,
-  410
+  466
  ],
  "frame": {
   "size": [
@@ -39,7 +39,7 @@
   "wound_gape": "the fork out (boomerang / window)",
   "wound_brain": "phase 3: the larger brain, gaping, no fork",
   "die": "split open, empty sockets, the brain, tipping onto its side at tilts [48, 66, 82, 90]",
-  "rocker_open": "the sleep-eye mechanism at swing angles [-24, -12, 0, 12, 24] (canvas deg about its attach point), lids open",
+  "rocker_open": "the sleep-eye mechanism at swing angles [-108, -90, -72, -54, -36, -18, 0, 18, 36, 54, 72, 90, 108] (canvas deg about its attach point), lids open",
   "rocker_shut": "the same, lids shut (the death clack: PUT TO BED)",
   "crier": "[0] whole, [1] broken; origin at its centre",
   "fork": "the big fork (thrown / boomerang), tines down, origin at its centre; rotate at runtime (it spins)",
@@ -59,8 +59,8 @@
   "wound_gape": 5,
   "wound_brain": 5,
   "die": 4,
-  "rocker_open": 5,
-  "rocker_shut": 5,
+  "rocker_open": 13,
+  "rocker_shut": 13,
   "crier": 2,
   "fork": 1,
   "mfork": 2
@@ -95,8 +95,8 @@
     -9.2
    ],
    "wire": [
-    -24.5,
-    -3.1
+    -36.3,
+    -12.8
    ],
    "crier": [
     -32.8,
@@ -132,8 +132,8 @@
     -4.4
    ],
    "wire": [
-    -22.7,
-    -9.7
+    -31.3,
+    -22.3
    ],
    "crier": [
     -34.4,
@@ -169,8 +169,8 @@
     0.6
    ],
    "wire": [
-    -19.1,
-    -15.5
+    -24.0,
+    -30.1
    ],
    "crier": [
     -33.4,
@@ -206,8 +206,8 @@
     5.7
    ],
    "wire": [
-    -14.1,
-    -20.2
+    -14.7,
+    -35.5
    ],
    "crier": [
     -29.8,
@@ -243,8 +243,8 @@
     10.2
    ],
    "wire": [
-    -8.0,
-    -23.3
+    -4.4,
+    -38.2
    ],
    "crier": [
     -23.9,
@@ -295,7 +295,7 @@
   ]
  },
  "crown": {
-  "line": -28,
+  "line": -26,
   "line3": -12,
   "top": -52,
   "note": "ANGLE: full damage at head-local y <= line (phases 1-2) or line3 (phase 3, the split exposes more). top is the crown at tilt 0. Head-local = screen rotated by -tilt about the origin"
@@ -310,7 +310,7 @@
   "note": "wound_seat/proud have it baked in. entry: px from the fork's top where it goes into the skull"
  },
  "rocker": {
-  "attach": "frame offsets are from the wire end; draw the wire from perTilt.wire to it",
+  "attach": "frame offsets are from the wire end (the bridle apex); draw the wire from perTilt.wire to it. The weight sits 48 px below the apex, so with KB.pLen 58 the apex is 10 px down the wire. Pick the swing frame nearest the pendulum angle (deg, + = clockwise)",
   "eyes": [
    [
     -18.25,
@@ -327,11 +327,19 @@
    48
   ],
   "swing": [
-   -24,
-   -12,
+   -108,
+   -90,
+   -72,
+   -54,
+   -36,
+   -18,
    0,
-   12,
-   24
+   18,
+   36,
+   54,
+   72,
+   90,
+   108
   ]
  },
  "mfork": {

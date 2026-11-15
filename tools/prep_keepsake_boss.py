@@ -59,16 +59,16 @@ WOX, WOY = pk.OX * pk.K * pk.Q, pk.OY * pk.K * pk.Q   # the origin in work px (4
 DX, DY = int(HO - WOX), int(HO - WOY)                  # work canvas -> hero canvas offset
 TILTS = [-32, -16, 0, 16, 32]
 DIE = [48, 66, 82, 90]
-SWING = [-24, -12, 0, 12, 24]
+SWING = list(range(-108, 109, 18))   # the pendulum swings ~1.9 rad each side (kboss-core KB.pAmp)
 CRACKS = ['whole', 'hairline', 'split', 'open']
 EYES = ['open', 'half', 'shut', 'empty']
 WOUNDS = ['seat', 'proud', 'gape', 'brain']
 
-# the crack's path in thumb px (the midboss's measuring space): from the wound's lower-left rim down the forehead to the
-# player-side brow, then down the temple. It stays clear of the eye overlays' masks
-CRACK = [(276, 312), (263, 342), (248, 373), (231, 402), (210, 425), (184, 436), (160, 445), (143, 466), (137, 497),
-         (141, 530), (150, 560)]
-WIRE_T = (206, 428)               # where the rocker's wire comes out of the split (thumb)
+# the crack's path in thumb px (the midboss's measuring space): from the wound's lower-left rim across the forehead
+# (through the rocker's pivot) to the player-side temple, then down past the eye to the jaw. It stays clear of the eye overlays' masks
+CRACK = [(276, 312), (252, 330), (222, 350), (194, 368), (172, 390), (158, 418), (148, 446), (140, 476), (137, 505),
+         (141, 535), (150, 562)]
+WIRE_T = (187, 371)               # where the rocker's wire comes out of the split (thumb): kboss-core's KB.pvx, pvy (-24, -30)
 CRIER_T = (150, 456)              # suggested crier seat, in the open split at the temple (thumb)
 
 
@@ -557,8 +557,8 @@ def fork_overlay(fork_im, rise_g):
 
 
 # ---------------- the rocker (sleep-eye mechanism) ----------------
-ROCK_G = (76, 64)
-ROCK_ATTACH = (38, 4)    # game px in the rocker's canvas: the wire's end (frames are offset from here)
+ROCK_G = (116, 116)
+ROCK_ATTACH = (58, 58)   # game px in the rocker's canvas (centred: it swings right round): the wire's end
 ROCK_EYE = 18.25         # eye centres at (+-ROCK_EYE, 22) from the attach point: the face's socket spacing
 ROCK_R = 10.5
 
@@ -980,12 +980,14 @@ def write_manifest(lay, per, base_rows):
         'counts': {k: len(v) for k, v in f.items()},
         'perTilt': per,
         'base': base_rows,
-        'crown': {'line': -28, 'line3': -12, 'top': -52,
+        'crown': {'line': -26, 'line3': -12, 'top': -52,
                   'note': 'ANGLE: full damage at head-local y <= line (phases 1-2) or line3 (phase 3, the split exposes '
                           'more). top is the crown at tilt 0. Head-local = screen rotated by -tilt about the origin'},
         'fork': {'size': list(FORK_G[:2]), 'entry': FORK_G[2], 'lean': .14,
                  'note': 'wound_seat/proud have it baked in. entry: px from the fork\'s top where it goes into the skull'},
-        'rocker': {'attach': 'frame offsets are from the wire end; draw the wire from perTilt.wire to it',
+        'rocker': {'attach': 'frame offsets are from the wire end (the bridle apex); draw the wire from perTilt.wire to it. '
+                             'The weight sits 48 px below the apex, so with KB.pLen 58 the apex is 10 px down the wire. '
+                             'Pick the swing frame nearest the pendulum angle (deg, + = clockwise)',
                    'eyes': [[-ROCK_EYE, 22], [ROCK_EYE, 22]], 'r': ROCK_R, 'weight': [4, 48], 'swing': SWING},
         'mfork': {'size': list(MFORK_G)},
         'crier': {'size': list(CRIER_G)},
@@ -1056,20 +1058,20 @@ def preview(path, lay):
     x = 170 + 4 * 320
     man = json.load(open(os.path.join(HERE, 'keepsake-boss-art.json')))
     wv = man['perTilt'][2]['wire']
-    ax, ay = x + wv[0] * z + 10 * z, y0 + 200 + wv[1] * z + 36 * z
+    ax, ay = x + wv[0] * z, y0 + 200 + wv[1] * z + 10 * z
     dr.line((x + wv[0] * z, y0 + 200 + wv[1] * z, ax, ay), fill=(160, 160, 150, 255), width=2)
-    blit(sheet, 'rocker_open', 3, ax, ay, z)
+    blit(sheet, 'rocker_open', len(SWING) // 2, ax, ay, z)
     cv = man['perTilt'][2]['crier']
     blit(sheet, 'crier', 0, x + cv[0] * z, y0 + 200 + cv[1] * z, z)
     blit(sheet, 'die', 3, 1600, y0 + 260, 2)
     # row 3: parts at 3x
     y1 = 1640
-    label(10, y1 - 22, 'PARTS 3x: rocker open (5 swings) / rocker shut / crier whole, broken / big fork / mobile fork, tell / die frames 2x')
+    label(10, y1 - 22, 'PARTS 2x: rocker open (every 3rd of 13 swings) / rocker shut / crier whole, broken / big fork / mobile fork, tell / die frames 2x')
     x = 40
     for k in range(5):
-        blit(sheet, 'rocker_open', k, x + 40 + k * 120, y1 + 10, 2)
+        blit(sheet, 'rocker_open', k * 3, x + 70 + k * 130, y1 + 40, 2)
     for k in range(5):
-        blit(sheet, 'rocker_shut', k, x + 40 + k * 120, y1 + 160, 2)
+        blit(sheet, 'rocker_shut', k * 3, x + 70 + k * 130, y1 + 190, 2)
     blit(sheet, 'crier', 0, 720, y1 + 60, 3)
     blit(sheet, 'crier', 1, 840, y1 + 60, 3)
     blit(sheet, 'fork', 0, 950, y1 + 110, 3)
