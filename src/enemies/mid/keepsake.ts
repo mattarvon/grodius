@@ -1,0 +1,136 @@
+// @ts-nocheck
+// =====================================================================
+//  THE KEEPSAKE (ship pool, ANGLE; pass-1 greybox, wip). A crew kid's porcelain baby-doll head grown to midboss size:
+//  bisque, glass sleep eyes, a silver dinner fork rammed into the soft spot on top of the skull, brain bulging round it.
+//  Art: render/gross/mid/keepsake.ts. Its picker row is in ./roster.ts; its tuning, damage rule and fountain layout in
+//  ./_keepsake.ts (pure, unit-tested by tests/unit/keepsake.test.ts).
+//
+//  ANGLE: the face tinks (x.15); only the wound on top, from above, takes full damage (keepHurt). So you want to sit
+//  over its crown, and everything it does is about making that cost something:
+//   TELL   (48 f): the brain bulges, the eyes open, the handles rise; the fountain's landing marks show from frame 1
+//   FOUNT        : 3-4 forks (phase 2: 5) burst up out of the wound and arc down through the marked columns. At least
+//                  one lattice column is always empty, so there is always a gap
+//   OPEN   (60 f): the last fork lands and the wound gapes, nothing fires: the safe beat to dive in (45 f in phase 2)
+//   AIM    (46 f): between fountains a line tracks you for 30 f, locks for 16, then a fork flies tines-first along it
+//  Under 50% (midPh2): the throws become the big fork, ripped out and thrown as a boomerang along a tracked, then
+//  locked line, out to the far side and back (54 f line), and a slow wail ring (40 f tell), turn about between fountains.
+//  The fountains get denser (5 forks of 7 columns) and the window shorter (45 f).
+//  Nothing punishes shooting. No allocation in the update: the fountain writes into arrays made at spawn.
+// =====================================================================
+import { $ } from '../../state';
+import { PH, R, W, dist2, lerp, rr } from '../../core';
+import { sfx } from '../../audio';
+import { eshots } from '../../world';
+import { drop, spark } from '../../fx/spawn';
+import { cdm } from '../../depth';
+import { BS, aimA, eshoot, ring, wrapA } from '../spawn';
+import { playerHit } from '../../player';
+import { bandFit, lob, midLeave } from '../update';
+import { midPh2 } from '../midhost';
+import { defineMid } from './roster';
+import { KEEP, forkCols, keepHurt, lobFrames } from './_keepsake';
+
+const cd = (e, ph2) => Math.round((ph2 ? KEEP.cool2 : KEEP.cool) * (1 - .3 * ($.G.rank || 0)) * cdm()); // cdm: depth, src/depth.ts
+/** the wound, screen px (the forks' launch point) */
+const wX = (e) => e.x + KEEP.wx, wY = (e) => e.y + KEEP.wy;
+
+/** the fountain's columns and landing plane, drawn at the tell's first frame (sim R(): count fixed by n) */
+function planFount(e, ph2) {
+  const n = ph2 ? 5 : 3 + (R() < .5 ? 1 : 0);
+  e.fn = forkCols(n, ph2 ? KEEP.slots2 : KEEP.slots, ph2 ? KEEP.pitch2 : KEEP.pitch, e.x + KEEP.x0, KEEP.jit, 12, W - 8, R, e.fx, e.fu);
+  e.fy = wY(e) + KEEP.land;
+  for (let i = 0; i < e.fn; i++) e.fl[i] = 1e9; // not launched: its mark shows until it has landed
+}
+/** fork i leaves the wound now: a lob through its column on the landing plane. Its landing frame goes in e.fl */
+function launch(e, i) {
+  const x = wX(e), y = wY(e) - 4, n0 = eshots.length;
+  const u = Math.min(rr(KEEP.u0, KEEP.u1), Math.sqrt(.05 * Math.max(4, y - KEEP.top))); // apex stays on screen
+  lob(x, y, e.fx[i], e.fy, u / BS()); // lob() scales by BS(); fold it out so the arc (and its marks) never change with depth
+  if (eshots.length > n0) eshots[n0].fk = 1; // drawn as a fork (render/hud.ts drawEShots); the cap can refuse it
+  e.fl[i] = e.wt + Math.ceil(lobFrames(u, e.fy - y));
+  for (let k = 0; k < 3; k++) drop(x + rr(-3, 3), y, rr(-.8, .8), -rr(.5, 1.6), 1.2, 0, 50);
+}
+/** is the ship on the boomerang (a disc at e.bx, e.by)? */
+const onBoom = (e) => $.P.alive && dist2($.P.x, $.P.y, e.bx, e.by) < (KEEP.boomR + 2.6) ** 2;
+
+function updKeepsake(e) {
+  const go = midLeave(e), ph2 = midPh2(e);
+  // a slow drift, held still while a line is up so the line is honest (the Saucer's rule)
+  const still = e.st === 'aim' || e.st === 'boom' || e.st === 'fly';
+  if (!still) e.y = lerp(e.y, PH * .58 + Math.sin(e.t * .011) * PH * .12, .04);
+  if (e.host) bandFit(e); // a biome slot (the ?mid= test path): fitted into the cave like a crossover (roster `fit`)
+  if (!go && e.t > 120 && $.P.alive) {
+    e.wt++;
+    if (e.st === 'idle') {
+      if (e.wt >= e.cool) {
+        const k = e.att++ % 4; // fountain, throw, fountain, throw; phase 2: fountain, boomerang, fountain, wail
+        e.st = k % 2 === 0 ? 'tell' : !ph2 ? 'aim' : k === 1 ? 'boom' : 'wail';
+        e.wt = 0;
+        if (e.st === 'tell') { planFount(e, ph2); sfx.squish(); }
+        else if (e.st === 'wail') sfx.groan();
+        else { e.la = aimA(wX(e), wY(e)); sfx.tele(); }
+      }
+    } else if (e.st === 'tell') { // the brain bulges round the fork: the art's seam opens with wt / tell
+      if (R() < .4) spark(wX(e) + rr(-5, 5), wY(e) - rr(0, 4), rr(-.3, .3), -rr(.4, 1.2), 12, '#e8e2d8');
+      if (e.wt >= KEEP.tell) { e.st = 'fount'; e.wt = 0; sfx.lash(); }
+    } else if (e.st === 'fount') {
+      const i = (e.wt - 1) / KEEP.stagger; // wt is 1 on the state's first frame: fork 0 leaves then
+      if (i === (i | 0) && i < e.fn) launch(e, i);
+      let left = 0;
+      for (let j = 0; j < e.fn; j++) if (e.wt < e.fl[j]) left++;
+      if (!left) { e.st = 'open'; e.wt = 0; sfx.squish(); }
+    } else if (e.st === 'open') { // the window: the wound gapes, nothing fires
+      if (R() < .25) drop(wX(e) + rr(-4, 4), wY(e) + 2, rr(-.4, .4), rr(-.6, .2), 1.2, 0, 60);
+      if (e.wt >= (ph2 ? KEEP.open2 : KEEP.open)) { e.st = 'idle'; e.wt = 0; e.cool = cd(e, ph2); }
+    } else if (e.st === 'aim') { // the throw's line: tracks, then locks
+      if (e.wt < KEEP.aim - KEEP.lock) e.la += wrapA(aimA(wX(e), wY(e)) - e.la) * .12;
+      if (e.wt >= KEEP.aim) {
+        const n0 = eshots.length;
+        eshoot(wX(e), wY(e), e.la, KEEP.throwSp, 'spike');
+        if (eshots.length > n0) eshots[n0].fk = 2; // a straight fork, tines first
+        sfx.lash();
+        e.st = 'idle'; e.wt = 0; e.cool = cd(e, ph2);
+      }
+    } else if (e.st === 'boom') { // phase 2: the big fork's line tracks, then locks; then it flies
+      if (e.wt < KEEP.boomTel - KEEP.boomLock) e.la += wrapA(aimA(wX(e), wY(e)) - e.la) * .1;
+      if (e.wt >= KEEP.boomTel) {
+        // out to the far end along the line: boomEnd's x, or the top or bottom edge first
+        const dx = Math.cos(e.la), dy = Math.sin(e.la), x0 = wX(e), y0 = wY(e);
+        let L = dx < -.05 ? (x0 - KEEP.boomEnd) / -dx : 400;
+        if (dy < -.05) L = Math.min(L, (y0 - 6) / -dy);
+        if (dy > .05) L = Math.min(L, (PH - 6 - y0) / dy);
+        e.bl = Math.max(40, L); e.bs = 0; e.bd = 1; e.bx = x0; e.by = y0;
+        e.st = 'fly'; e.wt = 0; sfx.lash(); $.G.shake += 2;
+      }
+    } else if (e.st === 'fly') {
+      e.bs += e.bd * KEEP.boomSp;
+      if (e.bs >= e.bl) { e.bs = e.bl; e.bd = -1; sfx.chain(); }
+      e.bx = wX(e) + Math.cos(e.la) * e.bs; e.by = wY(e) + Math.sin(e.la) * e.bs;
+      if (onBoom(e)) playerHit();
+      if (e.bd < 0 && e.bs <= 0) { e.bs = 0; e.st = 'idle'; e.wt = 0; e.cool = cd(e, ph2); }
+    } else if (e.st === 'wail') {
+      if (e.wt >= KEEP.wail) { ring(e.x, e.y, KEEP.wailN, e.t * .05, KEEP.wailSp); sfx.groan(); e.st = 'idle'; e.wt = 0; e.cool = cd(e, ph2); }
+    }
+  }
+  if (go && e.st === 'fly') e.st = 'idle'; // withdrawing: the boomerang is gone with it
+  if (R() < .06) spark(e.x + rr(-16, 16), e.y + rr(-12, 18), 0, -rr(.2, .6), 18, '#d8d0c0');
+}
+
+function keepSpawn(e) {
+  // the wound is a small part on top of the head: its own hitbox, so a shot skimming the crown connects (src/CLAUDE.md)
+  e.hb = [[KEEP.wx, KEEP.wy, KEEP.wr]];
+  e.wy = KEEP.wy; // where its weak spot is, for tools/midboss-probe.mjs's bot (it aims at e.y + e.wy)
+  e.fx = new Float32Array(8); e.fl = new Float32Array(8); e.fu = new Uint8Array(8); e.fn = 0; e.fy = 0;
+  e.la = Math.PI; e.bx = e.by = e.bs = e.bl = 0; e.bd = 1;
+}
+
+defineMid('keepsake', {
+  // literals only at the top level (src/CLAUDE.md load order): r is KEEP.r. HP: ANGLE peers are 95-100 (spec §6.2),
+  // measured with the probe bot on the wound (tools/midboss-probe.mjs)
+  et: { hp: 100, r: 22, gsz: 4, score: 6000, bio: 70, skull: 1, eyes: 2, teeth: 4, big: 1, mini: 1, mid: 1 },
+  word: 'PUT TO BED',
+  spawnY: .58,
+  onSpawn: keepSpawn,
+  hurt: (e, _d, hx, hy) => keepHurt(e, hx, hy),
+  update: updKeepsake,
+});

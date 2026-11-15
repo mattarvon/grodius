@@ -6,6 +6,7 @@
 // Precedence for each setting: URL flag > LAB > default. The choice is a pure function (layoutChoice) so tests can
 // drive it without a DOM; the module keeps a cached copy of the stored LAB so draw code never touches storage.
 import { LAYOUTS, layout, setLayout } from './layout';
+import { midRow } from './enemies/mid/roster';
 
 export const LAB_KEY = 'grodius.lab';
 
@@ -87,6 +88,15 @@ export function activeLayout(): LayoutChoice {
 }
 /** LS2's WIP midboss flag: ?mids=wip, else the LAB */
 export const midsWip = () => /[?&]mids=wip\b/.test(search()) || lab().mids === 'wip';
+/** the kind a ?mid=<kind> query forces into slot A of every biome stage (biomes.ts stageMids), or null. Only a `wip`
+ *  row: it is the test path for a kind the picker can't reach yet (a ship-pool row has no spawn path, src/CLAUDE.md
+ *  "Not just a row"). A finished, unknown or missing name is null, so the query can't change a shipped run. Pure */
+export function forcedMid(search: string): string | null {
+  const m = /[?&]mid=([a-z0-9_-]+)/.exec(search), r = m ? midRow(m[1]) : undefined;
+  return r && r.wip ? r.k : null;
+}
+/** the ?mid= test query, read from the page URL (no LAB row: the APK has no query, and this is a desk tool) */
+export const midForce = () => forcedMid(search());
 /** the checkpoint trigger for item H: 'a' = app kill or quit only (spec §4 default), 'b' = also on death */
 export const cpTrigger = (): Lab['cp'] => lab().cp;
 

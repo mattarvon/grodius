@@ -10,7 +10,9 @@ const R = () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(s
 
 /** the flag as lab.ts midsWip() reports it */
 let wip = false;
-vi.mock('../../src/lab', async (orig) => ({ ...(await orig<typeof import('../../src/lab')>()), midsWip: () => wip }));
+/** the ?mid= test query as lab.ts midForce() reports it */
+let force: string | null = null;
+vi.mock('../../src/lab', async (orig) => ({ ...(await orig<typeof import('../../src/lab')>()), midsWip: () => wip, midForce: () => force }));
 /** the roster with one WIP biome-pool row appended, as a pool lane adds one (a held ice kind, Descent 1) */
 vi.mock('../../src/enemies/mid/roster', async (orig) => {
   const m = await orig<typeof import('../../src/enemies/mid/roster')>();
@@ -65,7 +67,7 @@ const meets = () => {
 describe('stageMids and the WIP flag', () => {
   beforeAll(() => L.setLayout('long4'));
   afterAll(() => L.setLayout('short'));
-  beforeEach(() => { seed = 1; wip = false; });
+  beforeEach(() => { seed = 1; wip = false; force = null; });
 
   it('knows the greybox row, so a run saved under the flag still loads', () => {
     expect(MIDS.greybox).toEqual({ body: 'greybox', tag: 'WINDOW', min: 0 });
@@ -78,5 +80,18 @@ describe('stageMids and the WIP flag', () => {
   it('picks the WIP kind in some biome stages with the flag on', () => {
     wip = true;
     expect(meets()).toBeGreaterThan(0);
+  });
+
+  it('puts a ?mid= kind in slot A of every biome stage, keeping the draw and slot B as the run would have had them', () => {
+    const run = (s: number) => { $.G = { loop: 0, seed: s * 7919 }; $.meta = { mb: {} }; return stageMids(1, 'ice'); };
+    for (let s = 1; s <= SEEDS; s++) {
+      force = null;
+      const plain = run(s);
+      force = 'greybox';
+      const forced = run(s);
+      expect(forced[0]).toBe('greybox');
+      // slot B survives unless it shares the forced kind's tag (WINDOW here: none of the four finished kinds)
+      expect(forced.slice(1)).toEqual(plain.slice(1));
+    }
   });
 });

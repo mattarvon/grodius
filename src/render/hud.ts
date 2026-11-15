@@ -23,6 +23,7 @@ import { drawEnemy } from '../render/enemies';
 import { drawMawFx } from './gross/maw';
 import { drawBakedDeaths } from './gross/baked';
 import { drawUfoFx } from './gross/mid/ufo';
+import { drawFork } from './fork';
 import { MID_NAMES } from '../enemies/mid/roster';
 /** the health bar's name for a G.mini without a title: the bosses that can take G.mini, and every midboss */
 const MINI_NAMES: Record<string, string> = { maw: 'THE MAW', crux: 'THE BLOAT', butcher: 'THE BUTCHER', ...MID_NAMES };
@@ -263,7 +264,8 @@ export function drawEShots() {
   for (const s of eshots) glow(s.x, s.y, s.k === 'spike' ? 14 : s.k === 'glob' ? 11 : 9, '150,255,40', .55 * pul);
   ctx.globalCompositeOperation = 'source-over';
   for (const s of eshots) {
-    if (s.k === 'glob') {
+    if (s.fk) drawFork(ctx, s.x, s.y, Math.atan2(s.vy, s.vx)); // THE KEEPSAKE's forks (a glob's arc or a spike's line, tines first): pale steel over the enemy-fire glow
+    else if (s.k === 'glob') {
       const a = Math.atan2(s.vy, s.vx);
       ctx.save();
       ctx.translate(s.x, s.y);

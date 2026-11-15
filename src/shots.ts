@@ -225,7 +225,7 @@ export function updateEShots() {
     let dead = false;
     if (s.k === 'glob') {
       s.vy += .025;
-      if (s.t % 3 === 0) drop(s.x, s.y, rr(-.2, .2), rr(-.2, .2), 1, 1, 40);
+      if (s.t % 3 === 0 && !s.fk) drop(s.x, s.y, rr(-.2, .2), rr(-.2, .2), 1, 1, 40); // a fork (THE KEEPSAKE) falls like a glob but doesn't drip
     }
     s.x += s.vx - (s.k === 'glob' ? 0 : 0);
     s.y += s.vy;
@@ -239,7 +239,8 @@ export function updateEShots() {
       f = floorAt(wx),
       c = ceilAt(wx);
     if (s.y >= f || s.y <= c) {
-      if (s.k === 'glob') {
+      if (s.fk) for (let k = 0; k < 3; k++) spark(s.x, s.y, rr(-1.2, 1.2), s.y >= f ? -rr(.4, 1.4) : rr(.4, 1.4), ri(5, 9), '#dce4ec'); // a KEEPSAKE fork strikes steel, no splat
+      else if (s.k === 'glob') {
         addDecal(wx, s.y >= f ? f : c, 3, s.y >= f ? 1 : -1);
         for (let k = 0; k < 6; k++) drop(s.x, s.y, rr(-1.5, 1.5), s.y >= f ? rr(-2, -.5) : rr(.5, 2), 1.2, 0, 60);
       }

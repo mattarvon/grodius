@@ -21,6 +21,9 @@ export interface Greybox {
    *  size (spec §9): it is the only cue a greybox gives. Called every frame: no allocation. In a crossover the host
    *  tint washes it too (drawMidCross), like every kind's art */
   tell?: (e: any) => number;
+  /** a telegraph the seam can't carry (a landing mark, an aimed line) or a thrown part, drawn under the body in screen
+   *  px (MidArt.under, render/enemies.ts drawEnemy). Optional; render-only, so srnd() never R(), and no allocation */
+  under?: (e: any) => void;
 }
 
 const N = 11; // hull vertices: enough to read as a broken mass, few enough to stay angular
@@ -139,5 +142,6 @@ export function greybox(g: Greybox): MidArt {
     },
     // nothing cached, so no built or drop: the warm-up leaves it out of the drop pass (warmplan.ts routeKeys)
     warm: () => false,
+    ...(g.under ? { under: g.under } : {}),
   };
 }

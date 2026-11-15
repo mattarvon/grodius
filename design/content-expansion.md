@@ -358,6 +358,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 | | Hull crawler | RANGE | — | ~110 | W1 (with the first interior) |
 | | the Galley | CROWD | The food dispenser feeds crew to you | ~110 | W2 |
 | | Bunk Stack | SPACE | Berths that open | ~100 | W2 |
+| | THE KEEPSAKE | ANGLE | A crew kid's porcelain doll head; face ×0.15, only the fork wound on top takes damage, from above. Fork fountain (landing marks, a gap always), aimed fork throw; phase 2 a boomerang fork and a wail ring | 100 | Pass-1 greybox, `wip` (Matt, 2026-11-15); flown via `?mid=keepsake` until the ship pool has a spawn path |
 | **Keel** | Ribcage | WINDOW | Bars shot open first (the nailbar pattern) | ~110 | NB |
 | | Marrow Sow | SPACE | Lobs globs (a variant of the cyst lob) | ~110 | NB |
 | | Gnawer | RANGE | Chews toward you along a rib | ~100 | NB |
