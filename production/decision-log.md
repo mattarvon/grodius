@@ -1012,6 +1012,19 @@ the hub); passing the real damage into midMul for the slick and acid ticks (perk
 d, which phaseClamp reads); `checkBosses`'s hard-coded `bossFor(1, 0, true)` (it should walk every slot and descent
 bossFor can name).
 
+**After merging main (D31, D56, D57) into kboss-core, 2026-11-15.** THE KEEPSAKE stays slot 1: `bossFor` is by slot,
+so D31's stretched rows carried it (slot 1 now x0 12950, gate 13450, boss 19050; run-up 18648, arena full from 18848,
+the fight holds at scroll ~19247, its screen ends 19727, before tEnd 19730: the whole fight is on the arena). The gate
+is ~5600 px before the boss, so `prep`'s lazy banks have ~90 s to decode. `keepsake-d1`/`-d3` re-baselined (only they
+moved: the jump now lands on D31's rows, scroll 11747 -> 19247; 2 runs identical); D31's 12 scenarios, short and long4
+PASS unchanged. boss-probe at HP 320 is unchanged by the D31 economy (the probe's kits are fixed; D31 moves which kit a
+player carries into 1-3, which the balance pass's x1.4 and its rank re-band address): x1 25.3 / 18.8 / 16.0 s, x1.4
+29.9 / 21.0 / 17.0 s, crier 2.9 s. rng-probe 12/12 SAME. perf-probe reaches CRACKED and the death (render at par with
+the Crux and Butcher on the same run). resume-check: a long4 flight to stage 1-3 CP1 (seed 7, 18330 frames), reload,
+RE-ENTER: terrain 0 px different at six x up to 18850 (the arena), the same 46 entries to fire, 0 sim draws. **No
+run-save layout revision bump:** the save stores no terrain or boss; a resume rebuilds slot 1 through the current
+`rewriteTerrain` and `biomeScript`, so its arena and its boss always agree with each other.
+
 ### D56 The hell-flash face image removed — 2026-11-15 (Matt: "take the flashing jason masks out all together")
 
 The full-screen hell face (a pale oval with black eye holes, teeth and blood streaks, flashed at random in the last
