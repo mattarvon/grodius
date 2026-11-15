@@ -1,25 +1,56 @@
 // @ts-nocheck
-// THE KEEPSAKE, pass 1 (greybox): the shared dark mass, the seam is its telegraph, and `under` draws what a seam can't:
-// the fork standing in the wound (the weak spot has to be seen), the fountain's landing marks and the rest of each
-// fork's fall, the throw's and the boomerang's lines, and the boomerang itself. Pass 2 is photo art (Matt is
-// photographing a real doll). Render-only: $.T for motion, no RNG, no allocation. Sim: enemies/mid/keepsake.ts
+// THE KEEPSAKE, pass 2 (wip: Matt hasn't signed the art off): a bald vinyl baby-doll head, face on, from Matt's own photos
+// of his own unmarked antique doll (D7, D53), baked by tools/prep_keepsake.py into sprites/keepsake@6.png (48x58 frames,
+// the boss origin at frame px (24, 31): 0 eyes open, 1 half, 2 shut, the fork's slot in the split crown; 3-5 the same
+// with the wound gaping) and sprites/keepsake-fork.png (the ornate silver fork, tines down). Boot art (roster `boot`):
+// sprites.ts loads both at boot, so warm() has nothing to build and there is no built or drop.
+// The eyes are the tell. It dozes half-lidded, drooping shut now and then, and never opens them at rest: when it wakes
+// and stares (wide open) an attack is coming. `under` keeps pass 1's honest telegraphs: the fountain's landing marks and
+// the rest of each fork's fall, the throw's and the boomerang's lines, and the boomerang itself.
+// Render-only: e.t and hashes for motion, the midboss fx stream (../midbosses rnd) for particles, never the sim RNG,
+// nothing allocated per frame. Sim: enemies/mid/keepsake.ts
 import { $ } from '../../../state';
-import { PH, W, ctx } from '../../../core';
+import { PH, W, ctx, hash } from '../../../core';
 import { floorAt } from '../../../world';
 import { KEEP, lobFrames, riseCap } from '../../../enemies/mid/_keepsake';
 import { glow } from '../../util';
 import { drawFork } from '../../fork';
+import { spr, sprReady } from '../../../sprites';
+import { drawParts, emit, fxs, GROSS, rn, rnd, snd, spray, stepParts, strand } from '../midbosses';
+import { pour, trackDeath } from '../baked';
 import { greybox } from './_greybox';
 
-/** the seam's opening, 0-1, from the sim's own fields */
-function tell(e) {
+const K = 'keepsake', FK = 'keepsake-fork';
+const OX = 24, OY = 31; //          the boss origin inside a head frame (tools/prep_keepsake.py OX, OY)
+const FORK_ENTRY = 15; //            the fork sprite's y where it goes into the skull (prep_keepsake.py FORK_ENTRY)
+const OPEN = 0, HALF = 1, SHUT = 2, GAPE = 3; // frame indices; + GAPE: the fork's out
+const BLOOD = '#8a0c14', BLOOD_D = '#4a050a';
+
+/** pass 1's mass, until the sprite has loaded: a hit never lands on nothing */
+const FALLBACK = greybox({ col: '#d8c8b4', r: 22 });
+
+/** the eyes: dozing at rest (half, a hash-timed droop shut), and the tell wakes it: shut a beat, half, then wide open.
+ *  Open never shows at rest, so open always means an attack is coming */
+function eyes(e) {
+  const t = e.t || 0;
+  if (e.st === 'idle') {
+    if (e.wt < 10) return HALF; //                      settling back after an attack
+    const cyc = Math.floor(t / 150), f = t - cyc * 150;
+    return hash(cyc * 3.7 + 1) < .55 && f > 60 && f < 74 + hash(cyc) * 30 ? SHUT : HALF; // a slow droop, not every time
+  }
+  if (e.st === 'tell') { const k = e.wt / KEEP.tell; return k < .14 ? SHUT : k < .3 ? HALF : OPEN; }
+  if (e.st === 'aim' || e.st === 'boom') return e.wt < 5 ? HALF : OPEN;
+  if (e.st === 'wail') return (e.wt >> 2) & 1 && e.wt < KEEP.wail * .6 ? HALF : OPEN; // fluttering awake, then the stare
+  return OPEN; //                                       the fountain, the window, the boomerang in flight
+}
+
+/** how far the fork has worked loose, 0..1: the brain pushes it up on the fountain's tell, it sits proud through the
+ *  fountain and the window, and tears loose on the boomerang's */
+function loose(e) {
   switch (e.st) {
-    case 'tell': return e.wt / KEEP.tell; //                   the brain bulging round the fork
-    case 'fount': return Math.max(.4, 1 - e.wt / 24); //        still open while they fly
-    case 'open': return .4; //                                  the window: the wound gapes
-    case 'boom': return e.wt / KEEP.boomTel; //                 the big fork tearing loose
-    case 'wail': return e.wt / KEEP.wail;
-    case 'aim': return .2 + .3 * Math.min(1, e.wt / KEEP.aim);
+    case 'tell': return e.wt / KEEP.tell;
+    case 'fount': case 'open': return .6;
+    case 'boom': return e.wt / KEEP.boomTel;
     default: return 0;
   }
 }
@@ -32,7 +63,7 @@ function line(e, locked, a) {
   ctx.save();
   ctx.setLineDash(locked ? SOLID : DASH);
   ctx.lineDashOffset = -$.T * .6;
-  ctx.globalAlpha = locked ? .55 + .35 * a : .25 + .3 * a; // alpha, not an rgba() string: no string built per frame
+  ctx.globalAlpha = locked ? .55 + .35 * a : .25 + .3 * a;
   ctx.strokeStyle = locked ? '#ff503c' : '#ff8c6e';
   ctx.lineWidth = locked ? 3 : 1.2; // locked: 3 px, readable at phone size (spec §9)
   ctx.beginPath();
@@ -42,22 +73,15 @@ function line(e, locked, a) {
   ctx.restore();
 }
 
-/** the fork rammed in the soft spot, tines down, and the brain bulging round it: the weak spot, always shown (gone
- *  while the big fork is out in phase 2). Its handle rises with the fountain's tell */
-function wound(e, k) {
-  const x = e.x + KEEP.wx, y = e.y + KEEP.wy, sw = 1 + .5 * k;
-  ctx.fillStyle = '#3a0a10'; // the hole
-  ctx.beginPath(); ctx.ellipse(x, y + 1, 6.5 * sw, 3.2 * sw, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#b86a72'; // brain pushing out of it, two lobes either side of the fork
-  ctx.beginPath(); ctx.ellipse(x - 3.4, y - .5 - k, 3 * sw, 2.2 * sw, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(x + 3.6, y - k, 2.6 * sw, 2 * sw, 0, 0, Math.PI * 2); ctx.fill();
-  if (e.st !== 'fly') drawFork(ctx, x, y - 5 - 4 * k, Math.PI / 2, 1.3);
+/** the big fork along angle a (tines first): the baked silver fork (drawn tines down, so turned a - 90 deg), or pass
+ *  1's line fork until it has loaded */
+function bigFork(x, y, a) {
+  if (!spr(ctx, FK, 0, x, y, { rot: a - Math.PI / 2 })) drawFork(ctx, x, y, a, 2.1);
 }
 
 function under(e) {
   if (e.dead || e.gone) return;
   const st = e.st;
-  wound(e, st === 'tell' ? Math.min(1, e.wt / KEEP.tell) : st === 'open' ? .3 : 0);
   // the fountain: a mark on each column's landing point, from the tell's first frame until that fork has landed
   if ((st === 'tell' || st === 'fount') && e.fn) {
     const k = st === 'tell' ? Math.min(1, e.wt / KEEP.tell) : 1, pul = .7 + .3 * Math.sin($.T * .35);
@@ -103,8 +127,57 @@ function under(e) {
     ctx.globalCompositeOperation = 'lighter';
     glow(e.bx, e.by, 20, '150,255,40', .55 * (.75 + .25 * Math.sin($.T * .5)));
     ctx.globalCompositeOperation = 'source-over';
-    drawFork(ctx, e.bx, e.by, $.T * .45, 2.1);
+    bigFork(e.bx, e.by, $.T * .45);
   }
 }
 
-export default greybox({ col: '#d8c8b4', r: 22, tell, under });
+// ---------------- the head ----------------
+/** the fork standing in the split, tines buried: only what's above the skull's surface at the slot shows */
+function wedged(c, e, k, bx, by) {
+  const x = KEEP.wx + bx, y = KEEP.wy + 1 + by, rise = Math.round(4 * k);
+  const lean = .14 + (k > .6 ? (hash(e.t >> 1) - .5) * .1 * k : 0); // working loose: it rattles
+  c.save();
+  c.beginPath();
+  c.rect(x - 14, y - 40, 28, 40); // the tines and the buried neck stay inside
+  c.clip();
+  c.translate(x, y);
+  c.rotate(lean);
+  if (!spr(c, FK, 0, 0, -FORK_ENTRY - rise, { ax: .5, ay: 0 })) drawFork(c, 0, -5 - rise, Math.PI / 2, 1.3);
+  c.restore();
+}
+
+/** a dead KEEPSAKE: the kill word is PUT TO BED, so its eyes are shut; the pour comes out of the crown */
+const DEATH = { k: K, body: false, len: 80, gore: (x, y, age) => pour(x + KEEP.wx, y + KEEP.wy + 4, age, { w: 8, h: 6, jets: 6, len: 70, meat: 10, rope: 3 }) };
+// where the wound weeps from, boss-local: down the forehead from the split's lip (x, y, length, period)
+const SEEP = [[-1, -21, 5, 61], [4, -20, 7, 47], [-4, -20, 4, 83], [6, -21, 6, 71]];
+
+function drawKeepsake(c, e) {
+  const s = fxs(e), t = e.t || 0;
+  stepParts(s);
+  trackDeath(e, DEATH);
+  if (!sprReady(K)) { FALLBACK.draw(c, e); return; }
+  if (e.dead || e.hp <= 0) { spr(c, K, SHUT + GAPE, -OX, -OY, { ax: 0, ay: 0 }); return; } // gore.ts's split halves
+  const gape = e.st === 'fly', ev = s.ev;
+  // ---- state edges: the spurts a still frame can't carry ----
+  if (ev === 'tell>fount') spray(s, e.x + KEEP.wx, e.y + KEEP.wy - 2, 8, BLOOD, 1.6, 1.1, 1.2);
+  if (ev === 'boom>fly') { spray(s, e.x + KEEP.wx, e.y + KEEP.wy - 1, 14, BLOOD, 2, 1.3, 1.6); snd('gross_gush', .7, .3); }
+  if (ev === 'fly>idle') { spray(s, e.x + KEEP.wx, e.y + KEEP.wy - 1, 6, BLOOD_D, 1.2, 1, .8); snd('gross_slosh', .5, .3); }
+  // ---- motion, in whole px (pixel art: a sub-pixel offset shimmers): a slow bob at rest that hitches now and then,
+  // a tremble on the tell, a shudder on the wail ----
+  let bx = 0, by = Math.round(Math.sin(t * .028 + (hash(Math.floor(t / 230)) - .5)) * 1.2);
+  if (e.st === 'tell' && e.wt > KEEP.tell * .3 && hash(t >> 1) > .6) bx = hash(t) < .5 ? -1 : 1;
+  if (e.st === 'wail') { const k = e.wt / KEEP.wail; bx = Math.round((hash(t) - .5) * 3 * k); by += Math.round((hash(t + 7) - .5) * 2 * k); }
+  spr(c, K, eyes(e) + (gape ? GAPE : 0), bx - OX, by - OY, { ax: 0, ay: 0 });
+  if (!gape) wedged(c, e, loose(e), bx, by);
+  // ---- live wet: the wound weeps down the forehead, and gushes while the fork is out ----
+  const n = gape ? 4 : e.st === 'open' || e.st === 'fount' ? 3 : 2;
+  for (let i = 0; i < n; i++) { const h = SEEP[i]; strand(c, s, e, 90 + i, h[0] + bx, h[1] + by, h[2] + (gape ? 3 : 0), .9, 'rgba(110,6,14,.9)', gape ? h[3] >> 1 : h[3], BLOOD, .4); }
+  if (gape && rnd() < .55 * s.dt * GROSS) emit(s, e.x + KEEP.wx + rn(-2, 2), e.y + KEEP.wy - 1, rn(-.9, .9), rn(-2.4, -1), rnd() < .7 ? BLOOD : BLOOD_D, rn(.8, 1.4), 0, 60);
+  if (e.st === 'open' && rnd() < .12 * s.dt * GROSS) emit(s, e.x + KEEP.wx + rn(-3, 3), e.y + KEEP.wy, rn(-.4, .4), rn(-1, -.3), BLOOD, rn(.7, 1.1), 0, 50);
+  if (e.flash && rnd() < .5 * GROSS) emit(s, e.x + KEEP.wx + rn(-4, 4), e.y + KEEP.wy + rn(-1, 2), rn(-1.2, 1.2), rn(-1.8, -.4), BLOOD, rn(.7, 1.2), 0, 50);
+  drawParts(c, s, e);
+}
+
+/** the kind's art for the registry (./index.ts). A boot kind (roster `boot`): sprites.ts loads its PNGs at boot, so
+ *  there is nothing to warm and no built or drop */
+export default { draw: drawKeepsake, warm: () => false, under };
