@@ -867,6 +867,16 @@ vinyl thud on the face and a wet squelch on the wound. (B) **Child line: imply o
 is never shown: no child figure, face, handprint or name tag, and nothing that frames the doll as the child's
 remains (the D46 line, held in pass 2).
 
+**Pass-2 art landed (2026-11-15, branch `keepsake-art`; `wip` stays on until Matt approves).** Matt's direction on
+seeing the greybox: face forward, no wig, "creepy as shit", imply only. `tools/prep_keepsake.py` bakes
+`src/sprites/keepsake@6.png` (48x58: eyes open / half / shut, with the fork's slot or the wound gaping) and
+`keepsake-fork.png` from the front photos: one face cut-out, the bald dome rebuilt from the forehead's vinyl, the
+half-lidded and shut sockets transplanted onto the front photo's sockets (no frame-to-frame shift), the fork, brain,
+crack, seepage, mould and yellowed grade painted in. The eyes are the tell: it dozes half-lidded at rest and never
+opens them there; wide open means an attack is coming. The sprite is matched to the existing fit and hitbox (crown
+at -24, wound at (2, -24), the crown line -13 across the upper dome): no sim change. Boot art (sprites.ts), so
+`warm()` builds nothing.
+
 **Deferred:** a ship spawn path, then `wip` off (a re-baseline);
 the kill word's caption key; the player CHANGELOG entry at pass 2.
 
