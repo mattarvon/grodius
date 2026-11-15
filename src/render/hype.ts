@@ -174,8 +174,9 @@ export function drawSlab(c, jaw, t) {
 // kept outside the repo, beside the private source), not a Reticulan. SLAB_FACE picks that sheet
 const SLAB_FACE = -1, SLAB = 'SGT. RAMROD SLAB';
 // every new recorded line is his (LS2-slab): matched on the folder, since the booth names a take after its words
-// (quip-<id>: his one-liners after a big kill, LS2-quips, captioned with the quip's own words)
-const SLAB_CAT = /^(hype\d+|bossreward|kill-[a-z]+|carn5|quip-[a-z0-9-]+)$/;
+// (quip-<id>: his one-liners after a big kill, LS2-quips, captioned with the quip's own words; boss-<k>: a stage boss's
+// own readout, bark-<k>-<moment>: his lines through a boss fight, THE KEEPSAKE's first)
+const SLAB_CAT = /^(hype\d+|bossreward|boss-[a-z]+|kill-[a-z]+|bark-[a-z]+-[a-z]+|carn5|quip-[a-z0-9-]+)$/;
 const VOICE = {
   'hell-yeah': [SLAB_FACE, SLAB],
   shamalama: [1, 'BROTHER SHAMALAMA'],

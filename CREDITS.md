@@ -30,6 +30,7 @@ Kenten Fina "Tech Rooms" (CC BY 3.0), Ruskerdax "Bleak Terminal" (CC0).
 |---|---|---|
 | `kenney-*.ogg` | Impact Sounds, Kenney (kenney.nl) | CC0 |
 | `gen-*.ogg` | synthesized by `tools/gen_sfx.py` (and `gen_gross_sfx.py`, `gen_bossgross_sfx.py`, `gen_drive_sfx.py`, `gen_keepsake_sfx.py` for their banks) | original |
+| `kboss_*/gen-*.ogg` | synthesized by `tools/gen_keepsake_boss_sfx.py` (THE KEEPSAKE stage boss). The music box (`kboss_musicbox`, `kboss_musicend`, `kboss_mobilebox`) plays Johannes Brahms' *Wiegenlied*, op. 49 no. 4 (1868), a public-domain composition, synthesized note by note from the melody: no recording or arrangement was used | original |
 | `*-matty-*.ogg` | Matty's own recordings (RecForge II) | original |
 
 ## Openverse picks (found with `tools/openverse.mjs`, processed by `tools/import_openverse.py`)
