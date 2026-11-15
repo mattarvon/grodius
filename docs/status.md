@@ -29,7 +29,7 @@ Web: https://mattarvon.github.io/grodius/ · Android: the `latest` release APK. 
 
 - **First launch:** a fresh install asks HELL FLASHES ON or OFF before the title menu.
 - **Title menu:** it is now DESCEND / INFIRMARY / OPTIONS. This is the change most likely to need your call.
-- **Flashes OFF:** no washes, tearing, flicker or hell images. **ON:** the hell image pulses instead of strobing.
+- **Flashes OFF:** no washes, tearing or flicker. **ON:** washes, tearing and flicker. The hell face image was removed 2026-11-15 (D56).
 - **Descent 2+:** drones fire less, at the documented +45% per descent.
 - **Export a save:** keep the code as a backup until there is a stable signing key.
 

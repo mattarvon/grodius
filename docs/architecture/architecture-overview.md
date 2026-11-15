@@ -64,7 +64,7 @@ Simulation and rendering share one thread and one RNG. Pause, hitstop and perk-p
 
 - **World buffer**: everything is drawn at 480x270 into `lo/ctx` (`core.ts:15-20`) with smoothing off.
 - **Present**: `render/eyes.ts:474-479` blits `lo` to the display canvas `cv` at `W*DK`. Hi-res photo eyes and the hero eye are then drawn directly on `dctx` at display resolution.
-- **Order** (`render/screens.ts:444-485`): world (with screen-shake transform), splats, enemy shots, `postFX()` (hell image, washes, glitch strips), HUD, then overlays (over/pause/menus). Note that `postFX` runs **after** enemy bullets.
+- **Order** (`render/screens.ts:444-485`): world (with screen-shake transform), splats, enemy shots, `postFX()` (washes, glitch strips; the hell image was removed in D56), HUD, then overlays (over/pause/menus). Note that `postFX` runs **after** enemy bullets.
 - **Art sources**: code-drawn vector (`render/enemies.ts`, `shipparts.ts`, `gross/*`), bitmap strips from `tools/sprite_prep.py`, and JWST/RODA backdrops. Static boss art is prebuilt during idle time (`main.ts:72-77`). Six separate `GROSS=1` constants control gore detail.
 - **CRT scanlines** are a CSS gradient on `#crt` (`input.ts:225`).
 
@@ -123,7 +123,7 @@ There is one localStorage key, `grodius.v1`, loaded once at import time inside a
 | Monolithic AI switch and boss art | `enemies/update.ts` (1016 LOC), `render/gross/drive.ts` (1754), `biomebosses.ts` (1203) | Hard to review, and shared cases (Maw used for 3 bosses) |
 | Single-bus audio mix | `audio.ts:22-28,127`; `music.ts:86` | No priorities, culls report success, no volume sliders |
 | Save robustness | `save.ts:21-61` one try/catch, no backup; unstable APK signing | A load error or an update wipes progress |
-| Post-FX over hazards / photosensitivity | `render/screens.ts:470-474`; `hell.ts:66-87`; `save.ts:6` flashes default ON | Readability and safety |
+| Post-FX over hazards / photosensitivity | `render/screens.ts:470-474`; `hell.ts` `postFX` / `limited`; `save.ts:6` flashes default ON | Readability and safety |
 | Release pipeline | `build.yml:34-37,74-77,89-99`; `build.gradle:11-12` | Unsigned updates, notes taken from commit messages, no rollback, no build stamp |
 | Order-dependent side-effect imports | `main.ts:2-33` | Moving an import can break init silently |
 

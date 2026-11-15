@@ -2,6 +2,10 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-15 (No more flashing face)
+
+- The flashing hell face is gone. When hell bleeds through, you still get the tear and the whisper.
+
 ## 2026-11-09 (SGT. RAMROD SLAB is on the line)
 
 - SGT. RAMROD SLAB has a new face on the comms, and it is human. Half of it has been opened up, and one eye is all blood.
