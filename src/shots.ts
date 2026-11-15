@@ -239,6 +239,7 @@ export function updateEShots() {
       f = floorAt(wx),
       c = ceilAt(wx);
     if (s.y >= f || s.y <= c) {
+      if (s.land) s.land(s); // the shooter's own strike sound (THE KEEPSAKE's fork tink): audio only, no R()
       if (s.fk) for (let k = 0; k < 3; k++) spark(s.x, s.y, rr(-1.2, 1.2), s.y >= f ? -rr(.4, 1.4) : rr(.4, 1.4), ri(5, 9), '#dce4ec'); // a KEEPSAKE fork strikes steel, no splat
       else if (s.k === 'glob') {
         addDecal(wx, s.y >= f ? f : c, 3, s.y >= f ? 1 : -1);

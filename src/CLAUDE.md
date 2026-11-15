@@ -49,6 +49,10 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
      kill the slick already paid) never asks. A 0 < m < 1 hit flashes dimmer and tinks. Area damage arrives at
      exactly `(e.x, e.y)` with `dir` 0: decide what an area hit does. Shots still collide on
      `e.r`, so a small hittable part (the Spine's eye) also needs `e.hb` or a 0 off the part.
+   - `hitSnd(e, m, hx, hy)`: the kind's own sound for a hit that landed with share `m` (> 0), in place of the
+     shared tink (`m` < 1) or hit (`m` 1); return true when it played one. Audio only: `sample()`/`ar()`, never `R()`.
+     THE KEEPSAKE's vinyl thud and wound squelch. An enemy shot can carry `land(s)`, called when it strikes the floor or
+     ceiling (its fork tink), on the same audio-only terms.
    - `leave(e)`: once, when the withdraw clock runs out (reset a lake, a counter). `midLeave` fires it; a
      DRIFT kind withdraws on its own (see `ufo.ts`) and must call `MID_SIM[e.k]?.leave?.(e)` once itself.
    - `kidKill(kid, owner)`: a child spawned with `own: e` (and `kid: 1`) died. Count your

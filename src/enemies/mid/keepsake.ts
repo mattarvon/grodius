@@ -21,7 +21,7 @@
 // =====================================================================
 import { $ } from '../../state';
 import { PH, R, W, dist2, lerp, rr } from '../../core';
-import { sfx } from '../../audio';
+import { sample, sfx, thr } from '../../audio';
 import { eshots } from '../../world';
 import { drop, spark } from '../../fx/spawn';
 import { cdm } from '../../depth';
@@ -31,6 +31,51 @@ import { bandFit, lob, midLeave } from '../update';
 import { midPh2 } from '../midhost';
 import { defineMid } from './roster';
 import { KEEP, forkCols, fountLattice, keepHurt, lobFrames, riseCap } from './_keepsake';
+
+// ---- its sounds (pass 2, D53): tools/gen_keepsake_sfx.py writes src/sfx/keep_*/. Each level is set against the shared
+// sound it replaces or the neighbour it sits with (ffmpeg ebur128, momentary max of the file, plus the gain here):
+// the fork tink -35 LUFS (-39 close behind another: they come in fives), the face thud -43 and the wound squelch -40
+// round the shared hit's -41 (they come at the fire rate), the throw -28 and the whirr -30 at the lash they replace
+// (-28.5), the wail -20 with the midboss gargle (-18.8) and the roar (-17.8), the eye clack -33, small and crisp.
+// Audio only: sample() and thr() draw ar() and the wall clock, never R(), so the sim is the same with sound on, off or
+// not decoded; a bank not decoded yet falls back to the shared synth sound it replaced. The option objects are built
+// once: no allocation in the update
+const SND = {
+  tink: { vol: .07, wet: .12, spread: .12 }, //          a fork lands on rock (the first of a fountain)...
+  tinkQ: { vol: .045, wet: .12, spread: .16 }, //        ...and the ones close behind it, quieter, so five never tire
+  throw: { vol: .1, wet: .18, spread: .06 }, //          the aimed throw, tines first
+  spray: { vol: .065, rate: 1.25, wet: .18, spread: .08 }, // the fountain bursting from the wound
+  pull: { vol: .1, rate: .8, wet: .2, spread: .08 }, //  the forks pulled out of the brain
+  gape: { vol: .08, rate: .7, wet: .25, spread: .06 }, // the wound gaping open after the last fork
+  out: { vol: .11, wet: .22, spread: .03 }, //           the boomerang leaving...
+  back: { vol: .09, rate: 1.12, wet: .22, spread: .03 }, // ...and turning back, a little faster
+  wail: { vol: .34, wet: .45, spread: .02 }, //           the crier: its second cry lands on the ring's release
+  open: { vol: .25, rate: 1.08, wet: .08, spread: .05 }, // the sleep eyes clacking open on a tell...
+  shut: { vol: .22, rate: .88, wet: .08, spread: .05 }, //   ...and shut again after it
+  thud: { vol: .05, wet: .06, spread: .12 }, //          a shot on the vinyl face (x.15)
+  sq: { vol: .09, wet: .12, spread: .14 }, //            a shot into the wound (full damage)
+};
+/** a sound from its bank, or the shared synth one it replaced while the bank is still decoding */
+const ks = (cat, o, fb) => { if (!sample(cat, o)) fb?.(); };
+/** a fork strikes the floor or the ceiling (the eshot's `land` hook, shots.ts): a steel tink, never two inside 40 ms,
+ *  and quieter while the last one is under 200 ms old, so a fountain's run of five rings once and then patters */
+let tinkT = -1e9;
+function forkLand() {
+  if (thr('kpT', 40)) return;
+  const now = performance.now(), q = now - tinkT < 200;
+  tinkT = now;
+  ks('keep_tink', q ? SND.tinkQ : SND.tink, sfx.tink);
+}
+/** MidSim.hitSnd: the vinyl face (x.15) knocks dull, the wound squelches. The shared tink's and hit's throttles */
+function keepHitSnd(_e, m) {
+  if (m < 1) { if (!thr('kpH', 60)) ks('keep_thud', SND.thud, sfx.tink); }
+  else if (!thr('kpW', 38)) ks('keep_squelch', SND.sq, sfx.hit);
+  return true;
+}
+/** the sleep eyes: open on every tell, shut when it goes back to idle */
+const eyes = (open) => ks('keep_clack', open ? SND.open : SND.shut, null);
+/** back to idle after an attack: the eyes fall shut, the cooldown starts */
+function rest(e, ph2) { e.st = 'idle'; e.wt = 0; e.cool = cd(ph2); eyes(false); }
 
 const cd = (ph2) => Math.round((ph2 ? KEEP.cool2 : KEEP.cool) * (1 - .3 * ($.G.rank || 0)) * cdm()); // cdm: depth, src/depth.ts
 /** the wound, screen px (the forks' launch point) */
@@ -52,7 +97,7 @@ function launch(e, i) {
   const x = wX(e), y = wY(e) - 4, n0 = eshots.length;
   const u = riseCap(e.fq[i], y), T = lobFrames(u, e.fy - y);
   lob(x, y, e.fx[i], e.fy, u / BS()); // lob() scales by BS(); fold it out so the arc (and its marks) never change with depth
-  if (eshots.length > n0) eshots[n0].fk = 1; // drawn as a fork (render/hud.ts drawEShots); the cap can refuse it
+  if (eshots.length > n0) { eshots[n0].fk = 1; eshots[n0].land = forkLand; } // drawn as a fork (render/hud.ts drawEShots), tinks where it lands; the cap can refuse it
   e.fl[i] = e.wt + Math.ceil(T);
   e.fv[i] = (e.fx[i] - x) / T; e.fw[i] = -u + .025 * T;
   for (let k = 0; k < 3; k++) drop(x + rr(-3, 3), y, rr(-.8, .8), -rr(.5, 1.6), 1.2, 0, 50);
@@ -74,30 +119,31 @@ function updKeepsake(e) {
         const k = e.att++ % 4; // fountain, throw, fountain, throw; phase 2: fountain, boomerang, fountain, wail
         e.st = k % 2 === 0 ? 'tell' : !ph2 ? 'aim' : k === 1 ? 'boom' : 'wail';
         e.wt = 0;
+        eyes(true);
         if (e.st === 'tell') { planFount(e, ph2); sfx.squish(); }
-        else if (e.st === 'wail') sfx.groan();
+        else if (e.st === 'wail') ks('keep_wail', SND.wail, sfx.groan);
         else { e.la = aimA(wX(e), wY(e)); sfx.tele(); }
       }
     } else if (e.st === 'tell') { // the brain bulges round the fork: the art's seam opens with wt / tell
       if (R() < .4) spark(wX(e) + rr(-5, 5), wY(e) - rr(0, 4), rr(-.3, .3), -rr(.4, 1.2), 12, '#e8e2d8');
-      if (e.wt >= KEEP.tell) { e.st = 'fount'; e.wt = 0; sfx.lash(); }
+      if (e.wt >= KEEP.tell) { e.st = 'fount'; e.wt = 0; ks('keep_throw', SND.spray, sfx.lash); ks('keep_squelch', SND.pull, null); }
     } else if (e.st === 'fount') {
       const i = (e.wt - 1) / KEEP.stagger; // wt is 1 on the state's first frame: fork 0 leaves then
       if (i === (i | 0) && i < e.fn) launch(e, i);
       let left = 0;
       for (let j = 0; j < e.fn; j++) if (e.wt < e.fl[j]) left++;
-      if (!left) { e.st = 'open'; e.wt = 0; sfx.squish(); }
+      if (!left) { e.st = 'open'; e.wt = 0; ks('keep_squelch', SND.gape, sfx.squish); }
     } else if (e.st === 'open') { // the window: the wound gapes, nothing fires
       if (R() < .25) drop(wX(e) + rr(-4, 4), wY(e) + 2, rr(-.4, .4), rr(-.6, .2), 1.2, 0, 60);
-      if (e.wt >= (ph2 ? KEEP.open2 : KEEP.open)) { e.st = 'idle'; e.wt = 0; e.cool = cd(ph2); }
+      if (e.wt >= (ph2 ? KEEP.open2 : KEEP.open)) rest(e, ph2);
     } else if (e.st === 'aim') { // the throw's line: tracks, then locks
       if (e.wt < KEEP.aim - KEEP.lock) e.la += wrapA(aimA(wX(e), wY(e)) - e.la) * .12;
       if (e.wt >= KEEP.aim) {
         const n0 = eshots.length;
         eshoot(wX(e), wY(e), e.la, KEEP.throwSp, 'spike');
-        if (eshots.length > n0) eshots[n0].fk = 2; // a straight fork, tines first
-        sfx.lash();
-        e.st = 'idle'; e.wt = 0; e.cool = cd(ph2);
+        if (eshots.length > n0) { eshots[n0].fk = 2; eshots[n0].land = forkLand; } // a straight fork, tines first
+        ks('keep_throw', SND.throw, sfx.lash);
+        rest(e, ph2);
       }
     } else if (e.st === 'boom') { // phase 2: the big fork's line tracks, then locks; then it flies
       if (e.wt < KEEP.boomTel - KEEP.boomLock) e.la += wrapA(aimA(wX(e), wY(e)) - e.la) * .1;
@@ -108,16 +154,16 @@ function updKeepsake(e) {
         if (dy < -.05) L = Math.min(L, (y0 - 6) / -dy);
         if (dy > .05) L = Math.min(L, (PH - 6 - y0) / dy);
         e.bl = Math.max(40, L); e.bs = 0; e.bd = 1; e.bx = x0; e.by = y0;
-        e.st = 'fly'; e.wt = 0; sfx.lash(); $.G.shake += 2;
+        e.st = 'fly'; e.wt = 0; ks('keep_whirr', SND.out, sfx.lash); $.G.shake += 2;
       }
     } else if (e.st === 'fly') {
       e.bs += e.bd * KEEP.boomSp;
-      if (e.bs >= e.bl) { e.bs = e.bl; e.bd = -1; sfx.chain(); }
+      if (e.bs >= e.bl) { e.bs = e.bl; e.bd = -1; ks('keep_whirr', SND.back, sfx.chain); }
       e.bx = wX(e) + Math.cos(e.la) * e.bs; e.by = wY(e) + Math.sin(e.la) * e.bs;
       if (onBoom(e)) playerHit();
-      if (e.bd < 0 && e.bs <= 0) { e.bs = 0; e.st = 'idle'; e.wt = 0; e.cool = cd(ph2); }
+      if (e.bd < 0 && e.bs <= 0) { e.bs = 0; rest(e, ph2); }
     } else if (e.st === 'wail') {
-      if (e.wt >= KEEP.wail) { ring(e.x, e.y, KEEP.wailN, e.t * .05, KEEP.wailSp); sfx.groan(); e.st = 'idle'; e.wt = 0; e.cool = cd(ph2); }
+      if (e.wt >= KEEP.wail) { ring(e.x, e.y, KEEP.wailN, e.t * .05, KEEP.wailSp); rest(e, ph2); } // the crier's second cry is this beat (gen_keepsake_sfx.py wail)
     }
   }
   if (go && e.st === 'fly') e.st = 'idle'; // withdrawing: the boomerang is gone with it
@@ -143,5 +189,6 @@ defineMid('keepsake', {
   spawnY: .58,
   onSpawn: keepSpawn,
   hurt: (e, _d, hx, hy) => keepHurt(e, hx, hy),
+  hitSnd: keepHitSnd,
   update: updKeepsake,
 });
