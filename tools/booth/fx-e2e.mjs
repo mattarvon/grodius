@@ -28,7 +28,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 // the rack itself (Node runs the .ts by stripping its types: fx.ts is a leaf with no imports)
-import { EFFECTS, PRESETS } from './fx.ts';
+import { EFFECTS, FX_CHAIN, PRESETS } from './fx.ts';
 const ORDER = EFFECTS.map((e) => e.id);
 const presetIds = (name) => Object.keys(PRESETS.find((p) => p.name === name)?.fx ?? {});
 
@@ -40,6 +40,8 @@ fs.mkdirSync(TMP, { recursive: true });
 
 // ---------------- results ----------------
 const results = [];
+/** every confirm() the page raised, in order */
+const dialogs = [];
 let failed = 0;
 function check(name, ok, detail = '') {
   results.push({ name, ok: !!ok, detail });
@@ -94,8 +96,8 @@ async function open(file, viewport = { width: 1280, height: 800 }) {
   page.on('pageerror', (e) => errors.push(e.message));
   // which load failed, for a "Failed to load resource" console line
   page.on('requestfailed', (r) => !/ERR_ABORTED/.test(r.failure()?.errorText ?? '') && errors.push(`request failed: ${r.url().slice(0, 80)} ${r.failure()?.errorText ?? ''}`));
-  // the booth confirms before a reprocess or a delete: this run accepts them
-  page.on('dialog', (d) => d.accept());
+  // the booth confirms before a reprocess or a delete: this run accepts them (and remembers what they said)
+  page.on('dialog', (d) => { dialogs.push(d.message()); d.accept(); });
   await page.goto(BASE + '/booth.html');
   await page.waitForSelector('#fx .fx');
   // the meter's AudioContext starts suspended until a gesture; the game's words arrive from the text frame
@@ -356,6 +358,7 @@ try {
   const rackName = await page.locator('#fx h2 .state').innerText();
   check("6 the takes list shows the rack's name", !!tag1 && tag1 === rackName, `${tag1} vs ${rackName}`);
   const j1 = opt && fs.existsSync(opt) ? JSON.parse(fs.readFileSync(opt, 'utf8')) : null;
+  check('6 ... and the chain stamp (FX_CHAIN)', j1?.chain === FX_CHAIN, JSON.stringify(j1?.chain));
   check('6 its assets-raw json has an fx object', j1?.fx && typeof j1.fx === 'object' && Object.keys(j1.fx).join(',') === (await onCards(page)).join(','), JSON.stringify(j1));
   const stat1 = ogg && fs.existsSync(ogg) ? fs.statSync(ogg) : null;
   // layout at 760 wide, with the long rack name in the takes list
@@ -378,6 +381,20 @@ try {
   check('6 ... and the .ogg was rewritten', stat1 && stat2 && (stat2.mtimeMs !== stat1.mtimeMs || stat2.size !== stat1.size), `${stat1?.size} -> ${stat2?.size} bytes`);
   const tag2 = name ? await page.locator('#takes .take', { hasText: name }).locator('.fxtag').innerText().catch(() => '') : '';
   check('6 ... and the takes list shows the new rack', tag2 === (await page.locator('#fx h2 .state').innerText()), tag2);
+  check('6 ... a stamped take is applied without the shipped-take warning', !/shipped take/.test(redo) && !dialogs.some((m) => /shipped take/.test(m)), redo.slice(0, 160));
+  // a take kept before fx-dsp: its record without the chain stamp (this run's own take, so the cleanup still owns it)
+  if (opt && fs.existsSync(opt)) {
+    const { chain, ...old } = JSON.parse(fs.readFileSync(opt, 'utf8'));
+    fs.writeFileSync(opt, JSON.stringify(old));
+    const nd = dialogs.length;
+    await page.click('#b-redo').catch(() => {});
+    await page.waitForFunction((prev) => { const t = document.getElementById('status').textContent; return t !== prev && /^(Reprocessed|Reprocess failed|Reprocess cancelled|No raw)/.test(t); }, await page.locator('#status').textContent(), { timeout: 90000 }).catch(() => {});
+    const re = await state(page), asked = dialogs.slice(nd);
+    check('6 reprocessing a racked take kept before fx-dsp warns first (this will change a shipped take: listen first)',
+      asked.some((m) => /this will change a shipped take: listen first/.test(m) && m.includes(name)), asked.join(' / ').slice(0, 200));
+    check('6 ... and, confirmed, says to listen to it and stamps it', /shipped take changed, listen first/.test(re) &&
+      JSON.parse(fs.readFileSync(opt, 'utf8')).chain === FX_CHAIN, re.slice(0, 200));
+  }
   // the FX preview of a kept take (its raw through the current rack)
   was = await fxSrc(page);
   if (name) await page.locator('#takes .take', { hasText: name }).locator('[data-fxp]').click();

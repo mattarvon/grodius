@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Clipped, readOpts, reprocess } from '../../tools/booth/plugin';
-import { PRESETS, defaults, fxName, fxOn, type FxSet } from '../../tools/booth/fx';
+import { Clipped, LegacyTakes, legacyTakes, legacyWhy, readOpts, reprocess } from '../../tools/booth/plugin';
+import { FX_CHAIN, PRESETS, defaults, fxName, fxOn, type FxSet } from '../../tools/booth/fx';
 
 const ROBOT = PRESETS.find((p) => p.name === 'Robot')!.fx, GHOST = PRESETS.find((p) => p.name === 'Ghost')!.fx;
 const opts = (f: string) => JSON.parse(fs.readFileSync(path.join(raw, f), 'utf8'));
@@ -56,6 +56,14 @@ describe('readOpts', () => {
     expect(readOpts(raw, 'a-matty-4.ogg')).toEqual({ squeeze: false });
     expect(readOpts(raw, 'a-matty-5.ogg')).toEqual({ squeeze: true, text: 'HI', fx: { pitch: { semi: 12, formant: 0 } } });
   });
+  it('reads the chain stamp only as a positive whole number', () => {
+    put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: true, chain: 2 }));
+    put(raw, 'a-matty-2.json', '{"squeeze":true,"chain":"2"}');
+    put(raw, 'a-matty-3.json', '{"squeeze":true,"chain":1.5}');
+    expect(readOpts(raw, 'a-matty-1.ogg')).toEqual({ squeeze: true, chain: 2 });
+    expect(readOpts(raw, 'a-matty-2.ogg')).toEqual({ squeeze: true });
+    expect(readOpts(raw, 'a-matty-3.ogg')).toEqual({ squeeze: true });
+  });
 });
 
 describe('reprocess', () => {
@@ -93,30 +101,61 @@ describe('reprocess', () => {
     expect(read('a-matty-1.ogg')).toBe(OLD);
   });
   it("reprocesses a take with the FX rack it was kept with, and a clean take with none", async () => {
-    put(raw, 'a-matty-1.webm', 'voice'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: false, fx: ROBOT }));
+    put(raw, 'a-matty-1.webm', 'voice'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: false, fx: ROBOT, chain: FX_CHAIN }));
     put(raw, 'a-matty-2.webm', 'voice'); put(sfx, 'a-matty-2.ogg', OLD); put(raw, 'a-matty-2.json', '{"squeeze":true}');
     const before = opts('a-matty-1.json');
-    await reprocess(root, [CAT], { process: fake });
+    const r = await reprocess(root, [CAT], { process: fake });
     expect(calls).toEqual([{ raw: 'a-matty-1.webm', squeeze: false, fx: ROBOT }, { raw: 'a-matty-2.webm', squeeze: true }]);
-    // without an override the records are left alone
+    expect(r.some((x) => x.legacy)).toBe(false);
+    // without an override the records keep their choices, stamped with the chain they now carry
     expect(opts('a-matty-1.json')).toEqual(before);
-    expect(opts('a-matty-2.json')).toEqual({ squeeze: true });
+    expect(opts('a-matty-2.json')).toEqual({ squeeze: true, chain: FX_CHAIN });
+  });
+  it('refuses to rewrite a racked take kept before fx-dsp (no chain stamp) without confirm, touching nothing', async () => {
+    // the shipped DESCEND take's shape: a Hive mind rack, no chain stamp
+    const HIVE = PRESETS.find((p) => p.name === 'Hive mind')!.fx;
+    put(raw, 'a-matty-1.webm', 'voice'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: true, fx: HIVE }));
+    put(raw, 'a-matty-2.webm', 'voice'); put(sfx, 'a-matty-2.ogg', OLD); // clean, no record: the chain's own
+    const before = opts('a-matty-1.json');
+    const e = await reprocess(root, [CAT], { process: fake }).catch((x) => x);
+    expect(e).toBeInstanceOf(LegacyTakes);
+    expect(e.message).toMatch(/^this will change a shipped take: listen first\. hype10\/a-matty-1\.ogg \(kept with .* before fx-dsp/);
+    expect(e.takes.map((t: { name: string }) => t.name)).toEqual(['a-matty-1.ogg']);
+    expect(calls).toEqual([]);
+    expect(read('a-matty-1.ogg')).toBe(OLD);
+    expect(opts('a-matty-1.json')).toEqual(before);
+    // confirmed: rewritten, flagged for a listen, and stamped (the next reprocess does not ask again)
+    const r = await reprocess(root, [CAT], { process: fake, confirm: true });
+    expect(r.map((x) => [x.name, x.done, !!x.legacy])).toEqual([['a-matty-1.ogg', true, true], ['a-matty-2.ogg', true, false]]);
+    expect(opts('a-matty-1.json')).toEqual({ ...before, chain: FX_CHAIN });
+    expect(legacyTakes(root, [CAT])).toEqual([]);
+  });
+  it('legacyWhy: stamped takes never; unstamped racked takes on a reprocess; any unstamped take an Apply FX re-racks', () => {
+    expect(legacyWhy({ squeeze: true, fx: ROBOT, chain: FX_CHAIN }, undefined)).toBeNull();
+    expect(legacyWhy({ squeeze: true, chain: FX_CHAIN }, GHOST)).toBeNull();
+    expect(legacyWhy({ squeeze: true, fx: ROBOT }, undefined)).toMatch(/before fx-dsp/);
+    expect(legacyWhy({ squeeze: true }, undefined)).toBeNull();
+    expect(legacyWhy(null, undefined)).toBeNull();
+    expect(legacyWhy(null, GHOST)).toMatch(/Apply FX rewrites a shipped take/);
+    expect(legacyWhy({ squeeze: true }, {})).toMatch(/Apply FX/);
   });
   it("o.fx overrides every take's own rack and rewrites its record, keeping its squeeze (and words)", async () => {
     put(raw, 'a-matty-1.webm', 'voice'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: false, fx: ROBOT }));
     put(raw, 'a-matty-2.webm', 'voice'); put(sfx, 'a-matty-2.ogg', OLD); put(raw, 'a-matty-2.json', '{"squeeze":true,"text":"OLD WORDS"}');
     put(raw, 'a-matty-3.webm', 'voice'); put(sfx, 'a-matty-3.ogg', OLD); // kept before the record existed
-    const r = await reprocess(root, [CAT], { process: fake, fx: GHOST, squeeze: false });
-    expect(r.every((x) => x.done)).toBe(true);
+    await expect(reprocess(root, [CAT], { process: fake, fx: GHOST, squeeze: false })).rejects.toBeInstanceOf(LegacyTakes);
+    expect(calls).toEqual([]);
+    const r = await reprocess(root, [CAT], { process: fake, fx: GHOST, squeeze: false, confirm: true });
+    expect(r.every((x) => x.done && x.legacy)).toBe(true);
     expect(calls).toEqual([
       { raw: 'a-matty-1.webm', squeeze: false, fx: GHOST },
       { raw: 'a-matty-2.webm', squeeze: true, fx: GHOST },
       { raw: 'a-matty-3.webm', squeeze: false, fx: GHOST },
     ]);
-    expect(opts('a-matty-1.json')).toEqual({ squeeze: false, fx: GHOST });
-    expect(opts('a-matty-2.json')).toEqual({ squeeze: true, text: 'OLD WORDS', fx: GHOST });
-    expect(opts('a-matty-3.json')).toEqual({ squeeze: false, fx: GHOST });
-    expect(readOpts(raw, 'a-matty-1.ogg')).toEqual({ squeeze: false, fx: GHOST });
+    expect(opts('a-matty-1.json')).toEqual({ squeeze: false, fx: GHOST, chain: FX_CHAIN });
+    expect(opts('a-matty-2.json')).toEqual({ squeeze: true, text: 'OLD WORDS', fx: GHOST, chain: FX_CHAIN });
+    expect(opts('a-matty-3.json')).toEqual({ squeeze: false, fx: GHOST, chain: FX_CHAIN });
+    expect(readOpts(raw, 'a-matty-1.ogg')).toEqual({ squeeze: false, fx: GHOST, chain: FX_CHAIN });
     // and the next plain reprocess repeats the applied rack
     calls.length = 0;
     await reprocess(root, [CAT], { process: fake });
@@ -124,14 +163,14 @@ describe('reprocess', () => {
   });
   it('an empty o.fx (apply "no FX") strips the rack from every take', async () => {
     put(raw, 'a-matty-1.webm', 'voice'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: true, fx: ROBOT }));
-    await reprocess(root, [CAT], { process: fake, fx: {} });
+    await reprocess(root, [CAT], { process: fake, fx: {}, confirm: true });
     // the take is processed with an empty rack (fxGraph: null, no FX pass)
     expect(calls.map((c) => [c.raw, c.squeeze, fxOn(c.fx)])).toEqual([['a-matty-1.webm', true, false]]);
-    expect(readOpts(raw, 'a-matty-1.ogg')).toEqual({ squeeze: true });
+    expect(readOpts(raw, 'a-matty-1.ogg')).toEqual({ squeeze: true, chain: FX_CHAIN });
   });
   it("a clipped raw keeps its old record when o.fx is applied", async () => {
     put(raw, 'a-matty-1.webm', 'CLIP'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: true, fx: ROBOT }));
-    const [r] = await reprocess(root, [CAT], { process: fake, fx: { echo: defaults('echo') } });
+    const [r] = await reprocess(root, [CAT], { process: fake, fx: { echo: defaults('echo') }, confirm: true });
     expect(r.done).toBe(false);
     expect(read('a-matty-1.ogg')).toBe(OLD);
     expect(opts('a-matty-1.json')).toEqual({ squeeze: true, fx: ROBOT });

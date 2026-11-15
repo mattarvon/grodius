@@ -28,6 +28,17 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # D33: a type error blocks CI
       - run: npm run typecheck
+      # the voice booth's real-ffmpeg tests (tests/integration/booth-fx-ffmpeg.test.ts) fail on CI without ffmpeg rather
+      # than skip. Ubuntu's ffmpeg is built with librubberband (the rack's pitch shifter): checked here, loudly
+      - name: ffmpeg for the booth tests (with rubberband)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+          ffmpeg -hide_banner -version | head -1
+          for f in rubberband afir afreqshift afftdn aevalsrc alimiter; do
+            ffmpeg -hide_banner -filters 2>/dev/null | grep -qw "$f" || { echo "::error::this ffmpeg lacks the $f filter: the booth FX tests would fail"; exit 1; }
+          done
+          echo "ffmpeg filters present: rubberband afir afreqshift afftdn aevalsrc alimiter"
       - name: Unit + integration tests (vitest, tests/unit + tests/integration)
         run: npm run test:unit
       - run: npm run build

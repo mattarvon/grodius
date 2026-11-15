@@ -823,3 +823,40 @@ often (release-manager, tools-programmer); playtest watch: DEAD WEIGHT / LEAVE I
 wants it); i18n when scoped: quips.json in the inventory, the no-repeat rule keyed on ids, transcreation, captions vs
 subtitles (localization-lead).
 
+### D54 Booth fx-dsp + booth-ui, recorded after the fact; reprocess-parity correction — 2026-11-15 (retroactive studio review)
+
+**Why.** fx-dsp and booth-ui merged (`b76a52b..27b47d3`, tools/booth, tests and a devDependency only; no game code) with
+no decision-log entry. The retroactive Studio Hierarchy review ran 2026-11-15 and found the merge's one false claim: that a
+take kept with one of the original sixteen effects reprocesses the same.
+
+**What merged (fx-dsp).** The rack grew to 40 effects and 49 presets (vocoder, convolution rooms, reverse reverb,
+harmony, formant, tape speed, stutter, wah, comb and others). The graph first brings the take to `FX_LEVEL` (-20 LUFS)
+so the level-dependent effects treat a quiet take and a loud one alike; new effects carry a gain trim (`COMP`). A racked
+take gets up to 8 dB of makeup over 3 passes (`VOX.fxMakeup`, `VOX.fxPasses`; a clean take keeps one 3 dB pass), then the
+faster limiter releases `VOX.fxRelease` (40, 20 ms) if still short, and the ceiling comes down if the encode passes
+`VOX.fxPeak` (-0.5 dBTP). Tails end `FX_TAIL` (0.3 s) past the voice, faded.
+
+**What merged (booth-ui).** wavesurfer.js 8.0.4 (BSD-3-Clause), an exact-pinned devDependency, imported at runtime from
+`/node_modules/wavesurfer.js/dist/` by URL through `tools/booth/wave.ts`: not in `dist/` and not in the APK (the plugin is
+`apply: 'serve'`). Waveforms and spectrograms, the A/B preview deck, live metering, the grouped rack, user presets.
+
+**Correction (reprocess parity).** `fx.ts` said the original sixteen effects reprocess the same. They don't: the FX_LEVEL
+pre-gain, rubberband instead of asetrate + atempo for pitch and octave, the vibrato padding, echo and cave tails cut and
+faded, and the racked-take makeup all change the render. Reprocessing the shipped DESCEND take
+(`startgame/grodius-bitch-matty-1`, Hive mind) would make it 123 ms shorter, -1.5 dBTP instead of -0.4, and 0.3 LU
+quieter. It was not reprocessed. The booth-followups fixes: the comment now says what is true; every new keep's record
+carries `"chain": 2` (`FX_CHAIN`); a reprocess that would rewrite an unstamped racked take, or an Apply FX over any
+unstamped take, stops before touching anything with "this will change a shipped take: listen first" (the booth asks with
+a confirm, `reprocess.mjs` exits 3 unless `--yes`); a golden test pins the Hive mind graph with take info as production
+builds it (the old test without take info stays); CI installs Ubuntu's ffmpeg and checks it has rubberband, so the real
+ffmpeg sweep runs there (a missing ffmpeg now fails on CI instead of skipping); the vibrato NaN workaround has a 10-run
+repeat test; a preview aborts the renders of the one it replaced (the server kills their ffmpeg); the GAIN chip includes
+the rack's pre-gain (GRODIUS BITCH read +31.3 dB, about 8 dB low).
+
+**Studio review.** Studio review (retroactive): booth fx-dsp + booth-ui (b76a52b..27b47d3) - 13 roles, 0 BLOCK; APPROVE WITH NOTES (security/injection clean, wavesurfer not in dist/APK, optimizer bypassed); open: reprocess parity claim false for Hive mind (DESCEND -123 ms, -1.1 dBTP) - fix fx.ts:213 + test :252, CI ffmpeg skip unverified, decision-log entry missing, CLOSED CASKET take 2 needs D52 listen; booth tests 139/139 with ffmpeg.
+
+**Rollback point:** `eb4fc47` (the last commit before fx-dsp).
+
+**Next (Matt):** the D52 audio + narrative listen for CLOSED CASKET take 2 before it is committed with the quip batch.
+Don't reprocess DESCEND (or any take kept before fx-dsp) unless you mean to change it; if you do, listen first and commit
+the new .ogg on its own. The first CI run after merge shows whether Ubuntu's ffmpeg passes the real sweep.

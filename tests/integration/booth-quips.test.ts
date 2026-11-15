@@ -191,7 +191,7 @@ describe('parseArgs with a quip list', () => {
   const yes = () => true, at = () => Q;
 
   it('accepts a quip folder only when it is in the list', () => {
-    expect(parseArgs(['quip-x'], '/r', yes, at)).toEqual({ root: '/r', cats: ['quip-x'], squeeze: true });
+    expect(parseArgs(['quip-x'], '/r', yes, at)).toEqual({ root: '/r', cats: ['quip-x'], squeeze: true, yes: false });
     expect(parseArgs(['quip-x'], '/r', yes)).toMatchObject({ error: expect.stringMatching(/"quip-x" is not a voice slot/) });
   });
 
