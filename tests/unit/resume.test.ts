@@ -56,7 +56,7 @@ function original(loop: number, stage: number) {
 }
 /** the same run after a save and a resume: only the run-save fields survive */
 function resumed(G0: any, cpX: number) {
-  const d = decodeRun(JSON.stringify(serializeRun({ ...G0, cpX, cpN: 1, layout: layout().id }, {})))!;
+  const d = decodeRun(JSON.stringify(serializeRun({ ...G0, cpX, cpN: 1, layout: layout().id, rev: layout().rev ?? 1 }, {})))!;
   $.G = { script: [], si: 0, pend: [] } as any;
   applyRun(d, $.G, null);
   rebuildAt(cpX);
@@ -124,7 +124,7 @@ describe('the midboss picks across a resume', () => {
   const MB = { 0: ['ufo'], 1: ['choir', 'cyst'] }, USED = ['ufo', 'choir', 'cyst'], LAST = { ice: ['choir', 'cyst'], fire: ['prentice', 'brood'] };
   /** a run save taken at stage 1 CP1 holding the picker's state, restored the way resumeRun does */
   function restore() {
-    const d = decodeRun(JSON.stringify(serializeRun({ ...run(0, 1), mb: MB, mbUsed: USED, mbLast: LAST, cpX: 6000, cpN: 1, layout: 'long4' }, {})))!;
+    const d = decodeRun(JSON.stringify(serializeRun({ ...run(0, 1), mb: MB, mbUsed: USED, mbLast: LAST, cpX: 6000, cpN: 1, layout: 'long4', rev: layout().rev ?? 1 }, {})))!;
     $.G = { script: [], si: 0, pend: [] } as any;
     biomeReset();
     applyRun(d, $.G, null);

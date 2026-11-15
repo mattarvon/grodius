@@ -14,7 +14,7 @@
 // Both write the same checkpoints; only what reads them differs.
 import { $ } from './state';
 import { encodeRun, storeRun } from './runsave';
-import { beatPlan, driftsOf, layout, row } from './layout';
+import { beatPlan, driftsOf, layout, layoutRev, row } from './layout';
 import { sealFor } from './stages';
 
 /** checkpoint tuning (spec §4 "When it saves", "How it restores") */
@@ -75,6 +75,7 @@ export function writeCp(n, x = $.G.scroll) {
   G.cpN = n;
   G.cpX = x;
   G.layout = layout().id;
+  G.rev = layoutRev(); // D31: runsave refuses a save from an older geometry of this layout
   const s = encodeRun(cpView(G), $.P);
   return !!s && storeRun(s);
 }

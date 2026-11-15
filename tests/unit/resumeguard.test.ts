@@ -38,7 +38,7 @@ function storage() {
 /** a stored long4 checkpoint at stage 2 CP1 (biome slot 1), read the way boot reads it */
 function stored(over: Record<string, unknown> = {}) {
   const L = LAYOUTS.long4!;
-  const g = { loop: 0, stage: 2, cpX: L.stages[2].x0 + 900, cpN: 1, layout: 'long4', seed: 77, lives: 2,
+  const g = { loop: 0, stage: 2, cpX: L.stages[2].x0 + 900, cpN: 1, layout: 'long4', rev: L.rev, seed: 77, lives: 2,
     bx: [L.stages[1].x0 + 300, L.stages[2].x0 + 400, null], route: ['ice', 'fire'], visitNo: [0, 0], ...over };
   (localStorage as any).setItem(RUN_KEY, JSON.stringify({ v: RUN_V, g, p: { speed: 1 } }));
   return readRun();
@@ -108,7 +108,7 @@ describe('the option-b death restart pays the normal death cost (D32)', () => {
     trigger = 'b';
     setLayout('long4');
     const L = LAYOUTS.long4!;
-    const g = { loop: 0, stage: 2, cpX: L.stages[2].x0 + 900, cpN: 1, layout: 'long4', seed: 77, lives: 3, cur: 3, gm: { rapid: 2, seek: 0 },
+    const g = { loop: 0, stage: 2, cpX: L.stages[2].x0 + 900, cpN: 1, layout: 'long4', rev: L.rev, seed: 77, lives: 3, cur: 3, gm: { rapid: 2, seek: 0 },
       bx: [L.stages[1].x0 + 300, L.stages[2].x0 + 400, null], route: ['ice', 'fire'], visitNo: [0, 0], st: { kills: 4, spawned: 9, hits: storedHits, deaths: 0, chain: 0 } };
     (localStorage as any).setItem(RUN_KEY, JSON.stringify({ v: RUN_V, g, p: { speed: 3, missile: 2, laser: 1, options: 2, shield: 2, wardLv: 1 } }));
     readRun();

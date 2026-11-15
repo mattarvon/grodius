@@ -8,7 +8,7 @@
 //
 // Extra params: rank= pins G.pow (the harness's fixed-rank boss scenarios; G.rank is its clamp to 0-1) and seed= fixes
 // the run seed (without it a run draws one, as newGame does). Pure apart from reading the active layout; no DOM.
-import { beatPlan, lastStage, layout, nSlots, row, slotRow, stageOfSlot } from './layout';
+import { beatPlan, lastStage, layout, layoutRev, nSlots, row, slotRow, stageOfSlot } from './layout';
 import { forkAllows, HOME } from './midpick';
 import { RUN_V, sealRun } from './runsave';
 
@@ -123,7 +123,7 @@ export function jumpBlob(j: Jump, seed: number) {
   return {
     v: RUN_V,
     g: {
-      layout: L.id, seed, loop: j.loop, stage: j.stage, cpX: t.x0 + j.x, cpN: 1, stT: 0, route, bx, visitNo: Array(n).fill(0), bvis, visited,
+      layout: L.id, rev: layoutRev(L), seed, loop: j.loop, stage: j.stage, cpX: t.x0 + j.x, cpN: 1, stT: 0, route, bx, visitNo: Array(n).fill(0), bvis, visited,
       mb, mbUsed, mbLast, cleared: j.loop * (lastStage() + 1) + j.stage, ...kit.g,
     } as Record<string, unknown>,
     p: { ...kit.p },
