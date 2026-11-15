@@ -1,7 +1,7 @@
 {
   "frames": 1200,
-  "commit": "5c8c3eb",
-  "os": "linux 6.18.42-1-cachyos-lts",
+  "commit": "6047404",
+  "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "drive",
   "q": "stage=drive&x=0&kit=mid&seed=7",
@@ -13,8 +13,8 @@
     "px": 50,
     "py": 177.819,
     "en": 12,
-    "gibs": 111,
-    "drops": 25,
+    "gibs": 116,
+    "drops": 24,
     "caps": 0,
     "jump": true,
     "stage": 3,
@@ -26,11 +26,11 @@
     "kills": 24,
     "t": 1175,
     "seen": "",
-    "sig": "50480033ff"
+    "sig": "fc9a64581c"
   },
   "hashes": [
-    "5ac1c800f8",
-    "ece2962c03"
+    "84f4c9344a",
+    "5a58b9b25e"
   ],
   "errs": []
 }
