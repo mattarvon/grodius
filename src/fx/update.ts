@@ -9,7 +9,6 @@ import { AU, BANK, sample, sfx } from '../audio';
 import { AMT, ceilAt, decals, drops, flashes, floorAt, geysers, gibs, grav, mists, orbs, sparks, splats, texts } from '../world';
 import { addDecal, drop, spark, splat } from '../fx/spawn';
 import { stepBooms } from './fxsprites';
-import { makeHell } from '../render/hell';
 import { hellCore, hellCorr } from '../layout';
 
 // ---------------- fx simulation ----------------
@@ -284,8 +283,9 @@ export function hype(n) {
   setTimeout(() => sample('hype' + n, { vol: 1.15, spread: .02, wet: .16 }), 120);
 }
 // runs the same whatever the setting (postFX hides it when HELL FLASHES is OFF), so the setting can't change the sim
+// Matt, 2026-11-15: "take the flashing jason masks out all together": the full-screen face image is gone; the
+// moment keeps its glitch tear and whisper. $.G.hell still counts down so nothing else in the sim moves
 export function hellFlash() {
-  makeHell();
   $.G.hell = sri(3, 5);
   $.G.glitch = Math.max($.G.glitch, 8);
   sfx.whisper();

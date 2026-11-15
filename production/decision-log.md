@@ -930,3 +930,15 @@ the rack's pre-gain (GRODIUS BITCH read +31.3 dB, about 8 dB low).
 **Next (Matt):** the D52 audio + narrative listen for CLOSED CASKET take 2 before it is committed with the quip batch.
 Don't reprocess DESCEND (or any take kept before fx-dsp) unless you mean to change it; if you do, listen first and commit
 the new .ogg on its own. The first CI run after merge shows whether Ubuntu's ffmpeg passes the real sweep.
+
+### D56 The hell-flash face image removed — 2026-11-15 (Matt: "take the flashing jason masks out all together")
+
+The full-screen hell face (a pale oval with black eye holes, teeth and blood streaks, flashed at random in the last
+biome slot, the Drive approach and chamber, and boss phase 2) is deleted: `makeHell()` and its offscreen canvas
+(`core.ts` hc/hx) are gone and `postFX` no longer draws it. `hellFlash()` keeps the glitch tear and `sfx.whisper()` at
+the same moments; `$.G.hell` (render stream) still counts down but is read by nothing. The sim is unchanged; only the
+render-side `srnd` stream shifts, which re-baselined the `drive` harness scenario (gibs 111->116, drops 25->24, sig
+50480033ff->fc9a64581c; fx-only: `simState` hashes `drops.length`). Resolves the "Drive's white hell-flash face reads
+cartoonish" note (production/qa/evidence/ls2-bossart.md). Open: the milestone-plan "door" and the LS3-bridge
+hell-glimpse site assumed the image and need re-scoping without it. Studio review: all 8 leads + 3 directors; qa-lead
+BLOCK (drive baseline) resolved by the re-baseline; others APPROVE / APPROVE WITH NOTES.

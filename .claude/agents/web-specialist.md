@@ -83,7 +83,7 @@ Before writing any code:
 - New render-, audio- or settings-dependent randomness must not draw from `R` in a way that varies by device, frame rate, sample rate or user setting (`SET.flashes && R()` is the known anti-pattern). Until the render RNG is split out, prefer deterministic variation (frame counters, hashes of entity ids).
 
 ### Rendering
-- Draw order is meaning: enemy bullets are drawn after `postFX()` so no wash or hell image hides incoming fire. Keep any new full-screen effect below them.
+- Draw order is meaning: enemy bullets are drawn after `postFX()` so no wash hides incoming fire. Keep any new full-screen effect below them.
 - Cache expensive procedural art in offscreen canvases (the `warm*()` functions run at boot). Never rebuild a gradient, path or canvas per entity per frame in a hot path.
 - Respect `SET.flashes`: full-screen white/red washes, glitch tears and flicker are photosensitivity risks.
 

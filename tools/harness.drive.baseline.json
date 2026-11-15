@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "bab2dd3",
+  "commit": "b712151",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "drive",
@@ -13,8 +13,8 @@
     "px": 50,
     "py": 131.834,
     "en": 9,
-    "gibs": 79,
-    "drops": 27,
+    "gibs": 81,
+    "drops": 28,
     "caps": 0,
     "jump": true,
     "stage": 3,
@@ -26,11 +26,11 @@
     "kills": 21,
     "t": 1173,
     "seen": "",
-    "sig": "184cbef144"
+    "sig": "715cd26ccd"
   },
   "hashes": [
-    "b301e157f8",
-    "6f6a625a9c"
+    "e2bdee6937",
+    "faea44b57e"
   ],
   "errs": []
 }
