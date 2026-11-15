@@ -116,7 +116,12 @@ const snap = (p, xs) => p.evaluate(async ([xs, PROG_G, LOAD_P]) => {
   if (xs) {
     const sc0 = G.scroll, T0 = st.$.T, c = core.ctx;
     for (const x of xs) {
-      G.scroll = x; st.$.T = 0;
+      G.scroll = x;
+      // render-only eased state is live, never saved (spec §4): the acid vats' dead fade while THE DISSOLVING WOMB is up
+      // (render/tankfade.ts, D46) and ease back over 90 frames after it dies, so a CP1 written just after a Womb slot A
+      // shoots the original mid-fade and the resumed page at full. Ease it out on both pages before the shot (<= 4 f a draw)
+      for (let k = 1; k <= 40; k++) { st.$.T = 4 * k; T.drawTerrain(); }
+      st.$.T = 0;
       c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
       c.fillStyle = '#000'; c.fillRect(0, 0, c.canvas.width, c.canvas.height);
       T.drawTerrain();
