@@ -95,7 +95,10 @@ export function forcedMid(search: string): string | null {
   const m = /[?&]mid=([a-z0-9_-]+)/.exec(search), r = m ? midRow(m[1]) : undefined;
   return r && r.wip ? r.k : null;
 }
-/** the ?mid= test query, read from the page URL (no LAB row: the APK has no query, and this is a desk tool) */
+/** the ?mid= test query, read from the page URL. Ungated, like ?mids=wip: it works on any web build, the dev server
+ *  and the deployed page alike (only the &stage=&x=&kit= jump that usually goes with it is dev-server-only). The APK
+ *  loads with no query string and there is no LAB row, so the phone can't reach it (accepted for now, D53). A forced
+ *  wip kind still leaves the profile alone: meetMid and firstKill skip wip rows (no meta.mb, meta.mbK or first-kill pay) */
 export const midForce = () => forcedMid(search());
 /** the checkpoint trigger for item H: 'a' = app kill or quit only (spec §4 default), 'b' = also on death */
 export const cpTrigger = (): Lab['cp'] => lab().cp;

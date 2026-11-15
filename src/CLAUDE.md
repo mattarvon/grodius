@@ -97,7 +97,9 @@ line to add. Every `.ts` there is a kind, except `_name.ts`, which is a shared h
   into the stage: `stagebuild.ts` `fixedMids`, the `scripts.ts` Orbit table, or the
   Drive table. Until then, fly a `wip` one with `?mid=<kind>` (`lab.ts` `forcedMid`): it takes slot A of every
   biome stage on a picker layout, any descent, so give it a `fit` and call `bandFit` when `e.host` is set (the
-  Keepsake does). Add `&stage=<biome>&x=<slot A WARNING - 30>&kit=mid` (the jump switch) to start at its WARNING. Set `boot: true` too: the warm-up's `routeArt` walks only biome slots,
+  Keepsake does). `?mid=` works on any web build, deployed included (the APK has no query string and no LAB row for
+  it); add `&stage=<biome>&x=<slot A WARNING - 30>&kit=mid` (the jump switch, dev server only) to start at its WARNING.
+  A forced `wip` kind still leaves the profile alone (below). Set `boot: true` too: the warm-up's `routeArt` walks only biome slots,
   so without it the art builds on first draw, inside the fight.
 - **A DRIFT kind** skips `midboss()`: it calls `registerDrift` (see `enemies/mid/ufo.ts`),
   sets `drift: 1` or the scroll holds (`step.ts`), and needs a forced exit. In a biome

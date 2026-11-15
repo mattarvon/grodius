@@ -68,7 +68,7 @@ const FIRE: readonly MidRow[] = [];
 const SNOT: readonly MidRow[] = [];
 /** LS2-orbit+ship: Open Orbit's and the ship's kinds */
 const ORBIT_SHIP: readonly MidRow[] = [
-  // a crew kid's porcelain doll head, a fork in its soft spot (Matt, 2026-11-15). Ship pool: no spawn path yet, so it is
+  // a crew kid's vinyl doll head, a fork in its soft spot (Matt, 2026-11-15, D53). Ship pool: no spawn path yet, so it is
   // flown through the ?mid= test query (src/lab.ts midForce) in a biome slot. fit: head r 22, the wound's hitbox
   // (enemies/mid/_keepsake.ts KEEP wy - wr) tops out at -32. boot: a ship kind's art is no route's choice
   { k: 'keepsake', name: 'THE KEEPSAKE', label: 'KEEPSAKE', tag: 'ANGLE', pool: 'ship', min: 1, fit: { up: 32, dn: 22, hw: 22 }, boot: true, wip: true },

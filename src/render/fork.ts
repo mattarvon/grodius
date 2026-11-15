@@ -22,5 +22,4 @@ export function drawFork(c: CanvasRenderingContext2D, x: number, y: number, a: n
   c.fillStyle = '#f4f8fb'; // a glint on the handle's end: steel, not bone
   c.fillRect(-9, -.6, 2, 1.2);
   c.restore();
-  c.lineCap = 'butt';
 }
