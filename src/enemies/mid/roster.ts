@@ -68,10 +68,8 @@ const FIRE: readonly MidRow[] = [];
 const SNOT: readonly MidRow[] = [];
 /** LS2-orbit+ship: Open Orbit's and the ship's kinds */
 const ORBIT_SHIP: readonly MidRow[] = [
-  // a crew kid's vinyl doll head, a fork in its soft spot (Matt, 2026-11-15, D53). Ship pool: no spawn path yet, so it is
-  // flown through the ?mid= test query (src/lab.ts midForce) in a biome slot. fit: head r 22, the wound's hitbox
-  // (enemies/mid/_keepsake.ts KEEP wy - wr) tops out at -32. boot: a ship kind's art is no route's choice
-  { k: 'keepsake', name: 'THE KEEPSAKE', label: 'KEEPSAKE', tag: 'ANGLE', pool: 'ship', min: 1, fit: { up: 32, dn: 22, hw: 22 }, boot: true, wip: true },
+  // (THE KEEPSAKE's wip row, D53, retired 2026-11-15: its kit is the stage boss's phase 1, enemies/boss/keepsake.ts, D55.
+  // The ship pool's planned kinds, WINDOW, RANGE, CROWD and SPACE, land here; ANGLE is free again)
 ];
 
 /** every midboss, in the order the picker walks (see above) */
@@ -127,7 +125,7 @@ export const MID_ET: Record<string, any> = {};
 /** the damage share a hit on e takes (MidSim.hurt): 1 for anything that isn't a midboss with a hurt hook. Every damage
  *  path multiplies by this, so armour never needs a shared-file edit */
 export function midMul(e: any, d: number, hx: number, hy: number, dir: number): number {
-  const h = e.mid ? MID_SIM[e.k]?.hurt : undefined;
+  const h = e.mid ? MID_SIM[e.k]?.hurt : e.armor; // e.armor: a registered stage boss or its part (enemies/boss/registry.ts, D55)
   if (!h) return 1;
   const m = h(e, d, hx, hy, dir);
   return m > 0 ? m : 0; // NaN or undefined (a branch with no return) reads as a tink, never as NaN HP
@@ -135,7 +133,7 @@ export function midMul(e: any, d: number, hx: number, hy: number, dir: number): 
 
 /** hurt()'s hit sound: true when the kind's `hitSnd` played its own for a hit of share m, false for the shared one */
 export function midHitSnd(e: any, m: number, hx: number, hy: number): boolean {
-  const h = e.mid ? MID_SIM[e.k]?.hitSnd : undefined;
+  const h = e.mid ? MID_SIM[e.k]?.hitSnd : e.hitSnd; // e.hitSnd: a registered stage boss (D55)
   return !!h && h(e, m, hx, hy) === true;
 }
 

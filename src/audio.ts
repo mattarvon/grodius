@@ -114,7 +114,7 @@ const LIVE: { s: any; g: any; prio: boolean; cat: string; t0: number }[] = [];
 // at a dead take. Eviction skips them (sound-designer review)
 // (kill-<k>: a midboss's kill word; carn5: OPENED, the 5-chain; quip-<id>: Matt's one-liners after a big kill,
 // LS2-quips. All SGT. RAMROD SLAB's)
-const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|kill-|carn5|quip-)/;
+const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|kill-|carn5|quip-|boss-|bark-)/; // boss-/bark-: THE KEEPSAKE's readout and barks (D55)
 function loadBank(A) {
   for (const [p, u] of Object.entries(SFX_URLS)) {
     const cat = p.split('/')[2];

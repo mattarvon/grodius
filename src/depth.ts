@@ -32,7 +32,7 @@ export const DEPTH = {
   // the Butcher's fight is gated by its cleaver and guard more than its HP pool (Descent 2 took 7-15 s before), and
   // the Womb (cyst), the Brood Mother and the Crucifer (crux) have guarded windows that make extra HP count more.
   // Elites (enemies/elite.ts, HP x1.8) are rolled after mk(), so they stack on top of all of this
-  w: { maw0: .5, maw: .45, butcher: .15, crux: .6, cyst: .6, brood: .6 },
+  w: { maw0: .5, maw: .45, butcher: .15, crux: .6, cyst: .6, brood: .6, keepsake: .6 }, // keepsake: the stage boss (D55), the Crux's share: its windows are guarded too
   // the Gravity Drive (driveMul): 560 HP x (1 + driveL * loop) x (1 + driveRank * rank) x (1 + driveO * over, from Descent 2).
   // The documented exception to D1. Without driveRank/driveO the fight collapses: boss-probe STRONG D1 9.8 s (14.3 with
   // them), depth-probe Descent 2 10.6 s / Descent 3 7.0 s (18.2 / 14.3 with them), against the 24-39 s documented for

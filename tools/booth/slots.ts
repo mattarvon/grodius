@@ -121,7 +121,7 @@ export const SLOTS: Slot[] = [
     test: 'vox=startgame',
   },
   kill('ufo'), kill('brood'), kill('choir'), kill('cyst'), kill('prentice'),
-  kill('keepsake'), // PUT TO BED (wip, LS2 ship pool): wired like every kill word, so a recorded take plays on its kill
+  // THE KEEPSAKE's PUT TO BED moved with the retired midboss (D55) to the stage boss's readout slot, boss-keepsake (kboss-audio)
   {
     cat: 'carn5',
     text: { carn: 5 },
