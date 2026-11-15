@@ -402,7 +402,7 @@ With the recommended Q20 answer, M lands early in LS2 rather than at LS1 closeou
 - [ ] Kill the app after the first midboss, then reopen and RE-ENTER (D34: was RESUME). Did you land where you expected?
 - [ ] **Q2, the checkpoint:** optionally set LAB → checkpoint RESTART and die once. Resume point only (a), or Gradius restart on death (b)? While there, pause and SURFACE (D34: was ABANDON SHIP) once: the run is kept and RE-ENTER (D34: was RESUME) appears on the title. ~~Does the name ABANDON SHIP still fit, or does it need new wording or a separate path that ends the run?~~ (D34: renamed SURFACE.) Does SURFACE fit in play? (The quit-to-resume undo is already accepted as known, D28.)
 - [ ] **Long-stage economy (LS1-G, creative-director):** on a returning profile at the Descent 1 Infirmary, can you afford one meaningful buy per visit at the long stages' ×0.65 biomass? And on the phone, does the green FIRST KILL +100 pop read in motion over the gore burst?
-- [ ] **Q20:** flip long to the default now with one Orbit midboss, or wait for the derelict tug?
+- [x] **Q20:** flip long to the default now with one Orbit midboss, or wait for the derelict tug? (D24, 2026-11-02: flipped now, one Orbit midboss accepted as the interim. D37 sizes the stretched Orbit for the tug.)
 - [ ] Answer the spec's Q1, Q3, Q7, Q9-Q12 and Q17. ~~Approve or edit the Pillar 4 text.~~ (D34: done.)
 
 **LS2:**
