@@ -25,7 +25,7 @@ export const KB = {
   cut1: .65, //     DOZING -> AWAKE at 65%
   cut2: .30, //     AWAKE -> CRACKED at 30%
   end: .002, //     CRACKED's floor: the last hit leaves this much and the sleep eyes close (the dying beat) before the kill
-  p2MinWin: 2, //   AWAKE takes at least this many tilt windows: the staged floor (p2Floor) caps each window's damage
+  p2MinWin: 3, //   AWAKE takes at least this many tilt windows: the staged floor (p2Floor) caps each window's damage
   clock: 1500, //   each phase's clock (25 s, as the biome bosses' halves, docs/pacing.md 3.6). HUD fuse
   tr1: 90, //       IT WOKE UP: the transition (crown closed, nothing fires) and the mobile lowering
   tr2: 120, //      IT CRACKED: the vinyl splits, the rocker drops out
@@ -59,9 +59,12 @@ export const KB = {
   mobN: 6, //       forks on the hoop
   mobDx: 22, //     their spacing, px; the hoop's centre sits at e.x + mobX
   mobX: -10,
-  mobY: 20, //      the hoop's screen y once lowered (it starts above the screen and lowers over tr1)
-  mobLen: 26, //    thread length (+ 0-14 per fork): fork tips at screen y 46-60, so a lane of >= 28 px stays over the crown (snot, tightest)
-  mobHit: 5, //     a hanging fork's contact radius (+ the ship's 2.6), at its middle and its tip
+  mobY: 34, //      the hoop's screen y once lowered (it starts above the screen and lowers over tr1), clear of the HUD's top rows
+  mobLen: 36, //    hoop to fork tip (+ 0-6 per fork, mobVar): tips at screen y 70-76, so a lane of >= 20 px stays between them and
+  //               the crown in the tightest arena (snot); the forks are drawn 33 px long (render: drawFork x2.2)
+  mobVar: 1.5, //   per-fork extra thread, x ((i * 7 + 3) % 5): fixed per fork, no draw
+  headTop: 58, //   the crown's top above the origin at tilt 0 (the art's bbox, tools/keepsake-boss-art.json)
+  mobHit: 5, //     a hanging fork's contact radius (+ the ship's 2.6), at its tip, 11 px and 22 px up its length
   // ---- phase 3, CRACKED
   pvx: -24, pvy: -30, //    the rocker's pivot: where the crack opens, by the player-side eye
   pLen: 58, //      the wire, pivot to the lead weight

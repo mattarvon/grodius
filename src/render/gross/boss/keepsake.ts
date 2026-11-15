@@ -32,7 +32,7 @@ const K = 'keepsake-boss', MID = 'keepsake', FK = 'keepsake-fork';
 const TILTS = [-32, -16, 0, 16, 32].map((d) => (d * Math.PI) / 180); // the baked tilts, canvas radians (+ clockwise)
 const SWING = 18 * Math.PI / 180; //  rocker_*: 13 frames, -108..108 deg in 18 deg steps (index 6 hangs)
 const APEX = 10; //                   rocker_*'s anchor sits this far down the wire from the pivot (its weight 48 below it: KB.pLen 58)
-const MFORK = .55; //                 mfork is 46 px long at 1x: drawn at .55 (25 px) so the lane over the crown stays open
+const MFORK = 2.2; //                 the hanging forks' scale (drawFork: 15 px at 1): 33 px
 const EYE_L = ['eye_open', 'eye_half', 'eye_shut', 'eye_empty'], WOUND_L = ['wound_seat', 'wound_proud', 'wound_gape', 'wound_brain'], FACE_L = ['face0', 'face1', 'face2', 'face3'];
 const MS = 104 / 48; //              the midboss sprite's scale to the boss box (its origin (24, 31) lands on ~(52, 67))
 const EYE = [[-18, 0], [18, 0]]; //  the sockets at tilt 0 (the manifest's perTilt eyeL / eyeR)
@@ -155,16 +155,14 @@ function mobile(e) {
     const shud = telK > 0 ? (hash(($.T >> 1) + i * 13) - .5) * 2.4 * telK : 0, x = fx + sway + shud;
     // the thread (a glint runs down it on the tell)
     ctx.strokeStyle = telK > 0 && ($.T >> 2) & 1 ? '#ffffff' : 'rgba(220,214,200,.55)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(fx, hy + 2); ctx.lineTo(x, tip - 15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(fx, hy + 2); ctx.lineTo(x, tip - 15 * MFORK); ctx.stroke();
     // the enemy-fire glow every enemy shot wears (D53), dim while it hangs, hot on its tell
     ctx.globalCompositeOperation = 'lighter';
-    glow(x, tip - 7, 10 + 6 * telK, '150,255,40', .14 + .5 * telK);
+    glow(x, tip - 14, 14 + 6 * telK, '150,255,40', .16 + .5 * telK);
     ctx.globalCompositeOperation = 'source-over';
-    // tines down, its tip at `tip`: the atlas's hanging fork (1 = the brighter tell frame), else the line fork
-    ctx.save(); ctx.translate(x, tip - 46 * MFORK); ctx.scale(MFORK, MFORK);
-    const ok = bf(ctx, K, 'mfork', telK > 0 ? 1 : 0, 0, 0);
-    ctx.restore();
-    if (!ok) drawFork(ctx, x, tip - 15, Math.PI / 2, 1.5);
+    // tines down, its tip at `tip`, 33 px long: the line fork at x2.2 (a 3 px outline reads on the phone; the atlas's mfork
+    // is 46 px with 1 px tines, too long for the lane over the crown and too fine scaled down: kept for a later pass)
+    drawFork(ctx, x, tip - 6 * MFORK, Math.PI / 2, MFORK);
     if (telK > 0) { // the column it falls down, marked to the floor: dashed, then a 3 px bar where it lands
       const fl = Math.min(PH - 2, floorAt(x + $.G.scroll));
       ctx.globalAlpha = .25 + .45 * telK; ctx.strokeStyle = '#ff6048'; ctx.lineWidth = 1; ctx.setLineDash(DASH);

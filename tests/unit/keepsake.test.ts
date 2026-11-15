@@ -178,8 +178,9 @@ describe('kbArena: the arena override (layout invariant: gap >= 200 wherever bos
   it('leaves a lane between the lowest hanging fork and the head resting on the floor', () => {
     const o = [0, 0];
     kbArena(34, 220, 60, 170, o); // the snot rest, the tightest
-    const top = o[1] - KB.rest - KB.oy;
-    expect(top - (KB.mobY + KB.mobLen + 14)).toBeGreaterThanOrEqual(25);
+    const top = o[1] - KB.rest - KB.headTop, lowest = KB.mobY + KB.mobLen + 4 * KB.mobVar;
+    expect(top - lowest).toBeGreaterThanOrEqual(20); // the ship (16 px tall) fits between the fork tips and the crown
+    expect(KB.mobY).toBeGreaterThanOrEqual(KB.aCeil + 10); // the hoop hangs below the arena ceiling
   });
 });
 

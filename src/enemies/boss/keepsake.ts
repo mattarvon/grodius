@@ -182,7 +182,7 @@ function mobileHit(e) {
   for (let i = 0; i < KB.mobN; i++) {
     if (!e.ma[i]) continue;
     const x = mobX(e, i), t = mobTip(e, i);
-    if (dist2($.P.x, $.P.y, x, t) < r2 || dist2($.P.x, $.P.y, x, t - 7) < r2) { playerHit(); return; }
+    if (dist2($.P.x, $.P.y, x, t) < r2 || dist2($.P.x, $.P.y, x, t - 11) < r2 || dist2($.P.x, $.P.y, x, t - 22) < r2) { playerHit(); return; }
   }
 }
 
@@ -403,7 +403,7 @@ function spawn(b) {
   e.fx = new Float32Array(8); e.fl = new Float32Array(8); e.fu = new Uint8Array(8); e.fn = 0; e.fy = 0;
   e.fq = new Float32Array(8); e.fv = new Float32Array(8); e.fw = new Float32Array(8); e.lat = new Float32Array(3);
   e.ma = new Uint8Array(KB.mobN).fill(1); e.ml = new Float32Array(KB.mobN); e.dq = new Uint8Array(KB.mobN);
-  for (let i = 0; i < KB.mobN; i++) e.ml[i] = ((i * 7 + 3) % 5) * 3.5; // thread lengths: fixed per fork, no draw
+  for (let i = 0; i < KB.mobN; i++) e.ml[i] = ((i * 7 + 3) % 5) * KB.mobVar; // thread lengths: fixed per fork, no draw
   e.rocker = null; e.crier = null; e.crierGone = 0; e.barked = 0; e.mbT = 0;
   $.G.mini = e;
 }
@@ -417,7 +417,7 @@ defineBoss('keepsake', {
   // literals only at the top level (load order, src/CLAUDE.md). r is KB.r. HP 260 x depth (DEPTH.w.keepsake .6, the
   // Crux's: its guarded windows make extra HP count); tuned with tools/boss-probe.mjs to D55's band (28-34 s bot at the
   // stage-1 kit, >= 15 s strong). No skull, no teeth (the art rule): it is vinyl, the meat is the ship's
-  et: { hp: 260, r: 44, gsz: 5, score: 16000, bio: 100, eyes: 2, teeth: 0, skull: 0, big: 1, mini: 1 },
+  et: { hp: 320, r: 44, gsz: 5, score: 16000, bio: 100, eyes: 2, teeth: 0, skull: 0, big: 1, mini: 1 },
   // the words are src/voice/keepsake.ts's: a leaf with no imports, so it is loaded before this file's top level runs
   name: KEEPSAKE_NAME,
   word: KEEPSAKE_READOUT,
