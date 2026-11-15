@@ -1,14 +1,14 @@
 {
   "frames": 1200,
-  "commit": "5c8c3eb",
-  "os": "linux 6.18.42-1-cachyos-lts",
+  "commit": "bab2dd3",
+  "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "maw-d3",
-  "q": "stage=orbit&x=4170&loop=2&kit=full&rank=1&seed=7",
+  "q": "stage=orbit&x=6570&loop=2&kit=full&rank=1&seed=7",
   "st": {
     "state": "play",
     "score": 0,
-    "scroll": 4248,
+    "scroll": 6648,
     "lives": 5,
     "px": 50,
     "py": 47.02,
@@ -26,11 +26,11 @@
     "kills": 0,
     "t": 1200,
     "seen": "mini:maw",
-    "sig": "5398ce1a7d"
+    "sig": "f4c2f008bf"
   },
   "hashes": [
-    "1724c6bd66",
-    "4ba01916ff"
+    "408bd533e8",
+    "4acb591da8"
   ],
   "errs": []
 }
