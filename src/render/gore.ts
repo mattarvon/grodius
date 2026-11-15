@@ -9,9 +9,10 @@ import { HOST_TINT, isCross } from '../enemies/midhost';
 import { biomeMist, splatCols } from '../biomes';
 import { drawBooms } from '../fx/fxsprites';
 import { GIB_SS, gibAtlas, gibCell, gibPal } from './gibart';
+import { woundDC } from './wounds';
 
 // --- gibs & gore ---
-const ROPE_GUT = [[4, '#3e0c16'], [2.6, '#b0465a'], [1, '#ec95a3']], ROPE_CHAIN = [[3.2, '#14181d'], [2, '#59646f'], [.8, '#b7c3cf']];
+const ROPE_GUT = [[4, '#22050a'], [2.6, '#6a1014'], [1, '#a8322a']], ROPE_CHAIN = [[3.2, '#14181d'], [2, '#59646f'], [.8, '#b7c3cf']];
 export function drawGibs() {
   // death explosions go under the gore, then the death mist over them (drawMists leaves the ov ones for here)
   drawBooms(0);
@@ -104,8 +105,9 @@ function drawHalf(q) {
 }
 export function drawDrops() {
   ctx.lineCap = 'butt';
+  const dc = woundDC() || DC; // a remix visit's drop colours (render/wounds.ts), at draw time only: the sim's DC is untouched
   for (let c = 0; c < DC.length; c++) for (const big of [0, 1]) {
-    ctx.strokeStyle = DC[c];
+    ctx.strokeStyle = dc[c];
     ctx.lineWidth = big ? 2 : 1;
     ctx.beginPath();
     let any = false;

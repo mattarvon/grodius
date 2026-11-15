@@ -56,7 +56,7 @@ const CORE: readonly MidRow[] = [
   // of her inside them on 28% of on-screen frames (LS1 P0 matrix); the other three never clip at home
   { k: 'brood', name: 'THE BROOD MOTHER', label: 'BROOD MOM', tag: 'CROWD', pool: 'snot', min: 0, fit: { up: 28, dn: 28, hw: 26 }, homeFit: true },
   // Open Orbit slot A, its row's drift entry (src/layout.ts). boot: every descent flies Orbit
-  { k: 'ufo', name: 'THE SQUIDFUCKED SAUCER', label: 'SQUID SAUCER', tag: 'DRIFT', pool: 'orbit', min: 0, boot: true },
+  { k: 'ufo', name: 'SQUID SAUCER 2000', label: 'SQUID SAUCER', tag: 'DRIFT', pool: 'orbit', min: 0, boot: true },
 ];
 /** LS2-ice: the Cryosleeper, the Hanging Spine */
 const ICE: readonly MidRow[] = [];
@@ -67,7 +67,12 @@ const FIRE: readonly MidRow[] = [];
 /** LS2-snot */
 const SNOT: readonly MidRow[] = [];
 /** LS2-orbit+ship: Open Orbit's and the ship's kinds */
-const ORBIT_SHIP: readonly MidRow[] = [];
+const ORBIT_SHIP: readonly MidRow[] = [
+  // a crew kid's vinyl doll head, a fork in its soft spot (Matt, 2026-11-15, D53). Ship pool: no spawn path yet, so it is
+  // flown through the ?mid= test query (src/lab.ts midForce) in a biome slot. fit: head r 22, the wound's hitbox
+  // (enemies/mid/_keepsake.ts KEEP wy - wr) tops out at -32. boot: a ship kind's art is no route's choice
+  { k: 'keepsake', name: 'THE KEEPSAKE', label: 'KEEPSAKE', tag: 'ANGLE', pool: 'ship', min: 1, fit: { up: 32, dn: 22, hw: 22 }, boot: true, wip: true },
+];
 
 /** every midboss, in the order the picker walks (see above) */
 export const ROSTER: readonly MidRow[] = [...CORE, ...ICE, ...ACID, ...FIRE, ...SNOT, ...ORBIT_SHIP];
@@ -104,7 +109,12 @@ export interface MidSim {
    *  burn, acid, the slick. Area damage (blasts, the nuke, burn, acid, the slick) arrives at exactly (e.x, e.y) with
    *  dir 0: decide what an area hit does on purpose. Pure: no allocation, no R(), no state written */
   hurt?: (e: any, d: number, hx: number, hy: number, dir: number) => number;
-  /** midLeave, once, on the frame the withdraw clock runs out (before it slides off): reset what the fight changed */
+  /** the sound of a hit that landed with share m (0 < m <= 1, from `hurt`) at (hx, hy), in place of the shared one
+   *  (hurt() in enemies/update.ts: a tink when m < 1, the hit when m is 1). Return true when it played its own, false to
+   *  keep the shared sound. Audio only: no R() (draw ar() through audio.ts sample()), no sim state written */
+  hitSnd?: (e: any, m: number, hx: number, hy: number) => boolean;
+  /** once, on the frame the withdraw clock runs out (before it slides off): reset what the fight changed. Fired by midLeave
+   *  (held kinds) and by the Saucer's own withdraw block (DRIFT); any kind with its own withdraw must call it too */
   leave?: (e: any) => void;
   /** killEnemy, when a child it spawned with `own: e` (and kid: 1) dies: a fire patch, a split, a count */
   kidKill?: (kid: any, owner: any) => void;
@@ -121,6 +131,12 @@ export function midMul(e: any, d: number, hx: number, hy: number, dir: number): 
   if (!h) return 1;
   const m = h(e, d, hx, hy, dir);
   return m > 0 ? m : 0; // NaN or undefined (a branch with no return) reads as a tink, never as NaN HP
+}
+
+/** hurt()'s hit sound: true when the kind's `hitSnd` played its own for a hit of share m, false for the shared one */
+export function midHitSnd(e: any, m: number, hx: number, hy: number): boolean {
+  const h = e.mid ? MID_SIM[e.k]?.hitSnd : undefined;
+  return !!h && h(e, m, hx, hy) === true;
 }
 
 /** what is wrong with the registry: a row with no sim file (no defineMid), a row with no art file, an art file with no

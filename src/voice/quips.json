@@ -1,0 +1,11 @@
+[
+  { "id": "calamari-served", "text": "CALAMARI SERVED", "note": "Flat waiter, a beat before SERVED, no smile (untick the pause squeeze: the beat is the joke)." },
+  { "id": "rest-in-pieces", "text": "REST IN PIECES", "note": "A eulogy at a graveside he has been to too often." },
+  { "id": "no-guts-all-glory", "text": "NO GUTS / ALL GLORY", "note": "A flat report, then the slogan read off a poster he stopped believing. Never lift on GLORY." },
+  { "id": "closed-casket", "text": "CLOSED CASKET", "note": "A coroner's note, dictated, already thinking about the next one." },
+  { "id": "heartless-ordered", "text": "HEARTLESS / AS ORDERED", "note": "Confirming a requisition form: a tick in a box." },
+  { "id": "diagnosis-terminal", "text": "DIAGNOSIS / TERMINAL", "note": "A bedside doctor with no sympathy left." },
+  { "id": "consider-discharged", "text": "CONSIDER IT / DISCHARGED", "note": "Hospital paperwork voice; leave the pun unacknowledged." },
+  { "id": "gut-feeling-confirmed", "text": "GUT FEELING / CONFIRMED", "note": "A report on what he is looking at, a pause before CONFIRMED." },
+  { "id": "dead-weight", "text": "DEAD WEIGHT / LEAVE IT", "note": "An order to a squad that isn't there, quieter on LEAVE IT." }
+]

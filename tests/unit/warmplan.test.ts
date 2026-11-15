@@ -29,6 +29,10 @@ describe('routeArt', () => {
     expect(routeArt({ ...G, stage: SLOT1_STAGE + 1 })).toEqual([]);
   });
 
+  it('wants only the boss on long4 for a committed slot whose picks are not stored yet, never a guessed home midboss', () => {
+    expect(routeArt({ stage: 0, route: ['acid', null], mb: {} })).toEqual(['maw:acid']);
+  });
+
   it('falls back to the home midboss on the short layout, which has no picks', () => {
     setLayout('short');
     expect(routeArt({ stage: SLOT0_STAGE, route: ['acid', null] })).toEqual([HOME.acid, 'maw:acid']);
@@ -115,22 +119,10 @@ describe('the wiring the plan depends on', () => {
     }
   });
 
-  it('checks the gate before any work in warmPump', () => {
-    const body = src('render/warmup.ts').split('export function warmPump')[1];
-    expect(body.indexOf('warmBlocked(')).toBeGreaterThan(-1);
-    expect(body.indexOf('warmBlocked(')).toBeLessThan(body.indexOf('timed('));
-  });
-
-  it('runs the warm-up from one place, and every WARNING goes through banner()', () => {
+  // warmPump's gate, drop and hold, and the WARNING flag through banner(), are behavioural in warmpump.test.ts
+  it('runs the warm-up from one place', () => {
     expect(src('main.ts')).toContain('startWarm()');
     expect(src('main.ts')).not.toMatch(/\bwarm(Maw|Drive|Ufo|Eyes|HeroEye)\b/);
-    expect(src('enemies/spawn.ts')).toMatch(/if \(text === 'WARNING'\) \$\.G\.warnEnd = \$\.G\.t \+ t/);
-  });
-
-  it('holds drops while a split corpse can still redraw its body', () => {
-    const body = src('render/warmup.ts').split('export function warmPump')[1];
-    expect(body.indexOf("q.k === 'half'")).toBeGreaterThan(-1);
-    expect(body.indexOf("q.k === 'half'")).toBeLessThan(body.indexOf("'drop'"));
   });
 
   it('keeps the sim out of the warm-up: no sim file imports it', () => {

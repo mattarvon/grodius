@@ -2,7 +2,7 @@
 // and 3. Each trial spawns one enemy, pins its x at 70% of the screen (the scroll keeps running, so terrain moves under
 // it) and steps the game 600 frames (10 s) with an invincible, non-firing player at x=60. Counts enemy bullets created
 // (eshots) and, for the womb, hatchlings. Averaged over N trials. The Descent 2+ revenge shots are not counted (nothing dies).
-// Usage: node tools/fire-probe.mjs <url> [N=30]       (needs the VITE dev server) [--layout short]
+// Usage: node tools/fire-probe.mjs <url> [N=30]       (needs the VITE dev server) [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, N = '30'] = process.argv.slice(2);

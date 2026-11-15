@@ -1,0 +1,8 @@
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff2" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff" is outside of Vite serving allow list.
+The request id "/home/matt/Projects/grodius/node_modules/@fontsource/grenze-gotisch/files/grenze-gotisch-latin-600-normal.woff" is outside of Vite serving allow list.
+{"st":{"state":"over","score":1243,"scroll":3538,"lives":0,"px":50,"py":143.25,"en":0,"gibs":0,"drops":0,"caps":0},"hashes":["b9dc577131","e810865081","33710fc915","145dd28657","48416fa86c","99fcecf189"],"errs":[]}
+note: 6/6 canvas hashes differ (advisory)
+PASS vs baseline @ 8ff9ba4
+exit=0 ran-on=e20eef2

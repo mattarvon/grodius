@@ -9,8 +9,8 @@
 //   midboss    where breath 1's midboss arrived and how it left
 // Biome stages are checked against the item D band (58-62 s of scroll). Orbit and Drive rows are reported only:
 // their script content is item E's.
-// Usage: node tools/stage-clock.mjs [url] [--layout long4] [--seeds 1,5,6,7,11] [--descents 1]
-//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default short) sets the entry
+// Usage: node tools/stage-clock.mjs [url] [--layout long4|short] [--seeds 1,5,6,7,11] [--descents 1]
+//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default long4 per D33) sets the entry
 //   in-page before the run, like every probe; the game's own ?layout=long flag (src/main.ts) selects the same entry.
 //   Not measured: render-only output (canvas stubbed); a mortal pilot (it never dies, so no respawn stalls); seeds 2
 //   and 3 (the parity bot's kit cannot kill the Gravity Drive, their runs time out).
@@ -104,7 +104,7 @@ for (const seed of SEEDS) {
     await p.evaluate('__tick(60)'); f += 60;
     const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, pick: !!(G && G.pick), pt: G && G.pick ? G.pick.t : 0 }; });
     if (s.pick && s.pt > 36) { await key('keydown', 'Enter'); await p.evaluate('__tick(1)'); await key('keyup', 'Enter'); }
-    if (s.st === 'shop') { if (++shops >= DESCENTS) { end = 'descents done'; break; } await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(40)'); }
+    if (s.st === 'shop') { if (++shops >= DESCENTS) { end = 'descents done'; break; } await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(1)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); // the loop shop's back takes two presses (ls1-audit) await p.evaluate('__tick(40)'); }
     if (s.st === 'over') { end = 'game over'; break; }
   }
   await p.evaluate('__flush()');

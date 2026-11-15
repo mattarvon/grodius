@@ -144,7 +144,7 @@ Because Grodius spawns are keyed to scroll position and the scroll holds during 
 
 - The stage bosses are unchanged (`boss-probe`: Maw 12.9, Crucifer 36.0, Butcher 29.7 s with a stage-1 kit). `route-probe` passed on all 4 gate routes over 2 descents, plus a forced fire → snot run: every biome's midboss spawned in both stages, with no errors, no slams and no bad hazards. `density-probe` shows breath = 0 everywhere now.
 
-#### Open Orbit midboss: THE SQUIDFUCKED SAUCER (branch `up-midboss`)
+#### Open Orbit midboss: SQUID SAUCER 2000 (branch `up-midboss`)
 A wrecked saucer gone to meat (`src/enemies/mid/ufo.ts`, art `src/render/gross/mid/ufo.ts`). WARNING at Open Orbit x 800, lands ~950 (about 45% in). Unlike the biome midbosses it **does not hold the scroll**: from its WARNING until it dies or leaves, the Open Orbit script's filler is skipped (`$.G.eat`, in `runScript`), and it is forced out by x 1840, so the last filler (1880, 1900) and the Maw's run-up always come. That's the Taisei trick ("filler shortened by the midboss time") done in scroll space: the stage stays the same length. The cost is the eaten filler's kills and pods, so it pays out as it breaks up: a pod at 66% and 33% HP, a pod for killing a whole litter, 2 on the kill.
 
 - 80 HP (×mk; 90 was unkillable naked, Matt picked 80 on 2026-10-28). Attacks: LASH (42f, a dashed line tracks you then locks; a tentacle whips ~220 px along it), VOLLEY (tumours swell 36f, then aimed 3-fans of globs), BROOD (belly hatch dilates 40f, a litter of 3+ hatchlings). Under 50%: second lash, second volley, a ring every ~2.3 s.
@@ -310,7 +310,7 @@ So the elite look and attacks cost about 0.5–1.1 ms per frame with 8 elites on
 `harness` is unchanged (Open Orbit only, never reaches a biome): st `{state: over, score: 2869, scroll: 2168}`, identical across runs. Its canvas hashes between frames 1200 and 2400 differ run to run on base too, from render-side randomness.
 
 ### 3.9 Depth scaling past the rank cap, more fire, a longer Infirmary (branch `tune-difficulty`)
-The `tools/playtest.mjs` bot (seed 11, 3 descents, bolting its contraptions) got overpowered early in Descent 2. Rank hit its 1.0 cap at stage 2-1 while the player kept growing. Bosses melted: the Saucer took 3.0 s in D2 and D3, the Bloated Bitch 5.8 s, the Dissolved Maw 5.1 s and the Mucus Maw 2.4 s. A bot that never dodges would have been hit only 0.2–0.3 times a minute. The Infirmary was nearly bought out by the 3rd visit.
+The `tools/playtest.mjs` bot (seed 11, 3 descents, bolting its contraptions) got overpowered early in Descent 2. Rank hit its 1.0 cap at stage 2-1 while the player kept growing. Bosses melted: the Saucer took 3.0 s in D2 and D3, the Bloat 5.8 s, the Dissolved Maw 5.1 s and the Mucus Maw 2.4 s. A bot that never dodges would have been hit only 0.2–0.3 times a minute. The Infirmary was nearly bought out by the 3rd visit.
 
 **Depth** (`src/depth.ts`; the knobs are in `DEPTH`). In Descent 1 every factor is exactly 1, so D1 is unchanged and `harness` st matches `main`. From Descent 2 on:
 - **`G.pow`** (`step.ts`) is the uncapped rank, `(gear power + perkPower) / 14`. `G.rank` is still `clamp(pow, 0, 1)` for everything that already used it. `over()` = `pow` + 0.035 × the levels of the bolted contraptions − 1, clamped to 0..2. Contraptions count here because they add real DPS that rank never saw.
@@ -335,8 +335,8 @@ The `tools/playtest.mjs` bot (seed 11, 3 descents, bolting its contraptions) got
 | Saucer D1 / D2 / D3 | 7.3 / 3.0 / 3.0 | 10.9 / 5.6 / 4.4 · 8.5 / 7.3 / 4.2 | 11.6 / 10.0 / 11.2 · 10.6 / 12.1 / 15.5 | D1 same, D2–3 8–15 |
 | Biome midbosses D2 | Choir 4.5, Apprentice 3.8 | Apprentice 7.2, Choir 5.5 · Apprentice 6.3, Womb 7.1 | Brood 11.9, Choir 13.5 · Brood 10.9, Womb 12.9 | 8–15 |
 | Biome midbosses D3 | Womb 5.0, Brood 5.8 | Womb 9.1, Apprentice 4.7 · Choir 3.2, Brood 9.6 | Womb 10.8, Apprentice 7.8 · Brood 13.1, Choir 15.8 | 8–15 |
-| Biome bosses D2 | Bloated 5.8, Butcher 14.5 | Butcher 14.8, Bloated 12.3 · Butcher 14.4, Dissolved 7.8 | Mucus 13.3, Bloated 18.9 · Mucus 14.3, Dissolved 16.6 | 12–25 |
-| Biome bosses D3 | Dissolved 5.1, Mucus 2.4 | Dissolved 5.3, Butcher 5.8 · Bloated 6.3, Mucus 6.5 | Dissolved 17.3, Butcher 12.0 · Mucus 16.7, Bloated 15.8 | 12–25 |
+| Biome bosses D2 | Bloat 5.8, Butcher 14.5 | Butcher 14.8, Bloat 12.3 · Butcher 14.4, Dissolved 7.8 | Mucus 13.3, Bloat 18.9 · Mucus 14.3, Dissolved 16.6 | 12–25 |
+| Biome bosses D3 | Dissolved 5.1, Mucus 2.4 | Dissolved 5.3, Butcher 5.8 · Bloat 6.3, Mucus 6.5 | Dissolved 17.3, Butcher 12.0 · Mucus 16.7, Bloat 15.8 | 12–25 |
 | Open Orbit Maw D2 / D3 | 4.7 / 5.8 | 8.6 / 7.9 · 11.2 / 6.5 | 11.9 / 9.7 · 11.9 / 17.0 | (escapes at ~28 s) |
 | Gravity Drive D1 / D2 / D3 | 42.7 / 34.7 / 29.7 | 49.9 / 37.5 / 37.1 · 58.4 / 32.6 / 38.7 | 51.5 / 36.6 / 23.8 · 51.2 / 37.5 / 38.9 | 30–45 |
 | Would-be hits/min D2 / D3 | 0.2 / 0.3 | 0.4 / 1.0 · 0.7 / 0.5 | 1.3 / 1.6 · 1.9 / 1.6 | 1–2 |

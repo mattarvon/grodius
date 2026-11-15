@@ -126,9 +126,9 @@ If Matt means scroll time only, every content number in this spec roughly double
   - `B.logs` becomes a pool (§5.5).
 - **Breath 2 safety rule.** Breath 2's WARNING must never fire while midboss A is still up. `G.mini` is a single slot and `midboss()` overwrites it (`spawn.ts:320-324`), so a collision would silently delete midboss A.
   - **Held midbosses** are already safe: `step.ts:30` holds the scroll while `G.mini && !G.mini.drift`, so `runScript` stalls.
-  - **DRIFT midbosses are not:** the scroll keeps moving while they are up. A 1080 f leave clock is about 1080 px of scroll, but breath 1 to breath 2 is only about 900 px. This hits the Saucer in Orbit slot A and the Calving Shelf (ice pool). Today only the Saucer's `UFO_GAP_END` forced exit (`src/enemies/ufo.ts:31,47,65`) protects it.
-  - **Rule 1 (layout invariant):** every DRIFT midboss gets a **stage-relative forced-exit x at least 300 px before the next WARNING** in its stage (the `UFO_GAP_END` pattern, generalised). `layout.test.ts` checks it for every layout entry.
-  - **Rule 2 (guard):** slot B's `miniWarn` (and `midboss()` itself) **defers while `G.mini` is non-null**, re-checking each frame. In normal play rule 1 means it never triggers; it is the explicit backstop. A unit test covers a DRIFT midboss in slot A on long Orbit and on a biome stage.
+  - **DRIFT midbosses are not:** the scroll keeps moving while they are up. A 1080 f leave clock is about 1080 px of scroll, but breath 1 to breath 2 is only about 900 px. This hits the Saucer in Orbit slot A and the Calving Shelf (ice pool). Today only the Saucer's `UFO_GAP_END` forced exit (`src/enemies/ufo.ts:31,47,65`) protects it. (ls1-audit: now `src/enemies/mid/ufo.ts`, and the forced exit is the Orbit row's drift entry in `src/layout.ts`, read through `ufoAt()`/`ufoGapEnd()`.)
+  - **Rule 1 (layout invariant):** every DRIFT midboss gets a **stage-relative forced-exit x at least 300 px before the next WARNING** in its stage (the `UFO_GAP_END` pattern, generalised). `layout.test.ts` checks it for every layout entry. Exception: `short` is pinned at 220 px (D20; `tests/unit/layout.test.ts` ~67).
+  - **Rule 2 (guard):** slot B's `miniWarn` ~~(and `midboss()` itself)~~ **defers while `G.mini` is non-null**, re-checking each frame. In normal play rule 1 means it never triggers; it is the explicit backstop. ~~A unit test covers a DRIFT midboss in slot A on long Orbit and on a biome stage.~~ (ls1-audit: only the slot-B call site is guarded, by `whenNoMini` in `src/biomes.ts` ~355; `midboss()` does not defer. No long-Orbit test exists, since LS1 Orbit has no slot B.)
 
 ### 3.3 Terrain movements (biome stages)
 
@@ -187,7 +187,7 @@ One noise function over 60 s reads as wallpaper. Each biome stage therefore has 
 
 **When it saves:**
 - **CP0:** at stage start (after `choose()` or the tally).
-- **CP1:** once `scroll ≥ bZ1 + 150` **and** `G.mini == null`, meaning after midboss A has died or withdrawn.
+- **CP1:** once `scroll ≥ bZ1 + 150` **and** `G.mini == null`, meaning after midboss A has died or withdrawn. (ls1-audit: on biome stages CP1 is now written 20 px before the release, `CP.preRelease`, falling back to `bZ + 150`; see "As built".)
   - Interior and Orbit stages use the equivalent anchor after midboss A's forced exit.
   - The Drive stage puts CP1 at the approach midpoint.
 - **Never** during a fight, a fork or a tally. If the game is paused in one of those, the last checkpoint stands.
@@ -222,12 +222,13 @@ One noise function over 60 s reads as wallpaper. Each biome stage therefore has 
 
 **As built (LS1-H, 2026-11-02; `src/checkpoint.ts`, `flow.ts resumeRun`, `stagebuild.ts rebuildAt`):**
 - **Pending rewards (H entry criterion 1).** The seal is stored as earned, `max(seal, seal earned by cleared)`, so a seal still queued in `G.sealQ`/`G.pend` is kept (its banner is not replayed). Queued level-up picks (`G.pickQ`) and the boost offer (`G.boostReq`) are stored as fields. No checkpoint is written while a pick is open; it waits for the pick to close.
-- **When.** Each checkpoint is written at the first step where it is safe: no midboss or boss, fork, scroll hold, tally, open pick, death or descent end. So CP0 lands about 30 frames into a stage that follows a tally. CP1 also waits until `G.pend` is empty, so a queued WARNING or set piece is never lost. Orbit's CP1 is at `x0 + gapEnd + 150` (after the Saucer's window). The Drive's CP1 is at the midpoint of `x0`-`warnX`.
+- **When.** Each checkpoint is written at the first step where it is safe: no midboss or boss, fork, scroll hold, tally, open pick, death or descent end. So CP0 lands about 30 frames into a stage that follows a tally. CP1 also waits until `G.pend` is empty, so a queued WARNING or set piece is never lost. On biome stages CP1 is written just before the release beat (`bZ - 20`, `CP.preRelease`), so a resume replays midboss A's release pod; if the safe write slips past it, CP1 falls back to `bZ + 150`. **Known limit (accepted; ls1-audit):** when midboss A is a DRIFT kind in a biome slot, the release fires before `G.mini` clears, so CP1 falls back past the release, and a resume or option-b restart there replays no release pod. Orbit's CP1 is at `x0 + gapEnd + 150` (after the Saucer's window). The Drive's CP1 is at the midpoint of `x0`-`warnX`.
 - **Where it resumes.** `cpX` is the scroll at the checkpoint. A resume skips script entries with `x <= cpX`, matching `runScript`'s `x <= scroll`, so nothing that had fired fires again. Scroll restarts at `cpX - 120`: a 120 f empty lead-in at full speed. The ship gets 280 f of i-frames.
-- **Layout.** The blob is validated under its own layout: `bx`/`route` against that layout's slot count, and `stage` against its last stage. RESUME flies that layout; the next DESCEND flies the chosen one.
+- **Layout.** The blob is validated under its own layout: `bx`/`route` against that layout's slot count, and `stage` against its last stage. RE-ENTER (was RESUME, D34) flies that layout; the next DESCEND flies the chosen one.
 - **Quit.** SURFACE (was ABANDON SHIP, D34) keeps the checkpoint (RE-ENTER shows on the title). DESCEND drops it.
-- **Option b.** A death restarts only at the current stage's checkpoint, with one life spent. The stage's deaths still count toward its grade, and the checkpoint is re-written with the life gone. A death before the stage's CP0 respawns in place.
+- **Option b.** A death restarts only at the current stage's checkpoint, with one life off the checkpoint's count (a life gained since is earned again on the replay, not kept), then costs the normal death penalty (D32; built in ls1-audit fix merge 2): guns stripped, grafts −1, power cursor reset, and the stage keeps the higher hit count for its grade. BLACK BOX or the boss-fight lifeline drops its pods by the restored ship, from the loadout that died, as option a would. The stage's deaths still count toward its grade, and the checkpoint is re-written with the life gone. A death before the stage's CP0 respawns in place. So does a death on a checkpoint with no life to take (the last life, with a spare gained since): the spare is spent and nothing rewinds, because a rewind at 0 could bring the same spare back and loop forever.
 - **Midboss picks (item F).** `G.mb` (each stage's pair, picked once), `G.mbUsed` and `G.mbLast` are stored. A rebuild reads `G.mb` back and never re-picks: the pick is weighted by `meta.mb`, which meeting the pair changed. The resume calls `biomeReset()` before restoring, so the stored state stands; the next descent's `biomeReset()` clears `mb`/`mbUsed` and keeps `mbLast`.
+- **Biomass on a replay.** `meta.bio` banks at once and survives a rewind; `G.bio` rewinds with the checkpoint. So the wallet pays only past the run's high-water mark (`economy.ts` `bankBio`, `meta.bioS`/`bioV`): a resume or option-b restart keeps everything banked, and the replayed stretch pays the wallet nothing until the run's total passes the mark. Kill pods, SURPLUS, the boost and stage-clear pay all go through it. First-kill pay is outside it: `meta.mbK` already makes it once per profile. A replayed tally still shows the stage's pay, which is the run's total, not the wallet. Purchases touch only the wallet, so they don't affect the mark. `newGame` clears the mark, and a dev jump (`G.jump`) neither reads nor writes it. This closes the biomass farm, which D28's accepted undo did not cover (ls1-audit).
 - **`meta.mb` on a replay.** A resume or option-b restart from CP0 meets midboss A again, and `meta.mb` counts that meeting again. Accepted: it is a fight the player really flew. It only weights later picks away from that body, and a CP1 restart, after midboss A, does not repeat it.
 - **Open (Matt).** "Cleared at descent end" means an app kill in the Infirmary between descents loses the run. The alternative is to write a checkpoint at the shop.
 
@@ -350,13 +351,14 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 | | The Sniffer | SPACE | Inhales for 120 f, pulling 0.35 px/f, then a sneeze fan | 110 | W1 |
 | | The Polyp | ANGLE | Face ×0.2; the sac on its back ×1; slip behind it through the strands | 100 | W1 |
 | | The Catarrh | RACE | Every 240 f alive it grows, adds a glob and cools down faster (6 steps max) | 85 | W2 |
-| **Orbit** | THE SQUIDFUCKED SAUCER | DRIFT | Existing; slot A; guaranteed in Descent 1 | 80 | E |
+| **Orbit** | SQUID SAUCER 2000 | DRIFT | Existing; slot A; guaranteed in Descent 1 | 80 | E |
 | | Derelict tug | ANGLE | Armoured nose; engines hittable from behind | ~100 | W1 (first new midboss: gives Orbit its slot B) |
 | | Tethered crewman | LINE | Pendulum swing that shows its arc | ~95 | W1 |
 | **Ship pool** (interiors and the Drive approach; per-descent exclusion) | Escape shuttle that never left | WINDOW | — | ~110 | W1 (with the first interior) |
 | | Hull crawler | RANGE | — | ~110 | W1 (with the first interior) |
 | | the Galley | CROWD | The food dispenser feeds crew to you | ~110 | W2 |
 | | Bunk Stack | SPACE | Berths that open | ~100 | W2 |
+| | THE KEEPSAKE | ANGLE | A crew kid's vinyl doll head (the kid implied, never shown); face ×0.15, only the fork wound on top takes damage, from above. Fork fountain (landing marks, a gap always), aimed fork throw; phase 2 a boomerang fork and a wail ring | 135 (D53: tuned to the 8-11 s band) | Pass-1 greybox, `wip` (D53, Matt, 2026-11-15); flown via `?mid=keepsake` until the ship pool has a spawn path |
 | **Keel** | Ribcage | WINDOW | Bars shot open first (the nailbar pattern) | ~110 | NB |
 | | Marrow Sow | SPACE | Lobs globs (a variant of the cyst lob) | ~110 | NB |
 | | Gnawer | RANGE | Chews toward you along a rib | ~100 | NB |
@@ -370,6 +372,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
   - Wave 1 is 8 biome midbosses + 2 Orbit + 2 ship = **12**.
   - Wave 2 is 4 biome + 2 ship = **6**.
   - Each new biome adds 3-4.
+  - Unplanned: THE KEEPSAKE (D53, Matt's design) is a **5th ship-pool member** (ANGLE), outside these counts. The ship pool's per-descent exclusion (§6.3) now has five kinds to draw from once the pool has a spawn path.
 - **HP and time to kill.** Base HP was first anchored to P0's stage-1 DPS estimates (Womb ≈ 10.7 HP/s, Apprentice ≈ 14.4, Choir ≈ 8.3, Brood ≈ 7.4). These are historical: they don't reproduce today's probe times (135 / 10.7 = 12.6 s against the Womb's measured 8.7 s), so tune from the probe, not from these. The current per-HP rate for the Apprentice, measured 2026-11-03, is ~14.7 HP/s (+50 HP → +3.4 s). The target is one band per kind, **8-11 s at the stage-1 kit in either slot** (D27; it replaced the per-slot bands, 8-11 s for A and 10-15 s for B), measured with `midboss-probe --layout long4`. There is no per-slot HP multiplier: D1 says HP comes only from depth. A kind outside the band is moved by its base HP on picker layouts (`src/midslot.ts` `MID_HP`; `short` keeps `ET`'s values). DRIFT kinds are exempt, because their forced exit sets the fight's length. Measured 2026-11-03 (long4, `--leave 1080`, STAGE 1 kit): Choir 10.0, Womb 8.7, Apprentice 10.2 (at 200 HP), Brood 9.5 s.
 
 ### 6.3 Selection rules (`pickMids`)
@@ -379,10 +382,12 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 **Steps:**
 1. **Descent gate:** keep members with `min ≤ L`. ANGLE and RACE members are `min: 1`, so Descent 1 shows only LINE, SPACE, RANGE, CROWD, WINDOW and the Saucer.
 2. **Never repeat within a descent:** exclude every kind **and every body** in `G.mbUsed`. That set covers the whole descent and is reset in `startLoop`. A recolour or crossover shares its parent's body for this rule.
-3. **Avoid repeating a pair:** exclude this biome's previous pair (`G.mbLast[b]`).
-4. **Weight across runs:** weight what is left by `1 / (1 + $.meta.mb[k])`, so midbosses never met come first.
+3. **Avoid repeating a pair:** the chosen pair must not be this biome's previous pair (`G.mbLast[b]`, order ignored). One member may come back. A single-slot stage must not repeat its previous pick.
+4. **Weight across runs:** weight what is left by `1 / (1 + min(2, $.meta.mb[k] − m0))` (m0 = the lowest `$.meta.mb` among the candidates still in the draw). A midboss met least comes first, with no member more than 3× as likely as another.
 5. **Draw slot A, then slot B,** with B's tag different from A's.
-6. **Fallback:** if fewer than 2 candidates are left, relax step 3, then step 1. **Never relax step 2** (Pillar 4: a repeat counts as a bug).
+6. **Fallback:** relax step 3 only when the previous pair is the only full set left, then step 1. **Step 2 is never relaxed** (Pillar 4: a repeat counts as a bug).
+
+(Steps 3, 4 and 6 changed 2026-11-07, ls1-audit fix merge 1, SUMMARY #15/#16; creative-director endorsed.)
 
 **State:**
 - Picks live in `G.mb`, not in `G.remix`. `G.remix` already mixes key types (`biomes.ts:242`, `music.ts:149`) and is split as part of the layout refactor.
@@ -390,7 +395,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 - If seeded runs (D10) ever become a goal, seeded mode must ignore `meta.mb`. When the `meta.mb` weighting is first added, the picker takes an `ignoreMeta` flag as a **no-op hook** (always false today), so D10 never forces a picker change.
 
 **What this gives:**
-- With pools of 4, the first 2 visits to a biome in a run share no midboss.
+- Back-to-back visits to a biome never fly the same pair; one member may return. A pair returns within 3 visits about 1 in 5.
 - Across runs, every pool member is met within about 2 runs per biome.
 
 **Before the new midbosses exist (phase 1 of the build).** Each biome stage **prefers** its home midboss plus one **crossover** (one of the other three existing biome midbosses), chosen by the rules above.
@@ -551,7 +556,7 @@ HP never rises with power (D1).
 
 **Targets:**
 - Two consecutive runs share at most 50% of wave signatures per stage.
-- No midboss pair repeats within 3 runs.
+- A biome's midboss pair returns within 3 visits in at most about 20-25% of seeds (measured with pools of 4: 0.20 uniform, 0.257 in the fresh-kind-against-veterans sweep). The test bound is looser: `route-probe` / `tests/unit/midpick.test.ts` sweep ≤ 0.33. (Changed 2026-11-07, ls1-audit fix merge 1, SUMMARY #15/#16; creative-director endorsed.)
 - Zero repeated bodies within a descent.
 
 ## 11. What waits on art direction round 2

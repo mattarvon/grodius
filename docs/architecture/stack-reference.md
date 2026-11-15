@@ -33,7 +33,6 @@ animation frame), and plays procedural Web Audio (`src/audio.ts`, `src/music.ts`
 | `@capacitor/app` | 8.1.2 | Pause and back-button handling (`src/main.ts`) |
 | `@capacitor/haptics` | 8.0.2 | Impact and death haptics (`src/platform.ts`) |
 | `@capacitor-community/keep-awake` | 8.0.1 | Screen stays on during play |
-| `@capacitor-community/text-to-speech` | 8.0.2 | Native voice lines (browser falls back to `speechSynthesis`) |
 
 `capacitor.config.ts`: appId `com.mattarvon.grodius`, `webDir: 'dist'`,
 `webContentsDebuggingEnabled: true` (sideload builds stay inspectable via

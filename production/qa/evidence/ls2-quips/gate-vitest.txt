@@ -1,0 +1,39 @@
+50b8e00fb3013084e47e7ba7f990fa45aa04d58f
+ M production/qa/evidence/ls2-quips/gate-typecheck.txt
+ M production/qa/evidence/ls2-quips/gate-vitest.txt
+---
+npm notice run grodius@0.2.0 npx
+npm notice run 'vitest' run
+
+ RUN  v5.0.5 ~/Projects/grodius-ls2-quips
+
+(node:3476059) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3476097) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3476166) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3476180) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3476216) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3476229) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3476235) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3476286) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3476287) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3476353) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  64 passed (64)
+      Tests  1324 passed | 1 expected fail (1325)
+   Start at  10:04:06
+   Duration  4.98s (tests 71%, transform 23%, import 5%, worker 1%)
+
+    Isolate  64 workers spawned · ~113ms startup each (spawn + environment, per file)
+             at least ~370ms faster with isolate: false — reuses workers across files instead of one per file
+
+vitest=0

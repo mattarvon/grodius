@@ -47,6 +47,7 @@ export const I = {
   down: false,
   ok: false,
   back: false,
+  hardBack: false,
   pause: false
 };
 export let padPrev = [];
@@ -67,7 +68,8 @@ export function pollInput() {
   let up = PR.has('ArrowUp') || PR.has('KeyW'),
     down = PR.has('ArrowDown') || PR.has('KeyS');
   let ok = PR.has('Enter') || PR.has('Space') || PR.has('KeyZ'),
-    back = PR.has('Escape') || PR.has('KeyX') || PR.has('Backspace');
+    back = PR.has('Escape') || PR.has('KeyX') || PR.has('Backspace'),
+    hardBack = PR.has('Escape') || PR.has('Backspace'); // back without X or pad B, which are also POWER (backstep.ts backPressed)
   let pause = PR.has('KeyP') || PR.has('Escape');
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   for (const p of pads) {
@@ -107,6 +109,7 @@ export function pollInput() {
     down,
     ok,
     back,
+    hardBack,
     pause
   });
 }
@@ -115,7 +118,6 @@ addEventListener('touchstart', e => {
   if (e.target instanceof Element && e.target.closest('.tb')) return;
   auInit();
   touch.used = true;
-  psBtn.hidden = false;
   for (const t of e.changedTouches) if (touch.id === null) {
     touch.id = t.identifier;
     touch.lx = t.clientX;

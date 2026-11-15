@@ -2,7 +2,7 @@
 // enters the biome through a real fork (openFork + gate), then walks the inserted script without stepping the game:
 // each entry runs with the scroll parked at its x and any deferred spawns (rear waves) flushed at once. Counts
 // enemies by kind (bosses, midbosses and their parts excluded) and elites, averaged over N rolls at a fixed rank.
-// Usage: node tools/kind-probe.mjs <url> [N=40] [rank=.9] [--layout short]   (needs the VITE dev server)
+// Usage: node tools/kind-probe.mjs <url> [N=40] [rank=.9] [--layout long4|short]   (needs the VITE dev server)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, N = '40', RANK = '.9'] = process.argv.slice(2);

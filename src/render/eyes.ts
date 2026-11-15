@@ -306,7 +306,7 @@ const SET = { s: null, i: null };
 /** sclera + iris for an eye; either can be null while its build waits for an idle slot (callers draw a plain stand-in) */
 export function eyeSet(iris, fire, bs, v = -1) {
   const k0 = iris + (fire ? 'f' : '') + bs, s0 = EYEC[k0];
-  if (s0) return s0; // a custom set painted into the cache (the Bloated Bitch's frozen eyes)
+  if (s0) return s0; // a custom set painted into the cache (the Bloat's frozen eyes)
   const b = sclB(bs);
   let s = SCL[b];
   if (!s) { queueScl(b); for (const k in SCL) if (SCL[k]) { s = SCL[k]; break; } pump(); }

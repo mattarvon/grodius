@@ -93,6 +93,11 @@ try {
       $.meta.mbK = {};
       for (const [k, n] of Object.entries(ok)) if (typeof n === 'number' && Number.isFinite(n) && n >= 1) $.meta.mbK[k] = 1;
     }
+    // the run's biomass mark (economy.ts bankBio): numbers only, as above; absent on an older save, which is a new mark
+    {
+      const m = d.meta || {};
+      if (typeof m.bioS === 'number' && typeof m.bioV === 'number' && Number.isFinite(m.bioV) && m.bioV >= 0) { $.meta.bioS = m.bioS; $.meta.bioV = m.bioV; }
+    }
     $.hi = +d.hi || 0;
     SET.flashes = d.flashes !== false;
     SET.asked = !!d.asked;

@@ -35,7 +35,7 @@ The risk is the opposite: the hardware props (grilles, rungs, treads) quietly lo
 - Ice: tally marks scratched on a stair riser (log: "STOPS AT 2557"); a face pressed into one Crevasse tooth every few teeth, tiny, render-only.
 - Acid: debris stuck at the rust tide line (a boot, per the log "A BOOT FLOATS PAST"), floating at the new lake height rather than the old one.
 - Fire: cut coolant-line stubs beside each vent mouth (log: "COOLANT LINES CUT BY HAND"); ash drifting upward into the mouths, which would also settle the chimney reading.
-- Snot: a chewed-looking intake grate half-sunk in one polyp (log: "THE CLOG IS CHEWING"); mucus flow streaks in the band direction so the march reads as flow, not squeezing.
+- Snot: an intake grate half-sunk in one polyp, something dark packed into its slats (log: "MY INTAKES ARE BLOCKED. SOMETHING IS IN THEM."); mucus flow streaks in the band direction so the march reads as flow, not squeezing.
 - Log hooks: one log line per movement-B entry (writer, after type and arc). Audio-director: a wet or hollow band sting per biome.
 
 ## Gameplay implications flagged to game-designer

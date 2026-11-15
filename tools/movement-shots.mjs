@@ -6,8 +6,8 @@
 //   B0/B1 min and max gap over the band; shots s<slot>-<biome>-B0/B1 mid-band, and on slot 0 -B0hold/-B1hold, the screen
 //         midboss A's hold shows (the scroll ~20 px before breath 1's end)
 //   C     min gap from the run-up + arenaBlend to the boss arena's right screen edge (bossX + 200 + W)
-// Usage: node tools/movement-shots.mjs <outDir> [url] [--layout long4]
-//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default short) sets the entry
+// Usage: node tools/movement-shots.mjs <outDir> [url] [--layout long4|short]
+//   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default long4 per D33) sets the entry
 //   in-page before the run, like every probe; the game's own ?layout=long flag (src/main.ts) selects the same entry.
 //   Not measured: live hazards, Descent 2+ terrain seeds (shots and gaps are Descent 1).
 import { chromium } from 'playwright';
@@ -19,7 +19,7 @@ const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] :
 const pos = argv.filter((a) => !a.startsWith('--'));
 const OUT = pos[0];
 let url = pos[1], server;
-if (!OUT) { console.error('usage: node tools/movement-shots.mjs <outDir> [url] [--layout long4]'); process.exit(2); }
+if (!OUT) { console.error('usage: node tools/movement-shots.mjs <outDir> [url] [--layout long4|short]'); process.exit(2); }
 fs.mkdirSync(OUT, { recursive: true });
 if (!url) {
   const { createServer } = await import('vite');

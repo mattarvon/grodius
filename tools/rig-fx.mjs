@@ -1,5 +1,5 @@
 // Contraption FX shots: plays a seeded bot run per contraption and screenshots (zoomed on the ship) the moment its effect is live.
-// Usage: node tools/rig-fx.mjs <url> <outdir> [ids] [--layout short]
+// Usage: node tools/rig-fx.mjs <url> <outdir> [ids] [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, out, ids = 'saw,gut,spine,hook,furnace,choir,leech'] = process.argv.slice(2);

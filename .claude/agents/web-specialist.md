@@ -67,7 +67,7 @@ Before writing any code:
 - Own the runtime layer: the fixed-step loop (`frame()` in `src/main.ts`), module state (`$` in `src/state.ts`, entity arrays in `src/world.ts`), input, audio, save and platform code
 - Review rendering for correctness and cost: `src/render/**`, `src/fx/**`, sprite and texture pipelines (`src/sprites.ts`, `src/textures.ts`, `src/render/gross/**` warm-up caches), post-FX ordering
 - Keep the build healthy: Vite 8 (`vite.config.ts`, `base: './'` so the same `dist/` serves Pages and the Android WebView), TypeScript 7 typecheck, the CI workflow
-- Own Android packaging: Capacitor 8 (`capacitor.config.ts`, `android/`), plugins (`@capacitor/app`, `@capacitor/haptics`, `@capacitor-community/keep-awake`, `@capacitor-community/text-to-speech`), signing and versioning together with `devops-engineer`
+- Own Android packaging: Capacitor 8 (`capacitor.config.ts`, `android/`), plugins (`@capacitor/app`, `@capacitor/haptics`, `@capacitor-community/keep-awake`), signing and versioning together with `devops-engineer`
 - Guard mobile performance: frame budget 16.7 ms at 60 Hz, allocation in hot loops, particle/gib/decal counts, canvas resolution (`autoQuality` drops a notch below ~52 fps)
 - Keep the tests meaningful: Vitest suites in `tests/unit/` (`npm run test:unit`) and the regression harness (`tools/harness.mjs`, `npm run test:regress`); advise `tools-programmer` on the Playwright rigs in `tools/`
 

@@ -1,5 +1,5 @@
 // Perk verification: against the Vite DEV server (module imports share the game's instances), grants each perk
-// and measures what it actually changes. Usage: node tools/perk-verify.mjs http://localhost:<devport>/ [--layout short]
+// and measures what it actually changes. Usage: node tools/perk-verify.mjs http://localhost:<devport>/ [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const url = process.argv[2];

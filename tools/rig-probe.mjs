@@ -1,5 +1,5 @@
 // Rig probe: seeded invincible bot plays a real run with a given Infirmary save; logs kills/biomass/rig damage.
-// Usage: node tools/rig-probe.mjs <url> <rigIds comma|none> [level] [seconds] [fire 1|0] [shotDir] [shotEvery] [--layout short]
+// Usage: node tools/rig-probe.mjs <url> <rigIds comma|none> [level] [seconds] [fire 1|0] [shotDir] [shotEvery] [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, rigArg = 'none', lvl = '1', secs = '60', fireArg = '1', shotDir = '', shotEvery = '0'] = process.argv.slice(2);

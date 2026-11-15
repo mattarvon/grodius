@@ -1,0 +1,17 @@
+npm notice run node tools/harness.mjs && node tools/harness.mjs --layout long4 && node tools/harness.mjs --scenario all
+PASS vs baseline @ 8ff9ba4
+PASS (long4) vs baseline @ 88d9525
+PASS (orbit) vs baseline @ 5c8c3eb
+PASS (saucer) vs baseline @ 5c8c3eb
+PASS (breath2) vs baseline @ ffd6b77
+PASS (drive) vs baseline @ 5c8c3eb
+PASS (maw-d1) vs baseline @ 5c8c3eb
+PASS (maw-d3) vs baseline @ 5c8c3eb
+PASS (drive-d1) vs baseline @ 5c8c3eb
+PASS (drive-d3) vs baseline @ 5c8c3eb
+PASS (crux-d1) vs baseline @ 5c8c3eb
+PASS (crux-d3) vs baseline @ 5c8c3eb
+PASS (butcher-d1) vs baseline @ 5c8c3eb
+PASS (butcher-d3) vs baseline @ 5c8c3eb
+12 scenario(s) in 100 s
+harness=0

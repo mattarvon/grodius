@@ -7,10 +7,11 @@
 //  - boot:   BOOT_ART, held for the whole session. Every descent flies Orbit and the Drive, and the eyes are shared.
 //  - route:  once choose() commits a slot, its picked midboss pair and its boss. Art is keyed by stage, so the
 //            previous stage's art leaves the plan at startStage of the next one and gets dropped.
+//  - wound:  wound:<b> for every biome visited this run (G.bvis), held until a new run (render/wounds.ts).
 //  - WARNING: warmBlocked() holds every build and drop from a WARNING banner, or a stage's warnX, until its fight is over.
 // =====================================================================
 import { HOME } from './midpick';
-import { row, stageOfSlot } from './layout';
+import { layout, row, stageOfSlot } from './layout';
 import { ROSTER } from './enemies/mid/roster';
 
 /** built at boot and never dropped, in build order: what the title's idle time should reach first */
@@ -25,19 +26,26 @@ export interface WarmRun {
   stage: number;
   route?: readonly (string | null)[] | null;
   mb?: Readonly<Record<number, readonly string[]>> | null;
+  /** earlier visits per biome this run (biomes.ts choose()); 1+ means a later fork may lead to its wound look */
+  bvis?: Readonly<Record<string, number>> | null;
 }
 
 /** the art keys the route needs now: for every committed slot from the current stage on, its midbosses and boss.
- *  Picker layouts read the stored picks G.mb[stage]; short has none, so its stage gets the biome's home midboss */
+ *  Picker layouts read the stored picks G.mb[stage], and a slot with none stored yet wants only its boss: the picker
+ *  has not chosen, so its home midboss would be a guess (warm work wasted, or dropped and rebuilt). Short has no
+ *  picks, so its stage gets the biome's home midboss, the one biomes.ts spawns there */
 export function routeArt(G: WarmRun | null | undefined): string[] {
   const out: string[] = [];
   if (!G || !G.route) return out;
   G.route.forEach((b, s) => {
     const i = stageOfSlot(s);
     if (!b || i < G.stage) return;
-    const mids = (G.mb && G.mb[i]) || (row(i) ? [HOME[b]] : []);
+    const mids = (G.mb && G.mb[i]) || (!layout().picker && row(i) ? [HOME[b]] : []);
     for (const k of [...mids, BOSS_ART[b]]) if (k && !out.includes(k)) out.push(k);
   });
+  // the wound look (LS2-read item 2, render/wounds.ts): from the moment a biome is first chosen a remix of it can come up,
+  // and its gate portal shows the wound, so it is built before the next fork and held for the rest of the run
+  if (G.bvis) for (const b of Object.keys(BOSS_ART)) if ((G.bvis[b] || 0) >= 1) out.push('wound:' + b);
   return out;
 }
 

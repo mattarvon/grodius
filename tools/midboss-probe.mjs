@@ -1,11 +1,11 @@
 // Midboss probe: time-to-kill for each biome midboss (docs/pacing.md 3.2) across boss-probe's loadout tiers, with the
 // Maw midboss (maw(false)) as the yardstick. Each fight runs inside its real biome (fork gate taken, terrain rewritten,
-// palette on); THE SQUIDFUCKED SAUCER (ufo) runs in Open Orbit at its real scroll x, with the scroll moving (it doesn't hold it)
+// palette on); SQUID SAUCER 2000 (ufo) runs in Open Orbit at its real scroll x, with the scroll moving (it doesn't hold it)
 // and its forced exit before the Maw's run-up. Invincible bot parks at x=90 and tracks the midboss's y, holding fire.
 // Usage: node tools/midboss-probe.mjs <url> [shotsDir] [zoomDir]   (also saves a rendered mid-fight midboss-<kind>.png, and a close-up)
 //        node tools/midboss-probe.mjs <url> matrix [shotsDir]   (LS1 P0 crossovers: each of the 4 biome midbosses in each of
 //        the 4 biomes, STAGE 1 kit; TTK, y range, terrain clipping, render errors, and a mid-fight xmb-<kind>-<biome>.png)
-//        Either form takes [--layout short]. World x comes from src/layout.ts: the biome fights sit in biome slot 0, at
+//        Either form takes [--layout long4|short]. World x comes from src/layout.ts: the biome fights sit in biome slot 0, at
 //        stage-relative x 1000 (matrix: 1000 / 1400 / 1800 / 2200), and the Saucer at ufoAt() + 150.
 //        --leave <frames> spawns every midboss on that leave clock instead of today's 1400 f (LS1-F: the long4 slot
 //        clocks are 1080 for slot A and 1260 for slot B, src/midpick.ts MID_CLOCK); the Saucer keeps its forced exit.
@@ -13,6 +13,10 @@
 //        a fight's numbers don't depend on which kinds ran before it (a new roster row moves no other column). Unseeded: as before.
 //        --ord <stage> sets G.stage to that stage ordinal just before the spawn, so depth HP and fire cadence read it
 //        (LS1-G: long4's intra-descent depth; --ord 2 = biome slot B's depth on slot A's terrain). Off: the fight's own stage.
+//        The bot aims at e.y + e.wy when a kind sets e.wy (its weak spot's y offset: an ANGLE kind's top wound, the
+//        KEEPSAKE's), else at e.y; --centre makes it aim at e.y always (the face-camping TTK of an ANGLE kind).
+//        The matrix also flies every non-biome kind with a roster `fit` (one a test path puts in biome slots, the
+//        KEEPSAKE's ?mid=) in each biome, with no home column.
 //  TTK = seconds from the midboss being on screen to dead; "esc" = it left (escape timer) first
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
@@ -27,6 +31,7 @@ const si = process.argv.indexOf('--seed'), SEED = si >= 0 ? +process.argv.splice
 if (SEED != null && !Number.isInteger(SEED)) { console.error('--seed needs an integer, e.g. --seed 1'); process.exit(2); }
 /** a fight's own seed: n, the loadout and the kind hashed (FNV-1a), so fights are independent of each other's order */
 const fightSeed = (pw, k) => { let h = 0x811c9dc5 ^ SEED; for (const c of JSON.stringify(pw) + '|' + k) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h | 0; };
+const ci = process.argv.indexOf('--centre'), CENTRE = ci >= 0 && !!process.argv.splice(ci, 1);
 const argv = process.argv.slice(2), MATRIX = argv[1] === 'matrix';
 const [url, SHOTS, ZOOM] = MATRIX ? [argv[0], argv[2]] : argv;
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: ZOOM ? 2 : 1 });
@@ -44,7 +49,7 @@ const L = [
 const isBiome = (r) => BIOME_POOLS.includes(r.pool), HELD = ROSTER.filter(isBiome), REST = ROSTER.filter((r) => !isBiome(r)); // the registry, WIP kinds too
 const MIDS = [['maw', 'acid'], ...HELD.map((r) => [r.k, r.pool]), ...REST.map((r) => [r.k, null])];
 // one loadout + biome, midboss spawned; returns a frame stepper with the bot attached
-const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && await p.evaluate((n) => window.__reseed(n), fightSeed(pw, k)), p.evaluate(async ([pw, gm, pkk, k, biome, host, at, LEAVE, ORD]) => {
+const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && await p.evaluate((n) => window.__reseed(n), fightSeed(pw, k)), p.evaluate(async ([pw, gm, pkk, k, biome, host, at, LEAVE, ORD, CENTRE]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
   const UF = await import('/src/enemies/mid/ufo.ts'), LY = await import('/src/layout.ts');
@@ -77,7 +82,7 @@ const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && 
       const g = m.$.G.mini;
       if (!g || g.dead) return g && (g.gone || g.x > m.C.W + 50) ? 'esc' : ((m.f - Math.max(0, m.t0)) / 60).toFixed(1);
       if (m.t0 < 0 && g.x < m.C.W - 20) m.t0 = m.f;
-      const y = m.C.clamp(g.y, 8, m.C.PH - 8), P = m.$.P;
+      const y = m.C.clamp(g.y + (CENTRE ? 0 : g.wy || 0), 8, m.C.PH - 8), P = m.$.P; // e.wy: a weak spot off centre
       P.hist.unshift({ x: 90, y }); if (P.hist.length > 80) P.hist.pop();
       Object.assign(P, { x: 90, y, alive: true, inv: 30 }); m.$.G.pick = null; m.$.G.pickQ = 0;
       m.ST.step(); m.f++;
@@ -85,7 +90,7 @@ const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && 
     return null;
   };
   return +$.G.rank.toFixed(2);
-}, [pw, gm, pkk, k, biome, host, at, LEAVE, ORD]));
+}, [pw, gm, pkk, k, biome, host, at, LEAVE, ORD, CENTRE]));
 if (MATRIX) await matrix();
 const out = {}, rank = {};
 for (const [name, pw, gm, pkk] of L) {
@@ -118,7 +123,7 @@ console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('midboss-p
 
 // ---- LS1 P0: the 4x4 crossover matrix (home fights on the diagonal) ----
 async function matrix() {
-  const KS = HELD.map((r) => [r.k, r.pool]), BS = BIOME_POOLS;
+  const KS = [...HELD, ...REST.filter((r) => r.fit)].map((r) => [r.k, isBiome(r) ? r.pool : null]), BS = BIOME_POOLS;
   const res = {};
   const AT = [1000, 1400, 1800, 2200]; // stage positions (stage-relative x in slot 0): different terrain under the fight
   for (const [k, home] of KS) for (const biome of BS) for (const at of AT) {

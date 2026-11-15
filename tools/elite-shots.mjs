@@ -1,7 +1,7 @@
 // Elite + remix shots: elites (enemies/elite.ts) next to normal enemies in each biome, an elite swelling for its
 // pustule shot, an elite taking a hit (flash), and a repeated-biome stage (remix) flown for real with the ship firing.
 // Same approach as tools/newenemy-shots.mjs: live modules in headless Chromium, real spawn functions, biomes entered
-// through openFork. Usage: node tools/elite-shots.mjs <url> <outDir> [--layout short]   (biome scenes in slot 0 of src/layout.ts, at stage-relative x; needs the VITE dev server)
+// through openFork. Usage: node tools/elite-shots.mjs <url> <outDir> [--layout long4|short]   (biome scenes in slot 0 of src/layout.ts, at stage-relative x; needs the VITE dev server)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';

@@ -250,6 +250,16 @@ Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `produ
 
 **D30 status:** S2-K1 is still open. Midboss+8 p95 at 4× is down 16-21% but still misses 16.7 ms. It is decided by Matt's Fold reading of this build (`production/qa/fold-reading.md`), which comes before the D31 merge.
 
+### D36 ls2-mv's four questions: the recommendations — 2026-11-07 (Matt)
+
+Matt: "go with the recommendations".
+1. **Set-piece repeats (60% same-biome against ≤50%):** each biome grows to 7 set pieces once D31 has fixed the slot count. That is a follow-up content lane after the D31 merge, with level-designer, art-director and technical-artist.
+2. **Signature piece:** not guaranteed. On a biome's first visit in a run, its signature piece is weighted ×2. Owner: the D31 tune lane, because the change moves long4 picks and D31 re-baselines long4 anyway.
+3. **Icicles ×.7:** read as the interval, as built.
+4. **Snot throat walls:** static, as built.
+
+Also started on Matt's say-so: the LS1 fix lane (`ls1-audit`) and the D31 tune lane (`ls2-d31`).
+
 ### D37 Orbit stretch +2400 px — 2026-11-07 (Matt)
 
 **Decision point:** the long4 Open Orbit stretch in `d31-stretch.md` (the D31 tune lane): +2400 px, sized for the derelict tug's held slot B, or +2700 px, sized for an Orbit with no held midboss while the tug is WIP-gated (producer).
@@ -257,13 +267,219 @@ Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `produ
 **Reason:** Matt.
 **Category:** design_rules
 
+### D38 "Still very linear": the fork becomes a decision, builds get trade-offs — 2026-11-07 (Matt)
+
+Matt played a full run on the wave 1 build (`abf85c1`, long4, before D31): "its getting more challanging and a little more rewarding, but still very linear".
+
+**The crew.** Nine roles diagnosed it: game-designer, level-designer, systems-designer, economy-designer, narrative-director, ux-designer, ai-programmer, art-director and audio-director. Then creative-director and producer combined their reports. Their reports are kept in the LS2 wave 2 crew notes.
+
+**Diagnosis.** Wave 1 added variety that the run draws for you, not choices the player makes:
+- The fork is blind and nearly forced. A gate shows only a name, unvisited biomes are offered first, and the ship auto-picks after 15 s.
+- Power arrives unchosen. 22 of the 24 perks are pure upside, grafts and seals come on a schedule, and pods apply themselves.
+- Every biome stage is one corridor with the same beat template.
+- Nothing records the player's choices, on screen or in sound.
+- Every Descent 1 meets all 4 midbosses.
+
+**Decided** (Matt: "sounds good" to creative-director's recommendation):
+1. **Now, render and audio only (lane `ls2-read`):**
+   - gate plates show the stakes: the biome perk the gate unlocks, and a REVISIT/REMIX tag;
+   - remix visits look damaged ("wound states");
+   - midboss and boss music intensity in biome stages, and kill sounds per biome;
+   - paper specs for the choice lane.
+2. **After D31 merges, as one "choice" lane:**
+   - perks with costs;
+   - build-aware perk offers;
+   - a midboss pod pick of 1 from 2;
+   - choosing your seal unlock;
+   - fork pay.
+
+   Nothing is folded into D31, which keeps short identical and keeps the Fold reading clean.
+3. **The gate midboss preview** follows fix merge 1, and ships with the first new midboss kinds.
+4. **In-stage structure waits:** split lanes, pockets, beat variants and reactive midboss attacks come after D31 and the pool lanes.
+5. **The pool lanes go breadth first,** starting with kinds that can appear in Descent 1 (`min: 0`): Cryosleeper, Reclaimer, Kindling or Spit, and Sniffer. Then every Descent 1 stops meeting the same 4.
+
+**The crew's shared "don'ts":** no more forks or gates while the plates show nothing; no random content as the answer to "linear"; no more free upside; no hidden director; and keep each biome tied to its boss.
+
+**Open, for game-designer then Matt:**
+- The Orbit tug is ANGLE, so `min: 1`. Give it a `min: 0` exception for the Orbit slot, or build the tethered crewman (LINE) first? Otherwise Descent 1 Orbit never gets its slot B (D37).
+- Does slot A's home preference still hold once a biome has two pool members?
+- At-risk biomass, where unbanked biomass is lost on death, needs a decision.
+
+### D39 Tone: evil, not cartoonish; gore and darkness — 2026-11-07 (Matt)
+
+Matt: "it should be more evil and not cartoonish", then "need gore, and darkness". He approved creative-director's tone note (LS2 wave 2 crew notes, `tone.md`).
+
+**Pillar 5: "comedy in comms only".** The MERIDIAN, its creatures, bosses, gore, art, sound, music and log text play malevolent body horror straight: dark, wet, anatomical, never cartoonish. The one release valve is deadpan gallows humour in the comms callers and kill banners. `design/game-brief.md` :35 and :83 rewritten, with follow-ons at :21, :76, :78 and :84.
+
+**Voice:**
+- Keep `stop-killing-me` (CREWMAN #5 // DECEASED) and `lesley-yeah-baby` (LESLEY, MISSION CONTROL).
+- Shelve `hell-yeah` (SGT. RAMROD SLAB) and `sfriend` (SURF CONTROL) to `src/sfx-shelved/`. Cut the surfer flyby and its "EXCELLENT WORK, BABY!" bubble. The VOICE rows stay so a clip can be un-shelved. An empty voice bank is silent, with no TTS fallback.
+
+**Approved strings:**
+- Kill banners: 10 THAT ONE / HAD A NAME; 20 CLEAN-UP CREW / IS NOT COMING; 35 WE WILL NEED / A BIGGER BAG; 50 FILE IT / UNDER LOSSES; 75 THE GATE / KNOWS YOUR NAME; 100 YOU ARE / PART OF IT NOW. CARN: MESSY becomes OPENED.
+- Names: THE DROWNED LANDER (was the Squid Saucer), THE BLOAT, SEVERED, TAKEN DOWN.
+  - *Later (Matt, 2026-11-09):* the Saucer is SQUID SAUCER 2000 (D48) with kill word CALAMARI SERVED (D49). It is the single pun exception, Matt's call, and no precedent: every other name and kill word stays in this register. *Amended in D52: CALAMARI SERVED is still the only pun kill word, and also one line in SLAB's quip pool.*
+- LS2 names, in docs and specs only for now: THE EXPECTORANT (Spit), THE SCENT ORGAN (Sniffer), CHARON-6 (the tug), CREWMAN #2 // TETHERED.
+- Log, perk and menu lines as listed in the tone note §4(A) item 9.
+
+**Worklist A (render, audio and copy; lane `ls2-read`):** greybox rebuilt as a dark angular mass with a lit split; lime out of the cyst and pink out of gore; `silly` shelved; pick, power, alarm, hype and UI sounds re-voiced darker; Jello clips out of `snot`; fart menu nav replaced; interim music lowpass, drive and rate .94; the voice list above; the kill banners and copy. **Midboss, boss and banner renames wait for fix merge 2** (the warm-up WARNING gate keys off banner text today, and parity records midboss titles).
+
+**Worklist B (a later tone lane, in this order):** the darkness pass with a new Orbit backdrop (highest perf risk, profile on the Fold); the gore pass (anatomical gibs, spatter, persistence); the core midboss rebuild with a motion pass; the music replacement.
+
+**Stays:** D25 (no screen-space splats over the play field). **Inviolable:** enemy bullets and hazards stay lime with a dark outline, unlit and on top, and must read on the phone outdoors. Darkness, gore and fog never dim, cover, move or recolour them.
+
+### D40 LS1 fix merge 1 merged — 2026-11-08 (parent; Matt authorized parent merges)
+
+**What merged** (ls1-audit, `abf85c1..5fa8663`):
+- the midboss picker fixes: gap-to-least-met weighting capped at 3:1 (#15), with only the exact previous pair excluded (#16);
+- the harness tool fixes: `breath2` slot B no longer skips silently (#8), and `--update` refuses failed runs (#9);
+- D33 in CI: FLAKY fails it, typecheck blocks it, and cancel-in-progress applies to PRs only;
+- the backdraft and pincer rear-wave clamp, sampled over the whole flight (closes D35 accepted S2 #1);
+- Matt's bug: the touch back controls, plus Android back stepping one level, with a two-press exit at the title root ("PRESS BACK AGAIN TO LEAVE");
+- registry hardening: `import './enemies/mid'`, the top-level rule in `src/CLAUDE.md`, and the DRIFT leave hook;
+- D36.
+
+**Gates on `25b61af`:**
+- typecheck: clean.
+- vitest: pass, plus 1 expected fail.
+- short harness: PASS; parity: 7 of 7 identical.
+- scen: 12 of 12 PASS; long4: PASS, with no re-baseline.
+- build: OK.
+- resume ×3: PASS.
+- back-check: PASS.
+- set-shots: 0 buried, 0 crossed.
+- The first scen and long4 runs crashed on a Vite reload from the dependency cache shared between worktrees. It was not a sim diff. The rerun passed.
+- Fixup 27d699c (exit prompt moved under LAB, menuBlip): back-check ok with the shots re-taken; short PASS; parity 7 of 7 identical; typecheck clean; vitest 888 plus 1 expected fail.
+
+**Studio review:**
+- 5 specialists (web-specialist, ux-designer, systems-designer, qa-tester, level-designer), all 8 leads and all 3 directors gave APPROVE WITH NOTES. No blocks.
+- Two S2s were fixed before the push: the exit prompt overlapped the credits (art-director, localization-lead), and a CHANGELOG entry was missing (release-manager).
+
+**Rollback point:** tag `pre-ls1-fm1` on `abf85c1`.
+
+**Owned items:**
+1. The rear hatch filler lands about 20 px into breath 1 (acid, snot) and about 60 px into snot's run-up (`biomebeats.test.ts` `it.fails`). **Owner:** game-designer, before any LS2 lane builds on the breaths.
+2. long4 dies in Orbit before any fire stage, so set-shots is the only evidence for the rear clamp. **Owner:** qa-lead. D31's re-baseline must include a run that reaches the fire stages.
+3. Set a per-worktree Vite `cacheDir`. **Owner:** devops-engineer, before parallel lanes run gates again. Also make the harness name a mid-run reload (`harness.mjs:132`).
+4. Matt to check the two-press exit on the Fold, in the same session as the Fold reading; record the build sha in `fold-reading.md`. The two-press exit was built before Matt decided ux Decision 2. It is cheap to revert.
+5. The title's fart cursor samples go against D39. ls2-read replaces them.
+6. Backlog:
+   - one shared REAR constant (lead-programmer);
+   - the spec's "about 1 in 5" against the measured 0.257 (systems-designer);
+   - the rough `bigBtn` edge, with amber kept for warnings that cost something (art-director);
+   - a string table with a 340 px footer limit (localization-lead).
+
+**Merge order from here:** ls2-read (rebased), then fix merge 2 (audio-director re-reviews `audio.ts` after its rebase onto ls2-read), then D31 after the Fold reading.
+
+### D41 Title eye is ROT; Matt's head is an easter egg; eye kit baked — 2026-11-08 (Matt)
+
+**Decision:** concept #7 ROT replaces the title's bloodshot eye ("we have to use #7 ROT for the title screen"). Matt's self-portrait head goes on the title, ending as a tiny easter egg that peeks in at the edges ("much smaller, like an easter egg floating around the corners"), with the gross eye fully covering his real left eye. He approved the capture ("looks cool merge it").
+
+**Why:** D39. The old lime iris and pink veins read as cartoon. ROT plays the eye straight, and a blind cataract that still follows you is the evil version.
+
+**Consequences:**
+- ROT is an explicit exception to the tone note's "no single big eye". It is for the title only: an in-game eye is a part of a body, or small fodder (art-director).
+- The head went big with heavy blood first, then Matt shrank it. The pool, gush and "tons of blood" rulings are withdrawn, so no drip cap above 24 was needed.
+- The eye moved to x 396, r 88, so the wordmark's S now reads. The title's old `hangSpine` calls are gone.
+- Five kit sprites are baked and wired into nothing, because Matt picks the in-game uses. Candidates are ranked in `production/qa/evidence/ls2-eye.md`.
+- Render only: harness and parity do not move.
+- The head's source photo and its generator stay out of the repo; only the baked PNG ships.
+
+**Open:** Matt's in-game kit picks.
+
+### D42 LS2-read merged — 2026-11-08 (parent; Matt authorized parent merges)
+
+**What merged** (ls2-read, `93e595b..939d5f3`):
+- gate plates that show the stakes (D38 item 1);
+- remix wound states;
+- music intensity, the per-biome kill layer and the drone bed;
+- `design/choice-spec.md`;
+- tone worklist A (D39);
+- the review fixes.
+The held renames are not in it.
+
+**Gates on the fixed tree:** typecheck, vitest and build pass. The full harness passes with no `--update`: short @8ff9ba4, long4 @88d9525 and all 12 scenarios. Parity is 7/7 identical, including `musicPlan`. The logs are `production/qa/evidence/ls2-read/fix-*.txt`.
+
+**Studio review:**
+- 2 independent specialists (web-specialist, technical-artist), all 8 leads and all 3 directors gave APPROVE WITH NOTES. Nothing blocked.
+- 5 S2s were fixed before the push:
+  - the kill-layer throttle key;
+  - the `fart_ok` swaps, with `fart_nav` and `fart_ok` shelved;
+  - the HYPE[20] line re-voiced;
+  - the dead babe and nativeSay code removed;
+  - the cheap S3s.
+- The reports are in the parent scratchpad, `review/read/`.
+
+**Rollback point:** tag `pre-ls2-read` on `93e595b`.
+
+**Owned items:**
+1. **The held-rename commit.** It follows fix merge 2 and must not slip. Owners: narrative-director, then a parity re-baseline. It carries all of these:
+   - THE BLOAT (now visible on a choice plate);
+   - the remaining HYPE banners (HELL YEAH / BROTHER! at 10);
+   - the SGT. RAMROD SLAB fallback face on the 20-chain caption (show no face);
+   - CARN MESSY → OPENED;
+   - SEVERED;
+   - TAKEN DOWN;
+   - THE DROWNED LANDER;
+   - snot `sub`.
+2. **Merge 2 (ls1-audit) is blocked until its rebase onto this is fixed** (technical-director). VOICE_CAP removes `voices`, which the kill layer reads, and that throws inside the update on device. The rebase must:
+   - use `LIVE.length <= KILL_LAYER.maxVoices` (10);
+   - keep the kill layer non-prio with no `fb`;
+   - add a Vitest that stubs AudioContext and calls `sfx.gore` in each biome;
+   - re-run the full harness and parity;
+   - get audio-director's re-review of `audio.ts`.
+3. **TTS dependency removal:** its own commit after the renames, with `npm uninstall` and `cap sync`, a CI APK build and a device boot check. Owners: web-specialist and devops-engineer.
+4. **For Matt:**
+   - an ear check before merge 2 lands: intensity, the kill layers, the fart replacements (`drivegut`, `gross_gargle`, `gross_slosh`), whether the boss bed pumps the SFX, the sour sting, and the title pops;
+   - the choice-spec §7 questions;
+   - SNOT ROCKET, SHAMALAMA and KEYSTER;
+   - "Does ALTERED look more dangerous?" (creative-director: keep the damage, add one threat light per wound in worklist B).
+5. **Worklist B,** proposed after D31: the darkness pass with a new Orbit backdrop, then the gore pass, then the midboss rebuild, then music.
+6. **D38 ("still very linear") stays open** until the choice lane's fork pay lands.
+
+### D43 LS2-eye merged — 2026-11-08 (parent; Matt: "looks cool merge it")
+
+**What merged** (ls2-eye, `586b183..bf076a5`). It is render-only:
+- the ROT title eye (D41), as four baked layers with a hitching gaze and a membrane blink;
+- Matt's self-portrait as a tiny bleeding easter-egg head that drifts along the title's edges;
+- `src/titlelayout.ts`, the single source of the title's no-go rects;
+- the eye kit, baked into `src/sprites/kit/`, not shipped and wired to nothing;
+- `tools/gen_eyes.py`.
+
+The head's generator and source photo are kept outside the repo, at `~/Pictures/grodius-head/` on Matt's machine.
+
+**Gates on bf076a5.** These ran on the `src` and `tests` trees stamped in the logs:
+- typecheck: clean;
+- vitest: 985 pass, plus 1 expected fail;
+- short harness: PASS;
+- parity: 7 of 7 identical.
+
+The parent built the merged tree before the push: `vite build` exit 0, `dist` 44,814,542 bytes.
+
+**Studio review.** All APPROVE or APPROVE WITH NOTES, with no blocks:
+- 2 specialists (web-specialist, ux-designer);
+- all 8 leads;
+- all 3 directors.
+
+S2s fixed before the push:
+- the gate logs on the rebased tip;
+- the shared title layout and no-go rects;
+- the head generator given a durable home;
+- the measured build (technical-director).
+
+**Wordmark.** The shipped title keeps the house blackletter, as on main. Matt's preview had shown a serif fallback by mistake. Matt was shown the real frame; he hadn't replied at push time, and creative-director and art-director prefer the blackletter.
+
+**Rollback point:** tag `pre-ls2-eye` on `586b183`.
+
+**Owned items:**
+1. **Kit picks.** Matt picks. art-director and game-designer write one sheet first, and eyes 3-5 must sit embedded in flesh. If none is picked by the end of LS2, delete the kit.
+2. **Help/credits overlap** (START PAUSE vs SPRITES:). This predates the lane. ux-designer files it, and it is fixed through `titlelayout.ts`.
+3. **ROT reads as a planet and moon in stills.** art-director adds a faint pupil, or rim of meat, before any marketing capture. The head's eye should also shift toward ROT's tallow.
+4. **Fold reading checklist** (producer): the title, the armed prompt, ROT memory (about 0.5 MB more than before), merge 2's items, and S2-K1. Due before D31.
+5. **Typed-in text widths and rail ends.** Re-measure them whenever title copy changes.
+
 ## Open
 
-- **ls2-mv's four questions (Matt).** game-designer's recommendation is in brackets.
-  1. A 60% same-biome set-piece share against the ≤50% target [grow each biome to 7 pieces, after D31 fixes the slot count].
-  2. A guaranteed signature piece [no; weight it ×2 on a first visit].
-  3. Icicles ×.7: the interval or the rate [the interval, as built].
-  4. Snot throat walls: static or moving [static, as built].
 - **Movement-B terrain varies by seed?** It is the same across seeds today (level-designer).
 - **The Calving Shelf's leave clock under the D31 stretch** (wave-2 DRIFT kind).
 - **Where the shelved voice lines go.** audio-director and creative-director back KEYSTER on an S-grade boss clear and SHAMALAMA on a new best chain.
@@ -304,3 +520,413 @@ Owner: the LS1 fix lane, with devops-engineer for the CI changes. Source: `produ
 - **D16 Audio direction.** Drone under music, UI synth pass, sliders vs VOICE toggle, music size (38 MB).
 - **D17 Art direction.** Bitmap strips vs vector enemies; public `assets-raw` provenance manifest.
 - **D18 Canon.** The descent/time-loop explanation, the missing 7 years, the Infirmary in the fiction.
+
+### D44 LS1 fix merge 2 merged — 2026-11-08 (parent; Matt authorized parent merges)
+
+**What merged** (ls1-audit, `547926e..b153400`):
+- the resume contract: biome CP1 is written just before midboss A's release pod; the run-save decoder bounds every
+  field; IMPORT SAVE clears the run save;
+- D32: an option-b death pays the normal death cost. Lives come off the checkpoint's count; BLACK BOX and
+  boss-lifeline pods drop again by the restored ship; when the checkpoint has no life to take, the player respawns
+  in place (option a) so a re-picked spare can't loop the run (systems-designer delta review);
+- no biomass re-bank on a replay after RE-ENTER (bankBio high-water mark per run seed);
+- voice priority (VOICE_CAP, LIVE list; priority cues evict the oldest ordinary voice); the kill layer proved against
+  the cap;
+- the WARNING flag on banner(); warm-up hardening;
+- HUD text outlined instead of a strip and plate; HI/STAGE/DEPTH at #cfd9e3; KILLS counter below the LV row;
+  vent/chimney glow out of the HUD band; the snot throat lip pulses;
+- picker m0 per draw (spec §6.3); bandFit clamp; copy NO REWARD and PRESS BACK AGAIN TO DESCEND;
+- tools: probes default to long4, resume-check, bio-replay-check, biome-kill-check.
+
+**Gates.** On a675dd5/b153400: typecheck 0; vitest 1113 + 1 expected fail; short and long4 harness PASS (canvas
+hashes differ, advisory: the HUD colour); 12/12 scenarios; resume-check PASS; option-b page rig PASS. Parity, back,
+bio-replay and biome-kill checks last passed on b127be3 (only flow.ts and tests changed since). The parent built the
+merged tree before the push: `vite build` exit 0, `dist` 44,817,798 bytes.
+
+**Studio review.** All APPROVE or APPROVE WITH NOTES, no blocks: specialists, all 8 leads, delta reviews
+(art-director on the HUD colour, systems-designer on the lives clamp: its block fixed in a675dd5), and all 3
+directors.
+
+**Rollback point:** tag `pre-ls1-fm2` on `547926e`.
+
+**Owned items:**
+1. technical-director: rerun parity once on main; before any harness re-baseline, confirm only the HUD rows' pixels
+   changed. The bandFit clamp, picker m0 and CP1 anchor are a known harness coverage gap.
+2. creative-director S3s: rename the combo counter CHAIN (KILLS means two things); the tone debt on main (acid vat
+   skeletons, yellow snot orbs, orange-white jets) goes to the tone lane.
+3. Matt: on the Fold, the HUD colour and outline, phone profiling, RE-ENTER of a pre-merge save, an option-b death;
+   by ear, the Maw and Drive deaths, siren + stinger, WARNING.
+4. The held-rename commit (D42) owns the midboss-title parity re-baseline.
+
+### D45 Every boss gets a realistic, gross repaint; Maw and Saucer picked — 2026-11-08 (Matt)
+
+Matt, playing through: the Maw and the Squidfucked Saucer "look vector and generic"; then "have the art dept look at
+all of the bosses. need to upgrade all of them. more realistic, more gross shit".
+- From a 7-and-7 concept picker, Matt picked **Maw c1 Lamprey Disc** (a lamprey oral disc of hooked teeth, eyes in
+  the gill pores) with a CC0 vintage dental-plate teeth source (rawpixel 6266016) for its tooth rings, and
+  **Saucer c3 Natural-History Plate** (an ivory scratchboard specimen engraving on black, blood the only colour;
+  George Shaw's cuttlefish, CC0).
+- The LS2-bossart lane (art-director leading) audits all ten bosses and midbosses, offers 6 directions per remaining
+  boss (one in the engraving style), then builds Matt's picks as baked sprites, render-only, gameplay unchanged.
+
+### D46 Boss picks built; content cut in the repaint — 2026-11-09 (Matt)
+
+Matt picked the remaining seven bosses from the LS2-bossart picker: **crux c5 Engorged Frost Leech, butcher c1 The Split
+Side, drive c3 Spine Wheel, choir c3 The Enucleated Eye, cyst c2 The Torn Placenta, prentice c2 Grown Into the Blade, brood
+c3 Tapeworm Knot** (Maw and Saucer: D45). All nine are built as baked, animated art, render only (LS2-bossart report:
+`production/qa/evidence/ls2-bossart.md`).
+
+Content, Matt: "cut it in the repaint" (no hotfix on main):
+- the Womb's child figure and kicking limb removed (the new Womb is placenta, cord and membrane only);
+- the Butcher's breasts removed (the old art deleted);
+- the small figure in the snot-biome egg pods replaced by a dark clot;
+- the child-sized skeletons in the acid tanks replaced by one adult body per tank; adult corpses and gore stay;
+- Matt's call **b** ("b, looks cool merge it"): the acid-tank bodies fade out while THE DISSOLVING WOMB is up and back after
+  it dies, because a tank skull over the placenta read as the boss's head (art-director block, cleared on recheck).
+
+**D46 addendum (parent, 2026-11-09).** To clear art-director's recheck block, call b was extended: the hanging acid
+corpses (hooks and the gantry crewman, full and drained visits) also fade while THE DISSOLVING WOMB is up, and the
+Womb's cord lip was re-baked as dark meat (a pale stump read as a face). Only while the Womb is up; told to Matt.
+
+### D47 LS2-bossart merged — 2026-11-09 (parent; Matt: "b, looks cool merge it")
+
+**What merged** (ls2-bossart, `eede936..01736aa`): all nine boss picks (D45, D46) as baked, animated atlases in
+`src/sprites/boss/`, drawn by `src/render/gross/baked.ts` and per-boss modules; the old `gross/biomebosses.ts` deleted;
+the D46 cuts; the Womb tank fade (`src/render/tankfade.ts`, tested); the painters in `tools/bossart/` (the committed PNGs
+are the source of truth; photos stay in git-ignored `assets-raw/`). Render only: no sim file changed.
+
+**Gates** on code tip 03d041c, clean tree: unit 1117 pass; harness short and long4 PASS; 12 scenarios PASS; layout-parity
+PASS; rng-probe 11/11 fights identical. Option-b proof retained: `production/qa/evidence/ls2-bossart/d46-womb-fade.jpg`.
+The parent built the merged tree before the push: `vite build` exit 0, `dist` 46,178,713 bytes (APK about +1.4 MB).
+
+**Studio review.** In-lane art-director and technical-artist sign-off (the frame-time block fixed). All 8 leads
+APPROVE or APPROVE WITH NOTES except qa-lead, whose BLOCK (gates on the rebased tip; no option-b proof) closed in
+95fa2e5/03d041c/01736aa. creative-director, technical-director and producer APPROVE WITH NOTES. Licensing:
+91 photos (CC BY 2.0/4.0, CC0, PDM) plus 3 sources, all in CREDITS.md, no NC/ND.
+
+**Rollback point:** tag `pre-ls2-bossart` on `eede936`.
+
+**Owned items (backlog, S3):**
+1. art: the Saucer reads clean and dry; keep the current flesh-and-tentacle art and push it darker with rim grime in
+   Worklist B (restated in D48: "waterlogged" came from the dropped DROWNED LANDER name); the emoji-like
+   round skulls in `biomeart.ts`; Butcher and Apprentice value lift against the fire biome; the acid Maw's belly too
+   pink; the shared kill burst hides the first death frames.
+2. Matt decides: the Nail Choir's single eye against D41's no-single-big-eye rule (narrative-director, creative-director).
+3. tech: atlas onerror retry and a bounded ready-wait at the boss gate (a slow phone can open on the fallback mass);
+   pin PIL and hash the photos; crux and gravity frame time on the perf backlog before release.
+4. release: spot-check ~5 Flickr CC BY rows and the 4 creatorless rawpixel rows before a tagged release.
+5. Matt on the Fold: does any boss open on the fallback mass.
+
+### D48 Held renames and SQUID SAUCER 2000 merged — 2026-11-09 (Matt: "start the held renames and change the squidfucked saucer to Squid Saucer 2000"; parent merge)
+
+**What merged** (ls2-names, `44890d2..22c803c`): D42 owned item 1, all of it, with one swap on Matt's instruction.
+- The Open Orbit midboss is SQUID SAUCER 2000 (roster `name`; the 12-character probe `label` stays SQUID SAUCER; code key
+  `ufo` unchanged). Its kill word is SEVERED, per D39.
+- THE BLOAT (gate plate FROZEN // BLOAT, HP bar); TAKEN DOWN for both stage bosses; OPENED at a 5-chain; HYPE 10/35/50/
+  75/100 to the D39 lines; the chain caption with no voice shows no face and no tag; the Sinus sub IT IS BREATHING. YOU
+  ARE IN THE AIRWAY; CREDITS.md, README, docs, tool docstrings and tests follow. Old QA evidence is left as history.
+- `tests/unit/warngate.test.ts`: the warm-up WARNING gate keys off the banner `warn` flag, not its text.
+
+**Naming exception.** SQUID SAUCER 2000 is Matt's named exception to Pillar 5 for this one name only. It overrides D39's
+THE DROWNED LANDER, does not reopen D39, and is not precedent for THE EXPECTORANT, THE SCENT ORGAN, CHARON-6 or any later
+name. Later lanes must not "fix" it. Read "2000" as a MERIDIAN model number; the fight, art, sound and death stay straight
+horror. SEVERED stays unless Matt asks for a kill word to match. *Closed in D49: Matt asked for CALAMARI SERVED.*
+
+**Gates** on 22c803c: typecheck 0; vitest 1122 pass plus the 1 known `it.fails` (qa-lead re-ran both); build 0; harness
+short, long4 and 12 scenarios PASS with no `--update`; layout-parity 7/7 against a baseline edited for the two titles
+only (19 values; qa-lead proved the old file with the names swapped is byte-identical to the new one). The parent
+build-checked the merged tree. Evidence: `production/qa/evidence/ls2-names.md` and `ls2-names/`.
+
+**Studio review.** In-lane narrative-director, web-specialist and qa-lead. All 8 leads and all 3 directors APPROVE WITH
+NOTES; no block. The S2s (CHANGELOG closes the 2026-11-08 known issue; this exception record; D47 item 1 restated) are
+done in this merge.
+
+**Rollback point:** tag `pre-ls2-names` on `44890d2`.
+
+**Owned items (backlog, S3):**
+1. README: the pre-D39 audio text at :111 and the Orbit midboss in the Mini-bosses list, folded into the D42 item 3 TTS
+   commit (web-specialist). The TTS removal is next.
+2. Screenshots (qa-lead, next pass): the 75- and 100-chain captions (shrunk to fit), THE BLOAT on HP bar and plate, the
+   Sinus card, the SQUID SAUCER 2000 HP-bar title beside the score.
+3. Playtest reads (game-designer): OPENED as an unlock, FILE IT / UNDER LOSSES as "you are losing". Change only on a
+   real misread.
+4. Hype window polish (web-specialist; art-director, audio-director spec; after D31): a dead-feed mark on the faceless
+   window ($.T only, no srnd()), a plate or outline behind the caption, the caption jitter off when blind, a comms-open
+   static tick, the stale comments at `hype.ts`:166-172 and :188.
+5. The VOICE `hell-yeah` -> SGT. RAMROD SLAB row (`hype.ts`:173): retag or drop when the hype bank is re-recorded.
+6. qa hygiene from the next lane: export BANNER_T; gate logs start with the commit and `git status`; keep the vitest
+   tail; build logs keep only the tail. Evidence size: smaller shots (WebP/JPEG) before the first tagged release.
+7. Glossary, when a string table exists: "2000" stays literal digits; each HYPE pair translates as one unit.
+8. tools (lead-programmer; tell localization-lead): key the layout-parity dump's `minis` on the roster `k`, not the
+   display title, so copy changes stop moving the parity baseline; note the 22c803c title substitution in the
+   baseline's `commit` field when it is next touched.
+
+### D49 LS2-tts merged — 2026-11-09 (Matt: "yes and keep CALAMARI SERVED"; "stop killing me ... too often", picked once per stage on corpses; parent merge)
+
+**What merged** (ls2-tts, `1f7f142..d7ad788`):
+- SQUID SAUCER 2000's kill word is CALAMARI SERVED again (`src/enemies/mid/ufo.ts`:168). Matt's override of D39's SEVERED for
+  this one enemy; the code comment says so. No other kill word follows it.
+- D42 owned item 3 closed: `@capacitor-community/text-to-speech` removed from package.json, the lockfile and the two gradle
+  files (hand-edited to match what `cap sync` generates; CI runs `npm ci` + `cap sync`). A guard test fails if it returns.
+  README audio text and Mini-bosses list brought up to date (D48 item 1); the plugin also dropped from the two studio stack
+  docs (`.claude/agents/web-specialist.md`, `.claude/docs/technical-preferences.md`) by the parent in the merge.
+- The corpse plea ("stop killing me") plays at most once per stage, on corpse kill 1-5 picked by an integer hash of stage
+  and loop (`src/enemies/corpsevoice.ts`; no R()/srnd() draw). `corpseN`/`corpseVo` live in `G.st`: reset per stage, kept
+  through checkpoints, RE-ENTER and death restarts. Quiet stages are accepted (game-designer, creative-director).
+
+**Gates** on 54f574f (logs start with the sha): typecheck 0; vitest 1132 pass + the known `it.fails`; build 0; harness
+short, long4 and 12 scenarios PASS with no `--update`, `st` identical; parity 7/7. qa-lead re-ran typecheck and vitest.
+The parent build-checked the merged tree.
+
+**Studio review.** In-lane web-specialist x2 and devops-engineer. All 8 leads and all 3 directors APPROVE WITH NOTES; no
+block. S2s fixed in the merge: the README corpse line, the lane report's popup-overlap sentence (SEVERED did not overlap;
+CALAMARI SERVED covers "FIR" of FIRST KILL +100) and its `cap sync` claim, boot-check step 8, the CHANGELOG entry.
+
+**Open:** Matt's device boot check of the CI APK (`production/qa/evidence/ls2-tts.md`, steps 1-8, including whether once a
+stage still feels too often). In the main checkout first: `git pull`, `npm ci`, `npx cap sync android`, expect a clean
+`git status android/`. If the APK fails to boot, revert 86a639f on its own.
+
+**Rollback point:** tag `pre-ls2-tts` on `1f7f142`.
+
+**Owned items (backlog, S3):**
+1. ui-programmer: move the score popup clear of the kill-word banner; a measureText shrink-to-fit in `banner()` (hud.ts:225).
+2. game-designer: per-stage corpse counts in a probe, the measured quiet-stage rate, a 3-6 range comment on
+   `CORPSE_VOICE.span`; mixing `G.seed` into the hash is optional. Next lever if still too often: a per-descent cap.
+3. sound-designer: spend the stage's plea only when the clip actually sounds (audio-side only, never via `G.st`); add the
+   plea to the prio-cue comment at audio.ts:139.
+4. qa-tester: a vi.mock test that a corpse kill calls `corpseKilled` with `prio: true`; a RE-ENTER-after-restart check.
+5. web-specialist: extend the TTS guard to package-lock.json and add `speechSynthesis` to the bundle grep.
+6. gameplay-programmer: move the inline comment above update.ts:670. writer: README :85-86 mixes stage bosses into the
+   Mini-bosses heading.
+7. localization-lead, once i18n is scoped: kill-word keys (CALAMARI SERVED: "rewrite the joke") and voice-line captions.
+
+### D50 Matt is SGT. RAMROD SLAB; the voice booth — merged 2026-11-09 (parent; Matt: "I am RAMROD SLAB", "ramrod slab, through the comms", "laptop mic for now and booth")
+
+**Decisions (Matt, 2026-11-09):**
+- **SLAB returns as Matt's own caller.** This reverses D39's shelving of SGT. RAMROD SLAB as a caller. He speaks every new
+  recorded line: hype10-100, bossreward (TAKEN DOWN), the midboss kill words (`kill-ufo/brood/choir/cyst/prentice`) and
+  OPENED (`carn5`), in a flat, low, gallows-deadpan register, never a hype yell (creative-director). The kill words and
+  OPENED play through the comms window, which keeps them inside Pillar 5's release valve. The old `hell-yeah` clip stays
+  shelved; its VOICE row maps to SLAB (settles D48 item 5).
+- **His face** is Matt's 8-bit head (picker take 2, option 2, 48x52, eye straightened; "I like it"), a separate sprite
+  `src/sprites/slab@3.png`; the six aliens stay for other callers. Only the baked sprite is in the repo; the generator and
+  the source photo stay outside it. Canon: SLAB and the title easter-egg head (D41/D43) are one man.
+- **D9 closed: record.** Recording moves from RecForge -> Google Drive to a dev-only booth (`tools/booth/`, `npm run dev`,
+  `/booth.html`): the script comes from the game's strings, takes are cleaned with ffmpeg to -12 LUFS and saved as
+  `src/sfx/<folder>/<line>-matty-<n>.ogg`, raw takes go to git-ignored `assets-raw/voice/`, and a dev-only `?vox=` hook
+  plays a line in game. Nothing of the booth reaches dist or the APK (dist grep: 0 hits).
+- **Game over** drops voice lines still waiting and lets the talking one finish; a new game or the title stops all voice
+  (game-designer and audio-director's recommendation, told to Matt).
+
+**What merged** (ls2-slab `a70bddf..6e85b81` and ls2-booth on top, tip `a889b75`, off `c8ed43b`): one voice at a time
+(a kill word waits 0.45 s after the death and queues behind a talking line; OPENED at most every 20 s and skipped when the
+comms is busy); voice lines pass the 15-sound cap by evicting an ordinary sound; voice gain jitter 0.95-1.05; empty
+folders stay silent with no window. No sim change: `sample()` draws only the audio RNG.
+
+**Gates** on 8e6319a (logs start with the sha): typecheck, vitest 1195 + the known `it.fails`, build + dist grep, harness
+short/long4/12 scenarios with no `--update`, parity PASS (a first parity run failed from a stale dev server after a booth
+keep in `src/sfx/`; it passed on a fresh server). The parent re-ran build, typecheck and vitest on the merged tree.
+
+**Studio review.** In-lane art-director, technical-artist, web-specialist x2, qa-tester x2, security-engineer,
+tools-programmer, ux-designer, audio-director. All 8 leads and all 3 directors APPROVE WITH NOTES; no block. The lead S2s
+were fixed in 35720c3; this record is the directors' S2.
+
+**Rollback point:** tag `pre-ls2-voice` on `c8ed43b`.
+
+**Next (Matt's time):** record the 13 SLAB lines in the booth from the main checkout (check PipeWire isn't running its own
+echo-cancel or noise module first); then audio-director's listen-check (pumping, hiss, length, "is it deadpan?") and
+`git status src/sfx` before the takes are committed as one batch with a hierarchy pass; then qa-lead's real midboss-death
+check (jaw open and shut, the real caption font, gore masking on the Fold speaker). No SLAB line is done until that passes.
+
+**Owned items (backlog, S3):**
+1. Matt decides after hearing dry takes: a runtime radio filter on SLAB (band-pass ~250 Hz-4 kHz, light saturation, never
+   baked into takes) (audio-director).
+2. A max wait (~1-1.5 s) for queued ordinary lines, with a test; measure lateness first (audio-director, game-designer).
+3. Gore masking the kill word: listen first, then an SFX bus and dip only if needed (audio-director).
+4. Booth: export and test `realDir()` and the POST/DELETE paths; 4xx for client faults; flag stale takes whose slug no
+   longer matches the text; typecheck `tools/booth`; test every wired slot against VOICE_CAT (qa-tester,
+   tools-programmer, lead-programmer).
+5. Slab art in the off-repo generator: 2-3 darker gore values, a 1 px frame gutter (technical-artist; art-director signs).
+6. Delete the dead vector `drawSlab` (hype.ts:9-60, hell.ts:112); caption/audio mismatches (a kill word under a HYPE
+   caption, a banner ending before its queued word) with D48 item 4 (gameplay-programmer, ux-designer).
+7. D18 canon: Matt's face is both the title head and SLAB (narrative-director, writer).
+8. Strip $HOME paths from committed gate logs; smaller evidence PNGs (release-manager).
+
+
+### D51 Voice booth chain after Matt's first takes — merged 2026-11-09 (parent; Matt: "yes set the levels and do the booth change")
+
+**Why.** Matt's first three takes clipped: the laptop mic had +60 dB of gain (Internal Mic Boost +30, Capture +30, source
+100%). audio-director's listen verdict: redo all three; the input was the cause, and the chain also lifted room noise into
+the gaps. The parent set the source to 40% (about -24 dB); PipeWire drives the boost on this path and set it to 0.
+
+**What merged** (ls2-booth2, `98d07f2..7ad5725`, tools/booth and tests only; no game code, nothing in dist): an expander
+between phrases (room average + 15 dB, capped 8 dB under speech, 150 ms release; gaps land about -37 to -41 dBFS); a raw
+clip guard at -0.5 dBFS per channel (the raw is still saved); a length warning (target + 0.5 s; never refuses); a pause
+squeeze (pauses over 0.4 s to 0.25 s, per-take checkbox, default on, the choice saved with the take); meter band -10..-6 with
+HOT at -3 and CLIP at -0.5; reprocess (booth button and `node tools/booth/reprocess.mjs`) over kept raws, skipping clipped
+raws and deleted takes. README: the real input level and "unhurried, fewer pauses, not a faster read".
+
+**Ruling (creative-director):** on CALAMARI SERVED the joke wins over the length target: untick the squeeze and keep the
+beat before SERVED, LONG warning accepted. Squeeze default on is right for SLAB's other lines.
+
+**Gates** on e012f37: typecheck, vitest 1235 + the known `it.fails`, build + dist grep 0 hits. The parent re-ran all three
+on the merged tree. Harness not needed (no src/ change).
+
+**Studio review.** In-lane audio-director, tools-programmer, qa-tester. All 8 leads (localization: no impact) and all 3
+directors APPROVE WITH NOTES; no block. Lead S2s fixed in e012f37.
+
+**Rollback point:** tag `pre-ls2-booth2` on `98d07f2`.
+
+**Next (Matt):** restart the dev server; one test line to confirm peaks land -10..-6 at 40%; re-record the clipped slots;
+audio-director listen (expander tails on real voice) and narrative-director listen (deadpan, one hype line squeeze on/off)
+before the keepers are committed as one batch with their own studio pass. Reprocessed .ogg files always get their own
+commit.
+
+**Owned items (backlog, S3):** B1 meter readability (art-director spec, tools-programmer); B2 flat-top clip warning
+(audio-director); B3 squeeze rules: cap long pauses at 0.4 s, default off for slots with no length target, the ufo note
+says untick (decide after the listen); B4 quiet-take expander release; B5 a 4-pole lowpass if hiss is heard; B6 code health
+(extract processTake, skipWhy coupling, RAW_RE match, brittle source pins, queue/422 test; one writeTake() if a third caller
+appears); B7 kill-word timing probe and proportional slack (game-designer); B8 smaller spectrogram PNGs; B9 per-locale voice
+limits if dubbing is ever in scope.
+
+### D52 SLAB's quips — merged 2026-11-10 (parent; Matt: "add calamari served and some other random cheesy one liners I can customize as needed in the sound booth"; picked "On big moments")
+
+**Ruling (creative-director, narrative-director).** SLAB's quips are puns Matt authorized: flavour inside Pillar 5's comms
+valve, not a tone exception. A line is a quip only if all four hold: Matt's own voice as SLAB; the comms window with the SLAB
+tag; only after a midboss or stage-boss kill; never over the player's death. A deadpan (D50 register) line in
+`src/voice/quips.json` that meets those is in tone, and later tone lanes must not "fix" it. Matt may add, edit or delete quips
+in the booth without a studio pass on the text; the takes still need the D50/D51 audio and narrative listen. No precedent for
+names, kill words, banners, HUD, log or lore text. CALAMARI SERVED stays the Saucer's kill word (D49, the only pun kill word)
+and is also a quip. This amends D39 and D48's "single pun exception".
+
+**What merged** (ls2-quips, `ae0d137..f020135`): `src/voice/quips.json` (CALAMARI SERVED plus 8 seed lines with delivery
+notes; ids stay stable when the words change, and old takes are flagged stale); a booth Quips section (add, edit, delete,
+record into `src/sfx/quip-<id>/`, squeeze off by default); the trigger: after a midboss kill word (chance .3) or a stage-boss
+kill (.5, GATE SEALED included), a shuffle bag (each quip once before repeats), never the kill word just said, skipped when
+the comms is busy or it would start more than 2.5 s (midboss) / 3.6 s (stage boss) after the death, dropped by any other
+voice line, silent with no takes. **Death cut** (the parent's default, told to Matt; all leads and directors agreed): a quip
+talking when the player loses a life or at game over fades out; kill words still finish (D50). Audio RNG only; harness and
+parity unchanged. `?vox=quip` test hook (dev only).
+
+**Gates** on 50b8e00: typecheck, vitest 1324 + the known `it.fails`, build + dist grep, harness short/long4/12 scenarios,
+parity, all with no `--update`. The parent re-ran typecheck, vitest and build on the merged tree.
+
+**Studio review.** In-lane writer, narrative-director, audio-director, security-engineer, qa-tester, tools-programmer,
+gameplay-programmer. All 8 leads and all 3 directors APPROVE WITH NOTES; no block. Lead S2s fixed in 50b8e00.
+
+**Rollback point:** tag `pre-ls2-quips` on `ae0d137`.
+
+**Next (Matt):** restart the dev server; record quips in the same SLAB session as the other open lines; one audio + narrative
+listen (-12 LUFS, deadpan, quip level against the kill word); booth stale count 0; one batch commit with a studio pass. That
+batch is the documented playtest: a real midboss kill and a real stage-boss kill into a quip, shot in a real build and once on
+the Fold. "SLAB quips" goes into the player changelog only with that batch.
+
+**Owned items (backlog, S3):** a shared SLAB_MIX, quip no louder than the kill word (audio-director); un-duck the music when a
+quip is dropped (audio-director, gameplay-programmer); BOSS_READOUTS from one source or pinned (lead-programmer); stubbed-AU
+tests for the busy/lateness branches and `?vox=quip` (qa-lead, qa-tester); a pre-push stale-take check if quips are edited
+often (release-manager, tools-programmer); playtest watch: DEAD WEIGHT / LEAVE IT read as "skip the pod", the real heard rate
+(game-designer); an optional per-quip "after" list so CALAMARI SERVED follows tentacled kills (narrative-director, if Matt
+wants it); i18n when scoped: quips.json in the inventory, the no-repeat rule keyed on ids, transcreation, captions vs
+subtitles (localization-lead).
+
+### D53 THE KEEPSAKE, a ship-pool ANGLE midboss, pass 1 (wip) — 2026-11-15 (Matt designed it; branch `keepsake`)
+
+**What.** Matt's own midboss, added outside the §6.2 plan as a fifth ship-pool member (the pool's planned four are
+WINDOW, RANGE, CROWD and SPACE; ANGLE was free): a crew kid's vinyl baby-doll head grown to midboss size, a silver
+dinner fork rammed into the soft spot. Its face takes x.15; only the crown round the fork (hits at or above the crown
+line) takes full damage. Fork fountain (one column always on the ship's x, one lattice column always empty), aimed
+fork throw; phase 2 a boomerang fork and a slow wail ring. Kill word PUT TO BED. Pass 1 is a greybox and the row is
+`wip: true`, `min: 1`. Base HP 135, above the ANGLE peers' 95-100: after the review's fixes the invincible probe bot
+on the wound killed 100 HP in 6.5 s; at 135 it is 9.4 s at the stage-1 kit (matrix 8.4-9.3 s; band 8-11 s, D27). The
+bot never dodges the fountain, so real fights run longer; face-camping escapes at the stage-1 kit.
+
+**The `?mid=<kind>` test path.** Ship-pool kinds have no spawn path yet, so `?mid=<wip kind>` puts the kind in slot A
+of every biome stage on a picker layout, any descent (`lab.ts` forcedMid, `midpick.ts` forceSlotA, `biomes.ts`
+stageMids). It is live on any web build, ungated like `?mids=wip` (only the `&stage=&x=&kit=` jump is dev-only).
+Slot B keeps its pick unless it shares the forced kind's tag, then slot B is dropped. A finished or unknown kind is
+ignored, so the query can't change a shipped run, and a forced wip kind still leaves the profile alone (no meta.mb,
+meta.mbK or first-kill pay). ~~**Accepted for now:** the APK can't reach it (no query string, no LAB row).~~
+**Closed 2026-11-15 (branch `keepsake-lab`):** the LAB (ungated, like its `mids=wip` row) gained FORCE MID, which
+cycles off / each wip kind in roster order and feeds the same `midForce` path (a `?mid=<wip kind>` query wins over
+it), and, while a kind is forced on a picker layout, JUMP TO MID: the dev URL jump
+(`?stage=<first biome>&x=<slot A WARNING - 30>&kit=mid`) built in-game (`jump.ts` `midJump`), so the phone starts
+at the fight's WARNING. The jump seals the run-save slot (the player's checkpoint is kept) until the next DESCEND or
+RE-ENTER. Off by default: a fresh save, the harness and the probes fly unchanged. The title's LAB row names the forced
+kind (every run flies it until it is cycled off).
+
+**Test change.** `midreg.test.ts`'s "flag alone never moves a run" guard now skips only while a BIOME-pool row is
+wip, so a wip ship-pool row keeps it running (qa-lead block, resolved).
+
+**Studio review** ran on acae07e: 8 leads + 3 directors. lead-programmer and technical-director APPROVE WITH NOTES;
+qa-lead BLOCK (the guard above), resolved; game-designer, art-director, narrative-director and creative-director
+APPROVE WITH NOTES; audio-director, localization-lead, release-manager and producer APPROVE WITH NOTES. Fixes: the
+fountain anchored on the ship, the fall shown to the floor, the wail tell to 44 f, the fork shown in the wound, the
+boomerang's enemy-fire glow, 3 px locked line and chevrons, the crown rule made y-only (no bolt/laser dead band).
+
+**Pass 2 art.** From photos of Matt's own unmarked antique doll. Only the baked PNGs ship; the source photos stay in
+git-ignored `assets-raw/keepsake`. Tied to D7 (licensing and consent): Matt owns the doll and the photos.
+
+**Matt's decisions (2026-11-15).** (A) **Material: vinyl**, like his own doll (not porcelain or bisque). Face hits
+read as a dull rubbery thud, not a tink: pass 1 keeps the shared dim-flash / x.15 path and its sound; pass-2 audio is a
+vinyl thud on the face and a wet squelch on the wound. (B) **Child line: imply only.** The absent kid is the horror and
+is never shown: no child figure, face, handprint or name tag, and nothing that frames the doll as the child's
+remains (the D46 line, held in pass 2).
+
+**Pass-2 art landed (2026-11-15, branch `keepsake-art`; `wip` stays on until Matt approves).** Matt's direction on
+seeing the greybox: face forward, no wig, "creepy as shit", imply only. `tools/prep_keepsake.py` bakes
+`src/sprites/keepsake@6.png` (48x58: eyes open / half / shut, with the fork's slot or the wound gaping) and
+`keepsake-fork.png` from the front photos: one face cut-out, the bald dome rebuilt from the forehead's vinyl, the
+half-lidded and shut sockets transplanted onto the front photo's sockets (no frame-to-frame shift), the fork, brain,
+crack, seepage, mould and yellowed grade painted in. The eyes are the tell: it dozes half-lidded at rest and never
+opens them there; wide open means an attack is coming. The sprite is matched to the existing fit and hitbox (crown
+at -24, wound at (2, -24), the crown line -13 across the upper dome): no sim change. Boot art (sprites.ts), so
+`warm()` builds nothing.
+
+**Deferred:** a ship spawn path, then `wip` off (a re-baseline);
+the kill word's caption key; the player CHANGELOG entry at pass 2.
+
+**Pass-2 audio (2026-11-15, branch `keepsake-audio`).** Seven procedural banks from `tools/gen_keepsake_sfx.py`
+(`src/sfx/keep_*`, 22 files, ~160 KB): fork tink on terrain (4; the first of a run full, the rest quieter, 40 ms
+throttle), the throw's whoosh-and-shing (3; also the fountain's burst, pitched up), the boomerang whirr out and back (2),
+the wail as a doll's tilt crier, "ma... maaa", warped and gargling, its second cry on the ring's release (2), the vinyl
+face thud (4), the wound squelch (4), the sleep-eye clack, open on every tell and shut back at idle (3). Levels matched
+to the shared sounds they replace (ebur128). Two generic hooks, no kind special case in shared code: `MidSim.hitSnd`
+(hurt()'s tink/hit) and an enemy shot's `land` (shots.ts terrain strike). Audio only: no `R()`, rng-probe SAME.
+
+### D54 Booth fx-dsp + booth-ui, recorded after the fact; reprocess-parity correction — 2026-11-15 (retroactive studio review)
+
+**Why.** fx-dsp and booth-ui merged (`b76a52b..27b47d3`, tools/booth, tests and a devDependency only; no game code) with
+no decision-log entry. The retroactive Studio Hierarchy review ran 2026-11-15 and found the merge's one false claim: that a
+take kept with one of the original sixteen effects reprocesses the same.
+
+**What merged (fx-dsp).** The rack grew to 40 effects and 49 presets (vocoder, convolution rooms, reverse reverb,
+harmony, formant, tape speed, stutter, wah, comb and others). The graph first brings the take to `FX_LEVEL` (-20 LUFS)
+so the level-dependent effects treat a quiet take and a loud one alike; new effects carry a gain trim (`COMP`). A racked
+take gets up to 8 dB of makeup over 3 passes (`VOX.fxMakeup`, `VOX.fxPasses`; a clean take keeps one 3 dB pass), then the
+faster limiter releases `VOX.fxRelease` (40, 20 ms) if still short, and the ceiling comes down if the encode passes
+`VOX.fxPeak` (-0.5 dBTP). Tails end `FX_TAIL` (0.3 s) past the voice, faded.
+
+**What merged (booth-ui).** wavesurfer.js 8.0.4 (BSD-3-Clause), an exact-pinned devDependency, imported at runtime from
+`/node_modules/wavesurfer.js/dist/` by URL through `tools/booth/wave.ts`: not in `dist/` and not in the APK (the plugin is
+`apply: 'serve'`). Waveforms and spectrograms, the A/B preview deck, live metering, the grouped rack, user presets.
+
+**Correction (reprocess parity).** `fx.ts` said the original sixteen effects reprocess the same. They don't: the FX_LEVEL
+pre-gain, rubberband instead of asetrate + atempo for pitch and octave, the vibrato padding, echo and cave tails cut and
+faded, and the racked-take makeup all change the render. Reprocessing the shipped DESCEND take
+(`startgame/grodius-bitch-matty-1`, Hive mind) would make it 123 ms shorter, -1.5 dBTP instead of -0.4, and 0.3 LU
+quieter. It was not reprocessed. The booth-followups fixes: the comment now says what is true; every new keep's record
+carries `"chain": 2` (`FX_CHAIN`); a reprocess that would rewrite an unstamped racked take, or an Apply FX over any
+unstamped take, stops before touching anything with "this will change a shipped take: listen first" (the booth asks with
+a confirm, `reprocess.mjs` exits 3 unless `--yes`); a golden test pins the Hive mind graph with take info as production
+builds it (the old test without take info stays); CI installs Ubuntu's ffmpeg and checks it has rubberband, so the real
+ffmpeg sweep runs there (a missing ffmpeg now fails on CI instead of skipping); the vibrato NaN workaround has a 10-run
+repeat test; a preview aborts the renders of the one it replaced (the server kills their ffmpeg); the GAIN chip includes
+the rack's pre-gain (GRODIUS BITCH read +31.3 dB, about 8 dB low).
+
+**Studio review.** Studio review (retroactive): booth fx-dsp + booth-ui (b76a52b..27b47d3) - 13 roles, 0 BLOCK; APPROVE WITH NOTES (security/injection clean, wavesurfer not in dist/APK, optimizer bypassed); open: reprocess parity claim false for Hive mind (DESCEND -123 ms, -1.1 dBTP) - fix fx.ts:213 + test :252, CI ffmpeg skip unverified, decision-log entry missing, CLOSED CASKET take 2 needs D52 listen; booth tests 139/139 with ffmpeg.
+
+**Rollback point:** `eb4fc47` (the last commit before fx-dsp).
+
+**Next (Matt):** the D52 audio + narrative listen for CLOSED CASKET take 2 before it is committed with the quip batch.
+Don't reprocess DESCEND (or any take kept before fx-dsp) unless you mean to change it; if you do, listen first and commit
+the new .ogg on its own. The first CI run after merge shows whether Ubuntu's ffmpeg passes the real sweep.

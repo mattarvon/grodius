@@ -1,6 +1,6 @@
 // Gore shots (LS2 S2-K1): the same seeded heavy kill and Maw death every run, so a render change can be judged side by side.
 // Saves full-frame PNGs named <tag>-<scene>-f<frame>.png and prints the live gib count by kind at each one.
-// Usage: node tools/gore-shots.mjs <url> <outDir> <tag> [--layout long4]   (needs the VITE dev server: imports live modules)
+// Usage: node tools/gore-shots.mjs <url> <outDir> <tag> [--layout long4|short]   (needs the VITE dev server: imports live modules)
 // Not measured: boss deaths other than the Maw, and any biome but snot (heavy kill) and acid (Maw).
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';

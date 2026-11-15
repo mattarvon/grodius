@@ -56,7 +56,7 @@ describe('labOf', () => {
   it('fills defaults and drops unknown values', () => {
     expect(labOf(null)).toEqual(LAB_DEFAULT);
     expect(labOf({ layout: 'sideways', mids: 1, cp: 'z', extra: 5 })).toEqual(LAB_DEFAULT);
-    expect(labOf({ layout: 'long', mids: 'wip', cp: 'b' })).toEqual({ layout: 'long', mids: 'wip', cp: 'b' });
+    expect(labOf({ layout: 'long', mids: 'wip', cp: 'b' })).toEqual({ layout: 'long', mids: 'wip', cp: 'b', mid: '' });
   });
 });
 
@@ -74,19 +74,19 @@ describe('LAB storage', () => {
   it('persists a toggle under grodius.lab, outside the meta and run saves, and reads it back after a reload', async () => {
     const first = await load({ 'grodius.v1': '{"meta":{"v":3}}' });
     first.setLab({ layout: 'long', cp: 'b' });
-    expect(JSON.parse(first.ls.map.get('grodius.lab')!)).toEqual({ layout: 'long', mids: '', cp: 'b' });
+    expect(JSON.parse(first.ls.map.get('grodius.lab')!)).toEqual({ layout: 'long', mids: '', cp: 'b', mid: '' });
     expect(first.ls.map.get('grodius.v1')).toBe('{"meta":{"v":3}}');
     const again = await load(Object.fromEntries(first.ls.map));
     expect(again.activeLayout()).toEqual({ id: 'long4', src: 'lab' });
     expect(again.cpTrigger()).toBe('b');
   });
 
-  it('discards the checkpoint when the layout changes, and only then', async () => {
+  it('keeps the run save on every toggle, the layout included: RE-ENTER flies the save\'s own layout (D33)', async () => {
     const { ls, setLab } = await load({ 'grodius.run': '{"v":1}' });
     setLab({ cp: 'b' });
-    expect(ls.map.has('grodius.run')).toBe(true);
     setLab({ layout: 'short' });
-    expect(ls.map.has('grodius.run')).toBe(false);
+    setLab({ layout: 'long', mids: 'wip' });
+    expect(ls.map.get('grodius.run')).toBe('{"v":1}');
   });
 
   it('shows the URL flag over the stored LAB', async () => {

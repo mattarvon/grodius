@@ -4,14 +4,14 @@
 // An escaped boss grades C and pays its score but no biomass; it still counts toward the seals (D5b).
 import { $ } from './state';
 import { save } from './save';
-import { sample, sfx } from './audio';
+import { quipAfterKill, sample, sfx } from './audio';
 import { banner } from './enemies/spawn';
 import { buzz } from './platform';
 import { BIOMES, openFork, holdForFork, biomeExit } from './biomes';
 import { forkAfter, lastStage, row } from './layout';
 import { gradeKey } from './gradekey';
 import { buildStage } from './stagebuild';
-import { econId, gradeOf, sealAt } from './economy';
+import { bankBio, econId, gradeOf, sealAt } from './economy';
 
 /** stage names by stage kind; a biome stage is named by the biome you fly into once its gate is taken */
 export const STAGE_NAMES = {
@@ -68,6 +68,12 @@ export function stageBanner(i) {
  *  normalised entries read it (short has gradeRef null) */
 export const stageTs = (i = $.G.stage || 0) => { const r = row(i); return r ? (r.x1 - r.x0) / 60 : 0; };
 
+/** the banner each stage-boss kill shows (enemies/update.ts crux/butcher and the maw, boss/update.ts the gate boss):
+ *  a SLAB quip saying one of them never follows it (LS2-quips) */
+const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED'] as const;
+/** frames from a stage boss's death to its reward line (and the quip behind it): the death roar lands first. The gate
+ *  boss's descent end (boss/update.ts clearT 480) stays in play past it (tests/unit/quips.test.ts) */
+export const BOSS_REWARD_WAIT = 50;
 /** call when the stage's boss dies (or escapes). Returns the seal tier broken, or 0. */
 export function clearStage(escaped = false) {
   const G = $.G, st = G.st;
@@ -77,8 +83,7 @@ export function clearStage(escaped = false) {
   const bonus = R.score * (G.loop + 1) + (perfect ? 10000 * (G.loop + 1) : 0);
   const bio = escaped ? 0 : R.bio * deepPay(); // IT GOT AWAY / NO REWARD: no biomass (D5b)
   G.score += bonus;
-  G.bio += bio;
-  $.meta.bio += bio;
+  bankBio(bio, G, $.meta);
   const id = stageLabel(), key = gradeKey(), best = ($.meta.best ||= {}); // id: banner/tally label; key: by stage kind
   const newBest = !best[key] || ORDER.indexOf(g) < ORDER.indexOf(best[key]);
   const prev = best[key];
@@ -92,10 +97,14 @@ export function clearStage(escaped = false) {
     best: newBest ? (prev ? 'NEW BEST (WAS ' + prev + ')' : 'FIRST CLEAR') : 'BEST ' + best[key],
     t: 420, ml: 420,
   };
-  sfx.power();
+  sfx.stageClear();
   buzz('heavy');
   // boss-kill reward line (src/sfx/bossreward/, random pick if there are several; none loaded since Matt shelved THE KEYSTER, see src/sfx-shelved/README.md, so sample() returns false and nothing plays); waits out the death roar
-  if (!escaped) G.pend.push({ t: 50, f: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) });
+  // then, at QUIP.chance.boss, one of SLAB's quips queued behind it (LS2-quips; audio only, ar() draws). The boss's own
+  // readout is any of BOSS_READOUTS (crux/butcher, the maw, the gate boss): a quip with those words never follows. Not
+  // once the run is over: the pend still steps on the game-over screen, after voiceDropQueued (gameplay-programmer);
+  // the check only reads $, so the sim is untouched
+  if (!escaped) G.pend.push({ t: BOSS_REWARD_WAIT, f: () => { if ($.state !== 'play') return; sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }); quipAfterKill(BOSS_READOUTS, 0, false, { moment: 'boss', since: BOSS_REWARD_WAIT / 60 }); } });
   const breakSeal = () => { if (seal > (G.seal || 0)) { G.seal = seal; banner('SEAL BROKEN', 'UNLOCKED: ' + SEAL_TXT[seal], '#ffd23a', 230); sfx.alarm(); } };
   const r = row(G.stage), seg = forkAfter(G.stage); // seg: the biome slot whose fork this clear opens, or -1
   // at a fork the seal waits until you're through the gate (its banner would bury the gate prompt), see startStage

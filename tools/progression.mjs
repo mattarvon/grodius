@@ -1,5 +1,5 @@
 // Progression probe: invincible bot that hoovers up every pod/graft, logs loadout every 10s of game time.
-// Usage: node tools/progression.mjs <url> [seconds] [--layout short]
+// Usage: node tools/progression.mjs <url> [seconds] [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const url = process.argv[2], SECS = +(process.argv[3] || 300);

@@ -1,7 +1,6 @@
 // Native (Capacitor/Android) integration. Everything here degrades to a no-op on desktop web.
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
-import { TextToSpeech } from '@capacitor-community/text-to-speech';
 
 export const NATIVE = Capacitor.isNativePlatform();
 export const TOUCH = NATIVE || matchMedia('(pointer: coarse)').matches;
@@ -25,13 +24,3 @@ export function buzz(kind: 'light' | 'medium' | 'heavy' | 'death') {
 }
 export let buzzOff = false;
 export const setBuzzOff = (v: boolean) => (buzzOff = v);
-
-/** Android WebView has no speechSynthesis, so voice lines go through native TTS there. Returns false if not handled. */
-export function nativeSay(text: string, pitch: number, rate: number): boolean {
-  if (!NATIVE) return false;
-  TextToSpeech.stop()
-    .catch(() => {})
-    .then(() => TextToSpeech.speak({ text, lang: 'en-US', pitch: Math.max(0.5, pitch), rate, volume: 1, category: 'ambient' }))
-    .catch(() => {});
-  return true;
-}

@@ -2,6 +2,79 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-09 (SGT. RAMROD SLAB is on the line)
+
+- SGT. RAMROD SLAB has a new face on the comms, and it is human. Half of it has been opened up, and one eye is all blood.
+- He calls the kill chains, the stage-boss kills, the midboss kill words and OPENED. A line he hasn't recorded yet stays silent.
+- One voice talks at a time. A kill word, or the dead crewman's plea, waits for the line in front of it, and a voice line is no longer lost on a crowded death frame.
+- When a run ends, lines still waiting are dropped. A new game starts quiet.
+
+## 2026-11-09 (CALAMARI SERVED, a rarer plea)
+
+- SQUID SAUCER 2000's kill word is CALAMARI SERVED again.
+- The dead crewman says "stop killing me" at most once a stage now, and not always on the same kill. Some stages stay quiet.
+- The Android app no longer carries the unused text-to-speech plugin.
+
+## 2026-11-09 (new names)
+
+- The Open Orbit midboss is now SQUID SAUCER 2000. When it dies, the screen reads SEVERED.
+- The Cryovault's boss is now THE BLOAT, on its gate plate (FROZEN // BLOAT) and its health bar. Both stage bosses' kill banners now read TAKEN DOWN. This closes the known issue from 2026-11-08.
+- A 5-kill chain now reads OPENED.
+- The chain lines are new: THAT ONE / HAD A NAME, WE WILL NEED / A BIGGER BAG, FILE IT / UNDER LOSSES, THE GATE / KNOWS YOUR NAME, YOU ARE / PART OF IT NOW.
+- When a chain line has no voice, the comms window opens with nobody in it.
+- The Sinus has a new stage card: IT IS BREATHING. YOU ARE IN THE AIRWAY.
+
+## 2026-11-09 (every boss, repainted)
+
+- Every boss and midboss has been repainted from scratch: wetter, darker and more anatomical, with real photographic flesh and bone under the paint.
+- The Maw is now a lamprey's mouth: rings of hooked teeth around a throat that never closes. In the acid and sinus biomes it is dissolving or choked with mucus.
+- The Squidfucked Saucer is an old natural-history engraving come to life: ivory linework on black, and the only colour is blood.
+- The Cryovault boss is a frozen, engorged leech. The Burning Butcher is a carcass split down one side. The Drive's boss is a wheel of spine. The Nail Choir is an enucleated eye. The Dissolving Womb is a torn placenta. The Butcher's Apprentice has grown into its blade. The Brood Mother is a knot of tapeworm.
+- Bosses tear open as you wound them and die harder.
+- Image credits for the new art are in CREDITS.md.
+
+## 2026-11-08 (resumed runs that cost what they should, a cleaner HUD)
+
+- Dying after a checkpoint restart now costs what any other death costs. You lose a life from the count you had at the checkpoint, not a life you picked up afterwards. If that checkpoint held no spare life, you respawn where you fell instead.
+- When you restart from a checkpoint, the BLACK BOX and boss-lifeline pods you lost drop again beside your ship.
+- In biome stages, the first checkpoint now sits just before the midboss releases its pod, so a resumed run gets that pod again.
+- Surfacing and RE-ENTERing a run no longer pays biomass twice for the same kills.
+- The HUD text is outlined instead of sitting on a dark strip, so nothing behind it gets hidden. SCORE, HI, STAGE and DEPTH all use the same pale colour so they stay readable over the ice ceiling.
+- The kill counter sits below the level badge and no longer overlaps the XP bar.
+- Warning sirens, stingers and boss deaths are never cut off when the screen is full of sound.
+- The furnace chimney and roof vents no longer glow through the HUD, and the sinus throat's lip now pulses.
+- An escaped midboss now says NO REWARD.
+- IMPORT SAVE clears any saved run.
+
+## 2026-11-08 (a new eye on the title)
+
+- The title screen has a new eye: dead, rotted and clouded over, and it still follows you.
+- Leave the title open long enough and something finds you.
+
+## 2026-11-08 (gates that show the stakes, scarred stages, a darker sound)
+
+- At a fork, each gate's plate now says what it leads to. A biome you haven't cleared shows the perk it unlocks. One you know shows the perk as KNOWN, or FULLY GROWN once it's maxed. A biome you've already been through is marked ALTERED.
+- A biome you return to looks damaged. Ice has thawed and slumped with blood in the runnels, the furnaces have burnt out to ash, the acid vats are drained to their tide lines, and the snot biome is infected.
+- The music presses harder while a midboss or boss is on screen in the biome stages, and the drone underneath shifts with each biome.
+- Kills sound like the place they happen in: ice cracks, fire sizzles on big kills, acid hisses and the snot biome squelches.
+- The menu, pick-up, power-up, stage-clear, alarm and chain sounds are lower and darker. The title menu no longer farts.
+- Retired: the surfer flyby, the HELL YEAH voice line, every fart sound, and the jelly sounds in the snot biome. The corpse's line and LESLEY stay.
+- The 20-kill chain now shows a banner in place of the surfer.
+- Known issue: the Cryovault's boss is still named THE BLOATED BITCH on its gate plate and health bar. It is renamed in a later update along with the remaining old kill banners.
+- Known issue: when a fork opens while the screen is crowded, its THE SHIP SPLITS banner covers the top gate's plate for its first three seconds or so.
+- The short descent in the LAB row is unchanged.
+
+## 2026-11-08 (back buttons that work, the BACKDRAFT fix, midboss variety)
+
+- On a phone, the RETURN, DESCEND and BACK buttons in the armory, shop and title sub-menus now respond to a tap.
+- On Android, the back button steps back one screen at a time. It used to close the game from OPTIONS or the LAB. At the title screen, press it once and PRESS BACK AGAIN TO LEAVE appears; a second press within two seconds closes the game.
+- On a phone, while a saved run exists, DESCEND takes two taps, because starting a new run ends the saved one.
+- Mashing buttons through a game over no longer skips past the death screen. Only a real back press leaves it.
+- In the loop shop, back now takes two presses to descend, so you can't skip the shop by accident.
+- Fixed: in the fire biome's BACKDRAFT set piece, the rear wave no longer flies through the spires, and neither do the pincer waves.
+- Midbosses vary more across runs: a midboss you've met less often now comes up more, and only the exact pair you fought last time is held back.
+- The short descent in the LAB row is unchanged.
+
 ## 2026-11-07 (moving terrain, new set pieces, faster gore)
 
 - Partway through each biome stage on the long descent, the terrain now moves. Each biome has two versions. Descent 1 always flies the first; from Descent 2 on, either can come up, and a biome you revisit flies the one you haven't seen yet.
@@ -11,7 +84,7 @@ Newest first. Every push to `main` builds a fresh APK ([latest release](https://
 - The Brood Mother's kill word is now LANCED.
 - Two voice lines are retired for now: the SHAMALAMA hype call and the KEYSTER boss reward. A boss kill has no voice line until they come back.
 - A run saved before this update still resumes, but from the stage you resume on it gets the new terrain and set pieces.
-- Known issue: in the fire biome's BACKDRAFT set piece, the second wave from behind flies straight through the spires. They are not ghosts. They are just rude. Fixed next update.
+- Known issue: in the fire biome's BACKDRAFT set piece, the second wave from behind passes through the spires. Fixed next update. (Fixed 2026-11-08.)
 - The short descent in the LAB row is unchanged.
 
 ## 2026-11-03 (resume a run, a tougher Apprentice, the long-stage economy)

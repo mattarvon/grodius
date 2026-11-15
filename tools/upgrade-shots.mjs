@@ -1,7 +1,7 @@
 // Upgrade shots: renders every regular enemy, the player ship, bullets and a busy gore frame as they look right now, for
 // the upgrade picker (tools/upgrade-picker.mjs). Each enemy is spawned alone through its real spawn function and stepped
 // on screen, so terrain-bound ones sit on their wall. Saves a full frame and a close-up per subject.
-// Usage: node tools/upgrade-shots.mjs <url> <outDir> [--layout short]   (biome scenes in slot 0 of src/layout.ts; needs the VITE dev server: imports live modules)
+// Usage: node tools/upgrade-shots.mjs <url> <outDir> [--layout long4|short]   (biome scenes in slot 0 of src/layout.ts; needs the VITE dev server: imports live modules)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';

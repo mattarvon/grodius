@@ -1,0 +1,19 @@
+a70bddf938008ad7a3a776ac4cbcdf930b690558
+?? production/qa/evidence/ls2-slab/
+---
+dist/assets/void-08-caves-gfrOlMBB.ogg                           3,543.02 kB
+dist/assets/void-02-institutional-values-H_Fqjk_4.ogg            3,576.72 kB
+dist/assets/void-12-not-done-here-yet-gxrc4hu3.ogg               3,598.95 kB
+dist/assets/index-W6VLO7vN.css                                       4.80 kB │ gzip:   1.43 kB
+dist/assets/web-BDSWweam.js                                          0.84 kB │ gzip:   0.40 kB
+dist/assets/web-DvCZ2AkV.js                                          0.89 kB │ gzip:   0.45 kB
+dist/assets/web-C-iRJ2Vw.js                                          1.15 kB │ gzip:   0.46 kB
+dist/assets/index-D_BQnXCb.js                                      529.69 kB │ gzip: 193.81 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 490ms
+exit=0

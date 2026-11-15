@@ -29,6 +29,16 @@ describe('save loading', () => {
     expect($.meta.bio).toBe(777);
   });
 
+  it('keeps the run biomass mark through a reload and drops a bad one', async () => {
+    const save = (extra: object) => JSON.stringify({ meta: { bio: 5, lv: {}, v: 3, ...extra }, hi: 0, asked: true });
+    const a = await load({ 'grodius.v1': save({ bioS: 42, bioV: 190.5 }) });
+    expect([a.$.meta.bioS, a.$.meta.bioV]).toEqual([42, 190.5]);
+    const c = await load({ 'grodius.v1': save({ bioS: 42, bioV: -1 }) });
+    expect(c.$.meta.bioV).toBeUndefined();
+    const d = await load({ 'grodius.v1': save({ bioS: 'x', bioV: { valueOf: 1 } }) });
+    expect(d.$.meta.bioS).toBeUndefined();
+  });
+
   it('keeps an unreadable save aside instead of writing defaults over it', async () => {
     const { ls, save } = await load({ 'grodius.v1': '{not json' });
     save();

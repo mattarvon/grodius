@@ -42,7 +42,7 @@ describe('the roster', () => {
     expect(MID_HOME).toMatchObject({ choir: 'ice', cyst: 'acid', prentice: 'fire', brood: 'snot' });
     expect(Object.keys(MID_BODY).slice(0, 4)).toEqual(['choir', 'cyst', 'prentice', 'brood']);
     expect(HOME_FIT).toContain('brood');
-    expect(MID_NAMES.ufo).toBe('THE SQUIDFUCKED SAUCER');
+    expect(MID_NAMES.ufo).toBe('SQUID SAUCER 2000');
     expect(BOOT_ART).toEqual(['hero', 'eyes', 'derelict', 'maw:orbit', ...ROSTER.filter((r) => r.boot && !r.wip).map((r) => r.k), 'drive']);
     expect(BOOT_ART).toContain('ufo');
   });
@@ -187,8 +187,9 @@ describe('the WIP flag', () => {
     expect(met(biomePool(true, rows))).toBeGreaterThan(0);
   });
 
-  // only meaningful while the roster has no wip row: once a lane adds one, the flag is meant to move picks
-  it.skipIf(ROSTER.some((r) => r.wip))('draws the same picks with the flag on while no row is WIP, so the flag alone never moves a run', () => {
+  // only meaningful while no BIOME-pool row is wip: once a lane adds one, the flag is meant to move picks. A wip row in
+  // another pool (THE KEEPSAKE, ship) never reaches biomePool, so the guard keeps running (QA, studio review 2026-11-15)
+  it.skipIf(ROSTER.some((r) => r.wip && BIOME_POOLS.includes(r.pool)))('draws the same picks with the flag on while no biome-pool row is WIP, so the flag alone never moves a run', () => {
     for (let s = 1; s <= 200; s++) {
       const a = pickBiomeMids({ mbUsed: [], mbLast: {} }, 'ice', 0, stream(s), undefined, false, false);
       const b = pickBiomeMids({ mbUsed: [], mbLast: {} }, 'ice', 0, stream(s), undefined, false, true);

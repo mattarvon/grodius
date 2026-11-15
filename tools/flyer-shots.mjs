@@ -1,5 +1,5 @@
 // Flyer upgrade shots: wasp drones (formation + rear wave), eyeball hatchlings (school + from behind), the frozen corpse
-// variants, a hit flash and a corpse cut in half. Usage: node tools/flyer-shots.mjs <url> <outDir> [--layout short]
+// variants, a hit flash and a corpse cut in half. Usage: node tools/flyer-shots.mjs <url> <outDir> [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';

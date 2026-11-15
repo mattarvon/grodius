@@ -1,10 +1,11 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, FONT_D, FONT_H, TAU, W, clamp, ctx, sstep } from '../core';
+import { C, FONT_D, FONT_H, TAU, W, ctx, sstep } from '../core';
 import { drawChain, poly, txt } from '../render/util';
 import { drawEShots } from '../render/hud';
 import { SPR, srnd } from '../sprites';
-import { AU } from '../audio';
+import { AU, VOICE_GAP } from '../audio';
+import { quipCaption } from '../voice/quips';
 
 // --- hype man: SGT. RAMROD SLAB ---
 export function drawSlab(c, jaw, t) {
@@ -163,130 +164,34 @@ export function drawSlab(c, jaw, t) {
   c.fillStyle = '#2e1a10';
   for (let k = -3; k <= 3; k++) c.fillRect(k * 2.4 - .5, -69 + mh + 1.5, 1, 1.2);
 }
-export function drawBabe() {
-  const b = $.G.babe;
-  if (!b) return;
-  const age = b.ml - b.t,
-    x = -40 + age * (W + 80) / b.ml,
-    y = b.y + Math.sin(age * .07) * 4,
-    wave = Math.sin(age * .3);
-  ctx.save();
-  ctx.globalAlpha = .92 * Math.min(1, b.t / 20, age / 10);
-  // 80s neon trail
-  ctx.globalCompositeOperation = 'lighter';
-  for (const [c, o] of [['255,60,170', -2], ['60,220,255', 1], ['255,200,60', 4]]) {
-    ctx.fillStyle = `rgba(${c},.55)`;
-    ctx.fillRect(x - 60, y + o, 52, 2);
-  }
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.translate(x, y);
-  // surfboard
-  ctx.fillStyle = '#ff3fa4';
-  ctx.beginPath();
-  ctx.ellipse(0, 1, 15, 2.6, 0, 0, TAU);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(-12, .6, 24, .8);
-  ctx.fillStyle = '#3cdcff';
-  ctx.fillRect(-4, -.2, 8, .6);
-  const sk = '#e39a62',
-    skD = '#b46a3a';
-  ctx.lineCap = 'round';
-  // legs
-  ctx.strokeStyle = skD;
-  ctx.lineWidth = 2.6;
-  ctx.beginPath();
-  ctx.moveTo(-1, -14);
-  ctx.lineTo(-4, -1);
-  ctx.moveTo(1, -14);
-  ctx.lineTo(4, -1);
-  ctx.stroke();
-  ctx.strokeStyle = sk;
-  ctx.lineWidth = 1.8;
-  ctx.stroke();
-  // torso
-  ctx.fillStyle = sk;
-  ctx.beginPath();
-  ctx.ellipse(0, -19, 3, 6, 0, 0, TAU);
-  ctx.fill();
-  ctx.fillStyle = skD;
-  ctx.fillRect(1.6, -23, 1, 8);
-  // bikini (full top + bottoms)
-  ctx.fillStyle = '#ff2a6a';
-  poly(ctx, [[-3, -15.5], [3, -15.5], [1.5, -13], [-1.5, -13]]);
-  ctx.fillRect(-3, -21.5, 6, 2.2);
-  ctx.fillStyle = '#ff8ab8';
-  ctx.fillRect(-2.5, -21.5, 5, .6);
-  // arms: one on hip, one waving
-  ctx.strokeStyle = sk;
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.moveTo(-2.5, -23);
-  ctx.lineTo(-5, -18);
-  ctx.lineTo(-2.6, -15.5);
-  ctx.moveTo(2.5, -23);
-  ctx.lineTo(6, -27);
-  ctx.lineTo(7 + wave * 1.5, -32);
-  ctx.stroke();
-  ctx.lineCap = 'butt';
-  // head, shades, big blonde hair blowing back
-  ctx.fillStyle = '#ffe060';
-  poly(ctx, [[-2, -31], [-11, -27 + wave * .6], [-9, -24], [-3, -25], [0, -28]]);
-  ctx.beginPath();
-  ctx.arc(0, -28.5, 3.4, Math.PI, TAU);
-  ctx.fill();
-  ctx.fillStyle = sk;
-  ctx.beginPath();
-  ctx.arc(.6, -27.5, 2.6, 0, TAU);
-  ctx.fill();
-  ctx.fillStyle = '#111';
-  ctx.fillRect(.4, -28.6, 3.4, 1.2);
-  ctx.fillStyle = '#d0205a';
-  ctx.fillRect(2, -25.8, 1.2, .7);
-  ctx.fillStyle = '#fff3a0';
-  ctx.fillRect(-1, -31.5, 2, .8);
-  ctx.restore();
-  // speech bubble
-  if (age > 20 && b.t > 15) {
-    const bx = clamp(x + 10, 6, W - 112),
-      by = y - 46;
-    ctx.save();
-    ctx.globalAlpha = .92;
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(bx, by, 104, 12);
-    ctx.fillStyle = '#ff2a6a';
-    ctx.fillRect(bx, by, 104, 1);
-    ctx.fillRect(bx, by + 11, 104, 1);
-    poly(ctx, [[clamp(x + 6, bx + 4, bx + 100), by + 12], [clamp(x + 2, bx, bx + 96), by + 18], [clamp(x + 12, bx + 8, bx + 104), by + 12]]);
-    txt('EXCELLENT WORK, BABY!', bx + 52, by + 3, '#d0205a', 'center', 7);
-    ctx.restore();
-  }
-  // bullets stay on top
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x - 70, y - 50, 190, 62);
-  ctx.clip();
-  ctx.translate($.G.shx || 0, $.G.shy || 0);
-  drawEShots();
-  ctx.restore();
-}
-
 // --- hype voices: the comms window ---
-// Every voice line (src/sfx/hype*, babe20, corpsevoice, bossreward, startgame) gets a face: a Reticulan from
+// Every voice line (src/sfx/hype*, corpsevoice, bossreward, startgame, kill-*, carn5) gets a face: a Reticulan from
 // src/sprites/hface@18.png (tools/prep_screens.py, 3 jaw frames per face) that pops into the top-right corner like an
 // incoming transmission, flaps its jaw while the clip plays (audio.ts voiceOn() stamps clip name + start/end on the
-// audio clock) and glitches out after. Without recorded audio (muted, TTS fallback) it follows $.G.hype / $.G.babe.
+// audio clock) and glitches out after. Without recorded audio (muted, or a shelved bank) it follows $.G.hype.
 // Render-only: all flicker comes from srnd() / $.T, never the gameplay RNG.
+// SGT. RAMROD SLAB is Matt (2026-11-09: 'I am RAMROD SLAB'): his own baked head, src/sprites/slab@3.png (baked by a generator
+// kept outside the repo, beside the private source), not a Reticulan. SLAB_FACE picks that sheet
+const SLAB_FACE = -1, SLAB = 'SGT. RAMROD SLAB';
+// every new recorded line is his (LS2-slab): matched on the folder, since the booth names a take after its words
+// (quip-<id>: his one-liners after a big kill, LS2-quips, captioned with the quip's own words)
+const SLAB_CAT = /^(hype\d+|bossreward|kill-[a-z]+|carn5|quip-[a-z0-9-]+)$/;
 const VOICE = {
-  'hell-yeah': [0, 'SGT. RAMROD SLAB'],
+  'hell-yeah': [SLAB_FACE, SLAB],
   shamalama: [1, 'BROTHER SHAMALAMA'],
   sfriend: [2, 'SURF CONTROL'],
   'stop-killing-me': [3, 'CREWMAN #5 // DECEASED', ['STOP KILLING ME', 'WITH YOUR SPACESHIP, SIR']],
   'keyster-easter': [4, 'THE KEYSTER'],
-  'lesley-yeah-baby': [5, 'LESLEY, MISSION CONTROL']
+  'lesley-yeah-baby': [5, 'LESLEY, MISSION CONTROL'],
+  // Matt's own DESCEND line (2026-11-13, "call it grodius bitch"), in the startgame folder beside Lesley's: keyed by clip
+  'grodius-bitch': [SLAB_FACE, SLAB, ['GRODIUS BITCH']]
 };
-const BY_CAT = { hype: 'hell-yeah', babe: 'sfriend', corpsevoice: 'stop-killing-me', bossreward: 'keyster-easter', startgame: 'lesley-yeah-baby' };
-const voiceOf = (clip = '') => {
+/** [face, caller tag, caption?] for a voice clip: by its folder for SGT. RAMROD SLAB's, else by its file stem */
+export const voiceOf = (clip = '', cat = '') => {
+  if (SLAB_CAT.test(cat)) {
+    const cap = quipCaption(cat);
+    return cap ? [SLAB_FACE, SLAB, cap] : [SLAB_FACE, SLAB];
+  }
   // clip = file stem, e.g. 'hell-yeah-matty-1': match on the line, not the take
   for (const k in VOICE) if (clip === k || clip.startsWith(k + '-')) return VOICE[k];
   let h = 0; // a clip nobody mapped yet still gets the same face every time
@@ -294,24 +199,31 @@ const voiceOf = (clip = '') => {
   return [h % 6, 'UNKNOWN CALLER'];
 };
 const FW = 48, FH = 52, OPEN = 7, STATIC = 12, CLOSE = 16;
-let cur = null; // { clip, v (linked AU.voice), t ($.T opened), out ($.T closing), L }
-const vLive = (v, now) => v && now > v.t0 - .3 && now < v.t1 + .25;
+let cur = null; // { clip, cat, v (linked AU.voice), t ($.T opened), out ($.T closing), L }
+// the window holds VOICE_GAP after a line ends: the air sample() leaves before the next queued line
+const vLive = (v, now) => v && now > v.t0 - .3 && now < v.t1 + VOICE_GAP;
 function hypeSource(now) {
-  const v = AU.voice;
-  if (vLive(v, now)) return { v, clip: v.clip, L: /^hype/.test(v.cat) && $.G.hype ? $.G.hype.L : null };
-  if ($.G.hype) return { clip: BY_CAT.hype, L: $.G.hype.L };
-  if ($.G.babe) return { clip: BY_CAT.babe };
+  // lines queue on the audio clock (audio.ts sample): the window shows the one talking now, or, in the hand-over, the
+  // one about to
+  const q = AU.voiceQ || [], v = q.find((x) => vLive(x, now) && now < x.t1) || q.find((x) => vLive(x, now));
+  // a chain's caption shows from its hype call, even while its line waits behind another caller's
+  const hypeL = $.G.hype && q.some((x) => /^hype/.test(x.cat) && now < x.t1 + VOICE_GAP) ? $.G.hype.L : null;
+  if (v) return { v, clip: v.clip, cat: v.cat, L: hypeL };
+  // an unvoiced chain caption (the hype bank is shelved, D39) has no caller: no face and no tag (the held renames,
+  // D42 item 1). It used to fall back to SGT. RAMROD SLAB's face
+  if ($.G.hype) return { clip: '', L: $.G.hype.L };
   return null;
 }
 export function drawHype() {
   const T = $.T, now = AU.c ? AU.c.currentTime : 0, s = hypeSource(now);
   if (s) {
-    if (!cur || cur.out) cur = { clip: s.clip, v: s.v, t: T, out: 0, L: s.L };
+    if (!cur || cur.out) cur = { clip: s.clip, cat: s.cat, v: s.v, t: T, out: 0, L: s.L };
     else if (s.v && s.v !== cur.v) {
-      // the recorded clip lands a few frames after the hype/babe trigger: swap the face under the static; a new line
+      // the recorded clip lands a few frames after the hype trigger: swap the face under the static; a new line
       // long after opens a fresh call
-      if (T - cur.t < 40 || !cur.v) Object.assign(cur, { clip: s.clip, v: s.v });
-      else cur = { clip: s.clip, v: s.v, t: T, out: 0 };
+      // the same caller twice in a row (his queued lines) keeps the window open rather than hanging up and re-dialling
+      if (T - cur.t < 40 || !cur.v || voiceOf(s.clip, s.cat)[0] === voiceOf(cur.clip, cur.cat)[0]) Object.assign(cur, { clip: s.clip, cat: s.cat, v: s.v });
+      else cur = { clip: s.clip, cat: s.cat, v: s.v, t: T, out: 0 };
     }
     if (s.L) cur.L = s.L;
     // a linked clip that has finished hangs up even if the hype timer still runs
@@ -319,7 +231,8 @@ export function drawHype() {
   } else if (cur && !cur.out) cur.out = T;
   if (!cur) return;
   if (cur.out && T - cur.out > CLOSE) return void (cur = null);
-  const [face, tag, cap] = voiceOf(cur.clip), L = cap || cur.L;
+  const blind = !cur.clip; // nobody on the line: signal and the caption only
+  const [face, tag, cap] = blind ? [0, '', null] : voiceOf(cur.clip, cur.cat), L = cap || cur.L;
   const age = T - cur.t, out = cur.out ? (T - cur.out) / CLOSE : 0;
   const talking = !out && (cur.v ? now >= cur.v.t0 && now < cur.v.t1 : age > STATIC && age < 90);
   // syllables: two beating sines, quantised to shut / half / wide
@@ -336,15 +249,17 @@ export function drawHype() {
   ctx.beginPath();
   ctx.rect(wx, top + 1, FW, Math.max(0, hh - 2));
   ctx.clip();
-  const S = SPR.hface;
+  const S = face === SLAB_FACE ? SPR.slab : SPR.hface;
   if (S && S.fw && age >= 3) {
-    const fx = (face * 3 + jaw) * S.fw;
+    const fx = ((face === SLAB_FACE ? 0 : face) * 3 + jaw) * S.fw;
     // the picture in 4 px bands that slip sideways on a bad signal (locking on, hanging up, the odd hiccup)
-    const hic = (T * 7 + face * 13) % 97 < 3, tear = age < STATIC ? 1 - age / STATIC : out ? Math.min(1, out * 1.6) : hic ? .35 : 0;
+    // (his sheet hashes as a seventh face, past the six Reticulans, so the % stays positive)
+    const hic = (T * 7 + (face === SLAB_FACE ? 6 : face) * 13) % 97 < 3, tear = age < STATIC ? 1 - age / STATIC : out ? Math.min(1, out * 1.6) : hic ? .35 : 0;
     ctx.imageSmoothingEnabled = false;
     for (let y = 0; y < FH; y += 4) {
       const o = tear && srnd() < .5 ? Math.round((srnd() - .5) * 18 * tear) : 0;
-      ctx.drawImage(S.img, fx, y, S.fw, 4, wx + o, wy + 1 + y, S.fw, 4);
+      // the tear's srnd() draws run either way: the render stream feeds later gib counts (harness st)
+      if (!blind) ctx.drawImage(S.img, fx, y, S.fw, 4, wx + o, wy + 1 + y, S.fw, 4);
     }
     if (tear > .2) {
       // chroma tear: a red and a sick-green bar riding the worst slices
@@ -395,10 +310,12 @@ export function drawHype() {
     ctx.globalAlpha = sstep(STATIC, STATIC + 8, age) * .88;
     const tx = wx - 5;
     ctx.font = `7px ${FONT_H}`;
-    const tw = ctx.measureText(tag).width;
-    ctx.fillStyle = 'rgba(0,0,0,.6)';
-    ctx.fillRect(tx - tw - 3, wy, tw + 6, 9);
-    txt(tag, tx, wy + 1, '#ffd23a', 'right', 7);
+    if (tag) {
+      const tw = ctx.measureText(tag).width;
+      ctx.fillStyle = 'rgba(0,0,0,.6)';
+      ctx.fillRect(tx - tw - 3, wy, tw + 6, 9);
+      txt(tag, tx, wy + 1, '#ffd23a', 'right', 7);
+    }
     if (L) {
       L.forEach((l, i) => {
         ctx.font = `11px ${FONT_D}`;

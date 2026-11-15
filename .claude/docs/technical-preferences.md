@@ -62,7 +62,7 @@
 ## Allowed Libraries / Addons
 
 <!-- Add approved third-party dependencies here -->
-- Capacitor 8: `@capacitor/core`, `@capacitor/android`, `@capacitor/cli`, `@capacitor/app`, `@capacitor/haptics`, `@capacitor-community/keep-awake`, `@capacitor-community/text-to-speech`
+- Capacitor 8: `@capacitor/core`, `@capacitor/android`, `@capacitor/cli`, `@capacitor/app`, `@capacitor/haptics`, `@capacitor-community/keep-awake`
 - Fonts: `@fontsource/silkscreen`, `@fontsource/grenze-gotisch`
 - Dev: `vite`, `typescript`, `vitest`, `playwright` (pinned), `prettier`, `@babel/*`
 - Anything else (frameworks, engines, WebGL renderers, new plugins) needs technical-director sign-off

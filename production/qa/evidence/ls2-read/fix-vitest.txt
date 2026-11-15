@@ -1,0 +1,36 @@
+npm notice run grodius@0.2.0 npx
+npm notice run 'vitest' run
+
+ RUN  v5.0.5 /tmp/claude-1000/-home-matt-Projects-grodius-ls2-read/7b2726db-78ea-4ed0-b508-245d4038ff31/scratchpad/gate
+
+(node:1789894) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1789812) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1789827) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1789868) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1789918) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1789925) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1789932) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1789947) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1789984) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1790051) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  45 passed (45)
+      Tests  963 passed | 1 expected fail (964)
+   Start at  16:06:52
+   Duration  4.69s (tests 71%, transform 19%, import 8%, worker 1%)
+
+    Isolate  45 workers spawned · ~151ms startup each (spawn + environment, per file)
+             at least ~302ms faster with isolate: false — reuses workers across files instead of one per file
+
+exit=0
+ran-on=e7dc604 tctl-start=69

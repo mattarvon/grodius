@@ -1,6 +1,6 @@
 // Ship-form probe: starts a run, forces pods / grafts / perks / contraptions straight into state, and
 // screenshots close-ups of the player ship so the growth of the hull can be eyeballed.
-// Usage: node tools/ship-probe.mjs <url> <outdir> [--layout short]
+// Usage: node tools/ship-probe.mjs <url> <outdir> [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url = 'http://localhost:4201/', out = '/tmp/ship-shots'] = process.argv.slice(2);

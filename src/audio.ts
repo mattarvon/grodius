@@ -1,7 +1,9 @@
 // @ts-nocheck
 import { SET } from './save';
-import { nativeSay } from './platform';
 import { duckMusic, curBiome } from './music';
+import { BIOME_KILL, KILL_LAYER } from './audiomix';
+import { QUIPS } from './voice/quips';
+import { QUIP, normText, pickQuip, quipCat, quipLines, type QuipBag, type QuipMoment } from './voice/quiplist';
 
 // ---------------- audio ----------------
 export const AU = {
@@ -83,10 +85,11 @@ export function auInit() {
   lp.connect(g);
   g.connect(AU.m);
   AU.lp = lp;
+  AU.dg = g; // the bed's gain: music.ts raises it with the intensity level (audiomix.ts droneTarget)
 }
 // ---------------- sample bank ----------------
 // Every audio file under src/sfx/<category>/ is bundled and decoded on first input. Categories:
-// splat_s splat_m splat_l thud bone silly explode_s explode_l, plus monster (under roar), snot (Sinus kills),
+// splat_s splat_m splat_l thud bone explode_s explode_l (silly is shelved, src/sfx-shelved/README.md), plus monster (under roar), snot (Sinus kills),
 // warning (sirens under WARNING banners), stinger (midboss warning), forkopen (gates open) and the voice lines.
 // Drop more files in a folder and they join the rotation. ov-* clips are cut from Openverse picks by
 // tools/import_openverse.py.
@@ -100,7 +103,18 @@ const ar = () => ((arng ^= arng << 13), (arng ^= arng >>> 17), (arng ^= arng << 
 // audio never draws the sim R() (M2 #13): sfx args are evaluated even when no context runs (the harness, a muted or
 // autoplay-blocked device), so an R() there made the sim depend on how many gibs hit the floor and on the sample rate
 const arr = (a, b) => a + ar() * (b - a);
-let voices = 0;
+// The voice cap (was `voices > 14`: 15 sound at once). A wall of 30 splats in one frame is mud anyway, so ordinary sounds
+// past it are dropped. LIVE is oldest-first so a priority cue can take the oldest ordinary voice's slot.
+export const VOICE_CAP = 15;
+/** seconds of air between a voice line and the one queued behind it */
+export const VOICE_GAP = .25;
+// AU.c is created once. If the context is ever recreated, clear LIVE with it: a dead context's sources never fire onended
+const LIVE: { s: any; g: any; prio: boolean; cat: string; t0: number }[] = [];
+// voice lines: they duck the music and set AU.voice/SOLO, so evicting one would cut it mid-word and leave those pointing
+// at a dead take. Eviction skips them (sound-designer review)
+// (kill-<k>: a midboss's kill word; carn5: OPENED, the 5-chain; quip-<id>: Matt's one-liners after a big kill,
+// LS2-quips. All SGT. RAMROD SLAB's)
+const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|kill-|carn5|quip-)/;
 function loadBank(A) {
   for (const [p, u] of Object.entries(SFX_URLS)) {
     const cat = p.split('/')[2];
@@ -120,33 +134,185 @@ function nextClip(cat, n) {
   }
   return (LASTS[cat] = b.q.pop());
 }
-/** play a random clip from a category with pitch/volume jitter. false if the category isn't loaded (caller falls back to synth) */
+/** play a random clip from a category with pitch/volume jitter. false if the category isn't loaded (caller falls back to
+ *  synth), or if it was dropped at the voice cap and the call set `fb`. `prio`: never dropped (see the cap below) */
 const SOLO: Record<string, number> = {};
-export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number; solo?: boolean } = {}) {
+export function sample(cat, o: { vol?: number; rate?: number; spread?: number; wet?: number; at?: number; solo?: boolean; prio?: boolean; fb?: boolean; queue?: boolean } = {}) {
   const L = BANK[cat];
   if (!AU.c || !L || !L.length || SET.muted || AU.c.state !== 'running') return false;
+  // one caller on the comms at a time (LS2-slab): a voice line that lands while another still talks waits for it on
+  // the audio clock, a beat after it ends; `queue: false` (OPENED, the 5-chain: common and minor) is skipped instead
+  const voice = VOICE_CAT.test(cat);
+  let at = o.at ?? 0;
+  if (voice) {
+    const now = AU.c.currentTime, other = !cat.startsWith('quip-');
+    // any other voice line beats a quip that has not started yet: feedback (a chain line, a kill word) before flavour
+    // (LS2-quips, audio-director). So such a line waits only behind what is left without those quips, and drops them
+    // only once it is sure to play (gameplay-programmer: OPENED skipped behind the kill word must not take the quip
+    // with it)
+    const q = AU.voiceQ || [], v = other ? q.filter((x) => !(x.cat.startsWith('quip-') && x.t0 > now)).pop() || null : AU.voice;
+    if (v && v.t1 + VOICE_GAP > now + at) {
+      if (o.queue === false) return false;
+      at = v.t1 - now + VOICE_GAP;
+    }
+  }
   if (o.solo && AU.c && AU.c.currentTime < (SOLO[cat] || 0)) return true; // previous take still talking
-  if (voices > 14) return true; // swallow it: a wall of 30 splats in one frame is mud anyway
+  // past every early return (lead-programmer): a line that drops the queued quips is sure to play (a voice line always
+  // passes the cap below)
+  if (voice && !cat.startsWith('quip-')) dropQueuedQuips();
+  // LS1 audit #5/#6: a drop used to return true, so siren()'s alarm() fallback never ran, and the Maw could die silent
+  // (its death frame is the busiest gore frame). A priority cue (Maw and Drive deaths, WARNING siren, stinger, forkopen) is never
+  // dropped: it takes the oldest ordinary voice's slot, faded over ~20 ms so it doesn't click. If every live voice is a
+  // priority cue or a voice line it plays over the cap (there are only a handful). An ordinary sound is still swallowed, and reports
+  // false only when the caller marked a fallback (`fb`): gore's synth fallback would only add mud to a full frame
+  // (producer ruling, option b)
+  // a voice line passes the cap like a priority cue: a midboss's kill word fires on its death frame, the busiest gore
+  // frame there is, and a swallowed line would lose its comms window with it (LS2-slab, qa-tester and web-specialist)
+  if (LIVE.length >= VOICE_CAP) {
+    if (!o.prio && !voice) return !o.fb;
+    const k = LIVE.findIndex((v) => !v.prio && !VOICE_CAT.test(v.cat)); // none left (all priority or voice): play over the cap
+    if (k >= 0) {
+      const v = LIVE.splice(k, 1)[0], t = AU.c.currentTime;
+      v.s.onended = null;
+      v.g.gain.setTargetAtTime(0, t, .007);
+      v.s.stop(t + .03);
+    }
+  }
   const i = nextClip(cat, L.length);
   const s = AU.c.createBufferSource(), g = AU.c.createGain();
   s.buffer = L[i];
   s.playbackRate.value = (o.rate ?? 1) * (1 + (ar() * 2 - 1) * (o.spread ?? .14));
-  g.gain.value = (o.vol ?? 1) * (.8 + ar() * .3);
+  // a voice line's level jitters less (.95-1.05): the booth already matched every take to -12 LUFS, and a line coming in
+  // 2 dB quiet reads as a different mic (audio-director, LS2 review). Still one ar() draw either way
+  g.gain.value = (o.vol ?? 1) * (voice ? .95 + ar() * .1 : .8 + ar() * .3);
   s.connect(g);
   route(g, o.wet ?? .2);
-  voices++;
+  const v = { s, g, prio: !!o.prio, cat, t0: AU.c.currentTime + at };
+  LIVE.push(v);
   AU.lastCat = cat; // test hook
-  s.onended = () => voices--;
-  s.start(AU.c.currentTime + (o.at ?? 0));
-  if (o.solo) SOLO[cat] = AU.c.currentTime + (o.at ?? 0) + L[i].duration / s.playbackRate.value;
-  if (/^(hype|babe|bossreward|corpsevoice|startgame)/.test(cat)) duckMusic(L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, o.at ?? 0);
+  s.onended = () => { const k = LIVE.indexOf(v); if (k >= 0) LIVE.splice(k, 1); };
+  s.start(AU.c.currentTime + at);
+  if (o.solo) SOLO[cat] = AU.c.currentTime + at + L[i].duration / s.playbackRate.value;
+  if (VOICE_CAT.test(cat)) duckMusic(at + L[i].duration + .3), voiceOn(cat, L[i], s.playbackRate.value, at);
   return true;
+}
+/** the quips' shuffle bag (quiplist.ts pickQuip): kept across runs, so the lines go round rather than restart */
+const QBAG: QuipBag = { q: [], last: null };
+/** after a big kill (a midboss's kill word, a stage boss's readout), maybe one of SLAB's quips (src/voice/quips.json,
+ *  LS2-quips): QUIP.chance[moment] of one, from the shuffle bag of quips with a take in the bank, never one whose
+ *  words are the readout just shown (`word`: the word, or every word the moment may have shown). It queues behind that
+ *  line on the audio clock (sample()); any other voice line called before it starts takes its place
+ *  (dropQueuedQuips); the player's death or game over cuts it (voiceCutQuips); a new game stops it like any line.
+ *  Skipped, with no roll drawn, when the comms is busy with anything but the line it follows, or when it could not
+ *  start within QUIP.maxLate[moment] of the death (flavour never lands in the next fight). `o.moment`: 'mid'
+ *  (default) or 'boss'; `o.since`: seconds since the death when the call comes. Audio only: the roll and the pick draw
+ *  ar(), never R(); with no running context (the harness, muted) nothing is drawn at all. `force` skips the roll and
+ *  the busy rules (the ?vox=quip test hook). Returns the quip id played, or null */
+export function quipAfterKill(word: string | readonly string[] = '', at = 0, force = false, o: { moment?: QuipMoment; since?: number } = {}): string | null {
+  if (!AU.c || SET.muted || AU.c.state !== 'running') return null;
+  const now = AU.c.currentTime, moment = o.moment ?? 'mid';
+  if (!force) {
+    // the lines still talking or waiting: at most the one this quip follows (a kill word, TAKEN DOWN)
+    const live = (AU.voiceQ || []).filter((v) => v.t1 + VOICE_GAP > now);
+    if (live.length > 1 || (live.length === 1 && !/^(kill-|bossreward$)/.test(live[0].cat))) return null;
+    // lateness counts from the death: `since` is how long ago it was when this call comes (the stage-boss pend wait)
+    const v = AU.voice, start = v && v.t1 + VOICE_GAP > now + at ? v.t1 - now + VOICE_GAP : at;
+    if ((o.since ?? 0) + start > QUIP.maxLate[moment]) return null;
+  }
+  const said = (typeof word === 'string' ? [word] : word).map(normText).filter(Boolean), ready: string[] = [], avoid: string[] = [];
+  for (const q of QUIPS) {
+    if (!BANK[quipCat(q.id)]?.length) continue;
+    ready.push(q.id);
+    if (said.includes(quipLines(q.text).join(' '))) avoid.push(q.id);
+  }
+  const id = pickQuip(ready, QBAG, ar, force ? 1 : QUIP.chance[moment], avoid);
+  if (id == null || !sample(quipCat(id), { vol: 1.15, spread: .02, wet: .16, at })) return null;
+  return id;
+}
+/** a quip queued behind another line and not started yet is dropped: the voice line now being called goes first
+ *  (audio only; a quip already talking finishes) */
+function dropQueuedQuips() {
+  if (!AU.c || !AU.voiceQ?.length) return;
+  const now = AU.c.currentTime;
+  if (!AU.voiceQ.some((v) => v.cat.startsWith('quip-') && v.t0 > now)) return;
+  for (let k = LIVE.length - 1; k >= 0; k--) {
+    const v = LIVE[k];
+    if (!v.cat.startsWith('quip-') || v.t0 <= now) continue;
+    v.s.onended = null;
+    v.s.stop(); // a source stopped before its start time never plays
+    LIVE.splice(k, 1);
+  }
+  AU.voiceQ = AU.voiceQ.filter((v) => !(v.cat.startsWith('quip-') && v.t0 > now));
+  AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
 }
 /** the voice line now talking: render/hype.ts puts a comms-window face to it (clip = file stem, t0/t1 = AU.c clock) */
 export function voiceOn(cat, buf, rate = 1, at = 0) {
-  const t0 = (AU.c ? AU.c.currentTime : 0) + at;
+  const now = AU.c ? AU.c.currentTime : 0, t0 = now + at;
   AU.voice = { cat, clip: buf.clip || cat, t0, t1: t0 + buf.duration / rate };
+  // every line still talking or waiting its turn, in order: the comms window shows the one talking now (AU.voice is
+  // the last one scheduled, which the queue in sample() waits behind)
+  AU.voiceQ = (AU.voiceQ || []).filter((v) => v.t1 + VOICE_GAP > now).concat(AU.voice);
 }
+/** the player lost a life, or the run is over (LS2-quips review: game-designer, audio-director, narrative-director):
+ *  a quip talking fades out over VOICE_CUT, and one still queued is dropped, so a gallows one-liner never lands over
+ *  the player's own death. Kill words and every other line keep D50's rule and finish (audio only) */
+export function voiceCutQuips() {
+  if (!AU.c) return;
+  const now = AU.c.currentTime;
+  for (let k = LIVE.length - 1; k >= 0; k--) {
+    const v = LIVE[k];
+    if (!v.cat.startsWith('quip-')) continue;
+    v.s.onended = null;
+    if (v.t0 <= now) {
+      v.g.gain.setTargetAtTime(0, now, VOICE_CUT / 3);
+      v.s.stop(now + VOICE_CUT);
+    } else v.s.stop(); // a source stopped before its start time never plays
+    LIVE.splice(k, 1);
+  }
+  AU.voiceQ = (AU.voiceQ || []).filter((v) => !v.cat.startsWith('quip-'));
+  AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
+}
+/** game over: every voice line queued but not yet started is dropped; the one already talking finishes (audio only) */
+export function voiceDropQueued() {
+  if (!AU.c) return;
+  const now = AU.c.currentTime;
+  for (let k = LIVE.length - 1; k >= 0; k--) {
+    const v = LIVE[k];
+    if (!VOICE_CAT.test(v.cat) || v.t0 <= now) continue;
+    v.s.onended = null;
+    v.s.stop(); // a source stopped before its start time never plays
+    LIVE.splice(k, 1);
+  }
+  AU.voiceQ = (AU.voiceQ || []).filter((v) => v.t0 <= now);
+  AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
+}
+/** a new game forgets the last spoken OPENED (fx/update.ts opened), so a fresh run's first 5-chain speaks */
+export function resetOpened() {
+  AU.openedAt = -1e9;
+}
+/** seconds the voice fades over when a new game or the title cuts it off: short enough to feel cut, long enough not to click */
+export const VOICE_CUT = .06;
+/** a new game or the title: every voice line (talking or queued) stops with a VOICE_CUT fade, and the comms window
+ *  has nothing left to show (audio only). `keep`: voice folders that ride through the cut (newGame spares startgame,
+ *  the DESCEND line that started the run: before 2026-11-15 the cut killed it 60 ms in, so it was never heard) */
+export function voiceStopAll(keep?: RegExp) {
+  if (AU.c) {
+    const now = AU.c.currentTime;
+    for (let k = LIVE.length - 1; k >= 0; k--) {
+      const v = LIVE[k];
+      if (!VOICE_CAT.test(v.cat) || keep?.test(v.cat)) continue;
+      v.s.onended = null;
+      v.g.gain.setTargetAtTime(0, now, VOICE_CUT / 3);
+      v.s.stop(now + VOICE_CUT);
+      LIVE.splice(k, 1);
+    }
+  }
+  for (const k in SOLO) if (VOICE_CAT.test(k) && !keep?.test(k)) delete SOLO[k];
+  AU.voiceQ = keep && AU.voiceQ ? AU.voiceQ.filter((v) => keep.test(v.cat)) : []; // no queue yet with no audio (the harness)
+  AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
+}
+/** a line from this voice folder is talking or waiting its turn (the title greeting still going when DESCEND lands) */
+export const voiceLive = (cat: string) => !!AU.c && !!AU.voiceQ?.some((v) => v.cat === cat && v.t1 > AU.c.currentTime);
 export function thr(k, ms) {
   const n = performance.now();
   if (AU.last[k] && n - AU.last[k] < ms) return true;
@@ -215,6 +381,18 @@ export function nz(o) {
   s.start(t, ar() * 1.5);
   s.stop(t + a + dur + .05);
 }
+/** synth stand-in for a biome kill clip not in the bank yet (acid: the gfizz clip set is a follow-up) */
+function synthKill(kind, sz) {
+  if (kind !== 'fizz') return;
+  // tone pass (Matt 2026-11-07, "more evil, not cartoonish"): the rising bubble pops read as a cartoon, so they are
+  // gone. A hiss that sinks (bandpass 2.6 kHz -> 700 Hz, inside the phone speaker's 1-4 kHz band at its start) entering
+  // 30 ms in so the splat's transient lands first, under two saws a semitone-ish apart sagging together: the beat
+  // between them is the wrong, sour note of flesh giving way. Lowpassed so it sits under the splat, never over it.
+  nz({ f: 2600, f2: 700, dur: .22 + sz * .04, vol: .07, ft: 'bandpass', q: 1.2, wet: .15, at: .03 }); // flesh dissolving
+  const f0 = arr(200, 240);
+  tone({ type: 'sawtooth', f: f0, f2: f0 * .42, dur: .2 + sz * .04, vol: .035, lp: 900, wet: .15, at: .04 }); // sag
+  tone({ type: 'sawtooth', f: f0 * 1.06, f2: f0 * .4, dur: .2 + sz * .04, vol: .03, lp: 900, wet: .15, at: .04 }); // its sour twin
+}
 export const sfx = {
   /** player gun. t = power tier 0..4: each tier drops the pitch and stacks a heavier layer (body, thump, crack, sub) */
   shot(t = 0) {
@@ -267,21 +445,12 @@ export const sfx = {
       vol: .12
     });
   },
+  // tone pass (D39, tone.md Audio): no clean blip above ~1.2 kHz. The deflection is a dull knock on plate, a short
+  // falling triangle under a lowpass with a damp band of noise, not a bright ping
   tink() {
     if (thr('t', 60)) return;
-    tone({
-      type: 'triangle',
-      f: 2700,
-      f2: 1900,
-      dur: .05,
-      vol: .045
-    });
-    nz({
-      f: 5000,
-      dur: .03,
-      vol: .04,
-      ft: 'highpass'
-    });
+    tone({ type: 'triangle', f: 820, f2: 560, dur: .05, vol: .05, lp: 1000 }); // starts under the 1.2 kHz line, not on it
+    nz({ f: 800, dur: .03, vol: .04, ft: 'bandpass', q: 3 });
   },
   gore(sz) {
     if (thr('g', 45)) return;
@@ -289,9 +458,12 @@ export const sfx = {
     if (sample(cat, { vol: .75 + Math.min(.45, sz * .08), wet: .22 })) {
       if (sz >= 1.2) sample('thud', { vol: .5 + Math.min(.3, sz * .06), rate: sz >= 2.1 ? .8 : 1 }); // body impact under the splat
       if (sz >= 1.4 && ar() < .5) sample('bone', { vol: .55, at: .015 });
-      if (sz >= .9 && ar() < .14) sample('silly', { vol: .6, at: .04 }); // ~1 in 7 kills gets the comedy layer
       if (sz >= 3) sample('explode_l', { vol: .9, wet: .35 });
-      if (curBiome() === 'snot' && ar() < .6) sample('snot', { vol: .55 + Math.min(.3, sz * .06), at: .02 }); // the Sinus: everything dies wet
+      // the biome's kill layer (audiomix.ts BIOME_KILL): lowest priority, so it skips near the voice cap and is throttled
+      // on its own key: sharing sfx.glob()'s 'gb' let the two silence each other
+      const k = BIOME_KILL[curBiome()];
+      if (k && sz >= k.minSz && LIVE.length <= KILL_LAYER.maxVoices && !thr('gk', KILL_LAYER.gapMs) && ar() < k.chance)
+        sample(k.cat, { vol: k.vol + Math.min(KILL_LAYER.volCap, sz * k.sizeVol), rate: k.rate, at: k.at, wet: .15 }) || (k.synth && synthKill(k.synth, sz));
       return;
     }
     const v = Math.min(1, .3 + sz * .14);
@@ -319,23 +491,23 @@ export const sfx = {
       q: 3
     });
   },
+  // tone pass (D39): rewards fall and never resolve upward. pick was a C-major arpeggio up; now a minor 2nd down then a
+  // tritone down (G#4 G4 C#4) on lowpassed saws, in the 200 Hz-1 kHz band a phone speaker carries
   pick() {
-    [523, 784, 1046].forEach((f, i) => tone({
-      at: i * .05,
-      f,
-      dur: .07,
-      vol: .05
-    }));
+    [415.3, 392, 277.2].forEach((f, i) => tone({ at: i * .05, type: 'sawtooth', f, dur: .07, vol: .045, lp: 1100, q: 1.5 }));
   },
+  /** power-ups, perk takes, menu confirms and the stage clear (stages.ts calls this; its sim is not touched). A falling
+   *  m2 / tritone / m2 figure (D#4 D4 G#3 G3) over a slow swell of two low saws a semitone apart (G2/G#2), whose
+   *  beating is the dark swell tone.md asks for at the stage clear */
   power() {
-    [262, 330, 392, 523].forEach((f, i) => tone({
-      at: i * .04,
-      type: 'sawtooth',
-      f,
-      dur: .2,
-      vol: .04,
-      lp: 2600
-    }));
+    [311.1, 293.7, 207.7, 196].forEach((f, i) => tone({ at: i * .06, type: 'sawtooth', f, dur: .22, vol: .042, lp: 950, q: 2 }));
+  },
+  /** stage clear: the falling power figure over a dark swell of two saws a semitone apart (G2/G#2). Only the clear
+   *  gets the swell; on every perk, buy and confirm it stopped meaning anything (audio-director, ls2-read) */
+  stageClear() {
+    sfx.power(); // not this.power(): safe if passed as a bare callback
+    tone({ type: 'sawtooth', f: 98, f2: 92.5, dur: .55, a: .2, vol: .05, lp: 420, wet: .35 });
+    tone({ type: 'sawtooth', f: 103.8, f2: 98, dur: .55, a: .2, vol: .045, lp: 420, wet: .35 });
   },
   deny() {
     tone({
@@ -445,25 +617,20 @@ export const sfx = {
   },
   /** WARNING banners: a recorded siren, the synth alarm if the bank isn't loaded */
   siren() {
-    if (!sample('warning', { vol: .5, wet: .35, spread: .04 })) sfx.alarm();
+    if (!sample('warning', { vol: .5, wet: .35, spread: .04, prio: true, fb: true })) sfx.alarm();
   },
   /** a midboss is coming: siren plus the string stinger */
   dread() {
     sfx.siren();
-    sample('stinger', { vol: .7, wet: .4, spread: 0 });
+    sample('stinger', { vol: .7, wet: .4, spread: 0, prio: true });
   },
   forkOpen() {
-    if (!sample('forkopen', { vol: .8, wet: .3, spread: 0 })) sfx.alarm();
+    if (!sample('forkopen', { vol: .8, wet: .3, spread: 0, prio: true, fb: true })) sfx.alarm();
   },
+  // tone pass (D39): the 660/880 hi-lo siren was a cartoon klaxon. Now a 220/233 Hz pair (a minor 2nd, ~13 Hz beat)
+  // pulsing four times over the same ~2.1 s: a sour throb in the band phones carry
   alarm() {
-    for (let i = 0; i < 6; i++) tone({
-      at: i * .36,
-      f: i % 2 ? 660 : 880,
-      dur: .3,
-      vol: .045,
-      lp: 3000,
-      wet: .3
-    });
+    for (let i = 0; i < 4; i++) for (const f of [220, 233.1]) tone({ at: i * .52, type: 'sawtooth', f, dur: .4, a: .04, vol: .04, lp: 1000, q: 1.5, wet: .3 });
   },
   heart() {
     tone({
@@ -525,15 +692,12 @@ export const sfx = {
       vol: .15
     });
   },
+  // tone pass (D39): the attack tell was a clean 1.9-2.6 kHz sine sweep. Still a rising pull so it reads as "about to",
+  // but two lowpassed saws a tritone apart (D#4/A4) creeping up a semitone, resonant, under 1.2 kHz
   tele() {
     if (thr('tl', 300)) return;
-    tone({
-      type: 'sine',
-      f: 1900,
-      f2: 2600,
-      dur: .25,
-      vol: .03
-    });
+    tone({ type: 'sawtooth', f: 311.1, f2: 329.6, dur: .25, vol: .035, lp: 1100, q: 3 });
+    tone({ type: 'sawtooth', f: 440, f2: 466.2, dur: .25, vol: .03, lp: 1100, q: 3 });
   },
   shield() {
     tone({
@@ -544,12 +708,9 @@ export const sfx = {
       vol: .08
     });
   },
+  // tone pass (D39): an octave lower and lowpassed, a dull tick rather than a bright blip
   menu() {
-    tone({
-      f: 660,
-      dur: .03,
-      vol: .035
-    });
+    tone({ f: 330, dur: .035, vol: .04, lp: 900 });
   },
   groan() {
     nz({
@@ -639,14 +800,8 @@ export const sfx = {
   },
   chain() {
     if (thr('ch', 150)) return;
-    for (let k = 0; k < 5; k++) tone({
-      at: k * .035,
-      type: 'triangle',
-      f: arr(1800, 3600),
-      f2: arr(900, 1500),
-      dur: .04,
-      vol: .035
-    });
+    // tone pass (D39): was bright 1.8-3.6 kHz triangle pings; now a low lowpassed rattle of links dragging
+    for (let k = 0; k < 5; k++) tone({ at: k * .035, type: 'sawtooth', f: arr(500, 900), f2: arr(250, 400), dur: .04, vol: .035, lp: 1100, q: 2 });
   },
   bomb() {
     if (thr('bm', 80)) return;
@@ -672,17 +827,17 @@ export const sfx = {
       f,
       dur: .7,
       vol: .07,
-      lp: 1900,
+      lp: 1200,
       a: .01,
       wet: .3
     }));
     [82.4, 123.5, 164.8].forEach(f => tone({
       at: .18,
       type: 'sawtooth',
-      f: f * 1.335,
+      f: f * 1.0595, // tone pass (D39): was x1.335, a rising fourth (triumph); now a minor 2nd above, sour
       dur: .9,
       vol: .06,
-      lp: 1900,
+      lp: 1200,
       wet: .3
     }));
     nz({
@@ -704,34 +859,12 @@ export const sfx = {
   },
   drip() {
     if (thr('dr', 200)) return;
-    tone({
-      type: 'sine',
-      f: arr(1100, 1500),
-      f2: 500,
-      dur: .05,
-      vol: .02,
-      wet: .6
-    });
+    // tone pass (D39): was a 1.1-1.5 kHz plink; now a low wet drop falling into the 200-800 Hz band
+    tone({ type: 'sine', f: arr(600, 800), f2: 240, dur: .06, vol: .025, wet: .6 });
   }
 };
-export function say(t, o = {}) {
-  if (SET.muted) return;
-  if (nativeSay(t, o.pitch ?? .3, o.rate ?? .92)) return;
-  try {
-    const S = window.speechSynthesis;
-    if (!S) return;
-    const u = new SpeechSynthesisUtterance(t);
-    u.pitch = o.pitch ?? .3;
-    u.rate = o.rate ?? .92;
-    u.volume = 1;
-    if (o.female) {
-      const v = S.getVoices().find(v => /female|samantha|zira|victoria|karen|moira|tessa|fiona|susan|aria|jenny/i.test(v.name));
-      if (v) u.voice = v;
-    }
-    S.cancel();
-    S.speak(u);
-  } catch (e) {}
-}
+// say() (speechSynthesis / native TTS) is gone (tone pass D39): a voice line is a recorded clip or nothing, so an
+// empty or shelved bank is silent
 export function setMute(m) {
   SET.muted = m;
   if (AU.m) AU.m.gain.value = m ? 0 : .55;

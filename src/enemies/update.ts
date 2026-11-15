@@ -5,21 +5,25 @@ const VOL = { on: 0 };
 import { clearStage, deepPay } from '../stages';
 import { FIRE, PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '../core';
 import { SET, lv } from '../save';
-import { sample, sfx } from '../audio';
+import { quipAfterKill, sample, sfx } from '../audio';
 import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world';
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
-import { econId, firstKillPay, grpDrops, killBio, killXP } from '../economy';
+import { bankBio, econId, firstKillPay, grpDrops, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
-import { MID_SIM, midMul, midRow } from './mid/roster';
+import { MID_SIM, midHitSnd, midMul, midRow } from './mid/roster';
 import { eliteKill, eliteTick } from './elite';
+import { corpseKilled } from './corpsevoice';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
+
+/** seconds from a midboss's death to its spoken kill word: the roar (sfx.roar) gets the first beat */
+export const KILL_WORD_AT = .45;
 
 // --- enemy behaviour ---
 export function updEnemy(e) {
@@ -480,14 +484,17 @@ export function bandFit(e) {
   bodyBand(e.k, ce, fl, BAND);
   e.blo = e.blo == null || BAND[0] > e.blo ? BAND[0] : lerp(e.blo, BAND[0], BAND_EASE);
   e.bhi = e.bhi == null || BAND[1] < e.bhi ? BAND[1] : lerp(e.bhi, BAND[1], BAND_EASE);
+  // the eased side must never pass the other side's hard limit: on a slope one side tightens while the other relaxes,
+  // and a lagging blo above the new bhi would push the body into the floor (ls1-audit, ai-programmer second pass)
+  e.blo = Math.min(e.blo, BAND[1]); e.bhi = Math.max(e.bhi, BAND[0]);
   e.y = fitY(e.y, e.blo, e.bhi);
 }
-// biome midbosses: settle at e.tx, and once e.t passes e.leave slide off right (escape costs nothing). The HUD fuse shows the time left.
+// biome midbosses: settle at e.tx, and once e.t passes e.leave slide off right (an escape pays no kill reward: no pod, no biomass, no first-kill pay). The HUD fuse shows the time left.
 export function midLeave(e, k = .03) {
   e.pl = e.leave;
   e.pt = Math.min(e.t, e.leave);
   if (e.t < e.leave) { e.x = lerp(e.x, e.tx, k); return false; }
-  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NOTHING LOST', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); }
+  if (!e.gone) { e.gone = 1; e.st = 'idle'; banner('IT WITHDRAWS', 'NO REWARD', '#8a5a5a', 90); MID_SIM[e.k]?.leave?.(e); }
   e.x += 1.6;
   if (e.x > W + 60) e.dead = true;
   return true;
@@ -558,8 +565,8 @@ export function hurt(e, d, hx, hy, dir) {
   for (let k = 0; k < n; k++) drop(hx, hy, dir * rr(.6, 2.8) + rr(-.8, .8), rr(-1.5, 1.3), rr(1, 1.9), R() < .3 ? 2 : 0, ri(50, 110));
   if (R() < .3) mist(hx, hy, rr(3, 5), 20);
   if (e.big && R() < .2) gib(hx, hy, dir * rr(.5, 2), rr(-1.5, 1), 'chunk', rr(1.5, 2.5));
-  if (m < 1) sfx.tink();
-  else sfx.hit();
+  // a kind with its own hit sound plays it instead (MidSim.hitSnd: THE KEEPSAKE's vinyl thud, its wound's squelch)
+  if (!midHitSnd(e, m, hx, hy)) { if (m < 1) sfx.tink(); else sfx.hit(); }
   if (e.hp <= 0) killEnemy(e, dir);
 }
 export const mult = () => 1 + Math.min(4, $.G.combo * .05);
@@ -640,7 +647,7 @@ export function killEnemy(e, dir = 1) {
       limbs: 3,
       skull: 2
     });
-    banner(e.k === 'crux' ? 'UNCRUCIFIED' : 'BUTCHERED', '', undefined, 130);
+    banner('TAKEN DOWN', '', undefined, 130); // tone note §4(A)9 (D39): one cold readout for either stage boss
     $.G.hitstop = Math.max($.G.hitstop, 18);
     $.G.white = SET.flashes ? .6 : .25;
     sfx.roar();
@@ -656,6 +663,12 @@ export function killEnemy(e, dir = 1) {
     splat(rr(150, 330), rr(60, 160), 3);
     const M = MID_SIM[e.k];
     banner(M?.word, '', undefined, 90);
+    // SGT. RAMROD SLAB says the kill word over the comms (src/sfx/kill-<k>/; an empty folder stays silent, no window).
+    // `at` lets the death roar land first; a line already talking puts it in the queue (audio.ts sample). Audio only:
+    // sample() draws ar(), never R(), and returns false at once with no context (the harness)
+    sample('kill-' + e.k, { vol: 1.15, spread: .02, wet: .16, at: KILL_WORD_AT });
+    // then, at QUIP.chance.mid, one of his quips queued behind it (LS2-quips; audio only, ar() draws)
+    quipAfterKill(M?.word, KILL_WORD_AT);
     if (M?.kill) M.kill(e);
     // first-kill pay is for the midboss kinds (e.mid: the biome midbosses and the Saucer), the ones a player discovers
     // (spec §6.4, the meta.mb kinds). Maws don't pay: one recurs every Open Orbit, so it is never a kind to discover
@@ -663,8 +676,8 @@ export function killEnemy(e, dir = 1) {
     $.G.hitstop = Math.max($.G.hitstop || 0, 10);
     sfx.roar();
   }
-  // every 5th crew corpse you shoot pleads (it was every one, and wore thin)
-  if (e.k === 'corpse' && ($.G.corpseN = ($.G.corpseN || 0) + 1) % 5 === 0) sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true });
+  // a crew corpse pleads at most once a stage, on a kill that varies by stage (corpsevoice.ts; every 5th wore thin)
+  if (e.k === 'corpse' && $.G.st && corpseKilled($.G.st, $.G.stage | 0, $.G.loop | 0)) sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true, prio: true }); // prio: a stage's one plea must not die at the voice cap on a gore-heavy frame
   if (e.k === 'maw') {
     if (e.stageBoss) {
       miniReward(e);
@@ -771,8 +784,7 @@ export function miniReward(e) {
     ty: pool[k],
     choice: gid
   });
-  $.G.bio += 30 * deepPay();
-  $.meta.bio += 30 * deepPay();
+  bankBio(30 * deepPay(), $.G, $.meta);
 }
 /** spec §6.4: the first kill of each midboss kind ever pays the entry's firstKill biomass once, recorded in meta.mbK
  *  (saved with the meta at the next save()). short pays 0 and writes nothing, so today's game is unchanged. No R() */
@@ -782,6 +794,7 @@ function firstKill(e) {
   if (!pay) return;
   (m.mbK ||= {})[e.k] = 1;
   $.G.bio += pay;
+  $.G.bioFk = ($.G.bioFk || 0) + pay; // outside bankBio's mark: a replay cannot re-earn it
   m.bio += pay;
   pop(e.x, e.y - 48, `FIRST KILL +${pay}`, '#9effa0', 9, 70); // y-48: clear of the graft pop and the death burst
 }

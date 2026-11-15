@@ -1,5 +1,5 @@
 // DPS probe: holds the ship still at (100,127) firing into fixed immortal dummy targets and measures damage/second
-// per loadout. Needs the VITE DEV server (imports live modules). Usage: node tools/dps-probe.mjs http://localhost:4202/ [frames=600] [--layout short]
+// per loadout. Needs the VITE DEV server (imports live modules). Usage: node tools/dps-probe.mjs http://localhost:4202/ [frames=600] [--layout long4|short]
 //   The targets sit in open space at biome slot 0's x0 + 700 (src/layout.ts; 3000 on short).
 //  FIELD = 12 targets scattered over the right 2/3 of the screen + 2 floor crawlers; ship sweeps up/down (rewards coverage)
 //  ONE   = a single big (r16) target dead ahead at x=250, ship parked level with it (boss-ish: raw focus damage)

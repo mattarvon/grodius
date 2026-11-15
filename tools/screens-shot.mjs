@@ -1,7 +1,7 @@
 // Screen-art shots: the hype-voice comms portrait mid-line in a real play frame (one per voice clip), the game-over
 // screen at two animation moments and the Infirmary. Imports live modules from the VITE dev server and drives $.state
 // directly; rAF is parked so every frame is rendered on purpose.
-// Usage: node tools/screens-shot.mjs <url> <outDir> [only=hype,over,shop,phone] [--layout short]
+// Usage: node tools/screens-shot.mjs <url> <outDir> [only=hype,over,shop,phone] [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
@@ -42,14 +42,14 @@ if (want.has('hype') || want.has('phone')) {
   for (const [pre, vp, touch] of vps) {
     const p = await boot(vp, touch);
     await p.evaluate(() => { const m = window.__s; m.F.newGame(0); m.$.state = 'play'; window.__play(420); });
-    const clips = pre ? [['hype10', 'hell-yeah-matty-1']] : [['hype10', 'hell-yeah-matty-1'], ['hype10', 'shamalama-matty-1'], ['babe20', 'sfriend-matty-1'], ['corpsevoice', 'stop-killing-me-matty-1'], ['bossreward', 'keyster-easter-matty-1'], ['startgame', 'lesley-yeah-baby-matty-1']];
+    const clips = pre ? [['hype10', 'hell-yeah-matty-1']] : [['hype20', 'silent-20-chain'], ['hype10', 'hell-yeah-matty-1'], ['hype10', 'shamalama-matty-1'], ['babe20', 'sfriend-matty-1'], ['corpsevoice', 'stop-killing-me-matty-1'], ['bossreward', 'keyster-easter-matty-1'], ['startgame', 'lesley-yeah-baby-matty-1']];
     for (const [cat, name] of clips) {
       await p.evaluate(([cat, name]) => {
         const m = window.__s;
-        m.$.G.hype = null; m.$.G.babe = null;
+        m.$.G.hype = null;
         if (cat === 'hype10') m.U.hype(10);
-        if (cat === 'babe20') m.U.babe();
-        m.A.voiceOn(cat, { clip: name, duration: 2.4 }, 1);
+        if (cat === 'hype20') m.U.hype(20); // no clip: the sting and the caption alone
+        else m.A.voiceOn(cat, { clip: name, duration: 2.4 }, 1);
         window.__play(26);
       }, [cat, name]);
       await shot(p, `${pre}hype-${name.replace(/-matty-1/, '')}`);

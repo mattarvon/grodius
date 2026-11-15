@@ -1,6 +1,6 @@
 // Boss probe: time-to-kill for every boss across loadout tiers, plus Gravity Drive laser lethality.
 // Invincible bot parks at x=90 and tracks the boss's current weak point, holding fire. Needs the VITE DEV server
-// (imports live modules). Usage: node tools/boss-probe.mjs http://localhost:4202/ [capSeconds=150] [--layout short]
+// (imports live modules). Usage: node tools/boss-probe.mjs http://localhost:4202/ [capSeconds=150] [--layout long4|short]
 //  World x comes from src/layout.ts: biome bosses fight at slot 0's x0 + 700 (3000 on short), the Drive at bossAt()
 //  TTK  = seconds from the boss becoming hittable to dead (or "esc" if it escaped / "--" if it outlived the cap)
 //  LASER = per Gravity Drive beam: hits that land on a ship sitting in the beam with a full WARD, and whether it dies

@@ -1,7 +1,7 @@
 // Perf probe: real-clock cost of step() and render() per frame in the heaviest scenes: a crowded Open Orbit with a
 // strong kit, every boss / midboss in its own biome, and each boss's death + aftermath. The game's own rAF loop is
 // disabled; frames are driven by hand. CPU is throttled (default 4x) to approximate a phone.
-// Usage: node tools/perf-probe.mjs <url> [throttle=4] [scenes=all|maw,crux,...] [prof] [--layout short]   (WARM_MS=20000 env: wait for the idle art warm-up first, like the title screen; fairer for boss scenes)
+// Usage: node tools/perf-probe.mjs <url> [throttle=4] [scenes=all|maw,crux,...] [prof] [--layout long4|short]   (WARM_MS=20000 env: wait for the idle art warm-up first, like the title screen; fairer for boss scenes)
 //   prints avg / p95 / max ms for step and render, and the share of frames whose step+render blows the 16.7 ms budget.
 //   prof: also samples the JS profiler per scene and prints the top self-time functions.
 //   ELITE=1 env: in biome scenes, a crowd of elites (enemies/elite.ts) keeps streaming in alongside the fight (~8 alive);
@@ -198,7 +198,7 @@ const routeScene = (a, b) => run(`
   const log = WU.warmLog.filter((l) => l.op !== 'boot'), ms = R.ms;
   return { frames: f, stages: R.stages, avg: ms.reduce((u, v) => u + v, 0) / ms.length, p95: q(ms, .95), max: Math.max(...ms), over: ms.filter((v) => v > 1000 / 60).length / ms.length,
     warnFrames: R.warn.length, warnP95: q(R.warn, .95), warnMax: Math.max(0, ...R.warn), fights: R.fights.map((x) => ({ k: x.k, x: x.x, firstMax: Math.max(0, ...x.first) })),
-    mb: JSON.stringify($.G.mb), canvas: [mb0, mbPeak], inWarn: log.filter((l) => l.warn || l.banner === 'WARNING').length, log: log.map((l) => \`\${l.op} \${l.k} \${l.ms.toFixed(1)}ms s\${l.stage} x\${Math.round(l.scroll)}\`), built: WU.warmBuilt() };
+    mb: JSON.stringify($.G.mb), canvas: [mb0, mbPeak], inWarn: log.filter((l) => l.warn).length, log: log.map((l) => \`\${l.op} \${l.k} \${l.ms.toFixed(1)}ms s\${l.stage} x\${Math.round(l.scroll)}\`), built: WU.warmBuilt() };
 `.replace(/\\/g, ''), [a, b, process.env.ROUTE_MAX || 0]);
 
 /** a dropped route piece stays dropped: kill a stage Maw, wait out its death, move past the stage, pump. One drop, no churn */
@@ -220,8 +220,7 @@ const warnGate = () => run(`
   WU.warmLog.length = 0;
   const unbuilt = WU.warmBuilt().length, G = $.G; let frames = 0, spawned = 0, inWarn = 0, bannerFrames = 0;
   SP.miniWarn('GATE TEST', () => { spawned = 1; });
-  const end = G.warnEnd;
-  while (G.t < end && frames < 400) {
+  while (G.t < G.warnEnd && frames < 400) {
     fly(frames, 135); WU.warmPump(); inWarn = WU.warmLog.length; if (G.banner && G.banner.text === 'WARNING') bannerFrames++; ST.step(); frames++;
   }
   for (let i = 0; i < 8; i++) WU.warmPump();

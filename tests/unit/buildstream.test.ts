@@ -117,7 +117,7 @@ describe('stream and seedOf', () => {
 
 describe('the run seed in the run save', () => {
   it('round-trips G.seed, and the restored seed rebuilds the same biome stage', () => {
-    $.G = { ...run(1), seed: 3141592653, stage: 1, bx: [2658.007, null, null], route: ['acid', null], visitNo: [1, 0], remixV: {} };
+    $.G = { ...run(1), seed: 3141592653, stage: 1, cpX: 2700, cpN: 0, bx: [2658.007, null, null], route: ['acid', null], visitNo: [1, 0], remixV: {} }; // cpX/cpN: a run save requires them
     const before = list(buildBiome(0, 'acid', $.G.bx[0], 1));
     const d = decodeRun(JSON.stringify(serializeRun($.G, null)));
     expect(d).not.toBeNull();

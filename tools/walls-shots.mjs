@@ -1,6 +1,6 @@
 // Wall-enemy close-ups for the walls art pass: eye / crawler / womb on floor AND ceiling, in a chosen fork biome, with
 // their tells forced (eye charging + blinking, crawler gaping / airborne, womb about to birth / just birthed).
-// Usage: node tools/walls-shots.mjs <url> <outDir> [biome=ice] [--layout short]   (biome slot 0 of src/layout.ts; needs the VITE dev server)
+// Usage: node tools/walls-shots.mjs <url> <outDir> [biome=ice] [--layout long4|short]   (biome slot 0 of src/layout.ts; needs the VITE dev server)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';

@@ -1,6 +1,6 @@
 // Maw shots: renders each Maw variant (Open Orbit / acid THE DISSOLVED MAW / snot THE MUCUS MAW) mid-fight at 2x, at a few
 // moments of its 130-frame cycle (idle, jaw telegraph, spew, wounded, and the death rupture), and saves full-frame + close-up PNGs.
-// Usage: node tools/maw-shots.mjs <url> <outDir> [--layout short]   (Open Orbit Maw at the orbit row's warnX, biome fights in slot 0; needs the VITE dev server: imports live modules)
+// Usage: node tools/maw-shots.mjs <url> <outDir> [--layout long4|short]   (Open Orbit Maw at the orbit row's warnX, biome fights in slot 0; needs the VITE dev server: imports live modules)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 const [url, OUT] = process.argv.slice(2);

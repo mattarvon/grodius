@@ -4,7 +4,7 @@
 // Invincible bot parks at x=90 and tracks the target's y (the Gravity Drive: its lowest plate), holding fire.
 // Fights run in open space at scroll slot 0's x0 + 700 (3000 on short; the Saucer at its real ufoAt() + 150, scroll moving;
 // no biome terrain), so they are a little faster than the real ones. World x and stage indices come from src/layout.ts.
-// Usage: node tools/depth-probe.mjs <url> [capSeconds=90] [--layout short]
+// Usage: node tools/depth-probe.mjs <url> [capSeconds=90] [--layout long4|short]
 //  TTK = seconds from on screen to dead; "esc" = it left first; "--" = outlived the cap
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';

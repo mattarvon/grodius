@@ -1,169 +1,70 @@
 // @ts-nocheck
 // Render-only: own RNG and particles (../midbosses.ts), no gameplay state touched. Sim: enemies/mid/choir.ts.
 import { $ } from '../../../state';
-import { C, TAU, ctx, hash } from '../../../core';
-import { poly } from '../../util';
-import { eye } from '../../eyes';
-import { glowC, eyeC, fxs, stepParts, drawParts, strand, bubble, layer, snd, GROSS, hn, blob, lay } from '../midbosses';
+import { TAU, ctx, hash } from '../../../core';
+import { glowC, fxs, spray, stepParts, drawParts, strand, snd, emit, rnd, rn, GROSS } from '../midbosses';
+import { bakedBuilt, bakedDrop, bakedFallback, bakedWarm, bf, breath, pour, trackDeath, twitch, woundStage } from '../baked';
 
 // =====================================================================
-//  THE NAIL CHOIR - a frozen pus-weeping eye in a crust of gargling, frostbitten mouths
+//  THE NAIL CHOIR - an eye cut out of its socket: six torn muscles, orbital fat, a trailing nerve, the cornea frosted blind,
+//  and it follows you anyway (Matt's pick c3 The Enucleated Eye). Art: tools/bossart/choir/bake.py -> sprites/boss/choir.png.
+//  The body frames carry the muscles and fat; the globe is its own list per gaze angle, drawn over them, so the eye tracks
+//  you (idle: your position; tell: e.ha) without rotating a pixel sprite. The nailbars' art is drawChoirNail below.
 // =====================================================================
-const chRim = (a, i) => (i % 2 ? 15 : 21) + hash(i + 3) * 4;
-const choirCrust = () => layer('choir', 60, 60, (x) => {
-  x.translate(30, 30);
-  x.fillStyle = '#081420';
-  blob(x, 16, 1, chRim);
-  x.fill();
-  x.fillStyle = 'rgba(150,205,245,.6)';
-  blob(x, 16, .86, chRim);
-  x.fill();
-  // dirty ice: frozen phlegm, old blood and pus caught in the crust
-  x.save();
-  blob(x, 16, .86, chRim);
-  x.clip();
-  for (let i = 0; i < 9; i++) {
-    const a = i / 9 * TAU + hn(i) * .5, r = 15 + hn(i, 1) * 4, px = Math.cos(a) * r, py = Math.sin(a) * r, k = hn(i, 2);
-    x.fillStyle = k < .5 ? 'rgba(190,200,70,.45)' : k < .75 ? 'rgba(110,20,30,.45)' : 'rgba(225,200,90,.5)';
-    x.beginPath();
-    x.ellipse(px, py, 2 + hn(i, 3) * 2, 1.2 + hn(i, 4) * 1.2, a, 0, TAU);
-    x.fill();
-  }
-  x.strokeStyle = 'rgba(190,200,70,.5)'; // phlegm streaks frozen mid-run
-  x.lineWidth = .8;
-  x.beginPath();
-  for (let i = 0; i < 7; i++) { const a = hn(i, 9) * TAU, r = 13 + hn(i, 8) * 5; x.moveTo(Math.cos(a) * r, Math.sin(a) * r); x.lineTo(Math.cos(a) * r + hn(i, 7) * 2 - 1, Math.sin(a) * r + 3 + hn(i, 6) * 3); }
-  x.stroke();
-  x.restore();
-  x.strokeStyle = '#f2fbff';
-  x.lineWidth = .7;
-  x.beginPath();
-  for (let i = 0; i < 16; i += 2) { const a = i / 16 * TAU, r = chRim(a, i) * .86; x.moveTo(Math.cos(a) * 9, Math.sin(a) * 9); x.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
-  x.stroke();
-});
-// mouths: [x, y, size, drools] - set into the crust, facing out
-const MOUTHS = [[-17, 1, 1.35, 1], [-11, -13, 1.1, 0], [-11, 13, 1.2, 1], [11, -12.5, 1, 0], [13, 9.5, 1.1, 1]];
-function choirMouth(c, s, e, k, mx, my, sz, drool, tel) {
-  const t = e.t, o = .45 + .55 * Math.max(0, Math.sin(t * (.09 + tel * .25) + k * 2)) + tel * .4, g = Math.sin(t * .7 + k) * .25 * (1 + tel * 2);
-  c.save();
-  c.translate(mx, my);
-  c.scale(sz, sz);
-  // frostbitten lips: purple-black, rimed white, split open and beading blood
-  c.fillStyle = '#1c0c1c';
-  c.beginPath();
-  c.ellipse(0, 0, 4.4, 3 + o * .9, 0, 0, TAU);
-  c.fill();
-  c.fillStyle = '#7a4068';
-  c.beginPath();
-  c.ellipse(0, -.2, 3.8, 2.5 + o * .8, 0, 0, TAU);
-  c.fill();
-  c.fillStyle = 'rgba(230,245,255,.85)';
-  c.fillRect(-2.6, -2.6 - o * .8, 2, .7);
-  c.fillStyle = '#140810';
-  c.fillRect(1.2, -2.4 - o * .7, 1.6, .9);
-  c.fillRect(-3, 1 + o * .5, 1.5, 1);
-  // the throat, full of phlegm, gargling
-  c.fillStyle = '#050102';
-  c.beginPath();
-  c.ellipse(0, 0, 2.9, 1.7 * o + .4, 0, 0, TAU);
-  c.fill();
-  c.fillStyle = 'rgba(190,200,70,.95)';
-  c.beginPath();
-  c.ellipse(g, .7 * o + .3, 1.8, .7 * o, 0, 0, Math.PI);
-  c.fill();
-  // rotten teeth: brown, black, one missing
-  const T = ['#f0e4b0', '#8a7034', '#e0cc80', null, '#4a3414', '#fff4c8'];
-  for (let i = 0; i < 3; i++) { const col = T[(i + k) % 6]; if (col) { c.fillStyle = col; c.fillRect(-2 + i * 1.4, -1.6 * o - .4, 1.1, 1.2 + (i % 2) * .5); } }
-  for (let i = 0; i < 2; i++) { const col = T[(i + k + 3) % 6]; if (col) { c.fillStyle = col; c.fillRect(-1.3 + i * 1.6, 1.6 * o - .9, 1, 1); } }
-  // splits in the lips, beading blood
-  c.strokeStyle = '#d0203a';
-  c.lineWidth = .45;
-  c.beginPath();
-  c.moveTo(-1, -2.4 - o * .8); c.lineTo(-.6, -1.4 - o * .7);
-  c.moveTo(1.2, 2.2 + o * .7); c.lineTo(.8, 1.4 + o * .6);
-  c.stroke();
-  c.restore();
-  // gargle bubbles boiling out of the phlegm
-  bubble(c, s, e, k * 3 + 1, mx + g * 2, my + .6 * sz, (.9 + tel * 1.4) * sz, tel ? 14 : 28, 'rgba(210,215,110,.7)', 'rgba(240,245,160,.9)', '#c8cc5a', 3);
-  if (drool) strand(c, s, e, k + 10, mx + .5, my + (1.6 * o + .5) * sz, 9 * sz, 1.1, 'rgba(195,205,85,.85)', 95 + k * 13, '#e4f0c0', 1.2);
-}
+const K = 'choir', NA = 16;
+const DEATH = { k: K, list: 'die', rate: 6, fall: .02, hold: 30, gore: (x, y, age) => pour(x - 2, y, age, { w: 15, h: 15, jets: 6, len: 80, meat: 18, rope: 6 }) };
+// boss-local drip points: the cut nerve, the torn strap ends that hang low; then the wounds that open with each stage
+const ENDS = [[29, 39, 9, 83], [-34, 21, 6, 101], [6, 37, 7, 67], [22, 33, 5, 119]];
+const WOUNDS = [[10, -9, 5, 53], [13, 9, 6, 61], [6, -5, 9, 41], [16, 13, 7, 47]];
+/** gaze angle -> its baked frame (index i is i * 22.5 deg) */
+const gi = (a) => Math.round(((a % TAU) + TAU) % TAU / TAU * NA) % NA;
+
 function grossChoir(c, e) {
   const s = fxs(e), t = e.t, tel = e.st === 'tel' ? e.wt / 40 : 0;
   stepParts(s);
+  trackDeath(e, DEATH);
   if (s.ev === 'idle>tel') snd('gross_gargle', .55, .4);
-  // tongues nailed to its orbiting nails, frozen stiff, spit icicles hanging off them
-  for (const b of e.bars || []) {
-    if (b.dead || GROSS <= 0) continue;
-    const bx = b.x - e.x, by = b.y - e.y, fl = Math.sin(t * .06 + b.i * 3) * .4;
-    c.save();
-    c.translate(bx, by);
-    c.fillStyle = '#4a1a2a';
-    c.beginPath();
-    c.moveTo(1, -6); c.quadraticCurveTo(8, -7 + fl, 11, -1 + fl * 2); c.quadraticCurveTo(8, 2, 1, 0);
-    c.fill();
-    c.fillStyle = '#a65a72';
-    c.beginPath();
-    c.moveTo(1, -5.2); c.quadraticCurveTo(7.5, -6 + fl, 10, -1.4 + fl * 2); c.quadraticCurveTo(7, .8, 1, -.8);
-    c.fill();
-    c.fillStyle = 'rgba(200,210,90,.8)';
-    c.fillRect(4, -4, 3, .8);
-    c.fillStyle = '#2a0a14';
-    c.fillRect(5.5, -3.6, .5, 2.6);
-    c.fillStyle = '#d8efff';
-    for (let q = 0; q < 3; q++) poly(c, [[3 + q * 2.6, -.4], [4.4 + q * 2.6, -.6], [3.7 + q * 2.6, 3 + hash(q + b.i * 5) * 3]]);
-    c.restore();
-    strand(c, s, e, 40 + b.i, bx + 9.5, by + fl * 2, 6, .8, 'rgba(195,205,85,.8)', 120 + b.i * 17, '#e4f0c0', .8);
-  }
-  // pus-cicles: the eye's pus ran down and froze; it still drips
-  for (let k = -2; k <= 2; k++) {
-    const pus = k !== 1, h = 22 + hash(k + 9) * 6 + (pus ? 4 * GROSS : 0), x0 = k * 5;
-    c.fillStyle = pus ? '#c8b040' : '#d8efff';
-    poly(c, [[x0 - 1.9, 15], [x0 + 1.9, 15], [x0, h]]);
-    c.fillStyle = pus ? 'rgba(240,225,120,.9)' : '#f4fbff';
-    poly(c, [[x0 - 1, 15], [x0, 15], [x0 - .2, h - 3]]);
-    if (pus) strand(c, s, e, 20 + k, x0, h - .5, 4, .9, 'rgba(225,205,80,.9)', 70 + k * 11, '#f0e070', .4);
-  }
-  c.drawImage(choirCrust(), -30, -30);
-  const g = c.createRadialGradient(-3, -4, 1, 0, 0, 13);
-  g.addColorStop(0, '#d88a7a');
-  g.addColorStop(.6, '#7a3a3a');
-  g.addColorStop(1, '#2a0f14');
-  c.fillStyle = g;
-  c.beginPath();
-  c.arc(0, 0, 13, 0, TAU);
-  c.fill();
-  // infected socket: yellow-green crust ringing the eye
-  c.fillStyle = 'rgba(205,200,70,.9)';
-  for (const [x, y, r] of [[-10, -1, 1.6], [6.2, 2, 1.3], [-6, 7.2, 1.2]]) { c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); }
-  // the choir: frostbitten mouths with rotten teeth, gargling frozen phlegm
-  for (let k = 0; k < MOUTHS.length; k++) { const [mx, my, sz, dr] = MOUTHS[k]; if (k < 3 || GROSS > 0) choirMouth(c, s, e, k, mx, my, sz, dr && GROSS > 0, tel); }
-  eyeC(c, -2, 0, 7.5, { ang: e.st === 'tel' ? e.ha : Math.atan2($.P.y - e.y, $.P.x - e.x), iris: '#9fd8ff', bs: 3, blink: !tel && t % 170 < 5 ? 1 : 0, lid: '#5a2a3a' });
-  // nails driven through the lids
-  c.fillStyle = '#b8c4d0';
-  for (const [x, y, a] of [[-2, -9, 1.7], [-2, 9, -1.7], [6, -5, 2.6]]) {
-    c.save();
-    c.translate(x, y);
-    c.rotate(a);
-    c.fillRect(-1, -6, 2, 9);
-    c.fillRect(-2.2, -6, 4.4, 1.3);
-    c.restore();
-  }
-  // it weeps pus from under the lid, a thick yellow run that freezes on the way down
-  const wp = (Math.sin(t * .05) + 1) * .5;
-  c.fillStyle = '#d8c040';
-  c.beginPath();
-  c.moveTo(-7, 5); c.quadraticCurveTo(-9, 10, -10.2, 15 + wp * 2); c.lineTo(-7.2, 15 + wp * 2); c.quadraticCurveTo(-6, 10, -3.5, 6.5);
-  c.fill();
-  c.fillStyle = 'rgba(255,245,170,.9)';
-  c.fillRect(-7.4, 9, .7, 3);
-  c.fillStyle = C.blood;
-  c.fillRect(-2.6, 8, 1.2, 6 + Math.sin(t * .05) * 2);
-  c.fillRect(5, -1, 1, 4);
-  strand(c, s, e, 31, -8.6, 15 + wp * 2, 5, 1.2, '#d8c040', 60, '#f0e070', .5);
+  if (s.ev === 'tel>idle') { spray(s, e.x - 10, e.y, 10, '#8a1a1a', 1.6, 1.1, .3); spray(s, e.x - 10, e.y, 6, '#c8dcea', 1.4, .8, .2); }
+  if (e.dead || e.hp <= 0) { if (!bf(c, K, 'die', 0)) bakedFallback(c, e.r); return; }
+  const w = woundStage(e);
+  // the eye: on the tell it holds the fan's aim; otherwise it watches you from the cornea (the fan origin)
+  const a = e.st === 'tel' ? e.ha : Math.atan2($.P.y - e.y, $.P.x - (e.x - 10));
+  // the tell trembles: a whole-pixel shake of body and globe together, so the globe never slips off its socket
+  const ox = tel > .45 ? (hash(t * 1.37) * 3 | 0) - 1 : 0;
+  let ok;
+  if (e.flash) ok = bf(c, K, 'hurt' + w) && bf(c, K, 'gh' + w);
+  else if (tel) ok = bf(c, K, 'tell' + w, twitch(t, 3, 7 - tel * 4), ox) && bf(c, K, (tel > .3 ? 't' : 'g') + w, gi(a), ox);
+  else ok = bf(c, K, 'idle' + w, breath(t, 6, 120 - w * 22, 5)) && bf(c, K, 'g' + w, gi(a));
+  if (!ok) bakedFallback(c, e.r);
+  // the wet a still frame can't hold: the cut nerve and the torn strap ends drip, the wounds bleed more with each stage
+  for (let i = 0; i < ENDS.length; i++) { const h = ENDS[i]; strand(c, s, e, 60 + i, h[0], h[1], h[2], 1, 'rgba(62,8,14,.9)', h[3], '#5a0a12', 1.3); }
+  for (let i = 0; i < w * 2 && i < WOUNDS.length; i++) { const h = WOUNDS[i]; strand(c, s, e, 70 + i, h[0], h[1], h[2], 1 + .2 * w, 'rgba(96,6,14,.95)', h[3], '#8a0c14', .6); }
+  if (e.flash && rnd() < .55 * GROSS) emit(s, e.x + rn(-8, 14), e.y + rn(-12, 12), rn(-1.6, 1.6), rn(-1.8, .2), '#7a0a12', rn(.8, 1.6), 0, 60);
+  if (w === 2 && rnd() < .06 * s.dt) emit(s, e.x + 6, e.y - 5, rn(-.3, .3), rn(-.2, .3), '#9a9890', rn(.7, 1.1), 0, 70); // the vitreous weeps out
+  // the tell: blood rises under the frost and the cornea throws ice light down the fan line
+  if (tel > 0 && rnd() < (.1 + tel * .4) * s.dt) emit(s, e.x - 10 + rn(-3, 3), e.y + rn(-3, 3), rn(-.6, .2), rn(-.4, .6), hash(t) < .6 ? '#a8201e' : '#d8eef8', rn(.6, 1.1), 0, 24, .05);
   drawParts(c, s, e);
   if (tel) {
     c.globalCompositeOperation = 'lighter';
-    glowC(c, -2, 0, 10 + tel * 14, '160,215,255', .25 + .55 * tel);
+    glowC(c, -10 + ox, 0, 7 + tel * 13, '160,215,255', .2 + .55 * tel);
+    c.globalCompositeOperation = 'source-over';
+  }
+}
+
+// nail tips on a bar, bar-local: the baked nails point -x, roots at x 2, tips at x -9
+const TIPY = [-12, -6, 0, 6, 12];
+/** a nailbar whose parent is the Choir (render/enemies.ts branches drawNailbar on e.par.k): a torn tendon sheet tacked up
+ *  with real-rust nails. Singing (e.sing 36..0): rime races up the nails and the tips spark, so the glint stays readable */
+export function drawChoirNail(c, e) {
+  const d = e.hp < e.max * .5 ? 1 : 0, T = $.T || 0, sing = e.sing > 0 ? 1 - e.sing / 36 : 0;
+  const ok = sing ? bf(c, K, 'sing' + d, Math.min(3, sing * 4 | 0)) : bf(c, K, 'bar' + d, breath(T + (e.i || 0) * 41, 4, 70, 9 + (e.i || 0)));
+  if (!ok) { c.fillStyle = '#1a0c0e'; c.fillRect(-3, -15, 6, 30); }
+  if (sing) {
+    c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < TIPY.length; i++) {
+      const fl = hash((T >> 2) * 1.9 + i * 7.3 + (e.i || 0)) < .35 ? .3 : 1; // each nail catches the light on its own beat
+      glowC(c, -9, TIPY[i], 2 + sing * 4, '215,240,255', (.25 + .6 * sing) * fl);
+    }
     c.globalCompositeOperation = 'source-over';
   }
 }
@@ -185,11 +86,11 @@ function under(e) {
   ctx.restore();
 }
 
-/** the kind's art for the registry (./index.ts): draw, and its static layer for the per-route warm-up (render/warmup.ts) */
+/** the kind's art for the registry (./index.ts): draw, and its atlas for the per-route warm-up (render/warmup.ts) */
 export default {
   draw: grossChoir,
   under,
-  warm() { choirCrust(); return false; }, // false: nothing left to build
-  built: () => !!lay.choir,
-  drop() { delete lay.choir; }, // its next draw rebuilds it (hn is hashed, so it is the same art)
+  warm() { bakedWarm(K); return false; }, // false: nothing left to build
+  built: () => bakedBuilt(K),
+  drop() { bakedDrop(K); },
 };

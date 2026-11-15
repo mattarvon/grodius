@@ -11,11 +11,13 @@ permissions:
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  # main runs finish (a cancel mid `gh release delete/create latest` would leave no latest)
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -24,12 +26,29 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # only part of src/ is type-checked today, so a type error is reported but doesn't block
+      # D33: a type error blocks CI
       - run: npm run typecheck
-        continue-on-error: true
+      # the voice booth's real-ffmpeg tests (tests/integration/booth-fx-ffmpeg.test.ts) fail on CI without ffmpeg rather
+      # than skip. Ubuntu's ffmpeg is built with librubberband (the rack's pitch shifter): checked here, loudly
+      - name: ffmpeg for the booth tests (with rubberband)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+          ffmpeg -hide_banner -version | head -1
+          for f in rubberband afir afreqshift afftdn aevalsrc alimiter; do
+            ffmpeg -hide_banner -filters 2>/dev/null | grep -qw "$f" || { echo "::error::this ffmpeg lacks the $f filter: the booth FX tests would fail"; exit 1; }
+          done
+          echo "ffmpeg filters present: rubberband afir afreqshift afftdn aevalsrc alimiter"
       - name: Unit + integration tests (vitest, tests/unit + tests/integration)
         run: npm run test:unit
       - run: npm run build
+      # SUMMARY #12: the jump switch is dev only (main.ts gates jumpBoot on import.meta.env.DEV, which the build sets
+      # false, so jumpBoot and parseJump shake out). Both markers live only there; jumpRun/jumpBlob may stay (flow.ts)
+      - name: Jump switch absent from the production bundle
+        run: |
+          hits=$(grep -rlF -e 'unknown stage kind on layout' -e 'jump switch:' dist/ || true)
+          if [ -n "$hits" ]; then echo "::error::jump-switch code shipped in: $hits"; exit 1; fi
+          echo "jump switch markers: none in dist/"
       - name: Regression gate (sim state vs tools/harness.baseline.json)
         run: npm run test:regress
 
@@ -37,6 +56,7 @@ jobs:
     needs: verify
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -103,6 +123,7 @@ jobs:
     needs: verify
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

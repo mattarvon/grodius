@@ -1,7 +1,8 @@
 // The --layout flag every probe and rig takes (D19 build plan LS1 row J). Importing this module takes
-// `--layout <id>` (default `short`) out of process.argv, so a tool's positional arguments parse as before, and checks
-// the id against src/layout.ts LAYOUTS in Node (type stripping) before any browser starts: an unknown id exits 2
-// with "unknown layout <id>", never a silent run on `short`. `LY` is that module in Node with the layout active,
+// `--layout <id>` (default `long4`, the shipping layout: D33 matching D24; `--layout short` still runs the short one)
+// out of process.argv, so a tool's positional arguments parse as before, and checks the id against src/layout.ts
+// LAYOUTS in Node (type stripping) before any browser starts: an unknown id exits 2 with "unknown layout <id>", never
+// a silent run on the default. `LY` is that module in Node with the layout active,
 // for world x a tool computes outside the page.
 //
 // In the page, useLayout(p, tool) calls setLayout(id) through the live /src/layout.ts module (a Vite DEV server) and
@@ -17,11 +18,14 @@ import * as NODE_LY from '../src/layout.ts';
 
 const { LAYOUTS } = NODE_LY;
 
+/** the layout a bare run measures: src/lab.ts DEFAULT_LAYOUT (D24), restated because lab.ts's extensionless import
+ *  does not load in Node; D33 (Matt) moved the probes off `short` to match it */
+export const DEFAULT = 'long4';
 const i = process.argv.indexOf('--layout');
 /** the layout id the tool was asked to run on */
-export const LAYOUT = i >= 0 ? process.argv[i + 1] : 'short';
+export const LAYOUT = i >= 0 ? process.argv[i + 1] : DEFAULT;
 if (i >= 0) {
-  if (!LAYOUT || LAYOUT.startsWith('--')) { console.error('--layout needs an id, e.g. --layout short'); process.exit(2); }
+  if (!LAYOUT || LAYOUT.startsWith('--')) { console.error('--layout needs an id, e.g. --layout short or --layout long4'); process.exit(2); }
   process.argv.splice(i, 2);
 }
 if (!LAYOUTS[LAYOUT]) {

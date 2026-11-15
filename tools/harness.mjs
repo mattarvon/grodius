@@ -5,7 +5,9 @@
 //   advisory only (they also move with sprite decode order and the HELL FLASHES setting).
 //   --flashes off runs with HELL FLASHES off; `st` must still match the (flashes-on) baseline, which proves the
 //   setting cannot reach the sim (render/fx draw srnd(), never the sim R()). Never combine it with --update.
-//   --update rewrites the baseline from this run.
+//   --update rewrites the baseline from this run, and refuses (exit 1) a run with a harness: failure.
+//   A mismatch is flown once more: differs twice = REGRESSION, differs once = FLAKY. Both exit 1 (D33);
+//   HARNESS_ALLOW_FLAKY=1 lets a local FLAKY pass with a warning, and is ignored when CI is set.
 //   --layout long4 flies ?layout=long4 (the game default since D24) against tools/harness.long4.baseline.json.
 //   No --layout: ?layout=short against tools/harness.baseline.json, exactly as before.
 //   --scenario <name>|all flies a jump-switch scenario (SCENARIOS below; src/jump.ts) on long4 against its own
@@ -17,6 +19,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { platform, release } from 'node:os';
+import { resolveWant, refuseUpdate, flakyFails, parseRuns, simState, simExtra } from './harness-rules.mjs';
 
 const argv = process.argv.slice(2);
 const UPDATE = argv.includes('--update');
@@ -29,8 +32,9 @@ const li = argv.indexOf('--layout');
 const LAYOUT = li >= 0 ? argv[li + 1] : 'short';
 if (!['short', 'long4'].includes(LAYOUT)) { console.error(`--layout must be short or long4, got ${LAYOUT}`); process.exit(1); }
 const argOf = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : null; };
-const SCENARIO = argOf('--scenario'), RUNS = +(argOf('--runs') ?? 1), SHOTS = argOf('--shots');
+const SCENARIO = argOf('--scenario'), RUNS = parseRuns(argOf('--runs')), SHOTS = argOf('--shots');
 if (SCENARIO && (li >= 0 || fi >= 0)) { console.error('--scenario sets its own layout and frames: drop --layout and --frames'); process.exit(1); }
+if (RUNS === null) { console.error(`--runs needs an integer of 1 or more, got ${argOf('--runs')}`); process.exit(1); }
 if ((RUNS !== 1 || SHOTS) && !SCENARIO) { console.error('--runs and --shots need --scenario'); process.exit(1); }
 let url = argv.find((a, i) => !a.startsWith('--') && !['--frames', '--flashes', '--layout', '--scenario', '--runs', '--shots'].includes(argv[i - 1]));
 const baselineOf = (name) => new URL(name ? `./harness.${name}.baseline.json` : LAYOUT === 'short' ? './harness.baseline.json' : `./harness.${LAYOUT}.baseline.json`, import.meta.url);
@@ -135,13 +139,17 @@ async function runOnce(b, sc = null, name = null) {
     return { state: g.state, score: g.G && g.G.score, scroll: g.G && Math.round(g.G.scroll), lives: g.G && g.G.lives, px: g.P && +g.P.x.toFixed(3), py: g.P && +g.P.y.toFixed(3), en: g.enemies.length, gibs: g.gibs.length, drops: g.drops.length, caps: g.caps.length }; });
   if (sc) {
     Object.assign(st, await p.evaluate(simState));
+    if (st.jump) st.simSig += await p.evaluate(simExtra); // the Drive, enemy shots and the midboss (SUMMARY #7)
     st.seen = seen.join(' ');
-    st.sig = createHash('md5').update(st.simSig).digest('hex').slice(0, 10);
-    delete st.simSig;
     if (!st.jump) errs.push('harness: the jump switch did not start (a built page ignores ?stage=: use the dev server)');
-    // 'slotB': the stage's second midboss, whichever the picker drew
-    const want = sc.want === 'slotB' ? st.pair.split('+')[1] : sc.want;
-    if (want && !seen.some((k) => k === `mini:${want}` || k === `boss:${want}`)) errs.push(`harness: never met ${want} (seen: ${st.seen || 'nothing'})`);
+    else {
+      st.sig = createHash('md5').update(st.simSig).digest('hex').slice(0, 10);
+      delete st.simSig;
+      // 'slotB': the stage's second midboss, whichever the picker drew
+      const want = resolveWant(sc.want, st.pair);
+      if (sc.want && !want) errs.push(`harness: could not resolve want ${sc.want} (pair '${st.pair}')`);
+      if (want && !seen.some((k) => k === `mini:${want}` || k === `boss:${want}`)) errs.push(`harness: never met ${want} (seen: ${st.seen || 'nothing'})`);
+    }
   }
   if (loads > 1) errs.push(`harness: page reloaded ${loads - 1}x mid-run (Vite dependency re-optimisation?)`);
   await p.close();
@@ -149,16 +157,6 @@ async function runOnce(b, sc = null, name = null) {
 }
 // what is on the field at a stop, and the scenario's closing sim state. In-page: they read window.__G only
 const meets = () => { const { G, state } = window.__G(); return [G && G.mini && `mini:${G.mini.k}`, G && G.boss && 'boss:drive', state !== 'play' && `state:${state}`].filter(Boolean); };
-// sig also covers the Gravity Drive (G.boss is not in enemies), enemy shots (world.ts eshots, not in __G: read through
-// the dev server's module, as ready() does) and the midboss's own clock/state plus the picker's per-stage tables
-const simState = async () => { const { G, P, enemies, drops, caps } = window.__G(), r = (v) => (typeof v === 'number' ? +v.toFixed(3) : v ?? null);
-  // a failed import (a built page) or a second module instance must fail the gate, never record a weaker sig
-  const W = await import('/src/world.ts'); if (W.enemies !== enemies) throw new Error('harness: /src/world.ts is not the game\'s module instance');
-  const es = W.eshots;
-  const B = G.boss, M = G.mini;
-  return { jump: !!G.jump, stage: G.stage, pair: ((G.mb && G.mb[G.stage]) || []).join('+'), loop: G.loop, pow: r(G.pow), rank: r(G.rank), lvl: G.lvl, kills: G.kills, t: G.t, simSig: JSON.stringify([G.score, G.scroll, G.bio, G.xpTot, G.mb, G.route, P && [P.x, P.y, P.inv, P.shield], enemies.map((e) => [e.k, r(e.x), r(e.y), e.hp]), drops.length, caps.map((c) => [c.ty, r(c.x), r(c.y)]),
-    B && [r(B.x), r(B.y), r(B.hp), r(B.max), B.phase, B.t, B.dying, B.enter, B.plates.map((q) => r(q.hp))], es.map((e) => [e.k, r(e.x), r(e.y)]),
-    M && [M.k, r(M.x), r(M.y), r(M.hp), M.st ?? null, M.t ?? null, M.leave ?? null], G.mbUsed ?? null, G.mbLast ?? null]) }; };
 function compare(base, r) {
   const diffs = Object.keys({ ...base.st, ...r.st }).filter((k) => base.st[k] !== r.st[k]).map((k) => `  st.${k}: ${base.st[k]} -> ${r.st[k]}`);
   if (JSON.stringify(base.errs) !== JSON.stringify(r.errs)) diffs.push(`  errs: ${JSON.stringify(base.errs)} -> ${JSON.stringify(r.errs)}`);
@@ -189,7 +187,9 @@ async function gate(sc, name) {
     }
   }
   if (UPDATE) {
-    if (sc && result.errs.length) { console.error(`${tag}not recording a failed run: ${result.errs.join('; ')}`); return false; }
+    // a scenario refuses any error; short/long4 refuse the harness's own failures, which a baseline must never expect
+    const why = refuseUpdate(result.errs, !!sc);
+    if (why) { console.error(`${tag}not recording a failed run: ${why}`); return false; }
     let commit = 'unknown';
     try { commit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch {}
     writeFileSync(BASELINE, JSON.stringify({ frames, commit, os: `${platform()} ${release()}`, ...(sc ? { layout: 'long4', scenario: name, q: sc.q } : LAYOUT === 'short' ? {} : { layout: LAYOUT }), ...result }, null, 2) + '\n');
@@ -204,7 +204,12 @@ async function gate(sc, name) {
   const hashMoves = final.hashes.filter((h, i) => h !== base.hashes[i]).length;
   if (hashMoves) console.log(`${tag}note: ${hashMoves}/${final.hashes.length} canvas hashes differ (advisory)`);
   if (diffs.length) { console.error(`${tag}REGRESSION vs baseline @ ${base.commit}:\n${diffs.join('\n')}`); return false; }
-  if (retry) console.warn(`${tag}FLAKY: first run differed, the retry matched. Nondeterminism to track down:\n${first.join('\n')}`);
+  // D33: a flake fails the gate (FAIL = differs twice, FLAKY = differs once); HARNESS_ALLOW_FLAKY=1 passes it locally, never under CI
+  if (retry) {
+    const fails = flakyFails(process.env);
+    console[fails ? 'error' : 'warn'](`${tag}FLAKY${fails ? '' : ' (allowed by HARNESS_ALLOW_FLAKY)'}: first run differed, the retry matched. Nondeterminism to track down:\n${first.join('\n')}`);
+    if (fails) return false;
+  }
   console.log(sc ? `PASS (${name}) vs baseline @ ${base.commit}` : LAYOUT === 'short' ? `PASS vs baseline @ ${base.commit}` : `PASS (${LAYOUT}) vs baseline @ ${base.commit}`);
   return true;
 }

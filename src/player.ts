@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { $ } from './state';
 import { pk, perkTick, lastGasp, ribShards } from './perks';
+import { bankBio } from './economy';
 import { PH, R, TAU, W, clamp, lerp, ri, rr } from './core';
 import { SET, lv } from './save';
 import { sfx } from './audio';
@@ -49,8 +50,7 @@ export function applyPower(i, full) {
   }
   if (slotMaxed(i)) {
     $.G.score += 1500;
-    $.G.bio += 5;
-    $.meta.bio += 5;
+    bankBio(5, $.G, $.meta);
     pop($.P.x, $.P.y - 14, slotLocked(i) ? 'SEALED  +1500' : '+1500 SURPLUS', '#cfd9e3', 8, 40);
     sfx.pick();
     return;

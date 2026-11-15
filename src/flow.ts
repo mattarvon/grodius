@@ -3,7 +3,7 @@ import { $ } from './state';
 import { PH, R, clamp, dist2, pick, ri, rr, swapRm } from './core';
 import { lv, save } from './save';
 import { applyRun } from './runsave';
-import { sfx } from './audio';
+import { resetOpened, sfx, voiceCutQuips, voiceDropQueued, voiceStopAll } from './audio';
 import { buzz } from './platform';
 import { ALL, buildTerrain, ceilAt, eshots, floorAt } from './world';
 import { drop, flash, gore, spark, splat } from './fx/spawn';
@@ -19,7 +19,7 @@ import { newRunSeed } from './rng';
 import { setLayout, layout } from './layout';
 import { clearRun, decodeRun, decodeRunAs, lastRun } from './runsave';
 import { sealFor, stageBanner } from './stages';
-import { CP, cp1X, writeCp } from './checkpoint';
+import { CP, cp1Release, cp1X, writeCp } from './checkpoint';
 import { rebuildAt } from './stagebuild';
 import { cpTrigger } from './lab';
 import { jumpBlob } from './jump';
@@ -61,7 +61,10 @@ const baseG = () => ({
     feed: null
   });
 export function newGame(startL = 0) {
+  voiceStopAll(/^startgame$/); // the last run's voice lines don't talk over a new one, but the DESCEND line that started this run plays out (audio only)
+  resetOpened(); // OPENED's 20 s audio cooldown starts fresh with the run
   clearRun(); // a new game drops the old checkpoint (spec §4); this run's CP0 replaces it at its first safe step
+  delete $.meta.bioS; delete $.meta.bioV; // the biomass mark (economy.ts bankBio) is this run's alone
   resumedFrom = null;
   $.P = null;
   $.G = {
@@ -140,6 +143,7 @@ export function resumeRun(d) {
   // the next checkpoint of this stage: CP1 after a CP0, none after a CP1. CP0 is never re-written from here: its
   // cpX would move back by the lead-in on every resume
   G.cp1X = G.cpN === 0 ? cp1X(G.stage, G) : null;
+  G.cp1Rel = G.cpN === 0 ? cp1Release(G.stage, G) : null;
   G.cpWant = G.cp1X != null ? 1 : 2;
   const wx = P.x + G.scroll;
   P.y = clamp((floorAt(wx) + ceilAt(wx)) / 2, 30, PH - 30);
@@ -221,15 +225,16 @@ export function resetPlayer(keepGuns) {
   };
 }
 /** BLACK BOX: on death your guns burst out as pods (full level each); fly through them to take them back */
-function blackBox() {
+function blackBox(P = $.P) {
   if (!lv('salvage')) return;
-  const P = $.P, ty = [];
+  const ty = [];
   if (P.double) ty.push(2);
   if (P.laser) ty.push(3);
   for (let i = 0; i < P.missile; i++) ty.push(1);
   for (let i = 0; i < (P.pyre || 0); i++) ty.push(4);
   for (let i = 0; i < Math.min(2, P.options); i++) ty.push(5);
-  ty.forEach((t, k) => caps.push({ x: clamp(P.x + 40 + k * 22, 30, 430), y: clamp(P.y + (k % 2 ? 18 : -18), 30, PH - 30), t: k * 10, blue: false, ty: t, full: 1, salv: 1 }));
+  const S = $.P; // where the ship is now: an option-b restart reads the loadout that died, and drops by the restored ship
+  ty.forEach((t, k) => caps.push({ x: clamp(S.x + 40 + k * 22, 30, 430), y: clamp(S.y + (k % 2 ? 18 : -18), 30, PH - 30), t: k * 10, blue: false, ty: t, full: 1, salv: 1 }));
 }
 /** dying in a boss fight leaves you a lifeline: your main gun, MISSILE/PYRE and one WRAITH come back as FULL pods
   on respawn (Gradius-style recovery; nothing else drops mid-fight). BLACK BOX already returns everything, so it skips this. */
@@ -243,10 +248,27 @@ function bossRecoveryNote() {
   if (P.wardLv) ty.push(6);
   G.recover = ty.slice(0, 3);
 }
+/** a death's cost on the run (killPlayer; and D32, an option-b restart): the power cursor resets and every graft
+ *  loses a level */
+function deathCost(G) {
+  G.cur = -1; // classic: the power cursor resets when you die
+  let w = 0;
+  for (const k in G.gm) if (G.gm[k] > 0) {
+    G.gm[k]--;
+    w = 1;
+  }
+  if (w) G.feed = {
+    s: 'YOUR GRAFTS WITHER',
+    d: 'every mutation lost a level',
+    t: 170,
+    ml: 170
+  };
+}
 export function killPlayer() {
   if (!$.P.alive) return;
   $.P.alive = false;
   $.G.deadT = 150;
+  voiceCutQuips(); // SLAB's quip never talks over the player's own death; other lines finish (LS2-quips, audio only)
   buzz('death');
   if ($.G.st) $.G.st.deaths++;
   blackBox();
@@ -268,20 +290,7 @@ export function killPlayer() {
   $.G.comboT = 0;
   $.G.cMile = 0;
   $.G.meter = -1;
-  $.G.cur = -1; // classic: the power cursor resets when you die
-  {
-    let w = 0;
-    for (const k in $.G.gm) if ($.G.gm[k] > 0) {
-      $.G.gm[k]--;
-      w = 1;
-    }
-    if (w) $.G.feed = {
-      s: 'YOUR GRAFTS WITHER',
-      d: 'every mutation lost a level',
-      t: 170,
-      ml: 170
-    };
-  }
+  deathCost($.G);
   splat(rr(120, 360), rr(60, 180), 3);
   sfx.die();
 }
@@ -304,25 +313,49 @@ export function respawn() {
   }
   flash($.P.x, $.P.y, 50, 16, '255,60,40');
   sfx.shield();
-  if ($.G.recover && $.G.recover.length && ($.G.bossStarted || $.G.mini)) {
-    $.G.recover.forEach((t, k) => caps.push({ x: $.P.x + 60 + k * 26, y: clamp($.P.y + (k - 1) * 22, 24, PH - 24), t: k * 8, blue: false, ty: t, full: 1, salv: 1 }));
-    $.G.feed = { s: 'SALVAGE', d: 'your guns came back as FULL pods: fly through them', t: 170, ml: 170 };
-  }
+  if ($.G.recover && $.G.recover.length && ($.G.bossStarted || $.G.mini)) recoverPods($.G.recover);
   $.G.recover = null;
 }
+/** the boss-fight lifeline's FULL pods (bossRecoveryNote), by the ship */
+function recoverPods(ty) {
+  ty.forEach((t, k) => caps.push({ x: $.P.x + 60 + k * 26, y: clamp($.P.y + (k - 1) * 22, 24, PH - 24), t: k * 8, blue: false, ty: t, full: 1, salv: 1 }));
+  $.G.feed = { s: 'SALVAGE', d: 'your guns came back as FULL pods: fly through them', t: 170, ml: 170 };
+}
 /** checkpoint option b (spec §4; LAB CHECKPOINT: ON DEATH): a death restarts the run at its last checkpoint with one
- *  life spent; the stage's deaths still count against its grade. The checkpoint is re-written with the life gone, so
- *  an app kill can't give it back. False when there is no checkpoint (respawn in place, as option a) */
+ *  life spent and the normal death cost paid on the restored ship (D32: guns stripped as respawn's resetPlayer(true),
+ *  grafts down a level, the power cursor reset); the stage keeps its higher deaths and hits for its grade. The
+ *  checkpoint is re-written with the life and the cost taken, so an app kill can't give them back. False when there is
+ *  no checkpoint, or no life on its count to take (respawn in place, as option a) */
 function deathRestart() {
-  const G0 = $.G, lives = G0.lives - 1, deaths = G0.st ? G0.st.deaths : 0, d = lastCp();
+  const G0 = $.G, P0 = $.P, recover = G0.recover, deaths = G0.st ? G0.st.deaths : 0, hits = G0.st ? G0.st.hits || 0 : 0, corpseVo = !!(G0.st && G0.st.corpseVo), d = lastCp();
   if (!d || d.g.loop !== G0.loop || d.g.stage !== G0.stage) return false; // only this stage's checkpoint
+  // one life off the CHECKPOINT's count, not the live one: a life gained since (SPARE MEAT at a level-up) is earned again
+  // on the replay, so keeping it made the death free (systems-designer). Never more than the live count allows
+  const lives = Math.min(G0.lives - 1, d.g.lives - 1);
+  // A checkpoint on the last life, with a spare gained since: no life to rewind on. Rewinding at 0 would bring the same
+  // spare back (a scripted pickup past cpX, a score extend) and the run could loop forever, so this death spends the
+  // spare in place, as option a: no rewind, and the run isn't lost (systems-designer)
+  if (lives < 0) return false;
   if (!tryResume(d)) return false; // the ordinary respawn then runs on the untouched run
   $.G.lives = lives;
   $.G.st.deaths = Math.max($.G.st.deaths || 0, deaths);
+  $.G.st.hits = Math.max($.G.st.hits || 0, hits);
+  if (corpseVo) $.G.st.corpseVo = true; // a plea played since the checkpoint is not played again on the replay (corpsevoice.ts)
+  const y = $.P.y;
+  resetPlayer(true); // D32: option a's respawn strip, on the restored loadout
+  $.P.y = y; // where resumeRun placed it, with the resume's longer i-frames
+  $.P.inv = CP.inv;
+  deathCost($.G);
+  // the restore cleared the pods killPlayer dropped (resumeRun empties caps): the same death pays them again, as option a
+  // would, from the loadout that died and not the restored one. BLACK BOX, else the boss-fight lifeline (game-designer)
+  if (lv('salvage')) blackBox(P0);
+  else if (recover && recover.length) recoverPods(recover);
   writeCp($.G.cpN, $.G.cpX);
   return true;
 }
 export function gameOver() {
+  voiceDropQueued(); // the line talking finishes; nothing queued behind it starts over the game-over screen (audio only)
+  voiceCutQuips(); // but a quip talking fades out (LS2-quips review)
   clearRun(); // spec §4: game over clears the checkpoint
   $.state = 'over';
   $.G.overT = 0;

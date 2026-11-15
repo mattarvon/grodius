@@ -1,22 +1,23 @@
 // The LAB: a persisted dev row on the title screen (build plan LS1 sprint 2 item D2). The Capacitor APK loads its
-// bundled page with no query string, so this is the only way to reach the long layout (and later the WIP midbosses
-// and the checkpoint-on-death option) on the phone. It lives under its own key, outside the meta save (grodius.v1)
+// bundled page with no query string, so this is the only way to reach the short layout (long4 is the default since
+// D24), the WIP midbosses, a forced wip midboss with its jump (D53) and the checkpoint-on-death option on the phone. It lives under its own key, outside the meta save (grodius.v1)
 // and the run save (grodius.run), so a bad LAB blob can never cost either.
 //
 // Precedence for each setting: URL flag > LAB > default. The choice is a pure function (layoutChoice) so tests can
 // drive it without a DOM; the module keeps a cached copy of the stored LAB so draw code never touches storage.
-import { clearRun } from './runsave';
 import { LAYOUTS, layout, setLayout } from './layout';
+import { ROSTER, midRow } from './enemies/mid/roster';
 
 export const LAB_KEY = 'grodius.lab';
 
 /** the LAB's own values. layout: which descent a new run flies; mids: LS2's unfinished midbosses (`wip` rows in enemies/mid/roster.ts; biomes.ts stageMids reads it);
- *  cp: the checkpoint trigger, spec §4 option a (app kill or quit only, the default) or b (also on death; item H) */
-export interface Lab { layout: 'short' | 'long'; mids: '' | 'wip'; cp: 'a' | 'b' }
+ *  cp: the checkpoint trigger, spec §4 option a (app kill or quit only, the default) or b (also on death; item H);
+ *  mid: the wip kind forced into slot A of every biome stage, the LAB's ?mid= (midForce), or '' (off, the default) */
+export interface Lab { layout: 'short' | 'long'; mids: '' | 'wip'; cp: 'a' | 'b'; mid: string }
 /** the layout a run flies when neither a ?layout= flag nor the LAB chose one. long4 since 2026-11-02 (D24, Matt:
  *  make long the default); short stays reachable through the LAB and ?layout=short until it is deleted */
 export const DEFAULT_LAYOUT = 'long4';
-export const LAB_DEFAULT: Lab = { layout: 'long', mids: '', cp: 'a' };
+export const LAB_DEFAULT: Lab = { layout: 'long', mids: '', cp: 'a', mid: '' };
 
 /** the LAB layout name -> the layout table id it flies (src/layout.ts LAYOUTS) */
 export const LAYOUT_ID = { short: 'short', long: 'long4' } as const;
@@ -30,6 +31,7 @@ export function labOf(v: unknown): Lab {
     layout: o.layout === 'short' ? 'short' : 'long',
     mids: o.mids === 'wip' ? 'wip' : '',
     cp: o.cp === 'b' ? 'b' : 'a',
+    mid: typeof o.mid === 'string' && midRow(o.mid)?.wip ? o.mid : '', // a wip kind only: finished or unknown is off
   };
 }
 
@@ -42,7 +44,7 @@ export interface LayoutChoice {
   /** the layout entry id the next run flies (DEFAULT_LAYOUT when nothing chose: a run start keeps the active entry) */
   id: string;
   src: 'url' | 'lab' | 'default';
-  /** a ?layout= value that names no registered entry: ignored (warned at boot), the LAB or short applies */
+  /** a ?layout= value that names no registered entry: ignored (warned at boot), the LAB or DEFAULT_LAYOUT applies */
   bad?: string;
 }
 /** THE layout choice (the boot flag parse and every run start go through it): a registered ?layout= flag beats the
@@ -80,7 +82,7 @@ let cur: Lab | null = readLab();
 
 /** the LAB as the title should show it (defaults filled in) */
 export const lab = (): Lab => cur || LAB_DEFAULT;
-/** the layout a run started now would fly (URL > LAB > short), with its source for the title. With neither a flag
+/** the layout a run started now would fly (URL > LAB > DEFAULT_LAYOUT, long4), with its source for the title. With neither a flag
  *  nor a LAB key the run keeps the active entry (DEFAULT_LAYOUT at boot; a probe's --layout sets it in-page before Enter) */
 export function activeLayout(): LayoutChoice {
   const c = layoutChoice(search(), cur);
@@ -88,19 +90,32 @@ export function activeLayout(): LayoutChoice {
 }
 /** LS2's WIP midboss flag: ?mids=wip, else the LAB */
 export const midsWip = () => /[?&]mids=wip\b/.test(search()) || lab().mids === 'wip';
+/** the kind a ?mid=<kind> query forces into slot A of every biome stage (biomes.ts stageMids), or null. Only a `wip`
+ *  row: it is the test path for a kind the picker can't reach yet (a ship-pool row has no spawn path, src/CLAUDE.md
+ *  "Not just a row"). A finished, unknown or missing name is null, so the query can't change a shipped run. Pure */
+export function forcedMid(search: string): string | null {
+  const m = /[?&]mid=([a-z0-9_-]+)/.exec(search), r = m ? midRow(m[1]) : undefined;
+  return r && r.wip ? r.k : null;
+}
+/** the LAB's FORCE MID cycle: off, then each `wip` row in roster order (today just keepsake) */
+export const wipMids = (): string[] => ['', ...ROSTER.filter((r) => r.wip).map((r) => r.k)];
+/** the forced midboss: a ?mid=<wip kind> query, else the LAB's FORCE MID row, else null. A query that names no wip
+ *  kind is ignored, so the LAB applies under it. Ungated, like ?mids=wip and the MIDBOSSES row: the query works on
+ *  any web build, deployed included, and the row is how the APK (no query string) reaches it (D53). The
+ *  &stage=&x=&kit= URL jump is dev-server-only; the LAB's JUMP TO MID row (menus.ts, jump.ts midJump) is its phone
+ *  twin. A forced wip kind still leaves the profile alone: meetMid and firstKill skip wip rows (no meta.mb, meta.mbK
+ *  or first-kill pay). With neither set it is null and no run changes */
+export const midForce = () => forcedMid(search()) ?? (lab().mid || null);
 /** the checkpoint trigger for item H: 'a' = app kill or quit only (spec §4 default), 'b' = also on death */
 export const cpTrigger = (): Lab['cp'] => lab().cp;
 
-/** change one LAB setting and persist it. Changing the layout discards the run save (grodius.run): its layout id
- *  no longer matches the run a RESUME would rebuild. Returns the new LAB. */
+/** change one LAB setting and persist it. Returns the new LAB. The run save (grodius.run) is kept, layout change
+ *  included (D33, Matt): it records its own layout, and RE-ENTER flies that one (the title row names it) */
 export function setLab(patch: Partial<Lab>): Lab {
   const before = lab();
   const next = labOf({ ...before, ...patch });
   cur = next;
   writeLab(next);
-  if (next.layout !== before.layout) {
-    clearRun(); // guarded: never throws
-  }
   return next;
 }
 

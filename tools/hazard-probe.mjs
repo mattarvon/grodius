@@ -1,6 +1,6 @@
 // Hazard probe: forces the route into one biome, then for that biome's hazard checks
 //   telegraph length, a hit kills through playerHit (and not while invincible), it can be shot (icicle/strand),
-//   snot slow wears off. Usage: node tools/hazard-probe.mjs <url> <ice|acid|fire|snot> [--layout short]
+//   snot slow wears off. Usage: node tools/hazard-probe.mjs <url> <ice|acid|fire|snot> [--layout long4|short]
 //   Skips to 100 px past the Open Orbit row's warnX (src/layout.ts), kills the Maw and takes biome slot 0's gate.
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';

@@ -23,7 +23,7 @@ export const PERKS = [
   { id: 'scab', f: 'the wound learns', name: 'SCAB WEAVE', max: 3, w: 6, ward: 1, d: (l) => `${6 * l}% of kills regrow a WARD hit` },
   { id: 'inv', f: 'pain arrives late now', name: 'PAIN SPONGE', max: 2, w: 5, d: (l) => `${50 * l}% longer invulnerability after a hit` },
   { id: 'tiny', f: 'less of you to hit', name: 'SHRUNKEN CORE', max: 2, w: 5, d: (l) => `hitbox ${20 * l}% smaller` },
-  { id: 'graze', f: 'every near miss a little kiss', name: 'GRAZE NERVES', max: 2, w: 6, d: (l) => `near-misses feed you XP${l > 1 ? ', double score' : ''}` },
+  { id: 'graze', f: 'it brushed you. it learned your shape.', name: 'GRAZE NERVES', max: 2, w: 6, d: (l) => `near-misses feed you XP${l > 1 ? ', double score' : ''}` },
   { id: 'reload', f: 'a second throat for the missiles', name: 'MISSILE GLAND', max: 2, w: 5, d: (l) => `MISSILE and PYRE fire ${20 * l}% faster` },
   { id: 'magnet', f: 'the ampoules know your name', name: 'AMPOULE MAGNET', max: 2, w: 4, d: (l) => `pods and biomass crawl to you${l > 1 ? ' from far off' : ''}` },
   { id: 'greed', f: 'the ship gets paid in meat', name: 'BLOOD MONEY', max: 2, w: 4, d: (l) => `+${30 * l}% biomass` },
@@ -39,7 +39,7 @@ export const PERKS = [
   { id: 'frost', f: 'cold enough to stop a heart', name: 'FROSTBITE', max: 2, w: 9, req: 'ice', d: (l) => `hits freeze meat to half speed${l > 1 ? ', longer' : ''}` },
   { id: 'corrode', f: 'it eats until it is done', name: 'CORROSIVE SPIT', max: 2, w: 9, req: 'acid', d: (l) => `hits leave acid that eats ${l > 1 ? 'fast' : 'slowly'}` },
   { id: 'ignite', f: 'everything burns the same', name: 'IMMOLATION', max: 2, w: 9, req: 'fire', d: (l) => `hits set meat burning${l > 1 ? ' longer' : ''}` },
-  { id: 'snot', f: 'hhhhrk. ptoo.', name: 'SNOT ROCKET', max: 2, w: 9, req: 'snot', d: (l) => `hawk a piercing glob every ${l > 1 ? 2.5 : 4}s` },
+  { id: 'snot', f: 'it comes up on its own.', name: 'SNOT ROCKET', max: 2, w: 9, req: 'snot', d: (l) => `cough a piercing glob every ${l > 1 ? 2.5 : 4}s` },
 ];
 const BYID = Object.fromEntries(PERKS.map((p) => [p.id, p]));
 

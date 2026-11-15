@@ -6,7 +6,7 @@ import { $ } from '../../src/state';
 // The pins rely on today's grading, seals and stage XP being plain arithmetic: if they ever route through a stubbed
 // core helper (clamp etc.), the live side of the comparison runs on the stub and these mocks need real implementations
 vi.mock('../../src/core', () => ({ FIRE: 0, PH: 270, R: () => 0, TAU: Math.PI * 2, W: 480, clamp: (v: number) => v, ctx: {}, dist2: () => 0, lerp: (a: number) => a, pick: (a: any[]) => a[0], ri: () => 0, rr: () => 0, swapRm: () => {} }));
-vi.mock('../../src/audio', () => ({ sample: () => {}, sfx: { power: () => {}, alarm: () => {} } }));
+vi.mock('../../src/audio', () => ({ sample: () => {}, sfx: { power: () => {}, stageClear: () => {}, alarm: () => {} } }));
 vi.mock('../../src/platform', () => ({ buzz: () => {} }));
 vi.mock('../../src/input', () => ({ I: {}, PR: {}, touch: {} }));
 vi.mock('../../src/save', () => ({ SET: {}, save: () => {}, lv: () => 0 }));

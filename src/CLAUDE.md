@@ -37,7 +37,8 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
    don't conflict): `k`, `name`, `label`, `tag`, `pool`, `min`, a measured `fit` for a
    biome-pool kind, and **`wip: true`** until its art and name are approved. Each kind in
    a pool needs a different tag (spec §6.1), and ANGLE and RACE need `min: 1` (§6.3);
-   `midreg.test.ts` checks both. Never reorder finished rows: the picker walks them in order.
+   `midreg.test.ts` checks both. `wip` rows count toward that rule (the test filters on pool only), so a wip kind
+   sharing a finished kind's tag in its pool fails `midreg.test.ts` at once. Never reorder finished rows: the picker walks them in order.
 2. **`src/enemies/mid/<kind>.ts`**: `function upd<Kind>(e)` (that name: `midhost.test.ts`
    finds it) and one `defineMid('<kind>', { et, word, update })`. Copy `cyst.ts`. `midLeave`,
    `bandFit` and `lob` come from `../update`; `midPh2(e)` from `../midhost` is phase 2. Optional hooks,
@@ -48,13 +49,21 @@ one shared line, its roster row. Other shapes need more; see "Not just a row" be
      kill the slick already paid) never asks. A 0 < m < 1 hit flashes dimmer and tinks. Area damage arrives at
      exactly `(e.x, e.y)` with `dir` 0: decide what an area hit does. Shots still collide on
      `e.r`, so a small hittable part (the Spine's eye) also needs `e.hb` or a 0 off the part.
-   - `leave(e)`: once, when the withdraw clock runs out (reset a lake, a counter).
+   - `hitSnd(e, m, hx, hy)`: the kind's own sound for a hit that landed with share `m` (> 0), in place of the
+     shared tink (`m` < 1) or hit (`m` 1); return true when it played one. Audio only: `sample()`/`ar()`, never `R()`.
+     THE KEEPSAKE's vinyl thud and wound squelch. An enemy shot can carry `land(s)`, called when it strikes the floor or
+     ceiling (its fork tink), on the same audio-only terms.
+   - `leave(e)`: once, when the withdraw clock runs out (reset a lake, a counter). `midLeave` fires it; a
+     DRIFT kind withdraws on its own (see `ufo.ts`) and must call `MID_SIM[e.k]?.leave?.(e)` once itself.
    - `kidKill(kid, owner)`: a child spawned with `own: e` (and `kid: 1`) died. Count your
      own children by `own`, not `kid`, once two kinds can spawn them.
 3. **`src/render/gross/mid/<kind>.ts`**: in pass 1, one line:
-   `export default greybox({ col, r, tell })` from `./_greybox` (a wobbling blob in the
-   biome tint with one eye; `tell(e)` returns the telegraph strength from 0 to 1; it has no
-   cached layer, so no `built` or `drop`, and the warm-up skips it). In
+   `export default greybox({ col, r, tell })` from `./_greybox` (a dark, angular, asymmetric mass in
+   the biome tint at the bottom of the value range: faceted hull, a bolted plate, ribs, no eye, no blob, still apart
+   from a hash-timed hitch; `tell(e)` returns the telegraph strength from 0 to 1 and splits a seam down its front
+   that opens to wound red and throws light; it has no
+   cached layer, so no `built` or `drop`, and the warm-up skips it). A telegraph the seam can't carry (a landing mark,
+   an aimed line) or a thrown part goes in an optional `under(e)`: `greybox({ col, r, tell, under })` (see `keepsake.ts`). In
    pass 2, `export default { draw, warm, built, drop }`, plus `under` for a telegraph or
    chain beneath the body. Keep each `warm()` slice under about 4 ms on the phone. Copy `cyst.ts`; the shared particles, layers and crossover
    tint are in `../midbosses.ts`.
@@ -69,6 +78,10 @@ line to add. Every `.ts` there is a kind, except `_name.ts`, which is a shared h
 - **Load order:** kinds load before `spawn.ts`, in no fixed order. A kind's top level
   must not read `ET` or another kind (a recolour spreading `MID_SIM.cyst` gets
   undefined in the bundle). Read them inside functions.
+  Kind files sit in an import cycle (`../update`, `../spawn`, `../midhost`), so a kind's top level may call
+  `defineMid` with literals only; imported values are read at call time.
+- **`DEPTH.w`:** a per-kind weight defaults to the tag weight, so add a `DEPTH.w` entry only for a
+  measured reason (`depth-probe`). It is a shared line in `src/depth.ts`: expect a rebase there.
 - **Rules:** sim files never import render. Draw code uses `srnd()`, never `R()`. No
   allocation in `update`. Telegraphs and `kid: 1` follow `.claude/rules/ai-code.md`.
 - **See it:** `?mids=wip` or the `mids=wip` LAB row makes a `wip` biome-pool kind
@@ -86,7 +99,17 @@ line to add. Every `.ts` there is a kind, except `_name.ts`, which is a shared h
 - **Orbit and ship kinds have no spawn path yet.** `biomePool` holds biome pools only,
   so such a row passes every check and never appears, even under the flag. Wire it
   into the stage: `stagebuild.ts` `fixedMids`, the `scripts.ts` Orbit table, or the
-  Drive table. Set `boot: true` too: the warm-up's `routeArt` walks only biome slots,
+  Drive table. Until then, fly a `wip` one with `?mid=<kind>` (`lab.ts` `forcedMid`): it takes slot A of every
+  biome stage on a picker layout, any descent, so give it a `fit` and call `bandFit` when `e.host` is set (the
+  Keepsake does). `?mid=` works on any web build, deployed included; add `&stage=<biome>&x=<slot A WARNING - 30>&kit=mid`
+  (the jump switch, dev server only) to start at its WARNING. **On the phone** (the APK has no query string): title
+  LAB > FORCE MID cycles off / each `wip` kind in roster order (stored in `grodius.lab` as `mid`, off by default),
+  and while one is forced JUMP TO MID (`jump.ts` `midJump`) flies that same URL jump from the LAB: Descent 1, the
+  first biome stage, mid kit, 30 px before slot A's WARNING, run-save slot sealed until the next DESCEND or RE-ENTER.
+  Precedence: a `?mid=` naming a `wip` kind beats the row; any other `?mid=` is ignored and the row applies. Both
+  rows are picker-layout only (FORCE MID says LONG ONLY on short; the jump hides). The title's LAB row names the forced
+  kind, since every run then flies it. Off, nothing changes (harness, parity and the probes boot with no LAB key).
+  A forced `wip` kind still leaves the profile alone (below). Set `boot: true` too: the warm-up's `routeArt` walks only biome slots,
   so without it the art builds on first draw, inside the fight.
 - **A DRIFT kind** skips `midboss()`: it calls `registerDrift` (see `enemies/mid/ufo.ts`),
   sets `drift: 1` or the scroll holds (`step.ts`), and needs a forced exit. In a biome
