@@ -139,7 +139,8 @@ async function runOnce(b, sc = null, name = null) {
     return { state: g.state, score: g.G && g.G.score, scroll: g.G && Math.round(g.G.scroll), lives: g.G && g.G.lives, px: g.P && +g.P.x.toFixed(3), py: g.P && +g.P.y.toFixed(3), en: g.enemies.length, gibs: g.gibs.length, drops: g.drops.length, caps: g.caps.length }; });
   if (sc) {
     Object.assign(st, await p.evaluate(simState));
-    if (st.jump) st.simSig += await p.evaluate(simExtra); // the Drive, enemy shots and the midboss (SUMMARY #7)
+    // the Drive, enemy shots and the midboss (SUMMARY #7), spliced into simState's array: one JSON array, as ls2-d31 signed it
+    if (st.jump) st.simSig = st.simSig.slice(0, -1) + ',' + (await p.evaluate(simExtra)).slice(1);
     st.seen = seen.join(' ');
     if (!st.jump) errs.push('harness: the jump switch did not start (a built page ignores ?stage=: use the dev server)');
     else {
