@@ -14,6 +14,7 @@ import { warmDerelict } from './terrain';
 import { dropMawVariant, mawVariantBuilt, warmMawVariant } from './gross/maw';
 import { warmDrive } from './gross/drive';
 import { MID_ART } from './gross/mid';
+import { BOSS_ART as BOSS_UNITS } from './gross/boss';
 import { butcherBuilt, dropButcher, warmButcher } from './gross/butcher';
 import { cruxBuilt, dropCrux, warmCrux } from './gross/crux';
 import { dropWound, warmWound, woundBuilt, woundHeld } from './wounds';
@@ -28,6 +29,7 @@ const UNITS: Record<string, Unit> = {
   hero: { warm: warmHeroEye }, eyes: { warm: warmEyes }, derelict: { warm: warmDerelict },
   'maw:orbit': mawV('orbit'), drive: { warm: warmDrive },
   ...MID_ART, // every midboss (render/gross/mid/): its art carries warm, built and drop
+  ...BOSS_UNITS, // every registered stage boss (render/gross/boss/, D55): its atlas is route art
   crux: { warm: warmCrux, built: cruxBuilt, drop: dropCrux }, butcher: { warm: warmButcher, built: butcherBuilt, drop: dropButcher }, 'maw:acid': mawV('acid'), 'maw:snot': mawV('snot'),
   'wound:ice': wnd('ice'), 'wound:acid': wnd('acid'), 'wound:fire': wnd('fire'), 'wound:snot': wnd('snot'),
 };

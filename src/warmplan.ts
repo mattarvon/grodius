@@ -13,6 +13,7 @@
 import { HOME } from './midpick';
 import { layout, row, stageOfSlot } from './layout';
 import { ROSTER } from './enemies/mid/roster';
+import { bossFor } from './enemies/boss/registry';
 
 /** built at boot and never dropped, in build order: what the title's idle time should reach first */
 export const BOOT_ART: readonly string[] = ['hero', 'eyes', 'derelict', 'maw:orbit', ...ROSTER.filter((r) => r.boot && !r.wip).map((r) => r.k), 'drive'];
@@ -24,6 +25,8 @@ export const BOSS_ART: Readonly<Record<string, string>> = { ice: 'crux', acid: '
 /** the run-state fields the plan reads */
 export interface WarmRun {
   stage: number;
+  /** the descent (0-based): bossFor reads it (THE KEEPSAKE's slot alternates by descent, D55) */
+  loop?: number;
   route?: readonly (string | null)[] | null;
   mb?: Readonly<Record<number, readonly string[]>> | null;
   /** earlier visits per biome this run (biomes.ts choose()); 1+ means a later fork may lead to its wound look */
@@ -41,7 +44,8 @@ export function routeArt(G: WarmRun | null | undefined): string[] {
     const i = stageOfSlot(s);
     if (!b || i < G.stage) return;
     const mids = (G.mb && G.mb[i]) || (!layout().picker && row(i) ? [HOME[b]] : []);
-    for (const k of [...mids, BOSS_ART[b]]) if (k && !out.includes(k)) out.push(k);
+    const sb = bossFor(s, G.loop || 0, !!layout().picker); // a registered stage boss in this slot (D55): its art, not the biome's
+    for (const k of [...mids, sb || BOSS_ART[b]]) if (k && !out.includes(k)) out.push(k);
   });
   // the wound look (LS2-read item 2, render/wounds.ts): from the moment a biome is first chosen a remix of it can come up,
   // and its gate portal shows the wound, so it is built before the next fork and held for the rest of the run

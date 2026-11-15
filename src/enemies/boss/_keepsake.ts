@@ -11,7 +11,7 @@
 /** every gameplay value of the fight, in frames and boss-local px. Probe: tools/boss-probe.mjs (TTK per kit) */
 export const KB = {
   // ---- the head (2.15x the midboss's 48x58, D55)
-  fw: 104, fh: 124, ox: 52, oy: 66, // the head frame and the boss origin inside it (the art contract)
+  fw: 104, fh: 124, ox: 52, oy: 67, // the head box and the boss origin inside it (tools/keepsake-boss-art.json)
   r: 44, //         the body hitbox: the head is ~88 px wide, ~117 tall from crown to stump; the cap and the wound add e.hb
   rest: 58, //      it rests on the floor like a dropped toy: e.y = floor - rest (the stump's bottom is ~58 below the origin)
   tx: 120, //       its resting x: W - tx
@@ -69,7 +69,7 @@ export const KB = {
   pPer: 180, //     a 3 s period, slow and constant
   pRamp: 60, //     the first swing starts from rest and builds over this many frames
   pR: 9, //         the weight-and-eyes bob: a part that blocks shots (a tink) and kills on contact
-  crx: 10, cry: 8, crR: 9, // the crier (the 'mama' voice box) behind the split: a breakable part
+  crx: -33, cry: -8, crR: 9, // the crier (the 'mama' voice box) seated in the split at the temple (the art lane's seat), a breakable part
   crHp: 40, //      its HP (x depth, like every part): breaking it ends the wails for good (IT STOPPED CRYING)
   mama: 44, mamaGap: 30, // the double cry: a 44 f tell, the first ring, then the second 30 f later rotated half a gap
   rain: 50, //      fork rain: every fork left on the mobile but one, columns marked

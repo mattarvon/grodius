@@ -2,11 +2,14 @@
 // THE KEEPSAKE stage boss's art (D55). Sim: enemies/boss/keepsake.ts; geometry: enemies/boss/_keepsake.ts KB.
 //
 // Three tiers, best first, so a hit never lands on nothing:
-//  1 the boss atlas (kboss-art): src/sprites/keepsake-boss-*.png strips, named and laid out by tools/keepsake-boss-art.json
-//    (the contract: face = crack * 5 + tilt, eyes = eye * 5 + tilt, wound = wound * 5 + tilt, all 104x124 frames on the
-//    (52, 66) origin; rocker, crier, death). Pre-rotated tilts: the nearest of -32/-16/0/16/32 is drawn, never rotated
-//  2 the greybox: the midboss's own sprite (keepsake@6.png, Matt's doll, 48x58 on (24, 31)) at 2.15x, which IS the
-//    contract's 104x124 frame on (52, 66), rotated at runtime (interim only: pixel art shimmers when turned)
+//  1 the boss atlas (kboss-art, tools/prep_keepsake_boss.py): src/sprites/boss/keepsake-boss.{png,json}, route art through
+//    baked.ts bf() (lazy: the warm-up loads it once the route has it, render/warmup.ts). The contract is
+//    tools/keepsake-boss-art.json: face0-3, then eye_<open|half|shut|empty>, then wound_<seat|proud|gape|brain>, each
+//    pre-rotated at the 5 tilts -32/-16/0/16/32 (the nearest is drawn, never turned at runtime), offsets from the origin
+//    (52, 67) of a 104x124 box; die x 4 (tipping onto its side); rocker_open/shut x 13 swing angles (-108..108 deg);
+//    crier x 2; fork; mfork x 2 (hanging, drop tell)
+//  2 the greybox while the atlas is on its way: the midboss's own sprite (keepsake@6.png, Matt's doll, 48x58 on (24, 31))
+//    at 104 / 48, which is the contract's box, rotated at runtime
 //  3 a procedural head (a vinyl ellipse, sockets, the crown) until either has loaded
 // The overlays the sim's state needs to read are procedural in tiers 2-3: the crack, the split and its meat, the crier,
 // the rocker on its wire, the swing's arc. The telegraphs (under): the fountain's landing marks and paths, the aimed
@@ -22,18 +25,17 @@ import { glow } from '../../util';
 import { drawFork } from '../../fork';
 import { spr, sprReady } from '../../../sprites';
 import { drawParts, emit, fxs, GROSS, rn, rnd, spray, stepParts, strand } from '../midbosses';
-import { pour, trackDeath } from '../baked';
+import { bakedBuilt, bakedDrop, bakedReady, bakedWarm, bf, pour, trackDeath } from '../baked';
 
-// ---- the art contract (tools/keepsake-boss-art.json): read at build time when present, these defaults otherwise
-const MAN = Object.values(import.meta.glob('../../../../tools/keepsake-boss-art.json', { eager: true, import: 'default' }))[0] || {};
-const FR = MAN.frame || { w: 104, h: 124, ox: 52, oy: 66 };
-const TILTS = (MAN.tilts || [-32, -16, 0, 16, 32]).map((d) => (d * Math.PI) / 180);
-const STRIP = MAN.strips || {};
-const AX = (k, d) => (STRIP[k] ? STRIP[k].ox / STRIP[k].w : d), AY = (k, d) => (STRIP[k] ? STRIP[k].oy / STRIP[k].h : d);
-const A = { face: 'keepsake-boss-face', eyes: 'keepsake-boss-eyes', wound: 'keepsake-boss-wound', rocker: 'keepsake-boss-rocker', crier: 'keepsake-boss-crier', death: 'keepsake-boss-death' };
-const MID = 'keepsake', FK = 'keepsake-fork';
-const MS = FR.w / 48; //               the midboss sprite's scale to the boss frame: 104 / 48 ~ 2.17 (its origin (24, 31) lands on ~(52, 67))
-const EYE = MAN.eyes || [[-19, 0], [19, 0]];
+// ---- the art contract (tools/keepsake-boss-art.json; the atlas's own json holds every frame's offset)
+const K = 'keepsake-boss', MID = 'keepsake', FK = 'keepsake-fork';
+const TILTS = [-32, -16, 0, 16, 32].map((d) => (d * Math.PI) / 180); // the baked tilts, canvas radians (+ clockwise)
+const SWING = 18 * Math.PI / 180; //  rocker_*: 13 frames, -108..108 deg in 18 deg steps (index 6 hangs)
+const APEX = 10; //                   rocker_*'s anchor sits this far down the wire from the pivot (its weight 48 below it: KB.pLen 58)
+const MFORK = .55; //                 mfork is 46 px long at 1x: drawn at .55 (25 px) so the lane over the crown stays open
+const EYE_L = ['eye_open', 'eye_half', 'eye_shut', 'eye_empty'], WOUND_L = ['wound_seat', 'wound_proud', 'wound_gape', 'wound_brain'], FACE_L = ['face0', 'face1', 'face2', 'face3'];
+const MS = 104 / 48; //              the midboss sprite's scale to the boss box (its origin (24, 31) lands on ~(52, 67))
+const EYE = [[-18, 0], [18, 0]]; //  the sockets at tilt 0 (the manifest's perTilt eyeL / eyeR)
 const OPEN = 0, HALF = 1, SHUT = 2, EMPTY = 3;
 const BLOOD = '#8a0c14', BLOOD_D = '#4a050a', VINYL = '#d6bfa2', VINYL_D = '#8a6e56';
 const DASH = [5, 4], SOLID = [], ARC = [2, 4];
@@ -87,7 +89,13 @@ function line(e, locked, a) {
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(e.la) * 560, y + Math.sin(e.la) * 560); ctx.stroke();
   ctx.restore();
 }
-function bigFork(x, y, a) { if (!spr(ctx, FK, 0, x, y, { rot: a - Math.PI / 2, s: 1.5 })) drawFork(ctx, x, y, a, 3); }
+/** the big fork, spinning (tines first along a): the atlas's fork (tines down, so turned a - 90 deg), the midboss's, a line fork */
+function bigFork(x, y, a) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(a - Math.PI / 2);
+  const ok = bf(ctx, K, 'fork', 0, 0, 0) || spr(ctx, FK, 0, 0, 0, { s: 1.5 });
+  ctx.restore();
+  if (!ok) drawFork(ctx, x, y, a, 3);
+}
 
 /** the fountain's marks: a 3 px chevron on each landing point from the tell's first frame, and the fork's real path */
 function marks(e) {
@@ -152,7 +160,11 @@ function mobile(e) {
     ctx.globalCompositeOperation = 'lighter';
     glow(x, tip - 7, 10 + 6 * telK, '150,255,40', .14 + .5 * telK);
     ctx.globalCompositeOperation = 'source-over';
-    drawFork(ctx, x, tip - 15, Math.PI / 2, 1.5); // tines down, tip at `tip`
+    // tines down, its tip at `tip`: the atlas's hanging fork (1 = the brighter tell frame), else the line fork
+    ctx.save(); ctx.translate(x, tip - 46 * MFORK); ctx.scale(MFORK, MFORK);
+    const ok = bf(ctx, K, 'mfork', telK > 0 ? 1 : 0, 0, 0);
+    ctx.restore();
+    if (!ok) drawFork(ctx, x, tip - 15, Math.PI / 2, 1.5);
     if (telK > 0) { // the column it falls down, marked to the floor: dashed, then a 3 px bar where it lands
       const fl = Math.min(PH - 2, floorAt(x + $.G.scroll));
       ctx.globalAlpha = .25 + .45 * telK; ctx.strokeStyle = '#ff6048'; ctx.lineWidth = 1; ctx.setLineDash(DASH);
@@ -242,7 +254,7 @@ function crier(c, e) {
   const p = e.crier;
   if (!p) return;
   const x = KB.crx, y = KB.cry;
-  if (sprReady(A.crier)) { spr(c, A.crier, p.dead ? 1 : 0, x, y, { ax: AX(A.crier, .5), ay: AY(A.crier, .5) }); return; }
+  if (bf(c, K, 'crier', p.dead ? 1 : 0, x, y)) return;
   c.fillStyle = '#121416'; c.fillRect(x - 8, y - 9, 16, 18);
   c.fillStyle = p.dead ? '#4a4e52' : '#8a9096'; c.fillRect(x - 7, y - 8, 14, 16);
   c.fillStyle = '#1a1c1e';
@@ -261,9 +273,10 @@ function rocker(c, e, eye) {
   c.restore();
   pendXY(e.pa, Q);
   const bx = Q[0], by = Q[1], fl = e.rocker.flash > 0;
-  if (sprReady(A.rocker)) {
-    const f = e.pa > .4 ? 0 : e.pa < -.4 ? 2 : 1;
-    spr(c, A.rocker, f, px, py, { ax: AX(A.rocker, .5), ay: AY(A.rocker, 0), rot: -e.pa });
+  if (bakedReady(K)) { // the wire to the frame's apex, then the swing frame nearest the angle
+    const ax = px - Math.sin(e.pa) * APEX, ay = py + Math.cos(e.pa) * APEX, i = Math.max(0, Math.min(12, Math.round(e.pa / SWING) + 6));
+    c.strokeStyle = '#a8b0b8'; c.lineWidth = 1; c.beginPath(); c.moveTo(px, py); c.lineTo(ax, ay); c.stroke();
+    bf(c, K, eye === OPEN ? 'rocker_open' : 'rocker_shut', i, ax, ay);
     return;
   }
   c.strokeStyle = '#060708'; c.lineWidth = 2.4; c.beginPath(); c.moveTo(px, py); c.lineTo(bx, by); c.stroke();
@@ -295,27 +308,31 @@ function draw(c, e) {
   if (e.st === 'tell' && e.wt > KB.tell * .3 && hash(t >> 1) > .6) bx = hash(t) < .5 ? -1 : 1;
   if (e.st === 'wail' || e.st === 'mama') { const k = Math.min(1, e.wt / KB.wail); bx = Math.round((hash(t) - .5) * 4 * k); }
   if (e.tr > 0) bx += Math.round((hash(t + 3) - .5) * 3);
-  // ---- tier 1: the atlas (pre-rotated tilts; the death profile once it has tipped)
-  if (sprReady(A.face)) {
-    if (e.st === 'dying' && e.th > 1.1 && sprReady(A.death)) { spr(c, A.death, 0, bx, by, { ax: AX(A.death, .5), ay: AY(A.death, .5) }); drawParts(c, s, e); return; }
-    const ti = tiltIx(e.th), ax = AX(A.face, FR.ox / FR.w), ay = AY(A.face, FR.oy / FR.h);
-    spr(c, A.face, Math.min(3, cr) * TILTS.length + ti, bx, by, { ax, ay });
-    if (sprReady(A.wound)) spr(c, A.wound, wd * TILTS.length + ti, bx, by, { ax, ay });
-    if (sprReady(A.eyes)) spr(c, A.eyes, (p3 ? EMPTY : eye) * TILTS.length + ti, bx, by, { ax, ay });
+  // ---- tier 1: the atlas (pre-rotated tilts, face -> eye -> wound; die once it tips past 40 deg)
+  if (bakedReady(K)) {
+    if (e.st === 'dying' && e.th > .7) {
+      bf(c, K, 'die', Math.min(3, Math.floor((e.th - .7) / .25)), bx, by);
+      drawParts(c, s, e); return;
+    }
+    const ti = tiltIx(e.th);
+    bf(c, K, FACE_L[cr], ti, bx, by);
+    bf(c, K, EYE_L[p3 || e.st === 'dying' ? EMPTY : eye], ti, bx, by);
+    bf(c, K, WOUND_L[wd], ti, bx, by);
     c.save(); c.translate(bx, by); c.rotate(e.th);
-    if (p3) { crier(c, e); rocker(c, e, eye); }
+    if (e.rocker) { crier(c, e); rocker(c, e, eye); } // CRACKED and its dying beat: the three clacks are the rocker's eyes (rocker_shut)
     c.restore();
   } else {
+    bakedWarm(K); // a draw before the warm-up got to it starts the load; the greybox stands in
     // ---- tiers 2-3: rotated at runtime (interim)
     c.save(); c.translate(bx, by); c.rotate(e.th);
     if (sprReady(MID)) {
       const f = (eye === EMPTY || p3 ? SHUT : eye) + (wd === 2 ? 3 : 0);
-      spr(c, MID, f, -FR.ox, -FR.oy, { ax: 0, ay: 0, s: MS, smooth: true });
+      spr(c, MID, f, -52, -67, { ax: 0, ay: 0, s: MS, smooth: true });
     } else procHead(c, p3 ? EMPTY : eye);
     if (p3) for (const [x, y] of EYE) { c.fillStyle = '#140808'; c.beginPath(); c.ellipse(x, y, 8, 6.5, 0, 0, Math.PI * 2); c.fill(); } // the sockets: the eyes are on the rocker now
     crack(c, e, cr);
     if (wd < 2) wedged(c, e, wd === 1 ? loose(e) : 0);
-    if (p3) { crier(c, e); rocker(c, e, eye); }
+    if (e.rocker) { crier(c, e); rocker(c, e, eye); }
     c.restore();
   }
   // live wet: the wound weeps, and gushes while the fork is out or the head is split
@@ -329,5 +346,6 @@ function draw(c, e) {
   drawParts(c, s, e);
 }
 
-/** the boss's art for the registry (./index.ts). Its sprites are boot art (sprites.ts loads every PNG): no warm-up */
-export default { draw, under, warm: () => false };
+/** the boss's art for the registry (./index.ts): the atlas is route art (warmplan.ts routeArt names it when bossFor places
+ *  the boss on the route; render/warmup.ts loads and drops it). warm starts the download (decode is off the draw) */
+export default { draw, under, warm: () => { bakedWarm(K); return false; }, built: () => bakedBuilt(K), drop: () => bakedDrop(K) };

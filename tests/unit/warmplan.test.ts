@@ -23,10 +23,18 @@ describe('routeArt', () => {
   });
 
   it('drops the previous stage from the plan when the next stage starts', () => {
-    const G = { stage: SLOT0_STAGE, route: ['ice', 'snot'], mb: { [SLOT0_STAGE]: ['choir', 'cyst'], [SLOT1_STAGE]: ['brood', 'prentice'] } };
+    // Descent 2 (loop 1): the second biome stage ends on its home boss (D55's alternation)
+    const G = { stage: SLOT0_STAGE, loop: 1, route: ['ice', 'snot'], mb: { [SLOT0_STAGE]: ['choir', 'cyst'], [SLOT1_STAGE]: ['brood', 'prentice'] } };
     expect(routeArt(G)).toEqual(['choir', 'cyst', 'crux', 'brood', 'prentice', 'maw:snot']);
     expect(routeArt({ ...G, stage: SLOT1_STAGE })).toEqual(['brood', 'prentice', 'maw:snot']);
     expect(routeArt({ ...G, stage: SLOT1_STAGE + 1 })).toEqual([]);
+  });
+
+  it("wants THE KEEPSAKE's atlas, not the biome boss's, where bossFor places it (D55: the second biome stage in Descent 1)", () => {
+    const G = { stage: SLOT0_STAGE, loop: 0, route: ['ice', 'snot'], mb: { [SLOT0_STAGE]: ['choir', 'cyst'], [SLOT1_STAGE]: ['brood', 'prentice'] } };
+    expect(routeArt(G)).toEqual(['choir', 'cyst', 'crux', 'brood', 'prentice', 'keepsake']);
+    expect(routeArt({ ...G, loop: 2 })).toContain('keepsake');
+    expect(routeArt({ ...G, loop: 3 })).toContain('maw:snot');
   });
 
   it('wants only the boss on long4 for a committed slot whose picks are not stored yet, never a guessed home midboss', () => {

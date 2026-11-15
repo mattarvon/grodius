@@ -1,47 +1,358 @@
 {
-  "about": "THE KEEPSAKE stage boss: the art contract between kboss-core (the fight and its renderer, src/render/gross/boss/keepsake.ts) and kboss-art (tools/prep_keepsake_boss.py, the PNGs). Each strip is src/sprites/<name>@<frames>.png, frames left to right, equal size (src/sprites.ts loads every PNG there at boot). Boss-local px, y down, from the boss origin (e.x, e.y). Tilt: + rolls the crown AWAY from the ship (right), - TOWARD it (the window). Until a strip exists the renderer draws its greybox (the midboss sprite scaled 2.15x, rotated at runtime, plus procedural overlays). The renderer reads `frame`, `tilts` and each strip's anchor from this file, so a size change here needs no code change; frame ORDER and names are fixed.",
-  "status": "stub: no PNGs yet (kboss-art delivers them)",
-  "frame": { "w": 104, "h": 124, "ox": 52, "oy": 66 },
-  "crownLine": -26,
-  "crownLine3": -12,
-  "wound": { "x": 4, "y": -52, "r": 14 },
-  "eyes": [[-19, 0], [19, 0]],
-  "tilts": [-32, -16, 0, 16, 32],
-  "rockerPivot": { "x": -24, "y": -30, "wire": 58 },
-  "crier": { "x": 10, "y": 8 },
-  "strips": {
-    "keepsake-boss-face": {
-      "frames": 20, "w": 104, "h": 124, "ox": 52, "oy": 66,
-      "index": "crack * 5 + tilt",
-      "crack": ["whole", "hairline", "split", "open"],
-      "note": "the head, pre-rotated per tilt (never rotated at runtime). crack: whole = DOZING, hairline = AWAKE, split = the IT CRACKED transition, open = CRACKED (the split face from the wound down toward the player-side eye; the mechanism and ship meat inside, no bone, no teeth). Eyes and wound are separate overlays: leave the sockets and the soft spot for them"
-    },
-    "keepsake-boss-eyes": {
-      "frames": 20, "w": 104, "h": 124, "ox": 52, "oy": 66,
-      "index": "eye * 5 + tilt",
-      "eye": ["open", "half", "shut", "empty"],
-      "note": "full-frame overlays (transparent outside the sockets) so the anchor is the face's. empty = CRACKED's sockets: the eyes are on the rocker now"
-    },
-    "keepsake-boss-wound": {
-      "frames": 20, "w": 104, "h": 124, "ox": 52, "oy": 66,
-      "index": "wound * 5 + tilt",
-      "wound": ["seated", "proud", "gaping", "brain"],
-      "note": "full-frame overlays: the fork seated in the soft spot, the fork proud (a tell), the wound gaping (fork out: the boomerang, the open window), the brain exposed (CRACKED)"
-    },
-    "keepsake-boss-rocker": {
-      "frames": 3, "w": 40, "h": 72, "ox": 20, "oy": 4,
-      "index": "0 swung toward the ship, 1 hanging, 2 swung away",
-      "note": "the sleep-eye mechanism: two glass eyes on a bent wire with a lead weight. The anchor is the pivot; the renderer rotates it along the swing (a thin part, not the face). Eyes use the game's wet-eye treatment"
-    },
-    "keepsake-boss-crier": {
-      "frames": 2, "w": 24, "h": 28, "ox": 12, "oy": 14,
-      "index": "0 whole, 1 broken",
-      "note": "the 'mama' voice box: a perforated tin cylinder with a bellows"
-    },
-    "keepsake-boss-death": {
-      "frames": 1, "w": 124, "h": 104, "ox": 62, "oy": 52,
-      "index": "0",
-      "note": "PUT TO BED: the head on its side (from the profile photo), eyes shut"
-    }
+ "_doc": "THE KEEPSAKE stage boss: the geometry contract for src/sprites/boss/keepsake-boss.{png,json} (written by tools/prep_keepsake_boss.py). Units: game px from the boss origin (between the eyes at tilt 0). Tilt: canvas degrees, + = clockwise on screen, so -32 puts the crown toward the ship (screen left). Every head layer is baked rotated about the origin and drawn at the origin: bf(c, key, list, tiltIndex, e.x, e.y). Draw order: face<c> -> eye_<state> -> wound_<state>. face<c> alone is a complete head (half-lidded, seated wound with no fork).",
+ "key": "keepsake-boss",
+ "atlas": "src/sprites/boss/keepsake-boss.png",
+ "layout": "src/sprites/boss/keepsake-boss.json",
+ "atlasSize": [
+  1024,
+  466
+ ],
+ "frame": {
+  "size": [
+   104,
+   124
+  ],
+  "origin": [
+   52,
+   67
+  ],
+  "note": "the reference head box at tilt 0; atlas frames are cropped to their pixels with offsets from the origin, so read sizes from the layout, not from here"
+ },
+ "tilts": [
+  -32,
+  -16,
+  0,
+  16,
+  32
+ ],
+ "lists": {
+  "face0": "crack WHOLE (phase 1), one frame per tilt",
+  "face1": "HAIRLINE (phase 2)",
+  "face2": "SPLIT (the 2->3 transition)",
+  "face3": "SPLIT OPEN (phase 3: ship meat in the gap)",
+  "eye_open": "the stare: an attack is coming (catchlight)",
+  "eye_half": "dozing (same as the face frames)",
+  "eye_shut": "shut",
+  "eye_empty": "phase 3: the mechanism fell out, empty sockets",
+  "wound_seat": "the fork seated in the split",
+  "wound_proud": "the tell: the fork pushed up 9 px",
+  "wound_gape": "the fork out (boomerang / window)",
+  "wound_brain": "phase 3: the larger brain, gaping, no fork",
+  "die": "split open, empty sockets, the brain, tipping onto its side at tilts [48, 66, 82, 90]",
+  "rocker_open": "the sleep-eye mechanism at swing angles [-108, -90, -72, -54, -36, -18, 0, 18, 36, 54, 72, 90, 108] (canvas deg about its attach point), lids open",
+  "rocker_shut": "the same, lids shut (the death clack: PUT TO BED)",
+  "crier": "[0] whole, [1] broken; origin at its centre",
+  "fork": "the big fork (thrown / boomerang), tines down, origin at its centre; rotate at runtime (it spins)",
+  "mfork": "[0] a hanging mobile fork, [1] the drop tell (brighter); origin at the top centre (the thread)"
+ },
+ "counts": {
+  "face0": 5,
+  "face1": 5,
+  "face2": 5,
+  "face3": 5,
+  "eye_open": 5,
+  "eye_half": 5,
+  "eye_shut": 5,
+  "eye_empty": 5,
+  "wound_seat": 5,
+  "wound_proud": 5,
+  "wound_gape": 5,
+  "wound_brain": 5,
+  "die": 4,
+  "rocker_open": 13,
+  "rocker_shut": 13,
+  "crier": 2,
+  "fork": 1,
+  "mfork": 2
+ },
+ "perTilt": [
+  {
+   "tilt": -32,
+   "bbox": [
+    -48,
+    -54,
+    96,
+    110
+   ],
+   "wound": [
+    -23.4,
+    -45.7
+   ],
+   "slot": [
+    -22.3,
+    -43.8
+   ],
+   "forkUp": [
+    -0.406,
+    -0.914
+   ],
+   "eyeL": [
+    -15.1,
+    10.2
+   ],
+   "eyeR": [
+    15.8,
+    -9.2
+   ],
+   "wire": [
+    -36.3,
+    -12.8
+   ],
+   "crier": [
+    -32.8,
+    10.6
+   ]
+  },
+  {
+   "tilt": -16,
+   "bbox": [
+    -46,
+    -57,
+    93,
+    115
+   ],
+   "wound": [
+    -9.9,
+    -50.3
+   ],
+   "slot": [
+    -9.3,
+    -48.3
+   ],
+   "forkUp": [
+    -0.139,
+    -0.99
+   ],
+   "eyeL": [
+    -17.3,
+    5.6
+   ],
+   "eyeR": [
+    17.8,
+    -4.4
+   ],
+   "wire": [
+    -31.3,
+    -22.3
+   ],
+   "crier": [
+    -34.4,
+    1.1
+   ]
+  },
+  {
+   "tilt": 0,
+   "bbox": [
+    -45,
+    -58,
+    90,
+    114
+   ],
+   "wound": [
+    4.3,
+    -51.1
+   ],
+   "slot": [
+    4.3,
+    -49.0
+   ],
+   "forkUp": [
+    0.14,
+    -0.99
+   ],
+   "eyeL": [
+    -18.2,
+    0.6
+   ],
+   "eyeR": [
+    18.3,
+    0.6
+   ],
+   "wire": [
+    -24.0,
+    -30.1
+   ],
+   "crier": [
+    -33.4,
+    -8.4
+   ]
+  },
+  {
+   "tilt": 16,
+   "bbox": [
+    -47,
+    -55,
+    93,
+    113
+   ],
+   "wound": [
+    18.3,
+    -48.0
+   ],
+   "slot": [
+    17.7,
+    -45.9
+   ],
+   "forkUp": [
+    0.407,
+    -0.913
+   ],
+   "eyeL": [
+    -17.7,
+    -4.4
+   ],
+   "eyeR": [
+    17.4,
+    5.7
+   ],
+   "wire": [
+    -14.7,
+    -35.5
+   ],
+   "crier": [
+    -29.8,
+    -17.3
+   ]
+  },
+  {
+   "tilt": 32,
+   "bbox": [
+    -48,
+    -51,
+    96,
+    108
+   ],
+   "wound": [
+    30.8,
+    -41.1
+   ],
+   "slot": [
+    29.6,
+    -39.2
+   ],
+   "forkUp": [
+    0.643,
+    -0.766
+   ],
+   "eyeL": [
+    -15.8,
+    -9.1
+   ],
+   "eyeR": [
+    15.2,
+    10.2
+   ],
+   "wire": [
+    -4.4,
+    -38.2
+   ],
+   "crier": [
+    -23.9,
+    -24.8
+   ]
   }
+ ],
+ "base": {
+  "face0": [
+   [
+    12.0,
+    56
+   ],
+   [
+    -2.5,
+    58
+   ],
+   [
+    0.0,
+    56
+   ],
+   [
+    1.5,
+    58
+   ],
+   [
+    -13.5,
+    57
+   ]
+  ],
+  "die": [
+   [
+    -26.5,
+    51
+   ],
+   [
+    -4.5,
+    48
+   ],
+   [
+    -8.5,
+    46
+   ],
+   [
+    -7.0,
+    45
+   ]
+  ]
+ },
+ "crown": {
+  "line": -26,
+  "line3": -12,
+  "top": -52,
+  "note": "ANGLE: full damage at head-local y <= line (phases 1-2) or line3 (phase 3, the split exposes more). top is the crown at tilt 0. Head-local = screen rotated by -tilt about the origin"
+ },
+ "fork": {
+  "size": [
+   15,
+   50
+  ],
+  "entry": 38,
+  "lean": 0.14,
+  "note": "wound_seat/proud have it baked in. entry: px from the fork's top where it goes into the skull"
+ },
+ "rocker": {
+  "attach": "frame offsets are from the wire end (the bridle apex); draw the wire from perTilt.wire to it. The weight sits 48 px below the apex, so with KB.pLen 58 the apex is 10 px down the wire. Pick the swing frame nearest the pendulum angle (deg, + = clockwise)",
+  "eyes": [
+   [
+    -18.25,
+    22
+   ],
+   [
+    18.25,
+    22
+   ]
+  ],
+  "r": 10.5,
+  "weight": [
+   4,
+   48
+  ],
+  "swing": [
+   -108,
+   -90,
+   -72,
+   -54,
+   -36,
+   -18,
+   0,
+   18,
+   36,
+   54,
+   72,
+   90,
+   108
+  ]
+ },
+ "mfork": {
+  "size": [
+   11,
+   46
+  ]
+ },
+ "crier": {
+  "size": [
+   34,
+   28
+  ]
+ },
+ "source": "photos by Matt Arvon of his own unmarked antique doll (D7/D53); not in the repo"
 }
