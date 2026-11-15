@@ -122,6 +122,16 @@ describe('the LAB rows', () => {
     expect(F.games).toBe(1);
     expect(runSealed()).toBe(false);
   });
+  it('two JUMP TO MIDs in a row, then DESCEND: the real run is unsealed (studio review 2026-11-15)', () => {
+    L.setLab({ mid: 'keepsake' });
+    tap('LAB');
+    tap('JUMP TO MID');
+    tap('LAB');
+    tap('JUMP TO MID');
+    expect(runSealed()).toBe(true);
+    tap('DESCEND');
+    expect(runSealed()).toBe(false);
+  });
   it('a jump that does not start leaves the slot unsealed and the LAB open; a URL jump seal is never lifted', () => {
     L.setLab({ mid: 'keepsake' });
     tap('LAB');

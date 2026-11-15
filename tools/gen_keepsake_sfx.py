@@ -10,7 +10,7 @@ samples: modal steel, rubber, plastic and a reed-and-bellows crier, built from n
        src/sfx/keep_thud/gen-NN.ogg     a face hit: a dull rubbery thud on hollow vinyl (4)
        src/sfx/keep_squelch/gen-NN.ogg  a wound hit: a short wet squelch into the brain (4)
        src/sfx/keep_clack/gen-NN.ogg    the sleep eyes rolling and clacking against the lids (3)
-Every file is peak-normalized by gen_sfx.write_ogg; its level in the mix is set where it plays (keepsake.ts KSND).
+Every file is peak-normalized by gen_sfx.write_ogg; its level in the mix is set where it plays (keepsake.ts SND).
 Reuses the building blocks of tools/gen_sfx.py. Seeded: the same run writes the same files.
 """
 import os, subprocess, sys

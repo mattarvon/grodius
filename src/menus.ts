@@ -120,6 +120,7 @@ function midJumpRun() {
   applyRunLayout(); // the jump is built on the layout a run started now would fly
   const j = midJump();
   if (!j) return;
+  liftJumpSeal(); // a second JUMP TO MID in a row: lift this LAB's own seal first, so `was` is only ever a URL jump's
   const was = runSealed();
   sealRun();
   voiceStopAll();

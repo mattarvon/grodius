@@ -38,8 +38,19 @@ from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DST = os.path.join(HERE, '..', 'src', 'sprites')
+def _main_checkout():
+    """the main checkout's root when run from a git worktree (its assets-raw holds the photos), else None"""
+    try:
+        import subprocess
+        common = subprocess.run(['git', 'rev-parse', '--git-common-dir'], cwd=HERE, capture_output=True, text=True).stdout.strip()
+        return os.path.dirname(os.path.abspath(os.path.join(HERE, common))) if common else None
+    except Exception:
+        return None
+
+
+# the photos are Matt's own and git-ignored: KEEPSAKE_PHOTOS, this checkout's assets-raw, or the main checkout's
 CANDIDATES = [os.environ.get('KEEPSAKE_PHOTOS', ''), os.path.join(HERE, '..', 'assets-raw', 'keepsake'),
-              'E:/projects/grodius/assets-raw/keepsake']
+              os.path.join(_main_checkout() or HERE, 'assets-raw', 'keepsake')]
 F_OPEN, F_HALF, F_SHUT = 'doll-front-eyes-open.jpg', '3782-front-half-lidded.jpg', '3777-front-eyes-shut-a.jpg'
 
 # ---- geometry. Coordinates below are "thumb" px: the photo at 1/4 size (563 x 1000), where they were measured
