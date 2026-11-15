@@ -823,7 +823,7 @@ often (release-manager, tools-programmer); playtest watch: DEAD WEIGHT / LEAVE I
 wants it); i18n when scoped: quips.json in the inventory, the no-repeat rule keyed on ids, transcreation, captions vs
 subtitles (localization-lead).
 
-### D53 Booth fx-dsp + booth-ui, recorded after the fact; reprocess-parity correction — 2026-11-15 (retroactive studio review)
+### D54 Booth fx-dsp + booth-ui, recorded after the fact; reprocess-parity correction — 2026-11-15 (retroactive studio review)
 
 **Why.** fx-dsp and booth-ui merged (`b76a52b..27b47d3`, tools/booth, tests and a devDependency only; no game code) with
 no decision-log entry. The retroactive Studio Hierarchy review ran 2026-11-15 and found the merge's one false claim: that a
