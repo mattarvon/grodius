@@ -19,10 +19,10 @@ import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 import { beatPlan, layout, nSlots, slotRow, stageOfSlot } from './layout';
 import { midSeedOf, pickSeedOf, seedOf, stream } from './rng';
-import { HOME, MIDS, forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
+import { HOME, MIDS, forceSlotA, forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
 import { driftOf, whenNoMini } from './midslot';
 import { MID_NAMES, ROSTER } from './enemies/mid/roster';
-import { midsWip } from './lab';
+import { midForce, midsWip } from './lab';
 import { drawPicks } from './setdraw';
 import { MOVES, bandClamp, gimmick, hazInterval, moveAt, snapVent } from './terrainb';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
@@ -408,7 +408,10 @@ const midState = () => { const G = $.G; G.mb ||= {}; G.mbUsed ||= []; G.mbLast |
 /** biome stage i's midbosses (biome b): picked on first call from midStream(i), never stageStream(i) */
 export function stageMids(i, b) {
   const G = midState();
-  if (!G.mb[i]) G.mb[i] = pickBiomeMids(G, b, G.loop, midStream(i), $.meta && $.meta.mb, false, midsWip()).picks;
+  if (!G.mb[i]) {
+    const picks = pickBiomeMids(G, b, G.loop, midStream(i), $.meta && $.meta.mb, false, midsWip()).picks, f = midForce();
+    G.mb[i] = f ? forceSlotA(picks, f) : picks; // ?mid=<wip kind>: the test path (lab.ts forcedMid); the draw is made either way
+  }
   return G.mb[i];
 }
 /** a non-biome stage whose midbosses are fixed by its layout row (Open Orbit's Saucer, the row's drift entry, in every

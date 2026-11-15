@@ -187,8 +187,9 @@ describe('the WIP flag', () => {
     expect(met(biomePool(true, rows))).toBeGreaterThan(0);
   });
 
-  // only meaningful while the roster has no wip row: once a lane adds one, the flag is meant to move picks
-  it.skipIf(ROSTER.some((r) => r.wip))('draws the same picks with the flag on while no row is WIP, so the flag alone never moves a run', () => {
+  // only meaningful while no BIOME-pool row is wip: once a lane adds one, the flag is meant to move picks. A wip row in
+  // another pool (THE KEEPSAKE, ship) never reaches biomePool, so the guard keeps running (QA, studio review 2026-11-15)
+  it.skipIf(ROSTER.some((r) => r.wip && BIOME_POOLS.includes(r.pool)))('draws the same picks with the flag on while no biome-pool row is WIP, so the flag alone never moves a run', () => {
     for (let s = 1; s <= 200; s++) {
       const a = pickBiomeMids({ mbUsed: [], mbLast: {} }, 'ice', 0, stream(s), undefined, false, false);
       const b = pickBiomeMids({ mbUsed: [], mbLast: {} }, 'ice', 0, stream(s), undefined, false, true);

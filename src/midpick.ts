@@ -163,6 +163,14 @@ export function newDescentMids(st: MidState): void {
   st.mbUsed = [];
 }
 
+/** the ?mid= test query (lab.ts forcedMid): kind k takes slot A of a stage's picks. Slot B keeps its pick unless that
+ *  is k or shares k's tag (spec §6.1: a stage's two midbosses test two skills). The picks it replaces stay noted as met
+ *  (a test run, never a real one). Pure; returns a new array */
+export function forceSlotA(picks: readonly string[], k: string, defs: Readonly<Record<string, MidDef>> = MIDS): string[] {
+  const b = picks[1];
+  return b && b !== k && defs[b]?.tag !== defs[k]?.tag ? [k, b] : [k];
+}
+
 /** phase 1 biome stage: home preferred, crossovers from the other biome midbosses. wip: the ?mids=wip flag (src/lab.ts
  *  midsWip), which lets the unfinished kinds in */
 export function pickBiomeMids(st: MidState, b: string, L: number, rng: () => number, met?: Readonly<Record<string, number>>, ignoreMeta = false, wip = false): PickOut {

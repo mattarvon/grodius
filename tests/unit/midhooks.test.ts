@@ -21,7 +21,8 @@ const noop = () => {};
 const pops: string[] = [];
 vi.mock('../../src/core', () => ({ FIRE: {}, PH: 270, R: () => .99, TAU: Math.PI * 2, W: 480, clamp: (v: number) => v, dist2: () => 1e9, lerp: (a: number) => a, pick: (a: any[]) => a[0], ri: () => 0, rr: () => 0, sstep: (v: number) => v }));
 vi.mock('../../src/save', () => ({ SET: {}, lv: () => 0 }));
-vi.mock('../../src/audio', () => ({ sample: () => {}, quipAfterKill: () => null, sfx: new Proxy({}, { get: () => () => {} }) }));
+const played: string[] = []; // the shared sfx.* hurt() reached for (MidSim.hitSnd)
+vi.mock('../../src/audio', () => ({ sample: () => {}, quipAfterKill: () => null, sfx: new Proxy({}, { get: (_t, k) => () => { played.push(String(k)); } }) }));
 vi.mock('../../src/world', () => ({ caps: [], ceilAt: () => 0, enemies: [], eshots: [], floorAt: () => 270, geysers: [], orbs: [] }));
 vi.mock('../../src/fx/spawn', () => ({ drop: noop, flash: noop, gib: noop, gore: noop, mist: noop, pop: (_x: number, _y: number, t: string) => pops.push(t), spark: noop, splat: noop }));
 vi.mock('../../src/perks', () => ({ gainXP: () => {}, pk: () => 0, spillSlick: () => {} }));
@@ -127,6 +128,25 @@ describe('the hook seen from the rest of the game', () => {
     expect(midMul(e, 1, e.x, e.y, 0)).toBe(.15);
     expect(midMul(mid('cyst'), 1, 300, 135, 0)).toBe(1); // no hook
     expect(midMul({ k: 'shell', x: 300, y: 135 }, 1, 0, 0, 0)).toBe(1); // not a midboss
+  });
+
+  it('lets a kind play its own hit sound (MidSim.hitSnd) in place of the shared tink and hit, with the share', () => {
+    const e = mid('shell'), got: number[] = [];
+    MID_SIM.shell.hitSnd = (_e, m) => (got.push(m), m < 1);
+    try {
+      played.length = 0;
+      e.shut = 1;
+      hurt(e, 10, 310, 135, 1); // x.15: the kind's own sound, no shared tink
+      expect(played.filter((k) => k === 'tink' || k === 'hit')).toEqual([]);
+      e.shut = 0;
+      hurt(e, 10, 310, 135, 1); // full: the hook returns false, so the shared hit plays
+      expect(played.filter((k) => k === 'tink' || k === 'hit')).toEqual(['hit']);
+      expect(got).toEqual([.15, 1]);
+      played.length = 0;
+      hurt(e, 10, 290, 135, 1); // a 0 is a tink, no damage: never asks the hook
+      expect(got.length).toBe(2);
+      expect(played).toContain('tink');
+    } finally { delete MID_SIM.shell.hitSnd; }
   });
 
   it('reads a hook that returns nothing as a tink, never as NaN HP', () => {

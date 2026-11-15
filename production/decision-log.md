@@ -823,6 +823,70 @@ often (release-manager, tools-programmer); playtest watch: DEAD WEIGHT / LEAVE I
 wants it); i18n when scoped: quips.json in the inventory, the no-repeat rule keyed on ids, transcreation, captions vs
 subtitles (localization-lead).
 
+### D53 THE KEEPSAKE, a ship-pool ANGLE midboss, pass 1 (wip) — 2026-11-15 (Matt designed it; branch `keepsake`)
+
+**What.** Matt's own midboss, added outside the §6.2 plan as a fifth ship-pool member (the pool's planned four are
+WINDOW, RANGE, CROWD and SPACE; ANGLE was free): a crew kid's vinyl baby-doll head grown to midboss size, a silver
+dinner fork rammed into the soft spot. Its face takes x.15; only the crown round the fork (hits at or above the crown
+line) takes full damage. Fork fountain (one column always on the ship's x, one lattice column always empty), aimed
+fork throw; phase 2 a boomerang fork and a slow wail ring. Kill word PUT TO BED. Pass 1 is a greybox and the row is
+`wip: true`, `min: 1`. Base HP 135, above the ANGLE peers' 95-100: after the review's fixes the invincible probe bot
+on the wound killed 100 HP in 6.5 s; at 135 it is 9.4 s at the stage-1 kit (matrix 8.4-9.3 s; band 8-11 s, D27). The
+bot never dodges the fountain, so real fights run longer; face-camping escapes at the stage-1 kit.
+
+**The `?mid=<kind>` test path.** Ship-pool kinds have no spawn path yet, so `?mid=<wip kind>` puts the kind in slot A
+of every biome stage on a picker layout, any descent (`lab.ts` forcedMid, `midpick.ts` forceSlotA, `biomes.ts`
+stageMids). It is live on any web build, ungated like `?mids=wip` (only the `&stage=&x=&kit=` jump is dev-only).
+Slot B keeps its pick unless it shares the forced kind's tag, then slot B is dropped. A finished or unknown kind is
+ignored, so the query can't change a shipped run, and a forced wip kind still leaves the profile alone (no meta.mb,
+meta.mbK or first-kill pay). ~~**Accepted for now:** the APK can't reach it (no query string, no LAB row).~~
+**Closed 2026-11-15 (branch `keepsake-lab`):** the LAB (ungated, like its `mids=wip` row) gained FORCE MID, which
+cycles off / each wip kind in roster order and feeds the same `midForce` path (a `?mid=<wip kind>` query wins over
+it), and, while a kind is forced on a picker layout, JUMP TO MID: the dev URL jump
+(`?stage=<first biome>&x=<slot A WARNING - 30>&kit=mid`) built in-game (`jump.ts` `midJump`), so the phone starts
+at the fight's WARNING. The jump seals the run-save slot (the player's checkpoint is kept) until the next DESCEND or
+RE-ENTER. Off by default: a fresh save, the harness and the probes fly unchanged. The title's LAB row names the forced
+kind (every run flies it until it is cycled off).
+
+**Test change.** `midreg.test.ts`'s "flag alone never moves a run" guard now skips only while a BIOME-pool row is
+wip, so a wip ship-pool row keeps it running (qa-lead block, resolved).
+
+**Studio review** ran on acae07e: 8 leads + 3 directors. lead-programmer and technical-director APPROVE WITH NOTES;
+qa-lead BLOCK (the guard above), resolved; game-designer, art-director, narrative-director and creative-director
+APPROVE WITH NOTES; audio-director, localization-lead, release-manager and producer APPROVE WITH NOTES. Fixes: the
+fountain anchored on the ship, the fall shown to the floor, the wail tell to 44 f, the fork shown in the wound, the
+boomerang's enemy-fire glow, 3 px locked line and chevrons, the crown rule made y-only (no bolt/laser dead band).
+
+**Pass 2 art.** From photos of Matt's own unmarked antique doll. Only the baked PNGs ship; the source photos stay in
+git-ignored `assets-raw/keepsake`. Tied to D7 (licensing and consent): Matt owns the doll and the photos.
+
+**Matt's decisions (2026-11-15).** (A) **Material: vinyl**, like his own doll (not porcelain or bisque). Face hits
+read as a dull rubbery thud, not a tink: pass 1 keeps the shared dim-flash / x.15 path and its sound; pass-2 audio is a
+vinyl thud on the face and a wet squelch on the wound. (B) **Child line: imply only.** The absent kid is the horror and
+is never shown: no child figure, face, handprint or name tag, and nothing that frames the doll as the child's
+remains (the D46 line, held in pass 2).
+
+**Pass-2 art landed (2026-11-15, branch `keepsake-art`; `wip` stays on until Matt approves).** Matt's direction on
+seeing the greybox: face forward, no wig, "creepy as shit", imply only. `tools/prep_keepsake.py` bakes
+`src/sprites/keepsake@6.png` (48x58: eyes open / half / shut, with the fork's slot or the wound gaping) and
+`keepsake-fork.png` from the front photos: one face cut-out, the bald dome rebuilt from the forehead's vinyl, the
+half-lidded and shut sockets transplanted onto the front photo's sockets (no frame-to-frame shift), the fork, brain,
+crack, seepage, mould and yellowed grade painted in. The eyes are the tell: it dozes half-lidded at rest and never
+opens them there; wide open means an attack is coming. The sprite is matched to the existing fit and hitbox (crown
+at -24, wound at (2, -24), the crown line -13 across the upper dome): no sim change. Boot art (sprites.ts), so
+`warm()` builds nothing.
+
+**Deferred:** a ship spawn path, then `wip` off (a re-baseline);
+the kill word's caption key; the player CHANGELOG entry at pass 2.
+
+**Pass-2 audio (2026-11-15, branch `keepsake-audio`).** Seven procedural banks from `tools/gen_keepsake_sfx.py`
+(`src/sfx/keep_*`, 22 files, ~160 KB): fork tink on terrain (4; the first of a run full, the rest quieter, 40 ms
+throttle), the throw's whoosh-and-shing (3; also the fountain's burst, pitched up), the boomerang whirr out and back (2),
+the wail as a doll's tilt crier, "ma... maaa", warped and gargling, its second cry on the ring's release (2), the vinyl
+face thud (4), the wound squelch (4), the sleep-eye clack, open on every tell and shut back at idle (3). Levels matched
+to the shared sounds they replace (ebur128). Two generic hooks, no kind special case in shared code: `MidSim.hitSnd`
+(hurt()'s tink/hit) and an enemy shot's `land` (shots.ts terrain strike). Audio only: no `R()`, rng-probe SAME.
+
 ### D54 Booth fx-dsp + booth-ui, recorded after the fact; reprocess-parity correction — 2026-11-15 (retroactive studio review)
 
 **Why.** fx-dsp and booth-ui merged (`b76a52b..27b47d3`, tools/booth, tests and a devDependency only; no game code) with

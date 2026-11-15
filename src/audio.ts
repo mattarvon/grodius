@@ -293,23 +293,26 @@ export function resetOpened() {
 /** seconds the voice fades over when a new game or the title cuts it off: short enough to feel cut, long enough not to click */
 export const VOICE_CUT = .06;
 /** a new game or the title: every voice line (talking or queued) stops with a VOICE_CUT fade, and the comms window
- *  has nothing left to show (audio only) */
-export function voiceStopAll() {
+ *  has nothing left to show (audio only). `keep`: voice folders that ride through the cut (newGame spares startgame,
+ *  the DESCEND line that started the run: before 2026-11-15 the cut killed it 60 ms in, so it was never heard) */
+export function voiceStopAll(keep?: RegExp) {
   if (AU.c) {
     const now = AU.c.currentTime;
     for (let k = LIVE.length - 1; k >= 0; k--) {
       const v = LIVE[k];
-      if (!VOICE_CAT.test(v.cat)) continue;
+      if (!VOICE_CAT.test(v.cat) || keep?.test(v.cat)) continue;
       v.s.onended = null;
       v.g.gain.setTargetAtTime(0, now, VOICE_CUT / 3);
       v.s.stop(now + VOICE_CUT);
       LIVE.splice(k, 1);
     }
   }
-  for (const k in SOLO) if (VOICE_CAT.test(k)) delete SOLO[k];
-  AU.voice = null;
-  AU.voiceQ = [];
+  for (const k in SOLO) if (VOICE_CAT.test(k) && !keep?.test(k)) delete SOLO[k];
+  AU.voiceQ = keep && AU.voiceQ ? AU.voiceQ.filter((v) => keep.test(v.cat)) : []; // no queue yet with no audio (the harness)
+  AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
 }
+/** a line from this voice folder is talking or waiting its turn (the title greeting still going when DESCEND lands) */
+export const voiceLive = (cat: string) => !!AU.c && !!AU.voiceQ?.some((v) => v.cat === cat && v.t1 > AU.c.currentTime);
 export function thr(k, ms) {
   const n = performance.now();
   if (AU.last[k] && n - AU.last[k] < ms) return true;

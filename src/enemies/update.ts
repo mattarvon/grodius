@@ -17,7 +17,7 @@ import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
-import { MID_SIM, midMul, midRow } from './mid/roster';
+import { MID_SIM, midHitSnd, midMul, midRow } from './mid/roster';
 import { eliteKill, eliteTick } from './elite';
 import { corpseKilled } from './corpsevoice';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
@@ -565,8 +565,8 @@ export function hurt(e, d, hx, hy, dir) {
   for (let k = 0; k < n; k++) drop(hx, hy, dir * rr(.6, 2.8) + rr(-.8, .8), rr(-1.5, 1.3), rr(1, 1.9), R() < .3 ? 2 : 0, ri(50, 110));
   if (R() < .3) mist(hx, hy, rr(3, 5), 20);
   if (e.big && R() < .2) gib(hx, hy, dir * rr(.5, 2), rr(-1.5, 1), 'chunk', rr(1.5, 2.5));
-  if (m < 1) sfx.tink();
-  else sfx.hit();
+  // a kind with its own hit sound plays it instead (MidSim.hitSnd: THE KEEPSAKE's vinyl thud, its wound's squelch)
+  if (!midHitSnd(e, m, hx, hy)) { if (m < 1) sfx.tink(); else sfx.hit(); }
   if (e.hp <= 0) killEnemy(e, dir);
 }
 export const mult = () => 1 + Math.min(4, $.G.combo * .05);

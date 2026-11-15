@@ -1,13 +1,15 @@
 // @ts-nocheck
 import { $ } from './state';
 import { SET, UPG, exportSave, importSave, lv, save } from './save';
-import { auInit, sample, setMute, sfx, voiceStopAll } from './audio';
+import { auInit, sample, setMute, sfx, voiceLive, voiceStopAll } from './audio';
 import { I, PR } from './input';
-import { newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
-import { clearRun, runInfo } from './runsave';
-import { setLayout } from './layout';
+import { jumpRun, newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
+import { clearRun, runInfo, runSealed, sealRun } from './runsave';
+import { LAYOUTS, setLayout } from './layout';
+import { midJump } from './jump';
+import { midRow } from './enemies/mid/roster';
 import { RIG, RIG_BY, SOCKET_COST, rigInit, rigged, sockets } from './contraptions';
-import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, setLab } from './lab';
+import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, midForce, setLab, wipMids } from './lab';
 import { ARM_T, backStep, descendTap, exitLive } from './backstep';
 import { NATIVE } from './platform';
 
@@ -65,7 +67,7 @@ export function titleItems() {
     // so DESCEND stays row 0 for them
     l: 'RE-ENTER', // not RESUME: the pause menu's RESUME means carry on from here (Matt, D34)
     r: `STAGE ${ri.loop + 1}-${ri.stage + 1}` + (ri.layout && ri.layout !== activeLayout().id ? ' ' + layoutName(ri.layout) : ''),
-    a: () => { resumeLast(); }
+    a: () => { liftJumpSeal(); resumeLast(); }
   }] : []), {
     l: 'DESCEND',
     confirm: cf,
@@ -87,17 +89,44 @@ export function titleItems() {
     a: sub('opt')
   }, {
     // dev row (LS1 D2): kept last so DESCEND stays row 0 for the harness and the probes. Its right column is the
-    // layout a run started now would fly, URL flag included
+    // layout a run started now would fly, URL flag included, then the forced midboss when one is set (every run flies it)
     l: 'LAB',
-    r: layoutTag(),
+    r: layoutTag() + (midForce() ? ' ' + midLabel(midForce()) : ''),
     a: sub('lab')
   }];
 }
 /** start a run on the layout the LAB / URL chose (setLayout contract: before newGame()) */
 function startRun(loop?) {
+  liftJumpSeal();
   if (resumedFrom != null) setLayout(resumedFrom); // a RESUME flew the checkpoint's layout: a new run flies the chosen one
   applyRunLayout();
   newGame(loop);
+}
+/** the run-save seal JUMP TO MID set (a URL jump's seal is never this one: it is for the page's life) */
+let jumpSeal = false;
+/** a run after a LAB jump stores, re-writes and clears the player's checkpoint again (DESCEND, RE-ENTER) */
+function liftJumpSeal() {
+  if (jumpSeal) sealRun(false);
+  jumpSeal = false;
+}
+/** a midboss kind's short name for the LAB */
+const midLabel = (k) => (midRow(k) || { label: k.toUpperCase() }).label;
+/** the active layout's midboss picker: a forced kind only takes slot A where there is one (long4, not short) */
+const pickerOn = () => !!(LAYOUTS[activeLayout().id] || {}).picker;
+/** JUMP TO MID (D53): the dev URL jump to slot A's WARNING, from the LAB, so the APK can reach a forced fight. A jump
+ *  run, like the URL's: the run-save slot is sealed (the player's checkpoint and RE-ENTER are kept), meta pays as usual */
+function midJumpRun() {
+  if (resumedFrom != null) setLayout(resumedFrom);
+  applyRunLayout(); // the jump is built on the layout a run started now would fly
+  const j = midJump();
+  if (!j) return;
+  liftJumpSeal(); // a second JUMP TO MID in a row: lift this LAB's own seal first, so `was` is only ever a URL jump's
+  const was = runSealed();
+  sealRun();
+  voiceStopAll();
+  if (!jumpRun(j)) { if (!was) sealRun(false); return; }
+  jumpSeal = !was;
+  titleSub = null; // back on the title after the run, not in the LAB
 }
 /** the active layout for the title: LONG / SHORT, marked URL when a ?layout= flag overrides the LAB */
 export function layoutTag() {
@@ -120,6 +149,17 @@ function labItems() {
     r: L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
     a: () => setLab({ cp: L.cp === 'b' ? 'a' : 'b' })
   }, {
+    // D53: the wip midboss forced into slot A of every biome stage (lab.ts midForce): off, then each wip kind. The
+    // LAB's own setting; a ?mid= query over it is shown, as the layout's URL flag is. Picker layouts only
+    l: 'FORCE MID',
+    r: (L.mid ? midLabel(L.mid) : 'OFF') + (midForce() !== (L.mid || null) ? ' > URL ' + midLabel(midForce()) : !pickerOn() && L.mid ? ' (LONG ONLY)' : ''),
+    a: () => { const ks = wipMids(); setLab({ mid: ks[(ks.indexOf(L.mid) + 1) % ks.length] }); }
+  }, ...(midForce() && pickerOn() ? [{
+    // only while a kind is forced: start Descent 1 at the first biome stage, just before slot A's WARNING, mid kit
+    l: 'JUMP TO MID',
+    r: midLabel(midForce()),
+    a: midJumpRun
+  }] : []), {
     l: 'BACK', // the same close as Esc, Android back and the < BACK button: the cursor lands back on LAB
     a: () => doBack('closeSub')
   }];
@@ -216,9 +256,12 @@ export function pauseItems() {
   }];
 }
 // title screen: every cursor move is a small wet valve pop (gross_pop), every selection a wet splat (splat_s), both low (tone pass D39: the farts are out)
+/** SLAB's "grodius bitch" (src/sfx/startgame/): the DESCEND line, and the title's greeting (step.ts) */
+export const startLine = () => sample('startgame', { vol: 1.15, spread: .02, wet: .14 });
 export const menuBlip = (ok) => {
-  // starting a run (DESCEND / DESCEND DEEPER) gets SLAB's "grodius bitch" (Lesley's "yeah baby" removed 2026-11-13) instead of the select splat
-  if ($.state === 'title' && ok && /^DESCEND/.test((titleItems()[$.menuSel] || {}).l || '') && sample('startgame', { vol: 1.15, spread: .02, wet: .14 })) return;
+  // starting a run (DESCEND / DESCEND DEEPER) gets SLAB's "grodius bitch" (Lesley's "yeah baby" removed 2026-11-13) instead of the select splat;
+  // with the title greeting still talking it stands in for the line, so the player never hears it twice running
+  if ($.state === 'title' && ok && /^DESCEND/.test((titleItems()[$.menuSel] || {}).l || '') && (voiceLive('startgame') || startLine())) return;
   if ($.state === 'title' && sample(ok ? 'splat_s' : 'gross_pop', { vol: ok ? .5 : .35, spread: .08, wet: .1 })) return;
   sfx.menu();
 };

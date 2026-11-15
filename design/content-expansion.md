@@ -358,6 +358,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
 | | Hull crawler | RANGE | — | ~110 | W1 (with the first interior) |
 | | the Galley | CROWD | The food dispenser feeds crew to you | ~110 | W2 |
 | | Bunk Stack | SPACE | Berths that open | ~100 | W2 |
+| | THE KEEPSAKE | ANGLE | A crew kid's vinyl doll head (the kid implied, never shown); face ×0.15, only the fork wound on top takes damage, from above. Fork fountain (landing marks, a gap always), aimed fork throw; phase 2 a boomerang fork and a wail ring | 135 (D53: tuned to the 8-11 s band) | Pass-1 greybox, `wip` (D53, Matt, 2026-11-15); flown via `?mid=keepsake` until the ship pool has a spawn path |
 | **Keel** | Ribcage | WINDOW | Bars shot open first (the nailbar pattern) | ~110 | NB |
 | | Marrow Sow | SPACE | Lobs globs (a variant of the cyst lob) | ~110 | NB |
 | | Gnawer | RANGE | Chews toward you along a rib | ~100 | NB |
@@ -371,6 +372,7 @@ Each midboss tests one skill. The level-designer's four "verbs" map onto the sys
   - Wave 1 is 8 biome midbosses + 2 Orbit + 2 ship = **12**.
   - Wave 2 is 4 biome + 2 ship = **6**.
   - Each new biome adds 3-4.
+  - Unplanned: THE KEEPSAKE (D53, Matt's design) is a **5th ship-pool member** (ANGLE), outside these counts. The ship pool's per-descent exclusion (§6.3) now has five kinds to draw from once the pool has a spawn path.
 - **HP and time to kill.** Base HP was first anchored to P0's stage-1 DPS estimates (Womb ≈ 10.7 HP/s, Apprentice ≈ 14.4, Choir ≈ 8.3, Brood ≈ 7.4). These are historical: they don't reproduce today's probe times (135 / 10.7 = 12.6 s against the Womb's measured 8.7 s), so tune from the probe, not from these. The current per-HP rate for the Apprentice, measured 2026-11-03, is ~14.7 HP/s (+50 HP → +3.4 s). The target is one band per kind, **8-11 s at the stage-1 kit in either slot** (D27; it replaced the per-slot bands, 8-11 s for A and 10-15 s for B), measured with `midboss-probe --layout long4`. There is no per-slot HP multiplier: D1 says HP comes only from depth. A kind outside the band is moved by its base HP on picker layouts (`src/midslot.ts` `MID_HP`; `short` keeps `ET`'s values). DRIFT kinds are exempt, because their forced exit sets the fight's length. Measured 2026-11-03 (long4, `--leave 1080`, STAGE 1 kit): Choir 10.0, Womb 8.7, Apprentice 10.2 (at 200 HP), Brood 9.5 s.
 
 ### 6.3 Selection rules (`pickMids`)
