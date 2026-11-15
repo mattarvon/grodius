@@ -8,7 +8,7 @@
 //
 // Extra params: rank= pins G.pow (the harness's fixed-rank boss scenarios; G.rank is its clamp to 0-1) and seed= fixes
 // the run seed (without it a run draws one, as newGame does). Pure apart from reading the active layout; no DOM.
-import { lastStage, layout, nSlots, row, slotRow, stageOfSlot } from './layout';
+import { beatPlan, lastStage, layout, nSlots, row, slotRow, stageOfSlot } from './layout';
 import { forkAllows, HOME } from './midpick';
 import { RUN_V, sealRun } from './runsave';
 
@@ -82,6 +82,20 @@ export function parseJump(search: string): JumpParse | null {
     if (!Number.isInteger(seed)) return { error: `?seed=${q.get('seed')}: not an integer` };
   }
   return { jump: { kind, stage, biome, x, loop, kit, rank, seed }, warn };
+}
+
+/** the LAB's JUMP TO MID (menus.ts, D53): the jump the dev URL `?stage=<first biome>&x=<slot A WARNING - lead>&kit=mid`
+ *  asks for, built with no URL so the APK (no query string) can fly it: the active layout's first biome stage,
+ *  Descent 1, the mid kit, `lead` px of scroll before slot A's WARNING. The biome is the one jumpBlob would fill an
+ *  unnamed slot with. null on a layout with no picker (no slot A to force: short) or no slot A breath. Pure apart
+ *  from reading the active layout */
+export function midJump(lead = 30): Jump | null {
+  const L = layout(), stage = L.stages.findIndex((r) => r.kind === 'biome');
+  if (!L.picker || stage < 0) return null;
+  const r = row(stage)!, s = slotRow(r.slot!), w = beatPlan(r, s.gateLate ?? s.x0, false).warns[0];
+  if (w == null) return null;
+  const biome = Object.keys(HOME).find((b) => forkAllows(b, []))!;
+  return { kind: biome, stage, biome, x: Math.max(0, w - r.x0 - lead), loop: 0, kit: 'mid', rank: null, seed: null };
 }
 
 /** the checkpoint blob of a jump (the run-save shape, decoded and flown by flow.ts jumpRun), with the run as it would

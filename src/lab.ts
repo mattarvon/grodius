@@ -1,22 +1,23 @@
 // The LAB: a persisted dev row on the title screen (build plan LS1 sprint 2 item D2). The Capacitor APK loads its
 // bundled page with no query string, so this is the only way to reach the short layout (long4 is the default since
-// D24), the WIP midbosses and the checkpoint-on-death option on the phone. It lives under its own key, outside the meta save (grodius.v1)
+// D24), the WIP midbosses, a forced wip midboss with its jump (D53) and the checkpoint-on-death option on the phone. It lives under its own key, outside the meta save (grodius.v1)
 // and the run save (grodius.run), so a bad LAB blob can never cost either.
 //
 // Precedence for each setting: URL flag > LAB > default. The choice is a pure function (layoutChoice) so tests can
 // drive it without a DOM; the module keeps a cached copy of the stored LAB so draw code never touches storage.
 import { LAYOUTS, layout, setLayout } from './layout';
-import { midRow } from './enemies/mid/roster';
+import { ROSTER, midRow } from './enemies/mid/roster';
 
 export const LAB_KEY = 'grodius.lab';
 
 /** the LAB's own values. layout: which descent a new run flies; mids: LS2's unfinished midbosses (`wip` rows in enemies/mid/roster.ts; biomes.ts stageMids reads it);
- *  cp: the checkpoint trigger, spec §4 option a (app kill or quit only, the default) or b (also on death; item H) */
-export interface Lab { layout: 'short' | 'long'; mids: '' | 'wip'; cp: 'a' | 'b' }
+ *  cp: the checkpoint trigger, spec §4 option a (app kill or quit only, the default) or b (also on death; item H);
+ *  mid: the wip kind forced into slot A of every biome stage, the LAB's ?mid= (midForce), or '' (off, the default) */
+export interface Lab { layout: 'short' | 'long'; mids: '' | 'wip'; cp: 'a' | 'b'; mid: string }
 /** the layout a run flies when neither a ?layout= flag nor the LAB chose one. long4 since 2026-11-02 (D24, Matt:
  *  make long the default); short stays reachable through the LAB and ?layout=short until it is deleted */
 export const DEFAULT_LAYOUT = 'long4';
-export const LAB_DEFAULT: Lab = { layout: 'long', mids: '', cp: 'a' };
+export const LAB_DEFAULT: Lab = { layout: 'long', mids: '', cp: 'a', mid: '' };
 
 /** the LAB layout name -> the layout table id it flies (src/layout.ts LAYOUTS) */
 export const LAYOUT_ID = { short: 'short', long: 'long4' } as const;
@@ -30,6 +31,7 @@ export function labOf(v: unknown): Lab {
     layout: o.layout === 'short' ? 'short' : 'long',
     mids: o.mids === 'wip' ? 'wip' : '',
     cp: o.cp === 'b' ? 'b' : 'a',
+    mid: typeof o.mid === 'string' && midRow(o.mid)?.wip ? o.mid : '', // a wip kind only: finished or unknown is off
   };
 }
 
@@ -95,11 +97,15 @@ export function forcedMid(search: string): string | null {
   const m = /[?&]mid=([a-z0-9_-]+)/.exec(search), r = m ? midRow(m[1]) : undefined;
   return r && r.wip ? r.k : null;
 }
-/** the ?mid= test query, read from the page URL. Ungated, like ?mids=wip: it works on any web build, the dev server
- *  and the deployed page alike (only the &stage=&x=&kit= jump that usually goes with it is dev-server-only). The APK
- *  loads with no query string and there is no LAB row, so the phone can't reach it (accepted for now, D53). A forced
- *  wip kind still leaves the profile alone: meetMid and firstKill skip wip rows (no meta.mb, meta.mbK or first-kill pay) */
-export const midForce = () => forcedMid(search());
+/** the LAB's FORCE MID cycle: off, then each `wip` row in roster order (today just keepsake) */
+export const wipMids = (): string[] => ['', ...ROSTER.filter((r) => r.wip).map((r) => r.k)];
+/** the forced midboss: a ?mid=<wip kind> query, else the LAB's FORCE MID row, else null. A query that names no wip
+ *  kind is ignored, so the LAB applies under it. Ungated, like ?mids=wip and the MIDBOSSES row: the query works on
+ *  any web build, deployed included, and the row is how the APK (no query string) reaches it (D53). The
+ *  &stage=&x=&kit= URL jump is dev-server-only; the LAB's JUMP TO MID row (menus.ts, jump.ts midJump) is its phone
+ *  twin. A forced wip kind still leaves the profile alone: meetMid and firstKill skip wip rows (no meta.mb, meta.mbK
+ *  or first-kill pay). With neither set it is null and no run changes */
+export const midForce = () => forcedMid(search()) ?? (lab().mid || null);
 /** the checkpoint trigger for item H: 'a' = app kill or quit only (spec §4 default), 'b' = also on death */
 export const cpTrigger = (): Lab['cp'] => lab().cp;
 
