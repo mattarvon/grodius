@@ -8,7 +8,7 @@ import { musicUpdate } from './music';
 import { clamp, swapRm } from './core';
 import { srnd } from './srnd';
 import { SET, save } from './save';
-import { setMute } from './audio';
+import { sample, setMute } from './audio';
 import { I, PR, pollInput } from './input';
 import { arcs, decals } from './world';
 import { endLoop, openPause } from './flow';
@@ -21,6 +21,8 @@ import { stepContraptions } from './contraptions';
 import { keyBack, menuNav, overItems, pauseItems, stepArm, stepShop, titleItems } from './menus';
 import { cpStep } from './checkpoint';
 import { backPressed } from './backstep';
+/** the title has played its greeting this launch (see the title branch below) */
+let titleGreeted = false;
 
 // ---------------- main step ----------------
 export function stepWorld() {
@@ -98,6 +100,10 @@ export function step() {
     if (I.pause && $.state === 'pause') $.state = 'play';
     else if (I.back && $.state === 'pause') keyBack(); // X, Backspace, pad B: unpause, like Esc
   } else if ($.state === 'title') {
+    // the title's greeting (Matt, 2026-11-15: "play when title appears"): GRODIUS BITCH once per app launch, as soon as
+    // the gate opens (browsers hold audio until the first tap). Retried each title frame until the bank can play it, so a
+    // boot with the clips still loading or the sound muted greets on the first frame it can; a muted launch never does
+    if (!$.gate && !titleGreeted) titleGreeted = sample('startgame', { vol: 1.15, spread: .02, wet: .14 }) || SET.muted;
     if (!$.gate) {
       menuNav(titleItems());
       if (I.back && $.state === 'title') keyBack(); // a sub-menu closes; the root does nothing off the native app
