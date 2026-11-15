@@ -97,8 +97,14 @@ line to add. Every `.ts` there is a kind, except `_name.ts`, which is a shared h
   into the stage: `stagebuild.ts` `fixedMids`, the `scripts.ts` Orbit table, or the
   Drive table. Until then, fly a `wip` one with `?mid=<kind>` (`lab.ts` `forcedMid`): it takes slot A of every
   biome stage on a picker layout, any descent, so give it a `fit` and call `bandFit` when `e.host` is set (the
-  Keepsake does). `?mid=` works on any web build, deployed included (the APK has no query string and no LAB row for
-  it); add `&stage=<biome>&x=<slot A WARNING - 30>&kit=mid` (the jump switch, dev server only) to start at its WARNING.
+  Keepsake does). `?mid=` works on any web build, deployed included; add `&stage=<biome>&x=<slot A WARNING - 30>&kit=mid`
+  (the jump switch, dev server only) to start at its WARNING. **On the phone** (the APK has no query string): title
+  LAB > FORCE MID cycles off / each `wip` kind in roster order (stored in `grodius.lab` as `mid`, off by default),
+  and while one is forced JUMP TO MID (`jump.ts` `midJump`) flies that same URL jump from the LAB: Descent 1, the
+  first biome stage, mid kit, 30 px before slot A's WARNING, run-save slot sealed until the next DESCEND or RE-ENTER.
+  Precedence: a `?mid=` naming a `wip` kind beats the row; any other `?mid=` is ignored and the row applies. Both
+  rows are picker-layout only (FORCE MID says LONG ONLY on short; the jump hides). The title's LAB row names the forced
+  kind, since every run then flies it. Off, nothing changes (harness, parity and the probes boot with no LAB key).
   A forced `wip` kind still leaves the profile alone (below). Set `boot: true` too: the warm-up's `routeArt` walks only biome slots,
   so without it the art builds on first draw, inside the fight.
 - **A DRIFT kind** skips `midboss()`: it calls `registerDrift` (see `enemies/mid/ufo.ts`),

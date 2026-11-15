@@ -212,6 +212,8 @@ let last = null, info = null;
 let sealed = false;
 /** seal (or, after a jump that failed to start, unseal) the slot */
 export const sealRun = (on = true) => { sealed = on; };
+/** is the slot sealed? (the LAB's JUMP TO MID lifts only a seal it set itself: menus.ts) */
+export const runSealed = () => sealed;
 const remember = (s, d) => { last = s; info = s && d ? { loop: d.g.loop, stage: d.g.stage, layout: d.g.layout } : null; };
 
 /** decodeRun under the blob's OWN layout: route and bx are sized by nSlots() and stage is bounded by lastStage(), so

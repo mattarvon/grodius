@@ -840,7 +840,14 @@ of every biome stage on a picker layout, any descent (`lab.ts` forcedMid, `midpi
 stageMids). It is live on any web build, ungated like `?mids=wip` (only the `&stage=&x=&kit=` jump is dev-only).
 Slot B keeps its pick unless it shares the forced kind's tag, then slot B is dropped. A finished or unknown kind is
 ignored, so the query can't change a shipped run, and a forced wip kind still leaves the profile alone (no meta.mb,
-meta.mbK or first-kill pay). **Accepted for now:** the APK can't reach it (no query string, no LAB row).
+meta.mbK or first-kill pay). ~~**Accepted for now:** the APK can't reach it (no query string, no LAB row).~~
+**Closed 2026-11-15 (branch `keepsake-lab`):** the LAB (ungated, like its `mids=wip` row) gained FORCE MID, which
+cycles off / each wip kind in roster order and feeds the same `midForce` path (a `?mid=<wip kind>` query wins over
+it), and, while a kind is forced on a picker layout, JUMP TO MID: the dev URL jump
+(`?stage=<first biome>&x=<slot A WARNING - 30>&kit=mid`) built in-game (`jump.ts` `midJump`), so the phone starts
+at the fight's WARNING. The jump seals the run-save slot (the player's checkpoint is kept) until the next DESCEND or
+RE-ENTER. Off by default: a fresh save, the harness and the probes fly unchanged. The title's LAB row names the forced
+kind (every run flies it until it is cycled off).
 
 **Test change.** `midreg.test.ts`'s "flag alone never moves a run" guard now skips only while a BIOME-pool row is
 wip, so a wip ship-pool row keeps it running (qa-lead block, resolved).
