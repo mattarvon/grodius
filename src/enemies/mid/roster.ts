@@ -109,6 +109,10 @@ export interface MidSim {
    *  burn, acid, the slick. Area damage (blasts, the nuke, burn, acid, the slick) arrives at exactly (e.x, e.y) with
    *  dir 0: decide what an area hit does on purpose. Pure: no allocation, no R(), no state written */
   hurt?: (e: any, d: number, hx: number, hy: number, dir: number) => number;
+  /** the sound of a hit that landed with share m (0 < m <= 1, from `hurt`) at (hx, hy), in place of the shared one
+   *  (hurt() in enemies/update.ts: a tink when m < 1, the hit when m is 1). Return true when it played its own, false to
+   *  keep the shared sound. Audio only: no R() (draw ar() through audio.ts sample()), no sim state written */
+  hitSnd?: (e: any, m: number, hx: number, hy: number) => boolean;
   /** once, on the frame the withdraw clock runs out (before it slides off): reset what the fight changed. Fired by midLeave
    *  (held kinds) and by the Saucer's own withdraw block (DRIFT); any kind with its own withdraw must call it too */
   leave?: (e: any) => void;
@@ -127,6 +131,12 @@ export function midMul(e: any, d: number, hx: number, hy: number, dir: number): 
   if (!h) return 1;
   const m = h(e, d, hx, hy, dir);
   return m > 0 ? m : 0; // NaN or undefined (a branch with no return) reads as a tink, never as NaN HP
+}
+
+/** hurt()'s hit sound: true when the kind's `hitSnd` played its own for a hit of share m, false for the shared one */
+export function midHitSnd(e: any, m: number, hx: number, hy: number): boolean {
+  const h = e.mid ? MID_SIM[e.k]?.hitSnd : undefined;
+  return !!h && h(e, m, hx, hy) === true;
 }
 
 /** what is wrong with the registry: a row with no sim file (no defineMid), a row with no art file, an art file with no

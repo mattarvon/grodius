@@ -14,7 +14,7 @@ export const KEEP = {
   //               the line the head's circle is all crown cap (|dx| <= 17.7 px), and a bolt meets the circle there at
   //               hx ~ e.x - 17 while the laser reports e.x - 11, so an x span would scale one and not the other
   face: .15, //    everywhere else, and every area hit: the vinyl face takes x.15 (ANGLE, spec §6.2; hurt()'s dim-flash
-  //               path, whose sound is the shared tink in pass 1; pass 2 wants a dull rubbery thud here, a wet squelch on the wound)
+  //               path). Its sound is a dull rubbery thud, the wound's a wet squelch (keepsake.ts keepHitSnd, MidSim.hitSnd)
   // ---- the fork fountain (SPACE-style lobs you dodge to stay on top)
   tell: 48, //     brain bulge, eyes open, handles rising: >= 44 f (ai-code.md), the landing marks show from frame 1
   stagger: 4, //   frames between forks leaving the wound

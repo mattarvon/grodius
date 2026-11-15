@@ -29,7 +29,7 @@ Kenten Fina "Tech Rooms" (CC BY 3.0), Ruskerdax "Bleak Terminal" (CC0).
 | Files | Source | License |
 |---|---|---|
 | `kenney-*.ogg` | Impact Sounds, Kenney (kenney.nl) | CC0 |
-| `gen-*.ogg` | synthesized by `tools/gen_sfx.py` | original |
+| `gen-*.ogg` | synthesized by `tools/gen_sfx.py` (and `gen_gross_sfx.py`, `gen_bossgross_sfx.py`, `gen_drive_sfx.py`, `gen_keepsake_sfx.py` for their banks) | original |
 | `*-matty-*.ogg` | Matty's own recordings (RecForge II) | original |
 
 ## Openverse picks (found with `tools/openverse.mjs`, processed by `tools/import_openverse.py`)

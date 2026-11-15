@@ -867,6 +867,13 @@ vinyl thud on the face and a wet squelch on the wound. (B) **Child line: imply o
 is never shown: no child figure, face, handprint or name tag, and nothing that frames the doll as the child's
 remains (the D46 line, held in pass 2).
 
-**Deferred:** a ship spawn path, then `wip` off (a re-baseline); pass-2 audio (the vinyl thud and the wound's squelch, fork
-tink on terrain, throw, the wail's voice);
+**Deferred:** a ship spawn path, then `wip` off (a re-baseline);
 the kill word's caption key; the player CHANGELOG entry at pass 2.
+
+**Pass-2 audio (2026-11-15, branch `keepsake-audio`).** Seven procedural banks from `tools/gen_keepsake_sfx.py`
+(`src/sfx/keep_*`, 22 files, ~160 KB): fork tink on terrain (4; the first of a run full, the rest quieter, 40 ms
+throttle), the throw's whoosh-and-shing (3; also the fountain's burst, pitched up), the boomerang whirr out and back (2),
+the wail as a doll's tilt crier, "ma... maaa", warped and gargling, its second cry on the ring's release (2), the vinyl
+face thud (4), the wound squelch (4), the sleep-eye clack, open on every tell and shut back at idle (3). Levels matched
+to the shared sounds they replace (ebur128). Two generic hooks, no kind special case in shared code: `MidSim.hitSnd`
+(hurt()'s tink/hit) and an enemy shot's `land` (shots.ts terrain strike). Audio only: no `R()`, rng-probe SAME.
