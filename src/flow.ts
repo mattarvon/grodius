@@ -61,7 +61,7 @@ const baseG = () => ({
     feed: null
   });
 export function newGame(startL = 0) {
-  voiceStopAll(); // the last run's voice lines don't talk over a new one (audio only)
+  voiceStopAll(/^startgame$/); // the last run's voice lines don't talk over a new one, but the DESCEND line that started this run plays out (audio only)
   resetOpened(); // OPENED's 20 s audio cooldown starts fresh with the run
   clearRun(); // a new game drops the old checkpoint (spec §4); this run's CP0 replaces it at its first safe step
   delete $.meta.bioS; delete $.meta.bioV; // the biomass mark (economy.ts bankBio) is this run's alone

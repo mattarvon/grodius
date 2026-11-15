@@ -8,7 +8,7 @@ import { musicUpdate } from './music';
 import { clamp, swapRm } from './core';
 import { srnd } from './srnd';
 import { SET, save } from './save';
-import { sample, setMute } from './audio';
+import { setMute } from './audio';
 import { I, PR, pollInput } from './input';
 import { arcs, decals } from './world';
 import { endLoop, openPause } from './flow';
@@ -18,7 +18,7 @@ import { updatePlayer } from './player';
 import { updateCaps, updateEShots, updateEnemies, updateShots } from './shots';
 import { decayFX, updateAmbient, updateCombo, updateFX } from './fx/update';
 import { stepContraptions } from './contraptions';
-import { keyBack, menuNav, overItems, pauseItems, stepArm, stepShop, titleItems } from './menus';
+import { keyBack, menuNav, overItems, pauseItems, startLine, stepArm, stepShop, titleItems } from './menus';
 import { cpStep } from './checkpoint';
 import { backPressed } from './backstep';
 /** the title has played its greeting this launch (see the title branch below) */
@@ -103,12 +103,13 @@ export function step() {
     // the title's greeting (Matt, 2026-11-15: "play when title appears"): GRODIUS BITCH once per app launch, as soon as
     // the gate opens (browsers hold audio until the first tap). Retried each title frame until the bank can play it, so a
     // boot with the clips still loading or the sound muted greets on the first frame it can; a muted launch never does
-    if (!$.gate && !titleGreeted) titleGreeted = sample('startgame', { vol: 1.15, spread: .02, wet: .14 }) || SET.muted;
+    if (!$.gate && !titleGreeted) titleGreeted = startLine() || SET.muted;
     if (!$.gate) {
       menuNav(titleItems());
       if (I.back && $.state === 'title') keyBack(); // a sub-menu closes; the root does nothing off the native app
     }
   } else if ($.state === 'shop') stepShop();
+  if ($.state !== 'title') titleGreeted = true; // left the title before the greeting could play: it never arrives late, on a later return
   stepArm(); // the DESCEND confirm's arm clears off the title, on a selection move, or after ARM_T frames
   if ($.G) {
     const k = Math.min(9, $.G.shake);

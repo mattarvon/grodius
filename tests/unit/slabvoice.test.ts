@@ -248,3 +248,33 @@ describe('OPENED, the 5-chain', () => {
     // render's srnd() tear draws only run with a live voice, which needs an AudioContext the harness doesn't have
   });
 });
+
+describe('GRODIUS BITCH (startgame) survives the start of the run', () => {
+  // the studio review of the title greeting (2026-11-15) found newGame's voiceStopAll cut the DESCEND line 60 ms in
+  it('a new game cuts every other voice line but lets the DESCEND line play out', () => {
+    A.BANK.startgame = take('grodius-bitch-matty-1');
+    A.BANK.hype10 = take('that-one-matty-1');
+    expect(A.sample('hype10')).toBe(true);
+    expect(A.sample('startgame')).toBe(true);
+    expect(A.voiceLive('startgame')).toBe(true);
+    A.voiceStopAll(/^startgame$/);
+    expect(A.voiceLive('startgame')).toBe(true);
+    expect(A.voiceLive('hype10')).toBe(false);
+    expect(A.AU.voiceQ.map((v: any) => v.cat)).toEqual(['startgame']);
+  });
+
+  it('the title (no keep) still cuts it, and a finished line is no longer live', () => {
+    A.BANK.startgame = take('grodius-bitch-matty-1');
+    A.sample('startgame');
+    A.voiceStopAll();
+    expect(A.voiceLive('startgame')).toBe(false);
+    A.sample('startgame');
+    A.AU.c.currentTime = 5;
+    expect(A.voiceLive('startgame')).toBe(false);
+  });
+
+  it('newGame spares startgame, and DESCEND defers to a greeting still talking', () => {
+    expect(code('src/flow.ts')).toMatch(/voiceStopAll\(\/\^startgame\$\/\)/);
+    expect(code('src/menus.ts')).toMatch(/voiceLive\('startgame'\) \|\| startLine\(\)/);
+  });
+});
