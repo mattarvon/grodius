@@ -1,0 +1,47 @@
+{
+  "about": "THE KEEPSAKE stage boss: the art contract between kboss-core (the fight and its renderer, src/render/gross/boss/keepsake.ts) and kboss-art (tools/prep_keepsake_boss.py, the PNGs). Each strip is src/sprites/<name>@<frames>.png, frames left to right, equal size (src/sprites.ts loads every PNG there at boot). Boss-local px, y down, from the boss origin (e.x, e.y). Tilt: + rolls the crown AWAY from the ship (right), - TOWARD it (the window). Until a strip exists the renderer draws its greybox (the midboss sprite scaled 2.15x, rotated at runtime, plus procedural overlays). The renderer reads `frame`, `tilts` and each strip's anchor from this file, so a size change here needs no code change; frame ORDER and names are fixed.",
+  "status": "stub: no PNGs yet (kboss-art delivers them)",
+  "frame": { "w": 104, "h": 124, "ox": 52, "oy": 66 },
+  "crownLine": -26,
+  "crownLine3": -12,
+  "wound": { "x": 4, "y": -52, "r": 14 },
+  "eyes": [[-19, 0], [19, 0]],
+  "tilts": [-32, -16, 0, 16, 32],
+  "rockerPivot": { "x": -24, "y": -30, "wire": 58 },
+  "crier": { "x": 10, "y": 8 },
+  "strips": {
+    "keepsake-boss-face": {
+      "frames": 20, "w": 104, "h": 124, "ox": 52, "oy": 66,
+      "index": "crack * 5 + tilt",
+      "crack": ["whole", "hairline", "split", "open"],
+      "note": "the head, pre-rotated per tilt (never rotated at runtime). crack: whole = DOZING, hairline = AWAKE, split = the IT CRACKED transition, open = CRACKED (the split face from the wound down toward the player-side eye; the mechanism and ship meat inside, no bone, no teeth). Eyes and wound are separate overlays: leave the sockets and the soft spot for them"
+    },
+    "keepsake-boss-eyes": {
+      "frames": 20, "w": 104, "h": 124, "ox": 52, "oy": 66,
+      "index": "eye * 5 + tilt",
+      "eye": ["open", "half", "shut", "empty"],
+      "note": "full-frame overlays (transparent outside the sockets) so the anchor is the face's. empty = CRACKED's sockets: the eyes are on the rocker now"
+    },
+    "keepsake-boss-wound": {
+      "frames": 20, "w": 104, "h": 124, "ox": 52, "oy": 66,
+      "index": "wound * 5 + tilt",
+      "wound": ["seated", "proud", "gaping", "brain"],
+      "note": "full-frame overlays: the fork seated in the soft spot, the fork proud (a tell), the wound gaping (fork out: the boomerang, the open window), the brain exposed (CRACKED)"
+    },
+    "keepsake-boss-rocker": {
+      "frames": 3, "w": 40, "h": 72, "ox": 20, "oy": 4,
+      "index": "0 swung toward the ship, 1 hanging, 2 swung away",
+      "note": "the sleep-eye mechanism: two glass eyes on a bent wire with a lead weight. The anchor is the pivot; the renderer rotates it along the swing (a thin part, not the face). Eyes use the game's wet-eye treatment"
+    },
+    "keepsake-boss-crier": {
+      "frames": 2, "w": 24, "h": 28, "ox": 12, "oy": 14,
+      "index": "0 whole, 1 broken",
+      "note": "the 'mama' voice box: a perforated tin cylinder with a bellows"
+    },
+    "keepsake-boss-death": {
+      "frames": 1, "w": 124, "h": 104, "ox": 62, "oy": 52,
+      "index": "0",
+      "note": "PUT TO BED: the head on its side (from the profile photo), eyes shut"
+    }
+  }
+}

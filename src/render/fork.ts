@@ -1,4 +1,4 @@
-// A dinner fork, the one silhouette THE KEEPSAKE throws (enemies/mid/keepsake.ts): a shaft and four tines in pale
+// A dinner fork, the one silhouette THE KEEPSAKE throws (enemies/boss/keepsake.ts): a shaft and four tines in pale
 // steel with a near-black outline so it reads on any biome and at phone size. Drawn by render/hud.ts drawEShots for a
 // fork eshot (`s.fk`) and by the kind's art for the phase-2 boomerang. Render-only: no RNG, no allocation.
 

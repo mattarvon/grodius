@@ -67,7 +67,8 @@ import { BS, aimA, banner, eshoot, mk, ring, wrapA } from '../spawn';
 import { playerHit } from '../../player';
 import { killEnemy, lob, miniReward } from '../update';
 import { capGrade, defineBoss } from './registry';
-import { KB, KB_TEXT, forkCols, fountLattice, inWindow, kbArena, keepHurtRot, lobFrames, mobilePick, pendAt, pendXY, phaseClamp, phaseFloor, riseCap, rotXY, tiltAt, tiltEdge, TILT0 } from './_keepsake';
+import { KEEPSAKE_BANNERS, KEEPSAKE_LOG, KEEPSAKE_NAME, KEEPSAKE_READOUT } from '../../voice/keepsake';
+import { KB, forkCols, fountLattice, inWindow, kbArena, keepHurtRot, lobFrames, mobilePick, pendAt, pendXY, phaseClamp, phaseFloor, riseCap, rotXY, tiltAt, tiltEdge, TILT0 } from './_keepsake';
 
 const SND = {
   // the midboss's banks (D53 levels), the throws a touch slower for the bigger head
@@ -99,8 +100,6 @@ const SND = {
   topple: { vol: .25, wet: .25, spread: .03, prio: true },
   die: { vol: .29, wet: .45, spread: 0, prio: true },
   musicend: { vol: .15, wet: .45, spread: 0, prio: true },
-  bark: { vol: 1.15, spread: .02, wet: .16 }, // SLAB, as every voice line (enemies/update.ts kill words)
-  word: { vol: 1.15, spread: .02, wet: .16, at: .45 }, // the readout after the death roar (KILL_WORD_AT)
   chimes: [{ vol: .04, wet: .25, spread: .06 }, { vol: .04, wet: .25, spread: .06, at: .2 }, { vol: .04, wet: .25, spread: .06, at: .4 }],
 };
 /** a bank's sound, else the fallback bank's, else the synth one (any of them may be null) */
@@ -203,7 +202,7 @@ const live = (e) => { let n = 0; for (let i = 0; i < KB.mobN; i++) n += e.ma[i];
 function startAttack(e) {
   e.st = nextAttack(e); e.wt = 0;
   eyes(true);
-  if (e.ph === 1 && !e.barked) { e.barked = 1; sample('bark-keepsake-eyes', SND.bark); } // AWAKE's first tell: EYES OPEN / IT'S COMING
+  if (e.ph === 1 && !e.barked) { e.barked = 1; sample('bark-keepsake-eyes', { vol: 1.15, spread: .02, wet: .16 }); } // AWAKE's first tell: EYES OPEN / IT'S COMING
   if (e.st === 'tell') { planFount(e); sfx.squish(); }
   else if (e.st === 'wail') ks('kboss_wail', SND.wail, 'keep_wail', SND.wailFb, sfx.groan);
   else if (e.st === 'mama') sfx.tele(); // its cry lands on the first ring (kboss_mama is timed from that release)
@@ -270,10 +269,11 @@ function attack(e) {
 // ---------------- the phases ----------------
 function phaseTo(e, ph, late) {
   e.ph = ph; e.pt = 0; e.tr = ph === 1 ? KB.tr1 : KB.tr2; e.st = 'idle'; e.wt = 0; e.cool = 30; e.att = 0; e.wins = 0;
-  if (late) { banner(KB_TEXT.late, 'OUT OF TIME', '#ff8a3a', 110); ks('kboss_enrage', SND.enrage, null, null, null); }
-  else banner(ph === 1 ? KB_TEXT.woke : KB_TEXT.cracked, '', undefined, 100);
+  if (late) { banner(KEEPSAKE_BANNERS.hold, 'OUT OF TIME', '#ff8a3a', 110); ks('kboss_enrage', SND.enrage, null, null, null); }
+  else banner(ph === 1 ? KEEPSAKE_BANNERS.woke : KEEPSAKE_BANNERS.cracked, '', undefined, 100);
   eyes(true);
-  sample(ph === 1 ? 'bark-keepsake-woke' : 'bark-keepsake-crack', SND.bark); // IT'S UP / IT'S COMING APART, STAY ON IT
+  if (ph === 1) sample('bark-keepsake-woke', { vol: 1.15, spread: .02, wet: .16 }); // IT'S UP
+  else sample('bark-keepsake-crack', { vol: 1.15, spread: .02, wet: .16 }); // IT'S COMING APART / STAY ON IT
   $.G.shake = Math.max($.G.shake, ph === 2 ? 6 : 3);
   if (ph === 1) {
     ks('kboss_wake', SND.wake, 'keep_clack', SND.open, sfx.roar); ks('kboss_crack', SND.hair, null, null, null);
@@ -328,7 +328,7 @@ function update(e) {
       e.crier.x = e.x + KB.crx; e.crier.y = e.y + KB.cry;
       if (e.crier.dead && !e.crierGone) {
         e.crierGone = 1;
-        banner(KB_TEXT.crier, '', '#cfd9e3', 90);
+        banner(KEEPSAKE_BANNERS.quiet, '', '#cfd9e3', 90);
         ks('kboss_crierdie', SND.crierdie, null, null, sfx.squish);
         if (e.st === 'mama') rest(e);
       }
@@ -342,7 +342,7 @@ function update(e) {
       if (e.ph < 2) { if (e.ph === 1) e.wins = KB.p2MinWin; e.hp = Math.min(e.hp, floorOf(e)); e.late = 1; } // IT WON'T LET GO: forced on
       else { // the one capped enrage: never escapes, the grade capped at B
         e.rage = 1; e.pl = 0;
-        banner(KB_TEXT.late, 'IT KEEPS ITS EYES OPEN', '#ff3a2a', 140);
+        banner(KEEPSAKE_BANNERS.hold, 'IT KEEPS ITS EYES OPEN', '#ff3a2a', 140);
         ks('kboss_enrage', SND.enrage, 'keep_wail', SND.wailFb, sfx.roar);
         if ($.G.st) $.G.st.gcap = capGrade($.G.st.gcap || 'S', KB.rageGrade);
       }
@@ -380,8 +380,8 @@ function kill(e) {
   clearStage();
   for (let i = 0; i < 4; i++) splat(rr(80, 400), rr(30, 210), rr(3, 4.5));
   gore(e.x + KB.wx, e.y + KB.wy, 4, { eyes: 2, rope: 4 }); // the crown opens: glass eyes, wet rope; no bone, no teeth (D55 art rule)
-  banner(KB_TEXT.word, '', undefined, 130);
-  sample('boss-keepsake', SND.word); // SLAB's PUT TO BED (the booth's boss-keepsake slot)
+  banner(KEEPSAKE_READOUT, '', undefined, 130);
+  sample('boss-keepsake', { vol: 1.15, spread: .02, wet: .16, at: .45 }); // SLAB's PUT TO BED after the roar (KILL_WORD_AT), the booth's boss-keepsake slot
   if (sample('kboss_musicend', SND.musicend)) duckMusic(7); // the box running down under the readout
   $.G.hitstop = Math.max($.G.hitstop, 18);
   $.G.white = SET.flashes ? .6 : .25;
@@ -396,7 +396,7 @@ function spawn(b) {
   const e = mk('keepsake', x, f - KB.rest, {
     tx: W - KB.tx, st: 'idle', wt: 0, cool: 60, att: 0, ph: 0, tr: 0, th: 0, tc: 0, wins: 0, pt: 0, pl: KB.clock,
     rage: 0, late: 0, my: -80, pa: 0, p3t: 0, la: Math.PI, lx: 0, ly: 0, bx: 0, by: 0, bs: 0, bl: 0, bd: 1, ra: 0, dn: 0,
-    biome: b, title: KB_TEXT.name, armor, hitSnd,
+    biome: b, title: KEEPSAKE_NAME, armor, hitSnd,
   });
   e.hb = [[KB.wx, KB.wy, KB.wr], [0, KB.cy, KB.cr]];
   e.wy = KB.wy;
@@ -410,7 +410,7 @@ function spawn(b) {
 /** BossSim.warn: on the WARNING, the music box winds up (audio only) */
 const warn = () => {
   if (sample('kboss_musicbox', SND.musicbox)) duckMusic(4.5); // the wound-up box over sfx.dread (miniWarn plays it)
-  sample('bark-keepsake-warn', SND.bark); // BIG HEAD ON THE SCOPE / RUBBER FACE / GO FOR THE TOP
+  sample('bark-keepsake-warn', { vol: 1.15, spread: .02, wet: .16 }); // BIG HEAD ON THE SCOPE / RUBBER FACE / GO FOR THE TOP
 };
 
 defineBoss('keepsake', {
@@ -418,9 +418,10 @@ defineBoss('keepsake', {
   // Crux's: its guarded windows make extra HP count); tuned with tools/boss-probe.mjs to D55's band (28-34 s bot at the
   // stage-1 kit, >= 15 s strong). No skull, no teeth (the art rule): it is vinyl, the meat is the ship's
   et: { hp: 260, r: 44, gsz: 5, score: 16000, bio: 100, eyes: 2, teeth: 0, skull: 0, big: 1, mini: 1 },
-  name: 'THE KEEPSAKE',
-  word: 'PUT TO BED',
-  runup: 'OBJECT IN THE TRACT // NOT ORGANIC // NOT CREW-ISSUE',
+  // the words are src/voice/keepsake.ts's: a leaf with no imports, so it is loaded before this file's top level runs
+  name: KEEPSAKE_NAME,
+  word: KEEPSAKE_READOUT,
+  runup: KEEPSAKE_LOG.tract,
   spawn, update, kill, warn,
   arena: kbArena,
 });

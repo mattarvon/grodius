@@ -71,7 +71,7 @@ export const stageTs = (i = $.G.stage || 0) => { const r = row(i); return r ? (r
 
 /** the banner each stage-boss kill shows (enemies/update.ts crux/butcher and the maw, boss/update.ts the gate boss):
  *  a SLAB quip saying one of them never follows it (LS2-quips) */
-const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED', 'PUT TO BED'] as const; // PUT TO BED: THE KEEPSAKE (D55)
+const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED', 'PUT TO BED'] as const; // PUT TO BED: THE KEEPSAKE (D55, src/voice/keepsake.ts KEEPSAKE_READOUT)
 /** frames from a stage boss's death to its reward line (and the quip behind it): the death roar lands first. The gate
  *  boss's descent end (boss/update.ts clearT 480) stays in play past it (tests/unit/quips.test.ts) */
 export const BOSS_REWARD_WAIT = 50;

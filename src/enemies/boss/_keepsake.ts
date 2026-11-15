@@ -59,8 +59,8 @@ export const KB = {
   mobN: 6, //       forks on the hoop
   mobDx: 22, //     their spacing, px; the hoop's centre sits at e.x + mobX
   mobX: -10,
-  mobY: 24, //      the hoop's screen y once lowered (it starts above the screen and lowers over tr1)
-  mobLen: 30, //    thread length (+ hashed 0-14 per fork): fork tips at screen y ~54-68, so a ~40 px lane stays over the crown
+  mobY: 20, //      the hoop's screen y once lowered (it starts above the screen and lowers over tr1)
+  mobLen: 26, //    thread length (+ 0-14 per fork): fork tips at screen y 46-60, so a lane of >= 28 px stays over the crown (snot, tightest)
   mobHit: 5, //     a hanging fork's contact radius (+ the ship's 2.6), at its middle and its tip
   // ---- phase 3, CRACKED
   pvx: -24, pvy: -30, //    the rocker's pivot: where the crack opens, by the player-side eye
@@ -83,16 +83,7 @@ export const KB = {
   aCeil: 16, //     the ceiling never comes lower than this over the arena: the mobile needs the room
 } as const;
 
-/** the phase banners, the readout and the run-up log line (D55; narrative-director's lines, design proposal §6) */
-export const KB_TEXT = {
-  name: 'THE KEEPSAKE',
-  woke: 'IT WOKE UP',
-  cracked: 'IT CRACKED',
-  crier: 'IT STOPPED CRYING',
-  late: "IT WON'T LET GO",
-  word: 'PUT TO BED',
-  runup: 'OBJECT IN THE TRACT // NOT ORGANIC // NOT CREW-ISSUE',
-} as const;
+// (the words, banners, readout and log lines, are src/voice/keepsake.ts's: the narrative lane's leaf, read by the booth)
 
 /** a head-local point (lx, ly) turned by the tilt th, as a screen offset from (e.x, e.y): writes [dx, dy] into out */
 export function rotXY(lx: number, ly: number, th: number, out: Float32Array | number[]): Float32Array | number[] {

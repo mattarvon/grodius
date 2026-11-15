@@ -32,7 +32,9 @@ export interface Slot {
   /** who speaks it: the tag on the comms window. The booth shows the game's own voiceOf() face and tag beside it, and
    *  tests/unit/booth.test.ts checks the two agree */
   caller: string;
-  /** the game plays this folder today. false: recorded, not wired (none since LS2-slab) */
+  /** the game plays this folder today. false: recorded, not wired: the booth records it, the game has no sample() call
+   *  for it yet (THE KEEPSAKE stage boss's lines until its fight lands, kboss-core). Wiring one = add its folder's
+   *  prefix to audio.ts VOICE_CAT, its sample() call in the game and a ?vox= entry in src/vox.ts, then set true */
   wired: boolean;
   /** query the booth's "test in game" button opens the game with (src/vox.ts fires the moment) */
   test?: string;
@@ -52,7 +54,7 @@ export const DIRECTION: Record<string, string> = {
   'LESLEY, MISSION CONTROL': 'Mission control at the launch: the one line that is not grim. Keep it apart from SLAB.',
 };
 /** per-kind length targets, seconds: the read to aim for (the booth shows it on the line) */
-export const MAX_LEN = { hype: 2, bossreward: 2, kill: 1.2, carn5: .8, quip: 2 } as const;
+export const MAX_LEN = { hype: 2, bossreward: 2, kill: 1.2, carn5: .8, quip: 2, bark: 2.5 } as const;
 /** how far past its target a processed take may run before the booth warns (LS2-booth2, audio-director): half a second
  *  over is still a usable line; past that a kill word lands over the next fight. A warning, never a refusal */
 export const LEN_SLACK = 0.5;
@@ -88,6 +90,45 @@ const kill = (k: string): Slot => ({
   // the Saucer's word is Matt's one joke in the kill words (CALAMARI SERVED, LS2-tts)
   ...(k === 'ufo' ? { note: 'The one line read as a joke: a dry punchline, still in his deadpan.' } : {}),
 });
+
+// THE KEEPSAKE as a stage boss (keepsake-boss design, section 6): its readout and SLAB's lines through the fight. The
+// words live in src/voice/keepsake.ts, which the fight shows them from; the fight's sample() calls are in
+// enemies/boss/keepsake.ts (D55). bark-: a line SLAB says during a fight, filed by boss and moment
+const KS = 'src/voice/keepsake.ts';
+const bark = (k: string, lines: string[], lit: string, when: string, note: string): Slot => ({
+  cat: 'bark-keepsake-' + k,
+  copy: { lines, from: KS, lit },
+  when,
+  caller: SLAB,
+  wired: true,
+  test: 'stage=orbit&vox=bark-keepsake-' + k,
+  maxLen: MAX_LEN.bark,
+  note,
+});
+const KEEPSAKE: Slot[] = [
+  {
+    cat: 'boss-keepsake',
+    copy: { lines: ['PUT TO BED'], from: KS, lit: "KEEPSAKE_READOUT = 'PUT TO BED'" },
+    when: 'THE KEEPSAKE (stage boss) dies: its readout, after the eyes clack shut and the head tips over (in place of TAKEN DOWN)',
+    caller: SLAB,
+    wired: true,
+    test: 'stage=orbit&vox=boss-keepsake',
+    maxLen: MAX_LEN.bossreward,
+    note: 'Closing a file, not mourning. Flat and final, the way you say lights out on a ward that is already dark.',
+  },
+  bark('warn', ['BIG HEAD ON THE SCOPE', 'RUBBER FACE', 'GO FOR THE TOP'], "warn: ['BIG HEAD ON THE SCOPE', 'RUBBER FACE', 'GO FOR THE TOP']",
+    'WARNING // THE KEEPSAKE, under the music box: the one line in the fight that teaches (shoot the crown, not the face)',
+    'A briefing read fast off a clipboard, three beats, no emphasis on any of them.'),
+  bark('eyes', ['EYES OPEN', "IT'S COMING"], `eyes: ['EYES OPEN', "IT'S COMING"]`,
+    "THE KEEPSAKE's first tell of phase 2 (the sleep eyes snap open)",
+    'Flat, already tired of this thing.'),
+  bark('woke', ["IT'S UP"], `woke: ["IT'S UP"]`,
+    'IT WOKE UP (THE KEEPSAKE, phase 1 to 2)',
+    'Under the breath, almost to himself.'),
+  bark('crack', ["IT'S COMING APART", 'STAY ON IT'], `crack: ["IT'S COMING APART", 'STAY ON IT']`,
+    'IT CRACKED (THE KEEPSAKE, phase 2 to 3)',
+    'An order. Quieter on STAY ON IT, not louder.'),
+];
 
 export const SLOTS: Slot[] = [
   hype(10), hype(20), hype(35), hype(50), hype(75), hype(100),
@@ -131,6 +172,7 @@ export const SLOTS: Slot[] = [
     test: 'stage=orbit&vox=carn5',
     maxLen: MAX_LEN.carn5,
   },
+  ...KEEPSAKE,
 ];
 
 /** the slot for a category, or undefined: the plugin's allowlist */

@@ -6,7 +6,9 @@
 // skipped and the scroll starts CP.lead before it. The run-save slot is sealed first (runsave.ts sealRun): a jump never
 // writes or clears the player's RESUME. Meta (grodius.v1) is NOT sealed: a jump run's clears pay out as usual.
 //
-// Extra params: rank= pins G.pow (the harness's fixed-rank boss scenarios; G.rank is its clamp to 0-1) and seed= fixes
+// slot= picks which biome row a biome stage= flies (default: the first, slot 0; slot=1 is stage n-3 on long4, where
+// THE KEEPSAKE ends Descent 1, D55), and x=boss is a stage-relative x JUMP.bossLead px before the row's boss WARNING, so
+// a URL keeps working when a layout stretches its rows (D31). Extra params: rank= pins G.pow (the harness's fixed-rank boss scenarios; G.rank is its clamp to 0-1) and seed= fixes
 // the run seed (without it a run draws one, as newGame does). Pure apart from reading the active layout; no DOM.
 import { beatPlan, lastStage, layout, nSlots, row, slotRow, stageOfSlot } from './layout';
 import { forkAllows, HOME } from './midpick';
@@ -17,6 +19,8 @@ export const JUMP = {
   maxLoop: 9,
   /** rank= is G.pow: every()/BS()/formation() cap it at 2, so more would change nothing */
   maxRank: 2,
+  /** x=boss and the LAB's JUMP TO BOSS: this many px of scroll before the stage's boss WARNING (bossX) */
+  bossLead: 60,
 };
 
 /** the loadouts kit= names. Levels are the ship's own (player.ts slotLv) and raw power follows src/power.ts. A kit is
@@ -56,11 +60,13 @@ export function parseJump(search: string): JumpParse | null {
   const q = new URLSearchParams(search), kind = q.get('stage');
   if (kind == null) return null;
   const biome = isBiome(kind) ? kind : kind === 'biome' ? Object.keys(HOME)[0] : null;
-  const stage = layout().stages.findIndex((r) => r.kind === (biome ? 'biome' : kind));
+  const slot = q.has('slot') ? num(q.get('slot')) : null;
+  if (slot != null && !(biome && Number.isInteger(slot) && slot >= 0 && slot < nSlots())) return { error: `?slot=${q.get('slot')}: not a biome slot of layout ${layout().id} (0 to ${nSlots() - 1}, with a biome stage=)` };
+  const stage = slot != null ? stageOfSlot(slot) : layout().stages.findIndex((r) => r.kind === (biome ? 'biome' : kind));
   if (stage < 0) return { error: `?stage=${kind}: unknown stage kind on layout ${layout().id} (orbit, drive, biome, ${Object.keys(HOME).join(', ')})` };
   const r = row(stage)!, span = r.bossX - r.x0, warn: string[] = [];
 
-  const x = q.has('x') ? num(q.get('x')) : 0;
+  const x = q.get('x') === 'boss' ? Math.max(0, span - JUMP.bossLead) : q.has('x') ? num(q.get('x')) : 0;
   if (!(x >= 0 && x < span)) return { error: `?x=${q.get('x')}: out of range for ${kind} (0 to under ${span})` };
 
   let loop = q.has('loop') ? num(q.get('loop')) : 0;
@@ -96,6 +102,17 @@ export function midJump(lead = 30): Jump | null {
   if (w == null) return null;
   const biome = Object.keys(HOME).find((b) => forkAllows(b, []))!;
   return { kind: biome, stage, biome, x: Math.max(0, w - r.x0 - lead), loop: 0, kit: 'mid', rank: null, seed: null };
+}
+
+/** the LAB's JUMP TO BOSS (D55): the URL `?stage=<biome>&slot=1&x=boss&kit=full` without a URL, so the phone (no query
+ *  string) can reach THE KEEPSAKE: Descent 1, the second biome stage (registry KEEPSAKE_SLOT), the end-of-Descent-1
+ *  kit, JUMP.bossLead px before its WARNING. The biome is the one the fork rule allows first. null on a layout with no
+ *  picker (short never places it) or no such slot. Pure apart from reading the active layout */
+export function bossJump(slot = 1): Jump | null {
+  const L = layout();
+  if (!L.picker || slot >= nSlots()) return null;
+  const stage = stageOfSlot(slot), r = row(stage)!, biome = Object.keys(HOME).find((b) => forkAllows(b, []))!;
+  return { kind: biome, stage, biome, x: Math.max(0, r.bossX - r.x0 - JUMP.bossLead), loop: 0, kit: 'full', rank: null, seed: null };
 }
 
 /** the checkpoint blob of a jump (the run-save shape, decoded and flown by flow.ts jumpRun), with the run as it would

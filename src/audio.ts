@@ -214,7 +214,7 @@ export function quipAfterKill(word: string | readonly string[] = '', at = 0, for
   if (!force) {
     // the lines still talking or waiting: at most the one this quip follows (a kill word, TAKEN DOWN)
     const live = (AU.voiceQ || []).filter((v) => v.t1 + VOICE_GAP > now);
-    if (live.length > 1 || (live.length === 1 && !/^(kill-|bossreward$)/.test(live[0].cat))) return null;
+    if (live.length > 1 || (live.length === 1 && !/^(kill-|bossreward$|boss-)/.test(live[0].cat))) return null;
     // lateness counts from the death: `since` is how long ago it was when this call comes (the stage-boss pend wait)
     const v = AU.voice, start = v && v.t1 + VOICE_GAP > now + at ? v.t1 - now + VOICE_GAP : at;
     if ((o.since ?? 0) + start > QUIP.maxLate[moment]) return null;
