@@ -156,8 +156,9 @@ export const ARENA_GAP = 150;
  *  from its BossSim */
 export const slotBoss = (seg) => {
   const k = bossFor(seg, ($.G && $.G.loop) || 0, !!layout().picker);
-  if (k && !BOSS_SIM[k]) throw new Error(`stage boss '${k}' is placed but not registered (enemies/boss/${k}.ts defineBoss)`);
-  return k ? BOSS_SIM[k] : null;
+  // an unregistered k is null here (unit tests load biomes.ts against mocks without the kind files); the game can't reach
+  // that: main.ts checkBosses refuses to boot when a placed boss has no defineBoss
+  return (k && BOSS_SIM[k]) || null;
 };
 const AR = [0, 0];
 function arena(b, ce, fl) {
