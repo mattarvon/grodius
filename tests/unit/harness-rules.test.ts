@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 // @ts-ignore: plain .mjs tool module, no types
-import { resolveWant, harnessErrs, refuseUpdate, flakyFails, parseRuns, simState } from '../../tools/harness-rules.mjs';
+import { resolveWant, harnessErrs, refuseUpdate, flakyFails, parseRuns, simState, simExtra } from '../../tools/harness-rules.mjs';
 
 describe('resolveWant', () => {
   it('returns null when the scenario wants nothing', () => {
@@ -78,5 +78,25 @@ describe('simState', () => {
     const st = simState();
     expect(st).toMatchObject({ jump: true, stage: 1, pair: 'choir+cyst' });
     expect(typeof st.simSig).toBe('string');
+  });
+});
+
+describe('simExtra', () => {
+  const enemies: unknown[] = [];
+  const page = (g: unknown) => { vi.stubGlobal('window', { __G: () => g }); };
+  afterEach(() => { vi.unstubAllGlobals(); });
+  const G = { boss: { x: 1.23456, y: 2, hp: 50, max: 90, phase: 1, t: 4, dying: 0, enter: 0, plates: [{ hp: 3 }] }, mini: { k: 'ufo', x: 5, y: 6, hp: 7, st: 2, t: 8 }, mbUsed: ['ufo'], mbLast: 'ufo' };
+  it('signs the Drive, the enemy shots and the midboss', async () => {
+    page({ G, enemies });
+    const s = JSON.parse(await simExtra({ enemies, eshots: [{ k: 'b', x: 1, y: 2 }] }));
+    expect(s).toEqual([[1.235, 2, 50, 90, 1, 4, 0, 0, [3]], [['b', 1, 2]], ['ufo', 5, 6, 7, 2, 8, null], ['ufo'], 'ufo']);
+  });
+  it('moves when only an enemy shot moves', async () => {
+    page({ G, enemies });
+    expect(await simExtra({ enemies, eshots: [{ k: 'b', x: 1, y: 2 }] })).not.toBe(await simExtra({ enemies, eshots: [{ k: 'b', x: 1, y: 3 }] }));
+  });
+  it('throws on a second module instance instead of recording a weaker sig', async () => {
+    page({ G, enemies });
+    await expect(simExtra({ enemies: [], eshots: [] })).rejects.toThrow(/not the game's module instance/);
   });
 });

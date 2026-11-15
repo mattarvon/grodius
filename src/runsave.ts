@@ -5,7 +5,7 @@
 // fields. Nothing here is wired to a trigger yet: H adds CP0/CP1, the Android pause re-write and RESUME.
 // One slot, under its own key, separate from the meta save (grodius.v1) so a bad run blob can never cost meta.
 import { $ } from './state';
-import { LAYOUTS, lastStage, layout, nSlots, row, setLayout, slotRow, stageOfSlot } from './layout';
+import { LAYOUTS, lastStage, layout, layoutRev, nSlots, row, setLayout, slotRow, stageOfSlot } from './layout';
 import { HOME, MIDS } from './midpick';
 import { SETS_PER_STAGE, isSetId } from './setdraw';
 
@@ -94,6 +94,9 @@ const G_FIELDS = {
   cpN: (v) => v === 0 || v === 1, // which checkpoint of the stage: CP0 (stage start) or CP1 (after midboss A)
   stT: isNum, // frames into the stage at the checkpoint (G.t - st.t0): the resume rebases st.t0 on its own G.t
   layout: isStr, // layout id; a blob from another layout is discarded by H (spec §4, D2)
+  // the layout's geometry revision when it was written (layout.ts layoutRev; D31): absent reads as 1, so a short save
+  // (rev 1) survives and a long4 save from before the D31 stretch (no rev, LS1 geometry) is refused in decodeRun
+  rev: (v) => isInt(v) && v >= 1,
   seed: isNum, // production run seed (item B2)
   // bx: where each biome's terrain/script starts and where the second biome hands back. Player-timed, so it cannot
   // be recomputed: all three entries are kept, null included (spec §4)
@@ -184,6 +187,7 @@ export function decodeRun(s) {
     if (!isObj(d) || d.v !== RUN_V || !valid(G_FIELDS, d.g) || !valid(P_FIELDS, d.p || {})) return null;
     if (!REQUIRED_G.every((k) => d.g[k] !== undefined)) return null;
     if (d.g.stage > lastStage()) return null; // H entry criterion 2: a stage the (blob's) layout doesn't have
+    if ((d.g.rev ?? 1) !== layoutRev()) return null; // D31: written on an older geometry of its layout (web-specialist W1)
     if (!cpFits(d.g.stage, d.g.cpX)) return null;
     if (!gatesFit(d.g)) return null;
     if (d.g.cleared !== undefined && d.g.cleared > (LOOP_MAX + 1) * (lastStage() + 1)) return null;

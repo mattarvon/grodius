@@ -164,7 +164,7 @@ describe('jumpBoot', () => {
 });
 
 describe('the sealed run-save slot', () => {
-  const saved = () => JSON.stringify({ v: RUN_V, g: { layout: 'long4', loop: 0, stage: 2, cpX: 9000, cpN: 1, seed: 3, bx: [4750, 8500, null], route: ['ice', 'fire'] }, p: {} });
+  const saved = () => JSON.stringify({ v: RUN_V, g: { layout: 'long4', rev: L.rev, loop: 0, stage: 2, cpX: L.stages[2]!.x0 + 500, cpN: 1, seed: 3, bx: [L.stages[1]!.x0, L.stages[2]!.x0, null], route: ['ice', 'fire'] }, p: {} });
 
   it('keeps an existing RESUME through every write and clear a jump run can reach', () => {
     const s = storage(), blob = saved();

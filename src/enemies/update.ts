@@ -12,7 +12,7 @@ import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
-import { bankBio, econId, firstKillPay, killBio, killXP } from '../economy';
+import { bankBio, econId, firstKillPay, grpDrops, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
@@ -589,8 +589,8 @@ export function killEnemy(e, dir = 1) {
   });
   const sc = Math.round(e.score * mult() * (1 + $.G.loop * .5));
   $.G.score += sc;
-  // per-kill XP and kill biomass scale by the layout's economy entry (src/economy.ts; short x1, long4 killXP .85 and
-  // killBio .65: LV 13±1 and 1.3-1.5k biomass at the end of Descent 1 over the longer stages, pod-probe, LS1 item G)
+  // per-kill XP and kill biomass scale by the layout's economy entry (src/economy.ts killXP/killBio: short x1, long4 per
+  // D31, fitted with pod-probe)
   if (!e.par) gainXP(killXP(econId(), e.mini ? 30 : Math.max(1, e.score / 100)));
   const vo = pk('volatile');
   // VOLATILE MEAT: one burst per kill, and meat killed BY a burst doesn't burst again (no screen-wide chains)
@@ -632,7 +632,8 @@ export function killEnemy(e, dir = 1) {
   if (e.cap) dropCap(e.x, e.y);
   if (e.group) {
     e.group.killed++;
-    if (e.group.killed === e.group.n) dropCap(e.x, e.y);
+    // D31: a cleared formation drops on the entry's grpPod chance (short 1: no draw); the breath's release always does
+    if (e.group.killed === e.group.n && grpDrops(econId(), e.group.pod, R)) dropCap(e.x, e.y);
   }
   if (e.k === 'crux' || e.k === 'butcher') {
     for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);

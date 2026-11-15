@@ -347,8 +347,9 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     const br = inBreath(x);
     if (br) {
       x = br.z;
-      // the release: one guaranteed pod formation (a drone wave drops a pod when it's wiped out) and log line 2
-      if (br.release) { at(x, () => logLine(logs[1]), 'log'); at(x, el(() => formation('sine', PH / 2, FM)), 'pod'); x += st; }
+      // the release: one guaranteed pod formation (a drone wave drops a pod when it's wiped out; pod: exempt from the D31
+      // grpPod cut, economy.ts) and log line 2
+      if (br.release) { at(x, () => logLine(logs[1]), 'log'); at(x, el(() => formation('sine', PH / 2, FM, { pod: 1 })), 'pod'); x += st; }
       continue;
     }
     if (T.stop) break; // the arena run-up: nothing spawns from here to the boss
@@ -358,7 +359,8 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     const k1 = pk();
     if (!quiet(lands(x, k1))) at(x, el(SPAWN[k1]), k1); // x itself is never quiet here (breaths skip above, the run-up stops)
     if (rs() < dbl && !quiet(y2)) { const k = pk(); if (!quiet(lands(y2, k))) at(y2, el(SPAWN[k]), k); } // extras never spill into a breath or the run-up
-    if (hard && T.third && rs() < .35 && !quiet(y3)) { const k = pk(); if (!quiet(lands(y3, k))) at(y3, el(SPAWN[k]), k); }
+    const p3 = T.third === true ? .35 : T.third || 0; // a number is the chance (long4's climax, layout.ts); true is 35%
+    if (hard && p3 && rs() < p3 && !quiet(y3)) { const k = pk(); if (!quiet(lands(y3, k))) at(y3, el(SPAWN[k]), k); }
     x += st;
   }
   midBeats(B, b, BP, mids, at);
@@ -399,7 +401,7 @@ export const midStream = (i) => stream(midSeedOf(($.G && $.G.seed) || 0, ($.G &&
  *  shift, and the picks don't replay the script's first draws. Writes G.spUsed and G.mvSeen (both run-long, saved) */
 export function stagePicks(i, b, v) {
   const G = $.G, P = (G.picks ||= {});
-  if (!P[i]) P[i] = drawPicks(b, v, G.loop, (G.spUsed ||= {}), pickStream(i), (G.mvSeen ||= {}));
+  if (!P[i]) P[i] = drawPicks(b, v, G.loop, (G.spUsed ||= {}), pickStream(i), (G.mvSeen ||= {}), layout().beats.sets.length);
   return P[i];
 }
 

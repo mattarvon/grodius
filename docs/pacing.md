@@ -60,31 +60,35 @@ Patterns are XML, and difficulty lives inside the pattern: `<times>1+$rank*1.5</
 
 ## 2. Grodius today
 
-One descent = 10000 px = 4 stages (9400 before §3.3). Spawns are keyed to scroll position, and the scroll holds during boss, midboss and fork.
+Numbers are re-measured on the D31 build (2026-11-15). `long4` is the default layout (D24); D31 stretched each of its stages to about 120-150 s of wall time and cut kill XP and pods (`src/layout.ts` `STRETCH`, `src/economy.ts`). Spawns are keyed to scroll position, and the scroll holds during the boss, a held midboss and the fork.
 
-| Stage | Span | Scroll time | Boss |
-|---|---|---|---|
-| 0 OPEN ORBIT | 0 → 2120 px | **~35 s** | Maw, 120 HP, leaves after 28 s |
-| fork | — | up to 15 s | — |
-| 1 biome | ~2720 → 4790 | **~35 s** | Biome midboss (§3.2), then biome boss (Crux 145 / Butcher 300 / Maw 120), 2.5 s WARNING |
-| fork | — | up to 15 s | — |
-| 2 biome | ~5700 → 7860 | **~36 s** | Biome midboss (§3.2), then the biome boss |
-| 3 GRAVITY DRIVE | ~8370 → 9300 | **~17 s** (was ~6 s, 8370 → 8700) | Gravity Drive, 560 + 3×48 HP × m |
+**long4 (the default).** One descent = 25050 px = 4 stages (15150 before D31).
 
-A full descent runs roughly 4–6 minutes, including fights, tally cards and forks.
+| Stage | Span | Scroll time | Wall time (pod-probe `tally_s`) | Midbosses, then boss |
+|---|---|---|---|---|
+| 0 OPEN ORBIT | 0 → 6780 px | **~110 s** | 118-128 s | the Saucer (drifts, holds no scroll); the derelict tug (held slot B) is still WIP, D37. Then the Maw |
+| fork | — | up to 15 s | — | — |
+| 1 biome | 6780 → 12950 | **~102 s** (gate to WARNING, 6100 px) | 122-147 s (both slots) | biome midboss A and B (§3.2), then the biome boss |
+| fork | — | up to 15 s | — | — |
+| 2 biome | 12950 → 19250 | **~102 s** | 122-147 s | as stage 1 |
+| 3 GRAVITY DRIVE | 19250 → 25050 | **~85 s** approach (5100 px) | 127-136 s, mostly the fight | the Gravity Drive |
+
+A Descent 1 runs about 8.75 minutes with the invincible bot (pod-probe seeds 1/3/5/7/11: median 525 s, 493-539; it was ~6 min, 342-366 s, before D31), including fights, tally cards and forks. `tools/stage-clock.mjs` bands the biome scroll at 99-105 s; the 120-150 s target is wall time.
+
+**short (`?layout=short`, LAB).** The pre-LS1 shape, kept identical for the harness and the parity check: 10000 px, Orbit 0 → 2120 (~35 s), biome stages ~35-36 s each, the Drive run-up ~17 s, roughly 4-6 minutes a descent.
 
 ### Side by side
 
-| | Taisei stage | Gradius stage | Grodius stage |
+| | Taisei stage | Gradius stage | Grodius long4 stage |
 |---|---|---|---|
-| Time before boss | ~2.5 min | ~2–3 min | **~35 s** |
-| Midboss | every stage, ~45 s in | some stages | **stage 2 only** |
-| Density shape within a stage | ramps up, with breaths | intro → gimmick → gauntlet | **flat** (biome spawner rolls the same odds for the whole span) |
-| Calm stretches | bookmarked before midboss and boss | after the gimmick | **none inside biome stages** |
-| Power source | placed by hand | placed by hand (red / formation) | **mostly random** (per-enemy chance × 35%) plus formation pods |
-| Run-up to the final boss | full stage | full stage | **~17 s** (was ~6 s, §3.3) |
+| Time before boss | ~2.5 min | ~2–3 min | **~1.7-1.8 min of scroll, 2-2.5 min with fights** (short: ~35 s) |
+| Midboss | every stage, ~45 s in | some stages | **two per biome stage; one in the Orbit** (the Saucer) until the tug ships |
+| Density shape within a stage | ramps up, with breaths | intro → gimmick → gauntlet | **beats**: breaths, a rest before the climax, then the climax (template v3) |
+| Calm stretches | bookmarked before midboss and boss | after the gimmick | **three breaths per biome stage** |
+| Power source | placed by hand | placed by hand (red / formation) | formation and carrier pods (cut ~30% by D31) plus fixed midboss, Maw and boss reward pods |
+| Run-up to the final boss | full stage | full stage | **the Drive approach, ~85 s** |
 
-Grodius stages are shorter and hit harder than either reference. That suits a run-based game on a phone: descents are meant to be repeated. The problems are not the length but the **shape**: a stage has no rise and fall, there's only one midboss, and the final boss arrives almost immediately.
+The long4 stages now sit near the references' length. The short layout's problem was the **shape** (no rise and fall, one midboss, a boss almost at once); §3 below records the fixes, which long4 carries.
 
 ---
 

@@ -177,6 +177,8 @@ localization), D16-D18, and the signing keystore half of D6.
   - a long4-only layout revision drops old long4 resume saves, and short saves survive.
 - **Each Orbit and Drive stage gets 4 new cells,** so a pool holds twice its slots.
 
+**Merged 2026-11-15** (D57): the Fold reading gate waived by Matt; the layout revision is wired into the run save.
+
 ### D32 Option-b death costs the normal death penalty — 2026-11-07 (Matt; from the LS1 studio audit)
 
 **Decision point:** the game-designer audit found that under checkpoint option b (restart at the checkpoint), a death restores the checkpoint's full loadout. That makes b gentler than option a, the reverse of spec §4's "harder, more Gradius", so Q2 would be judged on a false premise. The audit also found that an option-b restart keeps the stage's deaths but drops its hits from the grade.
@@ -259,6 +261,13 @@ Matt: "go with the recommendations".
 4. **Snot throat walls:** static, as built.
 
 Also started on Matt's say-so: the LS1 fix lane (`ls1-audit`) and the D31 tune lane (`ls2-d31`).
+
+### D37 Orbit stretch +2400 px — 2026-11-07 (Matt)
+
+**Decision point:** the long4 Open Orbit stretch in `d31-stretch.md` (the D31 tune lane): +2400 px, sized for the derelict tug's held slot B, or +2700 px, sized for an Orbit with no held midboss while the tug is WIP-gated (producer).
+**Chosen:** +2400 px (`src/layout.ts` `STRETCH.orbit`). The stretch is sized for the derelict tug's held slot B (~10 s of hold, LS2-orbit). Until the tug ships out of `?mids=wip`, default players get a shorter Orbit, about 116-120 s, under the 120 s floor.
+**Reason:** Matt.
+**Category:** design_rules
 
 ### D38 "Still very linear": the fork becomes a decision, builds get trade-offs — 2026-11-07 (Matt)
 
@@ -474,7 +483,6 @@ S2s fixed before the push:
 ## Open
 
 - **Movement-B terrain varies by seed?** It is the same across seeds today (level-designer).
-- **D31 Orbit stretch: +2400 or +2700 px** (producer), while the derelict tug is WIP-gated.
 - **The Calving Shelf's leave clock under the D31 stretch** (wave-2 DRIFT kind).
 - **Where the shelved voice lines go.** audio-director and creative-director back KEYSTER on an S-grade boss clear and SHAMALAMA on a new best chain.
 
@@ -1003,3 +1011,84 @@ has no wip kind. D53's midboss record stands as history.
 the hub); passing the real damage into midMul for the slick and acid ticks (perks.ts:216, shots.ts:308 pass a nominal
 d, which phaseClamp reads); `checkBosses`'s hard-coded `bossFor(1, 0, true)` (it should walk every slot and descent
 bossFor can name).
+
+### D56 The hell-flash face image removed — 2026-11-15 (Matt: "take the flashing jason masks out all together")
+
+The full-screen hell face (a pale oval with black eye holes, teeth and blood streaks, flashed at random in the last
+biome slot, the Drive approach and chamber, and boss phase 2) is deleted: `makeHell()` and its offscreen canvas
+(`core.ts` hc/hx) are gone and `postFX` no longer draws it. `hellFlash()` keeps the glitch tear and `sfx.whisper()` at
+the same moments; `$.G.hell` (render stream) still counts down but is read by nothing. The sim is unchanged; only the
+render-side `srnd` stream shifts, which re-baselined the `drive` harness scenario (gibs 111->116, drops 25->24, sig
+50480033ff->fc9a64581c; fx-only: `simState` hashes `drops.length`). Resolves the "Drive's white hell-flash face reads
+cartoonish" note (production/qa/evidence/ls2-bossart.md). Open: the milestone-plan "door" and the LS3-bridge
+hell-glimpse site assumed the image and need re-scoping without it. Studio review: all 8 leads + 3 directors; qa-lead
+BLOCK (drive baseline) resolved by the re-baseline; others APPROVE / APPROVE WITH NOTES.
+
+### D57 D31 merged; the Fold reading gate waived — 2026-11-15 (Matt: "Waive check, merge it")
+
+**Decision point:** D30, D35 and D40 made Matt's Fold reading (S2-K1 perf, `production/qa/fold-reading.md`) the gate
+before the D31 merge (`ls2-d31.md` §10 item 7, §11). The stretch has been ready since 2026-11-07 (`fdae7d8`), and main
+has moved 111 commits since its branch point.
+**Chosen:** waive the Fold reading for this merge and merge D31 now; perf gets checked later. As D24 accepted open items
+for the long-layout flip and D30 carried S2-K1 as an open S2 bug, **S2-K1 stays open**. It is judged by a later Fold
+reading on a build that includes D31, and that reading also covers the stretch (the climax's 7.8 s burst and the S3-K2
+Drive boot slice). No perf-probe was run on the stretched build: per-px density is unchanged, so no per-frame count
+rises, but that is a reading, not a measurement.
+**Reason:** Matt, 2026-11-15.
+**Category:** process
+
+**What merged** (branch `d31-rebase`, main merged in twice: `8943bd1`, then `c0f7f27` for D56):
+- D31 as decided, D36 item 2 and D37 (`ls2-d31.md`). Conflicts kept both sides: `biomes.ts` (D31's numeric third-spawn
+  chance inside main's `lands()` quiet guard), the economy imports, the layout test imports, the harness (D31's #7 sig fix
+  ported to `harness-rules.mjs` `simExtra`, the same signed string), this log (D37 between D36 and D38) and the drive
+  baseline. The branch's text-to-speech import is gone with main's D42 item 3 removal.
+- **Layout revision wired (web-specialist W1, D31's "a long4-only layout revision drops old long4 resume saves").** Run
+  saves carry `rev`; `decodeRun` refuses a save whose rev is not its layout's `layoutRev()`. Absent reads as 1, so every
+  short save survives and a long4 save from before the stretch is dropped. `RUN_V` is unchanged.
+- Tools: `stage-clock`, `pod-probe` and `perk-pace` parse again (17ec282's comment pasted mid-line); stage-clock bands the
+  long4 biome scroll at 99-105 s; resume-check eases D46's vat fade out before its terrain shots (a CP1 just after a
+  Womb slot A shot the original mid-fade). `jump.test.ts`'s sealed-slot fixture reads the layout table, not LS1 x.
+- Docs: `docs/pacing.md` §2 describes long4 on the D31 build; the Q20 box in `content-build-plan.md` §6 is ticked (D24).
+
+**Measured on the merged tree** (invincible bot; pod-probe seeds 1/3/5/7/11, end of Descent 1):
+
+| | Band | Measured |
+|---|---|---|
+| Orbit `tally_s` | 120-150 | 118 / 118 / 121 / 121 / 128 (D37: under 120 until the tug ships) |
+| Biome `tally_s`, both slots | 120-150 | 122-147, 10 of 10 in band |
+| Drive `tally_s` | 120-150 | 127-136 |
+| Descent 1 | | median 525 s, 493-539 (main 342-366) |
+| End-of-D1 LV | 10-11, none < 9 or > 12 | median 11: 13 / 9 / 9 / 11 / 11. **s1 13 is over the cap** (TAPEWORM, the known outlier); s3 and s5 sit at the floor |
+| Pod + choice pickups | -30 to -40% vs main's 48 | median 31 (-35%) |
+| Biomass steady | 1300-1500 | median 1427 |
+| LV after the Orbit | >= 3 | 3 on every seed |
+| First biome midboss pow vs the STAGE 1 kit (.41) | above | .422-.481 (s11 ~3% over) |
+| stage-clock biome scroll | 99-105 | 101.9 on all 10 |
+| midboss-probe, STAGE 1 kit (D27 8-11 s) | 8-11 | Choir 10.0, Womb 8.7, Apprentice 10.1, Brood 8.9, KEEPSAKE 9.3-9.4 (Maw-mid 7.2 and the drifting Saucer 5.4, as on ls2-d31) |
+| boss-probe, STAGE 1 kit | | Maw 8.2, Crux 25.0, Butcher 20.0, Drive 55.3 |
+| route-probe (6 routes, 2 descents) | bad [] | bad [] everywhere, 0 hazard-hit frames, 0 deaths; minGap 104 @21464 (main's own gap, moved) |
+| beat-probe | peak <= 1.7, 0 in breaths | peak 1.65, 0 in a breath or the run-up, closest set piece 389 px |
+| rng-probe | ON = OFF = BARE | 12 of 12 fights identical |
+
+pod-probe seeds 3 and 5 are identical on `fdae7d8` and on the merge, so the LV 9 runs are D31's own, not a merge drift.
+
+**Harness:** short PASS @ `8ff9ba4` and layout-parity 7/7 identical (short untouched). long4 and the 12 scenarios are
+re-baselined (`b712151`): `fdae7d8` and the merge give an identical `st`, sig included, so every move is the branch's
+(`ls2-d31.md` §6). drive and drive-d1 then moved once more on gibs/drops/sig only, from D56's render stream shift
+(`d7c9cd5`). `--runs 2` gives an identical sig on both runs everywhere.
+
+**Still open for Matt** (from `ls2-d31.md` §10, unchanged): the Orbit under 120 s until the tug (or +120 px of climax
+now); the D2 climax cap (keep peak B's third spawn at .1, or amend the exit and restore .35); the hazard-gate wording.
+New: the LV cap breach on the TAPEWORM seed and the two floor seeds; whether that wants a fit is the economy lane's call.
+
+**Sequencing:** D31 lands first; `kboss-core` (THE KEEPSAKE as the stage 1-3 boss) rebases onto it and re-baselines
+long4 again with its own explanation.
+
+**Studio review** (8 leads + 3 directors, on `main..d31-rebase`): 0 BLOCK. game-designer APPROVE WITH NOTES (the LV
+cap breach above, Orbit under 120 s); lead-programmer APPROVE WITH NOTES (the conflict resolutions keep both parents' rs()
+order; `G.rev` rides on G after a resume, harmless; bump `rev` on every long4 x move); qa-lead APPROVE WITH NOTES (every
+named gate run; perf unmeasured by waiver; the 5 Windows-only vitest failures are main's); release-manager APPROVE WITH
+NOTES (the CHANGELOG now says old long4 RE-ENTERs drop; S2-K1 ships open by Matt's waiver); art-director, audio-director,
+narrative-director, localization-lead: no impact (no art, sound, copy or strings change here); creative-director APPROVE
+(Matt's D31, tone untouched); technical-director APPROVE WITH NOTES (perf-probe the climax and the Drive boot before the
+next Fold session); producer APPROVE WITH NOTES (kboss-core rebases next; the §10 calls stay with Matt).

@@ -24,10 +24,6 @@ export const lc = document.createElement('canvas');
 lc.width = W;
 lc.height = H;
 export const lctx = lc.getContext('2d');
-export const hc = document.createElement('canvas');
-hc.width = W;
-hc.height = H;
-export const hx = hc.getContext('2d');
 export const R = Math.random,
   TAU = Math.PI * 2;
 export const rr = (a, b) => a + R() * (b - a),

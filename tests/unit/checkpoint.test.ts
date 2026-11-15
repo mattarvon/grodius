@@ -23,7 +23,7 @@ const store = () => (localStorage as any).map as Map<string, string>;
 /** a stored checkpoint blob of a run on layout id: stage 2 (biome slot 1), both gates taken */
 function blob(id: 'short' | 'long4', over: Record<string, unknown> = {}) {
   const L = LAYOUTS[id]!, s0 = L.stages[1], s1 = L.stages[2];
-  return JSON.stringify({ v: RUN_V, g: { loop: 0, stage: 2, cpX: s1.x0 + 900, cpN: 1, layout: id, seed: 77, bx: [s0.x0 + 300, s1.x0 + 400, null], route: ['ice', 'fire'], visitNo: [0, 0], lives: 2, ...over }, p: { speed: 1 } });
+  return JSON.stringify({ v: RUN_V, g: { loop: 0, stage: 2, cpX: s1.x0 + 900, cpN: 1, layout: id, rev: L.rev ?? 1, seed: 77, bx: [s0.x0 + 300, s1.x0 + 400, null], route: ['ice', 'fire'], visitNo: [0, 0], lives: 2, ...over }, p: { speed: 1 } });
 }
 /** a G in play, at a safe point of stage i */
 function playing(i = 1, over: Record<string, unknown> = {}) {
@@ -66,7 +66,7 @@ describe('reading a run save under its own layout (sprint 2 carry-forward 1)', (
     const extra = { ...s[2], slot: 2, x0: x, x1: x + 3000, end: x + 2900, bossX: x + 2800 };
     (LAYOUTS as any).wide5 = { ...L4, id: 'wide5', stages: [s[0], s[1], s[2], extra, s[3]] };
     try {
-      store().set(RUN_KEY, JSON.stringify({ v: RUN_V, g: { loop: 0, stage: 4, cpX: s[3].x0 + 1, cpN: 0, layout: 'wide5', seed: 1, bx: [s[1].x0, s[2].x0, extra.x0, null], route: ['ice', 'fire', 'acid'] }, p: {} }));
+      store().set(RUN_KEY, JSON.stringify({ v: RUN_V, g: { loop: 0, stage: 4, cpX: s[3].x0 + 1, cpN: 0, layout: 'wide5', rev: L4.rev ?? 1, seed: 1, bx: [s[1].x0, s[2].x0, extra.x0, null], route: ['ice', 'fire', 'acid'] }, p: {} }));
       expect(readRun()).not.toBeNull();
       expect(store().has(RUN_KEY)).toBe(true);
       expect(layout().id).toBe('short');
@@ -99,6 +99,34 @@ describe('reading a run save under its own layout (sprint 2 carry-forward 1)', (
     setLayout('short');
     expect(decodeRunAs(blob('long4', { stage: 9 }), true)).toBeNull();
     expect(layout().id).toBe('short'); // a refused blob never switches it
+  });
+});
+
+describe('the layout revision on a run save (D31: a long4 save from before the stretch is refused)', () => {
+  it('refuses and clears a long4 save written on the LS1 geometry (no rev), so RESUME never rebuilds it on the stretched rows', () => {
+    const old = JSON.parse(blob('long4'));
+    delete old.g.rev;
+    store().set(RUN_KEY, JSON.stringify(old));
+    expect(readRun()).toBeNull();
+    expect(store().has(RUN_KEY)).toBe(false);
+    expect(decodeRunAs(JSON.stringify({ ...old, g: { ...old.g, rev: 1 } }))).toBeNull();
+  });
+  it('keeps a long4 save of the current revision, and a short save with no rev (short is rev 1)', () => {
+    expect(LAYOUTS.long4!.rev).toBeGreaterThan(1);
+    expect(decodeRunAs(blob('long4'))).not.toBeNull();
+    const short = JSON.parse(blob('short'));
+    delete short.g.rev;
+    expect(decodeRunAs(JSON.stringify(short))).not.toBeNull();
+  });
+  it('refuses a save from a later revision than the build knows', () => {
+    expect(decodeRunAs(blob('long4', { rev: (LAYOUTS.long4!.rev ?? 1) + 1 }))).toBeNull();
+  });
+  it("stamps the active layout's revision on every checkpoint it writes", () => {
+    setLayout('long4');
+    playing(1);
+    cpStep();
+    expect(JSON.parse(lastRun()!).g.rev).toBe(LAYOUTS.long4!.rev);
+    expect(decodeRunAs(lastRun())).not.toBeNull();
   });
 });
 

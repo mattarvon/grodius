@@ -7,7 +7,8 @@
 //   held s     frames a held (non-drift) midboss was up before bossX
 //   wall s     startStage to the tally (the stage's wall time with this bot's kit: fights included)
 //   midboss    where breath 1's midboss arrived and how it left
-// Biome stages are checked against the item D band (58-62 s of scroll). Orbit and Drive rows are reported only:
+// Biome stages are checked against the scroll band: long4 99-105 s (D31: gate to bossX 6100 px, ~102 s, src/layout.ts
+// STRETCH), short LS1's item D 58-62 s (3550 px). The 120-150 s stage target is wall time, pod-probe's tally_s. Orbit and Drive rows are reported only:
 // their script content is item E's.
 // Usage: node tools/stage-clock.mjs [url] [--layout long4|short] [--seeds 1,5,6,7,11] [--descents 1]
 //   No url: starts its own Vite dev server. --layout <id> (tools/layout-arg.mjs, default long4 per D33) sets the entry
@@ -15,7 +16,7 @@
 //   Not measured: render-only output (canvas stubbed); a mortal pilot (it never dies, so no respawn stalls); seeds 2
 //   and 3 (the parity bot's kit cannot kill the Gravity Drive, their runs time out).
 import { chromium } from 'playwright';
-import { useLayout, ranOn } from './layout-arg.mjs';
+import { useLayout, ranOn, LAYOUT } from './layout-arg.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
@@ -28,7 +29,7 @@ if (!url) {
   await server.listen();
   url = server.resolvedUrls.local[0];
 }
-const BAND = [58, 62];
+const BAND = LAYOUT === 'short' ? [58, 62] : [99, 105]; // long4: the D31-stretched biome scroll; short keeps LS1's item D band
 
 const init = ([seed, gate]) => {
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) | 0;
@@ -104,7 +105,7 @@ for (const seed of SEEDS) {
     await p.evaluate('__tick(60)'); f += 60;
     const s = await p.evaluate(() => { const g = __G(), G = g.G; return { st: g.state, pick: !!(G && G.pick), pt: G && G.pick ? G.pick.t : 0 }; });
     if (s.pick && s.pt > 36) { await key('keydown', 'Enter'); await p.evaluate('__tick(1)'); await key('keyup', 'Enter'); }
-    if (s.st === 'shop') { if (++shops >= DESCENTS) { end = 'descents done'; break; } await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(1)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); // the loop shop's back takes two presses (ls1-audit) await p.evaluate('__tick(40)'); }
+    if (s.st === 'shop') { if (++shops >= DESCENTS) { end = 'descents done'; break; } await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(1)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(40)'); } // the loop shop's back takes two presses (ls1-audit)
     if (s.st === 'over') { end = 'game over'; break; }
   }
   await p.evaluate('__flush()');

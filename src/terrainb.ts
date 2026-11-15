@@ -45,7 +45,10 @@ export const MOVE = {
 /** the hazard spacing multiplier inside each gimmick, [B0, B1] (x the interval: < 1 is more often). Ice B0: the spec's
  *  "icicles every x.7 as often" read as the interval (~1.43x the rate). Ice B1 .85 and fire B1 .6: the stairs and the
  *  chimney were too quiet in the level-design review (the chimney's jets come down its vents: they are the threat) */
-export const MOVE_HAZ: Readonly<Record<string, readonly [number, number]>> = { ice: [.7, .85], acid: [1, 1], fire: [1, .6], snot: [1, 1] };
+// D31 fit (2026-11-08, tools/band-haz-probe.mjs G1, production/qa/evidence/ls2-d31.md): fire B1 .6 read sigma 1.60 at Descent 2 on the
+// stretched build, at the 1.6 cap (one descent step of hazard pressure; systems-designer target). .6 x 1.6 / 1.4 = .69,
+// so .7 (the game-designer's pre-planned value). Every other cell sat in its band.
+export const MOVE_HAZ: Readonly<Record<string, readonly [number, number]>> = { ice: [.7, .85], acid: [1, 1], fire: [1, .7], snot: [1, 1] };
 /** the shortest hazard interval inside a band, in frames: the multiplier stacks on the depth term (x 1/(1 + .3 loop)),
  *  and ice B0 at Descent 3 reached ~34 f without it (systems review) */
 export const MOVE_HAZ_MIN = 50;

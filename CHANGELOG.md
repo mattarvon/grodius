@@ -2,6 +2,19 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-15 (Longer stages, fewer power-ups)
+
+- Every stage of the default descent runs longer: about two minutes each, so Descent 1 takes about 8-9 minutes (it was about 6).
+- Fewer power-ups. Kills give less XP, and formations and carriers drop pods less often, so the strongest kit arrives in Descent 2. Midboss, Maw and stage-boss reward pods are unchanged.
+- Each biome stage has a third breath: a quiet stretch just before its climax.
+- On your first visit to a biome in a run, its signature set piece is twice as likely.
+- A RE-ENTER saved on the old, shorter stages is dropped when the new build starts. A run saved on the short layout (LAB) is kept.
+- Known: Open Orbit can still run just under two minutes until its second midboss, the derelict tug, ships.
+
+## 2026-11-15 (No more flashing face)
+
+- The flashing hell face is gone. When hell bleeds through, you still get the tear and the whisper.
+
 ## 2026-11-09 (SGT. RAMROD SLAB is on the line)
 
 - SGT. RAMROD SLAB has a new face on the comms, and it is human. Half of it has been opened up, and one eye is all blood.

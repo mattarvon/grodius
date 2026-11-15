@@ -94,12 +94,12 @@ describe('movement B on long4', () => {
     expect(inside).toBeGreaterThan(100);
   });
 
-  it('sits between the breaths: from CP1 at breath 1\'s end, gone before midboss B\'s held screen, ~9 s at full', () => {
+  it('sits between the breaths: from CP1 at breath 1\'s end, gone before midboss B\'s held screen, ~20 s at full (D31 stretch)', () => {
     for (const seg of [0, 1]) for (const from of [L.slotRow(seg).x0, L.slotRow(seg).gateLate!]) {
       const P = L.beatPlan(L.slotRow(seg), from, false), M = P.moveB!;
       expect(M.a).toBe(P.breaths[0].z); // spec §3.3: movement A runs "intro to CP1", and CP1 is written at breath 1's end
       expect(M.z).toBeLessThan(P.breaths[1].z - 20); // the scroll holds ~20 px before the breath's end
-      expect(M.z - M.a - 2 * M.blend).toBeGreaterThan(540); // the full gimmick, ~9 s at 1 px/f (level-design review)
+      expect(M.z - M.a - 2 * M.blend).toBeGreaterThan(1000); // the full gimmick, ~20 s at 1 px/f under the D31 stretch (D31 amended: about 18 s)
     }
   });
 
@@ -189,8 +189,8 @@ describe('the gimmick shapes', () => {
 describe('movement B hazards', () => {
   const band = (b: string, mv: number) => { MOVES.length = 0; MOVES[0] = { a: 6000, z: 6800, blend: 200, b, mv, o: 1 }; };
   beforeEach(() => { MOVES.length = 0; });
-  it('spaces hazards x.7 in ice B0, x.85 in ice B1, x.6 on the Chimney and x1 elsewhere', () => {
-    expect([moveHazMul('ice', 0), moveHazMul('ice', 1), moveHazMul('fire', 1)]).toEqual([.7, .85, .6]);
+  it('spaces hazards x.7 in ice B0, x.85 in ice B1, x.7 on the Chimney (fit 1) and x1 elsewhere', () => {
+    expect([moveHazMul('ice', 0), moveHazMul('ice', 1), moveHazMul('fire', 1)]).toEqual([.7, .85, .7]);
     for (const [b, mv] of [['acid', 0], ['acid', 1], ['fire', 0], ['snot', 0], ['snot', 1], ['nope', 0]] as const) expect(moveHazMul(b, mv), `${b} B${mv}`).toBe(1);
   });
   it('leaves the interval untouched outside every band, scales it inside, and never goes under the floor there', () => {
@@ -290,12 +290,70 @@ describe('the catalogue against the game', () => {
     }
     L.setLayout('short');
   });
+  it('spawns the breath-1 release formation with the pod flag on long4, and no other formation carries it', () => {
+    // G2: formation() marks group.pod (podkeep.test.ts) and killEnemy skips the roll for it (poddrop.test.ts); this is
+    // the link between them, biomeScript's release (biomes.ts)
+    L.setLayout('long4');
+    try {
+      for (const seg of [0, 1]) for (const b of ['ice', 'fire']) {
+        $.G = { loop: 0, seed: 5, pend: [], scroll: 0 };
+        const S = biomeScript(seg, b, L.slotRow(seg).gateLate!, 0, undefined, ['choir', 'cyst'], CATALOG[b].slice(0, 3));
+        expect(S.filter((e: { k: string }) => e.k === 'pod'), `${b} slot ${seg}`).toHaveLength(1);
+        const flagged: string[] = [];
+        for (const e of S) {
+          $.G.pend = []; spawned.length = 0;
+          e.f(); for (const q of $.G.pend) q.f();
+          for (const c of spawned) if (c[0] === 'formation' && (c[4] as { pod?: number } | undefined)?.pod === 1) flagged.push(e.k);
+        }
+        expect(flagged, `${b} slot ${seg}`).toEqual(['pod']);
+      }
+    } finally {
+      L.setLayout('short');
+    }
+  });
+
+  it('keeps every biome\'s long4 climax under beat-probe\'s 1.7 spawns/s exit in Descent 2+, with margin for the probe', () => {
+    // the slot loop's expected rate: (1 + extra + third) spawns per step of B.gap * T.gap px, 60 px of scroll per second.
+    // beat-probe reads ~.03 above this model, so the cap here is 1.65 (layout.ts peak B comment)
+    const climax = L.LAYOUTS.long4!.beats.tempo.find((t) => t.until === .94)!;
+    for (const [k, B] of Object.entries(BIOMES) as [string, { gap: number; dbl: number }][]) {
+      const third = climax.third === true ? .35 : (climax.third || 0);
+      const rate = (1 + Math.min(.85, B.dbl + climax.dbl) + third) / (B.gap * climax.gap) * 60;
+      expect(rate, k).toBeLessThanOrEqual(1.65);
+    }
+  });
+
+  it('places peak B\'s Descent 2 third spawn only under a .1 draw, and peak A\'s under .35 (long4 slot loop)', () => {
+    // C2 (qa-tester re-check): drives biomeScript's `third` chance with a constant stream, so the extras and every other
+    // threshold resolve the same way for each pair of draws compared and only the third spawn differs
+    L.setLayout('long4');
+    try {
+      const r = L.slotRow(0), P = L.beatPlan(r, r.gateLate!, false), [, b2, b3] = P.breaths;
+      const count = (c: number, lo: number, hi: number) => {
+        $.G = { loop: 1, seed: 5, pend: [], scroll: 0 };
+        return biomeScript(0, 'fire', r.gateLate!, 0, () => c, ['choir', 'cyst'], CATALOG.fire.slice(0, 3))
+          .filter((e: { x: number; k: string }) => e.x >= lo && e.x < hi && !e.k.startsWith('set:') && e.k !== 'log').length;
+      };
+      const pkB: [number, number] = [b3.z, P.runup!], pkA: [number, number] = [b2.z, b3.a];
+      expect(count(.09, ...pkB)).toBeGreaterThan(count(.1, ...pkB));
+      expect(count(.1, ...pkB)).toBe(count(.3, ...pkB));
+      expect(count(.3, ...pkA)).toBeGreaterThan(count(.36, ...pkA));
+      expect(count(.09, ...pkA)).toBe(count(.3, ...pkA));
+    } finally {
+      L.setLayout('short');
+    }
+  });
+
   it('keeps a piece\'s fixed spawn heights out of the walls a band has moved, and leaves them alone elsewhere', () => {
     L.setLayout('long4');
     const P = fly(0, 'ice', L.slotRow(0).gateLate!, 1), M = P.moveB!, mid = (M.a + M.z) / 2;
     const S = biomeScript(0, 'ice', L.slotRow(0).gateLate!, 0, undefined, ['choir', 'cyst'], ['thaw', 'thaw', 'thaw']).find((e: { k: string }) => e.k === 'set:thaw');
     const fire = (scroll: number) => { $.G.scroll = scroll; $.G.pend = []; spawned.length = 0; S.f(); for (const q of $.G.pend) q.f(); return spawned.filter((c) => c[0] === 'corpse').map((c) => c[1] as number); };
-    const at = mid, ys = fire(at - 480 - 20); // its entry column (scroll + W + 20) mid-band, on a stair
+    // its entry column (scroll + W + 20) on a stair inside the band's full-gimmick stretch: the first step low enough
+    // that the bottom body (254 * .8) would start in it (mid-band moved with the D31 stretch, so search for one)
+    let at = mid;
+    for (let x = M.a + M.blend; x < M.z - M.blend; x += TS) if (world.FLOOR[Math.floor(x / TS)] - 16 < 254 * .8) { at = x; break; }
+    const ys = fire(at - 480 - 20);
     const c = world.CEIL[Math.floor(at / TS)], f = world.FLOOR[Math.floor(at / TS)];
     expect(ys).toHaveLength(3);
     expect(254 * .8).toBeGreaterThan(f - 16); // the case that matters: the bottom body would start inside this step
