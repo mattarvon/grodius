@@ -1,6 +1,8 @@
 // Boss probe: time-to-kill for every boss across loadout tiers, plus Gravity Drive laser lethality.
 // Invincible bot parks at x=90 and tracks the boss's current weak point, holding fire. Needs the VITE DEV server
-// (imports live modules). Usage: node tools/boss-probe.mjs http://localhost:4202/ [capSeconds=150] [--layout long4|short]
+// (imports live modules). Usage: node tools/boss-probe.mjs http://localhost:4202/ [capSeconds=150] [--layout long4|short] [--ord <stage>]
+//  --ord <stage> sets G.stage to that stage ordinal just before a biome boss spawns (not the Drive or THE KEEPSAKE),
+//  so its depth and any stage-order HP read that stage: --ord 2 = biome slot B's boss on slot A's x. Off: as before
 //  World x comes from src/layout.ts: biome bosses fight at slot 0's x0 + 700 (3000 on short), the Drive at bossAt().
 //  THE KEEPSAKE (D55) fights where bossFor places it: slot 1 built for real (biomeStage, so its arena terrain is there),
 //  the scroll held 200 px past the slot's boss x, Descent 1; the bot aims at its wound (e.y + e.wy, turned with the tilt).
@@ -10,6 +12,8 @@
 //  LASER = per Gravity Drive beam: hits that land on a ship sitting in the beam with a full WARD, and whether it dies
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+const oi = process.argv.indexOf('--ord'), ORD = oi >= 0 ? +process.argv.splice(oi, 2)[1] : null;
+if (ORD != null && !(ORD >= 0)) { console.error('--ord needs a stage ordinal, e.g. --ord 2'); process.exit(2); }
 const [url, CAP = '150'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
@@ -20,12 +24,14 @@ await useLayout(p, 'boss-probe', { limits: 'fights are staged in Open Orbit, bio
 const L = [
   ['NAKED (died)', {}, {}, {}],
   ['STAGE 1 kit', { speed: 2, missile: 1, double: 1, options: 1, wardLv: 1 }, { cal: 1 }, { dmg: 1 }],
+  // D58: what a run carries into biome slot B (pod-probe warns[].kit.pow .55-.84 at slot B's WARNINGs on the D31 build)
+  ['BIOME B kit', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 1 }, { cal: 1, rapid: 1 }, { dmg: 1, rof: 1, crit: 2 }],
   ['END DESCENT 1', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2 }, { cal: 1, rapid: 1 }, { dmg: 2, rof: 1, crit: 2 }],
   ['STRONG D1', { speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }],
 ];
 const BOSSES = ['maw', 'crux', 'butcher', 'gravity', 'keepsake'];
 const HPX = +(process.env.HPX || 1);
-const res = await p.evaluate(async ([L, BOSSES, CAP, HPX]) => {
+const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), LY = await import('/src/layout.ts');
   const IN = await import('/src/input.ts'); const $ = S.$; $.gate = false; IN.K.KeyZ = true;
@@ -57,7 +63,8 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX]) => {
       if (k === 'keepsake' && !hasKeep) { row[k] = 'n/a'; continue; }
       setup(pw, gm, pkk, k === 'gravity' ? LY.bossAt() : LY.slotRow(0).x0 + 700);
       if (k === 'keepsake') { const sx = keepStage(); $.G.scroll = sx; $.G.si = $.G.script.length; W.enemies.length = 0; REG.BOSS_SIM.keepsake.spawn('fire'); const m = $.G.mini; m.hp *= HPX; m.max = m.hp; }
-      else if (k === 'gravity') BU.startBoss(); else if (k === 'maw') SP.maw(true); else SP[k]();
+      else if (k === 'gravity') BU.startBoss();
+      else { if (ORD != null) $.G.stage = ORD; if (k === 'maw') SP.maw(true); else SP[k](); }
       let f = 0, t0 = -1, r = '--';
       for (; f < CAP * 60 + 600; f++) {
         let ty = $.P.y;
@@ -119,7 +126,8 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX]) => {
   }
   const rank = out.rank; delete out.rank; delete out.kp;
   return { out, lz, rank, crier };
-}, [L, BOSSES, +CAP, HPX]);
+}, [L, BOSSES, +CAP, HPX, ORD]);
+if (ORD != null) console.log(`biome bosses at stage ordinal ${ORD} (THE KEEPSAKE fights in its own placed stage)`);
 console.log('rank per loadout:', JSON.stringify(res.rank));
 console.log('loadout'.padEnd(16), ...['MAW', 'CRUCIFER', 'BUTCHER', 'GRAV DRIVE', 'KEEPSAKE'].map((s) => s.padStart(11)));
 for (const [n, r] of Object.entries(res.out)) console.log(n.padEnd(16), ...BOSSES.map((k) => String(r[k]).padStart(11)));

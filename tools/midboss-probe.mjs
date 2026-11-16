@@ -43,6 +43,8 @@ await useLayout(p, 'midboss-probe', { limits: 'fights are staged in Open Orbit, 
 const L = [
   ['NAKED (died)', {}, {}, {}],
   ['STAGE 1 kit', { speed: 2, missile: 1, double: 1, options: 1, wardLv: 1 }, { cal: 1 }, { dmg: 1 }],
+  // D58: what a run carries into biome slot B (pod-probe warns[].kit.pow .55-.84 at slot B's WARNINGs on the D31 build)
+  ['BIOME B kit', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 1 }, { cal: 1, rapid: 1 }, { dmg: 1, rof: 1, crit: 2 }],
   ['END DESCENT 1', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2 }, { cal: 1, rapid: 1 }, { dmg: 2, rof: 1, crit: 2 }],
   ['STRONG D1', { speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }],
 ];
@@ -198,7 +200,7 @@ async function matrix() {
   }));
   console.log('(* = home biome; only the Brood is fitted at home)   brood max hatchlings alive:', BS.map((b) => `${b} ${res['brood@' + b].maxKids ?? '?'}`).join(', '));
   // the CROWD cap: hold fire so the litters pile up, push rank to 1 and phase 2 (the largest litters), count the alive
-  await prep(...L[3].slice(1), 'brood', 'snot', 'snot'); // STRONG D1 kit: high power, so rank and the litters are at their largest
+  await prep(...L.find((r) => r[0] === 'STRONG D1').slice(1), 'brood', 'snot', 'snot'); // STRONG D1 kit: high power, so rank and the litters are at their largest
   const cap = await p.evaluate(async () => {
     const IN = await import('/src/input.ts'), W = await import('/src/world.ts'), m = window.__mb;
     IN.K.KeyZ = false; m.$.G.loop = 4; // Descent 5: cdm() cooldowns are short enough that litters overlap

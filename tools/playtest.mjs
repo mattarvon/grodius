@@ -82,7 +82,11 @@ await p.addInitScript((seed) => {
       q.splice(0).forEach((f) => f(now));
       const h = window.__G && window.__G();
       if (!h || !h.G || h.state !== 'play') continue;
+      // main.ts __G() carries no eshots, so before this fix every would-be hit (and the D61 source tally) was a body,
+      // lash or hazard, never a bullet; the live array comes from /src/world.ts (window.__ES, set after load)
+      if (!h.eshots) h.eshots = window.__ES;
       L.fr++; const G = h.G, P = h.P, st = `${G.loop + 1}-${(G.stage || 0) + 1}`; L.frBy[st] = (L.frBy[st] || 0) + 1;
+      if ((G.mini && !G.mini.dead) || G.boss) (L.fightFrBy ||= {})[st] = (L.fightFrBy[st] || 0) + 1;
       if (G.picks && G.picks[G.stage]) (L.picks ||= {})[st] = { ...G.picks[G.stage], b: G.route[__LY.row(G.stage).slot] }; // LS2-mv: the stage's set pieces and movement B
       // enemy lifetimes: from first on screen to removal; killed if removed while still on screen
       const alive = new Set();
@@ -96,7 +100,11 @@ await p.addInitScript((seed) => {
       else { // src: what it was (shot:<kind>, the enemy's kind, lash, haz:<kind>, * = an aimed hazard), tallied per stage in L.srcBy
         const sh = h.eshots && h.eshots.find((s) => (s.x - P.x) ** 2 + (s.y - P.y) ** 2 < 36), en = !sh && h.enemies.find((e) => !e.dead && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < ((e.r || 6) + 2) ** 2);
         const src = sh ? 'shot:' + sh.k : en ? en.k + (en.ut ? '(u-turn)' : en.pat === 'behind' ? '(rear)' : '') : noShotHit(h, P);
-        if (src) { L.hits++; L.hitsBy[st] = (L.hitsBy[st] || 0) + 1; L.hitCD = 30; const b = (L.srcBy[st] ||= {}); b[src] = (b[src] || 0) + 1; } }
+        if (src) { L.hits++; L.hitsBy[st] = (L.hitsBy[st] || 0) + 1; L.hitCD = 30; const b = (L.srcBy[st] ||= {}); b[src] = (b[src] || 0) + 1;
+          if (sh) (L.shotHitBy ||= {})[st] = (L.shotHitBy[st] || 0) + 1; // a bullet, not a body (D58 probe fix)
+          if ((G.mini && !G.mini.dead) || G.boss) (L.fightHitBy ||= {})[st] = (L.fightHitBy[st] || 0) + 1; } } // with a midboss or boss up
+      // enemy bullets fired per stage (each shot counted once, the frame it is first seen; read-only, no R())
+      if (h.eshots) { const sn = (L.shotSeen ||= new WeakSet()); for (const s of h.eshots) if (!sn.has(s)) { sn.add(s); (L.shotsBy ||= {})[st] = (L.shotsBy[st] || 0) + 1; } }
       // bosses
       for (const m of [G.mini, G.boss]) if (m && !m.__pt) { m.__pt = 1; L.bosses.push({ k: m.k || 'drive', title: m.title || '', st, f0: L.fr, m }); }
       for (const bo of L.bosses) if (bo.f1 == null && (bo.m.dead || (bo.m !== G.mini && bo.m !== G.boss))) { bo.f1 = L.fr; bo.killed = !!bo.m.dead || (bo.m.hp != null && bo.m.hp <= 0); }
@@ -104,6 +112,7 @@ await p.addInitScript((seed) => {
 }, +SEED);
 await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'playtest');
+await p.evaluate(async () => { window.__ES = (await import('/src/world.ts')).eshots; }); // the enemy shots the would-be hits read
 // stage-relative x for the signature (script x is relative to its row's x0), read from the layout useLayout activated
 await p.evaluate(async () => { window.__EU = await import('/src/enemies/update.ts'); }); // whipPts for noShotHit
 const LAY = await p.evaluate(() => { const M = window.__LY; window.__x0 = (i) => (M.row(i) ? M.row(i).x0 : 0); return { id: M.layout().id, ufoAt: M.ufoAt() }; });
@@ -152,7 +161,7 @@ for (let it = 0; it < MAXM * 60 * 2; it++) {
     await p.evaluate(async () => (await import('/src/menus.ts')).leaveShop()); await p.evaluate('__tick(60)'); continue; }
   if (s.st !== 'play' || s.loop >= +DESC) { end = JSON.stringify(s); break; }
 }
-const L = await p.evaluate(() => { const L = __pt; return { picks: L.picks || {}, fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, srcBy: L.srcBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r) }; });
+const L = await p.evaluate(() => { const L = __pt; return { fightHitBy: L.fightHitBy || {}, fightFrBy: L.fightFrBy || {}, shotsBy: L.shotsBy || {}, shotHitBy: L.shotHitBy || {}, picks: L.picks || {}, fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, srcBy: L.srcBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r) }; });
 const q = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(f * s.length))].toFixed(2) : null; };
 const prev = {}, prevB = {}, drn = { biome: [0, 0] };
 for (let i = 0; i < stages.length; i++) {
@@ -176,7 +185,7 @@ for (let i = 0; i < stages.length; i++) {
   console.log(`   kill: on-screen life median ${q(kl.map((x) => x.s), .5)}s p90 ${q(kl.map((x) => x.s), .9)}s | killed in right quarter ${kl.length ? Math.round(100 * kl.filter((x) => x.right).length / kl.length) : 0}% | escaped ${life.length ? Math.round(100 * (life.length - kl.length) / life.length) : 0}% (${life.length} enemies)`);
   console.log(`   bosses: ${bos.join(', ') || '-'}`);
   { const hb = L.hitsBy[S.k] || 0, fb = L.frBy[S.k] || 0; // per stage (spec §8 targets are by stage kind and biome slot)
-    console.log(`   danger: ${hb} would-be hits in ${(fb / 60).toFixed(0)}s of play (${fb ? (hb / (fb / 3600)).toFixed(2) : '-'}/min) | regular spawns ${reg.length}${L.srcBy[S.k] ? ' | by ' + JSON.stringify(L.srcBy[S.k]) : ''}`); }
+    console.log(`   danger: ${hb} would-be hits in ${(fb / 60).toFixed(0)}s of play (${fb ? (hb / (fb / 3600)).toFixed(2) : '-'}/min) | regular spawns ${reg.length} | shot hits ${L.shotHitBy[S.k] || 0} | in fights ${L.fightHitBy[S.k] || 0} hits / ${((L.fightFrBy[S.k] || 0) / 60).toFixed(0)}s | enemy bullets ${fb ? ((L.shotsBy[S.k] || 0) / (fb / 3600)).toFixed(0) : '-'}/min${L.srcBy[S.k] ? ' | by ' + JSON.stringify(L.srcBy[S.k]) : ''}`); }
   console.log(`   variety: ${Object.keys(kinds).length} kinds ${JSON.stringify(kinds)} | ${waves.length} waves, ${Object.keys(sig).length} distinct, top ${top.map(([k, n]) => k + ' x' + n).join(', ')}${overlap != null ? ` | kinds shared with last descent's stage: ${Math.round(overlap * 100)}%` : ''} | music ${[...S.music].join(', ')}`);
   console.log(`   drones ${reg.length ? Math.round(100 * (kinds.drone || 0) / reg.length) : 0}% of ${reg.length} | elites ${els}${S.biome ? ` | ${S.remix ? 'REMIX (visit ' + (S.remix + 1) + ')' : 'first visit'}` : ''}${bo != null ? ` | vs last ${S.biome} visit: kinds shared ${Math.round(bo * 100)}%, wave signatures shared ${Math.round(so * 100)}%` : ''}`);
 }
