@@ -101,7 +101,9 @@ let descendHook: null | (() => void) = null;
 export const onDescend = (f: () => void) => { descendHook = f; };
 /** start a run on the layout the LAB / URL chose (setLayout contract: before newGame()) */
 function startRun(loop?) {
-  if (descendHook) descendHook(); // render/titledoll.ts: the title's last frame stays up for the doll's snap (render only)
+  // render/titledoll.ts: the title's last frame stays up for the doll's snap. Render only, so it may never stop the run:
+  // a throw here (a lost canvas context, memory pressure on the Fold) used to leave DESCEND doing nothing
+  try { descendHook?.(); } catch (err) { console.warn('descend hook failed; the run starts without the snap', err); }
   liftJumpSeal();
   if (resumedFrom != null) setLayout(resumedFrom); // a RESUME flew the checkpoint's layout: a new run flies the chosen one
   applyRunLayout();

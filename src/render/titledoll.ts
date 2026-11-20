@@ -23,7 +23,8 @@ import LAY from '../sprites/title/doll.json';
 const URLS = import.meta.glob('../sprites/title/doll_*.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const IMG: Record<string, HTMLImageElement> = {};
 let warmed = false;
-/** start loading the layers (warmup.ts, and the first title frame) */
+/** start loading the layers: at boot (this module's top level, below: screens.ts imports it at startup, as sprites.ts
+ *  loads its strips), and again harmlessly from the title frame */
 export function warmTitleDoll(): boolean {
   if (warmed || typeof Image === 'undefined') return false;
   warmed = true;
@@ -37,11 +38,14 @@ export function warmTitleDoll(): boolean {
   return false;
 }
 const ready = (n: string) => !!IMG[n] && IMG[n].complete && IMG[n].naturalWidth > 0;
-export const titleDollReady = () => ready('face') && ready('eye_half') && ready('wound_0');
 
 const L = LAY.layers as Record<string, { off: number[]; size: number[]; px: number }>;
 const EYE_L = ['eye_half', 'eye_shut', 'eye_open'];
 const RISE_L = LAY.rises.map((r: number) => 'wound_' + r);
+warmTitleDoll(); // at boot (review 2026-11-20: it used to wait for the first title frame)
+/** every layer the title and its DESCEND snap draw: the face, all three eye states (a droop shows eye_shut, the snap
+ *  eye_open) and every fork rise, so no frame draws a head with no eyes */
+export const titleDollReady = () => ready('face') && EYE_L.every(ready) && RISE_L.every(ready);
 
 /** one layer at device (X, Y) = the head's origin, K device px per title px */
 function layer(D: CanvasRenderingContext2D, n: string, X: number, Y: number, K: number) {
@@ -98,12 +102,14 @@ function drawOut(D: CanvasRenderingContext2D) {
 /** once the fork is up, paint the open eyes and the risen fork into the kept frame, so the fade is one layer (two
  *  translucent layers would let the dozing lids show through the open eyes) */
 function flatten() {
-  const C = SNAP!.getContext('2d')!, K = SNAP!.width / W, X = TITLE.doll.x * K, Y = outY * K;
+  flat = true;
+  const C = SNAP && SNAP.getContext('2d');
+  if (!C) return;
+  const K = SNAP!.width / W, X = TITLE.doll.x * K, Y = outY * K;
   C.imageSmoothingEnabled = true;
-  C.imageSmoothingQuality = 'high';
+  C.imageSmoothingQuality = 'low'; // one pass at full device size on a frame of the run: 'high' could hitch on the Fold
   layer(C, 'eye_open', X, Y, K);
   layer(C, RISE_L[RISE_L.length - 1], X, Y, K);
-  flat = true;
 }
 /** DESCEND pressed on the title (menus.ts startRun, before newGame): keep the frame on screen for the snap. Nothing to
  *  do off the browser (the unit tests), or before the head is in */
@@ -112,7 +118,9 @@ export function armTitleOut() {
   if (!SNAP) SNAP = document.createElement('canvas');
   const C = cv as HTMLCanvasElement;
   SNAP.width = C.width; SNAP.height = C.height;
-  SNAP.getContext('2d')!.drawImage(C, 0, 0);
+  const S = SNAP.getContext('2d'); // null on a lost context or under memory pressure (the Fold): no snap, the run starts
+  if (!S) { SNAP.width = SNAP.height = 0; outT = -1; return; }
+  S.drawImage(C, 0, 0);
   outT = $.T;
   flat = false;
   outY = TITLE.doll.y + titleDoze($.T, POSE).jy;
@@ -122,7 +130,7 @@ onDescend(armTitleOut);
 export function drawTitleOut() {
   if (outT < 0) return;
   const f = $.T - outT;
-  if (f < 0 || f >= TOUT.end || $.state === 'title') { // done (or back on the title): let the snapshot go
+  if (f < 0 || f >= TOUT.end || $.state !== 'play') { // done, or left play (back on the title, paused, Android Back): let it go
     outT = -1;
     if (SNAP) { SNAP.width = SNAP.height = 0; }
     return;

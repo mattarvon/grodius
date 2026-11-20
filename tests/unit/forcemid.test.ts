@@ -183,6 +183,18 @@ describe('JUMP TO BOSS (D55): THE KEEPSAKE from the LAB', () => {
     expect(F.games).toBe(1);
     expect(runSealed()).toBe(false);
   });
+  it('starts the run and lifts the seal even when the DESCEND hook throws (the title doll snap on a lost canvas)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    M.onDescend(() => { throw new Error('getContext lost'); });
+    try {
+      tap('LAB');
+      tap('JUMP TO BOSS');
+      tap('DESCEND');
+      expect(F.games).toBe(1);
+      expect(runSealed()).toBe(false);
+      expect(warn).toHaveBeenCalled();
+    } finally { M.onDescend(() => {}); warn.mockRestore(); }
+  });
   it('two JUMP TO BOSSes in a row, then DESCEND: the real run is unsealed', () => {
     tap('LAB');
     tap('JUMP TO BOSS');
