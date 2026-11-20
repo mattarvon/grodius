@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { D, DRIP, E, GONE, HEAD, RAILS, VISIT, bobY, eggAdvance, eggFrame, eggReset, epochStart, maxStep } from '../../src/render/titleblood';
-import { TITLE, TITLE_EYE_CLEAR, TITLE_NOGO } from '../../src/titlelayout';
+import { TITLE, TITLE_DOLL_CLEAR, TITLE_EYE_CLEAR, TITLE_HERO, TITLE_NOGO, hitsTitleHero } from '../../src/titlelayout';
 
-// The title's easter egg must never sit on the menu, logo, text or ROT, however its visits fall. The rects come from the
-// layout table drawTitle draws from, so moving a title element and leaving a rail behind fails here
+// The title's easter egg must never sit on the menu, logo, text or the title's hero (THE KEEPSAKE's head, or ROT while
+// TITLE_HERO is 'rot'), however its visits fall. The rects come from the layout table drawTitle draws from, so moving a
+// title element and leaving a rail behind fails here
 const NOGO = TITLE_NOGO;
 const ROT = { x: TITLE.eye.x, y: TITLE.eye.y, clear: TITLE_EYE_CLEAR };
 const FRAMES = 1200000; // about 5.5 hours of title: hundreds of visits
@@ -14,11 +15,13 @@ function hitsRot(x: number, y: number, w: number, h: number) {
   const cx = Math.max(x, Math.min(ROT.x, x + w)), cy = Math.max(y, Math.min(ROT.y, y + h));
   return Math.hypot(cx - ROT.x, cy - ROT.y) < ROT.clear;
 }
+/** the hero the title draws: ROT's circle (checked here as well as by the layout), or the doll's ellipse */
+const hitsHero = (x: number, y: number, w: number, h: number) => (TITLE_HERO === 'rot' ? hitsRot(x, y, w, h) : false) || hitsTitleHero(x, y, w, h);
 
 beforeEach(() => eggReset());
 
 describe('the head\'s visits', () => {
-  it('never touches a no-go rect or ROT across a long sweep, and is sometimes absent', () => {
+  it('never touches a no-go rect or the title hero across a long sweep, and is sometimes absent', () => {
     let hit = 0, away = 0, here = 0;
     const seen = new Set<number>();
     for (let t = 0; t < FRAMES; t++) {
@@ -28,7 +31,7 @@ describe('the head\'s visits', () => {
       seen.add(E.rail);
       const x = Math.round(E.x), y = Math.round(E.y) + bobY(t);
       for (const r of NOGO) if (hitsRect(x, y, HEAD.w, HEAD.h, r)) hit++;
-      if (hitsRot(x, y, HEAD.w, HEAD.h)) hit++;
+      if (hitsHero(x, y, HEAD.w, HEAD.h)) hit++;
     }
     expect(hit).toBe(0);
     expect(away).toBeGreaterThan(0);
@@ -42,7 +45,7 @@ describe('the head\'s visits', () => {
     for (const r of RAILS) for (let u = 0; u <= 1; u += .002) for (const b of [-1, 1]) {
       const x = Math.round(r.x0 + (r.x1 - r.x0) * u), y = Math.round(r.y0 + (r.y1 - r.y0) * u) + b;
       for (const n of NOGO) if (hitsRect(x, y, HEAD.w, HEAD.h, n)) hit++;
-      if (hitsRot(x, y, HEAD.w, HEAD.h)) hit++;
+      if (hitsHero(x, y, HEAD.w, HEAD.h)) hit++;
     }
     expect(hit).toBe(0);
   });
@@ -98,14 +101,14 @@ describe('the drips', () => {
     expect(peak).toBeGreaterThan(0);
   });
 
-  it('never falls onto a no-go rect or ROT, whichever rail it left', () => {
+  it('never falls onto a no-go rect or the title hero, whichever rail it left', () => {
     let hit = 0, seen = 0;
     for (let t = 0; t < FRAMES / 4; t++) {
       eggAdvance(t);
       for (let i = 0; i < D.n; i++) {
         const tail = 1 + Math.floor(D.vy[i] * DRIP.tailK), x = Math.floor(D.x[i]), y = Math.floor(D.y[i]) - tail + 1;
         seen++;
-        if (NOGO.some((r) => hitsRect(x, y, D.w[i], tail, r)) || hitsRot(x, y, D.w[i], tail)) hit++;
+        if (NOGO.some((r) => hitsRect(x, y, D.w[i], tail, r)) || hitsHero(x, y, D.w[i], tail)) hit++;
       }
     }
     expect(seen).toBeGreaterThan(0);
@@ -148,5 +151,23 @@ describe('isolation', () => {
     expect(src).not.toMatch(/from '\.\.\/world'/);
     expect(src).not.toMatch(/Math\.random/);
     expect(src).not.toMatch(/\bR\(/);
+  });
+});
+
+describe('the title hero keep-out', () => {
+  it('follows the hero switch: the doll ellipse and fork rect, or the ROT circle and rope', () => {
+    const names = NOGO.map((r) => r.n);
+    if (TITLE_HERO === 'doll') {
+      expect(names).toContain('fork');
+      expect(names).not.toContain('rope');
+      // the head's centre and the baked face's extremes are inside; a box clear of the ellipse is not
+      expect(hitsTitleHero(TITLE.doll.x, TITLE.doll.y, 1, 1)).toBe(true);
+      expect(hitsTitleHero(TITLE.doll.x - 64, TITLE.doll.y, 1, 1)).toBe(true);
+      expect(hitsTitleHero(TITLE.doll.x, TITLE.doll.y + 80, 1, 1)).toBe(true);
+      expect(hitsTitleHero(TITLE_DOLL_CLEAR.x + TITLE_DOLL_CLEAR.rx + 1, TITLE_DOLL_CLEAR.y, 1, 1)).toBe(false);
+    } else {
+      expect(names).toContain('rope');
+      expect(hitsTitleHero(ROT.x, ROT.y, 1, 1)).toBe(true);
+    }
   });
 });
