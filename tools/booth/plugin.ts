@@ -6,16 +6,21 @@
 //   GET    /__booth/takes                      -> { [cat]: ["<slug>-matty-<n>.ogg", ...] } for every slot
 //   POST   /__booth/take?cat=<cat>&slug=<s>    body: the raw recording (audio/webm|ogg|wav|mp4, <= 25 MB)
 //          saves the raw take to assets-raw/voice/<cat>/ (git-ignored), runs the ffmpeg chain below and writes
-//          src/sfx/<cat>/<slug>-matty-<n>.ogg; -> { name, url, lufs, peak, dur, gain, warn? }
+//          src/sfx/<cat>/<slug>-matty-<n>.ogg; -> { name, url, lufs, peak, dur, gain, fx, warn? }. &fx=<json> keeps it
+//          through that FX rack (fx.ts, cleanFx'd) and records the rack in its .json
 //          &squeeze=0 keeps the mid-take pauses as recorded (default: shortened, VOX.squeeze). A raw take that clipped
 //          (VOX.clipAt) is saved but refused: 422 { error, clipped: true, rawPeak }
 //   DELETE /__booth/take?cat=<cat>&name=<file> removes one processed take (a raw take stays in assets-raw/)
-//   POST   /__booth/reprocess?cat=<cat>[&squeeze=0][&fx=<json>][&confirm=1]  re-runs the current chain on that slot's
-//          kept raw takes and rewrites the matching src/sfx takes (reprocess() below; the CLI is
-//          tools/booth/reprocess.mjs). A take kept before fx-dsp that would change (legacyTakes) is refused without
-//          confirm=1: 409 { error, legacy: [{ cat, name, why }] }, nothing touched
-//   GET    /__booth/legacy?cat=<cat>[&fx=<json>]  -> { legacy: [{ cat, name, why }] }: what that reprocess (with fx: that
-//          Apply FX) would refuse without confirm=1. Read only; the page asks with it first
+//   POST   /__booth/reprocess?cat=<cat>[&name=<take>][&squeeze=0][&fx=<json>][&confirm=1]  re-runs the current chain on
+//          that slot's kept raw takes and rewrites the matching src/sfx takes (reprocess() below; the CLI is
+//          tools/booth/reprocess.mjs); -> { takes: [{ name, done, why?, lufs, peak, dur, gain, fx, ... }] }. With fx, that
+//          rack replaces each take's own and is recorded in its .json ("Apply current FX"). &name=<take> (TAKE_RE): that
+//          one take only ("Re-keep with current FX"); 500 when it has no raw take. A take kept before fx-dsp that
+//          would change (legacyTakes) is refused without confirm=1: 409 { error, legacy: [{ cat, name, why }] }, nothing
+//          touched; a raw take that clipped is skipped (done: false), its processed take left as it was
+//   GET    /__booth/legacy?cat=<cat>[&name=<take>][&fx=<json>]  -> { legacy: [{ cat, name, why }] }: what that
+//          reprocess (with fx: that Apply FX; with name: that take) would refuse without confirm=1. Read only; the page
+//          asks with it first
 //   POST   /__booth/preview?cat=<cat>&fx=<json>[&squeeze=0][&name=<take>]  runs the chain plus the FX rack (fx.ts) on the
 //          posted raw take, or on the kept raw take <name> of that slot, into a temp file and answers the .ogg itself
 //          (x-booth-info: its numbers). Writes nothing in src/; a clipped take is previewed anyway, with a warning. A request
@@ -453,8 +458,9 @@ export class LegacyTakes extends Error {
   }
 }
 
-/** `legacy`: the take was kept before fx-dsp and now sounds different (legacyWhy): listen to it before a commit */
-export type Redone = { cat: string; name: string; done: boolean; why?: string; lufs?: number | null; dur?: number | null; long?: string; warn?: string; legacy?: string };
+/** `legacy`: the take was kept before fx-dsp and now sounds different (legacyWhy): listen to it before a commit. `peak`,
+ *  `gain` and `fx` (the rack's name, '' for clean) let the booth's KEPT deck show a re-kept take like a fresh keep */
+export type Redone = { cat: string; name: string; done: boolean; why?: string; lufs?: number | null; peak?: number | null; dur?: number | null; gain?: number; fx?: string; long?: string; warn?: string; legacy?: string };
 /** a rewritten take's record, stamped with the chain it now carries: the record as on disk (or the squeeze it got,
  *  for a take kept before records existed), the applied rack over its own, and `chain` */
 function stamp(rdir: string, name: string, squeeze: boolean, fx: FxSet | undefined) {
@@ -464,15 +470,15 @@ function stamp(rdir: string, name: string, squeeze: boolean, fx: FxSet | undefin
   fs.writeFileSync(optsFile(rdir, name), JSON.stringify({ ...j, ...(fx ? { fx } : {}), chain: FX_CHAIN }));
 }
 /** the takes a reprocess of these slots would rewrite that were kept before fx-dsp and would change (legacyWhy):
- *  read only. `apply`: the rack an Apply FX puts on them */
-export function legacyTakes(root: string, cats: string[], apply?: FxSet): { cat: string; name: string; why: string }[] {
+ *  read only. `apply`: the rack an Apply FX puts on them. `only`: that one take (a TAKE_RE name), the others left out */
+export function legacyTakes(root: string, cats: string[], apply?: FxSet, only?: string): { cat: string; name: string; why: string }[] {
   const sfx = path.join(root, 'src', 'sfx'), rawBase = path.join(root, 'assets-raw', 'voice'), out: { cat: string; name: string; why: string }[] = [];
   for (const cat of [...new Set(cats)]) {
     if (!okCat(cat)) continue;
     const rdir = path.join(rawBase, cat);
     for (const f of list(rdir).sort()) {
       const m = RAW_RE.exec(f), name = m && m[1] + '.ogg';
-      if (!name || !fs.existsSync(path.join(sfx, cat, name))) continue;
+      if (!name || (only && name !== only) || !fs.existsSync(path.join(sfx, cat, name))) continue;
       const why = legacyWhy(readOpts(rdir, name), apply);
       if (why) out.push({ cat, name, why });
     }
@@ -486,15 +492,22 @@ export function legacyTakes(root: string, cats: string[], apply?: FxSet): { cat:
  *  take with no processed take (deleted on purpose: never brought back), and one whose raw clipped (the old take
  *  stays as it is). One take at a time; each is processed beside its raw and renamed in, and its record stamped
  *  with FX_CHAIN. A run that would change a take kept before fx-dsp (legacyTakes) throws LegacyTakes before touching
- *  anything, unless o.confirm. The booth's reprocess endpoint and tools/booth/reprocess.mjs both call it */
-export async function reprocess(root: string, cats: string[], o: { squeeze?: boolean; fx?: FxSet; confirm?: boolean; log?: (r: Redone) => void; process?: typeof processTake } = {}): Promise<Redone[]> {
+ *  anything, unless o.confirm. `o.only` (a take name, TAKE_RE; one slot): that take alone, the booth's "Re-keep with
+ *  current FX"; no raw take of that name is an error, not an empty run. The booth's reprocess endpoint and
+ *  tools/booth/reprocess.mjs both call it */
+export async function reprocess(root: string, cats: string[], o: { squeeze?: boolean; fx?: FxSet; confirm?: boolean; only?: string; log?: (r: Redone) => void; process?: typeof processTake } = {}): Promise<Redone[]> {
   const proc = o.process ?? processTake; // a test stands in for ffmpeg here (tests/integration/booth-reprocess.test.ts)
   const out: Redone[] = [];
   const sfx = path.join(root, 'src', 'sfx'), rawBase = path.join(root, 'assets-raw', 'voice'), quips = readQuips(root).quips;
   // every name checked before any take is touched: a typo must not leave the run half done
   for (const cat of cats) if (!okCat(cat) || !voiceSlot(cat, quips)) throw new Error(`booth: ${JSON.stringify(cat)} is not a voice slot`);
+  if (o.only !== undefined) {
+    if (!TAKE_RE.test(o.only)) throw new Error('booth: not a take name');
+    if (new Set(cats).size !== 1) throw new Error('booth: one take is re-kept in one slot');
+    if (!list(path.join(rawBase, cats[0])).some((f) => RAW_RE.exec(f)?.[1] + '.ogg' === o.only)) throw new Error(`booth: no raw take for ${o.only}`);
+  }
   // and nothing shipped changes without a yes (the retroactive studio review: a pre-fx-dsp rack does not reprocess the same)
-  const legacy = legacyTakes(root, cats, o.fx);
+  const legacy = legacyTakes(root, cats, o.fx, o.only);
   if (legacy.length && !o.confirm) throw new LegacyTakes(legacy);
   const legacyOf = new Map(legacy.map((t) => [`${t.cat}/${t.name}`, t.why]));
   for (const cat of [...new Set(cats)]) {
@@ -506,6 +519,7 @@ export async function reprocess(root: string, cats: string[], o: { squeeze?: boo
       const m = RAW_RE.exec(f);
       if (!m) continue;
       const name = m[1] + '.ogg', dest = path.join(dir, name), part = path.join(rdir, name + '.part.ogg');
+      if (o.only !== undefined && name !== o.only) continue;
       let r: Redone;
       if (!fs.existsSync(dest)) r = { cat, name, done: false, why: 'no processed take in src/sfx (deleted, or refused when kept): left alone' };
       else {
@@ -517,7 +531,7 @@ export async function reprocess(root: string, cats: string[], o: { squeeze?: boo
           fs.renameSync(part, dest);
           stamp(rdir, name, had?.squeeze ?? o.squeeze !== false, o.fx);
           const was = legacyOf.get(`${cat}/${name}`);
-          r = { cat, name, done: true, lufs: p.lufs, dur: p.dur, long: lenWarn(slot, p.dur), warn: p.warn, ...(was ? { legacy: was } : {}) };
+          r = { cat, name, done: true, lufs: p.lufs, peak: p.peak, dur: p.dur, gain: p.gain, fx: p.fx, long: lenWarn(slot, p.dur), warn: p.warn, ...(was ? { legacy: was } : {}) };
         } catch (e) {
           r = { cat, name, done: false, why: skipWhy(e) };
         } finally {
@@ -741,7 +755,9 @@ export function booth(): Plugin {
           // read only: what a reprocess (or, with fx, an Apply FX) of the line would change among takes kept before fx-dsp
           const quips = readQuips(root).quips;
           if (!okCat(cat) || !voiceSlot(cat, quips)) return send(res, 400, { error: `booth: ${JSON.stringify(cat)} is not a voice slot` });
-          return send(res, 200, { legacy: legacyTakes(root, [cat], fxParam(u.searchParams)) });
+          const only = u.searchParams.get('name');
+          if (only != null && !TAKE_RE.test(only)) return send(res, 400, { error: 'booth: not a take name' });
+          return send(res, 200, { legacy: legacyTakes(root, [cat], fxParam(u.searchParams), only ?? undefined) });
         }
         if (u.pathname === '/__booth/quips') {
           if (req.method === 'GET') return send(res, 200, readQuips(root));
@@ -779,9 +795,11 @@ export function booth(): Plugin {
           if (req.method !== 'POST') return send(res, 405, { error: 'booth: method' });
           // in the keep queue: a reprocess and a keep never write the same folder at once. ?fx= applies that rack to
           // every take of the line (and records it with each); without it, each take keeps its own
-          // A take kept before fx-dsp is not rewritten without &confirm=1: 409 { legacy: [...] }, the page asks first
-          const confirm = u.searchParams.get('confirm') === '1';
-          const step = queue.then(() => reprocess(root, [cat], { squeeze, confirm, ...(fx ? { fx } : {}) }));
+          // A take kept before fx-dsp is not rewritten without &confirm=1: 409 { legacy: [...] }, the page asks first.
+          // &name=<take> (TAKE_RE, checked here and in reprocess) rewrites that one take only: "Re-keep with current FX"
+          const confirm = u.searchParams.get('confirm') === '1', only = u.searchParams.get('name');
+          if (only != null && !TAKE_RE.test(only)) return send(res, 400, { error: 'booth: not a take name' });
+          const step = queue.then(() => reprocess(root, [cat], { squeeze, confirm, ...(fx ? { fx } : {}), ...(only != null ? { only } : {}) }));
           queue = step.catch(() => {});
           return void step.then((r) => send(res, 200, { takes: r }), (e) => e instanceof LegacyTakes
             ? send(res, 409, { error: e.message, legacy: e.takes })
