@@ -65,10 +65,18 @@ sfx.squish for the wet ones, nothing for the rest), and it is audio only: never 
                                                    TO BED: prio: true, duckMusic(7); it sits under the readout and SLAB
   kboss_mobilebox  1  9.6 s      -36    .03   .55  the same box faint and far, in the world while the fork mobile hangs (phases
                                                    2-3): call it every 540 f (9 s) while the mobile has forks; stop when gone
+  kboss_creak      3  0.9 s      -28    .22   .20  (D59) the threads drawing taut: a recall's and a tug's tell start. A slow
+                                                   stick-slip creak of thread on steel tightening (rate climbing), a fine
+                                                   wire whine rising under it, a tick of the planted forks at .7 s
+  kboss_seen       2  0.55 s     -24    .19   .20  (D59) the search beam finds the ship: the rocker's two glass eyes swing to a
+                                                   stop (two hard clicks, 40 ms apart) and a bent music-box tine sounds,
+                                                   flat and wrong. prio: true (a tell); the forks fall 50 f later
 
 Pillar 5: the box is broken, never sweet; the crier is a toy part, never a child. Audio only: nothing here draws R().
 Every file is peak-normalized by gen_sfx.write_ogg; its level in the mix is set where it plays (the vol column).
 Seeded (2049): the same run writes the same files. --measure prints each bank's momentary max and the vol for its target.
+--only kboss_a,kboss_b writes (or measures) just those banks, each from its own seed (2049 + its position in CATS), so
+adding a bank never rewrites the shipped ones: D59 made kboss_creak and kboss_seen that way.
 """
 import os, re, subprocess, sys
 import numpy as np
@@ -413,6 +421,35 @@ def swing(i):
     return lp(sat(buf, 1.2), 6000)
 
 
+def creak(i):
+    """(D59) the threads drawing taut, the recall's tell: thread on steel, a stick-slip creak whose rate climbs as it
+    tightens, a thin wire whine rising under it, and the planted forks ticking once as they take the strain"""
+    d = .9; n = int(SR * d); t = t_(d); buf = np.zeros(n)
+    cl = .75; tc = t_(cl)
+    cr = stickslip(cl, rng.uniform(35, 45), rng.uniform(150, 190), 600, 3200, [(rng.uniform(900, 1300), 6, .6), (rng.uniform(2100, 2600), 9, .3)], jit=.3)
+    place(buf, cr * np.clip(tc / .08, 0, 1) * (.5 + .5 * tc / cl) * .7, 0)
+    f0 = rng.uniform(1300, 1600)
+    wh = np.sin(2 * np.pi * np.cumsum(f0 * (1 + .35 * tc / cl)) / SR) * (tc / cl) ** 2 * .06
+    place(buf, bp(wh, 900, 4000), 0)
+    for k in range(3):
+        place(buf, modes(rng.uniform(1800, 2500), [1, 2.76], [.05, .02], [1, .3], .1) * .25, .7 + k * rng.uniform(.012, .03))
+    return lp(sat(buf, 1.2), 7500)
+
+
+def seen(i):
+    """(D59) the search beam finds the ship: the rocker's glass eyes swing to a stop and knock (two hard clicks, ~40 ms
+    apart), then one bent music-box tine, flat and wrong, left hanging"""
+    d = .55; buf = np.zeros(int(SR * d))
+    f = rng.uniform(2900, 3400)
+    place(buf, glass(f, 1.0, .09), 0)
+    place(buf, glass(f * rng.uniform(1.05, 1.09), .85, .09), rng.uniform(.035, .045))
+    tf = hz('A6') * 2 ** (rng.uniform(-.7, -.45) / 12)  # a quarter tone and more flat
+    tl = .45; tt = t_(tl)
+    tn = (np.sin(2 * np.pi * np.cumsum(tf * (1 - .004 * tt / tl)) / SR) + .25 * np.sin(2 * np.pi * tf * 3.9 * tt)) * np.exp(-tt / .16)
+    place(buf, tn * .5 * np.clip(tt / .003, 0, 1), .08)
+    return lp(sat(buf, 1.3), 9000)
+
+
 # ---------------- the music box (Brahms, Wiegenlied op. 49 no. 4, 1868: public domain) ----------------
 # the melody, C major, 3/4: (note, beats). Transcribed from the tune itself
 WIEGENLIED = [('E5', .5), ('E5', .5), ('G5', 1.5), ('E5', .5), ('E5', 1), ('G5', 2), ('E5', .5), ('G5', .5),
@@ -548,6 +585,7 @@ CATS = {
     'kboss_wake': (wake, 2, -22), 'kboss_enrage': (enrage, 2, -20), 'kboss_shut': (shut, 3, -30),
     'kboss_topple': (topple, 2, -24), 'kboss_die': (die, 1, -20),
     'kboss_musicbox': (musicbox, 2, -19), 'kboss_musicend': (musicend, 1, -21), 'kboss_mobilebox': (mobilebox, 1, -36),
+    'kboss_creak': (creak, 3, -28), 'kboss_seen': (seen, 2, -24),  # D59: written with --only (see the header)
 }
 
 
@@ -562,8 +600,16 @@ def mmax(path):
 
 
 if __name__ == '__main__':
+    only = next((a.split('=', 1)[1] if '=' in a else sys.argv[sys.argv.index(a) + 1] for a in sys.argv[1:] if a.startswith('--only')), None)
+    if only:
+        keep = only.split(',')
+        for c in keep: assert c in CATS, c
+        order = list(CATS)
+        CATS = {c: CATS[c] for c in keep}
     if '--measure' not in sys.argv[1:] or '--gen' in sys.argv[1:]:
         for cat, (fn, count, _) in CATS.items():
+            if only:  # its own seed: the bank sounds the same however many others are written with it
+                rng = np.random.default_rng(2049 + order.index(cat)); G.rng = rng; K.rng = rng; globals()['rng'] = rng
             d = os.path.join(G.OUT, cat); os.makedirs(d, exist_ok=True)
             for f in os.listdir(d):
                 if f.startswith('gen-'): os.remove(os.path.join(d, f))
