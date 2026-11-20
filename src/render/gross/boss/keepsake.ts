@@ -15,6 +15,12 @@
 // the rocker on its wire, the swing's arc. The telegraphs (under): the fountain's landing marks and paths, the aimed
 // and boomerang lines, the flying fork, the hoop mobile (a ring seen edge-on, never crossed bars: those read as a cross)
 // with each fork's drop tell and column mark. Imply-only (D46/D53): a toy and the ship's meat, no child, no bone, no teeth.
+// IT WON'T LET GO (D59): the planted forks (tines out of the floor and ceiling, a dim enemy-fire glow, a dab of the
+// ship's blood where they went in), the recall's and the tug's threads (dashed, then a solid 3 px line, the throw
+// line's grammar), the forks flying home, and CRACKED's search beam: a hatched cone from the rocker's glass eyes and,
+// when it finds the ship, a hatched band down the ship's column that fills top to bottom over its 50 f (it reads with
+// the sound off and the flashes off: hatching, not a colour alone). Every fork is drawn by render/fork.ts drawFork, the
+// one fork path (eshots draw through it too), so the fork reskin lands everywhere at once.
 // Render-only: e.t / $.T and hashes for motion, the midboss fx stream for particles, never the sim RNG; nothing
 // allocated per frame (module scratch only).
 import { $ } from '../../../state';
@@ -87,6 +93,11 @@ function line(e, locked, a) {
   ctx.strokeStyle = locked ? '#ff503c' : '#ff8c6e';
   ctx.lineWidth = locked ? 3 : 1.4; // locked: 3 px, readable at phone size (spec §9)
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(e.la) * 560, y + Math.sin(e.la) * 560); ctx.stroke();
+  if (e.st === 'aim' && e.ph) { // from AWAKE the throw is a fan of three (D59): its two outer lines, thinner
+    ctx.lineWidth = locked ? 2 : 1; ctx.globalAlpha *= .75; ctx.beginPath();
+    for (const k of [-1, 1]) { const a = e.la + k * KB.fan; ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * 560, y + Math.sin(a) * 560); }
+    ctx.stroke();
+  }
   ctx.restore();
 }
 /** the big fork, spinning (tines first along a): the atlas's fork (tines down, so turned a - 90 deg), the midboss's, a line fork */
@@ -106,7 +117,7 @@ function marks(e) {
   ctx.lineCap = 'round';
   for (let i = 0; i < e.fn; i++) {
     if (st === 'fount' && e.wt >= e.fl[i]) continue;
-    const x = e.fx[i], y = e.fy;
+    const x = e.fx[i], y = e.fz[i];
     let vx = e.fv[i], vy = e.fw[i];
     if (e.fl[i] >= 1e9) { const ly = wy - 4, u = riseCap(e.fq[i], ly), T = lobFrames(u, y - ly); vx = (x - wx) / T; vy = -u + .025 * T; }
     ctx.globalAlpha = (.14 + .2 * k) * pul;
@@ -174,10 +185,113 @@ function mobile(e) {
   ctx.restore();
 }
 
+// ---------------- IT WON'T LET GO (D59) ----------------
+/** the planted forks: tines out of the floor (side 1) or ceiling (-1), handle 1 px in. A shudder when a thread has it
+ *  (the recall's and tug's tells) or a cry is about to shake it loose */
+function planted(e) {
+  if (!e.pn) return;
+  const sc = $.G.scroll, threads = e.rcW > 0 || e.st === 'tug', cry = e.st === 'mama' && e.wt < KB.mama + KB.mamaGap;
+  ctx.save();
+  for (let i = 0; i < e.pn; i++) {
+    const x0 = e.pX[i] - sc, y = e.pY[i], sd = e.pS[i];
+    if (x0 < -10 || x0 > W + 10) continue;
+    const hot = (threads && e.pQ[i]) || (cry && (sd > 0 || e.wt >= KB.mama)) ? 1 : 0;
+    const x = x0 + (hot ? (hash(($.T >> 1) + i * 7) - .5) * 2.2 : 0);
+    // where it went in: a dark dab and the ship's blood
+    ctx.fillStyle = 'rgba(20,6,6,.8)'; ctx.beginPath(); ctx.ellipse(x0, y, 4, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = BLOOD; ctx.fillRect(x0 - 2, sd > 0 ? y - 1.5 : y, 4, 1.5);
+    ctx.globalCompositeOperation = 'lighter';
+    glow(x, y - sd * 7, 9 + 3 * hot, '150,255,40', .14 + .3 * hot);
+    ctx.globalCompositeOperation = 'source-over';
+    drawFork(ctx, x, y - sd * 6, sd > 0 ? -Math.PI / 2 : Math.PI / 2, 1); // tines out, its handle's end 3 px into the surface
+  }
+  ctx.restore();
+}
+/** the recall's and the tug's threads, from each chosen fork to where the wound was at the tell's start: dashed and
+ *  faint, then a solid 3 px line for the last recLock frames (where each will fly is fixed) */
+function threads(e, tug) {
+  const tel = tug ? KB.tug : KB.recall, w = tug ? e.wt : e.rcW, k = Math.min(1, w / tel), locked = w >= tel - KB.recLock, sc = $.G.scroll;
+  const q = tug ? 1 : 2, tx = tug ? e.tux : e.rtx, ty = tug ? e.tuy : e.rty; // the sim's TUG / RECALL threads
+  ctx.save();
+  ctx.setLineDash(locked ? SOLID : DASH); ctx.lineDashOffset = $.T * .6; // the dashes run toward the wound: it is pulling
+  ctx.strokeStyle = locked ? '#ff503c' : '#ff8c6e';
+  ctx.globalAlpha = locked ? .55 + .35 * k : .2 + .35 * k;
+  ctx.lineWidth = locked ? 3 : 1.2;
+  ctx.beginPath();
+  for (let i = 0; i < e.pn; i++) {
+    if (e.pQ[i] !== q) continue;
+    ctx.moveTo(e.pX[i] - sc, e.pY[i] - e.pS[i] * 9); ctx.lineTo(tx, ty);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+/** the forks flying home along their threads: the rest of each thread still drawn, the fork tines first */
+function homing(e) {
+  if (!e.fh) return;
+  ctx.save();
+  ctx.strokeStyle = '#ff503c'; ctx.globalAlpha = .5; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let j = 0; j < e.fh; j++) { ctx.moveTo(e.hX[j], e.hY[j]); ctx.lineTo(e.hX[j] + e.hVX[j] * e.hF[j], e.hY[j] + e.hVY[j] * e.hF[j]); }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'lighter';
+  for (let j = 0; j < e.fh; j++) glow(e.hX[j], e.hY[j], 12, '150,255,40', .5);
+  ctx.globalCompositeOperation = 'source-over';
+  for (let j = 0; j < e.fh; j++) drawFork(ctx, e.hX[j], e.hY[j], Math.atan2(e.hVY[j], e.hVX[j]), 1);
+  ctx.restore();
+}
+/** stripes across the current clip, every `step` px at 45 deg (the beam's and the mark's hatching) */
+function hatch(x0, y0, x1, y1, step, off) {
+  ctx.beginPath();
+  for (let u = x0 - (y1 - y0) + (off % step); u < x1; u += step) { ctx.moveTo(u, y1); ctx.lineTo(u + (y1 - y0), y0); }
+  ctx.stroke();
+}
+/** CRACKED's search beam: a hatched cone along the rocker's wire, pale glass blue, dimmed while it rests; and the mark,
+ *  a hatched band down the ship's column with its edges ruled, filling from the ceiling to the floor as the forks come
+ *  (three chevrons at the top where they will fall) */
+function searchBeam(e) {
+  if (!e.rocker || e.st === 'dying') return;
+  const x = e.box, y = e.boy, a = Math.atan2(e.bdy, e.bdx), L = KB.bLen, h = KB.bHalf;
+  const rest = e.bCd > 0 || e.mkT > 0 || e.p3t < KB.pRamp + KB.bArm, al = rest ? .35 : 1;
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a - h) * L, y + Math.sin(a - h) * L); ctx.lineTo(x + Math.cos(a + h) * L, y + Math.sin(a + h) * L); ctx.closePath();
+  ctx.fillStyle = 'rgba(190,220,255,' + (.07 * al) + ')'; ctx.fill();
+  ctx.save(); ctx.clip();
+  ctx.strokeStyle = 'rgba(205,230,255,' + (.28 * al) + ')'; ctx.lineWidth = 1;
+  hatch(Math.min(x, x + Math.cos(a) * L) - 80, Math.min(y, y + Math.sin(a) * L) - 80, Math.max(x, x + Math.cos(a) * L) + 80, Math.max(y, y + Math.sin(a) * L) + 80, 7, $.T * .4);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(215,235,255,' + (.55 * al) + ')'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a - h) * L, y + Math.sin(a - h) * L); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a + h) * L, y + Math.sin(a + h) * L); ctx.stroke();
+  if (e.mkT > 0) {
+    const k = 1 - e.mkT / KB.bTel, hw = KB.bRainDx + 8, x0 = e.mkX - hw, x1 = e.mkX + hw, sc = $.G.scroll;
+    const top = Math.max(0, ceilAt(e.mkX + sc)), bot = Math.min(PH, floorAt(e.mkX + sc)), fill = top + (bot - top) * k;
+    ctx.beginPath(); ctx.rect(x0, top, 2 * hw, fill - top); ctx.save(); ctx.clip();
+    ctx.strokeStyle = 'rgba(255,90,60,.55)'; ctx.lineWidth = 1.5;
+    hatch(x0, top, x1, fill, 6, 0); // the part filled so far: dense red hatching
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,110,80,' + (.45 + .45 * k) + ')'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x0, bot); ctx.moveTo(x1, top); ctx.lineTo(x1, bot); ctx.stroke();
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0, fill); ctx.lineTo(x1, fill); ctx.stroke(); // the fill's edge, dropping
+    for (let i = 0; i < KB.bRainN; i++) { // where the three forks fall
+      const fx = e.mkX + (i - (KB.bRainN - 1) / 2) * KB.bRainDx;
+      ctx.beginPath(); ctx.moveTo(fx - 4, top + 4); ctx.lineTo(fx, top + 9); ctx.lineTo(fx + 4, top + 4); ctx.stroke();
+    }
+    // the stare: a fine line from the glass eyes to the mark
+    ctx.lineWidth = 1; ctx.setLineDash(DASH); ctx.strokeStyle = 'rgba(215,235,255,.6)';
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(e.mkX, (top + bot) / 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function under(e) {
   if (e.dead) return;
+  planted(e);
   mobile(e);
+  homing(e);
   if (e.st === 'dying') return;
+  if (e.ph === 2 && e.tr <= 0) searchBeam(e);
+  if (e.rcW > 0) threads(e, false);
+  if (e.st === 'tug') threads(e, true);
   if ((e.st === 'tell' || e.st === 'fount') && e.fn) marks(e);
   if (e.st === 'aim') line(e, e.wt >= KB.aim - KB.lock, e.wt / KB.aim);
   if (e.st === 'boom') line(e, e.wt >= KB.boomTel - KB.boomLock, e.wt / KB.boomTel);
