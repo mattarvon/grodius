@@ -1105,3 +1105,105 @@ NOTES (the CHANGELOG now says old long4 RE-ENTERs drop; S2-K1 ships open by Matt
 narrative-director, localization-lead: no impact (no art, sound, copy or strings change here); creative-director APPROVE
 (Matt's D31, tone untouched); technical-director APPROVE WITH NOTES (perf-probe the climax and the Drive boot before the
 next Fold session); producer APPROVE WITH NOTES (kboss-core rebases next; the §10 calls stay with Matt).
+
+### D59 THE KEEPSAKE: IT WON'T LET GO (package C + the search beam + the shared fixes) — 2026-11-20 (Matt's calls; branch `kboss-core`)
+
+**Decision point:** Matt played `?stage=fire&slot=1&x=boss&kit=mid`: "super cool looking. was easy as hell to beat. can
+we ... make it harder and more interesting. the look is great though." The design pass
+(`production/qa/keepsake-difficulty-proposal-2026-11-20.md`) measured why. A ship that never moved killed it in 21-29 s
+at the mid kit and took 2 hits, both from the one boomerang. DOZING and CRACKED never hit a stationary ship at mid
+height, the fight ran about 7 attacks in 26 s one at a time, and the 25 s clocks were never reached.
+**Options considered:** A, "THE MOBILE TURNS" (a music-box tempo layer); B, "IT'S WATCHING" (the sleep eyes as a gaze);
+C, "IT WON'T LET GO" (it hoards its forks; recommended); and four shared fixes.
+**Chosen (Matt, 2026-11-20):**
+- **C, plus B's search beam in CRACKED only.**
+- **All four shared fixes:**
+  - forks fall through to the floor
+  - cuts at 75% / 35%, with at least three attacks in DOZING
+  - CRACKED keeps the crown line
+  - 18 s clocks
+- **The proposal's targets,** since Matt didn't rule on length: about 40 s at kit=mid (38-46), no safe spot, every new
+  threat with a tell of at least 44 f and a guaranteed gap.
+
+**Built** (`src/enemies/boss/keepsake.ts`, tuning and pure rules in `_keepsake.ts` KB, art in
+`render/gross/boss/keepsake.ts`):
+- **The hoard.** A KEEPSAKE fork that strikes the floor or ceiling plants there, tines out (the eshot `land` hook now
+  also does this sim-side work; still no `R()`). Up to `plN` 10 (14 enraged; the oldest falls away), standing 14 px
+  out, so the tightest arena keeps 172 px of lane. Each is a contact hazard at 4 and 10 px from the surface.
+- **The fountain falls through.** Its forks fall through to the floor in their columns. The ship's column's fork is
+  aimed through where the ship was at the tell's first frame (its mark sits there), then falls on.
+- **The recall: its own clock, the fight's second layer.**
+  - Clock: `recEvery` 300 / 270 / 240 f, 160 enraged, with at least 3 forks planted. It overlaps the attacks.
+  - A 50 f tell: a thread from each chosen fork to the wound, dashed, then a solid 3 px line for the last 16 f. Then
+    they fly home at 3.2 x BS.
+  - `recallPick` keeps a free run of at least 30 px in the ship's column (a unit test over 3000 random hoards).
+  - Every 3 forks caught add one to the next fountain.
+- **AWAKE's tug** (in the turn order: drop, boomerang, tug, drop, wail): one thread from the planted fork nearest the
+  ship (54 f), then it is yanked home at 6 x BS. From AWAKE on, the throw is a fan of three (the two outer lines are
+  drawn too).
+- **CRACKED's cries shake the hoard loose.** Floor forks go up on the first ring, ceiling forks down on the second, and
+  they plant again on the far side. Breaking the crier ends that and slows the pendulum to a 4 s swing (`pPer2`). The
+  swing's phase is carried, so it never jumps.
+- **The search beam (B, CRACKED only).** A cone of about 9 deg (440 px) out from the rocker's weight along its wire,
+  hatched pale glass-blue.
+  - It is quiet until the swing has built (`pRamp` + 60 f).
+  - When it sees the ship, `kboss_seen` plays and the ship's column is marked. The mark is a 48 px hatched band with
+    ruled edges, three chevrons, and a red hatch filling top to bottom over 50 f. Then three forks fall in it from the
+    ceiling (and plant).
+  - The beam itself never hurts. It looks again 70 f after the forks fall.
+  - It reads with the sound and the flashes off: hatching, not colour alone.
+- **The shared fixes:**
+  - cut1 .75, cut2 .35
+  - DOZING's staged floor `p1Floor`: an attack counts once its forks are out
+  - `crown3` 26 (was 12)
+  - clocks 18 s
+- **Pacing:**
+  - cooldowns 36 / 28 / 26 (were 60 / 40 / 36)
+  - the fountain's open window 40 f (was 60)
+  - `p2MinWin` stays 3. 4 was tried and held a strong kit to the mid kit's time.
+- **HP 440** (was 320). Base HP, so D58's x1.4 is not in it. **If D58 #2 ships, divide this by 1.4 (to about 314) in
+  the same change.** The note sits beside `et.hp`.
+- **Sound.** Two new procedural banks from `tools/gen_keepsake_boss_sfx.py`, written with its new `--only` flag (each
+  from its own seed, so the 17 shipped banks were not rewritten):
+  - `kboss_creak`: the threads drawing taut (3 takes, -28, vol .22)
+  - `kboss_seen`: two glass clicks and a bent tine (2 takes, -24, vol .19)
+
+  Both are lazy like every `kboss_` bank.
+- **Art.** No new photo art. Every fork (planted, homing, falling) is drawn by `render/fork.ts` `drawFork`, the one fork
+  path, so the art department's fork reskin lands everywhere at once. Threads, the beam and the mark are procedural.
+
+**Measured** (`tools/keepsake-probe.mjs`, new, on Matt's URL, Descent 1, rank unpinned; fresh dev server; mid at
+rank .26; before = f728316):
+
+| | before | after | target |
+|---|---|---|---|
+| TTK kit=mid, park bot (3 seeds) | 26.4 | 37.7-38.0 | 38-46 |
+| TTK kit=mid, mortal pilot (5 seeds) | 26.5-27.0 | 38.1-44.0 (mean 39.8) | 38-46 |
+| would-be hits/min kit=mid, park (never dodges) | ~4.5 | 15.8-17.5 | 14-22 |
+| fixed-spot cheese, kit=mid (8 spots) | 2 hits in 21-29 s at mid height; 0 in DOZING and CRACKED | 16-29/min; every phase >= 2 hits on every spot (lowest 200,140: DOZING 2 in 8.8 s) | no safe park |
+| mortal pilot kit=mid: hits/min, deaths per clear | 0, 0 | 0.3 (1 death in 5 clears) | 1.5-3, 0.3-1 |
+| kit=full (the phone's JUMP TO BOSS): TTK park / pilot | 18.0 / - | 27.7 / 27.5-27.6, park 15.2 hits/min | |
+| naked: TTK park / pilot, pilot deaths | 40.4 / 41.6, 0 | 54.3 / 56-63, 0-2 (enrages; still winnable) | |
+| boss-probe STAGE 1 / END D1 / STRONG | 25.3 / 18.9 / 16.0 | 34.5 / 28.4 / 26.2 (floor PASS) | STRONG >= 18 |
+| crier, STAGE 1 kit bolts | 2.9 s | 2.7 s | < 3 |
+
+**Not hit:** the mortal pilot's hits/min. `tools/pilot.mjs` (24 f look-ahead, perfect information, full speed every
+frame) also takes **0 hits on the Butcher** at kit=mid (3 seeds), so it can't score D1 boss pressure for a human. The
+park bot and the spot grid are this fight's pressure measures. The pilot's earlier "deaths" with the beam's band fed to
+it late were a probe artifact (it was put inside the band), so the band is not fed to it. Strong kits compress: the
+attack and window floors give about 26 s at STRONG against about 38 s at mid. Matt asked for at least 3 attacks in
+DOZING, and that sets the floor.
+
+**Determinism and gates:**
+- `short` and `long4` PASS unchanged; every other scenario PASS unchanged.
+- `keepsake-d1`/`-d3` are re-baselined: the fight's sim changed (new attacks, the hoard, HP 440, the cuts). `--runs 2`
+  is identical.
+- rng-probe is not re-run here (no render or audio draw added on the sim stream; the new render uses `hash` and `$.T`
+  only).
+- Unit tests: `keepsake.test.ts` and `keepsake-sim.test.ts` (49) pass. The 5 Windows-only failures
+  (layout-literals x2, bioreplay, rng-split scan path, runsave, warnbanner) are main's. The one new literal this change
+  added (`clock: 1080`) was rewritten as `18 * 60`.
+- The `drive` scenario REGRESSES here (score, gibs, drops, kills, sig). It fails identically on a clean checkout of
+  f728316 (verified in a throwaway worktree), so it predates D59. Left for the owner of the drive baseline.
+
+**Category:** balance, design
