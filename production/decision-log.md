@@ -1208,6 +1208,32 @@ DOZING, and that sets the floor.
 
 **Category:** balance, design
 
+**Pre-merge review fixes (2026-11-20, studio review "ship after fixes"):**
+- **Recall gap vs a live tug.** A tug's thread now counts against the recall's gap first (`recallPick`'s `fixed`), and
+  no tug starts while a recall's threads are up.
+- **Gap bounds.** The gap is checked only where the ship can fly: its clamp 6 .. PH - 6, less a planted fork's 14 px
+  in its column (`recallBounds`).
+- **Stuck threads.** A thread with no flight slot is cut, so the fork can't stick on it. Flight arrays are now
+  2 x plRage.
+- **Boomerang hitbox.** It is now a capsule along the spinning fork as drawn: half-length 24, r 5.5 + 2.6, matching
+  the 13 x 59 baked fork (D60's art). It was a 6 px circle at its middle. The sim owns the spin angle (`e.bsa`) and
+  the render draws it.
+- **Tests.** The 3000-hoard gap test now covers a live tug and lo < 6, and there are new tests for the capsule and the
+  cut thread.
+- **Re-measured** (fresh server):
+
+  | | before the fixes | after |
+  |---|---|---|
+  | kit=mid TTK, park (3 seeds) | 37.7-38.0 s | 37.7-38.0 s (unchanged) |
+  | kit=mid TTK, pilot (5 seeds) | — | 39.0-44.8 s, 2 deaths in 5 clears |
+  | kit=mid park hits/min | 15.8-17.5 | 19.1-20.6 (still in 14-22) |
+  | boomerang touches per fight | 1-2 | 3-4 (the probe counts each touch of the spinning capsule) |
+  | kit=full TTK | 27.7 s | 27.7 s; park 21.7 hits/min |
+  | naked TTK | — | park 54.3 s; pilot 54.8-58.3 s, 0-1 deaths |
+  | spot grid | — | every phase hit on every spot |
+
+  keepsake-d1/-d3 pass unchanged (the scripted ship never meets the boomerang).
+
 ### D60 THE KEEPSAKE's forks from a real fork photo; THE KEEPSAKE is the title hero — 2026-11-20 (Matt's calls; branch `kboss-core`, merged from `kboss-forks`)
 
 **Decision point:** Matt, after playing the boss: "the forks could be more realistic. can we have the art dept look at
@@ -1229,5 +1255,14 @@ lives next is open (Matt to decide). Commits fae9418, 36cbcfd, 4d31140
 (`production/qa/keepsake-title-hero-2026-11-20.md`).
 **Validation:** typecheck clean; unit tests pass apart from the five Windows-path failures that fail identically on main
 (`scandir 'E:\E:\...'`); keepsake-d1/-d3 pass; title perf on the Fold shape equal to or below ROT's.
+**Pre-merge review fixes (2026-11-20):**
+- **DESCEND is safe.** `menus.ts` startRun calls the DESCEND hook inside try/catch, and `armTitleOut`/`flatten` return
+  quietly on a null 2D context. A lost canvas or memory pressure on the Fold used to make DESCEND do nothing. Unit test:
+  a throwing hook still starts the run and lifts the seal (`forcemid.test.ts`).
+- **Doll layers.** They now load at boot, not on the first title frame (the comment had cited a warmup.ts entry that
+  never existed). The ready check now covers the face, all three eye layers and every fork rise, so a droop or the snap
+  never draws a head without eyes.
+- **The snap overlay** is dropped when the state leaves play (pause, Android Back).
+- **The one-off flatten** uses low smoothing quality (the Fold hitch).
 
 **Category:** art, design
