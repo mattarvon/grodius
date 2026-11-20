@@ -90,7 +90,7 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX]) => {
   if (hasKeep) for (const prio of [true, false]) {
     setup(...L[1].slice(1), 0);
     const sx = keepStage(); $.G.scroll = sx; $.G.si = $.G.script.length; W.enemies.length = 0; REG.BOSS_SIM.keepsake.spawn('fire');
-    const m = $.G.mini; m.hp = m.max * .299; m.wins = 9;
+    const m = $.G.mini; m.hp = m.max * .299; m.wins = 9; m.d0 = 9; // past both staged floors (D59: DOZING's attack floor)
     let f = 0, t0 = -1, r = '--';
     for (; f < 60 * 30; f++) {
       if (m.crier && t0 < 0) { t0 = f; if (!prio) m.parts = null; }
