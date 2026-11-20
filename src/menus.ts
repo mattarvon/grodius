@@ -95,8 +95,13 @@ export function titleItems() {
     a: sub('lab')
   }];
 }
+/** a render-side hook run as DESCEND starts a run, before newGame (render/titledoll.ts armTitleOut sets it: menus.ts stays
+ *  free of the DOM, so the unit tests can import it) */
+let descendHook: null | (() => void) = null;
+export const onDescend = (f: () => void) => { descendHook = f; };
 /** start a run on the layout the LAB / URL chose (setLayout contract: before newGame()) */
 function startRun(loop?) {
+  if (descendHook) descendHook(); // render/titledoll.ts: the title's last frame stays up for the doll's snap (render only)
   liftJumpSeal();
   if (resumedFrom != null) setLayout(resumedFrom); // a RESUME flew the checkpoint's layout: a new run flies the chosen one
   applyRunLayout();

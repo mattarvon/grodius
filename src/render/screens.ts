@@ -23,7 +23,8 @@ import { drawEShots, drawHUD, drawWorld } from '../render/hud';
 import { SPR, spr, sprAt } from '../sprites';
 import { drawTitleHead } from './titlehead';
 import { titleGaze } from './titlegaze';
-import { TITLE } from '../titlelayout';
+import { TITLE, TITLE_HERO } from '../titlelayout';
+import { drawTitleDoll, drawTitleOut } from './titledoll';
 
 // --- screens ---
 export function drawMutList() {
@@ -89,7 +90,8 @@ export function drawTitle() {
     y: PH / 2,
     hist: []
   };
-  drawTitleEye();
+  if (TITLE_HERO === 'rot') drawTitleEye(); // ROT (D41), kept whole while Matt decides where it goes next
+  else drawTitleDoll(); // THE KEEPSAKE's head (render/titledoll.ts)
   if (srnd() < .25) drops.push({
     x: srr(W * .55, W * .95),
     y: -2,
@@ -528,6 +530,7 @@ export function render() {
       drawMutList();
     }
   }
+  drawTitleOut(); // DESCEND's snap: the last title frame, eyes open, over the run's first half second (render/titledoll.ts)
   ctx.restore();
   pIn();
   present();
