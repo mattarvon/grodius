@@ -24,12 +24,13 @@ beforeEach(() => {
 
 describe('an empty voice bank', () => {
   it('has no clips for the shelved banks, so the case is live and not hypothetical', () => {
-    for (const cat of ['hype10', 'hype20', 'babe20', 'bossreward', 'fart_nav', 'fart_ok', 'silly']) expect(SFX_CATS, cat).not.toContain(cat);
+    // hype10/hype20/bossreward were shelved by D39 and re-voiced by Matt in the booth (2026-11-20, 0d43bc5, 05c773a, cc2dd17)
+    for (const cat of ['babe20', 'fart_nav', 'fart_ok', 'silly']) expect(SFX_CATS, cat).not.toContain(cat);
   });
 
   it('plays nothing: sample() reports no clip and builds no audio source, even with a running context', () => {
     A.AU.c = { state: 'running', currentTime: 0, createBufferSource: created };
-    expect(A.sample('hype10')).toBe(false);
+    expect(A.sample('babe20')).toBe(false); // a bank still shelved (no clips)
     expect(created).not.toHaveBeenCalled();
   });
 
