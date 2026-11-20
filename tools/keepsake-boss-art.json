@@ -4,8 +4,8 @@
  "atlas": "src/sprites/boss/keepsake-boss.png",
  "layout": "src/sprites/boss/keepsake-boss.json",
  "atlasSize": [
-  1022,
-  467
+  1023,
+  507
  ],
  "frame": {
   "size": [
@@ -42,8 +42,8 @@
   "rocker_open": "the sleep-eye mechanism at swing angles [-108, -90, -72, -54, -36, -18, 0, 18, 36, 54, 72, 90, 108] (canvas deg about its attach point), lids open",
   "rocker_shut": "the same, lids shut (the death clack: PUT TO BED)",
   "crier": "[0] whole, [1] broken; origin at its centre",
-  "fork": "the big fork (thrown / boomerang), tines down, origin at its centre; rotate at runtime (it spins)",
-  "mfork": "[0] a hanging mobile fork, [1] the drop tell (brighter); origin at the top centre (the thread)"
+  "fork": "the big fork (thrown / boomerang) at 16 spin angles: [k] is tines down turned k x 22.5 deg clockwise, origin at its centre, blood on the tines; [8] (head up) has the glint. Pick the nearest angle, never rotate at runtime",
+  "mfork": "[0] a hanging mobile fork, [1] the drop tell (brighter); tines down, origin at the top centre (the thread)"
  },
  "counts": {
   "face0": 5,
@@ -62,7 +62,7 @@
   "rocker_open": 13,
   "rocker_shut": 13,
   "crier": 2,
-  "fork": 1,
+  "fork": 16,
   "mfork": 2
  },
  "perTilt": [
@@ -302,12 +302,23 @@
  },
  "fork": {
   "size": [
-   15,
-   50
+   13,
+   59
   ],
-  "entry": 38,
+  "entry": 46,
   "lean": 0.14,
+  "angles": 16,
+  "glint": 8,
   "note": "wound_seat/proud have it baked in. entry: px from the fork's top where it goes into the skull"
+ },
+ "forkRamp": {
+  "stops": [
+   "#3e3734",
+   "#747170",
+   "#a19f9d",
+   "#fcf4e7"
+  ],
+  "note": "dark / mid / light / specular, sampled from the baked big fork: src/render/fork.ts draws the 15 px fork in these"
  },
  "rocker": {
   "attach": "frame offsets are from the wire end (the bridle apex); draw the wire from perTilt.wire to it. The weight sits 48 px below the apex, so with KB.pLen 58 the apex is 10 px down the wire. Pick the swing frame nearest the pendulum angle (deg, + = clockwise)",
@@ -344,8 +355,8 @@
  },
  "mfork": {
   "size": [
-   11,
-   46
+   13,
+   33
   ]
  },
  "crier": {
@@ -354,5 +365,5 @@
    28
   ]
  },
- "source": "photos by Matt Arvon of his own unmarked antique doll (D7/D53); not in the repo"
+ "source": "photos by Matt Arvon of his own unmarked antique doll (D7/D53); not in the repo. The forks: \"Table Fork - Cutlery Set, Walker & Hall\", Museums Victoria, CC BY 4.0 (CREDITS.md); not in the repo"
 }

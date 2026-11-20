@@ -23,7 +23,7 @@ import { drawEnemy } from '../render/enemies';
 import { drawMawFx } from './gross/maw';
 import { drawBakedDeaths } from './gross/baked';
 import { drawUfoFx } from './gross/mid/ufo';
-import { drawFork } from './fork';
+import { drawFork, mobFork } from './fork';
 import { MID_NAMES } from '../enemies/mid/roster';
 /** the health bar's name for a G.mini without a title: the bosses that can take G.mini, and every midboss */
 const MINI_NAMES: Record<string, string> = { maw: 'THE MAW', crux: 'THE BLOAT', butcher: 'THE BUTCHER', ...MID_NAMES };
@@ -267,7 +267,9 @@ export function drawEShots() {
   for (const s of eshots) {
     if (s.fk) { // THE KEEPSAKE's forks (a glob's arc or a spike's line, tines first): pale steel over the enemy-fire glow
       const a = Math.atan2(s.vy, s.vx), f = s.fs || 1, b = 6 * f - 3; // fs: drawn at the mobile's scale, its tines' tip on the shot
-      drawFork(ctx, s.x - Math.cos(a) * (f > 1 ? b : 0), s.y - Math.sin(a) * (f > 1 ? b : 0), a, f);
+      // a mobile fork falling straight is the atlas's baked one, its tips 3 px past the shot (as the line fork's were)
+      if (!(f > 1 && Math.abs(a - Math.PI / 2) < .2 && mobFork(ctx, s.x, s.y + 3)))
+        drawFork(ctx, s.x - Math.cos(a) * (f > 1 ? b : 0), s.y - Math.sin(a) * (f > 1 ? b : 0), a, f);
     }
     else if (s.k === 'glob') {
       const a = Math.atan2(s.vy, s.vx);
