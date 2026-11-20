@@ -1,0 +1,127 @@
+{
+ "_doc": "THE KEEPSAKE title head (tools/prep_keepsake_title.py). off: the crop's top-left from the head origin (the boss origin, between the eyes), in layer px; px: layer px per title px. Draw halo, face, eye_<state>, wound_<rise> at the origin",
+ "px": 3.5,
+ "haloPx": 0.75,
+ "titleS": 1.45,
+ "rises": [
+  0,
+  3,
+  6,
+  9
+ ],
+ "layers": {
+  "face": {
+   "off": [
+    -226,
+    -292
+   ],
+   "size": [
+    455,
+    578
+   ],
+   "px": 3.5
+  },
+  "eye_half": {
+   "off": [
+    -163,
+    -51
+   ],
+   "size": [
+    327,
+    110
+   ],
+   "px": 3.5
+  },
+  "eye_shut": {
+   "off": [
+    -163,
+    -51
+   ],
+   "size": [
+    327,
+    110
+   ],
+   "px": 3.5
+  },
+  "eye_open": {
+   "off": [
+    -163,
+    -51
+   ],
+   "size": [
+    327,
+    110
+   ],
+   "px": 3.5
+  },
+  "wound_0": {
+   "off": [
+    -54,
+    -494
+   ],
+   "size": [
+    152,
+    272
+   ],
+   "px": 3.5
+  },
+  "wound_3": {
+   "off": [
+    -54,
+    -508
+   ],
+   "size": [
+    152,
+    286
+   ],
+   "px": 3.5
+  },
+  "wound_6": {
+   "off": [
+    -54,
+    -523
+   ],
+   "size": [
+    152,
+    301
+   ],
+   "px": 3.5
+  },
+  "wound_9": {
+   "off": [
+    -54,
+    -539
+   ],
+   "size": [
+    152,
+    317
+   ],
+   "px": 3.5
+  },
+  "halo": {
+   "off": [
+    -61,
+    -120
+   ],
+   "size": [
+    122,
+    193
+   ],
+   "px": 0.75
+  }
+ },
+ "extent": {
+  "face": [
+   -64.6,
+   -83.4,
+   65.4,
+   81.7
+  ],
+  "wound9": [
+   -15.4,
+   -154.0,
+   28.0,
+   -63.4
+  ]
+ }
+}

@@ -145,7 +145,7 @@ All repainted toward the game's palette; CC-BY / OGA-BY rows are the ones that r
 | Title hero eye (`rot_*`), eye kit (`kit/eye_*`, not yet used in play) | original, procedural, `tools/gen_eyes.py` | made for Grodius | original, first-party (not CC) |
 | Title easter-egg head (`head_egg@3`) | title head: Matt Arvon (self-portrait) | Matt Arvon | original, first-party (not CC) |
 | THE KEEPSAKE midboss (`keepsake@6`, `keepsake-fork`) | THE KEEPSAKE sprite from photographs by Matt Arvon of his own unmarked antique doll (D7/D53); repainted (wig removed, fork, wound, grade) by `tools/prep_keepsake.py`, photos not in the repo | Matt Arvon | original, first-party (not CC) |
-| THE KEEPSAKE stage boss (`boss/keepsake-boss`: head x crack x tilt, eyes, wound, sleep-eye rocker, voice box) | first-party photographs by Matt Arvon of his own unmarked antique doll (D7/D53); cut out, de-wigged, repainted, cracked and tilt-baked by `tools/prep_keepsake_boss.py` (on `tools/prep_keepsake.py`), photos not in the repo | Matt Arvon | original, first-party (not CC) |
+| THE KEEPSAKE stage boss (`boss/keepsake-boss`: head x crack x tilt, eyes, wound, sleep-eye rocker, voice box) and title head (`title/doll_*`, `tools/prep_keepsake_title.py`) | first-party photographs by Matt Arvon of his own unmarked antique doll (D7/D53); cut out, de-wigged, repainted, cracked and tilt-baked by `tools/prep_keepsake_boss.py` (on `tools/prep_keepsake.py`), photos not in the repo | Matt Arvon | original, first-party (not CC) |
 
 ## Boss art photo sources (`src/sprites/boss/`, LS2-bossart)
 The baked boss atlases are painted by `tools/bossart/**` (Python, PIL). Real photographs give the tissue its micro-detail: each
@@ -248,7 +248,7 @@ is warped, regraded and high-passed into a painted height field, never pasted wh
 | `maw_open_wide.jpg` | Open wide | U.S. Fish and Wildlife Service - Midwest Region | CC BY 2.0 | https://www.flickr.com/photos/49208525@N08/27969592266 |
 | `rawpixel_teeth_6266016.jpg` | Vintage teeth illustration | public domain, via rawpixel | CC0 1.0 | https://www.rawpixel.com/image/6266016/png-vintage-public-domain |
 | `tools/bossart/ufo/shaw_arms.png` | Back viewed eight armed cuttlefish (George Shaw) | NYPL, via rawpixel | CC0 1.0 | cut from the plate; see `tools/bossart/ufo/paint.py` |
-| `ov-table-fork-cutlery-set-walker-hall-harry-04b1c7.jpg` (THE KEEPSAKE's forks: `boss/keepsake-boss` fork, mfork and the fork in the wound, via `tools/keepsake_fork.py`; the 15 px fork's steel in `src/render/fork.ts`) | Table Fork - Cutlery Set, Walker & Hall, Harry Telford, Birchip Cup, 1926 | Photographer: Museums Victoria | CC BY 4.0 | https://collections.museumsvictoria.com.au/items/2049633 |
+| `ov-table-fork-cutlery-set-walker-hall-harry-04b1c7.jpg` (THE KEEPSAKE's forks: `boss/keepsake-boss` fork, mfork and the fork in the wound, via `tools/keepsake_fork.py`; the title head's fork, `title/doll_wound_*`; the 15 px fork's steel in `src/render/fork.ts`) | Table Fork - Cutlery Set, Walker & Hall, Harry Telford, Birchip Cup, 1926 | Photographer: Museums Victoria | CC BY 4.0 | https://collections.museumsvictoria.com.au/items/2049633 |
 
 Changes: cropped, warped, regraded and filtered into original paintings. CC BY licences: https://creativecommons.org/licenses/.
 
