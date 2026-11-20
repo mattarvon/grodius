@@ -8,8 +8,12 @@
 //   3. an effect on and a slider moved (input + change): the auto preview re-renders; the preset box says custom
 //   4. Randomize and All off work; the rack survives a reload (localStorage)
 //   5. the arrows on a focused slider move the slider, not the line (also after an auto preview lands); Space records
-//   6. Keep (Enter) with a rack: the take lands in src/sfx/<cat>/ with the rack's name in the takes list and an fx
-//      object in assets-raw/voice/<cat>/<take>.json; "Apply current FX to this line's takes" rewrites it
+//   6. Keep (Enter, pressed with the preset box focused) with a rack: the take lands in src/sfx/<cat>/ with the rack's
+//      name in the takes list and an fx object in assets-raw/voice/<cat>/<take>.json; "Apply current FX to this line's
+//      takes" rewrites it. 6k: the RAW TAKE deck's Keep and the rack's own Keep name the chain; the KEPT deck tags it
+//   6r. a second take kept with the rack's Keep button; then "Re-keep with FX" on the first take in the take list
+//      rewrites that take alone (its json gets the rack, the other take and its json stay byte-identical), the KEPT
+//      deck shows RE-KEPT with the chain; the KEPT deck's Re-keep with the rack off puts it back to clean
 //   7. a clipped take previews with the "preview only" warning, and Keep is refused
 //   8. the studio UI: the raw take's waveform, the live meter (take peak, peak hold), the preview deck's A and B
 //      lanes with their LUFS readouts, A/B (B key) keeping the playhead, K play/pause, cached renders, a user preset
@@ -345,11 +349,20 @@ try {
 
   // 6. keep with the rack on, then apply another rack to the line
   const n0 = await page.locator('#takes .take').count();
+  // every Keep says what it puts on the take: the raw deck's and the rack's own (beside Preview)
+  const rack0 = await page.locator('#fx h2 .state').innerText();
+  const kRaw = await page.locator('#b-keep').innerText(), kFx = await page.locator('#fx-keep').innerText();
+  check('6k the RAW TAKE deck\'s Keep names the rack it applies', kRaw.startsWith('Keep with FX: ' + rack0), kRaw);
+  check('6k the FX rack has its own Keep, enabled in review, labelled with the chain', kFx.startsWith('Keep: ' + rack0) && await page.locator('#fx-keep').isEnabled(), kFx);
+  // Enter keeps even with the preset box focused (after picking a preset with the keyboard)
+  await page.locator('#fx-preset').focus();
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => /^(Kept|Keep failed|Not kept)/.test(document.getElementById('status').textContent), null, { timeout: 90000 });
   const kept = await state(page);
   const name = /^Kept (\S+\.ogg)/.exec(kept)?.[1];
-  check('6 Keep (Enter) with a rack on keeps the take', !!name && kept.includes(' with '), kept.slice(0, 160));
+  check('6 Keep (Enter, the preset box focused) with a rack on keeps the take', !!name && kept.includes(' with '), kept.slice(0, 160));
+  const keptTag = await page.locator('#kept-fx').innerText().catch(() => '');
+  check('6k the KEPT deck shows the chain it was kept with', keptTag === 'with FX: ' + rack0, keptTag);
   const ogg = name && path.join(ROOT, 'src', 'sfx', CAT, name), opt = name && path.join(ROOT, 'assets-raw', 'voice', CAT, name.replace(/\.ogg$/, '.json'));
   check(`6 the take lands in src/sfx/${CAT}/ of this checkout`, ogg && fs.existsSync(ogg), ogg);
   await page.waitForFunction((n) => document.querySelectorAll('#takes .take').length > n, n0, { timeout: 10000 }).catch(() => {});
@@ -400,6 +413,50 @@ try {
   if (name) await page.locator('#takes .take', { hasText: name }).locator('[data-fxp]').click();
   dur = await newPreview(page, was).catch(() => NaN);
   check("6 a kept take's FX preview button renders it", dur > 0.3, `${dur} s; ${await page.locator('#fx-src').innerText()}`);
+  const kPrev = await page.locator('#fx-keep').innerText();
+  check("6r with a kept take as the preview source, the rack's Keep re-keeps that take", name && kPrev.startsWith('Re-keep ' + name.replace(/\.ogg$/, '')) && await page.locator('#fx-keep').isEnabled(), kPrev);
+
+  // 6r. a second take kept with the rack's own Keep button, then the first take re-kept alone (take list, KEPT deck)
+  const jsonOf = (f) => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'assets-raw', 'voice', CAT, f.replace(/\.ogg$/, '.json')), 'utf8')); } catch { return null; } };
+  const statOf = (f) => { try { const s = fs.statSync(path.join(ROOT, 'src', 'sfx', CAT, f)); return `${s.size}:${s.mtimeMs}`; } catch { return ''; } };
+  const keysOf = (fx) => Object.keys(fx ?? {}).join(',');
+  const waitStatus = async (re) => {
+    const prev = await page.locator('#status').textContent();
+    await page.waitForFunction(([p, r]) => { const t = document.getElementById('status').textContent; return t !== p && new RegExp(r).test(t); }, [prev, re.source], { timeout: 90000 }).catch(() => {});
+    return state(page);
+  };
+  await page.mouse.click(5, 5);
+  await recordTake(page);
+  await page.selectOption('#fx-preset', { label: 'Robot' });
+  const robot = await onCards(page);
+  await page.click('#fx-keep');
+  const k2 = await waitStatus(/^(Kept|Keep failed|Not kept)/);
+  const name2 = /^Kept (\S+\.ogg)/.exec(k2)?.[1];
+  check("6r the rack's Keep button keeps the take under review through the rack", !!name2 && name2 !== name && keysOf(jsonOf(name2)?.fx) === robot.join(','), `${k2.slice(0, 120)} ${JSON.stringify(name2 && jsonOf(name2))}`);
+  check('6r ... and the KEPT deck says so', (await page.locator('#kept-fx').innerText().catch(() => '')) === 'with FX: ' + (await page.locator('#fx h2 .state').innerText()));
+  if (name && name2) {
+    await page.selectOption('#fx-preset', { label: 'Comms radio' });
+    const comms = await onCards(page), rackC = await page.locator('#fx h2 .state').innerText();
+    const s1 = statOf(name), s2 = statOf(name2), j2b = JSON.stringify(jsonOf(name2));
+    await page.locator('#takes .take', { hasText: name }).locator('[data-rekeep]').click();
+    const rk = await waitStatus(/^(Re-kept|Not re-kept|Re-keep failed)/);
+    check('6r Re-keep with FX on a listed take rewrites that take alone', rk.startsWith(`Re-kept ${name} with ${rackC}`) && statOf(name) !== s1, rk.slice(0, 160));
+    check('6r ... records the rack in its json (with the chain stamp)', keysOf(jsonOf(name)?.fx) === comms.join(',') && jsonOf(name)?.chain === FX_CHAIN, JSON.stringify(jsonOf(name)));
+    check('6r ... and leaves the other take and its json alone', statOf(name2) === s2 && JSON.stringify(jsonOf(name2)) === j2b);
+    check('6r ... the KEPT deck shows it re-kept, with the chain', (await page.locator('#review .lane-tag').innerText()) === 'RE-KEPT' &&
+      (await page.locator('#kept-fx').innerText()) === 'with FX: ' + rackC, await page.locator('#review .deckh').innerText());
+    check('6r ... and the takes list tags it with the new rack', (await page.locator('#takes .take', { hasText: name }).locator('.fxtag').innerText().catch(() => '')) === rackC);
+    // the KEPT deck's own Re-keep, with the rack off: the take goes back to clean
+    await page.click('#fx-off');
+    const rkLabel = await page.locator('#b-rekeep').innerText();
+    check("6r the KEPT deck's Re-keep says clean when the rack is off", rkLabel.startsWith('Re-keep clean'), rkLabel);
+    check("6r ... and the rack's Keep re-keeps the take shown", (await page.locator('#fx-keep').innerText()).startsWith('Re-keep ' + name.replace(/\.ogg$/, '')));
+    await page.click('#b-rekeep');
+    const rk2 = await waitStatus(/^(Re-kept|Not re-kept|Re-keep failed)/);
+    check('6r ... rewrites it clean: no fx in its json, the deck says clean', rk2.startsWith(`Re-kept ${name} with no FX`) && !jsonOf(name)?.fx &&
+      (await page.locator('#kept-fx').innerText()) === 'clean (no FX)', `${rk2.slice(0, 120)} ${JSON.stringify(jsonOf(name))}`);
+    check('6r ... the other take still untouched', statOf(name2) === s2 && JSON.stringify(jsonOf(name2)) === j2b);
+  }
   check('1 still no console errors after the run', !errors.length, errors.join(' | '));
   await browser.close();
   browsers = [];
