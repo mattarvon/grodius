@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
+import { sep } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { spick, sri, srnd, srr } from '../../src/srnd';
 
@@ -30,7 +31,7 @@ function simRngUses(src: string): string[] {
 
 function tsFiles(dir: string): string[] {
   return readdirSync(new URL(dir + '/', root), { recursive: true, withFileTypes: false } as any)
-    .map(String).filter((f) => f.endsWith('.ts')).map((f) => `${dir}/${f}`);
+    .map((f) => String(f).split(sep).join('/')).filter((f) => f.endsWith('.ts')).map((f) => `${dir}/${f}`);
 }
 
 describe('render, fx and audio never draw the sim RNG', () => {

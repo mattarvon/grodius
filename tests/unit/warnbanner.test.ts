@@ -2,10 +2,11 @@
 // argument, the flag that gates the warm-up on it (warmplan.ts): a WARNING without it lets the warm-up run into a fight
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('../../src/', import.meta.url).pathname;
-const files = (readdirSync(root, { recursive: true }) as string[]).filter((f) => f.endsWith('.ts'));
+const root = fileURLToPath(new URL('../../src/', import.meta.url)); // not .pathname: that is /E:/... on Windows
+const files = (readdirSync(root, { recursive: true }) as string[]).map((f) => f.split(sep).join('/')).filter((f) => f.endsWith('.ts')); // posix keys on Windows too
 
 describe("banner('WARNING', ...) callers", () => {
   const calls = files.flatMap((f) => [...readFileSync(join(root, f), 'utf8').matchAll(/banner\('WARNING',([^;\n]*)/g)].map((m) => ({ f, args: m[1] })));

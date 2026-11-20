@@ -2,14 +2,14 @@
 // test). LAYOUT_LITERALS_ROOT points it at another tree, e.g. the pre-table source, to watch it fail.
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { LAYOUTS } from '../../src/layout';
 
 const ROOT = process.env.LAYOUT_LITERALS_ROOT || join(__dirname, '../../src');
 const files = (d: string): string[] => readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? files(p) : p.endsWith('.ts') ? [p] : []; });
 // comments may cite x values ("the Saucer's WARNING is at 800"); only code counts
 const code = (p: string) => readFileSync(p, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"])\/\/.*$/gm, '$1');
-const SRC = files(ROOT).filter((p) => !p.endsWith('layout.ts')).map((p) => ({ f: relative(ROOT, p), s: code(p) }));
+const SRC = files(ROOT).filter((p) => !p.endsWith('layout.ts')).map((p) => ({ f: relative(ROOT, p).split(sep).join('/'), s: code(p) })); // posix keys on Windows too
 
 /** every world x the layout entries carry (the numbers that must live only in the table) */
 const ANCHORS = new Set<number>();

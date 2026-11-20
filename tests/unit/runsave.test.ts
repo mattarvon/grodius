@@ -258,7 +258,7 @@ describe('a bad or old run save', () => {
 
   it('keeps xpNeedRun in step with perks.ts xpNeed', async () => {
     const src = (await import('node:fs')).readFileSync(new URL('../../src/perks.ts', import.meta.url), 'utf8');
-    const body = src.match(/export const xpNeed = \(lvl\) => (.*);\n/)![1];
+    const body = src.match(/export const xpNeed = \(lvl\) => (.*);\r?\n/)![1]; // \r?: a CRLF checkout (core.autocrlf on Windows)
     const xpNeed = new Function('lvl', `return ${body};`) as (l: number) => number;
     for (let l = 1; l <= 80; l++) expect(xpNeedRun(l)).toBe(xpNeed(l));
   });

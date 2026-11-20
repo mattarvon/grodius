@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('../../src/layout', () => ({ layout: () => ({ id: 'long4' }) }));
 import { bankBio } from '../../src/economy';
 import { readFileSync, readdirSync } from 'node:fs';
+import { sep } from 'node:path';
 
 const SEED = 42;
 const run = (bio = 0, seed = SEED) => ({ bio, seed } as any);
@@ -95,7 +96,7 @@ describe('bankBio', () => {
 
 describe('the biomass invariants bankBio relies on', () => {
   const root = new URL('../../src/', import.meta.url);
-  const files = (readdirSync(root, { recursive: true }) as string[]).filter((f) => f.endsWith('.ts'));
+  const files = (readdirSync(root, { recursive: true }) as string[]).map((f) => f.split(sep).join('/')).filter((f) => f.endsWith('.ts')); // posix keys on Windows too
   const hits = (re: RegExp) => files.flatMap((f) => readFileSync(new URL(f, root), 'utf8').split('\n').filter((l) => re.test(l.replace(/\/\/.*$/, ''))).map((l) => `${f}: ${l.trim()}`));
 
   it('nothing subtracts from or assigns G.bio during a run: a drop would read as a replay and stop the pay', () => {
