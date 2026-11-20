@@ -1,6 +1,8 @@
 // THE KEEPSAKE stage boss (D55) driven through the real enemies/update.ts hurt() / killEnemy() and its own update, the
 // shared modules stubbed (the midhooks.test.ts pattern): the face and crown shares through midMul, the transition's
 // closed crown, the no-carry cut, the crier breaking, the enrage capping the grade, and dying -> kill -> clearStage.
+// D59: a fork striking the floor plants there, the recall's threads take it home, and the search beam's mark drops
+// three forks in the ship's column.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
@@ -26,7 +28,8 @@ vi.mock('../../src/enemies/elite', () => ({ eliteKill: noop, eliteTick: noop }))
 vi.mock('../../src/enemies/spawn', async () => {
   const { MID_ET } = await import('../../src/enemies/mid/roster');
   return {
-    BS: () => 1, aimA: () => Math.PI, wrapA: (a: number) => a, eshoot: noop, fan: noop, ring: noop, every: () => false, onScreen: () => true,
+    BS: () => 1, aimA: () => Math.PI, wrapA: (a: number) => a, fan: noop, ring: noop, every: () => false, onScreen: () => true,
+    eshoot: (x: number, y: number, a: number, sp: number, k: string) => { W.eshots.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, k, r: 4 }); },
     banner: (t: string) => { S.banners.push(t); },
     // mk: the real row (MID_ET is spawn.ts ET's own object) or a part's nailbar 16 HP, x hpm; no depth (Descent 1)
     mk: (k: string, x: number, y: number, o: any = {}) => {
@@ -63,7 +66,7 @@ describe('THE KEEPSAKE through hurt() and midMul', () => {
     expect(e.mid).toBe(undefined);
     expect(e.mini).toBe(1);
     expect(typeof e.armor).toBe('function');
-    expect(e.max).toBe(320);
+    expect(e.max).toBe(440);
   });
 
   it('takes x.15 on the face and full damage on the crown, at tilt 0', () => {
@@ -75,8 +78,15 @@ describe('THE KEEPSAKE through hurt() and midMul', () => {
     expect(h2 - e.hp).toBeCloseTo(10, 9);
   });
 
+  it('holds DOZING above its cut until three attacks are out (D59), whatever the damage', () => {
+    hurt(e, 9999, e.x, e.y - 40, 1);
+    expect(e.hp).toBeGreaterThan(e.max * KB.cut1 + 1);
+    step();
+    expect(e.ph).toBe(0);
+  });
+
   it('stops a hit at the phase cut, then closes the crown (x.15) through IT WOKE UP', () => {
-    e.hp = e.max * .66;
+    e.d0 = KB.p1MinAtt; e.hp = e.max * (KB.cut1 + .01);
     hurt(e, 999, e.x, e.y - 40, 1); // a nuke-sized crown hit
     expect(e.hp).toBeCloseTo(e.max * KB.cut1, 6);
     step();
@@ -112,6 +122,54 @@ describe('THE KEEPSAKE through hurt() and midMul', () => {
     step(KB.clock * 2);
     expect(e.dead).toBe(false); // still there: it won't let go
     expect(e.x).toBeLessThan(480);
+  });
+
+  it('plants a fork that strikes the floor, and the recall takes it home along its thread (D59)', () => {
+    // the land hook is the fork's: drive it the way shots.ts does when a fork strikes the floor
+    e.att = 0; e.st = 'idle'; e.wt = 0; e.cool = 0; e.d0 = 0;
+    step(); // a fountain's tell: its forks carry the land hook
+    W.eshots.length = 0;
+    expect(e.st).toBe('tell');
+    for (let k = 0; k < 200 && !W.eshots.length; k++) step();
+    const f = W.eshots[0];
+    expect(typeof f.land).toBe('function');
+    const n0 = e.pn;
+    f.land({ ...f, x: 60, y: 225 }); f.land({ ...f, x: 140, y: 225 }); f.land({ ...f, x: 220, y: 225 });
+    expect(e.pn).toBe(n0 + 3);
+    expect(e.pS[e.pn - 1]).toBe(1); // on the floor, tines up
+    e.rcT = 1;
+    let saw = false;
+    for (let k = 0; k < 3 && !saw; k++) { step(); saw = e.rcW > 0; }
+    expect(saw).toBe(true);
+    let picked = 0; for (let i = 0; i < e.pn; i++) if (e.pQ[i] === 2) picked++;
+    expect(picked).toBeGreaterThanOrEqual(2);
+    step(KB.recall);
+    expect(e.fh).toBeGreaterThanOrEqual(2); // in flight home
+    const rl = e.rl, out = e.fh;
+    for (let k = 0; k < 400 && e.fh; k++) step();
+    expect(e.fh).toBe(0);
+    expect(e.rl).toBe(rl + out); // caught in the wound: every recPer of them come back out in the next fountain
+  });
+
+  it('marks the ship\'s column when the search beam sees it, then drops three forks in it (D59)', () => {
+    e.ph = 2; e.tr = 0; e.hp = e.max * .2;
+    step(2);
+    expect(e.rocker).toBeTruthy();
+    e.p3t = KB.pRamp + KB.bArm + 1; e.bCd = 0; e.mkT = 0;
+    // put the ship on the beam: along the wire from the weight
+    let seen = false;
+    for (let k = 0; k < 400 && !seen; k++) {
+      $.P.x = e.rocker.x + e.bdx * 120; $.P.y = e.rocker.y + e.bdy * 120;
+      step(); seen = e.mkT > 0;
+    }
+    expect(seen).toBe(true);
+    expect(e.spots).toBe(1);
+    const x = e.mkX;
+    $.P.x = 30; $.P.y = 30; // it moved off: the forks still fall where it was
+    W.eshots.length = 0;
+    step(KB.bTel + 1);
+    const forks = W.eshots.filter((s) => s.fk === 1 && s.vy > 0 && Math.abs(s.x - x) <= KB.bRainDx + 1);
+    expect(forks.length).toBe(KB.bRainN);
   });
 
   it('dies through PUT TO BED: the dying beat, then the kill, the stage clear and the readout', () => {

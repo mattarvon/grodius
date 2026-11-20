@@ -17,16 +17,19 @@ export const KB = {
   tx: 120, //       its resting x: W - tx
   // ---- the ANGLE rule, kept from the midboss (D53) and rotated with the head
   crown: 26, //     phases 1-2: a hit whose head-local y is at or above -crown is on the crown (full damage)
-  crown3: 12, //    phase 3 (CRACKED): the split face exposes more meat, so the line drops (the reward for surviving it)
+  crown3: 26, //    phase 3 (CRACKED): the same line as phases 1-2 (D59, Matt 2026-11-20: it was 12, which made the last phase the
+  //               easiest to hit; the reward for reaching CRACKED is now the slower pendulum once the crier breaks)
   face: .15, //     everywhere else, and every area hit (they arrive at (e.x, e.y), head-local y 0)
   wx: 4, wy: -52, wr: 14, // the wound in the soft spot: its own hitbox (e.hb), the forks' launch point, the probe's aim
   cy: -34, cr: 24, //       the crown cap: a second hitbox so the dome above the body circle is hittable at every tilt
   // ---- phases: HP cuts as shares of max. Damage never carries past a cut (phaseClamp), see D55
-  cut1: .65, //     DOZING -> AWAKE at 65%
-  cut2: .30, //     AWAKE -> CRACKED at 30%
+  cut1: .75, //     DOZING -> AWAKE at 75% (D59: was 65%; DOZING melted in 5 s at kit=mid, before it had taught anything)
+  cut2: .35, //     AWAKE -> CRACKED at 35% (D59: was 30%: AWAKE takes the 10% DOZING gave up, 40% of the bar)
+  p1MinAtt: 3, //   DOZING runs at least this many attacks (fountain, throw, recall) before it can wake: staged like p2Floor
   end: .002, //     CRACKED's floor: the last hit leaves this much and the sleep eyes close (the dying beat) before the kill
-  p2MinWin: 3, //   AWAKE takes at least this many tilt windows: the staged floor (p2Floor) caps each window's damage
-  clock: 1500, //   each phase's clock (25 s, as the biome bosses' halves, docs/pacing.md 3.6). HUD fuse
+  p2MinWin: 3, //   AWAKE takes at least this many tilt windows: the staged floor (p2Floor) caps each window's damage (D59 tried
+  //               4: it held a strong kit to the mid kit's time, so power stopped showing)
+  clock: 18 * 60, // each phase's clock: 18 s (D59: was 25 s, which no phase ever reached, so IT WON'T LET GO was never met). HUD fuse
   tr1: 90, //       IT WOKE UP: the transition (crown closed, nothing fires) and the mobile lowering
   tr2: 120, //      IT CRACKED: the vinyl splits, the rocker drops out
   dieBeat: 40, //   PUT TO BED: three slow clacks shut, this far apart (frames 1, 41, 81; kboss_shut's rates 1, .9, .8)...
@@ -41,10 +44,12 @@ export const KB = {
   jit: 5, //        per-fork jitter, px
   u0: 1.55, u1: 1.9, // launch rise speeds (px/f, BS-independent so the marks never grow with depth)
   top: 16, //       the apex never passes this screen y
-  land: 6, //       the landing plane: this far below the wound at the tell's first frame (the crown lane)
-  open: 60, //      the window after the fountain: the wound gapes, nothing fires
+  // (D59: the forks fall through to the floor in their column; the old landing plane 6 px under the wound left every
+  //  other height safe, so a ship parked a little above or below it was never touched)
+  open: 40, //      the window after the fountain: the wound gapes, nothing fires (D59: was 60: the dead air between beats)
   aim: 46, lock: 16, //     the aimed throw: tracks for aim - lock, locks for lock (46 f), then the fork flies
   throwSp: 2.6, //  x BS(), like every aimed shot
+  fan: .2, //       from AWAKE on the throw is three forks: the locked line and one this far (rad) either side of it (D59)
   // ---- phase 2, AWAKE
   tilt: .5585, //   +-32 deg: the head rocks between crown TOWARD the ship (-tilt: the window) and AWAY (+tilt)
   hold: 70, roll: 40, // one tilt cycle = 2 x (hold + roll) = 220 f; the eyes clack at each extreme
@@ -78,9 +83,42 @@ export const KB = {
   mama: 44, mamaGap: 30, // the double cry: a 44 f tell, the first ring, then the second 30 f later rotated half a gap
   rain: 50, //      fork rain: every fork left on the mobile but one, columns marked
   // ---- pacing
-  cool: 60, cool2: 40, cool3: 36, // idle between attacks, x (1 - .3 rank) x cdm() x rage
+  cool: 36, cool2: 28, cool3: 26, // idle between attacks, x (1 - .3 rank) x cdm() x rage (D59: was 60 / 40 / 36, the
+  //               metronome a ship that never moved could sit through; every attack keeps its own >= 44 f tell)
   rage: .75, //     IT WON'T LET GO: the last clock's one capped enrage (D55): cooldowns x .75, never a tell
   rageGrade: 'B', // ...and the stage grade is capped here
+  // ---- IT WON'T LET GO (D59, Matt 2026-11-20, package C): nothing it throws is lost. A fork that strikes the floor or the
+  //      ceiling plants there, tines out; the recall pulls them home down drawn threads; the tug yanks one; the cries
+  //      shake them loose. Probe: tools/keepsake-probe.mjs
+  plN: 10, //       planted forks kept at once (the oldest falls away)...
+  plRage: 14, //    ...and once it rages
+  plOut: 14, //     how far a planted fork stands out of the surface, px (the 15 px fork, its handle 1 px in): 200 - 2 x 14 = 172
+  //               px of lane left in the tightest arena (aGap)
+  plR: 3.5, //      its contact radius (+ the ship's 2.6), at 4 and 10 px out from the surface
+  recEvery: [300, 270, 240], // the recall's clock, per phase (frames from one recall's release, or the phase's start, to
+  //               the next one's tell): its own layer, over the attacks
+  recRage: 160, //  ...once it rages (IT WON'T LET GO)
+  recMin: 3, //     it calls only with at least this many forks planted
+  recall: 50, //    the recall's tell: every chosen fork shudders and a thread runs from it to the wound...
+  recLock: 16, //   ...dashed, then solid (3 px, the throw line's width) for its last frames: where it will fly is fixed
+  recSp: 3.2, //    the recalled forks' speed, x BS()
+  recGap: 30, //    the recall's guaranteed gap: at the ship's x (at the tell's start) the threads that cross it leave a free
+  //               run of at least this many px between ceiling and floor (recallPick drops threads until they do)
+  recW: 7, //       the half-width a thread takes out of that column (a fork's 4.5 px + the ship's 2.6)
+  recPer: 3, //     forks caught per extra fork in the next fountain (capped at the lattice's slots - 1)
+  tug: 54, //       the tug (AWAKE): one thread, from the planted fork nearest the ship, then the fork is yanked home...
+  tugSp: 6, //      ...fast, x BS(): one line, twice the recall's pace
+  shakeSp: 2.4, //  CRACKED's cries shake planted forks loose: floor forks fly up on the first ring, ceiling forks down on the
+  //               second, x BS(), and plant again on the far side. Their tell is the cry's (mama: 44 f, then 30 f more)
+  // ---- the search beam (D59, Matt's pick from package B, CRACKED only): the rocker's glass eyes look for the ship
+  bHalf: .16, //    the beam's half-angle, rad (~9 deg), out from the weight along the wire (pivot -> weight)
+  bLen: 440, //     its reach, px
+  bArm: 60, //      no spotting until the swing has built (pRamp) and this much more: the beam is seen sweeping first
+  bTel: 50, //      spotted: the ship's column is marked (hatched band), then this many frames later the forks fall in it
+  bRainN: 3, bRainDx: 16, // three forks across the band, this far apart (the band is 2 x (16 + 8) = 48 px wide)
+  bRainSp: 2.6, //  falling from the ceiling, x BS(); they plant on the floor
+  bCool: 70, //     after the forks fall, the eyes look again only this many frames later
+  pPer2: 240, //    the pendulum once the crier is broken (IT STOPPED CRYING): a 4 s swing, the beam sweeping slower
   // ---- the arena (movement C override, biomes.ts rewriteTerrain): flat floor, open ceiling, a wide gap
   aAmp: .15, //     the biome's swing kept, as a share
   aGap: 200, //     the minimum gap over the arena (layout invariant: tests/unit/keepsake.test.ts)
@@ -113,14 +151,16 @@ export function phaseClamp(hp: number, d: number, m: number, floor: number): num
   return Math.max(0, (hp - floor) / d);
 }
 
-/** the HP floor of phase ph (0 DOZING, 1 AWAKE, 2 CRACKED) for a boss of max HP, wins = AWAKE's finished tilt windows.
- *  AWAKE's floor is staged: until p2MinWin windows have closed, each one can only take its share of the phase (a strong
- *  kit can't empty AWAKE in its first window). Pure */
-export function phaseFloor(max: number, ph: number, wins = 0): number {
-  if (ph <= 0) return max * KB.cut1;
+/** the HP floor of phase ph (0 DOZING, 1 AWAKE, 2 CRACKED) for a boss of max HP, wins = AWAKE's finished tilt windows,
+ *  atts = DOZING's finished attacks. Both are staged: until p2MinWin windows (p1MinAtt attacks) have passed, each can
+ *  only take its share of the phase (a strong kit can't empty a phase before it has shown its kit, D59). Pure */
+export function phaseFloor(max: number, ph: number, wins = 0, atts: number = KB.p1MinAtt): number {
+  if (ph <= 0) return max * p1Floor(atts);
   if (ph === 1) return max * p2Floor(wins);
   return max * KB.end;
 }
+/** DOZING's staged floor, as a share of max, after `atts` finished attacks (D59) */
+export const p1Floor = (atts: number) => Math.max(KB.cut1, 1 - (1 - KB.cut1) * Math.min(1, (atts + 1) / KB.p1MinAtt));
 /** AWAKE's staged floor, as a share of max, after `wins` closed windows */
 export const p2Floor = (wins: number) => Math.max(KB.cut2, KB.cut1 - (KB.cut1 - KB.cut2) * Math.min(1, (wins + 1) / KB.p2MinWin));
 
@@ -145,8 +185,13 @@ export const tiltEdge = (tc: number) => { const C = 2 * (KB.hold + KB.roll), t =
 /** the rocker's swing angle (radians from hanging; + swings toward the ship) at frame t of CRACKED: a constant-period
  *  pendulum whose amplitude builds from rest over pRamp. Pure */
 export function pendAt(t: number): number {
+  return pendA(t, (t / KB.pPer) * Math.PI * 2);
+}
+/** the swing angle at frame t of CRACKED and swing phase ph (radians): the sim carries the phase, so the swing slows
+ *  without a jump when the crier breaks (KB.pPer2, D59). pendAt(t) is pendA at a constant pPer. Pure */
+export function pendA(t: number, ph: number): number {
   const k = Math.min(1, Math.max(0, t / KB.pRamp));
-  return KB.pAmp * k * Math.sin((t / KB.pPer) * Math.PI * 2);
+  return KB.pAmp * k * Math.sin(ph);
 }
 /** the rocker's weight, head-local, at swing angle a: writes [lx, ly] into out */
 export function pendXY(a: number, out: Float32Array | number[]): Float32Array | number[] {
@@ -227,3 +272,42 @@ export const riseCap = (u: number, y: number) => Math.min(u, Math.sqrt(.05 * Mat
 /** frames for a lob launched at rise speed u (px/f, up) to come down through a point dy px below its start (the
  *  formula of enemies/update.ts lob(), with BS() folded out: the kind passes u / BS()) */
 export const lobFrames = (u: number, dy: number) => (u + Math.sqrt(Math.max(0, u * u + .05 * dy))) / .025;
+
+// ---------------- IT WON'T LET GO (D59): the planted forks, the recall's gap, the search beam ----------------
+/** the y at screen x of the line (x0, y0) -> (x1, y1), or NaN when x is not between its ends. Pure */
+export function lineAtX(x0: number, y0: number, x1: number, y1: number, x: number): number {
+  if (x < Math.min(x0, x1) || x > Math.max(x0, x1)) return NaN;
+  return Math.abs(x1 - x0) < 1e-6 ? (y0 + y1) / 2 : y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+}
+/** the longest free run in [lo, hi] once each of the n heights in ys (NaN skipped) takes out +-w. tmp is scratch of at
+ *  least n (no allocation). Pure */
+export function maxFree(ys: Float32Array, n: number, lo: number, hi: number, w: number, tmp: Float32Array): number {
+  let m = 0;
+  for (let i = 0; i < n; i++) { const y = ys[i]; if (y !== y) continue; let j = m++; while (j > 0 && tmp[j - 1] > y) { tmp[j] = tmp[j - 1]; j--; } tmp[j] = y; }
+  let best = 0, at = lo;
+  for (let i = 0; i < m; i++) { const a = tmp[i] - w; if (a - at > best) best = a - at; at = Math.max(at, tmp[i] + w); }
+  return Math.max(best, hi - at);
+}
+/** the recall's guaranteed gap (KB.recGap): of the n planted forks, in order, keep each whose thread (its crossing
+ *  height at the ship's x in ys, NaN when it doesn't cross) still leaves a free run of at least gap in [lo, hi]. Writes
+ *  1/0 into keep and returns how many were kept. Scratch: cur and tmp, each at least n. Pure, no allocation */
+export function recallPick(ys: Float32Array, n: number, lo: number, hi: number, w: number, gap: number, keep: Uint8Array, cur: Float32Array, tmp: Float32Array): number {
+  let k = 0, m = 0;
+  for (let i = 0; i < n; i++) {
+    keep[i] = 0;
+    cur[m] = ys[i];
+    if (ys[i] !== ys[i] || maxFree(cur, m + 1, lo, hi, w, tmp) >= gap) { keep[i] = 1; k++; m++; }
+  }
+  return k;
+}
+/** the search beam's direction (D59): out from the rocker's pivot through its weight at swing angle a, turned with the
+ *  head's tilt th. Writes the unit vector into out. Pure */
+export function beamDir(a: number, th: number, out: Float32Array | number[]): Float32Array | number[] {
+  return rotXY(-Math.sin(a), Math.cos(a), th, out);
+}
+/** does a beam from (bx, by) along unit (dx, dy), half-angle half, reach len, see the point (px, py)? Pure */
+export function beamSees(bx: number, by: number, dx: number, dy: number, px: number, py: number, half: number = KB.bHalf, len: number = KB.bLen): boolean {
+  const vx = px - bx, vy = py - by, d = Math.hypot(vx, vy);
+  if (d < 1 || d > len) return false;
+  return (vx * dx + vy * dy) / d >= Math.cos(half);
+}

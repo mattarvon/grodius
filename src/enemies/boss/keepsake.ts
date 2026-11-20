@@ -19,9 +19,27 @@
 //                        blocks shots and kills on contact. The crier ('mama' voice box) is a breakable part: the double
 //                        cry (44 + 30 f) ends when it breaks (IT STOPPED CRYING). Fork rain (50 f) and Fountain II (48 f)
 //   PUT TO BED: three slow clacks shut, the head tips onto its side, then the kill
-//  Each phase has a 25 s clock (HUD fuse). DOZING or AWAKE running out forces the next phase (IT WON'T LET GO); CRACKED
-//  running out is the one capped enrage: the eyes stay open, cooldowns x.75, the stage grade capped at B. It never
-//  escapes (D55, Matt's decision 2): the fight ends only when it or you do. Nothing punishes shooting.
+//  Each phase has an 18 s clock (HUD fuse). DOZING or AWAKE running out forces the next phase (IT WON'T LET GO); CRACKED
+//  running out is the one capped enrage: the eyes stay open, cooldowns x.75, the stage grade capped at B, the recall
+//  on a shorter clock (recRage) with more forks planted (plRage). It never escapes (D55, Matt's decision 2): the fight
+//  ends only when it or you do. Nothing punishes shooting.
+//
+//  IT WON'T LET GO (D59, Matt 2026-11-20: package C of production/qa/keepsake-difficulty-proposal-2026-11-20.md, with
+//  B's search beam in CRACKED only, and the shared fixes). Today's fight let a ship that never moved kill it unhurt, so:
+//   - nothing it throws is lost: a fork that strikes the floor or ceiling PLANTS there, tines out (up to KB.plN), a
+//     contact hazard 14 px deep. The fountain's forks fall through to the floor in their columns (they used to stop on
+//     one plane under the wound, so every other height was safe)
+//   - the RECALL, on its own clock from DOZING on (recEvery: it overlaps the attacks, so it is the fight's second
+//     layer): a thread runs from each chosen fork to the wound (50 f, dashed, then a solid 3 px line), then they all
+//     fly home along their threads. recallPick keeps a free run of >= recGap px in the ship's column. Every recPer
+//     caught forks add a fork to the next fountain
+//   - AWAKE's TUG: one thread from the planted fork nearest the ship (54 f), then it is yanked home at twice the pace
+//   - CRACKED's cries shake the planted forks loose (floor forks up on the first ring, ceiling forks down on the second)
+//     and they plant again on the far side; breaking the crier ends it and slows the pendulum (pPer2)
+//   - the SEARCH BEAM (CRACKED): the rocker's glass eyes throw a hatched cone along the wire. If it touches the ship,
+//     the ship's column is marked (a hatched band, bTel 50 f, a fill dropping down it), then three forks fall in it
+//     from the ceiling. The beam itself never hurts. It only ever looks again bCool frames after the forks fall
+//   - DOZING runs at least 3 attacks (p1Floor) and its cut is 75%, AWAKE's 35%; CRACKED's crown line stays at 26
 //  Determinism: randomness only R(), audio only sample()/thr() (ar() and the wall clock, never R()), no allocation in
 //  the update (every array is made at spawn).
 //
@@ -52,14 +70,17 @@
 //   kboss_die             PUT TO BED: the crier's last 'ma-'                           keep_wail, sfx.groan
 //   kboss_musicend        the kill: the box running down, prio, duckMusic(7)           (silence)
 //   boss-keepsake         the kill: SLAB's PUT TO BED readout
-//   keep_tink / keep_throw / keep_whirr (~.9 rate) / keep_thud / keep_squelch / keep_clack: as the midboss had them
+//   kboss_creak           a recall's and a tug's threads drawing taut (D59)                keep_whirr slowed
+//   kboss_seen            the search beam finds the ship: two glass clicks and a bent tine (D59)  keep_clack
+//   keep_tink / keep_throw / keep_whirr (~.9 rate) / keep_thud / keep_squelch / keep_clack: as the midboss had them;
+//   keep_whirr also on a recall's release, keep_squelch (quiet) as the forks come home, kboss_chime as cries shake them
 // =====================================================================
 import { $ } from '../../state';
 import { PH, R, W, dist2, lerp, rr } from '../../core';
 import { bankWant, sample, sfx, thr } from '../../audio';
 import { duckMusic } from '../../music';
 import { SET } from '../../save';
-import { eshots, floorAt } from '../../world';
+import { ceilAt, eshots, floorAt } from '../../world';
 import { drop, gore, spark, splat } from '../../fx/spawn';
 import { cdm } from '../../depth';
 import { clearStage } from '../../stages';
@@ -68,7 +89,7 @@ import { playerHit } from '../../player';
 import { killEnemy, lob, miniReward } from '../update';
 import { capGrade, defineBoss } from './registry';
 import { KEEPSAKE_BANNERS, KEEPSAKE_LOG, KEEPSAKE_NAME, KEEPSAKE_READOUT } from '../../voice/keepsake';
-import { KB, forkCols, fountLattice, inWindow, kbArena, keepHurtRot, lobFrames, mobilePick, pendAt, pendXY, phaseClamp, phaseFloor, riseCap, rotXY, tiltAt, tiltEdge, TILT0 } from './_keepsake';
+import { KB, beamDir, beamSees, forkCols, fountLattice, inWindow, kbArena, keepHurtRot, lineAtX, lobFrames, mobilePick, pendA, pendXY, phaseClamp, phaseFloor, recallPick, riseCap, rotXY, tiltAt, tiltEdge, TILT0 } from './_keepsake';
 
 const SND = {
   // the midboss's banks (D53 levels), the throws a touch slower for the bigger head
@@ -100,15 +121,25 @@ const SND = {
   topple: { vol: .25, wet: .25, spread: .03, prio: true },
   die: { vol: .29, wet: .45, spread: 0, prio: true },
   musicend: { vol: .15, wet: .45, spread: 0, prio: true },
+  creak: { vol: .22, wet: .2, spread: .05 }, creakFb: { vol: .1, rate: .55, wet: .2, spread: .05 }, // D59: a recall's threads drawing taut
+  seen: { vol: .19, wet: .2, spread: .03, prio: true }, // D59: the beam finds the ship (a tell: prio)
+  home: { vol: .05, rate: 1.15, wet: .12, spread: .14 }, // a recalled fork back in the wound: keep_squelch, quiet
+  rattle: { vol: .05, wet: .25, spread: .08 }, //            the planted forks shaken by a cry: kboss_chime
   chimes: [{ vol: .04, wet: .25, spread: .06 }, { vol: .04, wet: .25, spread: .06, at: .2 }, { vol: .04, wet: .25, spread: .06, at: .4 }],
 };
 /** a bank's sound, else the fallback bank's, else the synth one (any of them may be null) */
 const ks = (cat, o, fbCat, fbO, fb) => { if (!sample(cat, o) && !(fbCat && sample(fbCat, fbO || o))) fb?.(); };
 let tinkT = -1e9;
-/** a fork strikes the floor or ceiling (the eshot `land` hook): the midboss's throttled tink */
-function forkLand() {
+/** a fork strikes the floor or ceiling (the eshot `land` hook, called from the sim's updateEShots): it plants there
+ *  (D59: sim state, no R()), and the midboss's throttled tink (audio only: thr() and the wall clock never reach the sim) */
+function forkLand(s) {
+  const m = $.G.mini;
+  if (m && m.k === 'keepsake' && !m.dead && m.st !== 'dying' && m.pX && s.x > 6 && s.x < W - 6) {
+    const wx = s.x + $.G.scroll, f = floorAt(wx), down = s.y >= f;
+    plant(m, s.x, down ? f : ceilAt(wx), down ? 1 : -1);
+  }
   if (thr('kbT', 40)) return;
-  const now = performance.now(), q = now - tinkT < 200; // audio only: the wall clock never reaches the sim
+  const now = performance.now(), q = now - tinkT < 200;
   tinkT = now;
   ks('keep_tink', q ? SND.tinkQ : SND.tink, null, null, sfx.tink);
 }
@@ -133,7 +164,7 @@ function turnHb(e) {
 }
 const cd = (e) => Math.round([KB.cool, KB.cool2, KB.cool3][e.ph] * (1 - .3 * ($.G.rank || 0)) * cdm() * (e.rage ? KB.rage : 1));
 /** the floor the next hit may not pass (no carry, D55) */
-const floorOf = (e) => phaseFloor(e.max, e.ph, e.wins);
+const floorOf = (e) => phaseFloor(e.max, e.ph, e.wins, e.d0);
 
 /** e.armor (roster.ts midMul, every damage path): the rotated ANGLE share, x.15 through a transition (the crown is
  *  closed for that beat), clamped so no damage carries past a phase cut. Writes nothing */
@@ -150,16 +181,25 @@ function rest(e) { e.st = 'idle'; e.wt = 0; e.cool = cd(e); if (!e.rage) eyes(fa
 
 /** plan a fountain (phase 0: 4-5 of 6 columns; phase 2: 5 of 7), drawn at the tell's first frame */
 function planFount(e) {
-  const p3 = e.ph === 2, n = p3 ? 5 : 4 + (R() < .5 ? 1 : 0), sl = p3 ? KB.slots3 : KB.slots;
+  const p3 = e.ph === 2, sl = p3 ? KB.slots3 : KB.slots, base = p3 ? 5 : 4 + (R() < .5 ? 1 : 0);
+  const more = Math.max(0, Math.min(sl - 1 - base, Math.floor(e.rl / KB.recPer))); // the forks it caught come back out (D59)
+  e.rl -= more * KB.recPer;
   fountLattice($.P.x, e.x, sl, p3 ? KB.pitch3 : KB.pitch, KB.x0, e.lat);
-  e.fn = forkCols(n, sl, e.lat[1], e.lat[0], KB.jit, 12, W - 8, R, e.fx, e.fu, e.lat[2]);
-  e.fy = wY(e) + KB.land;
-  for (let i = 0; i < e.fn; i++) { e.fl[i] = 1e9; e.fq[i] = rr(KB.u0, KB.u1); }
+  e.fn = forkCols(base + more, sl, e.lat[1], e.lat[0], KB.jit, 12, W - 8, R, e.fx, e.fu, e.lat[2]);
+  // D59: every fork falls through to the floor in its column; the ship's column's fork is aimed through where the ship
+  // is at the tell's first frame (its mark sits there), then falls on to the floor
+  let must = -1;
+  if (e.lat[2] >= 0) { must = 0; for (let s = 0; s < e.lat[2]; s++) must += e.fu[s]; }
+  for (let i = 0; i < e.fn; i++) {
+    e.fl[i] = 1e9; e.fq[i] = rr(KB.u0, KB.u1);
+    const fl = Math.min(PH - 2, floorAt(e.fx[i] + $.G.scroll)) - 1;
+    e.fz[i] = i === must ? Math.min(fl, Math.max($.P.y, KB.top + 40)) : fl;
+  }
 }
 function launch(e, i) {
   const x = wX(e), y = wY(e) - 4, n0 = eshots.length;
-  const u = riseCap(e.fq[i], y), T = lobFrames(u, e.fy - y);
-  lob(x, y, e.fx[i], e.fy, u / BS());
+  const u = riseCap(e.fq[i], y), T = lobFrames(u, e.fz[i] - y);
+  lob(x, y, e.fx[i], e.fz[i], u / BS());
   if (eshots.length > n0) { eshots[n0].fk = 1; eshots[n0].land = forkLand; }
   e.fl[i] = e.wt + Math.ceil(T);
   e.fv[i] = (e.fx[i] - x) / T; e.fw[i] = -u + .025 * T;
@@ -186,26 +226,163 @@ function mobileHit(e) {
   }
 }
 
-/** the next attack of phase ph, by turn: DOZING fountain / throw; AWAKE drop / boomerang / drop / wail; CRACKED
- *  Fountain II / double cry / rain / double cry (a throw once the crier is broken, rain falls back to a fountain when
- *  the mobile has one fork left) */
+// ---------------- IT WON'T LET GO (D59): the planted forks, the threads, the flights home ----------------
+/** a fork planted at screen (x, y) on the floor (side 1, tines up) or the ceiling (-1, tines down). Full: the oldest one
+ *  not on a thread falls away (all of them on threads: this one bounces off) */
+function plant(e, x, y, side) {
+  const cap = e.rage ? KB.plRage : KB.plN;
+  if (e.pn >= cap) {
+    let o = -1;
+    for (let i = 0; i < e.pn; i++) if (!e.pQ[i] && (o < 0 || e.pB[i] < e.pB[o])) o = i;
+    if (o < 0) return;
+    drop(e.pX[o] - $.G.scroll, e.pY[o] - e.pS[o] * 6, rr(-.5, .5), -e.pS[o] * rr(.2, .8), 1.4, 0, 70);
+    unplant(e, o);
+  }
+  const i = e.pn++;
+  e.pX[i] = x + $.G.scroll; e.pY[i] = y; e.pS[i] = side; e.pB[i] = e.t; e.pQ[i] = 0;
+}
+/** remove planted fork i (the last one takes its place: order doesn't matter, pB keeps the age) */
+function unplant(e, i) {
+  const j = --e.pn;
+  e.pX[i] = e.pX[j]; e.pY[i] = e.pY[j]; e.pS[i] = e.pS[j]; e.pB[i] = e.pB[j]; e.pQ[i] = e.pQ[j];
+}
+/** planted fork i's tip (where its thread starts and where a cry shakes it loose from), screen px, into V */
+function tipOf(e, i) { V[0] = e.pX[i] - $.G.scroll; V[1] = e.pY[i] - e.pS[i] * 9; return V; }
+/** the planted forks touch the ship: a contact at 4 and 10 px out from the surface */
+function plantHit(e) {
+  if (!$.P.alive) return;
+  const r2 = (KB.plR + 2.6) ** 2, sc = $.G.scroll;
+  for (let i = 0; i < e.pn; i++) {
+    const x = e.pX[i] - sc;
+    if (Math.abs(x - $.P.x) > 12) continue;
+    if (dist2($.P.x, $.P.y, x, e.pY[i] - e.pS[i] * 4) < r2 || dist2($.P.x, $.P.y, x, e.pY[i] - e.pS[i] * 10) < r2) { playerHit(); return; }
+  }
+}
+/** a planted fork's thread: 0 none, TUG, RECALL (pQ) */
+const TUG = 1, RECALL = 2;
+/** clear every thread of kind q */
+const cut = (e, q) => { for (let i = 0; i < e.pn; i++) if (e.pQ[i] === q) e.pQ[i] = 0; };
+/** choose the threads and lock their end on the wound (tug: tux/tuy, recall: rtx/rty). The recall: recallPick keeps a
+ *  free run of >= recGap in the ship's column (a tug's thread already drawn counts against it). The tug: the free
+ *  planted fork nearest the ship's x, out in front of the head. Returns the count chosen (the recall needs >= 2) */
+function pickThreads(e, one) {
+  if (one) {
+    e.tux = wX(e); e.tuy = wY(e);
+    let b = -1, bd = 1e9;
+    for (let i = 0; i < e.pn; i++) {
+      if (e.pQ[i]) continue;
+      tipOf(e, i);
+      const d = Math.abs(V[0] - $.P.x);
+      if (V[0] < e.x - 50 && V[0] > 6 && d < bd) { b = i; bd = d; }
+    }
+    if (b >= 0) e.pQ[b] = TUG;
+    return b >= 0 ? 1 : 0;
+  }
+  e.rtx = wX(e); e.rty = wY(e);
+  const wx = $.P.x + $.G.scroll, lo = ceilAt(wx) + 2, hi = floorAt(wx) - 2;
+  for (let i = 0; i < e.pn; i++) { tipOf(e, i); e.ys[i] = lineAtX(V[0], V[1], e.pQ[i] === TUG ? e.tux : e.rtx, e.pQ[i] === TUG ? e.tuy : e.rty, $.P.x); }
+  recallPick(e.ys, e.pn, lo, hi, KB.recW, KB.recGap, e.kp, e.cu, e.tm);
+  let k = 0;
+  for (let i = 0; i < e.pn; i++) if (e.kp[i] && !e.pQ[i]) { e.pQ[i] = RECALL; k++; }
+  if (k < 2) cut(e, RECALL);
+  return k;
+}
+/** the forks on threads of kind q let go of the floor and ceiling and fly home along them at sp px/f (x BS) */
+function release(e, q, sp) {
+  const tx = q === TUG ? e.tux : e.rtx, ty = q === TUG ? e.tuy : e.rty;
+  for (let i = e.pn - 1; i >= 0; i--) {
+    if (e.pQ[i] !== q || e.fh >= e.hX.length) continue;
+    tipOf(e, i);
+    const dx = tx - V[0], dy = ty - V[1], d = Math.hypot(dx, dy) || 1, v = sp * BS(), j = e.fh++;
+    e.hX[j] = V[0]; e.hY[j] = V[1]; e.hVX[j] = dx / d * v; e.hVY[j] = dy / d * v; e.hF[j] = Math.ceil(d / v);
+    unplant(e, i);
+  }
+  ks('keep_whirr', SND.out, null, null, sfx.lash);
+}
+/** the forks in flight home: move, touch the ship, and go back into the wound when they arrive (one more fork in the
+ *  next fountain every recPer of them) */
+function homeFly(e) {
+  for (let j = e.fh - 1; j >= 0; j--) {
+    e.hX[j] += e.hVX[j]; e.hY[j] += e.hVY[j];
+    if ($.P.alive && dist2($.P.x, $.P.y, e.hX[j], e.hY[j]) < (4.5 + 2.6) ** 2) playerHit();
+    if (--e.hF[j] <= 0) {
+      e.rl++;
+      if (!thr('kbHome', 50)) ks('keep_squelch', SND.home, null, null, null);
+      const k = --e.fh;
+      e.hX[j] = e.hX[k]; e.hY[j] = e.hY[k]; e.hVX[j] = e.hVX[k]; e.hVY[j] = e.hVY[k]; e.hF[j] = e.hF[k];
+    }
+  }
+}
+/** a cry shakes the planted forks on one side loose (1 floor: up, -1 ceiling: down); they plant again where they strike */
+function shake(e, side) {
+  for (let i = e.pn - 1; i >= 0; i--) {
+    if (e.pS[i] !== side || e.pQ[i]) continue;
+    tipOf(e, i);
+    const n0 = eshots.length;
+    eshoot(V[0], V[1], side > 0 ? -Math.PI / 2 : Math.PI / 2, KB.shakeSp, 'spike');
+    if (eshots.length > n0) { eshots[n0].fk = 1; eshots[n0].land = forkLand; }
+    unplant(e, i);
+  }
+}
+/** CRACKED's search beam (D59): from the rocker's weight along its wire. When it sees the ship, the ship's column is
+ *  marked, and bTel frames later three forks fall in it from the ceiling. It looks again bCool frames after they fall */
+function beam(e) {
+  beamDir(e.pa, e.th, V);
+  e.bdx = V[0]; e.bdy = V[1]; e.box = e.rocker.x; e.boy = e.rocker.y;
+  if (e.mkT > 0) {
+    if (--e.mkT === 0) {
+      for (let k = 0; k < KB.bRainN; k++) {
+        const x = e.mkX + (k - (KB.bRainN - 1) / 2) * KB.bRainDx, n0 = eshots.length;
+        eshoot(x, Math.max(2, ceilAt(x + $.G.scroll)) + 3, Math.PI / 2, KB.bRainSp, 'spike');
+        if (eshots.length > n0) { eshots[n0].fk = 1; eshots[n0].land = forkLand; }
+      }
+      ks('keep_throw', SND.spray, null, null, sfx.lash);
+      e.bCd = KB.bCool;
+    }
+    return;
+  }
+  if (e.bCd > 0) { e.bCd--; return; }
+  if (e.p3t < KB.pRamp + KB.bArm || !$.P.alive) return;
+  if (beamSees(e.box, e.boy, e.bdx, e.bdy, $.P.x, $.P.y)) {
+    e.mkT = KB.bTel; e.mkX = Math.max(KB.bRainDx + 8, Math.min(W - KB.bRainDx - 8, $.P.x)); e.spots++;
+    ks('kboss_seen', SND.seen, 'keep_clack', SND.open, sfx.tele);
+  }
+}
+
+/** the next attack of phase ph, by turn (D59): DOZING fountain / throw; AWAKE drop / boomerang / tug / drop / wail;
+ *  CRACKED Fountain II / double cry / rain / double cry (a throw once the crier is broken, rain falls back to a fountain
+ *  when the mobile has one fork left; a tug with no fork in front of the head is a throw: startAttack). The recall is
+ *  not a turn: it runs on its own clock (recallTick) */
 function nextAttack(e) {
-  const k = e.att++ % 4;
+  const k = e.att++ % (e.ph === 1 ? 5 : 4);
   if (e.ph === 0) return k % 2 === 0 ? 'tell' : 'aim';
-  if (e.ph === 1) return k % 2 === 0 ? (live(e) > 1 ? 'drop' : 'aim') : k === 1 ? 'boom' : 'wail';
+  if (e.ph === 1) return k === 0 || k === 3 ? (live(e) > 1 ? 'drop' : 'aim') : k === 1 ? 'boom' : k === 2 ? 'tug' : 'wail';
   if (k === 0) return 'tell';
   if (k === 2) return live(e) > 1 ? 'rain' : 'tell';
   return e.crier && !e.crier.dead ? 'mama' : 'aim';
+}
+/** the recall's own clock (D59): every recEvery frames (the phase's; recRage once it rages), with at least recMin forks
+ *  planted, its 50 f of threads, then the forks fly home. It overlaps whatever attack is running: the second layer */
+function recallTick(e) {
+  if (e.rcW > 0) {
+    if (++e.rcW >= KB.recall) { release(e, RECALL, KB.recSp); e.rcW = 0; e.rcT = e.rage ? KB.recRage : KB.recEvery[e.ph]; e.recalls++; }
+    return;
+  }
+  if (--e.rcT > 0) return;
+  if (e.pn >= KB.recMin && pickThreads(e, false) >= 2) { e.rcW = 1; ks('kboss_creak', SND.creak, 'keep_whirr', SND.creakFb, sfx.tele); }
+  else e.rcT = 30; // not enough to call: look again shortly
 }
 const live = (e) => { let n = 0; for (let i = 0; i < KB.mobN; i++) n += e.ma[i]; return n; };
 
 function startAttack(e) {
   e.st = nextAttack(e); e.wt = 0;
+  if (e.st === 'tug' && !pickThreads(e, true)) e.st = 'aim';
   eyes(true);
   if (e.ph === 1 && !e.barked) { e.barked = 1; sample('bark-keepsake-eyes', { vol: 1.15, spread: .02, wet: .16 }); } // AWAKE's first tell: EYES OPEN / IT'S COMING
   if (e.st === 'tell') { planFount(e); sfx.squish(); }
   else if (e.st === 'wail') ks('kboss_wail', SND.wail, 'keep_wail', SND.wailFb, sfx.groan);
   else if (e.st === 'mama') sfx.tele(); // its cry lands on the first ring (kboss_mama is timed from that release)
+  else if (e.st === 'tug') ks('kboss_creak', SND.creak, 'keep_whirr', SND.creakFb, sfx.tele); // the threads drawing taut
   else if (e.st === 'drop' || e.st === 'rain') {
     e.dn = mobilePick(e.ma, KB.mobN, e.st === 'rain' ? KB.mobN : 2 + (R() < .5 ? 1 : 0), R, e.dq);
     sfx.tele();
@@ -219,7 +396,7 @@ function attack(e) {
     if (e.wt >= KB.tell) { e.st = 'fount'; e.wt = 0; ks('keep_throw', SND.spray, null, null, sfx.lash); ks('keep_squelch', SND.pull, null, null, null); }
   } else if (st === 'fount') {
     const i = (e.wt - 1) / KB.stagger;
-    if (i === (i | 0) && i < e.fn) launch(e, i);
+    if (i === (i | 0) && i < e.fn) { launch(e, i); if (i === e.fn - 1 && e.ph === 0) e.d0++; } // DOZING's attack floor counts an attack once its forks are out (D59)
     let left = 0;
     for (let j = 0; j < e.fn; j++) if (e.wt < e.fl[j]) left++;
     if (!left) { e.st = 'open'; e.wt = 0; ks('keep_squelch', SND.gape, null, null, sfx.squish); }
@@ -229,10 +406,13 @@ function attack(e) {
   } else if (st === 'aim') {
     if (e.wt < KB.aim - KB.lock) { e.la += wrapA(aimA(wX(e), wY(e)) - e.la) * .12; e.lx = wX(e); e.ly = wY(e); }
     if (e.wt >= KB.aim) {
-      const n0 = eshots.length;
-      eshoot(e.lx, e.ly, e.la, KB.throwSp, 'spike');
-      if (eshots.length > n0) { eshots[n0].fk = 2; eshots[n0].land = forkLand; }
+      for (let k = e.ph ? -1 : 0; k <= (e.ph ? 1 : 0); k++) { // DOZING one fork; from AWAKE on a fan of three (D59)
+        const n0 = eshots.length;
+        eshoot(e.lx, e.ly, e.la + k * KB.fan, KB.throwSp, 'spike');
+        if (eshots.length > n0) { eshots[n0].fk = 2; eshots[n0].land = forkLand; }
+      }
       ks('keep_throw', SND.throw, null, null, sfx.lash);
+      if (e.ph === 0) e.d0++;
       rest(e);
     }
   } else if (st === 'boom') { // the big fork's line tracks, then locks from where the wound is at the lock (the head rocks on)
@@ -254,8 +434,11 @@ function attack(e) {
   } else if (st === 'wail') {
     if (e.wt >= KB.wail) { ring(e.x, e.y - 10, KB.wailN, e.t * .05, KB.wailSp); rest(e); }
   } else if (st === 'mama') { // the first cry is the second's tell; the second is turned half a gap
-    if (e.wt === KB.mama) { e.ra = e.t * .05; ring(e.x + KB.crx, e.y + KB.cry, KB.wailN, e.ra, KB.wailSp); ks('kboss_mama', e.mamaN++ ? SND.mamaQ : SND.mama, 'keep_wail', SND.wailFb, sfx.groan); } // -2 dB after a phase's first
-    if (e.wt >= KB.mama + KB.mamaGap) { ring(e.x + KB.crx, e.y + KB.cry, KB.wailN, e.ra + Math.PI / KB.wailN, KB.wailSp); rest(e); }
+    if (e.wt === KB.mama) { shake(e, 1); e.ra = e.t * .05; ring(e.x + KB.crx, e.y + KB.cry, KB.wailN, e.ra, KB.wailSp); ks('kboss_mama', e.mamaN++ ? SND.mamaQ : SND.mama, 'keep_wail', SND.wailFb, sfx.groan); } // -2 dB after a phase's first
+    if (e.wt === 1 && e.pn && !thr('kbRat', 30)) sample('kboss_chime', SND.rattle); // the planted forks rattle: they go on the rings
+    if (e.wt >= KB.mama + KB.mamaGap) { shake(e, -1); ring(e.x + KB.crx, e.y + KB.cry, KB.wailN, e.ra + Math.PI / KB.wailN, KB.wailSp); rest(e); }
+  } else if (st === 'tug') { // one thread drawn from the wound (locked at the tell's start), then the fork is yanked home
+    if (e.wt >= KB.tug) { release(e, TUG, KB.tugSp); rest(e); }
   } else if (st === 'drop' || st === 'rain') { // each fork shudders for its tell (staggered), then lets go
     const gap = st === 'rain' ? 6 : KB.dropGap, tel = st === 'rain' ? KB.rain : KB.drop;
     for (let k = 0; k < e.dn; k++) {
@@ -269,6 +452,8 @@ function attack(e) {
 // ---------------- the phases ----------------
 function phaseTo(e, ph, late) {
   e.ph = ph; e.pt = 0; e.tr = ph === 1 ? KB.tr1 : KB.tr2; e.st = 'idle'; e.wt = 0; e.cool = 30; e.att = 0; e.wins = 0; e.mamaN = 0;
+  for (let i = 0; i < e.pn; i++) e.pQ[i] = 0; // the threads are cut with the attack (the forks stay planted)
+  e.rcW = 0; e.rcT = KB.recEvery[ph];
   if (late) { banner(KEEPSAKE_BANNERS.hold, KEEPSAKE_BANNERS.late, '#ff8a3a', 110); ks('kboss_enrage', SND.enrage, null, null, null); }
   else banner(ph === 1 ? KEEPSAKE_BANNERS.woke : KEEPSAKE_BANNERS.cracked, '', undefined, 100);
   eyes(true);
@@ -321,10 +506,14 @@ function update(e) {
   // CRACKED: the pendulum and its parts
   if (e.ph === 2 && e.tr <= 0) {
     if (!e.rocker) crack3(e);
-    e.pa = pendAt(e.p3t++);
+    // the swing's phase is carried, so breaking the crier slows it (pPer2) without a jump (D59)
+    const c0 = Math.cos(e.pph);
+    e.pph += (Math.PI * 2) / (e.crier && e.crier.dead ? KB.pPer2 : KB.pPer);
+    e.pa = pendA(e.p3t++, e.pph);
     pendXY(e.pa, V); rotXY(V[0], V[1], e.th, V);
     e.rocker.ox = V[0]; e.rocker.oy = V[1]; e.rocker.x = e.x + V[0]; e.rocker.y = e.y + V[1]; e.rocker.hp = e.rocker.max;
-    if (e.p3t % (KB.pPer / 2) === KB.pPer / 4) sample('kboss_swing', SND.swing); // an end of the swing, every 90 f
+    if ((c0 > 0) !== (Math.cos(e.pph) > 0)) sample('kboss_swing', SND.swing); // an end of the swing (the turn), every half period
+    beam(e);
     if (e.crier) {
       e.crier.x = e.x + KB.crx; e.crier.y = e.y + KB.cry;
       if (e.crier.dead && !e.crierGone) {
@@ -335,14 +524,16 @@ function update(e) {
       }
     }
   }
+  // the hoard (D59): the planted forks are hazards, and the forks flying home keep flying whatever the head does
+  plantHit(e); homeFly(e);
   if (!$.P.alive) return;
   // the clock: waits out the roll-in and the transitions, pauses while you're dead
   if (e.t >= KB.enter && e.tr <= 0 && !e.rage) {
     e.pl = KB.clock; e.pt++;
     if (e.pt >= KB.clock) {
-      if (e.ph < 2) { if (e.ph === 1) e.wins = KB.p2MinWin; e.hp = Math.min(e.hp, floorOf(e)); e.late = 1; } // IT WON'T LET GO: forced on
+      if (e.ph < 2) { if (e.ph === 1) e.wins = KB.p2MinWin; else e.d0 = KB.p1MinAtt; e.hp = Math.min(e.hp, floorOf(e)); e.late = 1; } // IT WON'T LET GO: forced on
       else { // the one capped enrage: never escapes, the grade capped at B
-        e.rage = 1; e.pl = 0;
+        e.rage = 1; e.pl = 0; e.rcT = Math.min(e.rcT, KB.recRage);
         banner(KEEPSAKE_BANNERS.hold, KEEPSAKE_BANNERS.rage, '#ff3a2a', 140);
         ks('kboss_enrage', SND.enrage, 'keep_wail', SND.wailFb, sfx.roar);
         if ($.G.st) $.G.st.gcap = capGrade($.G.st.gcap || 'S', KB.rageGrade);
@@ -350,16 +541,25 @@ function update(e) {
     }
   }
   // a phase cut reached: the transition (an attack in flight is dropped with it, and so is the boomerang)
-  if (e.tr <= 0 && e.ph < 2 && e.hp <= floorOf(e) + 1e-6 && (e.ph === 0 || e.wins >= KB.p2MinWin || e.late)) { phaseTo(e, e.ph + 1, e.late); e.late = 0; return; }
-  if (e.ph === 2 && e.hp <= e.max * KB.end + 1e-6) { e.st = 'dying'; e.wt = 0; e.r = 0; e.hb = null; e.pl = 0; return; }
+  if (e.tr <= 0 && e.ph < 2 && e.hp <= floorOf(e) + 1e-6 && ((e.ph === 0 ? e.d0 >= KB.p1MinAtt : e.wins >= KB.p2MinWin) || e.late)) { phaseTo(e, e.ph + 1, e.late); e.late = 0; return; }
+  if (e.ph === 2 && e.hp <= e.max * KB.end + 1e-6) { e.st = 'dying'; e.wt = 0; e.r = 0; e.hb = null; e.pl = 0; letGo(e); return; }
   if (e.tr > 0) { e.tr--; if (e.tr === 0) eyes(false); return; }
   if (e.t < KB.enter) return;
+  recallTick(e);
   e.wt++;
   if (e.st === 'idle') { if (e.wt >= e.cool) startAttack(e); }
   else attack(e);
   if (R() < .06) spark(e.x + rr(-30, 30), e.y + rr(-30, 30), 0, -rr(.2, .6), 18, '#d8d0c0');
 }
 
+/** PUT TO BED: it lets go at last. The planted forks drop out of the floor and ceiling, the ones in flight fall, the
+ *  beam's mark goes */
+function letGo(e) {
+  const sc = $.G.scroll;
+  for (let i = 0; i < e.pn; i++) drop(e.pX[i] - sc, e.pY[i] - e.pS[i] * 6, rr(-.6, .6), -e.pS[i] * rr(.2, 1), 1.4, 0, 80);
+  for (let j = 0; j < e.fh; j++) drop(e.hX[j], e.hY[j], e.hVX[j] * .2, e.hVY[j] * .2, 1.4, 0, 80);
+  e.pn = 0; e.fh = 0; e.mkT = 0;
+}
 /** PUT TO BED: three slow clacks shut (the last one final), the head tips onto its side, the crier's last 'ma-' */
 function dying(e) {
   e.wt++;
@@ -396,13 +596,20 @@ function spawn(b) {
   const x = W + 70, f = Math.min(PH - 2, floorAt(x + $.G.scroll));
   const e = mk('keepsake', x, f - KB.rest, {
     tx: W - KB.tx, st: 'idle', wt: 0, cool: 60, att: 0, ph: 0, tr: 0, th: 0, tc: 0, wins: 0, pt: 0, pl: KB.clock,
-    rage: 0, late: 0, my: -80, pa: 0, p3t: 0, la: Math.PI, lx: 0, ly: 0, bx: 0, by: 0, bs: 0, bl: 0, bd: 1, ra: 0, dn: 0,
+    rage: 0, late: 0, my: -80, pa: 0, p3t: 0, pph: 0, d0: 0, rl: 0, pn: 0, fh: 0, rtx: 0, rty: 0,
+    mkT: 0, mkX: 0, bCd: 0, spots: 0, rcW: 0, rcT: KB.recEvery[0], recalls: 0, tux: 0, tuy: 0, bdx: 0, bdy: 1, box: 0, boy: 0, la: Math.PI, lx: 0, ly: 0, bx: 0, by: 0, bs: 0, bl: 0, bd: 1, ra: 0, dn: 0,
     biome: b, title: KEEPSAKE_NAME, armor, hitSnd,
   });
   e.hb = [[KB.wx, KB.wy, KB.wr], [0, KB.cy, KB.cr]];
   e.wy = KB.wy;
   e.fx = new Float32Array(8); e.fl = new Float32Array(8); e.fu = new Uint8Array(8); e.fn = 0; e.fy = 0;
-  e.fq = new Float32Array(8); e.fv = new Float32Array(8); e.fw = new Float32Array(8); e.lat = new Float32Array(3);
+  e.fq = new Float32Array(8); e.fv = new Float32Array(8); e.fw = new Float32Array(8); e.lat = new Float32Array(3); e.fz = new Float32Array(8);
+  // the hoard (D59), all made here (nothing allocated in the update): planted world x, surface y, side (1 floor, -1
+  // ceiling), birth frame, on a thread; the flights home; the recall's scratch
+  const P = KB.plRage;
+  e.pX = new Float32Array(P); e.pY = new Float32Array(P); e.pS = new Int8Array(P); e.pB = new Float32Array(P); e.pQ = new Uint8Array(P);
+  e.hX = new Float32Array(P); e.hY = new Float32Array(P); e.hVX = new Float32Array(P); e.hVY = new Float32Array(P); e.hF = new Int16Array(P);
+  e.ys = new Float32Array(P); e.cu = new Float32Array(P); e.tm = new Float32Array(P); e.kp = new Uint8Array(P);
   e.ma = new Uint8Array(KB.mobN).fill(1); e.ml = new Float32Array(KB.mobN); e.dq = new Uint8Array(KB.mobN);
   for (let i = 0; i < KB.mobN; i++) e.ml[i] = ((i * 7 + 3) % 5) * KB.mobVar; // thread lengths: fixed per fork, no draw
   e.rocker = null; e.crier = null; e.crierGone = 0; e.barked = 0; e.mbT = 0; e.mamaN = 0;
@@ -416,10 +623,13 @@ const warn = () => {
 };
 
 defineBoss('keepsake', {
-  // literals only at the top level (load order, src/CLAUDE.md). r is KB.r. HP 260 x depth (DEPTH.w.keepsake .6, the
-  // Crux's: its guarded windows make extra HP count); tuned with tools/boss-probe.mjs to D55's band (28-34 s bot at the
-  // stage-1 kit, >= 15 s strong). No skull, no teeth (the art rule): it is vinyl, the meat is the ship's
-  et: { hp: 320, r: 44, gsz: 5, score: 16000, bio: 100, eyes: 0, teeth: 0, skull: 0, big: 1, mini: 1 },
+  // literals only at the top level (load order, src/CLAUDE.md). r is KB.r. HP 440 x depth (DEPTH.w.keepsake .6, the
+  // Crux's: its guarded windows make extra HP count). D59: tuned with tools/keepsake-probe.mjs to ~38-40 s at kit=mid
+  // (band 38-46; it was 320 and 26 s), boss-probe STRONG D1 >= 18 s. Base HP with NO stage-order multiplier:
+  // D58 (branch balance-d1, held) would multiply stage-boss HP x1.4 in depthHP for this slot. IF D58 SHIPS, DIVIDE
+  // THIS BY 1.4 (to ~314) IN THE SAME CHANGE, or the fight runs ~52 s. No skull, no teeth (the art rule): it is vinyl,
+  // the meat is the ship's
+  et: { hp: 440, r: 44, gsz: 5, score: 16000, bio: 100, eyes: 0, teeth: 0, skull: 0, big: 1, mini: 1 },
   // the words are src/voice/keepsake.ts's: a leaf with no imports, so it is loaded before this file's top level runs
   name: KEEPSAKE_NAME,
   word: KEEPSAKE_READOUT,

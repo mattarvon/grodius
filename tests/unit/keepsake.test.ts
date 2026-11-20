@@ -2,7 +2,7 @@
 // enemies/boss/registry.ts. The fight itself is measured by tools/boss-probe.mjs (TTK per kit) and tools/rng-probe.mjs.
 // The fountain helpers moved here from the retired midboss's test (D53).
 import { describe, expect, it } from 'vitest';
-import { KB, TILT0, fountLattice, forkCols, inWindow, kbArena, keepHurtRot, lobFrames, mobilePick, p2Floor, pendAt, pendXY, phaseClamp, phaseFloor, riseCap, rotXY, tiltAt, tiltEdge } from '../../src/enemies/boss/_keepsake';
+import { KB, TILT0, beamDir, beamSees, fountLattice, forkCols, inWindow, kbArena, keepHurtRot, lineAtX, lobFrames, maxFree, mobilePick, p1Floor, p2Floor, pendA, pendAt, pendXY, phaseClamp, phaseFloor, recallPick, riseCap, rotXY, tiltAt, tiltEdge } from '../../src/enemies/boss/_keepsake';
 import { KEEPSAKE_SLOT, bossFor, capGrade } from '../../src/enemies/boss/registry';
 import { ROSTER, midRow } from '../../src/enemies/mid/roster';
 
@@ -40,9 +40,9 @@ describe('keepHurtRot: the rotated ANGLE rule', () => {
     for (let d = -40; d <= 40; d += 4) expect(keepHurtRot(E.x, E.y, deg(d), E.x, E.y)).toBe(KB.face);
   });
 
-  it('drops the crown line in CRACKED, so more of the split head takes full damage', () => {
-    expect(keepHurtRot(E.x, E.y, 0, E.x - 40, E.y - 18, KB.crown)).toBe(KB.face);
-    expect(keepHurtRot(E.x, E.y, 0, E.x - 40, E.y - 18, KB.crown3)).toBe(1);
+  it('keeps the crown line in CRACKED (D59: dropping it made the last phase the easiest to hit)', () => {
+    expect(KB.crown3).toBe(KB.crown);
+    expect(keepHurtRot(E.x, E.y, 0, E.x - 40, E.y - 18, KB.crown3)).toBe(KB.face);
   });
 
   it('puts the wound hitbox above the crown line, and gives a bolt and the laser the same answer at every height', () => {
@@ -85,12 +85,21 @@ describe('phaseClamp: no damage carries past a phase cut', () => {
 });
 
 describe('phaseFloor: the cuts', () => {
-  it('cuts DOZING at 65% and CRACKED near zero (the dying beat)', () => {
-    expect(phaseFloor(260, 0)).toBeCloseTo(260 * .65, 9);
+  it('cuts DOZING at 75%, AWAKE at 35% and CRACKED near zero (the dying beat, D59)', () => {
+    expect(KB.cut1).toBe(.75);
+    expect(KB.cut2).toBe(.35);
+    expect(phaseFloor(260, 0)).toBeCloseTo(260 * .75, 9);
     expect(phaseFloor(260, 2)).toBeCloseTo(260 * KB.end, 9);
     expect(KB.end).toBeGreaterThan(0);
   });
-  it('stages AWAKE: each of the first p2MinWin windows takes only its share, then the floor is 30%', () => {
+  it('stages DOZING: until p1MinAtt attacks are out each takes only its share, then the floor is the cut (D59)', () => {
+    expect(KB.p1MinAtt).toBe(3);
+    expect(p1Floor(0)).toBeCloseTo(1 - (1 - KB.cut1) / KB.p1MinAtt, 9);
+    expect(p1Floor(KB.p1MinAtt - 1)).toBeCloseTo(KB.cut1, 9);
+    expect(phaseFloor(100, 0, 0, 0)).toBeGreaterThan(phaseFloor(100, 0, 0, 1));
+    expect(phaseFloor(100, 0, 0, 9)).toBeCloseTo(100 * KB.cut1, 9);
+  });
+  it('stages AWAKE: each of the first p2MinWin windows takes only its share, then the floor is the cut', () => {
     expect(p2Floor(0)).toBeCloseTo(KB.cut1 - (KB.cut1 - KB.cut2) / KB.p2MinWin, 9);
     expect(p2Floor(KB.p2MinWin - 1)).toBeCloseTo(KB.cut2, 9);
     expect(p2Floor(9)).toBeCloseTo(KB.cut2, 9);
@@ -133,6 +142,17 @@ describe('the pendulum', () => {
     expect(Math.abs(pendAt(KB.pRamp / 4))).toBeLessThan(KB.pAmp * .3);
     for (let t = 200; t < 400; t++) expect(pendAt(t + KB.pPer)).toBeCloseTo(pendAt(t), 9);
     expect(KB.pPer).toBe(180);
+  });
+  it('carries its phase, so slowing it (the crier broken, D59) never jumps the weight', () => {
+    let ph = 0, last = 0;
+    for (let t = 0; t < 900; t++) {
+      ph += (Math.PI * 2) / (t < 400 ? KB.pPer : KB.pPer2);
+      const a = pendA(t, ph);
+      if (t > 0) expect(Math.abs(a - last)).toBeLessThan(.08);
+      last = a;
+    }
+    expect(pendA(300, (300 / KB.pPer) * Math.PI * 2)).toBeCloseTo(pendAt(300), 12);
+    expect(KB.pPer2).toBeGreaterThan(KB.pPer);
   });
   it('sweeps its weight up into the crown lane in front of the head at the swing toward the ship', () => {
     const v = [0, 0];
@@ -184,6 +204,47 @@ describe('kbArena: the arena override (layout invariant: gap >= 200 wherever bos
   });
 });
 
+describe('IT WON\'T LET GO: the hoard, the recall\'s gap, the search beam (D59)', () => {
+  it('keeps a lane of more than 170 px with forks planted top and bottom in the tightest arena', () => {
+    expect(KB.aGap - 2 * KB.plOut).toBeGreaterThanOrEqual(170);
+    expect(KB.plRage).toBeGreaterThanOrEqual(KB.plN);
+  });
+  it('reads a thread\'s height at the ship\'s x, and NaN where it does not cross', () => {
+    expect(lineAtX(0, 200, 100, 100, 50)).toBeCloseTo(150, 9);
+    expect(lineAtX(100, 100, 0, 200, 50)).toBeCloseTo(150, 9);
+    expect(lineAtX(60, 200, 100, 100, 50)).toBeNaN();
+  });
+  it('measures the longest free run in a column', () => {
+    const tmp = new Float32Array(8);
+    expect(maxFree(new Float32Array([NaN]), 1, 0, 200, 7, tmp)).toBe(200);
+    expect(maxFree(new Float32Array([100]), 1, 0, 200, 7, tmp)).toBe(93);
+    expect(maxFree(new Float32Array([150, 50, 100]), 3, 0, 200, 7, tmp)).toBe(43);
+  });
+  it('never lets a recall close the ship\'s column: a free run of recGap always stays, over 3000 random hoards', () => {
+    const rng = stream(5), n = KB.plRage, ys = new Float32Array(n), keep = new Uint8Array(n), cur = new Float32Array(n), tmp = new Float32Array(n), kept = new Float32Array(n);
+    for (let k = 0; k < 3000; k++) {
+      for (let i = 0; i < n; i++) ys[i] = rng() < .2 ? NaN : 16 + rng() * 210;
+      const c = recallPick(ys, n, 16, 226, KB.recW, KB.recGap, keep, cur, tmp);
+      let m = 0;
+      for (let i = 0; i < n; i++) if (keep[i]) kept[m++] = ys[i];
+      expect(m).toBe(c);
+      expect(maxFree(kept, m, 16, 226, KB.recW, tmp)).toBeGreaterThanOrEqual(KB.recGap);
+      for (let i = 0; i < n; i++) if (ys[i] !== ys[i]) expect(keep[i]).toBe(1); // a thread that misses the column is always free to fly
+    }
+  });
+  it('points the beam out along the wire, and sees only inside its cone and reach', () => {
+    const d = [0, 0];
+    beamDir(0, 0, d); //                hanging: straight down
+    expect(d[0]).toBeCloseTo(0, 9); expect(d[1]).toBeCloseTo(1, 9);
+    beamDir(KB.pAmp, 0, d); //          swung toward the ship: out to the left and up
+    expect(d[0]).toBeLessThan(-.9); expect(d[1]).toBeLessThan(0);
+    expect(beamSees(300, 100, -1, 0, 100, 100)).toBe(true);
+    expect(beamSees(300, 100, -1, 0, 100, 100 + 200 * Math.tan(KB.bHalf * 1.2))).toBe(false);
+    expect(beamSees(300, 100, -1, 0, 300 - KB.bLen - 5, 100)).toBe(false);
+    expect(beamSees(300, 100, -1, 0, 400, 100)).toBe(false); // behind it
+  });
+});
+
 describe('bossFor: placement (Matt, decision 1)', () => {
   it('puts THE KEEPSAKE at the second biome stage in Descent 1, and alternates with the home boss after', () => {
     expect(KEEPSAKE_SLOT).toBe(1);
@@ -215,7 +276,9 @@ describe('the enrage grade cap', () => {
 
 describe('the telegraphs (.claude/rules/ai-code.md: >= 44 f for a killing attack)', () => {
   it('gives every killing attack a tell of at least 44 frames', () => {
-    for (const [k, f] of Object.entries({ tell: KB.tell, aim: KB.aim, boom: KB.boomTel, wail: KB.wail, drop: KB.drop, rain: KB.rain, mama: KB.mama })) expect(f, k).toBeGreaterThanOrEqual(44);
+    // D59: the recall's and the tug's threads, the search beam's marked column, the cries that shake the planted forks
+    for (const [k, f] of Object.entries({ tell: KB.tell, aim: KB.aim, boom: KB.boomTel, wail: KB.wail, drop: KB.drop, rain: KB.rain, mama: KB.mama, recall: KB.recall, tug: KB.tug, beam: KB.bTel })) expect(f, k).toBeGreaterThanOrEqual(44);
+    expect(KB.recLock).toBeLessThan(KB.recall); // the threads are seen dashed before they lock
     expect(KB.pRamp).toBeGreaterThanOrEqual(44); // the pendulum's first swing builds from rest
   });
 });
