@@ -65,6 +65,11 @@ clipping, so a clipped take is refused. Before a session:
 3. **Record:** **Space** starts recording and **Space** stops it. Let the last word ring out a beat before you stop:
    the stop key's click is cut, and with it the last 0.2 s. The raw take plays back. A take stops itself after 15 s.
 4. **Keep or discard:** **Enter** keeps it, **Backspace** throws it away, and **Space** records it again.
+   - **Enter keeps the take through the FX rack as it stands**, never just the raw take. Every Keep button says what it
+     will put on the take: **Keep with FX: pitch + bitcrush + ...** on the RAW TAKE deck, **Keep: pitch + bitcrush +
+     ...** in the FX rack beside **Preview** (the one to press while you listen to the filtered take), and **Keep
+     clean** on both when the rack is off. Enter works with the preset box focused, too (only a text box keeps its
+     own Enter: a preset name, the effect search, a quip's words).
    - **Shorten pauses over 0.4 s** (on by default, for every new take): a pause inside the take longer than 0.4 s is
      cut to 0.25 s when it is kept. Untick it before Enter for a line whose pause is part of the read, and when the
      pause is the joke (the beat before SERVED in CALAMARI SERVED).
@@ -74,7 +79,14 @@ clipping, so a clipped take is refused. Before a session:
    game.
 
 A kept take is cleaned up and filed as `src/sfx/<folder>/<line>-matty-<n>.ogg`, with the next free n, and the processed
-file plays back. **Backspace** right after a keep, or **Delete this take**, removes it again.
+file plays back in the **KEPT** deck, tagged with the rack it went through (**with FX: robot + radio band**, or **clean
+(no FX)**). **Backspace** right after a keep, or **Delete this take**, removes it again.
+
+**Change the FX on a take you already kept:** set the rack, then **Re-keep with current FX** (on the KEPT deck, or
+**Re-keep with FX** on that take in the take list). Only that take is rewritten, from its raw recording, and its record
+remembers the new rack; no re-recording, and the line's other takes are left alone. **FX preview** on a kept take
+first lets you hear it through the rack; the rack's Keep button then reads **Re-keep <take>: <chain>** and does the
+same.
 
 The raw recording is kept in `assets-raw/voice/<folder>/`. That folder is git-ignored, and the dev server refuses to
 serve it. **Delete** on a take removes the processed file only. It works on the shipped clips too; `git checkout`
@@ -109,7 +121,9 @@ hiss comes up with it. A raw peak past -3 dBFS gets a **hot take** warning.
 length, the refusal); `production/qa/evidence/ls2-booth2.md` has its numbers.
 
 `node tools/booth/fx-e2e.mjs [http://localhost:5199]` drives the real booth page in headless Chromium with a fake mic
-against this checkout's running dev server: the FX rack, its preview, a keep with FX, "apply current FX", a clipped take
+against this checkout's running dev server: the FX rack, its preview, a keep with FX (Enter with the preset box focused,
+and the rack's own Keep button, the labels and the KEPT deck's chain tag), "apply current FX", a single take re-kept
+with FX and back to clean (the other take byte-identical), a clipped take
 refused, the studio UI (waveforms, meter, A/B, the render cache, bypass, solo, search, a user preset saved, exported,
 deleted and imported), the layout at 1280 and 760 wide. It records into `hype100` and deletes every file it made afterwards.
 
@@ -118,7 +132,7 @@ deleted and imported), the layout at 1280 and 760 wide. It records into `hype100
 When the chain changes, takes kept under the old one can be redone from their raw recordings, without recording again:
 
 - **In the booth:** **Reprocess this line's takes** under the take list (shown when the line has raw takes). It uses
-  the pause checkbox's setting.
+  the pause checkbox's setting. **Re-keep with FX** on a take redoes that one take only, with the rack (FX rack, below).
 - **From the shell:** `node tools/booth/reprocess.mjs hype10 hype35` (folders), or `--all`. Add `--no-squeeze` to
   keep the pauses as recorded.
 
@@ -205,12 +219,18 @@ pitch, synth, dirt, modulation, time and space last.
 - **Auto preview** (on by default) re-renders whenever a preset, Randomize or a tick changes the rack, or a slider is
   let go. A focused slider keeps the arrow keys, to nudge it.
 - **FX preview** on a kept take (one with a raw take) makes that take's raw recording the preview source.
-- **Keep** (**Enter**) keeps the take with the rack as it stands. The take list tags each take with its rack
-  (`robot + radio band`).
+- **Keep** (**Enter**, or the rack's own **Keep: <chain>** beside Preview) keeps the take under review with the rack
+  as it stands; with the rack off the buttons read **Keep clean**. Solo does not change it: Keep uses the whole rack.
+  The take list tags each take with its rack (`robot + radio band`), and the KEPT deck tags the take just kept.
+- **Re-keep with current FX** (the KEPT deck; **Re-keep with FX** per take in the take list; the rack's Keep while a
+  kept take is the preview source) rewrites that one take from its raw take with the rack as it stands, and records
+  that rack with it (it keeps its own pause setting). With the rack off it strips the FX. It asks first, like Apply,
+  when the take was kept before fx-dsp; a raw take that clipped is left as it was. The take then shows in the KEPT
+  deck as **RE-KEPT**, with its numbers and its chain. (`POST /__booth/reprocess?cat=..&name=<take>&fx=..`.)
 - **Each take remembers its rack**, in its record beside the raw take (`assets-raw/voice/<folder>/<take>.json`), so
   **Reprocess this line's takes** redoes each take with its own rack.
-- **Apply current FX to this line's takes** rewrites every take of the line that has a raw take with the rack as it
-  stands, and records that rack with each (each keeps its own pause setting). With the rack off it strips the FX.
+- **Apply current FX to this line's takes** rewrites **every** take of the line that has a raw take with the rack as it
+  stands (for one take, use Re-keep above), and records that rack with each (each keeps its own pause setting). With the rack off it strips the FX.
   A raw take that clipped is skipped.
 - **Previews write nothing to `src/`:** they render into `assets-raw/voice/.preview/` (git-ignored, never served)
   and are deleted once sent. A clipped take can be previewed, with a warning, but is still refused on a keep.
