@@ -204,6 +204,11 @@
   .knob input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: #2a1519; border: 1px solid #000; }
   .knob input[type=range]::-moz-range-thumb { width: 10px; height: 16px; border-radius: 2px; background: #c9bfc1; border: 1px solid #000; }
   .fxtag { color: var(--warn); font-size: 11px; border: 1px solid #5a4a2a; border-radius: 9px; padding: 0 6px; }
+  .fxtag.clean { color: var(--dim); border-color: var(--line2); }
+  /* every Keep / Re-keep says what it puts on the take (the rack's chain, or clean): a long chain wraps, never overflows */
+  button.keep { border-color: #2f5a3b; max-width: 100%; text-align: left; overflow-wrap: anywhere; }
+  button.keep b { color: var(--ok); font-weight: 600; }
+  button.keep:disabled b { color: inherit; }
   /* SLAB's quips (LS2-quips): a section of their own under the fixed lines, an add box at its foot */
   .qhead { padding: 14px 14px 6px; color: var(--red); font: 10px var(--hud); letter-spacing: .12em; border-bottom: 1px solid var(--line); background: #120a0c; }
   .qhead span { color: var(--dim); font: 11px system-ui, sans-serif; letter-spacing: 0; margin-left: 6px; }

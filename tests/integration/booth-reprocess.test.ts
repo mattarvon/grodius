@@ -168,6 +168,47 @@ describe('reprocess', () => {
     expect(calls.map((c) => [c.raw, c.squeeze, fxOn(c.fx)])).toEqual([['a-matty-1.webm', true, false]]);
     expect(readOpts(raw, 'a-matty-1.ogg')).toEqual({ squeeze: true, chain: FX_CHAIN });
   });
+  it('o.only re-keeps that one take with o.fx and records the rack in its .json; the others are untouched', async () => {
+    put(raw, 'a-matty-1.webm', 'voice'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: false, fx: ROBOT, chain: FX_CHAIN }));
+    put(raw, 'a-matty-2.webm', 'voice'); put(sfx, 'a-matty-2.ogg', OLD); put(raw, 'a-matty-2.json', JSON.stringify({ squeeze: true, chain: FX_CHAIN }));
+    const before = opts('a-matty-1.json');
+    const r = await reprocess(root, [CAT], { process: fake, fx: GHOST, only: 'a-matty-2.ogg' });
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ name: 'a-matty-2.ogg', done: true, lufs: -12, peak: -1, dur: 1.9, gain: 0, fx: fxName(GHOST) });
+    expect(calls).toEqual([{ raw: 'a-matty-2.webm', squeeze: true, fx: GHOST }]);
+    expect(read('a-matty-1.ogg')).toBe(OLD);
+    expect(read('a-matty-2.ogg')).toBe('new take');
+    expect(opts('a-matty-1.json')).toEqual(before);
+    expect(opts('a-matty-2.json')).toEqual({ squeeze: true, fx: GHOST, chain: FX_CHAIN });
+    // and the rack off strips it again
+    await reprocess(root, [CAT], { process: fake, fx: {}, only: 'a-matty-2.ogg' });
+    expect(opts('a-matty-2.json')).toEqual({ squeeze: true, chain: FX_CHAIN }); // no empty fx key left behind
+    expect(readOpts(raw, 'a-matty-2.ogg')).toEqual({ squeeze: true, chain: FX_CHAIN });
+  });
+  it('o.only asks about a take kept before fx-dsp only when it is that take', async () => {
+    put(raw, 'a-matty-1.webm', 'voice'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: true, fx: ROBOT })); // unstamped
+    put(raw, 'a-matty-2.webm', 'voice'); put(sfx, 'a-matty-2.ogg', OLD); put(raw, 'a-matty-2.json', JSON.stringify({ squeeze: true, chain: FX_CHAIN }));
+    expect(legacyTakes(root, [CAT], GHOST, 'a-matty-2.ogg')).toEqual([]);
+    expect(legacyTakes(root, [CAT], GHOST, 'a-matty-1.ogg').map((t) => t.name)).toEqual(['a-matty-1.ogg']);
+    expect((await reprocess(root, [CAT], { process: fake, fx: GHOST, only: 'a-matty-2.ogg' }))[0].done).toBe(true);
+    await expect(reprocess(root, [CAT], { process: fake, fx: GHOST, only: 'a-matty-1.ogg' })).rejects.toBeInstanceOf(LegacyTakes);
+    expect(read('a-matty-1.ogg')).toBe(OLD);
+  });
+  it('o.only refuses a bad name, a take with no raw, and more than one slot, before touching anything', async () => {
+    put(raw, 'a-matty-1.webm', 'voice'); put(sfx, 'a-matty-1.ogg', OLD);
+    for (const bad of ['../a-matty-1.ogg', 'a-matty-1.webm', 'a-matty-1', '']) await expect(reprocess(root, [CAT], { process: fake, fx: GHOST, only: bad })).rejects.toThrow('not a take name');
+    await expect(reprocess(root, [CAT], { process: fake, fx: GHOST, only: 'a-matty-9.ogg' })).rejects.toThrow('no raw take for a-matty-9.ogg');
+    await expect(reprocess(root, [CAT, 'hype35'], { process: fake, only: 'a-matty-1.ogg' })).rejects.toThrow('one slot');
+    expect(calls).toEqual([]);
+    expect(read('a-matty-1.ogg')).toBe(OLD);
+  });
+  it('o.only on a clipped raw leaves the take and its record as they were', async () => {
+    put(raw, 'a-matty-1.webm', 'CLIP'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: true, chain: FX_CHAIN }));
+    const [r] = await reprocess(root, [CAT], { process: fake, fx: GHOST, only: 'a-matty-1.ogg' });
+    expect(r).toMatchObject({ done: false, why: 'input clipped (raw peak +2.8 dBFS): kept as it was' });
+    expect(read('a-matty-1.ogg')).toBe(OLD);
+    expect(opts('a-matty-1.json')).toEqual({ squeeze: true, chain: FX_CHAIN });
+  });
   it("a clipped raw keeps its old record when o.fx is applied", async () => {
     put(raw, 'a-matty-1.webm', 'CLIP'); put(sfx, 'a-matty-1.ogg', OLD); put(raw, 'a-matty-1.json', JSON.stringify({ squeeze: true, fx: ROBOT }));
     const [r] = await reprocess(root, [CAT], { process: fake, fx: { echo: defaults('echo') }, confirm: true });
