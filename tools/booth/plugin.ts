@@ -467,7 +467,9 @@ function stamp(rdir: string, name: string, squeeze: boolean, fx: FxSet | undefin
   let j: Record<string, unknown> = {};
   try { const r = JSON.parse(fs.readFileSync(optsFile(rdir, name), 'utf8')); if (r && typeof r === 'object' && !Array.isArray(r) && typeof r.squeeze === 'boolean') j = r; } catch { /* no record */ }
   if (typeof j.squeeze !== 'boolean') j = { squeeze };
-  fs.writeFileSync(optsFile(rdir, name), JSON.stringify({ ...j, ...(fx ? { fx } : {}), chain: FX_CHAIN }));
+  // an applied rack replaces the take's own; an applied empty rack (clean) leaves no fx key at all
+  if (fx) { const { fx: _was, ...rest } = j; j = fxOn(fx) ? { ...rest, fx } : rest; }
+  fs.writeFileSync(optsFile(rdir, name), JSON.stringify({ ...j, chain: FX_CHAIN }));
 }
 /** the takes a reprocess of these slots would rewrite that were kept before fx-dsp and would change (legacyWhy):
  *  read only. `apply`: the rack an Apply FX puts on them. `only`: that one take (a TAKE_RE name), the others left out */

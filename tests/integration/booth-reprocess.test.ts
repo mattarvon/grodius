@@ -182,6 +182,7 @@ describe('reprocess', () => {
     expect(opts('a-matty-2.json')).toEqual({ squeeze: true, fx: GHOST, chain: FX_CHAIN });
     // and the rack off strips it again
     await reprocess(root, [CAT], { process: fake, fx: {}, only: 'a-matty-2.ogg' });
+    expect(opts('a-matty-2.json')).toEqual({ squeeze: true, chain: FX_CHAIN }); // no empty fx key left behind
     expect(readOpts(raw, 'a-matty-2.ogg')).toEqual({ squeeze: true, chain: FX_CHAIN });
   });
   it('o.only asks about a take kept before fx-dsp only when it is that take', async () => {
