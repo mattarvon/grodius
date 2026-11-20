@@ -12,6 +12,7 @@ import { forkAfter, lastStage, row } from './layout';
 import { gradeKey } from './gradekey';
 import { buildStage } from './stagebuild';
 import { bankBio, econId, gradeOf, sealAt } from './economy';
+import { capGrade } from './enemies/boss/registry';
 
 /** stage names by stage kind; a biome stage is named by the biome you fly into once its gate is taken */
 export const STAGE_NAMES = {
@@ -70,7 +71,7 @@ export const stageTs = (i = $.G.stage || 0) => { const r = row(i); return r ? (r
 
 /** the banner each stage-boss kill shows (enemies/update.ts crux/butcher and the maw, boss/update.ts the gate boss):
  *  a SLAB quip saying one of them never follows it (LS2-quips) */
-const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED'] as const;
+const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED', 'PUT TO BED'] as const; // PUT TO BED: THE KEEPSAKE (D55, src/voice/keepsake.ts KEEPSAKE_READOUT)
 /** frames from a stage boss's death to its reward line (and the quip behind it): the death roar lands first. The gate
  *  boss's descent end (boss/update.ts clearT 480) stays in play past it (tests/unit/quips.test.ts) */
 export const BOSS_REWARD_WAIT = 50;
@@ -79,7 +80,8 @@ export function clearStage(escaped = false) {
   const G = $.G, st = G.st;
   if (!st || st.done) return 0;
   st.done = true;
-  const g = gradeOf(econId(), st, stageTs(G.stage), escaped), R = GRADE[g], perfect = !st.hits && !st.deaths && !escaped;
+  // st.gcap: a fight that capped the stage's grade (THE KEEPSAKE's enrage: B, D55); unset everywhere else
+  const g = capGrade(gradeOf(econId(), st, stageTs(G.stage), escaped), st.gcap), R = GRADE[g], perfect = !st.hits && !st.deaths && !escaped;
   const bonus = R.score * (G.loop + 1) + (perfect ? 10000 * (G.loop + 1) : 0);
   const bio = escaped ? 0 : R.bio * deepPay(); // IT GOT AWAY / NO REWARD: no biomass (D5b)
   G.score += bonus;

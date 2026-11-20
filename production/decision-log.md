@@ -833,6 +833,8 @@ subtitles (localization-lead).
 
 ### D53 THE KEEPSAKE, a ship-pool ANGLE midboss, pass 1 (wip) — 2026-11-15 (Matt designed it; branch `keepsake`)
 
+**Superseded 2026-11-15 by D55:** the midboss row retired; its kit is THE KEEPSAKE stage boss's phase 1.
+
 **What.** Matt's own midboss, added outside the §6.2 plan as a fifth ship-pool member (the pool's planned four are
 WINDOW, RANGE, CROWD and SPACE; ANGLE was free): a crew kid's vinyl baby-doll head grown to midboss size, a silver
 dinner fork rammed into the soft spot. Its face takes x.15; only the crown round the fork (hits at or above the crown
@@ -933,6 +935,96 @@ the rack's pre-gain (GRODIUS BITCH read +31.3 dB, about 8 dB low).
 Don't reprocess DESCEND (or any take kept before fx-dsp) unless you mean to change it; if you do, listen first and commit
 the new .ogg on its own. The first CI run after merge shows whether Ubuntu's ffmpeg passes the real sweep.
 
+### D55 THE KEEPSAKE becomes a stage boss; the midboss row retires into its phase 1 — 2026-11-15 (Matt picked the recommended option on every decision; branches `kboss-core`, `kboss-art`, `kboss-audio`)
+
+**Matt's decisions** (design proposal "THE KEEPSAKE as a stage boss", section 9): (1) **placement A**: the boss of the
+second biome stage (stage n-3 on long4), always in Descent 1; from Descent 2 it alternates with that biome's own boss
+by descent number (D2, D4 home; D3, D5 THE KEEPSAKE), no RNG draw; `short` unchanged. Later it moves to THE CREW DECK.
+(2) **"It won't let go"**: it never escapes; a phase whose 25 s clock runs out is forced on (IT WON'T LET GO), and the
+last one's runout is one capped enrage (eyes open for good, cooldowns x.75, the stage grade capped at B). Winnable with
+no kit. (3) **Retire the midboss**: the wip ship-pool row, its files and LAB FORCE MID's only entry go; its kit is phase
+1 and its pure helpers moved to `enemies/boss/_keepsake.ts`. (4) Readout **PUT TO BED** (in `stages.ts`
+BOSS_READOUTS). (5) TTK band 28-34 s bot at the stage-1 kit, a >= 15 s floor at the strong kit. (6) Phase-3 interior:
+the sleep-eye rocker swinging as a pendulum and the crier ('mama' voice box) as a breakable part.
+
+**The fight** (`src/enemies/boss/keepsake.ts`, tuning in `_keepsake.ts` KB): a 104x124 head resting on the arena floor.
+DOZING (100-65%): the midboss's fountain (48 f tell), open window, aimed throw (46 f). IT WOKE UP (90 f): a hoop mobile of
+six forks lowers (a ring seen edge-on, never crossed bars). AWAKE (65-30%): the head rocks +-32 deg on a 220 f cycle with a
+clack at each extreme; crown toward the ship is the window; mobile drops (50 f per fork, never all), boomerang (54 f),
+wail ring (44 f); at least 3 windows before it can crack (a staged floor). IT CRACKED (120 f): the rocker drops out.
+CRACKED (30-0%): the rocker swings on a 3 s period (arc drawn, first swing from rest over 60 f), its weight blocks shots
+and kills on contact; the crier (40 HP x depth) ends the cries when broken (IT STOPPED CRYING); double cry (44 + 30 f),
+fork rain (50 f), Fountain II (48 f). PUT TO BED: three clacks shut on the rocker's eyes, the head tips over, the kill.
+ANGLE is rotated with the tilt (`keepHurtRot`; the proposal's formula had a sign slip, corrected and unit-tested), the
+crown line drops from 26 to 12 in CRACKED, area hits stay face hits, and no damage carries past a phase cut
+(`phaseClamp`). Every killing attack keeps a >= 44 f tell; nothing punishes shooting.
+
+**Architecture.** A stage-boss registry (`enemies/boss/registry.ts`: `defineBoss`, `bossFor`, `capGrade`), the
+`defineMid` pattern; art in `render/gross/boss/`. One hook line each in `enemies/update.ts` (update, kill),
+`enemies/mid/roster.ts` (`midMul`/`midHitSnd` read the entity's own `armor`/`hitSnd`, so every damage path, burn and
+area included, asks it), `biomes.ts` (`slotBoss`: spawn, WARNING, run-up log line, arena terrain), `stages.ts` (grade
+cap, readout), `warmplan.ts` (its atlas is route art). The crux, butcher and Maws are untouched (rng-probe SAME).
+Placement is by slot and descent, never world x, so D31's stretched rows carry it. Its HP goes through `mk()` and
+`depthHP` like every stage boss (`DEPTH.w.keepsake` .6, the Crux's), so a stage-order HP multiplier applies to it
+uniformly.
+
+**HP and TTK** (`tools/boss-probe.mjs`, long4, slot 1 built for real, invincible bot on the wound). Base HP 320, tuned
+with the planned stage-order x1.4 applied (`HPX=1.4`):
+
+| kit | today (x1) | with x1.4 | band |
+|---|---|---|---|
+| NAKED | 43.3 s | 58.8 s | dies before the 75 s of clocks |
+| STAGE 1 kit | 25.3 s | 29.9 s | 28-34 s |
+| END DESCENT 1 | 18.7 s | 20.7 s | 20-26 s |
+| STRONG D1 | 16.1 s | 16.9 s | >= 15 s (the floor) |
+
+Until the x1.4 lands the stage-1 kit sits ~3 s under the band. (Re-measured after the studio-review fixes.)
+
+**Determinism and gates.** `bossFor` draws nothing. `short` is byte-identical (harness PASS, layout-parity PASS). The
+long4 harness also PASSES unchanged: its scripted run dies in Open Orbit (scroll 3538) and never reaches stage n-3, so
+no long4 re-baseline was needed. New harness scenarios `keepsake-d1`/`keepsake-d3` (new baselines, deterministic over 2
+runs); the 12 existing scenarios PASS unchanged. rng-probe: 12 fights SAME (THE KEEPSAKE added, the midboss row gone).
+
+**Also.** The art lane's atlas (`src/sprites/boss/keepsake-boss.*`) is drawn through `bf()`; the midboss sprite at
+104/48 stands in while it loads. The audio lane's 17 `kboss_*` banks are lazy (`audio.ts` LAZY/bankWant): they decode
+from the stage's gate, not at boot (~26 MB decoded). SLAB's `boss-keepsake` readout and four barks are wired. The LAB
+gained JUMP TO BOSS (`jump.ts` bossJump; URL `?stage=<biome>&slot=1&x=boss&kit=full`); FORCE MID hides while the roster
+has no wip kind. D53's midboss record stands as history.
+
+**Studio review on 755f7e4 (8 leads + 3 directors): one BLOCK (game-designer), resolved; the rest APPROVE WITH NOTES.**
+- BLOCK, the crier couldn't be shot: it sits inside the head's body circle and shots.ts hit the first enemy in list
+  order. Fixed generically: an enemy may list `parts`, and a non-laser shot that meets a part and its body hits the part
+  (only THE KEEPSAKE sets `parts`, so no other enemy changes; harness short, long4 and all 14 scenarios PASS
+  unchanged). The crier's HP went 40 -> 32 (x depth). boss-probe's CRIER line: real stage-1-kit bolts break it in 2.9 s
+  with part priority and never (30 s cap) without it.
+- Notes fixed: the CRACKED brain re-baked asymmetric (folds, wet specular, the fork's stump, tissue spilling down the
+  crack: `prep_keepsake_boss.py` `brain()`); no eyeballs in the death burst (ET `eyes` 0); the pendulum arc at 2.5 px,
+  .4, and a hot rim on the weight; mobile drops fall at the mobile's scale (`eshot.fs`, hitbox r 5); the two subtitles
+  moved to `src/voice/keepsake.ts` (OUT OF TIME; IT HOLDS ON in place of the eyes line); JUMP TO BOSS asks for the lazy
+  banks at the jump and lands 180 px (~3 s) before the WARNING; shots on all four biomes; HP-bar ticks at 65% and 30%;
+  -2 dB on the second and later double cries in a phase. The STAGE 1-3 card and the OBJECT IN THE TRACT log line were
+  confirmed on a real jump into the run-up; the Orbit card in kb-1a was the shots rig's own (newGame's queued card).
+- Tests added: the fight through the real hurt()/killEnemy() (`keepsake-sim.test.ts`), the lazy banks
+  (`audio-lazy.test.ts`), JUMP TO BOSS's seal (`forcemid.test.ts`); the clamp and LAZY tests were seen failing first.
+
+**Deferred (recorded, not built):** SLAB's kill quips for it; the move to THE CREW DECK (LS3); the CHANGELOG (main owns
+the hub); passing the real damage into midMul for the slick and acid ticks (perks.ts:216, shots.ts:308 pass a nominal
+d, which phaseClamp reads); `checkBosses`'s hard-coded `bossFor(1, 0, true)` (it should walk every slot and descent
+bossFor can name).
+
+**After merging main (D31, D56, D57) into kboss-core, 2026-11-15.** THE KEEPSAKE stays slot 1: `bossFor` is by slot,
+so D31's stretched rows carried it (slot 1 now x0 12950, gate 13450, boss 19050; run-up 18648, arena full from 18848,
+the fight holds at scroll ~19247, its screen ends 19727, before tEnd 19730: the whole fight is on the arena). The gate
+is ~5600 px before the boss, so `prep`'s lazy banks have ~90 s to decode. `keepsake-d1`/`-d3` re-baselined (only they
+moved: the jump now lands on D31's rows, scroll 11747 -> 19247; 2 runs identical); D31's 12 scenarios, short and long4
+PASS unchanged. boss-probe at HP 320 is unchanged by the D31 economy (the probe's kits are fixed; D31 moves which kit a
+player carries into 1-3, which the balance pass's x1.4 and its rank re-band address): x1 25.3 / 18.8 / 16.0 s, x1.4
+29.9 / 21.0 / 17.0 s, crier 2.9 s. rng-probe 12/12 SAME. perf-probe reaches CRACKED and the death (render at par with
+the Crux and Butcher on the same run). resume-check: a long4 flight to stage 1-3 CP1 (seed 7, 18330 frames), reload,
+RE-ENTER: terrain 0 px different at six x up to 18850 (the arena), the same 46 entries to fire, 0 sim draws. **No
+run-save layout revision bump:** the save stores no terrain or boss; a resume rebuilds slot 1 through the current
+`rewriteTerrain` and `biomeScript`, so its arena and its boss always agree with each other.
+
 ### D56 The hell-flash face image removed — 2026-11-15 (Matt: "take the flashing jason masks out all together")
 
 The full-screen hell face (a pale oval with black eye holes, teeth and blood streaks, flashed at random in the last
@@ -1013,3 +1105,164 @@ NOTES (the CHANGELOG now says old long4 RE-ENTERs drop; S2-K1 ships open by Matt
 narrative-director, localization-lead: no impact (no art, sound, copy or strings change here); creative-director APPROVE
 (Matt's D31, tone untouched); technical-director APPROVE WITH NOTES (perf-probe the climax and the Drive boot before the
 next Fold session); producer APPROVE WITH NOTES (kboss-core rebases next; the §10 calls stay with Matt).
+
+### D59 THE KEEPSAKE: IT WON'T LET GO (package C + the search beam + the shared fixes) — 2026-11-20 (Matt's calls; branch `kboss-core`)
+
+**Decision point:** Matt played `?stage=fire&slot=1&x=boss&kit=mid`: "super cool looking. was easy as hell to beat. can
+we ... make it harder and more interesting. the look is great though." The design pass
+(`production/qa/keepsake-difficulty-proposal-2026-11-20.md`) measured why. A ship that never moved killed it in 21-29 s
+at the mid kit and took 2 hits, both from the one boomerang. DOZING and CRACKED never hit a stationary ship at mid
+height, the fight ran about 7 attacks in 26 s one at a time, and the 25 s clocks were never reached.
+**Options considered:** A, "THE MOBILE TURNS" (a music-box tempo layer); B, "IT'S WATCHING" (the sleep eyes as a gaze);
+C, "IT WON'T LET GO" (it hoards its forks; recommended); and four shared fixes.
+**Chosen (Matt, 2026-11-20):**
+- **C, plus B's search beam in CRACKED only.**
+- **All four shared fixes:**
+  - forks fall through to the floor
+  - cuts at 75% / 35%, with at least three attacks in DOZING
+  - CRACKED keeps the crown line
+  - 18 s clocks
+- **The proposal's targets,** since Matt didn't rule on length: about 40 s at kit=mid (38-46), no safe spot, every new
+  threat with a tell of at least 44 f and a guaranteed gap.
+
+**Built** (`src/enemies/boss/keepsake.ts`, tuning and pure rules in `_keepsake.ts` KB, art in
+`render/gross/boss/keepsake.ts`):
+- **The hoard.** A KEEPSAKE fork that strikes the floor or ceiling plants there, tines out (the eshot `land` hook now
+  also does this sim-side work; still no `R()`). Up to `plN` 10 (14 enraged; the oldest falls away), standing 14 px
+  out, so the tightest arena keeps 172 px of lane. Each is a contact hazard at 4 and 10 px from the surface.
+- **The fountain falls through.** Its forks fall through to the floor in their columns. The ship's column's fork is
+  aimed through where the ship was at the tell's first frame (its mark sits there), then falls on.
+- **The recall: its own clock, the fight's second layer.**
+  - Clock: `recEvery` 300 / 270 / 240 f, 160 enraged, with at least 3 forks planted. It overlaps the attacks.
+  - A 50 f tell: a thread from each chosen fork to the wound, dashed, then a solid 3 px line for the last 16 f. Then
+    they fly home at 3.2 x BS.
+  - `recallPick` keeps a free run of at least 30 px in the ship's column (a unit test over 3000 random hoards).
+  - Every 3 forks caught add one to the next fountain.
+- **AWAKE's tug** (in the turn order: drop, boomerang, tug, drop, wail): one thread from the planted fork nearest the
+  ship (54 f), then it is yanked home at 6 x BS. From AWAKE on, the throw is a fan of three (the two outer lines are
+  drawn too).
+- **CRACKED's cries shake the hoard loose.** Floor forks go up on the first ring, ceiling forks down on the second, and
+  they plant again on the far side. Breaking the crier ends that and slows the pendulum to a 4 s swing (`pPer2`). The
+  swing's phase is carried, so it never jumps.
+- **The search beam (B, CRACKED only).** A cone of about 9 deg (440 px) out from the rocker's weight along its wire,
+  hatched pale glass-blue.
+  - It is quiet until the swing has built (`pRamp` + 60 f).
+  - When it sees the ship, `kboss_seen` plays and the ship's column is marked. The mark is a 48 px hatched band with
+    ruled edges, three chevrons, and a red hatch filling top to bottom over 50 f. Then three forks fall in it from the
+    ceiling (and plant).
+  - The beam itself never hurts. It looks again 70 f after the forks fall.
+  - It reads with the sound and the flashes off: hatching, not colour alone.
+- **The shared fixes:**
+  - cut1 .75, cut2 .35
+  - DOZING's staged floor `p1Floor`: an attack counts once its forks are out
+  - `crown3` 26 (was 12)
+  - clocks 18 s
+- **Pacing:**
+  - cooldowns 36 / 28 / 26 (were 60 / 40 / 36)
+  - the fountain's open window 40 f (was 60)
+  - `p2MinWin` stays 3. 4 was tried and held a strong kit to the mid kit's time.
+- **HP 440** (was 320). Base HP, so D58's x1.4 is not in it. **If D58 #2 ships, divide this by 1.4 (to about 314) in
+  the same change.** The note sits beside `et.hp`.
+- **Sound.** Two new procedural banks from `tools/gen_keepsake_boss_sfx.py`, written with its new `--only` flag (each
+  from its own seed, so the 17 shipped banks were not rewritten):
+  - `kboss_creak`: the threads drawing taut (3 takes, -28, vol .22)
+  - `kboss_seen`: two glass clicks and a bent tine (2 takes, -24, vol .19)
+
+  Both are lazy like every `kboss_` bank.
+- **Art.** No new photo art. Every fork (planted, homing, falling) is drawn by `render/fork.ts` `drawFork`, the one fork
+  path, so the art department's fork reskin lands everywhere at once. Threads, the beam and the mark are procedural.
+
+**Measured** (`tools/keepsake-probe.mjs`, new, on Matt's URL, Descent 1, rank unpinned; fresh dev server; mid at
+rank .26; before = f728316):
+
+| | before | after | target |
+|---|---|---|---|
+| TTK kit=mid, park bot (3 seeds) | 26.4 | 37.7-38.0 | 38-46 |
+| TTK kit=mid, mortal pilot (5 seeds) | 26.5-27.0 | 38.1-44.0 (mean 39.8) | 38-46 |
+| would-be hits/min kit=mid, park (never dodges) | ~4.5 | 15.8-17.5 | 14-22 |
+| fixed-spot cheese, kit=mid (8 spots) | 2 hits in 21-29 s at mid height; 0 in DOZING and CRACKED | 16-29/min; every phase >= 2 hits on every spot (lowest 200,140: DOZING 2 in 8.8 s) | no safe park |
+| mortal pilot kit=mid: hits/min, deaths per clear | 0, 0 | 0.3 (1 death in 5 clears) | 1.5-3, 0.3-1 |
+| kit=full (the phone's JUMP TO BOSS): TTK park / pilot | 18.0 / - | 27.7 / 27.5-27.6, park 15.2 hits/min | |
+| naked: TTK park / pilot, pilot deaths | 40.4 / 41.6, 0 | 54.3 / 56-63, 0-2 (enrages; still winnable) | |
+| boss-probe STAGE 1 / END D1 / STRONG | 25.3 / 18.9 / 16.0 | 34.5 / 28.4 / 26.2 (floor PASS) | STRONG >= 18 |
+| crier, STAGE 1 kit bolts | 2.9 s | 2.7 s | < 3 |
+
+**Not hit:** the mortal pilot's hits/min. `tools/pilot.mjs` (24 f look-ahead, perfect information, full speed every
+frame) also takes **0 hits on the Butcher** at kit=mid (3 seeds), so it can't score D1 boss pressure for a human. The
+park bot and the spot grid are this fight's pressure measures. The pilot's earlier "deaths" with the beam's band fed to
+it late were a probe artifact (it was put inside the band), so the band is not fed to it. Strong kits compress: the
+attack and window floors give about 26 s at STRONG against about 38 s at mid. Matt asked for at least 3 attacks in
+DOZING, and that sets the floor.
+
+**Determinism and gates:**
+- `short` and `long4` PASS unchanged; every other scenario PASS unchanged.
+- `keepsake-d1`/`-d3` are re-baselined: the fight's sim changed (new attacks, the hoard, HP 440, the cuts). `--runs 2`
+  is identical.
+- rng-probe is not re-run here (no render or audio draw added on the sim stream; the new render uses `hash` and `$.T`
+  only).
+- Unit tests: `keepsake.test.ts` and `keepsake-sim.test.ts` (49) pass. The 5 Windows-only failures
+  (layout-literals x2, bioreplay, rng-split scan path, runsave, warnbanner) are main's. The one new literal this change
+  added (`clock: 1080`) was rewritten as `18 * 60`.
+- The `drive` scenario REGRESSES here (score, gibs, drops, kills, sig). It fails identically on a clean checkout of
+  f728316 (verified in a throwaway worktree), so it predates D59. Left for the owner of the drive baseline.
+
+**Category:** balance, design
+
+**Pre-merge review fixes (2026-11-20, studio review "ship after fixes"):**
+- **Recall gap vs a live tug.** A tug's thread now counts against the recall's gap first (`recallPick`'s `fixed`), and
+  no tug starts while a recall's threads are up.
+- **Gap bounds.** The gap is checked only where the ship can fly: its clamp 6 .. PH - 6, less a planted fork's 14 px
+  in its column (`recallBounds`).
+- **Stuck threads.** A thread with no flight slot is cut, so the fork can't stick on it. Flight arrays are now
+  2 x plRage.
+- **Boomerang hitbox.** It is now a capsule along the spinning fork as drawn: half-length 24, r 5.5 + 2.6, matching
+  the 13 x 59 baked fork (D60's art). It was a 6 px circle at its middle. The sim owns the spin angle (`e.bsa`) and
+  the render draws it.
+- **Tests.** The 3000-hoard gap test now covers a live tug and lo < 6, and there are new tests for the capsule and the
+  cut thread.
+- **Re-measured** (fresh server):
+
+  | | before the fixes | after |
+  |---|---|---|
+  | kit=mid TTK, park (3 seeds) | 37.7-38.0 s | 37.7-38.0 s (unchanged) |
+  | kit=mid TTK, pilot (5 seeds) | — | 39.0-44.8 s, 2 deaths in 5 clears |
+  | kit=mid park hits/min | 15.8-17.5 | 19.1-20.6 (still in 14-22) |
+  | boomerang touches per fight | 1-2 | 3-4 (the probe counts each touch of the spinning capsule) |
+  | kit=full TTK | 27.7 s | 27.7 s; park 21.7 hits/min |
+  | naked TTK | — | park 54.3 s; pilot 54.8-58.3 s, 0-1 deaths |
+  | spot grid | — | every phase hit on every spot |
+
+  keepsake-d1/-d3 pass unchanged (the scripted ship never meets the boomerang).
+
+### D60 THE KEEPSAKE's forks from a real fork photo; THE KEEPSAKE is the title hero — 2026-11-20 (Matt's calls; branch `kboss-core`, merged from `kboss-forks`)
+
+**Decision point:** Matt, after playing the boss: "the forks could be more realistic. can we have the art dept look at
+those? maybe leverage the openverse API." Then, seeing the boss art: "we might have to make the baby doll head with the
+fork in the skull on the title page also instead of the eyeball."
+**Forks.** The art review (`production/qa/keepsake-forks-art-review-2026-11-20.md`) found icon proportions, an outline that
+scaled with the mobile forks (combs), flat steel and a live-rotated boomerang. Openverse scouted (CC0 / CC BY / PD); Matt
+picked five refs. Options: A redraw in code, B photo bake everywhere, C hybrid. **Chosen (Matt): C, "for sure"**, judged
+on a side-by-side mock (`assets-raw/forks-review/compare-ABC*.png`). Producer defaults from the art dept's advice, not
+contested: embedded fork and boomerang about +18% (59 px, hitboxes unchanged), mobile kept at 33 px with a lit rim, no
+separate stick-on-landing (D59's planted forks already do it). Source: Walker & Hall table fork, Museums Victoria,
+CC BY 4.0 (CREDITS.md). Commits a063217, df36b10.
+**Title.** Mocked side by side with ROT (`assets-raw/title-review/`). The art dept recommended keeping ROT; **Matt chose
+the doll: "love the baby doll head on the title and love the animation idea."** THE KEEPSAKE replaces ROT (D41) as the
+title hero: a title-resolution bake from Matt's doll photos with the photo fork and a halo, dozing half-lidded (pure
+function of $.T), eyes snapping open and the fork rising over the run's first 30 frames on DESCEND (the run starts on the
+press as before; no sim frame waits). ROT is not deleted: `TITLE_HERO` in `src/titlelayout.ts` switches back. Where ROT
+lives next is open (Matt to decide). Commits fae9418, 36cbcfd, 4d31140
+(`production/qa/keepsake-title-hero-2026-11-20.md`).
+**Validation:** typecheck clean; unit tests pass apart from the five Windows-path failures that fail identically on main
+(`scandir 'E:\E:\...'`); keepsake-d1/-d3 pass; title perf on the Fold shape equal to or below ROT's.
+**Pre-merge review fixes (2026-11-20):**
+- **DESCEND is safe.** `menus.ts` startRun calls the DESCEND hook inside try/catch, and `armTitleOut`/`flatten` return
+  quietly on a null 2D context. A lost canvas or memory pressure on the Fold used to make DESCEND do nothing. Unit test:
+  a throwing hook still starts the run and lifts the seal (`forcemid.test.ts`).
+- **Doll layers.** They now load at boot, not on the first title frame (the comment had cited a warmup.ts entry that
+  never existed). The ready check now covers the face, all three eye layers and every fork rise, so a droop or the snap
+  never draws a head without eyes.
+- **The snap overlay** is dropped when the state leaves play (pause, Android Back).
+- **The one-off flatten** uses low smoothing quality (the Fold hitch).
+
+**Category:** art, design

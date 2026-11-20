@@ -1,7 +1,11 @@
 // Boss probe: time-to-kill for every boss across loadout tiers, plus Gravity Drive laser lethality.
 // Invincible bot parks at x=90 and tracks the boss's current weak point, holding fire. Needs the VITE DEV server
 // (imports live modules). Usage: node tools/boss-probe.mjs http://localhost:4202/ [capSeconds=150] [--layout long4|short]
-//  World x comes from src/layout.ts: biome bosses fight at slot 0's x0 + 700 (3000 on short), the Drive at bossAt()
+//  World x comes from src/layout.ts: biome bosses fight at slot 0's x0 + 700 (3000 on short), the Drive at bossAt().
+//  THE KEEPSAKE (D55) fights where bossFor places it: slot 1 built for real (biomeStage, so its arena terrain is there),
+//  the scroll held 200 px past the slot's boss x, Descent 1; the bot aims at its wound (e.y + e.wy, turned with the tilt).
+//  It is skipped on short (never placed there). HPX=1.4 env: scale its HP after the spawn (a stage-order HP multiplier
+//  landing later, so the band can be checked with it applied); the FLOOR line checks STRONG D1 >= 15 s (D55)
 //  TTK  = seconds from the boss becoming hittable to dead (or "esc" if it escaped / "--" if it outlived the cap)
 //  LASER = per Gravity Drive beam: hits that land on a ship sitting in the beam with a full WARD, and whether it dies
 import { chromium } from 'playwright';
@@ -19,11 +23,21 @@ const L = [
   ['END DESCENT 1', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2 }, { cal: 1, rapid: 1 }, { dmg: 2, rof: 1, crit: 2 }],
   ['STRONG D1', { speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }],
 ];
-const BOSSES = ['maw', 'crux', 'butcher', 'gravity'];
-const res = await p.evaluate(async ([L, BOSSES, CAP]) => {
+const BOSSES = ['maw', 'crux', 'butcher', 'gravity', 'keepsake'];
+const HPX = +(process.env.HPX || 1);
+const res = await p.evaluate(async ([L, BOSSES, CAP, HPX]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), BU = await import('/src/boss/update.ts'), C = await import('/src/core.ts'), LY = await import('/src/layout.ts');
   const IN = await import('/src/input.ts'); const $ = S.$; $.gate = false; IN.K.KeyZ = true;
+  const BI = await import('/src/biomes.ts'), REG = await import('/src/enemies/boss/registry.ts');
+  /** THE KEEPSAKE's stage: slot 1 built as a run would build it (its arena terrain), the scroll where its fight holds */
+  const keepStage = () => {
+    const G = $.G, r1 = LY.slotRow(1), r0 = LY.slotRow(0);
+    G.route = ['ice', 'fire']; G.bx = [r0.gateLate ?? r0.x0, r1.gateLate ?? r1.x0, null]; G.visitNo = [0, 0];
+    BI.biomeStage(1, G.bx[1]);
+    return r1.bossX + 200;
+  };
+  const hasKeep = !!LY.layout().picker;
   const out = {};
   const setup = (pw, gm, pkk, scroll) => {
     F.newGame(0); $.state = 'play';
@@ -40,8 +54,10 @@ const res = await p.evaluate(async ([L, BOSSES, CAP]) => {
   for (const [name, pw, gm, pkk] of L) {
     const row = {};
     for (const k of BOSSES) {
+      if (k === 'keepsake' && !hasKeep) { row[k] = 'n/a'; continue; }
       setup(pw, gm, pkk, k === 'gravity' ? LY.bossAt() : LY.slotRow(0).x0 + 700);
-      if (k === 'gravity') BU.startBoss(); else if (k === 'maw') SP.maw(true); else SP[k]();
+      if (k === 'keepsake') { const sx = keepStage(); $.G.scroll = sx; $.G.si = $.G.script.length; W.enemies.length = 0; REG.BOSS_SIM.keepsake.spawn('fire'); const m = $.G.mini; m.hp *= HPX; m.max = m.hp; }
+      else if (k === 'gravity') BU.startBoss(); else if (k === 'maw') SP.maw(true); else SP[k]();
       let f = 0, t0 = -1, r = '--';
       for (; f < CAP * 60 + 600; f++) {
         let ty = $.P.y;
@@ -55,7 +71,8 @@ const res = await p.evaluate(async ([L, BOSSES, CAP]) => {
           const m = $.G.mini;
           if (!m || m.dead) { r = m && m.x > C.W + 50 ? 'esc' : ((f - Math.max(0, t0)) / 60).toFixed(1); break; }
           if (t0 < 0 && m.x < C.W - 20) t0 = f;
-          ty = m.y;
+          ty = m.y + (k === 'keepsake' ? m.wy || 0 : 0);
+          if (k === 'keepsake') { (out.kp ||= {})[name] = { ph: m.ph, rage: m.rage, hp: +(m.hp / m.max).toFixed(3) }; }
         }
         park(C.clamp(ty, 8, C.PH - 8));
         ST.step();
@@ -65,6 +82,24 @@ const res = await p.evaluate(async ([L, BOSSES, CAP]) => {
       (out.rank ||= {})[name] = +$.G.rank.toFixed(2);
     }
     out[name] = row;
+  }
+  // THE KEEPSAKE's crier (D55 studio review): real STAGE 1 kit bolts at it, the bot parked level with it, from the frame
+  // it appears (HP set to CRACKED's cut). Twice: as the game runs (shots.ts gives a boss's parts the hit first) and with
+  // e.parts removed (the old order: the head's body circle took every shot). Want: broken in under ~3 s
+  const crier = [];
+  if (hasKeep) for (const prio of [true, false]) {
+    setup(...L[1].slice(1), 0);
+    const sx = keepStage(); $.G.scroll = sx; $.G.si = $.G.script.length; W.enemies.length = 0; REG.BOSS_SIM.keepsake.spawn('fire');
+    const m = $.G.mini; m.hp = m.max * .299; m.wins = 9; m.d0 = 9; // past both staged floors (D59: DOZING's attack floor)
+    let f = 0, t0 = -1, r = '--';
+    for (; f < 60 * 30; f++) {
+      if (m.crier && t0 < 0) { t0 = f; if (!prio) m.parts = null; }
+      if (m.crier && m.crier.dead) { r = ((f - t0) / 60).toFixed(1); break; }
+      park(C.clamp(m.crier ? m.crier.y : m.y, 8, C.PH - 8)); $.G.lives = 9; W.eshots.length = 0;
+      if (m.hp < m.max * .05) m.hp = m.max * .2; // keep the head alive while the crier is under fire
+      ST.step();
+    }
+    crier.push(r);
   }
   // laser lethality: full WARD (3), parked dead in the beam's path for the whole sweep
   const lz = [];
@@ -82,11 +117,13 @@ const res = await p.evaluate(async ([L, BOSSES, CAP]) => {
     $.P.alive = true; $.G.lives = 9; W.eshots.length = 0; W.enemies.length = 0; // beam only
     ST.step();
   }
-  const rank = out.rank; delete out.rank;
-  return { out, lz, rank };
-}, [L, BOSSES, +CAP]);
+  const rank = out.rank; delete out.rank; delete out.kp;
+  return { out, lz, rank, crier };
+}, [L, BOSSES, +CAP, HPX]);
 console.log('rank per loadout:', JSON.stringify(res.rank));
-console.log('loadout'.padEnd(16), ...['MAW', 'CRUCIFER', 'BUTCHER', 'GRAV DRIVE'].map((s) => s.padStart(11)));
+console.log('loadout'.padEnd(16), ...['MAW', 'CRUCIFER', 'BUTCHER', 'GRAV DRIVE', 'KEEPSAKE'].map((s) => s.padStart(11)));
 for (const [n, r] of Object.entries(res.out)) console.log(n.padEnd(16), ...BOSSES.map((k) => String(r[k]).padStart(11)));
+if (res.out['STRONG D1'] && res.out['STRONG D1'].keepsake !== 'n/a') { const v = parseFloat(res.out['STRONG D1'].keepsake); console.log(`KEEPSAKE FLOOR (STRONG D1 >= 15 s): ${isNaN(v) ? res.out['STRONG D1'].keepsake : v >= 15 ? 'PASS ' + v : 'FAIL ' + v}${HPX !== 1 ? ` (HP x${HPX})` : ''}`); }
+if (res.crier.length) console.log(`KEEPSAKE CRIER (STAGE 1 kit, bot level with it): broken in ${res.crier[0]} s with part priority (want < 3: ${parseFloat(res.crier[0]) < 3 ? 'PASS' : 'FAIL'}); ${res.crier[1]} s without it (the old hit order)`);
 console.log('LASER sweeps vs full WARD (3):', res.lz.map((s) => `${s.hits} hits${s.died ? ' DEAD' : ''}`).join(', ') || 'none observed');
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('boss-probe'); await b.close();

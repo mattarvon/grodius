@@ -9,6 +9,7 @@ import { eye } from '../render/eyes';
 import { spr, sprAt, sprN, sprReady } from '../sprites';
 import { drawMidCross } from './gross/midbosses';
 import { MID_ART, MID_DRAW } from './gross/mid';
+import { BOSS_ART, BOSS_DRAW } from './gross/boss'; // the registered stage bosses (D55: THE KEEPSAKE)
 import { HOST_TINT, isCross } from '../enemies/midhost';
 import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'; // flyers: wasp / eyeball / corpse
 import { drawEliteAura, drawElitePus } from '../enemies/elite';
@@ -920,7 +921,8 @@ export const DRAW = {
   hatch: drawHatch,
   womb: drawWomb,
   maw: drawMaw,
-  ...MID_DRAW // the midbosses: one file per kind (render/gross/mid/)
+  ...MID_DRAW, // the midbosses: one file per kind (render/gross/mid/)
+  ...BOSS_DRAW // the registered stage bosses (render/gross/boss/)
 };
 export function drawEnemy(e) {
   if (e.k === 'hook') {
@@ -930,8 +932,8 @@ export function drawEnemy(e) {
     drawHookTip(ctx, fx, fy - 3, -e.rot + Math.PI, 1.1);
   }
   if (e.k === 'flayer') drawWhip(e);
-  const art = MID_ART[e.k];
-  if (art && art.under) art.under(e); // a midboss's telegraph or chain, under its body
+  const art = MID_ART[e.k] || BOSS_ART[e.k];
+  if (art && art.under) art.under(e); // a midboss's or a registered boss's telegraph or chain, under its body
   if (e.k === 'nailbar' && e.sing > 0) {
     ctx.globalCompositeOperation = 'lighter';
     glow(e.x, e.y, 10 + (36 - e.sing) * .4, '170,220,255', .2 + .6 * (1 - e.sing / 36) * (($.T >> 2) % 2 ? 1 : .6));
@@ -1028,6 +1030,7 @@ export function drawEnemy(e) {
 export function drawNailbar(c, e) {
   if (e.par && e.par.k === 'crux') return drawCruxNail(c, e); // the leech's nails: baked with it (gross/crux.ts)
   if (e.par && e.par.k === 'choir') return drawChoirNail(c, e); // the eye's tendon bars: baked with it (gross/mid/choir.ts)
+  if (e.par && e.par.k === 'keepsake') return; // THE KEEPSAKE's rocker and crier: drawn with the head (gross/boss/keepsake.ts)
   c.fillStyle = '#14171b';
   c.fillRect(-3.5, -15, 7, 30);
   c.fillStyle = '#3e454e';

@@ -25,6 +25,7 @@ import { MID_NAMES, ROSTER } from './enemies/mid/roster';
 import { midForce, midsWip } from './lab';
 import { drawPicks } from './setdraw';
 import { MOVES, bandClamp, gimmick, hazInterval, moveAt, snapVent } from './terrainb';
+import { BOSS_SIM, bossFor } from './enemies/boss/registry';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -150,6 +151,16 @@ function shape(b, x, o) {
 const REST = { ice: [18, PH - 30], acid: [16, PH - 18], fire: [26, PH - 24], snot: [34, PH - 34] };
 /** the arena gap (spec §3.3 movement C: >= 150 px; route-probe minGap reads it) */
 export const ARENA_GAP = 150;
+/** the registered stage boss (enemies/boss/registry.ts, D55) that ends biome slot seg this descent, or null for the
+ *  biome's own: by slot and descent, never world x, and no RNG (bossFor). Its arena, WARNING, spawn and run-up line come
+ *  from its BossSim */
+export const slotBoss = (seg) => {
+  const k = bossFor(seg, ($.G && $.G.loop) || 0, !!layout().picker);
+  // an unregistered k is null here (unit tests load biomes.ts against mocks without the kind files); the game can't reach
+  // that: main.ts checkBosses refuses to boot when a placed boss has no defineBoss
+  return (k && BOSS_SIM[k]) || null;
+};
+const AR = [0, 0];
 function arena(b, ce, fl) {
   const [c0, f0] = REST[b] || REST.snot;
   ce = c0 + (ce - c0) * .5;
@@ -167,14 +178,14 @@ function arena(b, ce, fl) {
 function rewriteTerrain(seg, b, from, mv = null) {
   const o = ($.G.loop + 1) * 37.1 + seg * 11, LY = layout(), [T_END0, T_END1] = LY.tEnd;
   const xC = LY.beats.runup != null ? beatPlan(slotRow(seg), from, false).runup : null, xC1 = xC != null ? xC + LY.beats.arenaBlend : 0;
-  const M = mv != null ? beatPlan(slotRow(seg), from, false).moveB : null;
+  const M = mv != null ? beatPlan(slotRow(seg), from, false).moveB : null, SB = slotBoss(seg); // SB: a registered boss owns its arena (movement C)
   if (M) MOVES[seg] = { ...M, b, mv, o };
   const i0 = Math.max(0, Math.floor(from / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil(T_END1 / TS));
   for (let i = i0; i <= i1; i++) {
     const x = i * TS, w = sstep(from, from + 300, x) * (1 - sstep(T_END0, T_END1, x));
     let [ce, fl] = shape(b, x, o);
     if (M && x > M.a && x < M.z) { const k = sstep(M.a, M.a + M.blend, x) * (1 - sstep(M.z - M.blend, M.z, x)), [cb, fb] = gimmick(b, mv, x, o, ce, fl); ce = lerp(ce, cb, k); fl = lerp(fl, fb, k); }
-    if (xC != null && x > xC) { const k = sstep(xC, xC1, x), [cc, ff] = arena(b, ce, fl); ce = lerp(ce, cc, k); fl = lerp(fl, ff, k); }
+    if (xC != null && x > xC) { const k = sstep(xC, xC1, x), [cc, ff] = SB && SB.arena ? SB.arena(...(REST[b] || REST.snot), ce, fl, AR) : arena(b, ce, fl); ce = lerp(ce, cc, k); fl = lerp(fl, ff, k); }
     FLOOR[i] = lerp(FLOOR[i], fl, w);
     CEIL[i] = lerp(CEIL[i], ce, w);
   }
@@ -317,7 +328,9 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
   const BP = beatPlan(g, from, !!v), { a, z, mid, P, breaths: BR } = BP, legacy = BP.runup == null, logs = legacy ? B.logs : logPick(B, v);
   at(a - 40, () => logLine(logs[0]), 'log');
   if (legacy) at(mid, () => logLine(logs[1]), 'log'); // short: line 2 at the span's midpoint
-  else at(BP.runup, () => logLine(logs[2]), 'log'); // arena run-up: line 3 (line 2 is the release, below)
+  const SB = slotBoss(seg); // a registered stage boss ends this slot (D55), or null for the biome's own
+  if (SB && SB.prep) SB.prep(); // its lazy sound banks start decoding now, a minute before its WARNING (audio only)
+  if (!legacy) at(BP.runup, () => logLine((SB && SB.runup) || logs[2]), 'log'); // arena run-up: line 3 (line 2 is the release, below), or the boss's own
   const sig = () => (rs() < .6 ? X.sig : roll()), sets = X.sets.map(P), two = secondKind(X);
   let setN = 0; // which drawn set piece is next (setIds)
   const inBreath = (y) => { for (const r of BR) if (y >= r.a && y < r.z) return r; return null; };
@@ -351,8 +364,8 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     x += st;
   }
   midBeats(B, b, BP, mids, at);
-  const boss = { crux, butcher, maw: () => maw(true) }[B.boss];
-  at(g.bossX, () => miniWarn(B.bossName, () => { boss(); if ($.G.mini) { $.G.mini.title = B.bossName; $.G.mini.biome = b; } }), 'boss:' + B.boss);
+  const boss = SB ? () => SB.spawn(b) : { crux, butcher, maw: () => maw(true) }[B.boss], bName = SB ? SB.name : B.bossName;
+  at(g.bossX, () => { if (SB && SB.warn) SB.warn(); miniWarn(bName, () => { boss(); if ($.G.mini) { $.G.mini.title = bName; $.G.mini.biome = b; } }); }, 'boss:' + (SB ? SB.k : B.boss));
   return S;
 }
 

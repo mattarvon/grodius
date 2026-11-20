@@ -150,7 +150,9 @@ describe('the slot list', () => {
     for (const s of SLOTS) expect(s.cat).toMatch(CAT_RE);
     expect(slotOf('warning')).toBe(undefined);
   });
-  it('wires every slot since LS2-slab, each a folder the game plays as voice', () => {
+  it("wires every slot since LS2-slab, THE KEEPSAKE stage boss's included (D55), each a folder the game plays as voice", () => {
+    // recorded, not wired: the stage boss's readout and SLAB's fight lines wait for the fight's sample() calls
+    // (kboss-core flips them to wired, adds their prefixes to VOICE_CAT and their ?vox= entries, and drops them here)
     expect(SLOTS.filter((s) => !s.wired).map((s) => s.cat)).toEqual([]);
     for (const s of SLOTS) expect(voiceCat.test(s.cat)).toBe(s.wired); // unwired folders aren't voice in audio.ts yet
     for (const s of SLOTS) expect(!!s.test).toBe(s.wired);
@@ -203,20 +205,20 @@ describe('delivery direction and length targets (LS2 review)', () => {
   it('reads CALAMARI SERVED, and only it, as a joke', () => {
     expect(SLOTS.filter((s) => /joke/i.test(s.note ?? '')).map((s) => s.cat)).toEqual(['kill-ufo']);
   });
-  it('sets the length target by kind: OPENED .8 s, kill words 1.2 s, hype, TAKEN DOWN and quips 2 s', () => {
-    expect(MAX_LEN).toEqual({ hype: 2, bossreward: 2, kill: 1.2, carn5: .8, quip: 2 });
+  it("sets the length target by kind: OPENED .8 s, kill words 1.2 s, hype, the boss readouts and quips 2 s, a boss fight's lines 2.5 s", () => {
+    expect(MAX_LEN).toEqual({ hype: 2, bossreward: 2, kill: 1.2, carn5: .8, quip: 2, bark: 2.5 });
     for (const s of SLOTS) {
-      const want = s.cat === 'carn5' ? .8 : s.cat.startsWith('kill-') ? 1.2 : /^(hype|bossreward)/.test(s.cat) ? 2 : undefined;
+      const want = s.cat === 'carn5' ? .8 : s.cat.startsWith('kill-') ? 1.2 : /^(hype|bossreward|boss-)/.test(s.cat) ? 2 : s.cat.startsWith('bark-') ? 2.5 : undefined;
       expect(s.maxLen, s.cat).toBe(want);
     }
   });
 });
 
 describe('the long-take warning (LS2-booth2)', () => {
-  it('warns past target + 0.5 s: hype and TAKEN DOWN 2.5 s, kill words 1.7 s, OPENED 1.3 s; nothing for an untimed slot', () => {
+  it('warns past target + 0.5 s: hype and the boss readouts 2.5 s, kill words 1.7 s, OPENED 1.3 s, fight lines 3 s; nothing for an untimed slot', () => {
     expect(LEN_SLACK).toBe(0.5);
     const want: Record<string, number | null> = {};
-    for (const s of SLOTS) want[s.cat] = s.cat === 'carn5' ? 1.3 : s.cat.startsWith('kill-') ? 1.7 : /^(hype|bossreward)/.test(s.cat) ? 2.5 : null;
+    for (const s of SLOTS) want[s.cat] = s.cat === 'carn5' ? 1.3 : s.cat.startsWith('kill-') ? 1.7 : /^(hype|bossreward|boss-)/.test(s.cat) ? 2.5 : s.cat.startsWith('bark-') ? 3 : null;
     expect(Object.fromEntries(SLOTS.map((s) => [s.cat, lenLimit(s)]))).toEqual(want);
   });
   it('is quiet at exactly the limit and warns just past it, naming the length, the limit and the target', () => {
@@ -404,7 +406,8 @@ describe('squeezeCuts', () => {
 describe('?vox= hook', () => {
   const vox = src('src/vox.ts');
   it('makes the same sample() call as each line it fires', () => {
-    const where: Record<string, string> = { corpsevoice: 'src/enemies/update.ts', bossreward: 'src/stages.ts', startgame: 'src/menus.ts', carn5: 'src/fx/update.ts' };
+    const KS = 'src/enemies/boss/keepsake.ts'; // THE KEEPSAKE stage boss's readout and barks (D55)
+    const where: Record<string, string> = { corpsevoice: 'src/enemies/update.ts', bossreward: 'src/stages.ts', startgame: 'src/menus.ts', carn5: 'src/fx/update.ts', 'boss-keepsake': KS, 'bark-keepsake-warn': KS, 'bark-keepsake-eyes': KS, 'bark-keepsake-woke': KS, 'bark-keepsake-crack': KS };
     expect(Object.keys(where).sort()).toEqual(SLOTS.filter((s) => s.wired && !/^(hype|kill-)/.test(s.cat)).map((s) => s.cat).sort());
     for (const [cat, f] of Object.entries(where)) {
       const call = new RegExp(`sample\\('${cat}', \\{[^}]*\\}\\)`).exec(vox)?.[0];

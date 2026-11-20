@@ -164,13 +164,18 @@ export function updateShots() {
       }
     }
     if (!dead) {
-      for (const e of enemies) {
-        if (e.dead) continue;
+      for (const e0 of enemies) {
+        if (e0.dead) continue;
+        let e = e0;
         const ey = e.k === 'eye' ? e.y - e.o * 9 : e.y;
         let hit = hitShot(s, e.x, ey, e.r);
         if (!hit && e.k === 'cross') hit = hitShot(s, e.x, e.y + e.o * 14, 9);
         if (!hit && e.hb) for (const h of e.hb) if ((hit = hitShot(s, e.x + h[0], e.y + h[1], h[2]))) break; // extra hitboxes (the Open Orbit midboss's saucer wings)
         if (!hit) continue;
+        // a boss's own parts (e.parts: THE KEEPSAKE's crier and rocker, D55) take a shot that also meets the body first: a
+        // part that sits over the body would otherwise only ever be reached after it, which is never. The laser passes
+        // through both anyway (each in its own turn), so it keeps the body. Only an enemy that sets `parts` is affected
+        if (e.parts && s.k !== 'laser') for (const q of e.parts) if (q && !q.dead && hitShot(s, q.x, q.y, q.r)) { e = q; break; }
         if (s.k === 'pyre') {
           pyreBoom(s.x, s.y, s.dmg, s.lv);
           dead = true;

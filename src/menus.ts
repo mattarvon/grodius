@@ -1,12 +1,12 @@
 // @ts-nocheck
 import { $ } from './state';
 import { SET, UPG, exportSave, importSave, lv, save } from './save';
-import { auInit, sample, setMute, sfx, voiceLive, voiceStopAll } from './audio';
+import { auInit, sample, setMute, sfx, voiceLive, voiceStopAll, bankWant } from './audio';
 import { I, PR } from './input';
 import { jumpRun, newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
 import { clearRun, runInfo, runSealed, sealRun } from './runsave';
 import { LAYOUTS, setLayout } from './layout';
-import { midJump } from './jump';
+import { bossJump, midJump } from './jump';
 import { midRow } from './enemies/mid/roster';
 import { RIG, RIG_BY, SOCKET_COST, rigInit, rigged, sockets } from './contraptions';
 import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, midForce, setLab, wipMids } from './lab';
@@ -95,8 +95,15 @@ export function titleItems() {
     a: sub('lab')
   }];
 }
+/** a render-side hook run as DESCEND starts a run, before newGame (render/titledoll.ts armTitleOut sets it: menus.ts stays
+ *  free of the DOM, so the unit tests can import it) */
+let descendHook: null | (() => void) = null;
+export const onDescend = (f: () => void) => { descendHook = f; };
 /** start a run on the layout the LAB / URL chose (setLayout contract: before newGame()) */
 function startRun(loop?) {
+  // render/titledoll.ts: the title's last frame stays up for the doll's snap. Render only, so it may never stop the run:
+  // a throw here (a lost canvas context, memory pressure on the Fold) used to leave DESCEND doing nothing
+  try { descendHook?.(); } catch (err) { console.warn('descend hook failed; the run starts without the snap', err); }
   liftJumpSeal();
   if (resumedFrom != null) setLayout(resumedFrom); // a RESUME flew the checkpoint's layout: a new run flies the chosen one
   applyRunLayout();
@@ -115,10 +122,10 @@ const midLabel = (k) => (midRow(k) || { label: k.toUpperCase() }).label;
 const pickerOn = () => !!(LAYOUTS[activeLayout().id] || {}).picker;
 /** JUMP TO MID (D53): the dev URL jump to slot A's WARNING, from the LAB, so the APK can reach a forced fight. A jump
  *  run, like the URL's: the run-save slot is sealed (the player's checkpoint and RE-ENTER are kept), meta pays as usual */
-function midJumpRun() {
+function midJumpRun(make = midJump) {
   if (resumedFrom != null) setLayout(resumedFrom);
   applyRunLayout(); // the jump is built on the layout a run started now would fly
-  const j = midJump();
+  const j = make();
   if (!j) return;
   liftJumpSeal(); // a second JUMP TO MID in a row: lift this LAB's own seal first, so `was` is only ever a URL jump's
   const was = runSealed();
@@ -148,17 +155,24 @@ function labItems() {
     l: 'CHECKPOINT',
     r: L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
     a: () => setLab({ cp: L.cp === 'b' ? 'a' : 'b' })
-  }, {
+  }, ...(wipMids().length > 1 || L.mid ? [{
     // D53: the wip midboss forced into slot A of every biome stage (lab.ts midForce): off, then each wip kind. The
-    // LAB's own setting; a ?mid= query over it is shown, as the layout's URL flag is. Picker layouts only
+    // LAB's own setting; a ?mid= query over it is shown, as the layout's URL flag is. Picker layouts only. Hidden while
+    // the roster has no wip kind (THE KEEPSAKE's row retired, D55): there is nothing to force
     l: 'FORCE MID',
     r: (L.mid ? midLabel(L.mid) : 'OFF') + (midForce() !== (L.mid || null) ? ' > URL ' + midLabel(midForce()) : !pickerOn() && L.mid ? ' (LONG ONLY)' : ''),
     a: () => { const ks = wipMids(); setLab({ mid: ks[(ks.indexOf(L.mid) + 1) % ks.length] }); }
-  }, ...(midForce() && pickerOn() ? [{
+  }] : []), ...(midForce() && pickerOn() ? [{
     // only while a kind is forced: start Descent 1 at the first biome stage, just before slot A's WARNING, mid kit
     l: 'JUMP TO MID',
     r: midLabel(midForce()),
-    a: midJumpRun
+    a: () => midJumpRun()
+  }] : []), ...(pickerOn() ? [{
+    // D55: Descent 1, the second biome stage, end-of-D1 kit, just before THE KEEPSAKE's WARNING (jump.ts bossJump), so
+    // the phone reaches the stage boss without flying there. A jump run like JUMP TO MID: the run-save slot is sealed
+    l: 'JUMP TO BOSS',
+    r: 'KEEPSAKE',
+    a: () => { bankWant('kboss_'); midJumpRun(bossJump); } // its lazy banks start decoding now, before the jump's WARNING (audio only)
   }] : []), {
     l: 'BACK', // the same close as Esc, Android back and the < BACK button: the cursor lands back on LAB
     a: () => doBack('closeSub')

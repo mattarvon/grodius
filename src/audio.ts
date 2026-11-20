@@ -114,12 +114,25 @@ const LIVE: { s: any; g: any; prio: boolean; cat: string; t0: number }[] = [];
 // at a dead take. Eviction skips them (sound-designer review)
 // (kill-<k>: a midboss's kill word; carn5: OPENED, the 5-chain; quip-<id>: Matt's one-liners after a big kill,
 // LS2-quips. All SGT. RAMROD SLAB's)
-const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|kill-|carn5|quip-)/;
+const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|kill-|carn5|quip-|boss-|bark-)/; // boss-/bark-: THE KEEPSAKE's readout and barks (D55)
+/** banks that load only when a run is about to need them (bankWant), not at audio start: THE KEEPSAKE's (D55) are 40
+ *  takes, ~69 s of audio, 732 KB of ogg but ~26 MB decoded (48 kHz stereo float): a phone shouldn't hold them for runs
+ *  that never reach the second biome stage. biomes.ts asks for them when it builds that stage (BossSim.prep) */
+const LAZY = ['kboss_'];
+const WANT = new Set<string>(), LOADED = new Set<string>();
 function loadBank(A) {
   for (const [p, u] of Object.entries(SFX_URLS)) {
-    const cat = p.split('/')[2];
+    const cat = p.split('/')[2], lz = LAZY.find((x) => cat.startsWith(x));
+    if ((lz && !WANT.has(lz)) || LOADED.has(p)) continue;
+    LOADED.add(p);
     fetch(u).then((r) => r.arrayBuffer()).then((b) => A.decodeAudioData(b)).then((buf) => (BANK[cat] ||= []).push(Object.assign(buf, { clip: p.split('/')[3].replace(/\.\w+$/, '') }))).catch(() => {});
   }
+}
+/** load the lazy banks under `prefix` (LAZY): now if the audio runs, else when it starts. Audio only, idempotent */
+export function bankWant(prefix: string) {
+  if (WANT.has(prefix)) return;
+  WANT.add(prefix);
+  if (AU.c) loadBank(AU.c);
 }
 // shuffle bag per category: every clip plays once before any repeats, and a new bag never opens with the clip
 // that just played. Rebuilt when the bank grows (clips decode asynchronously after boot).
@@ -214,7 +227,7 @@ export function quipAfterKill(word: string | readonly string[] = '', at = 0, for
   if (!force) {
     // the lines still talking or waiting: at most the one this quip follows (a kill word, TAKEN DOWN)
     const live = (AU.voiceQ || []).filter((v) => v.t1 + VOICE_GAP > now);
-    if (live.length > 1 || (live.length === 1 && !/^(kill-|bossreward$)/.test(live[0].cat))) return null;
+    if (live.length > 1 || (live.length === 1 && !/^(kill-|bossreward$|boss-)/.test(live[0].cat))) return null;
     // lateness counts from the death: `since` is how long ago it was when this call comes (the stage-boss pend wait)
     const v = AU.voice, start = v && v.t1 + VOICE_GAP > now + at ? v.t1 - now + VOICE_GAP : at;
     if ((o.since ?? 0) + start > QUIP.maxLate[moment]) return null;

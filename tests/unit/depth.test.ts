@@ -88,7 +88,7 @@ describe('driveMul(): the Gravity Drive, the one HP exception to the power rule'
 describe('pinned depth HP weights', () => {
   it('keeps the M2 loop HP weights and shares', () => {
     expect([DEPTH.fod, DEPTH.mid, DEPTH.boss]).toEqual([1.12, 1.12, 1.5]);
-    expect(DEPTH.w).toEqual({ maw0: .5, maw: .45, butcher: .15, crux: .6, cyst: .6, brood: .6 });
+    expect(DEPTH.w).toEqual({ maw0: .5, maw: .45, butcher: .15, crux: .6, cyst: .6, brood: .6, keepsake: .6 }); // keepsake: the stage boss (D55)
   });
 
   it('gives fodder the same HP multiplier at pow 0 and pow 3 in Descent 3 (power never raises HP)', () => {

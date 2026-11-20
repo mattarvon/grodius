@@ -97,7 +97,7 @@ export function forcedMid(search: string): string | null {
   const m = /[?&]mid=([a-z0-9_-]+)/.exec(search), r = m ? midRow(m[1]) : undefined;
   return r && r.wip ? r.k : null;
 }
-/** the LAB's FORCE MID cycle: off, then each `wip` row in roster order (today just keepsake) */
+/** the LAB's FORCE MID cycle: off, then each `wip` row in roster order (none since THE KEEPSAKE's row retired, D55: the row hides) */
 export const wipMids = (): string[] => ['', ...ROSTER.filter((r) => r.wip).map((r) => r.k)];
 /** the forced midboss: a ?mid=<wip kind> query, else the LAB's FORCE MID row, else null. A query that names no wip
  *  kind is ignored, so the LAB applies under it. Ungated, like ?mids=wip and the MIDBOSSES row: the query works on

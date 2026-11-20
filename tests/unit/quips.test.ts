@@ -610,10 +610,13 @@ describe('the call sites', () => {
     const st = code('src/stages.ts');
     expect(st).toMatch(/if \(\$\.state !== 'play'\) return; sample\('bossreward', \{[^}]*\}\); quipAfterKill\(BOSS_READOUTS, 0, false, \{ moment: 'boss', since: BOSS_REWARD_WAIT \/ 60 \}\);/);
     expect(st).toMatch(/G\.pend\.push\(\{ t: BOSS_REWARD_WAIT, f: \(\) => \{ if \(\$\.state !== 'play'\) return; sample\('bossreward'/);
-    expect(st).toContain("const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED'] as const;");
+    expect(st).toContain("const BOSS_READOUTS = ['TAKEN DOWN', 'TORN APART', 'GATE SEALED', 'PUT TO BED'] as const;");
     // each readout is a banner a stage-boss kill really shows
     const shown = code('src/enemies/update.ts') + code('src/boss/update.ts');
     for (const w of ['TAKEN DOWN', 'TORN APART', 'GATE SEALED']) expect(shown).toContain(`banner('${w}'`);
+    // THE KEEPSAKE's (D55) is its voice leaf's word, shown by its own kill
+    expect(code('src/voice/keepsake.ts')).toContain("KEEPSAKE_READOUT = 'PUT TO BED'");
+    expect(code('src/enemies/boss/keepsake.ts')).toContain('banner(KEEPSAKE_READOUT,');
   });
 
   it('neither call site line nor quipAfterKill draws R( or Math.random', () => {

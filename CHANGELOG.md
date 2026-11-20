@@ -2,6 +2,16 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-20 (THE KEEPSAKE: a new stage boss)
+
+- THE KEEPSAKE, a giant vinyl doll's head with a fork in its soft spot, is now the boss at the end of the second biome stage in Descent 1 (and in Descents 3 and 5, taking turns with that biome's own boss). The old midboss version is gone. Only the top of the head takes full damage. It sleeps, wakes, rocks, cracks open, and dies with PUT TO BED. It never runs away.
+- It won't let go. Its forks don't vanish: every fork that hits the floor or ceiling stays stuck there, tines out. Don't brush against them.
+- It pulls its forks home. Threads run from the stuck forks to the fork in its head, then they all fly back along them. The threads always leave you a gap.
+- The fountain's forks fall all the way to the floor now, and one is aimed at wherever you were when its eyes opened. Sitting still is no longer safe.
+- Awake, it yanks single forks home by their threads. From then on its thrown forks come in threes.
+- Cracked open, the glass eyes on its swinging rocker sweep a searchlight. If the light finds you, your column is marked and three forks drop into it a moment later. Break the crying voice box and its cries stop shaking the stuck forks loose, and the rocker slows down.
+- The fight is longer and every phase has more going on. The first phase shows at least three attacks before it wakes, and the head no longer gets easier to hit once it cracks. Each phase's clock is now 18 seconds.
+
 ## 2026-11-15 (Longer stages, fewer power-ups)
 
 - Every stage of the default descent runs longer: about two minutes each, so Descent 1 takes about 8-9 minutes (it was about 6).

@@ -25,6 +25,12 @@ export const VOX_FIRE: Record<string, { state: string; fire: () => unknown }> = 
   startgame: { state: 'title', fire: () => sample('startgame', { vol: 1.15, spread: .02, wet: .14 }) },
   // OPENED (fx/update.ts opened): the same call; the OPENED_GAP cooldown is the game's, not the test's
   carn5: { state: 'play', fire: () => sample('carn5', { vol: 1.15, spread: .02, wet: .16, queue: false }) },
+  // THE KEEPSAKE stage boss (enemies/boss/keepsake.ts, D55): its readout and SLAB's four barks, the fight's own calls
+  'boss-keepsake': { state: 'play', fire: () => sample('boss-keepsake', { vol: 1.15, spread: .02, wet: .16, at: .45 }) },
+  'bark-keepsake-warn': { state: 'play', fire: () => sample('bark-keepsake-warn', { vol: 1.15, spread: .02, wet: .16 }) },
+  'bark-keepsake-eyes': { state: 'play', fire: () => sample('bark-keepsake-eyes', { vol: 1.15, spread: .02, wet: .16 }) },
+  'bark-keepsake-woke': { state: 'play', fire: () => sample('bark-keepsake-woke', { vol: 1.15, spread: .02, wet: .16 }) },
+  'bark-keepsake-crack': { state: 'play', fire: () => sample('bark-keepsake-crack', { vol: 1.15, spread: .02, wet: .16 }) },
 };
 for (const n of Object.keys(HYPE)) VOX_FIRE['hype' + n] = { state: 'play', fire: () => hype(+n) };
 // SLAB's quips (LS2-quips): ?vox=quip-<id> plays that quip straight, with the sample() options quipAfterKill uses (the

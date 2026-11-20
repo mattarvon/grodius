@@ -18,6 +18,9 @@ import { onKillContraptions } from '../contraptions';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
 import { MID_SIM, midHitSnd, midMul, midRow } from './mid/roster';
+// the registered stage bosses (D55: THE KEEPSAKE) load the same way, and update and die through BOSS_SIM
+import './boss';
+import { BOSS_SIM } from './boss/registry';
 import { eliteKill, eliteTick } from './elite';
 import { corpseKilled } from './corpsevoice';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
@@ -435,8 +438,8 @@ export function updEnemy(e) {
         }
         break;
       }
-    default: { // the midbosses: one file per kind (enemies/mid/)
-      const m = MID_SIM[e.k];
+    default: { // the midbosses (enemies/mid/) and the registered stage bosses (enemies/boss/): one file per kind
+      const m = MID_SIM[e.k] || BOSS_SIM[e.k];
       if (m) m.update(e);
     }
   }
@@ -653,7 +656,7 @@ export function killEnemy(e, dir = 1) {
     sfx.roar();
     for (const s of eshots) for (let k = 0; k < 2; k++) drop(s.x, s.y, rr(-1, 1), rr(-1, 1), 1.4, 0, 90);
     eshots.length = 0;
-  }
+  } else if (BOSS_SIM[e.k]) BOSS_SIM[e.k].kill(e); // a registered stage boss: its readout, reward and stage clear (D55)
   if (e.own && e.own.mid) MID_SIM[e.own.k]?.kidKill?.(e, e.own); // a midboss's child (spawned with own: the parent)
   if (e.mid) { // biome midboss: two pods, the stage goes on
     for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);

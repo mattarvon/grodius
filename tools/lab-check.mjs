@@ -1,7 +1,7 @@
 // LS1 sprint 2 item D2 evidence: the LAB row's layout toggle persists across a reload, the title shows the active
 // layout (URL flag included), and changing the layout discards the run save. Drives the real title menu with keys
-// and a touch tap, on a phone-sized landscape viewport, and writes title screenshots. D53: the FORCE MID row and its
-// JUMP TO MID, tapped like the phone would, fly the forced wip midboss at the first biome stage's slot A.
+// and a touch tap, on a phone-sized landscape viewport, and writes title screenshots. D55: the LAB's JUMP TO BOSS, tapped
+// like the phone would, flies THE KEEPSAKE at the second biome stage (D53's FORCE MID hides with no wip midboss).
 // Starts its own Vite server on a free port. Usage: node tools/lab-check.mjs [outDir]
 // Exit code 1 on any failed check.
 import { chromium } from 'playwright';
@@ -79,7 +79,7 @@ check(s.active.id === 'short' && s.active.src === 'lab' && s.rows.at(-1) === 'LA
 await press('ArrowDown', s.rows.length - 1);
 await press('Enter');
 s = await state();
-check(s.rows[0].startsWith('LAYOUT') && s.rows.length === 5 && s.rows[3] === 'FORCE MID = OFF', 'LAB sub-menu opens, FORCE MID off, no JUMP TO MID: ' + s.rows.join(' | '));
+check(s.rows[0].startsWith('LAYOUT') && s.rows.length === 4 && !s.rows.some((x) => /^(FORCE MID|JUMP TO)/.test(x)), 'LAB sub-menu opens on short: no FORCE MID (no wip kind), no JUMP TO MID or BOSS: ' + s.rows.join(' | '));
 await press('Enter');
 await tap('MIDBOSSES'); await tap('MIDBOSSES'); await tap('CHECKPOINT');
 s = await state();
@@ -118,25 +118,24 @@ for (const [n, ms] of [['long-orbit-1s', 1000], ['long-orbit-4s', 3000]]) {
 }
 check(r.state === 'play' && r.scroll > 0 && r.id === 'long4', 'still flying long4 after ~4 s (scroll ' + r.scroll + ')');
 
-// 3c. D53, the APK's way to a wip midboss: on the title, LAB > FORCE MID (tap) > JUMP TO MID (tap), no query string
+// 3c. D55, the APK's way to THE KEEPSAKE stage boss: on the title, LAB > JUMP TO BOSS (tap), no query string. (D53's
+// FORCE MID row hides while the roster has no wip midboss: THE KEEPSAKE's row retired into the boss)
 await open();
 await press('ArrowDown', (await state()).rows.length - 1);
 await press('Enter');
-await tap('FORCE MID');
 s = await state();
-check(s.rows[3] === 'FORCE MID = KEEPSAKE' && s.rows[4] === 'JUMP TO MID = KEEPSAKE' && JSON.parse(s.lab).mid === 'keepsake', 'FORCE MID forces KEEPSAKE, stored, and offers JUMP TO MID: ' + s.rows.join(' | '));
-await p.screenshot({ path: `${OUT}/lab-force-mid.png` });
-await tap('JUMP TO MID');
+check(!s.rows.some((x) => x.startsWith('FORCE MID')) && s.rows.includes('JUMP TO BOSS = KEEPSAKE'), 'no FORCE MID with no wip kind, and JUMP TO BOSS offered: ' + s.rows.join(' | '));
+await p.screenshot({ path: `${OUT}/lab-jump-boss.png` });
+await tap('JUMP TO BOSS');
 await p.waitForFunction(() => window.__G().state === 'play', null, { timeout: 10000 });
-const first = await p.evaluate(async () => (await import('/src/layout.ts')).layout().stages.findIndex((r) => r.kind === 'biome'));
+const second = await p.evaluate(async () => (await import('/src/layout.ts')).stageOfSlot(1));
 r = await p.evaluate(() => ({ stage: window.__G().G.stage, jump: !!window.__G().G.jump }));
-check(r.stage === first && r.jump, `JUMP TO MID starts a jump run at the first biome stage (${r.stage}, want ${first})`);
-// hold the ship invincible so the wait can't end in a game over, and wait for the slot A midboss
-const mid = await p.waitForFunction(() => { const g = window.__G(); if (g.P) g.P.inv = 999; return g.G.mini && g.G.mini.k; }, null, { timeout: 45000, polling: 100 }).then((h) => h.jsonValue(), () => null);
-check(mid === 'keepsake', 'the slot A midboss is the forced KEEPSAKE: ' + mid);
+check(r.stage === second && r.jump, `JUMP TO BOSS starts a jump run at the second biome stage (${r.stage}, want ${second})`);
+// hold the ship invincible so the wait can't end in a game over, and wait for the stage boss
+const boss = await p.waitForFunction(() => { const g = window.__G(); if (g.P) g.P.inv = 999; return g.G.mini && g.G.mini.k; }, null, { timeout: 45000, polling: 100 }).then((h) => h.jsonValue(), () => null);
+check(boss === 'keepsake', 'the stage boss is THE KEEPSAKE: ' + boss);
 await p.waitForTimeout(1500);
 await p.screenshot({ path: `${OUT}/lab-jump-keepsake.png` });
-await p.evaluate(() => localStorage.setItem('grodius.lab', '{"layout":"long","mids":"","cp":"b","mid":""}')); // FORCE MID off again
 
 // 4. a URL flag overrides the LAB, and the title says so
 await open('?layout=short');
@@ -148,6 +147,6 @@ check(!errs.length, 'no page errors' + (errs.length ? ': ' + errs.slice(0, 3).jo
 await b.close();
 await server.close();
 // what this check does not reach (tools rule: report what was not measured)
-console.log('not measured: the long run past its first seconds (D\'s stage-clock / beat-probe own that), a LAB change made mid-run (the menu only exists on the title), the Fold APK app kill (Matt), the KEEPSAKE fight itself (tools/midboss-probe.mjs)');
+console.log('not measured: the long run past its first seconds (D\'s stage-clock / beat-probe own that), a LAB change made mid-run (the menu only exists on the title), the Fold APK app kill (Matt), the KEEPSAKE fight itself (tools/boss-probe.mjs, tools/keepsake-shots.mjs)');
 console.log(fails.length ? `lab-check: ${fails.length} FAILED` : 'lab-check: all passed');
 process.exit(fails.length ? 1 : 0);

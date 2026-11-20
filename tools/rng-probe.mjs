@@ -7,7 +7,8 @@
 // identical across the three. A difference means something outside the sim drew the sim RNG R() (or wrote sim state).
 // Fx-only arrays (gibs, drops, ...) are reported but not signed: they are presentation.
 // Usage: node tools/rng-probe.mjs [url] [--frames N] [--only maw,ufo] [--json out.json] [--trace] [--layout long4|short]
-//   World x comes from src/layout.ts: biome fights at slot 0 (stage-relative x 1000), stage bosses at slot 0 x0 + 700,
+//   World x comes from src/layout.ts: biome fights at slot 0 (stage-relative x 1000), stage bosses at slot 0 x0 + 700
+//   (THE KEEPSAKE at slot 1, built as a run builds it, 200 px past its boss x; long layouts only),
 //   the Saucer at ufoAt() + 150, the Drive at bossAt().
 //   --trace records the call site of every Math.random draw made inside render() and prints the top ones
 //   No url: starts its own Vite dev server (like the harness). Exits 1 if any fight's signatures differ.
@@ -40,13 +41,14 @@ const FIGHTS = [
   ['maw', 'MAW (stage)', 'stage', null],
   ['crux', 'CRUCIFER', 'stage', null],
   ['butcher', 'BUTCHER', 'stage', null],
+  ['keepsake', 'KEEPSAKE', 'kboss', null], // the registered stage boss (D55), where bossFor places it: slot 1 built for real (its arena)
   ['mawmid', 'MAW (mid)', 'mid', 'acid'],
   ...ROSTER.filter((r) => BIOME_POOLS.includes(r.pool)).map((r) => [r.k, r.label, 'mid', r.pool]), // the registry, WIP kinds too
   ...ROSTER.filter((r) => !BIOME_POOLS.includes(r.pool)).map((r) => [r.k, r.label, r.k === 'ufo' ? 'ufo' : 'rest', null]),
   // the Crucifer again, with the ship's form changing mid-fight (pods grow at 1, 3 and 5 s; a pod withers at 7 s): render's
   // trackForm sprouts and withers parts as particles, which the fixed-kit fights above never exercise (LS1-B1fix)
   ['grow', 'FORM CHANGE', 'stage', null, 'crux'],
-].filter(([id]) => !ONLY || ONLY.split(',').includes(id));
+].filter(([id]) => !ONLY || ONLY.split(',').includes(id)).filter(([, , kind]) => kind !== 'kboss' || !process.argv.includes('short'));
 const MODES = [['ON', true, true], ['OFF', false, true], ['BARE', true, false]];
 const KIT = [{ speed: 2, missile: 1, double: 1, options: 1, wardLv: 1 }, { cal: 1 }, { dmg: 1 }]; // boss-probe's STAGE 1 kit
 
@@ -97,6 +99,11 @@ async function run(b, fight, flashes, draw) {
       ST.step();
       $.G.scroll = LY.slotRow(0).x0 + 1000;
       for (let i = 0; i < 60; i++) { $.P.inv = 30; ST.step(); }
+    } else if (kind === 'kboss') {
+      const G = $.G, r1 = LY.slotRow(1), r0 = LY.slotRow(0);
+      G.route = ['ice', 'fire']; G.bx = [r0.gateLate ?? r0.x0, r1.gateLate ?? r1.x0, null]; G.visitNo = [0, 0];
+      BI.biomeStage(1, G.bx[1]);
+      G.scroll = r1.bossX + 200;
     } else $.G.scroll = kind === 'boss' ? LY.bossAt() : LY.slotRow(0).x0 + 700;
     $.G.si = $.G.script.length; $.G.pick = null; $.G.pickQ = 0; $.G.tally = null;
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw);
@@ -107,6 +114,7 @@ async function run(b, fight, flashes, draw) {
     W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
     if (kind === 'boss') BU.startBoss();
     else if (kind === 'stage') spawn === 'maw' ? SP.maw(true) : SP[spawn]();
+    else if (kind === 'kboss') (await import('/src/enemies/boss/registry.ts')).BOSS_SIM.keepsake.spawn('fire');
     else if (kind === 'ufo') { $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(); }
     else id === 'mawmid' ? SP.maw(false) : SP.midboss(id, BI.MID_NAMES[id]);
     const foe = () => (kind === 'boss' ? $.G.boss : $.G.mini);
@@ -114,7 +122,7 @@ async function run(b, fight, flashes, draw) {
     for (; f < FRAMES; f++) {
       const g = foe();
       if (!g || g.dead || g.dying) { end = !g ? 'gone' : g.dying ? 'dying' : g.gone || g.x > C.W + 50 ? 'esc' : 'dead'; break; }
-      let ty = g.y;
+      let ty = g.y + (kind === 'kboss' ? g.wy || 0 : 0);
       if (kind === 'boss') { const pl = g.plates.filter((q) => q.hp > 0).sort((a, b) => Math.abs(Math.sin(a.a)) - Math.abs(Math.sin(b.a)))[0]; ty = pl ? g.y + Math.sin(pl.a) * 42 : g.y; }
       const y = C.clamp(ty, 8, C.PH - 8);
       $.P.hist.unshift({ x: 90, y }); if ($.P.hist.length > 80) $.P.hist.pop();

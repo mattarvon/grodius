@@ -47,7 +47,7 @@ const LEAD = 30;
 async function scenarios() {
   const L = await import('../src/layout.ts');
   L.setLayout('long4');
-  const orbit = L.rowOfKind('orbit'), drive = L.rowOfKind('drive'), b0 = L.slotRow(0);
+  const orbit = L.rowOfKind('orbit'), drive = L.rowOfKind('drive'), b0 = L.slotRow(0), b1 = L.slotRow(1);
   const rel = (r, x) => Math.round(x - r.x0 - LEAD);
   const breath2 = L.beatPlan(b0, b0.gateLate, false).warns[1];
   const fight = (stage, r, x, want) => [[`${want}-d1`, { q: `stage=${stage}&x=${rel(r, x)}&loop=0&kit=mid&rank=.5&seed=7`, frames: 1200, want: want }],
@@ -62,6 +62,8 @@ async function scenarios() {
       ...fight('drive', drive, drive.warnX, 'drive'),
       ...fight('ice', b0, b0.bossX, 'crux'),
       ...fight('fire', b0, b0.bossX, 'butcher'),
+      // THE KEEPSAKE (D55): the second biome stage (slot=1) in Descent 1 and Descent 3, where bossFor places it
+      ...fight('fire&slot=1', b1, b1.bossX, 'keepsake'),
     ]),
   };
 }

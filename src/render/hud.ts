@@ -23,7 +23,7 @@ import { drawEnemy } from '../render/enemies';
 import { drawMawFx } from './gross/maw';
 import { drawBakedDeaths } from './gross/baked';
 import { drawUfoFx } from './gross/mid/ufo';
-import { drawFork } from './fork';
+import { drawFork, mobFork } from './fork';
 import { MID_NAMES } from '../enemies/mid/roster';
 /** the health bar's name for a G.mini without a title: the bosses that can take G.mini, and every midboss */
 const MINI_NAMES: Record<string, string> = { maw: 'THE MAW', crux: 'THE BLOAT', butcher: 'THE BUTCHER', ...MID_NAMES };
@@ -186,6 +186,7 @@ export function drawHUD() {
     ctx.fillRect(bx - 1, y - 1, bw + 2, 5);
     ctx.fillStyle = m.shielded ? '#5d6b7a' : C.bloodL;
     ctx.fillRect(bx, y, bw * k, 3);
+    if (m.ticks) { ctx.fillStyle = '#e8dccb'; for (const f of m.ticks) ctx.fillRect(bx + bw * f - .5, y - 1, 1, 5); } // a boss's phase cuts (THE KEEPSAKE's 65% and 30%)
     if (m.pl && !m.gone) { // phase timer: thin fuse above the HP bar, blinks in the last 5 s
       const left = 1 - (m.pt || 0) / m.pl;
       if (left > 5 * 60 / m.pl || ($.T >> 3) & 1) {
@@ -261,10 +262,15 @@ export function drawEShots() {
   }
   ctx.lineCap = 'butt';
   ctx.globalCompositeOperation = 'lighter';
-  for (const s of eshots) glow(s.x, s.y, s.k === 'spike' ? 14 : s.k === 'glob' ? 11 : 9, '150,255,40', .55 * pul);
+  for (const s of eshots) glow(s.x, s.y, s.fs ? 7 + 6 * s.fs : s.k === 'spike' ? 14 : s.k === 'glob' ? 11 : 9, '150,255,40', .55 * pul); // fs: a fork drawn bigger (THE KEEPSAKE's mobile forks)
   ctx.globalCompositeOperation = 'source-over';
   for (const s of eshots) {
-    if (s.fk) drawFork(ctx, s.x, s.y, Math.atan2(s.vy, s.vx)); // THE KEEPSAKE's forks (a glob's arc or a spike's line, tines first): pale steel over the enemy-fire glow
+    if (s.fk) { // THE KEEPSAKE's forks (a glob's arc or a spike's line, tines first): pale steel over the enemy-fire glow
+      const a = Math.atan2(s.vy, s.vx), f = s.fs || 1, b = 6 * f - 3; // fs: drawn at the mobile's scale, its tines' tip on the shot
+      // a mobile fork falling straight is the atlas's baked one, its tips 3 px past the shot (as the line fork's were)
+      if (!(f > 1 && Math.abs(a - Math.PI / 2) < .2 && mobFork(ctx, s.x, s.y + 3)))
+        drawFork(ctx, s.x - Math.cos(a) * (f > 1 ? b : 0), s.y - Math.sin(a) * (f > 1 ? b : 0), a, f);
+    }
     else if (s.k === 'glob') {
       const a = Math.atan2(s.vy, s.vx);
       ctx.save();
