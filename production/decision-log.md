@@ -1207,3 +1207,27 @@ DOZING, and that sets the floor.
   f728316 (verified in a throwaway worktree), so it predates D59. Left for the owner of the drive baseline.
 
 **Category:** balance, design
+
+### D60 THE KEEPSAKE's forks from a real fork photo; THE KEEPSAKE is the title hero — 2026-11-20 (Matt's calls; branch `kboss-core`, merged from `kboss-forks`)
+
+**Decision point:** Matt, after playing the boss: "the forks could be more realistic. can we have the art dept look at
+those? maybe leverage the openverse API." Then, seeing the boss art: "we might have to make the baby doll head with the
+fork in the skull on the title page also instead of the eyeball."
+**Forks.** The art review (`production/qa/keepsake-forks-art-review-2026-11-20.md`) found icon proportions, an outline that
+scaled with the mobile forks (combs), flat steel and a live-rotated boomerang. Openverse scouted (CC0 / CC BY / PD); Matt
+picked five refs. Options: A redraw in code, B photo bake everywhere, C hybrid. **Chosen (Matt): C, "for sure"**, judged
+on a side-by-side mock (`assets-raw/forks-review/compare-ABC*.png`). Producer defaults from the art dept's advice, not
+contested: embedded fork and boomerang about +18% (59 px, hitboxes unchanged), mobile kept at 33 px with a lit rim, no
+separate stick-on-landing (D59's planted forks already do it). Source: Walker & Hall table fork, Museums Victoria,
+CC BY 4.0 (CREDITS.md). Commits a063217, df36b10.
+**Title.** Mocked side by side with ROT (`assets-raw/title-review/`). The art dept recommended keeping ROT; **Matt chose
+the doll: "love the baby doll head on the title and love the animation idea."** THE KEEPSAKE replaces ROT (D41) as the
+title hero: a title-resolution bake from Matt's doll photos with the photo fork and a halo, dozing half-lidded (pure
+function of $.T), eyes snapping open and the fork rising over the run's first 30 frames on DESCEND (the run starts on the
+press as before; no sim frame waits). ROT is not deleted: `TITLE_HERO` in `src/titlelayout.ts` switches back. Where ROT
+lives next is open (Matt to decide). Commits fae9418, 36cbcfd, 4d31140
+(`production/qa/keepsake-title-hero-2026-11-20.md`).
+**Validation:** typecheck clean; unit tests pass apart from the five Windows-path failures that fail identically on main
+(`scandir 'E:\E:\...'`); keepsake-d1/-d3 pass; title perf on the Fold shape equal to or below ROT's.
+
+**Category:** art, design
