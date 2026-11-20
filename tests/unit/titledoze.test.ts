@@ -36,10 +36,10 @@ describe('the title doll\'s doze', () => {
 
   it('holds still between hitches: long half-lidded holds, and a dip of at most 1 px only at a change', () => {
     const p = { eye: 0, jy: 0 };
-    let run = 0, minHold = Infinity, prev = HALF;
+    let run = 0, minHold = Infinity, prev = HALF, maxDip = 0;
     for (let t = 0; t < FRAMES; t++) {
       titleDoze(t, p);
-      expect(Math.abs(p.jy)).toBeLessThanOrEqual(1);
+      maxDip = Math.max(maxDip, Math.abs(p.jy)); // asserted once below: an expect() per frame timed out on CI
       if (p.eye !== prev) {
         // a flutter's 8-frame beat between its two shuts is the hitch itself; every other half-lidded hold is a rest
         if (prev === HALF && run > 0 && t > 2000) { if (run < 10) expect(run).toBe(7); else minHold = Math.min(minHold, run); }
@@ -47,6 +47,7 @@ describe('the title doll\'s doze', () => {
       } else run++;
       prev = p.eye;
     }
+    expect(maxDip).toBeLessThanOrEqual(1);
     expect(minHold).toBeGreaterThan(200); // the shortest rest between droops is seconds, not frames
   });
 });
