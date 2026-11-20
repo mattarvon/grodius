@@ -7,7 +7,7 @@
 //    tools/keepsake-boss-art.json: face0-3, then eye_<open|half|shut|empty>, then wound_<seat|proud|gape|brain>, each
 //    pre-rotated at the 5 tilts -32/-16/0/16/32 (the nearest is drawn, never turned at runtime), offsets from the origin
 //    (52, 67) of a 104x124 box; die x 4 (tipping onto its side); rocker_open/shut x 13 swing angles (-108..108 deg);
-//    crier x 2; fork; mfork x 2 (hanging, drop tell)
+//    crier x 2; fork x 16 (the photo fork's spin angles, render/fork.ts bigFork); mfork x 2 (hanging, drop tell: mobFork)
 //  2 the greybox while the atlas is on its way: the midboss's own sprite (keepsake@6.png, Matt's doll, 48x58 on (24, 31))
 //    at 104 / 48, which is the contract's box, rotated at runtime
 //  3 a procedural head (a vinyl ellipse, sockets, the crown) until either has loaded
@@ -22,7 +22,7 @@ import { PH, W, ctx, hash } from '../../../core';
 import { ceilAt, floorAt } from '../../../world';
 import { KB, lobFrames, pendXY, riseCap, rotXY } from '../../../enemies/boss/_keepsake';
 import { glow } from '../../util';
-import { drawFork } from '../../fork';
+import { BIG_LEN, bigFork as atlasFork, drawFork, mobFork } from '../../fork';
 import { spr, sprReady } from '../../../sprites';
 import { drawParts, emit, fxs, glowC, GROSS, rn, rnd, spray, stepParts, strand } from '../midbosses';
 import { bakedBuilt, bakedDrop, bakedReady, bakedWarm, bf, pour, trackDeath } from '../baked';
@@ -89,12 +89,21 @@ function line(e, locked, a) {
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(e.la) * 560, y + Math.sin(e.la) * 560); ctx.stroke();
   ctx.restore();
 }
-/** the big fork, spinning (tines first along a): the atlas's fork (tines down, so turned a - 90 deg), the midboss's, a line fork */
+/** the big fork, spinning (tines first along a): the atlas's photo fork at the nearest of its 16 baked angles (never
+ *  turned at runtime: that shimmers), with two faint copies where it was one and two frames ago; while the atlas loads,
+ *  the midboss's fork, then a line fork at the same 59 px */
+const TR = new Float32Array(9); // the boomerang's last three spots: [0..2] now (x, y, a), [3..5] a frame back, [6..8] two
+let trT = -9, trN = 0;
 function bigFork(x, y, a) {
+  if ($.T !== trT) { trN = $.T > trT && $.T - trT <= 3 ? Math.min(3, trN + 1) : 1; TR.copyWithin(3, 0, 6); trT = $.T; }
+  TR[0] = x; TR[1] = y; TR[2] = a;
+  if (trN >= 3) atlasFork(ctx, TR[6], TR[7], TR[8], .18);
+  if (trN >= 2) atlasFork(ctx, TR[3], TR[4], TR[5], .35);
+  if (atlasFork(ctx, x, y, a)) return;
   ctx.save(); ctx.translate(x, y); ctx.rotate(a - Math.PI / 2);
-  const ok = bf(ctx, K, 'fork', 0, 0, 0) || spr(ctx, FK, 0, 0, 0, { s: 1.5 });
+  const ok = spr(ctx, FK, 0, 0, 0, { s: 1.5 });
   ctx.restore();
-  if (!ok) drawFork(ctx, x, y, a, 3);
+  if (!ok) drawFork(ctx, x, y, a, BIG_LEN / 15);
 }
 
 /** the fountain's marks: a 3 px chevron on each landing point from the tell's first frame, and the fork's real path */
@@ -160,9 +169,9 @@ function mobile(e) {
     ctx.globalCompositeOperation = 'lighter';
     glow(x, tip - 14, 14 + 6 * telK, '150,255,40', .16 + .5 * telK);
     ctx.globalCompositeOperation = 'source-over';
-    // tines down, its tip at `tip`, 33 px long: the line fork at x2.2 (a 3 px outline reads on the phone; the atlas's mfork
-    // is 46 px with 1 px tines, too long for the lane over the crown and too fine scaled down: kept for a later pass)
-    drawFork(ctx, x, tip - 6 * MFORK, Math.PI / 2, MFORK);
+    // tines down, its tip at `tip`, 33 px long: the atlas's photo fork (a lit rim so it reads as a hazard at true size;
+    // the tell's frame brighter), the line fork at x2.2 while the atlas loads
+    if (!mobFork(ctx, x, tip, telK > 0)) drawFork(ctx, x, tip - 6 * MFORK, Math.PI / 2, MFORK);
     if (telK > 0) { // the column it falls down, marked to the floor: dashed, then a 3 px bar where it lands
       const fl = Math.min(PH - 2, floorAt(x + $.G.scroll));
       ctx.globalAlpha = .25 + .45 * telK; ctx.strokeStyle = '#ff6048'; ctx.lineWidth = 1; ctx.setLineDash(DASH);
@@ -186,7 +195,7 @@ function under(e) {
     ctx.globalCompositeOperation = 'lighter';
     glow(e.bx, e.by, 22, '150,255,40', .55 * (.75 + .25 * Math.sin($.T * .5)));
     ctx.globalCompositeOperation = 'source-over';
-    bigFork(e.bx, e.by, $.T * .45);
+    bigFork(e.bx, e.by, $.T * .3); // ~0.3 rad a frame: about one baked angle per frame, so the spin never strobes
   }
   // the wail's tell: the crier's ring swells round its source before it lets go
   if ((e.st === 'wail' && e.wt < KB.wail) || (e.st === 'mama' && e.wt < KB.mama)) {
