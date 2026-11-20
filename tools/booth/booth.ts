@@ -29,7 +29,8 @@ const HOT = 10 ** (-3 / 20), CLIP = 10 ** (-0.5 / 20);
 type Phase = 'idle' | 'arming' | 'rec' | 'review' | 'saving' | 'saved' | 'error';
 /** was: a quip's take recorded to words the quip no longer has (plugin.ts TakeOpts.text) */
 type Take = { name: string; raw: boolean; was?: string; fx?: string };
-type Kept = { name: string; url: string; lufs: number | null; peak: number | null; dur: number | null; gain: number; warn?: string; long?: string; squeezed?: number; src: string };
+/** fx: the rack it was kept (or re-kept) with, by name ('' or none: clean). re: it was re-kept, not freshly recorded */
+type Kept = { name: string; url: string; lufs: number | null; peak: number | null; dur: number | null; gain: number; warn?: string; long?: string; squeezed?: number; fx?: string; re?: boolean; src: string };
 /** every line the booth shows: the fixed slots, then SLAB's quips (src/voice/quips.json, LS2-quips), rebuilt whenever
  *  the list is read or edited */
 let ALL: Slot[] = [...SLOTS];
@@ -83,6 +84,8 @@ const S = {
   clipLatch: false,
   /** the loudest sample of the take being recorded */
   takePeak: 0,
+  /** a take rewritten in place (re-kept, applied, reprocessed): when, so the take list's player fetches it again */
+  bust: {} as Record<string, number>,
 };
 type Info = { lufs?: number | null; peak?: number | null; dur?: number | null; fx?: string; warn?: string };
 type Render = { url: string; info: Info };
@@ -458,6 +461,103 @@ async function keep() {
     draw();
   }
 }
+/** a reprocess's answer (plugin.ts Redone) */
+type Res = { takes: { name: string; done: boolean; why?: string; lufs?: number | null; peak?: number | null; dur?: number | null; gain?: number; fx?: string; long?: string; warn?: string; legacy?: string }[] };
+/** takes kept before fx-dsp (no chain stamp) this run would change: asked about first, or nothing is rewritten */
+const askLegacy = (old: Legacy[]) => confirm(`WARNING: this will change ${old.length === 1 ? 'a shipped take' : old.length + ' shipped takes'}: listen first.\n\n` +
+  old.map((t) => `${t.name}: ${t.why}`).join('\n') +
+  '\n\nThey were kept before fx-dsp, and the rack no longer renders them the same (level, tail, pitch, makeup). Rewrite them anyway? git checkout restores a shipped take.');
+/** what the rack would put on a take, for a button: its chain ('pitch + bitcrush'), or '' when it is off */
+const chainOf = () => (fxOn(S.fx) ? fxName(S.fx) : '');
+/** a take re-kept, applied or kept is free to rewrite: no take recording, keeping or under review */
+const canRewrite = () => S.phase === 'idle' || S.phase === 'saved' || S.phase === 'error';
+/** "Re-keep with current FX": that one kept take of this line rewritten from its raw recording through the rack as it
+ *  stands (POST /__booth/reprocess &name=), the rack recorded in its .json. The others are left alone. It then shows
+ *  in the KEPT deck, with its numbers and the chain, like a fresh keep */
+async function rekeep(name: string) {
+  const s = ALL[S.sel];
+  if (S.phase === 'review') return void (say('Keep (Enter) or discard (Backspace) the take under review first.', 'warn'), draw());
+  if (!canRewrite()) return;
+  const was = (S.takes[s.cat] ?? []).find((t) => t.name === name)?.fx || 'clean', rack = chainOf() || 'clean (no FX)';
+  S.phase = 'saving';
+  say(`Re-keeping ${name} with ${rack}...`);
+  draw();
+  try {
+    const q = { cat: s.cat, name, fx: JSON.stringify(S.fx), ...(S.squeeze ? {} : { squeeze: '0' }) };
+    const { legacy: old } = await api('GET', q, undefined, 'legacy') as { legacy: Legacy[] };
+    if (old.length && !askLegacy(old)) { S.phase = 'idle'; say(`Not re-kept: ${name} is as it was.`, 'warn'); return void (await refreshTakes()); }
+    let res: Res;
+    try {
+      res = await api('POST', old.length ? { ...q, confirm: '1' } : q, undefined, 'reprocess') as Res;
+    } catch (e) {
+      const late = (e as { legacy?: Legacy[] | null }).legacy;
+      if (!late?.length) throw e;
+      if (!askLegacy(late)) { S.phase = 'idle'; say(`Not re-kept: ${name} is as it was.`, 'warn'); return void (await refreshTakes()); }
+      res = await api('POST', { ...q, confirm: '1' }, undefined, 'reprocess') as Res;
+    }
+    const t = res.takes.find((x) => x.name === name);
+    if (!t?.done) {
+      S.phase = 'idle';
+      say(`Not re-kept: ${name} ${t?.why ?? 'was not found'}.`, 'warn');
+      return void (await refreshTakes());
+    }
+    S.bust[name] = Date.now();
+    const url = `/src/sfx/${s.cat}/${name}`;
+    S.kept = { name, url, lufs: t.lufs ?? null, peak: t.peak ?? null, dur: t.dur ?? null, gain: t.gain ?? 0, warn: t.warn, long: t.long, fx: t.fx ?? '', re: true, src: `${url}?t=${S.bust[name]}` };
+    S.phase = 'saved';
+    S.deck = 'review';
+    say(`Re-kept ${name} with ${t.fx || 'no FX (clean)'} (was ${was}): ${fmt(t.lufs)} LUFS, peak ${fmt(t.peak, 1)} dBTP, ${fmt(t.dur, 2)} s.` +
+      (t.warn ? ' ' + t.warn + '.' : '') + (t.long ? ' ' + t.long + '.' : '') + (t.legacy ? ' A shipped take changed: listen first.' : ''), t.warn || t.long || t.legacy ? 'warn' : '');
+    await refreshTakes();
+    (document.getElementById('keptplay') as HTMLAudioElement | null)?.play().catch(() => {});
+  } catch (e) {
+    S.phase = 'idle';
+    say('Re-keep failed: ' + errText(e), 'err');
+    await refreshTakes();
+  }
+}
+/** the rack bar's Keep button: the take under review kept through the rack (Enter), else the kept take the rack is
+ *  previewing (its FX preview, or the take just kept) re-kept through it; null when there is nothing to keep */
+function fxKeepTarget(): { kind: 'keep' } | { kind: 'rekeep'; name: string } | null {
+  if (S.phase === 'review' && S.raw) return { kind: 'keep' };
+  if (!canRewrite()) return null;
+  const takes = S.takes[ALL[S.sel].cat] ?? [], has = (n: string) => takes.some((t) => t.name === n && t.raw);
+  if (S.prevName && has(S.prevName)) return { kind: 'rekeep', name: S.prevName };
+  if (S.phase === 'saved' && S.kept && has(S.kept.name)) return { kind: 'rekeep', name: S.kept.name };
+  return null;
+}
+/** every Keep and Re-keep button says what it will put on the take: the rack's chain, or clean. Follows the rack and
+ *  the phase (drawReview and drawFxBar call it) */
+function drawKeep() {
+  const chain = chainOf(), ch = esc(chain);
+  const k = document.getElementById('b-keep') as HTMLButtonElement | null;
+  if (k) {
+    k.innerHTML = chain ? `Keep with FX: <b>${ch}</b> <kbd>Enter</kbd>` : 'Keep clean <kbd>Enter</kbd>';
+    k.title = chain ? `keep this take through the FX rack: ${chain}` : 'keep this take clean: the FX rack is off';
+    k.disabled = S.phase !== 'review';
+  }
+  const f = document.getElementById('fx-keep') as HTMLButtonElement | null;
+  if (f) {
+    const t = fxKeepTarget();
+    f.disabled = !t;
+    f.innerHTML = t?.kind === 'rekeep'
+      ? `Re-keep ${esc(t.name.replace(/\.ogg$/, ''))}: <b>${chain ? ch : 'clean'}</b>`
+      : `Keep: <b>${chain ? ch : 'clean'}</b> <kbd>Enter</kbd>`;
+    f.title = t?.kind === 'rekeep' ? `rewrite ${t.name} from its raw recording through the rack as it stands (${chain || 'no FX'}); the other takes are left alone`
+      : t ? `keep the take under review through the rack as it stands (${chain || 'no FX'}): same as Enter`
+        : 'record a take (Enter keeps it here), or press FX preview on a kept take to re-keep it through the rack';
+  }
+  const r = document.getElementById('b-rekeep') as HTMLButtonElement | null;
+  if (r) {
+    r.innerHTML = chain ? `Re-keep with current FX: <b>${ch}</b>` : 'Re-keep clean (no FX)';
+    r.title = `rewrite this take from its raw recording through the rack as it stands (${chain || 'no FX'})`;
+    r.disabled = !canRewrite();
+  }
+  document.querySelectorAll<HTMLButtonElement>('[data-rekeep]').forEach((b) => {
+    b.disabled = !canRewrite();
+    b.title = `rewrite this take alone from its raw recording through the rack as it stands (${chain || 'no FX: clean'})`;
+  });
+}
 /** re-runs the current chain on this line's kept raw takes (plugin.ts reprocess): each processed take is rewritten */
 async function redo(apply = false) {
   const s = ALL[S.sel];
@@ -473,11 +573,7 @@ async function redo(apply = false) {
   draw();
   try {
     const q = { cat: s.cat, ...(S.squeeze ? {} : { squeeze: '0' }), ...(apply ? { fx: JSON.stringify(S.fx) } : {}) };
-    type Res = { takes: { name: string; done: boolean; why?: string; long?: string; warn?: string; legacy?: string }[] };
-    /** takes kept before fx-dsp (no chain stamp) this run would change: asked about first, or nothing is rewritten */
-    const ask = (old: Legacy[]) => confirm(`WARNING: this will change ${old.length === 1 ? 'a shipped take' : old.length + ' shipped takes'}: listen first.\n\n` +
-      old.map((t) => `${t.name}: ${t.why}`).join('\n') +
-      '\n\nThey were kept before fx-dsp, and the rack no longer renders them the same (level, tail, pitch, makeup). Rewrite them anyway? git checkout restores a shipped take.');
+    const ask = askLegacy;
     const cancel = () => { S.phase = 'idle'; say('Reprocess cancelled: nothing was rewritten.', 'warn'); draw(); };
     // asked before the run (GET /__booth/legacy); the plugin refuses them without confirm=1 anyway (a 409, below)
     const { legacy: old } = await api('GET', q, undefined, 'legacy') as { legacy: Legacy[] };
@@ -492,6 +588,7 @@ async function redo(apply = false) {
       res = await api('POST', { ...q, confirm: '1' }, undefined, 'reprocess') as Res;
     }
     const { takes } = res;
+    for (const t of takes) if (t.done) S.bust[t.name] = Date.now();
     const done = takes.filter((t) => t.done), skip = takes.filter((t) => !t.done), changed = done.filter((t) => t.legacy);
     const notes = [...done.filter((t) => t.long || t.warn).map((t) => `${t.name}: ${[t.long, t.warn].filter(Boolean).join('; ')}`),
       ...skip.map((t) => `${t.name} skipped: ${t.why}`),
@@ -544,7 +641,10 @@ const TYPING = ['text', 'search', 'file'];
 addEventListener('keydown', (e) => {
   const t = e.target as HTMLElement, k = e.key;
   // typing a quip's words, a preset name or an effect search: the keys are the box's (its own Enter acts)
-  if (t.tagName === 'SELECT' || t.tagName === 'INPUT' && TYPING.includes((t as HTMLInputElement).type) || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (t.tagName === 'INPUT' && TYPING.includes((t as HTMLInputElement).type) || e.ctrlKey || e.metaKey || e.altKey) return;
+  // a focused dropdown (the preset box, the mic) keeps its own keys (arrows and letters pick an option), but Enter is
+  // the booth's Keep: a closed select does nothing with it, and an open one's list takes the key before the page sees it
+  if (t.tagName === 'SELECT' && k !== 'Enter') return;
   // a button reached with Tab works from the keyboard (Record is the booth's own key anyway)
   if (t.tagName === 'BUTTON' && t.id !== 'b-rec' && (k === 'Enter' || k === ' ')) return;
   // a focused FX slider keeps the arrows (fine-tuning a knob), everything else is the booth's
@@ -612,19 +712,20 @@ function draw() {
   st.className = 'state' + (S.tone ? ' ' + S.tone : '');
   st.style.color = S.tone === 'err' ? 'var(--red)' : S.tone === 'warn' ? 'var(--warn)' : '';
   $id('takes').innerHTML = `<h2>Takes in src/sfx/${esc(s.cat)}/ (${takes.length})</h2>
-    ${takes.map((t, i) => `<div class="take"><audio controls preload="none" src="/src/sfx/${esc(s.cat)}/${esc(t.name)}"></audio><span>${esc(t.name)}</span>${t.fx ? `<span class="fxtag">${esc(t.fx)}</span>` : ''}${t.was != null ? `<span class="warn">stale: says ${esc(t.was)}</span>` : ''}
-      ${t.raw ? `<button data-fxp="${i}" title="hear this take's raw recording through the current FX rack">FX preview</button>` : ''}
+    ${takes.map((t, i) => `<div class="take"><audio controls preload="none" src="/src/sfx/${esc(s.cat)}/${esc(t.name)}${S.bust[t.name] ? '?t=' + S.bust[t.name] : ''}"></audio><span>${esc(t.name)}</span>${t.fx ? `<span class="fxtag">${esc(t.fx)}</span>` : ''}${t.was != null ? `<span class="warn">stale: says ${esc(t.was)}</span>` : ''}
+      ${t.raw ? `<button data-fxp="${i}" title="hear this take's raw recording through the current FX rack">FX preview</button><button data-rekeep="${i}" class="keep">Re-keep with FX</button>` : ''}
       ${/-matty-\d+\.ogg$/.test(t.name) ? `<button data-del="${i}">Delete</button>` : ''}</div>`).join('') || '<div class="state">None yet. The slab is empty.</div>'}
     ${takes.some((t) => t.raw) ? `<div class="row"><button id="b-redo" ${P === 'idle' || P === 'saved' || P === 'error' ? '' : 'disabled'}>Reprocess this line's takes</button>
       <button id="b-apply" ${P === 'idle' || P === 'saved' || P === 'error' ? '' : 'disabled'}>Apply current FX to this line's takes</button>
       <span class="state">re-runs the chain on the kept raw takes (no re-recording): each with its own FX, or all with the rack's</span></div>` : ''}
-    <div class="keys"><kbd>Space</kbd> record / stop &middot; <kbd>Enter</kbd> keep &middot; <kbd>Backspace</kbd> discard (or delete the take just kept) &middot;
+    <div class="keys"><kbd>Space</kbd> record / stop &middot; <kbd>Enter</kbd> keep (through the FX rack as it stands) &middot; <kbd>Backspace</kbd> discard (or delete the take just kept) &middot;
       <kbd>&uarr;</kbd><kbd>&darr;</kbd> line &middot; <kbd>P</kbd> FX preview &middot; <kbd>K</kbd> play / pause &middot; <kbd>B</kbd> A/B clean vs FX &middot;
       <kbd>/</kbd> search effects &middot; <kbd>T</kbd> test in game. Takes are mono 44.1 kHz Vorbis at -12 LUFS, the gaps between phrases turned down; the raw take stays in
       <code>assets-raw/voice/</code> (git-ignored). A take stops itself at ${AUTO_STOP} s.</div>`;
   document.querySelectorAll<HTMLElement>('.slot').forEach((el) => (el.onclick = () => move(+el.dataset.i! - S.sel)));
   document.querySelectorAll<HTMLElement>('[data-del]').forEach((el) => (el.onclick = () => { el.blur(); del(takes[+el.dataset.del!]); }));
   document.querySelectorAll<HTMLElement>('[data-fxp]').forEach((el) => (el.onclick = () => { el.blur(); S.prevName = takes[+el.dataset.fxp!].name; preview(); }));
+  document.querySelectorAll<HTMLElement>('[data-rekeep]').forEach((el) => (el.onclick = () => { el.blur(); rekeep(takes[+el.dataset.rekeep!].name); }));
   on('b-rec', () => (S.phase === 'rec' ? stop() : record()));
   on('b-test', () => testGame(s));
   on('b-redo', () => redo());
@@ -674,14 +775,17 @@ function drawReview() {
           <button class="tp" id="rv-play" title="play / pause (K)">Play <kbd>K</kbd></button>
           <span class="reads" id="rv-read">${chip('DUR', '--')}${chip('PEAK', '--')}</span>
           <span class="grow"></span>
-          <button id="b-keep">Keep <kbd>Enter</kbd></button><button id="b-drop">Discard <kbd>Backspace</kbd></button></div>
+          <button id="b-keep" class="keep">Keep <kbd>Enter</kbd></button><button id="b-drop">Discard <kbd>Backspace</kbd></button></div>
         <div class="wave" id="rv-wave"></div><audio id="rawplay" controls src="${S.rawUrl}"></audio></div>`;
     } else if (S.kept) {
       const k = S.kept;
-      el.innerHTML = `<div class="deck" data-deck="review"><div class="deckh"><span class="lane-tag ok">KEPT</span>
+      // the chain it was kept with, so a keep through the rack never reads as the raw take kept
+      el.innerHTML = `<div class="deck" data-deck="review"><div class="deckh"><span class="lane-tag ok">${k.re ? 'RE-KEPT' : 'KEPT'}</span>
+          <span class="fxtag${k.fx ? '' : ' clean'}" id="kept-fx" title="the FX rack this take went through">${k.fx ? 'with FX: ' + esc(k.fx) : 'clean (no FX)'}</span>
+          <span class="state">${esc(k.name)}</span>
           <button class="tp" id="rv-play" title="play / pause (K)">Play <kbd>K</kbd></button>
           <span class="reads">${chip('LUFS', fmt(k.lufs))}${chip('PEAK', fmt(k.peak, 1, ' dBTP'))}${chip('DUR', fmt(k.dur, 2, ' s'))}${chip('GAIN', (k.gain > 0 ? '+' : '') + k.gain + ' dB')}</span>
-          <span class="grow"></span><button id="b-undo">Delete this take <kbd>Backspace</kbd></button></div>
+          <span class="grow"></span><button id="b-rekeep" class="keep">Re-keep with current FX</button><button id="b-undo">Delete this take <kbd>Backspace</kbd></button></div>
         <div class="wave" id="rv-wave"></div><audio id="keptplay" controls src="${esc(k.src)}"></audio></div>`;
     }
     const media = el.querySelector('audio');
@@ -704,10 +808,11 @@ function drawReview() {
       playLabel(media, 'rv-play');
     }
   }
-  const k = document.getElementById('b-keep') as HTMLButtonElement | null, d = document.getElementById('b-drop') as HTMLButtonElement | null;
-  if (k) k.disabled = P !== 'review';
+  const d = document.getElementById('b-drop') as HTMLButtonElement | null;
   if (d) d.disabled = P !== 'review';
+  drawKeep();
   on('b-keep', keep);
+  on('b-rekeep', () => S.kept && rekeep(S.kept.name));
   on('b-drop', () => discard());
   on('b-undo', () => S.kept && del({ name: S.kept.name, raw: true }));
   on('rv-play', () => { S.deck = 'review'; playPause(); });
@@ -861,6 +966,7 @@ function buildFx() {
     </div>
     <div class="row fxbar">
       <button id="fx-prev" class="hot" disabled>Preview <kbd>P</kbd></button>
+      <button id="fx-keep" class="keep" disabled>Keep <kbd>Enter</kbd></button>
       <label class="opt" title="re-render the preview whenever the rack changes"><input type="checkbox" id="fx-auto"${store.get('fxauto') !== '0' ? ' checked' : ''}> auto preview</label>
       <button id="fx-rand" title="2-5 random effects at random settings: roll the bones">Randomize</button>
       <button id="fx-off" title="every effect off (their settings are kept)">All off</button>
@@ -879,7 +985,10 @@ function buildFx() {
   const pre = $id('fx-preset') as HTMLSelectElement;
   pre.onchange = () => {
     const v = pre.value;
+    // the booth's keys back (Enter keeps): now, and again once the list has closed, since Chrome can hand the
+    // focus back to the box as its popup goes
     pre.blur();
+    setTimeout(() => { if (document.activeElement === pre) pre.blur(); });
     if (!v) return;
     const fx = fxOfPreset(v);
     picked = v;
@@ -896,6 +1005,11 @@ function buildFx() {
   on('fx-rand', () => setFx(randomFx()));
   on('fx-off', () => setFx({}));
   on('fx-prev', () => preview());
+  on('fx-keep', () => {
+    const t = fxKeepTarget();
+    if (t?.kind === 'keep') keep();
+    else if (t) rekeep(t.name);
+  });
   const auto = $id('fx-auto') as HTMLInputElement;
   auto.onchange = () => { store.set('fxauto', auto.checked ? '1' : '0'); auto.blur(); };
   const spec = $id('fx-spec') as HTMLInputElement;
@@ -941,6 +1055,7 @@ function drawRack() {
   }).join('');
   const el = $id('fx-rack');
   el.querySelectorAll<HTMLElement>('[data-grp]').forEach((b) => (b.onclick = () => {
+    b.blur(); // Enter stays Keep, not "fold this group again"
     const g = b.dataset.grp!;
     S.shut.has(g) ? S.shut.delete(g) : S.shut.add(g);
     saveShut();
@@ -1062,6 +1177,7 @@ function drawFxBar() {
   b.disabled = !srcT || S.prevBusy;
   b.innerHTML = `${S.prevBusy ? 'Rendering...' : 'Preview'} <kbd>P</kbd>`;
   $id('fx-src').textContent = srcT ? 'source: ' + srcT : 'record a take (or press FX preview on a kept take) to hear the rack';
+  drawKeep();
   // the chain, in the order it runs
   const live = EFFECTS.filter((e) => S.fx[e.id]);
   $id('fx-chain').innerHTML = `<span class="io">MIC</span><span class="arr" aria-hidden="true"></span><span class="io">CLEANUP</span>` +
