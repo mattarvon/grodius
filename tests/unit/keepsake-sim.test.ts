@@ -151,6 +151,19 @@ describe('THE KEEPSAKE through hurt() and midMul', () => {
     expect(e.rl).toBe(rl + out); // caught in the wound: every recPer of them come back out in the next fountain
   });
 
+  it('cuts a thread it has no room to fly, so the fork never sticks on it (review 2026-11-20)', () => {
+    e.d0 = 0; e.st = 'idle'; e.wt = 0; e.cool = 999;
+    // three forks planted on the floor, left of the ship and the head
+    for (const x of [40, 150, 260]) { e.pX[e.pn] = x; e.pY[e.pn] = 224; e.pS[e.pn] = 1; e.pB[e.pn] = 0; e.pQ[e.pn] = 0; e.pn++; }
+    e.fh = e.hX.length; for (let j = 0; j < e.fh; j++) e.hF[j] = 30000; // every flight slot taken
+    expect(e.hX.length).toBe(2 * KB.plRage);
+    e.rcT = 1;
+    for (let k = 0; k < KB.recall + 3; k++) step();
+    expect(e.recalls).toBe(1); //                                the recall ran...
+    expect(e.pn).toBe(3); //                                    ...but they are still planted
+    for (let i = 0; i < e.pn; i++) expect(e.pQ[i]).toBe(0); // and free: no thread left on it
+  });
+
   it('marks the ship\'s column when the search beam sees it, then drops three forks in it (D59)', () => {
     e.ph = 2; e.tr = 0; e.hp = e.max * .2;
     step(2);

@@ -89,7 +89,7 @@ import { playerHit } from '../../player';
 import { killEnemy, lob, miniReward } from '../update';
 import { capGrade, defineBoss } from './registry';
 import { KEEPSAKE_BANNERS, KEEPSAKE_LOG, KEEPSAKE_NAME, KEEPSAKE_READOUT } from '../../voice/keepsake';
-import { KB, beamDir, beamSees, forkCols, fountLattice, inWindow, kbArena, keepHurtRot, lineAtX, lobFrames, mobilePick, pendA, pendXY, phaseClamp, phaseFloor, recallPick, riseCap, rotXY, tiltAt, tiltEdge, TILT0 } from './_keepsake';
+import { KB, beamDir, beamSees, capsuleHit, recallBounds, forkCols, fountLattice, inWindow, kbArena, keepHurtRot, lineAtX, lobFrames, mobilePick, pendA, pendXY, phaseClamp, phaseFloor, recallPick, riseCap, rotXY, tiltAt, tiltEdge, TILT0 } from './_keepsake';
 
 const SND = {
   // the midboss's banks (D53 levels), the throws a touch slower for the bigger head
@@ -267,6 +267,7 @@ const cut = (e, q) => { for (let i = 0; i < e.pn; i++) if (e.pQ[i] === q) e.pQ[i
  *  planted fork nearest the ship's x, out in front of the head. Returns the count chosen (the recall needs >= 2) */
 function pickThreads(e, one) {
   if (one) {
+    if (e.rcW > 0) return 0; // a recall's threads are live: its gap was checked without this one, so no tug now
     e.tux = wX(e); e.tuy = wY(e);
     let b = -1, bd = 1e9;
     for (let i = 0; i < e.pn; i++) {
@@ -279,9 +280,18 @@ function pickThreads(e, one) {
     return b >= 0 ? 1 : 0;
   }
   e.rtx = wX(e); e.rty = wY(e);
-  const wx = $.P.x + $.G.scroll, lo = ceilAt(wx) + 2, hi = floorAt(wx) - 2;
-  for (let i = 0; i < e.pn; i++) { tipOf(e, i); e.ys[i] = lineAtX(V[0], V[1], e.pQ[i] === TUG ? e.tux : e.rtx, e.pQ[i] === TUG ? e.tuy : e.rty, $.P.x); }
-  recallPick(e.ys, e.pn, lo, hi, KB.recW, KB.recGap, e.kp, e.cu, e.tm);
+  // the gap is checked where the ship can fly (its clamp, review 2026-11-20), less a planted fork standing in its column;
+  // a live tug's thread counts against it first (it flies whatever the recall picks)
+  const wx = $.P.x + $.G.scroll, sc = $.G.scroll;
+  let cf = 0, ff = 0, nf = 0;
+  for (let i = 0; i < e.pn; i++) {
+    if (Math.abs(e.pX[i] - sc - $.P.x) <= 8 && e.pQ[i] !== RECALL) { if (e.pS[i] > 0) ff = 1; else cf = 1; }
+    tipOf(e, i);
+    if (e.pQ[i] === TUG) { e.fx2[nf++] = lineAtX(V[0], V[1], e.tux, e.tuy, $.P.x); e.ys[i] = NaN; }
+    else e.ys[i] = lineAtX(V[0], V[1], e.rtx, e.rty, $.P.x);
+  }
+  recallBounds(ceilAt(wx), floorAt(wx), 6, PH - 6, cf, ff, V);
+  recallPick(e.ys, e.pn, V[0], V[1], KB.recW, KB.recGap, e.kp, e.cu, e.tm, e.fx2, nf);
   let k = 0;
   for (let i = 0; i < e.pn; i++) if (e.kp[i] && !e.pQ[i]) { e.pQ[i] = RECALL; k++; }
   if (k < 2) cut(e, RECALL);
@@ -291,7 +301,8 @@ function pickThreads(e, one) {
 function release(e, q, sp) {
   const tx = q === TUG ? e.tux : e.rtx, ty = q === TUG ? e.tuy : e.rty;
   for (let i = e.pn - 1; i >= 0; i--) {
-    if (e.pQ[i] !== q || e.fh >= e.hX.length) continue;
+    if (e.pQ[i] !== q) continue;
+    if (e.fh >= e.hX.length) { e.pQ[i] = 0; continue; } // no room in flight (never at 2 x plRage): it stays, its thread cut
     tipOf(e, i);
     const dx = tx - V[0], dy = ty - V[1], d = Math.hypot(dx, dy) || 1, v = sp * BS(), j = e.fh++;
     e.hX[j] = V[0]; e.hY[j] = V[1]; e.hVX[j] = dx / d * v; e.hVY[j] = dy / d * v; e.hF[j] = Math.ceil(d / v);
@@ -422,14 +433,15 @@ function attack(e) {
       let L = dx < -.05 ? (x0 - KB.boomEnd) / -dx : 400;
       if (dy < -.05) L = Math.min(L, (y0 - 6) / -dy);
       if (dy > .05) L = Math.min(L, (PH - 6 - y0) / dy);
-      e.bl = Math.max(40, L); e.bs = 0; e.bd = 1; e.bx = x0; e.by = y0;
+      e.bl = Math.max(40, L); e.bs = 0; e.bd = 1; e.bsa = e.la; e.bx = x0; e.by = y0;
       e.st = 'fly'; e.wt = 0; ks('keep_whirr', SND.out, null, null, sfx.lash); $.G.shake += 2;
     }
   } else if (st === 'fly') {
     e.bs += e.bd * KB.boomSp;
     if (e.bs >= e.bl) { e.bs = e.bl; e.bd = -1; ks('keep_whirr', SND.back, null, null, sfx.chain); }
     e.bx = e.lx + Math.cos(e.la) * e.bs; e.by = e.ly + Math.sin(e.la) * e.bs;
-    if ($.P.alive && dist2($.P.x, $.P.y, e.bx, e.by) < (KB.boomR + 2.6) ** 2) playerHit();
+    e.bsa += KB.boomSpin; // the spin the render draws
+    if ($.P.alive && capsuleHit(e.bx, e.by, e.bsa, KB.boomHalf, KB.boomR + 2.6, $.P.x, $.P.y)) playerHit();
     if (e.bd < 0 && e.bs <= 0) { e.bs = 0; rest(e); }
   } else if (st === 'wail') {
     if (e.wt >= KB.wail) { ring(e.x, e.y - 10, KB.wailN, e.t * .05, KB.wailSp); rest(e); }
@@ -596,7 +608,7 @@ function spawn(b) {
   const x = W + 70, f = Math.min(PH - 2, floorAt(x + $.G.scroll));
   const e = mk('keepsake', x, f - KB.rest, {
     tx: W - KB.tx, st: 'idle', wt: 0, cool: 60, att: 0, ph: 0, tr: 0, th: 0, tc: 0, wins: 0, pt: 0, pl: KB.clock,
-    rage: 0, late: 0, my: -80, pa: 0, p3t: 0, pph: 0, d0: 0, rl: 0, pn: 0, fh: 0, rtx: 0, rty: 0,
+    rage: 0, late: 0, my: -80, pa: 0, p3t: 0, pph: 0, d0: 0, rl: 0, pn: 0, fh: 0, rtx: 0, rty: 0, bsa: 0,
     mkT: 0, mkX: 0, bCd: 0, spots: 0, rcW: 0, rcT: KB.recEvery[0], recalls: 0, tux: 0, tuy: 0, bdx: 0, bdy: 1, box: 0, boy: 0, la: Math.PI, lx: 0, ly: 0, bx: 0, by: 0, bs: 0, bl: 0, bd: 1, ra: 0, dn: 0,
     biome: b, title: KEEPSAKE_NAME, armor, hitSnd,
   });
@@ -608,8 +620,9 @@ function spawn(b) {
   // ceiling), birth frame, on a thread; the flights home; the recall's scratch
   const P = KB.plRage;
   e.pX = new Float32Array(P); e.pY = new Float32Array(P); e.pS = new Int8Array(P); e.pB = new Float32Array(P); e.pQ = new Uint8Array(P);
-  e.hX = new Float32Array(P); e.hY = new Float32Array(P); e.hVX = new Float32Array(P); e.hVY = new Float32Array(P); e.hF = new Int16Array(P);
-  e.ys = new Float32Array(P); e.cu = new Float32Array(P); e.tm = new Float32Array(P); e.kp = new Uint8Array(P);
+  const H2 = 2 * P; // room for a whole hoard in flight while the last one is still coming home
+  e.hX = new Float32Array(H2); e.hY = new Float32Array(H2); e.hVX = new Float32Array(H2); e.hVY = new Float32Array(H2); e.hF = new Int16Array(H2);
+  e.ys = new Float32Array(P); e.cu = new Float32Array(H2); e.tm = new Float32Array(H2); e.kp = new Uint8Array(P); e.fx2 = new Float32Array(P);
   e.ma = new Uint8Array(KB.mobN).fill(1); e.ml = new Float32Array(KB.mobN); e.dq = new Uint8Array(KB.mobN);
   for (let i = 0; i < KB.mobN; i++) e.ml[i] = ((i * 7 + 3) % 5) * KB.mobVar; // thread lengths: fixed per fork, no draw
   e.rocker = null; e.crier = null; e.crierGone = 0; e.barked = 0; e.mbT = 0; e.mamaN = 0;

@@ -2,7 +2,7 @@
 // enemies/boss/registry.ts. The fight itself is measured by tools/boss-probe.mjs (TTK per kit) and tools/rng-probe.mjs.
 // The fountain helpers moved here from the retired midboss's test (D53).
 import { describe, expect, it } from 'vitest';
-import { KB, TILT0, beamDir, beamSees, fountLattice, forkCols, inWindow, kbArena, keepHurtRot, lineAtX, lobFrames, maxFree, mobilePick, p1Floor, p2Floor, pendA, pendAt, pendXY, phaseClamp, phaseFloor, recallPick, riseCap, rotXY, tiltAt, tiltEdge } from '../../src/enemies/boss/_keepsake';
+import { KB, TILT0, beamDir, beamSees, capsuleHit, recallBounds, fountLattice, forkCols, inWindow, kbArena, keepHurtRot, lineAtX, lobFrames, maxFree, mobilePick, p1Floor, p2Floor, pendA, pendAt, pendXY, phaseClamp, phaseFloor, recallPick, riseCap, rotXY, tiltAt, tiltEdge } from '../../src/enemies/boss/_keepsake';
 import { KEEPSAKE_SLOT, bossFor, capGrade } from '../../src/enemies/boss/registry';
 import { ROSTER, midRow } from '../../src/enemies/mid/roster';
 
@@ -231,6 +231,40 @@ describe('IT WON\'T LET GO: the hoard, the recall\'s gap, the search beam (D59)'
       expect(maxFree(kept, m, 16, 226, KB.recW, tmp)).toBeGreaterThanOrEqual(KB.recGap);
       for (let i = 0; i < n; i++) if (ys[i] !== ys[i]) expect(keep[i]).toBe(1); // a thread that misses the column is always free to fly
     }
+  });
+  it('keeps the gap with a live tug thread counted first, wherever it crosses (review 2026-11-20)', () => {
+    const rng = stream(11), n = KB.plRage, ys = new Float32Array(n), keep = new Uint8Array(n), cur = new Float32Array(2 * n), tmp = new Float32Array(2 * n), kept = new Float32Array(2 * n), fx = new Float32Array(1);
+    for (let k = 0; k < 3000; k++) {
+      for (let i = 0; i < n; i++) ys[i] = rng() < .2 ? NaN : 16 + rng() * 210;
+      fx[0] = 16 + rng() * 210; // the tug's crossing: it flies whatever the recall picks
+      recallPick(ys, n, 16, 226, KB.recW, KB.recGap, keep, cur, tmp, fx, 1);
+      let m = 0;
+      kept[m++] = fx[0];
+      for (let i = 0; i < n; i++) if (keep[i] && ys[i] === ys[i]) kept[m++] = ys[i];
+      expect(maxFree(kept, m, 16, 226, KB.recW, tmp)).toBeGreaterThanOrEqual(KB.recGap);
+    }
+  });
+  it('checks the gap only where the ship can fly, less a planted fork in its column (review 2026-11-20)', () => {
+    const o = [0, 0];
+    recallBounds(-20, 260, 6, 248, 0, 0, o); // an open ceiling and a floor below the screen: the ship's clamp wins
+    expect(o).toEqual([6, 248]);
+    recallBounds(20, 220, 6, 248, 1, 1, o);
+    expect(o).toEqual([22 + KB.plOut, 218 - KB.plOut]);
+    const rng = stream(3), n = 8, ys = new Float32Array(n), keep = new Uint8Array(n), cur = new Float32Array(n), tmp = new Float32Array(n), kept = new Float32Array(n);
+    for (let k = 0; k < 500; k++) { // lo < 6 at the ceiling: the free run is still inside the ship's reach
+      for (let i = 0; i < n; i++) ys[i] = rng() * 254;
+      recallBounds(-30, 230, 6, 248, 0, 0, o);
+      recallPick(ys, n, o[0], o[1], KB.recW, KB.recGap, keep, cur, tmp);
+      let m = 0;
+      for (let i = 0; i < n; i++) if (keep[i]) kept[m++] = ys[i];
+      expect(maxFree(kept, m, 6, o[1], KB.recW, tmp)).toBeGreaterThanOrEqual(KB.recGap);
+    }
+  });
+  it('hits along the boomerang fork as drawn (a capsule), not only at its middle (review 2026-11-20)', () => {
+    expect(capsuleHit(100, 100, 0, KB.boomHalf, KB.boomR + 2.6, 120, 100)).toBe(true); //  20 px out along the shaft
+    expect(capsuleHit(100, 100, Math.PI / 2, KB.boomHalf, KB.boomR + 2.6, 120, 100)).toBe(false); // across it
+    expect(capsuleHit(100, 100, Math.PI / 2, KB.boomHalf, KB.boomR + 2.6, 100, 80)).toBe(true);
+    expect(2 * (KB.boomHalf + KB.boomR)).toBeGreaterThanOrEqual(55); // about the baked fork's 59 px
   });
   it('points the beam out along the wire, and sees only inside its cone and reach', () => {
     const d = [0, 0];

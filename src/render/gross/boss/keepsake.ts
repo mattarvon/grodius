@@ -45,6 +45,10 @@ const EYE = [[-18, 0], [18, 0]]; //  the sockets at tilt 0 (the manifest's perTi
 const OPEN = 0, HALF = 1, SHUT = 2, EMPTY = 3;
 const BLOOD = '#8a0c14', BLOOD_D = '#4a050a', VINYL = '#d6bfa2', VINYL_D = '#8a6e56';
 const DASH = [5, 4], SOLID = [], ARC = [2, 4];
+const FAN_K = [-1, 1]; // the throw fan's outer lines
+// the search beam's colours, awake and resting (built once: no string per frame)
+const BEAM_FILL = ['rgba(190,220,255,.07)', 'rgba(190,220,255,.0245)'], BEAM_HATCH = ['rgba(205,230,255,.28)', 'rgba(205,230,255,.098)'];
+const BEAM_EDGE = ['rgba(215,235,255,.55)', 'rgba(215,235,255,.1925)'];
 const P = new Float32Array(2), Q = new Float32Array(2);
 
 /** the sleep eyes, the tell: dozing half-lidded at rest (a slow droop shut now and then), wide open on every tell and in
@@ -95,7 +99,7 @@ function line(e, locked, a) {
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(e.la) * 560, y + Math.sin(e.la) * 560); ctx.stroke();
   if (e.st === 'aim' && e.ph) { // from AWAKE the throw is a fan of three (D59): its two outer lines, thinner
     ctx.lineWidth = locked ? 2 : 1; ctx.globalAlpha *= .75; ctx.beginPath();
-    for (const k of [-1, 1]) { const a = e.la + k * KB.fan; ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * 560, y + Math.sin(a) * 560); }
+    for (const k of FAN_K) { const a = e.la + k * KB.fan; ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * 560, y + Math.sin(a) * 560); }
     ctx.stroke();
   }
   ctx.restore();
@@ -261,15 +265,15 @@ function hatch(x0, y0, x1, y1, step, off) {
 function searchBeam(e) {
   if (!e.rocker || e.st === 'dying') return;
   const x = e.box, y = e.boy, a = Math.atan2(e.bdy, e.bdx), L = KB.bLen, h = KB.bHalf;
-  const rest = e.bCd > 0 || e.mkT > 0 || e.p3t < KB.pRamp + KB.bArm, al = rest ? .35 : 1;
+  const rest = e.bCd > 0 || e.mkT > 0 || e.p3t < KB.pRamp + KB.bArm, ri = rest ? 1 : 0; // resting: drawn at .35
   ctx.save();
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a - h) * L, y + Math.sin(a - h) * L); ctx.lineTo(x + Math.cos(a + h) * L, y + Math.sin(a + h) * L); ctx.closePath();
-  ctx.fillStyle = 'rgba(190,220,255,' + (.07 * al) + ')'; ctx.fill();
+  ctx.fillStyle = BEAM_FILL[ri]; ctx.fill();
   ctx.save(); ctx.clip();
-  ctx.strokeStyle = 'rgba(205,230,255,' + (.28 * al) + ')'; ctx.lineWidth = 1;
+  ctx.strokeStyle = BEAM_HATCH[ri]; ctx.lineWidth = 1;
   hatch(Math.min(x, x + Math.cos(a) * L) - 80, Math.min(y, y + Math.sin(a) * L) - 80, Math.max(x, x + Math.cos(a) * L) + 80, Math.max(y, y + Math.sin(a) * L) + 80, 7, $.T * .4);
   ctx.restore();
-  ctx.strokeStyle = 'rgba(215,235,255,' + (.55 * al) + ')'; ctx.lineWidth = 1.5;
+  ctx.strokeStyle = BEAM_EDGE[ri]; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a - h) * L, y + Math.sin(a - h) * L); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a + h) * L, y + Math.sin(a + h) * L); ctx.stroke();
   if (e.mkT > 0) {
     const k = 1 - e.mkT / KB.bTel, hw = KB.bRainDx + 8, x0 = e.mkX - hw, x1 = e.mkX + hw, sc = $.G.scroll;
@@ -278,7 +282,7 @@ function searchBeam(e) {
     ctx.strokeStyle = 'rgba(255,90,60,.55)'; ctx.lineWidth = 1.5;
     hatch(x0, top, x1, fill, 6, 0); // the part filled so far: dense red hatching
     ctx.restore();
-    ctx.strokeStyle = 'rgba(255,110,80,' + (.45 + .45 * k) + ')'; ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ff6e50'; ctx.globalAlpha = .45 + .45 * k; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x0, bot); ctx.moveTo(x1, top); ctx.lineTo(x1, bot); ctx.stroke();
     ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0, fill); ctx.lineTo(x1, fill); ctx.stroke(); // the fill's edge, dropping
     for (let i = 0; i < KB.bRainN; i++) { // where the three forks fall
@@ -286,7 +290,7 @@ function searchBeam(e) {
       ctx.beginPath(); ctx.moveTo(fx - 4, top + 4); ctx.lineTo(fx, top + 9); ctx.lineTo(fx + 4, top + 4); ctx.stroke();
     }
     // the stare: a fine line from the glass eyes to the mark
-    ctx.lineWidth = 1; ctx.setLineDash(DASH); ctx.strokeStyle = 'rgba(215,235,255,.6)';
+    ctx.globalAlpha = 1; ctx.lineWidth = 1; ctx.setLineDash(DASH); ctx.strokeStyle = 'rgba(215,235,255,.6)';
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(e.mkX, (top + bot) / 2); ctx.stroke();
   }
   ctx.restore();
@@ -309,7 +313,8 @@ function under(e) {
     ctx.globalCompositeOperation = 'lighter';
     glow(e.bx, e.by, 22, '150,255,40', .55 * (.75 + .25 * Math.sin($.T * .5)));
     ctx.globalCompositeOperation = 'source-over';
-    bigFork(e.bx, e.by, $.T * .3); // ~0.3 rad a frame: about one baked angle per frame, so the spin never strobes
+    bigFork(e.bx, e.by, e.bsa); // the sim's spin (KB.boomSpin ~0.3 rad a frame: about one baked angle per frame, so it
+    // never strobes), the angle its capsule hitbox is turned to (review 2026-11-20)
   }
   // the wail's tell: the crier's ring swells round its source before it lets go
   if ((e.st === 'wail' && e.wt < KB.wail) || (e.st === 'mama' && e.wt < KB.mama)) {

@@ -25,7 +25,8 @@ export const KB = {
   // ---- phases: HP cuts as shares of max. Damage never carries past a cut (phaseClamp), see D55
   cut1: .75, //     DOZING -> AWAKE at 75% (D59: was 65%; DOZING melted in 5 s at kit=mid, before it had taught anything)
   cut2: .35, //     AWAKE -> CRACKED at 35% (D59: was 30%: AWAKE takes the 10% DOZING gave up, 40% of the bar)
-  p1MinAtt: 3, //   DOZING runs at least this many attacks (fountain, throw, recall) before it can wake: staged like p2Floor
+  p1MinAtt: 3, //   DOZING runs at least this many attacks (fountains and throws, counted as their forks leave; the recall
+  //               runs on its own clock and doesn't count) before it can wake: staged like p2Floor
   end: .002, //     CRACKED's floor: the last hit leaves this much and the sleep eyes close (the dying beat) before the kill
   p2MinWin: 3, //   AWAKE takes at least this many tilt windows: the staged floor (p2Floor) caps each window's damage (D59 tried
   //               4: it held a strong kit to the mid kit's time, so power stopped showing)
@@ -55,7 +56,10 @@ export const KB = {
   hold: 70, roll: 40, // one tilt cycle = 2 x (hold + roll) = 220 f; the eyes clack at each extreme
   flutter: 30, //   the last frames of a hold: the lashes flutter before it rolls (the render reads it; the clack is the tell)
   boomTel: 54, boomLock: 20, // the boomerang: tracks 34, locks 20
-  boomSp: 3.4, boomR: 6, boomEnd: 22,
+  boomSp: 3.4, boomEnd: 22,
+  // the boomerang's hitbox (review 2026-11-20): a capsule along the spinning fork as drawn (the baked fork is 13 x 59, so
+  // the old 6 px circle let the tines pass 20 px through the ship): half-length boomHalf, radius boomR, + the ship's 2.6
+  boomHalf: 24, boomR: 5.5, boomSpin: .3, // spin, rad a frame (the render draws the sim's angle: it never strobes)
   wail: 44, wailN: 12, wailSp: .7, // the wail ring: 12 orbs at .7 after a 44 f tell
   drop: 50, //      a mobile fork's drop tell: it shudders and its thread glints, then falls straight in its column
   dropGap: 12, //   the stagger between forks of one drop
@@ -289,16 +293,33 @@ export function maxFree(ys: Float32Array, n: number, lo: number, hi: number, w: 
   return Math.max(best, hi - at);
 }
 /** the recall's guaranteed gap (KB.recGap): of the n planted forks, in order, keep each whose thread (its crossing
- *  height at the ship's x in ys, NaN when it doesn't cross) still leaves a free run of at least gap in [lo, hi]. Writes
- *  1/0 into keep and returns how many were kept. Scratch: cur and tmp, each at least n. Pure, no allocation */
-export function recallPick(ys: Float32Array, n: number, lo: number, hi: number, w: number, gap: number, keep: Uint8Array, cur: Float32Array, tmp: Float32Array): number {
+ *  height at the ship's x in ys, NaN when it doesn't cross) still leaves a free run of at least gap in [lo, hi]. The nf
+ *  heights in fixed are threads already live (a tug's: review 2026-11-20): they count against the gap first, whatever
+ *  is picked. Writes 1/0 into keep and returns how many were kept. Scratch: cur and tmp, each at least n + nf. Pure,
+ *  no allocation */
+export function recallPick(ys: Float32Array, n: number, lo: number, hi: number, w: number, gap: number, keep: Uint8Array, cur: Float32Array, tmp: Float32Array, fixed: Float32Array | null = null, nf = 0): number {
   let k = 0, m = 0;
+  for (let j = 0; j < nf; j++) if (fixed![j] === fixed![j]) cur[m++] = fixed![j];
   for (let i = 0; i < n; i++) {
     keep[i] = 0;
     cur[m] = ys[i];
     if (ys[i] !== ys[i] || maxFree(cur, m + 1, lo, hi, w, tmp) >= gap) { keep[i] = 1; k++; m++; }
   }
   return k;
+}
+/** the recall's gap bounds in the ship's column (review 2026-11-20): only where the ship can be, its clamp (shipLo,
+ *  shipHi: player.ts 6 .. PH - 6) inside the terrain, and minus a planted fork's plOut where one stands in the column
+ *  (floorFork / ceilFork: 1 when one is planted within reach of the ship's x). Writes [lo, hi] into out. Pure */
+export function recallBounds(ceil: number, floor: number, shipLo: number, shipHi: number, ceilFork: number, floorFork: number, out: Float32Array | number[]): Float32Array | number[] {
+  out[0] = Math.max(ceil + 2 + (ceilFork ? KB.plOut : 0), shipLo);
+  out[1] = Math.min(floor - 2 - (floorFork ? KB.plOut : 0), shipHi);
+  return out;
+}
+/** is (px, py) within r of the segment of half-length half through (cx, cy) along angle a? (the boomerang's capsule) Pure */
+export function capsuleHit(cx: number, cy: number, a: number, half: number, r: number, px: number, py: number): boolean {
+  const dx = Math.cos(a), dy = Math.sin(a), vx = px - cx, vy = py - cy;
+  const u = Math.max(-half, Math.min(half, vx * dx + vy * dy)), ex = vx - dx * u, ey = vy - dy * u;
+  return ex * ex + ey * ey < r * r;
 }
 /** the search beam's direction (D59): out from the rocker's pivot through its weight at swing angle a, turned with the
  *  head's tilt th. Writes the unit vector into out. Pure */

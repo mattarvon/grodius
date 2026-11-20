@@ -43,7 +43,7 @@ const SHOTS = process.env.SHOTS;
 if (SHOTS) (await import('node:fs')).mkdirSync(SHOTS, { recursive: true });
 await p.evaluate(async ([MODE, CAP]) => {
   window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts');
-  const { KB } = await import('/src/enemies/boss/_keepsake.ts');
+  const { KB, capsuleHit } = await import('/src/enemies/boss/_keepsake.ts');
   const W = window.__W, pilot = MODE === 'pilot', spot = MODE.startsWith('spot:') ? MODE.slice(5).split(',').map(Number) : null;
   const R = { mode: MODE, ph: [0, 1, 2].map(() => ({ f: 0, hits: 0, by: {}, deaths: 0, near: 0, att: {}, dmgF: 0 })), ttk: null, rank: null, hp: null, rage: 0, spots: 0, end: null };
   let fight = false, f0 = 0, fr = 0, lastHits = 0, alive = true, lastSt = '', lastHp = 0;
@@ -68,7 +68,7 @@ await p.evaluate(async ([MODE, CAP]) => {
     for (const q of mobPts(m, [])) fakes.push({ x: q[0], y: q[1], r: q[2], vx: 0, vy: 0 });
     for (const q of plantPts(m, sc, [])) fakes.push({ x: q[0], y: q[1], r: q[2], vx: 0, vy: 0 });
     for (const q of homePts(m, [])) fakes.push({ x: q[0], y: q[1], r: q[2], vx: q[3], vy: q[4] });
-    if (m.st === 'fly') fakes.push({ x: m.bx, y: m.by, r: KB.boomR + 2, vx: m.bx - prevB[0], vy: m.by - prevB[1] });
+    if (m.st === 'fly') fakes.push({ x: m.bx, y: m.by, r: KB.boomHalf + KB.boomR, vx: m.bx - prevB[0], vy: m.by - prevB[1] });
     prevB[0] = m.bx; prevB[1] = m.by;
     window.__pilotStep({ ...g, enemies: g.enemies.concat(fakes) }, tx, ty);
   };
@@ -96,7 +96,7 @@ await p.evaluate(async ([MODE, CAP]) => {
     }
     if (!pilot) {
       const sc = G.scroll, c = {
-        boom: m.st === 'fly' && Math.hypot(m.bx - P.x, m.by - P.y) < KB.boomR + 2.6,
+        boom: m.st === 'fly' && capsuleHit(m.bx, m.by, m.bsa, KB.boomHalf, KB.boomR + 2.6, P.x, P.y),
         mobile: near(mobPts(m, []), P.x, P.y, 2.6),
         planted: near(plantPts(m, sc, []), P.x, P.y, 2.6),
         home: near(homePts(m, []), P.x, P.y, 2.6),
