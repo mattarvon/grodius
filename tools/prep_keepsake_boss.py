@@ -19,12 +19,15 @@ px per game px. On top of the midboss it adds:
     teeth: it's mechanism plus the MERIDIAN's tissue, not remains.
   - EYE OVERLAYS (open, half, shut, empty) per tilt. The open stare has a hard catchlight so it snaps (studio note).
     The screen-right eye stays milky with a ring, and the rouge still shows under the grime.
-  - WOUND OVERLAYS (seat, proud, gape, brain) per tilt, with the fork baked in for seat and proud. The fork is
-    now a clean silver fork with a flared terminal and a bright spine, not the ornate handle (studio note).
+  - WOUND OVERLAYS (seat, proud, gape, brain) per tilt, with the fork baked in for seat and proud. Every fork 33 px
+    and longer is the photo fork of tools/keepsake_fork.py (Museums Victoria's Walker & Hall table fork, CC BY 4.0, in
+    git-ignored assets-raw/openverse/image/fork/): its proportions and metal from the photo, its tines and outline on
+    the game-px grid (D55 fork review, option C).
   - PARTS. The sleep-eye rocker is the real doll mechanism: two glass eyes on an axle, an inverted-V bridle up to the
     wire and a lead weight on a bent arm. It has no cross shape. Its iris comes from the front photo. It's baked at 5
     swing angles, with the lids open and shut. The crier is a perforated tin voice box with a paper bellows, whole and
-    broken. There's the big fork (thrown and boomerang) and the mobile fork (dim, and the drop tell). The die list is
+    broken. There's the big fork (thrown and boomerang: 59 px at 16 baked spin angles, a glint on the head-up frame) and
+    the mobile fork (33 px, a lit rim; dim, and the drop tell). The die list is
     the split-open head tipping onto its side.
 
 Layering at runtime, all at the same boss origin: face<c>[tilt] -> eye_<state>[tilt] -> wound_<state>[tilt]. The face
@@ -46,6 +49,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, 'bossart'))
 import prep_keepsake as pk  # noqa: E402  the midboss pipeline: same photos, same work canvas
+import keepsake_fork as kf  # noqa: E402  the forks, from the Walker & Hall photo (CC BY 4.0)
 from bake import Baker  # noqa: E402     the shared shelf-pack + PNG8 writer for src/sprites/boss
 
 KEY = 'keepsake-boss'
@@ -550,61 +554,41 @@ def brain(rng, sc=1.45):
 
 
 # ---------------- the fork ----------------
-FORK_G = (15, 50, 38)    # the big fork: game w, h, entry y (where it goes into the skull: the tine roots stay above it)
-MFORK_G = (11, 46)       # a mobile fork, tines down, hung from its top
+# Every fork 33 px and longer is the photo fork (tools/keepsake_fork.py: Museums Victoria's Walker & Hall table fork,
+# CC BY 4.0), measured and shaded from the photo, its four tines and its outline enforced on the game-px grid. The 15 px
+# fountain / aimed fork is drawn in code (src/render/fork.ts) in the steel stops sampled here (manifest forkRamp).
+FORK_G = (13, 59, 46)    # the big fork: game w, h, entry y (where it goes into the skull: 4 px of tine roots stay above it)
+MFORK_G = (13, 33)       # a mobile fork, tines down, hung from its top
+FORK_ANGLES = 16         # the big fork's baked spin (22.5 deg apart; render/gross/boss/keepsake.ts steps through them)
+GLINT_AT = 8             # the frame with the head up, catching the top light
 
 
-def paint_fork(gw, gh, blood_from=None, bright=1.0, seed=4):
-    """a clean silver dinner fork, tines down, drawn on the game-px grid (at S hero px per game px) so its four tines
-    survive the downsample: each tine is whole game px wide with a 1 px gap that the dark outline fills, a neck that
-    flares out to the tines, a slim handle with a bright spine, a flared rounded terminal. blood_from: game y below
-    which it's red. Returns RGBA (hero px)"""
-    s = S
-    Wd, Hd = round(gw * s), round(gh * s)
-    tw = 2 if gw >= 14 else 1                     # tine width, game px; gaps are 1
-    span = 4 * tw + 3
-    c0 = (gw - span) // 2
-    mid = c0 + span / 2                           # the centre line, game px
-    hwid = 3 if gw >= 14 else 3                   # handle width
-    twid = 7 if gw >= 14 else 5                   # terminal width
-    yt, yh, yn, yk = .15 * gh, .48 * gh, .6 * gh, gh   # terminal end, handle end, neck end (tine roots), tips
-    m = Image.new('L', (Wd, Hd), 0)
-    d = ImageDraw.Draw(m)
-    X = lambda gx: gx * s
-    Y = lambda gy: gy * s
-    # terminal: flared and rounded at the top, narrowing into the handle
-    d.ellipse((X(mid - twid / 2), Y(0), X(mid + twid / 2), Y(yt * .8)), fill=255)
-    d.polygon([(X(mid - twid / 2), Y(yt * .4)), (X(mid + twid / 2), Y(yt * .4)), (X(mid + hwid / 2), Y(yt + 1)), (X(mid - hwid / 2), Y(yt + 1))], fill=255)
-    d.rectangle((X(mid - hwid / 2), Y(yt), X(mid + hwid / 2) - 1, Y(yh)), fill=255)
-    # the neck flares out to the full tine span
-    d.polygon([(X(mid - hwid / 2), Y(yh)), (X(mid + hwid / 2), Y(yh)), (X(c0 + span), Y(yn)), (X(c0), Y(yn))], fill=255)
-    for i in range(4):
-        x0 = c0 + i * (tw + 1)
-        d.rectangle((X(x0), Y(yn - .5), X(x0 + tw) - 1, Y(yk - 1.2)), fill=255)
-        d.polygon([(X(x0), Y(yk - 1.2)), (X(x0 + tw) - 1, Y(yk - 1.2)), (X(x0 + tw / 2), Y(yk) - 1)], fill=255)
-    ma = np.asarray(m).astype(np.float32) / 255
-    yy, xx = np.mgrid[0:Hd, 0:Wd].astype(np.float32)
-    u = (xx - X(mid)) / X(span / 2)
-    col = np.zeros((Hd, Wd, 3), np.float32) + np.array([.50, .52, .56], np.float32)
-    col *= (1 - .35 * np.clip(np.abs(u), 0, 1) ** 2)[..., None]
-    # a highlight down each tine, so the four read as four
-    for i in range(4):
-        tx = X(c0 + i * (tw + 1) + tw * .35)
-        th = np.clip(1 - np.abs(xx - tx) / (.45 * s), 0, 1) * (yy > Y(yn))
-        col = col * (1 - .8 * th[..., None]) + np.array([.95, .96, .97], np.float32) * .8 * th[..., None]
-    # the bright spine down the handle and the terminal
-    spine = np.clip(1 - np.abs(xx - X(mid - .2)) / (.5 * s), 0, 1) * pk.sstep(Y(.5), Y(1.5), yy) * pk.sstep(Y(yn), Y(yh), yy)
-    col = col * (1 - spine[..., None]) + np.array([.98, .98, .96], np.float32) * spine[..., None]
-    col = col * bright
-    tarn = pk.vnoise_small(Wd, Hd, 10, seed)
-    tk = .2 * pk.sstep(.6, .9, tarn)[..., None]
-    col = col * (1 - tk) + col * np.array([.62, .58, .48], np.float32) * tk
-    if blood_from is not None:
-        bl = pk.sstep(blood_from * s - 6, blood_from * s + 26, yy) * (.7 + .3 * pk.vnoise_small(Wd, Hd, 6, 9))
-        col = col * (1 - bl[..., None] * .82) + np.array([.42, .03, .06], np.float32) * bl[..., None] * .82
-    ol = np.asarray(Image.fromarray((ma * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(15))).astype(np.float32) / 255
-    rgb = col * ma[..., None] + np.array([.03, .03, .04], np.float32) * (1 - ma[..., None])
-    return to_img(np.clip(rgb, 0, 1), np.maximum(ma, ol * .95))
+def add_game(bk, name, img, origin):
+    """append a frame painted at game px (the photo forks: already on the grid, outlined, never resampled again)"""
+    bb = img.getchannel('A').getbbox() or (0, 0, 1, 1)
+    sp = img.crop(bb)
+    if name not in bk.frames:
+        bk.frames[name] = []
+        bk.names.append(name)
+    bk.frames[name].append((sp, bb[0] - round(origin[0]), bb[1] - round(origin[1])))
+
+
+def bake_forks(bk, F):
+    """the big fork's 16 spin angles (blood on the tines, a glint on the head-up frame) and the mobile fork (dim, and
+    its drop tell brighter, both with a lit rim). Returns the 15 px fork's steel stops"""
+    L = FORK_G[1]
+    base = F.paint(L, kf.SS, blood=.86)
+    for k in range(FORK_ANGLES):
+        deg = k * 360 / FORK_ANGLES
+        g, cx, cy = kf.to_game(base, deg)
+        if k == GLINT_AT:
+            d, a = .16 * L, math.radians(deg)          # the head: 16% of the length below the centre, tines down
+            kf.glint(g, cx - d * math.sin(a), cy + d * math.cos(a))
+        add_game(bk, 'fork', g, (cx, cy))
+    for br in (1.0, 1.3):
+        g, cx, cy = kf.to_game(F.paint(MFORK_G[1], kf.SS, bright=br))
+        add_game(bk, 'mfork', kf.rim(g, amt=.55 if br == 1.0 else .8), (cx, cy - MFORK_G[1] / 2))
+    return kf.ramp(kf.to_game(F.paint(L, kf.SS))[0])
 
 
 def fork_overlay(fork_im, rise_g):
@@ -855,7 +839,8 @@ def add_part(bk, name, hero, game, origin_hero):
     bk.frames[name].append((sp, bb[0] - round(origin_hero[0] * kx), bb[1] - round(origin_hero[1] * ky)))
 
 
-def bake(d):
+def bake(d, fork_photo):
+    F = kf.Fork(fork_photo)
     head = Head(d)
     lit = Lighter(head)
     bk = Baker(KEY, (HERO, HERO), (PAD, PAD), (HO, HO), colors=256, alpha_cut=96, unsharp=60)
@@ -874,7 +859,7 @@ def bake(d):
     w_seat = padw(wound(False, np.random.default_rng(5)))
     w_gape = padw(wound(True, np.random.default_rng(5)))
     w_brain = padw(brain(np.random.default_rng(5), 1.45)) # its own painter (studio review: the old ring of lobes read as a rose)
-    fork_big = paint_fork(*FORK_G[:2], blood_from=FORK_G[2] - 1)
+    fork_big = kf.outline_hero(F.paint(FORK_G[1], S), S)
     f_seat, slot = fork_overlay(fork_big, 0)
     f_proud, _ = fork_overlay(fork_big, 9)
     def wl(wim, fk=None):
@@ -917,12 +902,9 @@ def bake(d):
             add_part(bk, 'rocker_shut' if shut else 'rocker_open', rot_im(r, sw, att), ROCK_G, att)
     for br in (False, True):
         add_part(bk, 'crier', paint_crier(br), CRIER_G, (CRIER_G[0] * S / 2, CRIER_G[1] * S / 2))
-    fb = paint_fork(*FORK_G[:2], blood_from=FORK_G[2] + 6)
-    add_part(bk, 'fork', fb, FORK_G[:2], (fb.width / 2, fb.height / 2))
-    for br in (1.0, 1.35):
-        mf = paint_fork(*MFORK_G, bright=br, seed=6)
-        add_part(bk, 'mfork', mf, MFORK_G, (mf.width / 2, 0))
+    ramp = bake_forks(bk, F)
     lay = save_atlas(bk)
+    lay['forkRamp'] = ramp
     return head, lay
 
 
@@ -1040,8 +1022,10 @@ def write_manifest(lay, per, base_rows):
             'rocker_open': f'the sleep-eye mechanism at swing angles {SWING} (canvas deg about its attach point), lids open',
             'rocker_shut': 'the same, lids shut (the death clack: PUT TO BED)',
             'crier': '[0] whole, [1] broken; origin at its centre',
-            'fork': 'the big fork (thrown / boomerang), tines down, origin at its centre; rotate at runtime (it spins)',
-            'mfork': '[0] a hanging mobile fork, [1] the drop tell (brighter); origin at the top centre (the thread)',
+            'fork': f'the big fork (thrown / boomerang) at {FORK_ANGLES} spin angles: [k] is tines down turned k x '
+                    f'{360 // FORK_ANGLES if 360 % FORK_ANGLES == 0 else 360 / FORK_ANGLES} deg clockwise, origin at its centre, '
+                    f'blood on the tines; [{GLINT_AT}] (head up) has the glint. Pick the nearest angle, never rotate at runtime',
+            'mfork': '[0] a hanging mobile fork, [1] the drop tell (brighter); tines down, origin at the top centre (the thread)',
         },
         'counts': {k: len(v) for k, v in f.items()},
         'perTilt': per,
@@ -1049,15 +1033,18 @@ def write_manifest(lay, per, base_rows):
         'crown': {'line': -26, 'line3': -12, 'top': -52,
                   'note': 'ANGLE: full damage at head-local y <= line (phases 1-2) or line3 (phase 3, the split exposes '
                           'more). top is the crown at tilt 0. Head-local = screen rotated by -tilt about the origin'},
-        'fork': {'size': list(FORK_G[:2]), 'entry': FORK_G[2], 'lean': .14,
+        'fork': {'size': list(FORK_G[:2]), 'entry': FORK_G[2], 'lean': .14, 'angles': FORK_ANGLES, 'glint': GLINT_AT,
                  'note': 'wound_seat/proud have it baked in. entry: px from the fork\'s top where it goes into the skull'},
+        'forkRamp': {'stops': lay.get('forkRamp'), 'note': 'dark / mid / light / specular, sampled from the baked big fork: '
+                     'src/render/fork.ts draws the 15 px fork in these'},
         'rocker': {'attach': 'frame offsets are from the wire end (the bridle apex); draw the wire from perTilt.wire to it. '
                              'The weight sits 48 px below the apex, so with KB.pLen 58 the apex is 10 px down the wire. '
                              'Pick the swing frame nearest the pendulum angle (deg, + = clockwise)',
                    'eyes': [[-ROCK_EYE, 22], [ROCK_EYE, 22]], 'r': ROCK_R, 'weight': [4, 48], 'swing': SWING},
         'mfork': {'size': list(MFORK_G)},
         'crier': {'size': list(CRIER_G)},
-        'source': 'photos by Matt Arvon of his own unmarked antique doll (D7/D53); not in the repo',
+        'source': 'photos by Matt Arvon of his own unmarked antique doll (D7/D53); not in the repo. The forks: "Table Fork - '
+                  'Cutlery Set, Walker & Hall", Museums Victoria, CC BY 4.0 (CREDITS.md); not in the repo',
     }
     with open(os.path.join(HERE, 'keepsake-boss-art.json'), 'w') as fh:
         json.dump(man, fh, indent=1)
@@ -1172,7 +1159,12 @@ def main():
         print('prep_keepsake_boss: source photos not found (assets-raw/keepsake is git-ignored and not in the public repo);'
               f' the committed src/sprites/boss/{KEY}.png stands. Nothing to do.')
         return 0
-    _, lay = bake(d)
+    fp = kf.find_photo()
+    if not fp:
+        print(f'prep_keepsake_boss: the fork photo is not found ({kf.PHOTO}, git-ignored; fetch it with tools/openverse.mjs '
+              f'or set KEEPSAKE_FORK_PHOTO); the committed src/sprites/boss/{KEY}.png stands. Nothing to do.')
+        return 0
+    _, lay = bake(d, fp)
     per = anchors(lay)
     bases = base_points(lay)
     write_manifest(lay, per, bases)
