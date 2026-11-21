@@ -87,9 +87,12 @@ describe('gibCell', () => {
   it('packs every cell apart: no two overlap', () => {
     const cells = A.gibCells();
     expect(cells.length).toBeGreaterThan(500);
+    // one assertion over the ~125k pairs, not one per pair: expect() per pair ran 7 s on CI's runner and timed out
+    const overlaps: string[] = [];
     for (let i = 0; i < cells.length; i++) for (let j = i + 1; j < cells.length; j++) {
       const a = cells[i], b = cells[j], ad = a.h * 2, bd = b.h * 2;
-      expect(a.x + ad <= b.x || b.x + bd <= a.x || a.y + ad <= b.y || b.y + bd <= a.y).toBe(true);
+      if (!(a.x + ad <= b.x || b.x + bd <= a.x || a.y + ad <= b.y || b.y + bd <= a.y)) overlaps.push(`${i}/${j}`);
     }
+    expect(overlaps).toEqual([]);
   });
 });
