@@ -1,4 +1,7 @@
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
+// this checkout's own agent worktrees (path-anchored: a dev server started INSIDE a worktree must still watch itself)
+const WT = fileURLToPath(new URL('./.claude/worktrees/', import.meta.url)).replace(/\\/g, '/');
 import { booth } from './tools/booth/plugin.ts';
 export default defineConfig({
   base: './',
@@ -10,7 +13,7 @@ export default defineConfig({
     // (outtakes included) kept in assets-raw/. Setting deny replaces Vite's defaults, so they are repeated here
     fs: { deny: ['.env', '.env.*', '*.{crt,pem,key,p12,pfx,cer,der}', '.npmrc', '.yarnrc.yml', '**/.git/**', '**/assets-raw/**'] },
     // the booth writes raw takes and temp files there; nothing in the game imports it
-    // and never the agents' worktrees: an edit in .claude/worktrees reloaded the live booth page mid-take
-    watch: { ignored: ['**/assets-raw/**', '**/.claude/worktrees/**'] },
+    // and never this checkout's agent worktrees: an edit there reloaded the live booth page mid-take
+    watch: { ignored: ['**/assets-raw/**', (p: string) => p.replace(/\\/g, '/').startsWith(WT)] },
   },
 });
