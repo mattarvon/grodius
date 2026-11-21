@@ -63,7 +63,7 @@ clipping, so a clipped take is refused. Before a session:
        0.5 s over its target (after the trim: 1.3 s, 1.7 s, 2.5 s) is kept, with a warning: the fix is fewer or
        shorter pauses, not a faster read.
 3. **Record:** **Space** starts recording and **Space** stops it. Let the last word ring out a beat before you stop:
-   the stop key's click is cut, and with it the last 0.2 s. The raw take plays back. A take stops itself after 15 s.
+   the stop key's click is found and cut (30-90 ms on the Yeti; never more than 0.2 s), so the end of the last word stays. The raw take plays back. A take stops itself after 15 s.
 4. **Keep or discard:** **Enter** keeps it, **Backspace** throws it away, and **Space** records it again.
    - **Enter keeps the take through the FX rack as it stands**, never just the raw take. Every Keep button says what it
      will put on the take: **Keep with FX: pitch + bitcrush + ...** on the RAW TAKE deck, **Keep: pitch + bitcrush +
