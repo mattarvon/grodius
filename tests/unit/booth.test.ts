@@ -2,10 +2,12 @@
 // slot list against the game it describes, and the ?vox= hook's calls against the call sites they copy.
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
-import { CAT_RE, SLUG_MAX, TAKE_MAX, TAKE_RE, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, clickTail } from '../../tools/booth/names';
+import os from 'node:os';
+import path from 'node:path';
+import { CAT_RE, SLUG_MAX, TAKE_MAX, TAKE_RE, gainTo, nextEmptySlot, nextTake, rackKey, squeezeKey, okCat, rawExt, slugify, squeezeCuts, takeName, clickTail } from '../../tools/booth/names';
 import { USAGE, parseArgs } from '../../tools/booth/args';
 import { DIRECTION, LEN_SLACK, MAX_LEN, SLOTS, lenLimit, lenWarn, slotOf } from '../../tools/booth/slots';
-import { Clipped, RAW_RE, VOX, guard, levels, rawVerdict, skipWhy, squeezeParam } from '../../tools/booth/plugin';
+import { Clipped, RAW_RE, VOX, guard, restoreTake, levels, rawVerdict, skipWhy, squeezeParam } from '../../tools/booth/plugin';
 
 const src = (f: string) => fs.readFileSync(f, 'utf8');
 
@@ -314,14 +316,15 @@ describe('reprocess rules', () => {
     expect(squeezeParam(new URLSearchParams('squeeze=1'))).toBe(true);
     expect(squeezeParam(new URLSearchParams('squeeze=0'))).toBe(false);
   });
-  it("resets the page checkbox to the line's default after a keep and a line change (off for a quip), never on record", () => {
+  it("starts a line's pause checkbox from what it was last set to (remembered per line), else the line's default (off for a quip), never on record", () => {
     const b = src('tools/booth/booth.ts');
     const rec = b.slice(b.indexOf('async function record()'), b.indexOf('function stop()'));
     expect(rec).not.toContain('S.squeeze');
     expect(b).toMatch(/squeeze: true,/);
-    expect(b.slice(b.indexOf('async function keep()'), b.indexOf('async function del('))).toContain('S.squeeze = sqDefault(s)');
-    expect(b.slice(b.indexOf('function move('), b.indexOf('function testGame('))).toContain('S.squeeze = sqDefault(ALL[S.sel])');
+    expect(b.slice(b.indexOf('async function keep()'), b.indexOf('async function del('))).not.toContain('S.squeeze =');
+    expect(b.slice(b.indexOf('function move('), b.indexOf('function testGame('))).toContain('S.squeeze = sqFor(ALL[S.sel])');
     expect(b).toContain('const sqDefault = (s: Slot) => !s.quip;');
+    expect(b).toContain('store.set(squeezeKey(ALL[S.sel].cat)');
   });
 });
 
@@ -484,5 +487,40 @@ describe('the booth page', () => {
     expect(guardAt).toBeGreaterThan(0);
     expect(guardAt).toBeLessThan(modAt);
     for (const ev of ['pagehide', 'blur', 'visibilitychange', 'keydown']) expect(h).toContain(`'${ev}'`);
+  });
+});
+
+describe('booth-ux: auto-advance, per-caller memory, undo', () => {
+  it('nextEmptySlot: the next line with no take, wrapping, never the current one', () => {
+    expect(nextEmptySlot([1, 0, 1, 0], 0)).toBe(1);
+    expect(nextEmptySlot([1, 0, 1, 0], 1)).toBe(3);
+    expect(nextEmptySlot([0, 1, 1, 1], 2)).toBe(0); // wraps
+    expect(nextEmptySlot([0, 0, 0], 1)).toBe(2);
+  });
+  it('nextEmptySlot: -1 when every other line has a take (the current one does not count)', () => {
+    expect(nextEmptySlot([1, 1, 1], 1)).toBe(-1);
+    expect(nextEmptySlot([0, 1, 1], 0)).toBe(-1);
+    expect(nextEmptySlot([0], 0)).toBe(-1);
+    expect(nextEmptySlot([], 0)).toBe(-1);
+  });
+  it('storage keys fold a caller to words and keep a line apart from another', () => {
+    expect(rackKey('SGT. RAMROD SLAB')).toBe('rack.sgt-ramrod-slab');
+    expect(rackKey('CREWMAN #5 // DECEASED')).toBe('rack.crewman-5-deceased');
+    expect(rackKey('')).toBe('rack.x');
+    expect(new Set(SLOTS.map((s) => squeezeKey(s.cat))).size).toBe(SLOTS.length);
+    expect(squeezeKey('hype100')).toBe('sq.hype100');
+  });
+  it('restoreTake writes a deleted take back, never over a file, never anything but a take name or Ogg', () => {
+    const sfx = fs.mkdtempSync(path.join(os.tmpdir(), 'booth-restore-'));
+    try {
+      const ogg = Buffer.concat([Buffer.from('OggS'), Buffer.alloc(400, 1)]);
+      const cat = SLOTS[0].cat;
+      expect(restoreTake(sfx, cat, 'a-line-matty-1.ogg', ogg)).toEqual({ restored: 'a-line-matty-1.ogg' });
+      expect(fs.readFileSync(path.join(sfx, cat, 'a-line-matty-1.ogg')).equals(ogg)).toBe(true);
+      expect(() => restoreTake(sfx, cat, 'a-line-matty-1.ogg', ogg)).toThrow(); // exists
+      expect(() => restoreTake(sfx, cat, '../x.ogg', ogg)).toThrow(/take name/);
+      expect(() => restoreTake(sfx, cat, 'b-matty-1.ogg', Buffer.alloc(400))).toThrow(/Ogg/);
+      expect(() => restoreTake(sfx, '../evil', 'b-matty-1.ogg', ogg)).toThrow();
+    } finally { fs.rmSync(sfx, { recursive: true, force: true }); }
   });
 });

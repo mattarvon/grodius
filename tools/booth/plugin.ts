@@ -14,6 +14,7 @@
 //          and was made from the same bytes, line, squeeze, rack and FX_CHAIN (cache.ts); else rendered as ever.
 //          Same answer, same .json either way; x-booth-promoted: 1 says it was filed from the preview
 //   DELETE /__booth/take?cat=<cat>&name=<file> removes one processed take (a raw take stays in assets-raw/)
+//   POST   /__booth/restore?cat=<cat>&name=<file>  (body: the deleted take's Ogg bytes) puts a just-deleted take back: the booth's Z undo
 //   POST   /__booth/reprocess?cat=<cat>[&name=<take>][&squeeze=0][&fx=<json>][&confirm=1]  re-runs the current chain on
 //          that slot's kept raw takes and rewrites the matching src/sfx takes (reprocess() below; the CLI is
 //          tools/booth/reprocess.mjs); -> { takes: [{ name, done, why?, lufs, peak, dur, gain, fx, ... }] }. With fx, that
@@ -504,6 +505,17 @@ function realDir(base: string, cat: string, quips: readonly Quip[] = []): string
   return fs.realpathSync(d).startsWith(fs.realpathSync(base) + path.sep) ? d : null;
 }
 
+/** UNDO of a delete (booth-ux): writes a deleted take's own bytes back under its name. Only an Ogg file, only a valid
+ *  take name in a real slot folder, never over an existing file. Separate from the keep and reprocess code on purpose */
+export function restoreTake(sfx: string, cat: string, name: string, body: Buffer, quips: readonly Quip[] = []): { restored: string } {
+  if (!TAKE_RE.test(name)) throw new Error('booth: not a take name');
+  if (body.length < 256 || body.subarray(0, 4).toString('latin1') !== 'OggS') throw new Error('booth: not an Ogg take');
+  const dir = realDir(sfx, cat, quips);
+  if (!dir) throw new Error('booth: the slot folder is not a plain folder');
+  fs.writeFileSync(path.join(dir, name), body, { flag: 'wx' }); // never over an existing file
+  return { restored: name };
+}
+
 /** a raw take's file name: <slug>-matty-<n>.<ext>, for an extension the chain can demux */
 export const RAW_RE = /^([a-z0-9]+(?:-[a-z0-9]+)*-matty-[1-9]\d{0,3})\.(webm|ogg|wav|m4a)$/;
 
@@ -942,6 +954,16 @@ export function booth(): Plugin {
           });
           return void job.then((r) => send(res, 200, r), (e) => send(res, e instanceof QuipRefused ? e.code : 500,
             { error: String(e?.message ?? e).replace(/^booth: /, '') }));
+        }
+        // UNDO of a delete (booth-ux): the page held the deleted take's bytes and posts them back (restoreTake)
+        if (u.pathname === '/__booth/restore') {
+          if (req.method !== 'POST') return send(res, 405, { error: 'booth: method' });
+          const rname = u.searchParams.get('name') ?? '';
+          return void readBody(req).then((body) => {
+            const step = queue.then(() => restoreTake(sfx, cat, rname, body, readQuips(root).quips));
+            queue = step.catch(() => {});
+            return step;
+          }).then((r) => send(res, 200, r), (e) => send(res, 400, { error: String(e?.message ?? e).replace(/^booth: /, '') }));
         }
         if (u.pathname !== '/__booth/take' && u.pathname !== '/__booth/reprocess' && u.pathname !== '/__booth/preview') return send(res, 404, { error: 'booth: no such endpoint' });
         // the quip list read fresh for every request: the booth may have just added or deleted one

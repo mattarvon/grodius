@@ -85,3 +85,18 @@ export function clickTail(pk: number[], o: { win: number; look: number; rise: nu
   while (i - 1 >= lo && edge(i - 1)) i--;
   return Math.round(Math.min(o.max, Math.max(o.min, (n - i + 1) * o.win)) * 1000) / 1000;
 }
+
+/** the line to go to after a keep: the next one (wrapping, never `from` itself) whose take count is zero, or -1 when
+ *  every other line has a take. `counts[i]` is line i's take count */
+export function nextEmptySlot(counts: readonly number[], from: number): number {
+  const n = counts.length;
+  for (let d = 1; d < n; d++) {
+    const i = (from + d) % n;
+    if (!counts[i]) return i;
+  }
+  return -1;
+}
+/** localStorage keys the booth remembers per caller (its FX rack) and per line (the pause squeeze). The booth adds its
+ *  own 'booth.' prefix. A caller is the slot's `caller` field, folded to lower case words */
+export const rackKey = (caller: string) => 'rack.' + (caller.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'x');
+export const squeezeKey = (cat: string) => 'sq.' + cat;

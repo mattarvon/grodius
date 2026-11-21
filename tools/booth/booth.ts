@@ -4,7 +4,7 @@
 // Vite client would make every keep reload this page (tests/unit/booth.test.ts pins it). The words come from the
 // game through the hidden text frame (text.ts). The waveform displays (wave.ts) load wavesurfer.js at runtime, by URL.
 import { DIRECTION, SLOTS, quipSlot, type Slot } from './slots';
-import { slugify } from './names';
+import { nextEmptySlot, rackKey, slugify, squeezeKey } from './names';
 import { normText, quipLines, textError, type Quip } from '../../src/voice/quiplist';
 import * as FX from './fx';
 import { EFFECTS, PRESETS, cleanFx, defaults, fxName, fxOn, randomFx, type Effect, type FxSet, type Knob } from './fx';
@@ -95,6 +95,26 @@ const errText = (e: unknown) => String((e as Error)?.message ?? e);
 /** the pause squeeze a line's takes start with: on, except a quip's (LS2-quips, audio-director: the beat in a quip is
  *  usually the joke, and its notes ask for the pause) */
 const sqDefault = (s: Slot) => !s.quip;
+/** the pause squeeze a line starts with: what was last chosen for it (remembered per line), else its default */
+const sqFor = (s: Slot) => { const v = store.get(squeezeKey(s.cat)); return v === '1' ? true : v === '0' ? false : sqDefault(s); };
+/** the FX rack remembered for a caller (rackKey), or null: switching to a line by that caller loads it */
+function callerRack(caller: string): FxSet | null {
+  try { const j = store.get(rackKey(caller)); return j == null ? null : cleanFx(JSON.parse(j)); } catch { return null; }
+}
+/** the rack follows the caller: when the line's caller has a remembered rack, it becomes the rack (no preview). True
+ *  when the rack changed. A caller never seen keeps the rack as it is (the global one) */
+function syncCallerRack(): boolean {
+  const r = callerRack(ALL[S.sel].caller);
+  if (!r || JSON.stringify(r) === JSON.stringify(cleanFx(S.fx))) return false;
+  S.fx = r;
+  S.knobs = { ...S.knobs, ...r };
+  S.solo = null;
+  picked = '';
+  store.set('fx', JSON.stringify(S.fx));
+  store.set('fxknobs', JSON.stringify(S.knobs));
+  if (document.getElementById('fx-rack')) { drawRack(); drawFxBar(); }
+  return true;
+}
 const linesOf = (s: Slot) => s.quip ? quipLines(s.quip.text) : S.text[s.cat]?.lines?.length ? S.text[s.cat].lines : s.copy?.lines ?? [];
 const slugOf = (s: Slot) => s.slug ?? slugify(linesOf(s).join(' '));
 /** the caller's face from the game's own sheets, first jaw frame, 2x: SLAB_FACE (-1) is Matt's sheet, 0-5 the
@@ -137,7 +157,7 @@ function setQuips(quips: Quip[], errors: string[] = S.quipErr, keep = ALL[S.sel]
   S.quipErr = errors;
   const was = ALL[S.sel]?.cat, i = ALL.findIndex((s) => s.cat === keep);
   S.sel = i >= 0 ? i : Math.min(S.sel, ALL.length - 1);
-  if (ALL[S.sel].cat !== was || i < 0) S.squeeze = sqDefault(ALL[S.sel]); // landed on another line: its default
+  if (ALL[S.sel].cat !== was || i < 0) { S.squeeze = sqFor(ALL[S.sel]); syncCallerRack(); } // landed on another line: what it was last set to
 }
 async function refreshQuips() {
   try {
@@ -403,7 +423,10 @@ async function record() {
         (S.clipped ? ' This take hit CLIP (-0.5 dBFS): unless that was only the key click, the booth will refuse it. Lower the mic level and record it again.'
           : S.hot ? ' Peaks went past -3 dBFS: usable, but back off a little.' : ''), S.clipped || S.hot || S.msg ? 'warn' : '');
       draw();
-      (document.getElementById('rawplay') as HTMLAudioElement | null)?.play().catch(() => {});
+      // the rack is what the take will be kept with, so it is what plays first: the B render (A, the raw take, stays one
+      // key away). With the rack off the raw take plays, as before
+      if (fxOn(S.fx)) void preview();
+      else (document.getElementById('rawplay') as HTMLAudioElement | null)?.play().catch(() => {});
     };
     rec.onerror = (e) => { S.phase = 'error'; say('Recorder error: ' + errText((e as any).error ?? e), 'err'); draw(); };
     rec.start();
@@ -439,7 +462,6 @@ async function keep() {
     const k = await api('POST', { cat: s.cat, slug: slugOf(s), ...(S.squeeze ? {} : { squeeze: '0' }), ...(fxOn(S.fx) ? { fx: JSON.stringify(S.fx) } : {}), ...(pid ? { preview: pid } : {}) }, S.raw);
     // the processed player's src is fixed here: a redraw must not restart it
     S.kept = { ...k, src: `${k.url}?t=${Date.now()}` };
-    S.squeeze = sqDefault(s); // per take: the next one starts at the line's default again
     discard(true);
     S.phase = 'saved';
     S.deck = 'review';
@@ -449,7 +471,7 @@ async function keep() {
     say(`Kept ${k.name}${k.fx ? ' with ' + k.fx : ''}: ${k.lufs} LUFS, peak ${k.peak} dBTP, ${k.dur?.toFixed?.(2)} s (gain ${k.gain > 0 ? '+' : ''}${k.gain} dB${sq}).` +
       (k.warn ? ' ' + k.warn + '.' : '') + (k.long ? ' ' + k.long + '.' : ''), k.warn || k.long ? 'warn' : '');
     await refreshTakes();
-    (document.getElementById('keptplay') as HTMLAudioElement | null)?.play().catch(() => {});
+    advanceAfterKeep();
   } catch (e) {
     // a clipped take: the plugin saved the raw and refused the keep; this one can only be recorded again
     if ((e as { clipped?: boolean }).clipped) {
@@ -606,24 +628,81 @@ async function redo(apply = false) {
   }
   refreshTakes();
 }
+/** a deleted take's bytes, held for the Z undo while its toast shows (booth-ux) */
+let undo: { cat: string; name: string; bytes: Blob; timer: number } | null = null;
+function toast(msg: string, ms = 6000) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, ms) as unknown as number;
+}
+let toastTimer = 0;
 async function del(t: Take) {
   const s = ALL[S.sel];
-  const where = t.raw ? `Its raw take stays in assets-raw/voice/${s.cat}/.` : 'It has no raw take here: if it is a shipped clip, git checkout restores it.';
-  if (!confirm(`Delete ${t.name}? ${where}`)) return;
+  // the take's own bytes first: with them in hand the delete is undoable (Z), so it needs no confirm. Without them
+  // (the fetch failed) the old confirm stays
+  let bytes: Blob | null = null;
+  try { const r = await fetch(`/src/sfx/${s.cat}/${t.name}`, { cache: 'no-store' }); if (r.ok) bytes = await r.blob(); } catch { /* confirm instead */ }
+  if (!bytes || bytes.size < 256) {
+    const where = t.raw ? `Its raw take stays in assets-raw/voice/${s.cat}/.` : 'It has no raw take here: if it is a shipped clip, git checkout restores it.';
+    if (!confirm(`Delete ${t.name}? ${where}`)) return;
+  }
   try {
     await api('DELETE', { cat: s.cat, name: t.name });
     if (S.kept?.name === t.name && S.phase === 'saved') { S.kept = null; S.phase = 'idle'; }
     say('Deleted ' + t.name + '.');
+    if (bytes && bytes.size >= 256) {
+      if (undo) clearTimeout(undo.timer);
+      const mine = { cat: s.cat, name: t.name, bytes: new Blob([bytes], { type: 'audio/ogg' }), timer: 0 };
+      mine.timer = setTimeout(() => { if (undo === mine) undo = null; }, 6000) as unknown as number;
+      undo = mine;
+      toast(`Deleted ${t.name}. Z to undo`);
+    }
   } catch (e) {
     say('Delete failed: ' + errText(e), 'err');
   }
   refreshTakes();
 }
+/** Z: put the take just deleted back (the plugin's /__booth/restore writes its held bytes; its raw take and record never left) */
+async function undoDel() {
+  const u = undo;
+  if (!u) return;
+  undo = null;
+  clearTimeout(u.timer);
+  try {
+    await api('POST', { cat: u.cat, name: u.name }, u.bytes, 'restore');
+    toast(`Restored ${u.name}.`, 3000);
+    say(`Restored ${u.name}.`);
+  } catch (e) {
+    say('Undo failed: ' + errText(e), 'err');
+    toast('Undo failed: ' + errText(e), 6000);
+  }
+  refreshTakes();
+}
+/** after a keep: hear the processed take (its deck is about to go) and move to the next line with no takes; with none
+ *  left, stay on this one and say so */
+function advanceAfterKeep() {
+  if (store.get('advance') === '0') { (document.getElementById('keptplay') as HTMLAudioElement | null)?.play().catch(() => {}); return draw(); } // booth.advance=0: stay put
+  const to = nextEmptySlot(ALL.map((x) => (S.takes[x.cat] ?? []).length), S.sel);
+  if (to < 0) {
+    (document.getElementById('keptplay') as HTMLAudioElement | null)?.play().catch(() => {});
+    say(S.msg + ' Every line has a take: staying here.', S.tone);
+    return draw();
+  }
+  if (S.kept) { try { void new Audio(S.kept.src).play().catch(() => {}); } catch { /* no audio */ } }
+  const msg = S.msg, tone = S.tone;
+  move(to - S.sel);
+  say(`${msg} Next line with no take: ${linesOf(ALL[S.sel]).join(' / ')}.`, tone);
+  draw();
+}
 function move(d: number) {
   if (!d || S.phase === 'arming' || S.phase === 'rec' || S.phase === 'saving') return;
   if (S.phase === 'review') return void (say('Keep (Enter) or discard (Backspace) this take first.', 'warn'), draw());
   S.sel = (S.sel + d + ALL.length) % ALL.length;
-  S.squeeze = sqDefault(ALL[S.sel]);
+  S.squeeze = sqFor(ALL[S.sel]);
+  syncCallerRack();
   S.prevName = '';
   dropPrev();
   store.set('slot', ALL[S.sel].cat);
@@ -631,6 +710,12 @@ function move(d: number) {
   if (S.phase !== 'error') { S.phase = 'idle'; say(''); } // a mic error stays up until a mic opens
   draw();
   document.querySelector('.slot.sel')?.scrollIntoView({ block: 'nearest' });
+}
+/** Down / Right: the next line with no take yet (wrapping), or the next line when every one has one; Shift: always the
+ *  next line */
+function nextLine(plain: boolean) {
+  const to = plain ? -1 : nextEmptySlot(ALL.map((x) => (S.takes[x.cat] ?? []).length), S.sel);
+  move(to < 0 ? 1 : to - S.sel);
 }
 function testGame(s: Slot) {
   if (!s.test) return;
@@ -652,7 +737,7 @@ addEventListener('keydown', (e) => {
   if (t.tagName === 'BUTTON' && t.id !== 'b-rec' && (k === 'Enter' || k === ' ')) return;
   // a focused FX slider keeps the arrows (fine-tuning a knob), everything else is the booth's
   if (t.tagName === 'INPUT' && (t as HTMLInputElement).type === 'range' && k.startsWith('Arrow')) return;
-  const ours = [' ', 'Enter', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 't', 'T', 'p', 'P', 'k', 'K', 'b', 'B', '/'].includes(k);
+  const ours = [' ', 'Enter', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 't', 'T', 'p', 'P', 'k', 'K', 'b', 'B', 'z', 'Z', '/'].includes(k);
   if (!ours) return;
   e.preventDefault();
   (document.activeElement as HTMLElement | null)?.blur?.();
@@ -662,8 +747,9 @@ addEventListener('keydown', (e) => {
   else if (k === 'Backspace') {
     if (S.phase === 'review') discard();
     else if (S.phase === 'saved' && S.kept) del({ name: S.kept.name, raw: true });
-  } else if (k === 'ArrowDown' || k === 'ArrowRight') move(1);
+  } else if (k === 'ArrowDown' || k === 'ArrowRight') nextLine(e.shiftKey);
   else if (k === 'ArrowUp' || k === 'ArrowLeft') move(-1);
+  else if (k === 'z' || k === 'Z') undoDel();
   else if (k === 't' || k === 'T') testGame(ALL[S.sel]);
   else if (k === 'p' || k === 'P') preview();
   else if (k === 'k' || k === 'K') playPause();
@@ -722,7 +808,7 @@ function draw() {
       <button id="b-apply" ${P === 'idle' || P === 'saved' || P === 'error' ? '' : 'disabled'}>Apply current FX to this line's takes</button>
       <span class="state">re-runs the chain on the kept raw takes (no re-recording): each with its own FX, or all with the rack's</span></div>` : ''}
     <div class="keys"><kbd>Space</kbd> record / stop &middot; <kbd>Enter</kbd> keep (through the FX rack as it stands) &middot; <kbd>Backspace</kbd> discard (or delete the take just kept) &middot;
-      <kbd>&uarr;</kbd><kbd>&darr;</kbd> line &middot; <kbd>P</kbd> FX preview &middot; <kbd>K</kbd> play / pause &middot; <kbd>B</kbd> A/B clean vs FX &middot;
+      <kbd>&uarr;</kbd><kbd>&darr;</kbd> line (<kbd>&darr;</kbd> the next with no take, <kbd>Shift</kbd>+<kbd>&darr;</kbd> the next one) &middot; <kbd>Z</kbd> undo a delete &middot; <kbd>P</kbd> FX preview &middot; <kbd>K</kbd> play / pause &middot; <kbd>B</kbd> A/B clean vs FX &middot;
       <kbd>/</kbd> search effects &middot; <kbd>T</kbd> test in game. Takes are mono 44.1 kHz Vorbis at -12 LUFS, the gaps between phrases turned down; the raw take stays in
       <code>assets-raw/voice/</code> (git-ignored). A take stops itself at ${AUTO_STOP} s.</div>`;
   document.querySelectorAll<HTMLElement>('.slot').forEach((el) => (el.onclick = () => move(+el.dataset.i! - S.sel)));
@@ -749,7 +835,7 @@ function draw() {
   if (qt) qt.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); editQuip(s, qt.value); } else if (e.key === 'Escape') { qt.value = s.quip!.text; qt.blur(); } };
   if (qn) qn.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addQuip(qn.value); } else if (e.key === 'Escape') qn.blur(); };
   const sqb = document.getElementById('b-sq') as HTMLInputElement | null;
-  if (sqb) sqb.onchange = () => { S.squeeze = sqb.checked; sqb.blur(); };
+  if (sqb) sqb.onchange = () => { S.squeeze = sqb.checked; store.set(squeezeKey(ALL[S.sel].cat), sqb.checked ? '1' : '0'); sqb.blur(); };
   // the take decks and the rack's bar follow the take (recorded, kept, discarded, another line)
   drawReview();
   drawFxBar();
@@ -864,7 +950,11 @@ const BY = new Map(EFFECTS.map((e) => [e.id, e]));
 const valOf = (id: string): Record<string, number> => S.fx[id] ?? S.knobs[id] ?? defaults(id);
 /** what a preview plays: the rack, or the soloed effect alone */
 const rackFx = (): FxSet => (S.solo ? cleanFx({ [S.solo]: valOf(S.solo) }) : S.fx);
-const saveRack = () => { store.set('fx', JSON.stringify(S.fx)); store.set('fxknobs', JSON.stringify(S.knobs)); };
+const saveRack = () => {
+  store.set('fx', JSON.stringify(S.fx));
+  store.set('fxknobs', JSON.stringify(S.knobs));
+  store.set(rackKey(ALL[S.sel].caller), JSON.stringify(S.fx)); // and under the line's caller (syncCallerRack)
+};
 
 // ---- user presets: the browser's, exportable as JSON ----
 type UserPreset = { name: string; fx: FxSet };
@@ -956,8 +1046,27 @@ async function importPresets(f: File) {
 
 /** the rack's fixed frame, built once: the bars, the chain strip, the preview deck and the rack's box. drawRack()
  *  rebuilds only the cards (a preset, Randomize, an import), drawFxBar() the bits that follow the take and the rack */
+/** the FX rack folded shut behind its one-line bar (remembered); the preview deck stays out in the open */
+let rackOpen = store.get('rackopen') === '1';
+/** what the rack is called: its preset's name, else 'custom' */
+function rackLabel(): string {
+  const p = presetOf();
+  return (p.startsWith('f:') ? PRESETS[+p.slice(2)]?.name : p.startsWith('u:') ? USER[+p.slice(2)]?.name : '') || 'custom';
+}
+function drawFold() {
+  const b = document.getElementById('fx-fold');
+  if (!b) return;
+  b.setAttribute('aria-expanded', String(rackOpen));
+  $id('fx-foldname').textContent = rackLabel();
+  $id('fx-foldgo').innerHTML = rackOpen ? '&#9662; close' : '&#9656; edit';
+  const h = document.getElementById('rackhd');
+  if (h) h.innerHTML = `FX <b>${esc(rackLabel())}</b> &middot; ${esc(ALL[S.sel].caller)}`;
+}
 function buildFx() {
-  $id('fx').innerHTML = `<h2>FX rack <span class="state"></span></h2>
+  $id('fx').classList.toggle('open', rackOpen);
+  $id('fx').innerHTML = `<button type="button" class="foldbar" id="fx-fold" aria-expanded="${rackOpen}" aria-controls="fx-body" title="show or hide the FX rack">Rack: <b id="fx-foldname"></b><span class="go" id="fx-foldgo"></span></button>
+    <div id="fx-out"></div>
+    <div id="fx-body"><h2>FX rack <span class="state"></span></h2>
     <div class="row fxbar">
       <label class="opt">Preset <select id="fx-preset"></select></label>
       <input type="text" id="fx-pname" class="plain" maxlength="40" placeholder="name this rack" aria-label="preset name" autocomplete="off" spellcheck="false">
@@ -977,14 +1086,14 @@ function buildFx() {
       <span class="state" id="fx-src"></span>
     </div>
     <div id="fx-chain" class="chain" aria-label="signal chain"></div>
-    <div id="fx-out"></div>
     <div class="rackbar">
       <input type="search" id="fx-search" class="plain" placeholder="hunt an effect (/)" aria-label="search effects" autocomplete="off" spellcheck="false">
       <button id="fx-open" title="open every group">Expand all</button><button id="fx-shut" title="fold every group">Collapse all</button>
       <span class="state" id="fx-count"></span>
     </div>
-    <div id="fx-rack"></div>`;
+    <div id="fx-rack"></div></div>`;
   drawPresets();
+  on('fx-fold', () => { rackOpen = !rackOpen; store.set('rackopen', rackOpen ? '1' : '0'); $id('fx').classList.toggle('open', rackOpen); drawFold(); });
   const pre = $id('fx-preset') as HTMLSelectElement;
   pre.onchange = () => {
     const v = pre.value;
@@ -1181,6 +1290,7 @@ function drawFxBar() {
   b.innerHTML = `${S.prevBusy ? 'Rendering...' : 'Preview'} <kbd>P</kbd>`;
   $id('fx-src').textContent = srcT ? 'source: ' + srcT : 'record a take (or press FX preview on a kept take) to hear the rack';
   drawKeep();
+  drawFold();
   // the chain, in the order it runs
   const live = EFFECTS.filter((e) => S.fx[e.id]);
   $id('fx-chain').innerHTML = `<span class="io">MIC</span><span class="arr" aria-hidden="true"></span><span class="io">CLEANUP</span>` +
@@ -1457,6 +1567,8 @@ function quipHead() {
   return `<div class="qhead">QUIPS <span>SLAB, after a midboss or boss kill (src/voice/quips.json)</span>${S.quipErr.length ? `<div class="err">quips.json: ${S.quipErr.map(esc).join('; ')}. Fix it by hand; the booth will not edit it until then.</div>` : ''}</div>`;
 }
 
+S.squeeze = sqFor(ALL[S.sel]);
+syncCallerRack();
 buildFx();
 draw();
 refreshQuips().then(refreshTakes);
