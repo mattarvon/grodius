@@ -94,6 +94,8 @@ async function open(file, viewport = { width: 1280, height: 800 }) {
     args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${file}`, '--autoplay-policy=no-user-gesture-required'],
   });
   const ctx = await browser.newContext({ viewport, permissions: ['microphone'] });
+  // the rack unfolded (it starts folded) and no auto-advance after a keep: the run inspects the KEPT deck
+  await ctx.addInitScript(() => { try { localStorage.setItem('booth.rackopen', '1'); localStorage.setItem('booth.advance', '0'); } catch { /* none */ } });
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text() + (m.location()?.url ? ' @ ' + m.location().url : '')));

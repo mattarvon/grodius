@@ -75,6 +75,8 @@
   label.opt { color: var(--dim); font-size: 12px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   input[type=checkbox] { accent-color: var(--red); }
   .hint { color: var(--warn); font-size: 12px; }
+  .rackhd { font: 10px var(--hud); letter-spacing: .06em; color: var(--dim); border: 1px solid var(--line2); border-radius: 9px; padding: 1px 8px; white-space: nowrap; }
+  .rackhd b { color: var(--ink); font-weight: 600; }
   .peak { font: 10px var(--hud); color: var(--dim); min-width: 64px; }
   .aim { font-size: 11px; color: var(--mute); }
   /* ---------------- the layout ---------------- */
@@ -149,6 +151,14 @@
   .tp { min-width: 88px; }
   /* ---------------- the FX rack ---------------- */
   #fx { border-top: 1px solid var(--line); margin-top: 18px; }
+  /* the rack folded shut: one line, "Rack: <preset> > edit" */
+  .foldbar { display: flex; gap: 8px; align-items: center; width: 100%; text-align: left; margin: 10px 0 4px; background: #120a0c; border: 1px solid var(--line); border-radius: var(--r); padding: 6px 10px; font: 11px var(--hud); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  .foldbar:hover:not(:disabled) { border-color: var(--line2); background: #1a0d11; }
+  .foldbar b { color: var(--ink); font-weight: 600; letter-spacing: .04em; text-transform: none; font-family: system-ui, sans-serif; font-size: 12px; }
+  .foldbar .go { margin-left: auto; color: var(--warn); }
+  #fx:not(.open) #fx-body { display: none; }
+  #toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 50; background: #1a0d11; color: var(--ink); border: 1px solid var(--red); border-radius: var(--r); padding: 8px 16px; font-size: 13px; box-shadow: 0 4px 24px #000a; }
+  #toast[hidden] { display: none; }
   #fx h2 .state { text-transform: none; letter-spacing: 0; color: var(--warn); font: 12px system-ui, sans-serif; }
   .fxbar { margin: 6px 0; }
   input.plain { flex: 0 1 18ch; min-width: 10ch; background: #050203; text-transform: none; letter-spacing: 0; }
@@ -235,6 +245,7 @@
   <span class="led clip" id="clip" aria-hidden="true" title="CLIP: game over, man. Latches for the take; click to clear">CLIP</span>
   <span class="aim">aim -10 to -6, never past -3</span>
   <span class="hint" id="hint"></span>
+  <span class="rackhd" id="rackhd" title="the FX rack on this line (it follows the line's caller) and who is calling"></span>
 </header>
 <main>
   <nav id="slots" role="listbox" aria-label="voice lines"></nav>
@@ -246,10 +257,11 @@
     </div>
     <div id="review"></div>
     <div id="status" role="status" aria-live="polite" class="state"></div>
-    <div id="fx"></div>
     <div id="takes"></div>
+    <div id="fx"></div>
   </section>
 </main>
+<div id="toast" role="status" aria-live="polite" hidden></div>
 <iframe id="textframe" src="/tools/booth/text.html" hidden title="game text"></iframe>
 <script type="module" src="/tools/booth/booth.ts"></script>
 </body>

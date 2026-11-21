@@ -23,6 +23,8 @@ can still run its own echo-cancel or noise-suppression module on the mic: the bo
 voice, and its own denoise works on top of that. Check with `pw-cli ls Node | grep -i -E "echo|noise|rnnoise"` (or
 the KDE audio settings) that the input you pick is the plain device, not an `echo-cancel` / `rnnoise` virtual source.
 
+Recording on the Yeti: see [YETI.md](YETI.md).
+
 Never tunnel or port-forward the dev server (ngrok, cloudflared, ssh -L). The booth refuses forwarded requests, but a
 tunnel is the one way in from outside.
 
@@ -63,24 +65,27 @@ clipping, so a clipped take is refused. Before a session:
        0.5 s over its target (after the trim: 1.3 s, 1.7 s, 2.5 s) is kept, with a warning: the fix is fewer or
        shorter pauses, not a faster read.
 3. **Record:** **Space** starts recording and **Space** stops it. Let the last word ring out a beat before you stop:
-   the stop key's click is found and cut (30-90 ms on the Yeti; never more than 0.2 s), so the end of the last word stays. The raw take plays back. A take stops itself after 15 s.
+   the stop key's click is found and cut (30-90 ms on the Yeti; never more than 0.2 s), so the end of the last word stays. With an FX rack on, the take is auditioned **through the rack** (the B render plays when it is ready; the raw take is the A lane, one **B** key away); with the rack off the raw take plays. A take stops itself after 15 s.
 4. **Keep or discard:** **Enter** keeps it, **Backspace** throws it away, and **Space** records it again.
    - **Enter keeps the take through the FX rack as it stands**, never just the raw take. Every Keep button says what it
      will put on the take: **Keep with FX: pitch + bitcrush + ...** on the RAW TAKE deck, **Keep: pitch + bitcrush +
      ...** in the FX rack beside **Preview** (the one to press while you listen to the filtered take), and **Keep
      clean** on both when the rack is off. Enter works with the preset box focused, too (only a text box keeps its
      own Enter: a preset name, the effect search, a quip's words).
-   - **Shorten pauses over 0.4 s** (on by default, for every new take): a pause inside the take longer than 0.4 s is
+   - **Shorten pauses over 0.4 s** (on by default; the box is **remembered per line**, so a line you unticked stays unticked): a pause inside the take longer than 0.4 s is
      cut to 0.25 s when it is kept. Untick it before Enter for a line whose pause is part of the read, and when the
      pause is the joke (the beat before SERVED in CALAMARI SERVED).
    - **A clipped take is refused** ("input clipped: lower the mic level"). Its raw recording is still saved in
      `assets-raw/voice/<folder>/`, so nothing is lost; lower the level and record it again.
-5. **Move on:** **↑/↓** (or ←/→) move between lines once the take is kept or discarded. **T** opens the line in the
-   game.
+5. **Move on:** after a keep the booth **moves to the next line with no takes** by itself (wrapping; if every line has
+   one it stays and says so; `localStorage booth.advance = 0` turns it off). By hand, **↓/→** goes to the next line with
+   no take (the next line when there is none), **Shift+↓** always to the next line, **↑/←** to the previous. **T** opens the
+   line in the game.
 
 A kept take is cleaned up and filed as `src/sfx/<folder>/<line>-matty-<n>.ogg`, with the next free n, and the processed
 file plays back in the **KEPT** deck, tagged with the rack it went through (**with FX: robot + radio band**, or **clean
-(no FX)**). **Backspace** right after a keep, or **Delete this take**, removes it again.
+(no FX)**). **Backspace** right after a keep, or **Delete this take**, removes it again: it deletes at once (no confirm) and a toast says
+"Deleted <take>. **Z** to undo" for 6 s; **Z** puts it back (the booth held its bytes; the raw take and its record never left; `POST /__booth/restore`). A shipped clip with no raw take is undoable the same way. Reprocess and Apply still ask first.
 
 **Change the FX on a take you already kept:** set the rack, then **Re-keep with current FX** (on the KEPT deck, or
 **Re-keep with FX** on that take in the take list). Only that take is rewritten, from its raw recording, and its record
@@ -154,7 +159,9 @@ plain reprocess is the chain's own and does not ask.
 
 ## FX rack
 
-The **FX rack** under the line (`tools/booth/fx.ts`) is a voice-design rack: 40 effects in 9 groups, each a set of
+The **FX rack** is under the takes list and **folded shut by default** behind one line, **Rack: <preset or custom> ▸ edit** (click or Enter on it; the choice is remembered); the preview deck stays outside the fold. The header shows the active preset and the caller. **The rack is remembered per caller** (the slot's `caller`): moving to a line by a caller you have set a rack for loads that rack; a caller never set keeps the rack as it is.
+
+The rack (`tools/booth/fx.ts`) is a voice-design rack: 40 effects in 9 groups, each a set of
 numeric knobs. Tick an effect to turn it on; its sliders set it. Most effects that blend have a **mix** knob (0 is
 dry, 1 is all effect). With nothing ticked the rack is off and takes are kept clean.
 
