@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "f728316",
+  "commit": "977e36f",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "keepsake-d1",
@@ -9,13 +9,13 @@
     "state": "play",
     "score": 0,
     "scroll": 19247,
-    "lives": 2,
+    "lives": 1,
     "px": 50,
-    "py": 55.75,
+    "py": 112.805,
     "en": 1,
-    "gibs": 29,
-    "drops": 82,
-    "caps": 0,
+    "gibs": 45,
+    "drops": 18,
+    "caps": 3,
     "jump": true,
     "stage": 2,
     "pair": "prentice+brood",
@@ -24,13 +24,13 @@
     "rank": 0.5,
     "lvl": 6,
     "kills": 0,
-    "t": 1200,
+    "t": 1190,
     "seen": "mini:keepsake",
-    "sig": "5a295fef55"
+    "sig": "77acd3508c"
   },
   "hashes": [
-    "9a65f93305",
-    "bc217280b0"
+    "bef467c01c",
+    "0a5644a366"
   ],
   "errs": []
 }
