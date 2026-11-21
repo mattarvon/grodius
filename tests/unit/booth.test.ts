@@ -2,7 +2,7 @@
 // slot list against the game it describes, and the ?vox= hook's calls against the call sites they copy.
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
-import { CAT_RE, SLUG_MAX, TAKE_MAX, TAKE_RE, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName } from '../../tools/booth/names';
+import { CAT_RE, SLUG_MAX, TAKE_MAX, TAKE_RE, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, clickTail } from '../../tools/booth/names';
 import { USAGE, parseArgs } from '../../tools/booth/args';
 import { DIRECTION, LEN_SLACK, MAX_LEN, SLOTS, lenLimit, lenWarn, slotOf } from '../../tools/booth/slots';
 import { Clipped, RAW_RE, VOX, guard, levels, rawVerdict, skipWhy, squeezeParam } from '../../tools/booth/plugin';
@@ -362,6 +362,26 @@ describe('the clip guard reads the raw as recorded', () => {
     expect(peak).toContain('sample_fmts=flt');
     expect(peak).not.toContain('channel_layouts=mono');
     expect(peak).toContain('Peak_level');
+  });
+});
+
+describe('clickTail (the stop click, found not fixed)', () => {
+  const T = VOX.click.tail;
+  // the last 0.4 s of Matt's Yeti takes, 10 ms sample-peak windows (dBFS), oldest first (2026-11-20 raws)
+  const putToBed = [-26, -27, -26, -29, -30, -31, -37, -41, -41, -42, -44, -44, -42, -41, -35, -37, -33, -34, -30, -31, -32, -33, -34, -36, -35, -36, -37, -37, -37, -35, -38, -39, -43, -43, -44, -42, -39, -38, -43, -44];
+  const burst = [-24, -29, -30, -27, -33, -36, -41, -42, -42, -45, -47, -44, -45, -49, -46, -48, -45, -42, -34, -31, -30, -29, -30, -38, -42, -42, -46, -43, -48, -46, -45, -35, -39, -45, -44, -45, -48, -45, -47, -49];
+  it('cuts PUT TO BED at its click, 50 ms, and keeps the decay of "bed" the fixed 0.2 s cut ate', () => {
+    expect(clickTail(putToBed, T)).toBeCloseTo(0.05, 9);
+  });
+  it("cuts BURST at its click 90 ms out and keeps the T the old cut took", () => {
+    expect(clickTail(burst, T)).toBeCloseTo(0.1, 9);
+  });
+  it('a take that ends in the room with no click loses only the minimum', () => {
+    expect(clickTail(Array(40).fill(-46), T)).toBe(T.min);
+  });
+  it('never cuts more than the old fixed 0.2 s, and copes with a take shorter than the look', () => {
+    expect(clickTail([-60, -60, -60, -60, ...Array(30).fill(-10)], { ...T, look: 1 })).toBeLessThanOrEqual(T.max);
+    expect(clickTail([-50, -20], T)).toBe(T.min);
   });
 });
 

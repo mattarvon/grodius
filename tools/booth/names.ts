@@ -70,3 +70,18 @@ export function squeezeCuts(starts: number[], ends: number[], o: { over: number;
   }
   return cuts;
 }
+
+/** how much (s) to cut off a raw take's end for the stop key's click (LS2-tailclick: a fixed 0.2 s ate the end of the
+ *  last word when Space came right after it). `pk` is the take's last stretch as 10 ms windows of sample peak, dBFS,
+ *  oldest first. The click is the newest rising edge, a window `rise` dB or more over the quietest of the three
+ *  windows before it, within the last `look` s; the cut starts one window before its first rising window. No edge
+ *  (a Yeti take that stopped in the room): only `min`. Never more than `max` (the old fixed cut) */
+export function clickTail(pk: number[], o: { win: number; look: number; rise: number; min: number; max: number }): number {
+  const n = pk.length, lo = Math.max(3, n - Math.round(o.look / o.win));
+  const edge = (i: number) => Number.isFinite(pk[i]) && pk[i] - Math.min(pk[i - 1], pk[i - 2], pk[i - 3]) >= o.rise;
+  let i = n - 1;
+  while (i >= lo && !edge(i)) i--;
+  if (i < lo) return o.min;
+  while (i - 1 >= lo && edge(i - 1)) i--;
+  return Math.round(Math.min(o.max, Math.max(o.min, (n - i + 1) * o.win)) * 1000) / 1000;
+}

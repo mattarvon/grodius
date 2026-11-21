@@ -40,7 +40,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { lenWarn, quipSlot, SLOTS, voiceSlot } from './slots.ts';
 import { newId, normText, parseQuips, QUIP_ID_MAX, QUIP_ID_RE, quipCat, quipLines, textError, type Quip } from '../../src/voice/quiplist.ts';
-import { TAKE_MAX, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, TAKE_RE } from './names.ts';
+import { TAKE_MAX, clickTail, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, TAKE_RE } from './names.ts';
 import { FX_CHAIN, cleanFx, fxGraph, fxName, fxOn, fxPreGain, type FxSet } from './fx.ts';
 
 const exec = promisify(execFile);
@@ -83,8 +83,10 @@ export const VOX = {
    *  lead-in). Never above 12: consonants start to smear at 15-20 dB. A quiet take is a gain problem, see quiet */
   denoise: 'afftdn=nr=10:nf=-50:tn=1',
   /** the key click that starts and stops every take (the laptop mic sits over the keyboard): cut before the trim,
-   *  or the trim stops at the click and keeps it. A reaction to Space is longer than the head cut */
-  click: { head: 0.12, tail: 0.2 },
+   *  or the trim stops at the click and keeps it. A reaction to Space is longer than the head cut. The tail is found,
+   *  not fixed (names.ts clickTail): on the Yeti the stop click lands 30-90 ms before the end, and the old fixed 0.2 s
+   *  cut ate the decay of the last word ("bed" of PUT TO BED) when Space came right after it */
+  click: { head: 0.12, tail: { win: 0.01, look: 0.15, rise: 5, min: 0.03, max: 0.2 } },
   /** the head/tail trim's silence gate (peak detection), set per take from the room: the quietest 50 ms of the
    *  cleaned-up take (astats noise floor: a windowed peak minimum, not an RMS) plus `over`, clamped to [min, max].
    *  A fixed -45 cut soft onsets (the S of SEVERED) on a quiet take; a fixed -55 kept a noisy room's tail. Measured
@@ -239,16 +241,46 @@ export class Clipped extends Error {
 
 /** the raw take's sample peak, dBFS, over what the chain keeps (the key clicks at both ends cut: a hard Space must not
  *  fail a good take); null if ffmpeg reports none */
-async function peakOf(input: string[], signal?: AbortSignal): Promise<number | null> {
+async function peakOf(input: string[], tail: number, signal?: AbortSignal): Promise<number | null> {
   // float: left to negotiate, astats takes s16 and an Opus overshoot past full scale reads as 0.0. No mono downmix:
   // Chrome's MediaRecorder writes two identical channels even for a mono track, and the downmix (0.707 L + 0.707 R)
   // reads them 3 dB hot, which refused a -1.9 dBFS take as +1.1 (LS2-booth2 e2e). The peak over the channels is
   // the input's own
-  const af = ['aformat=sample_fmts=flt', `atrim=start=${VOX.click.head}`, 'areverse', `atrim=start=${VOX.click.tail}`, 'areverse',
+  const af = ['aformat=sample_fmts=flt', `atrim=start=${VOX.click.head}`, 'areverse', `atrim=start=${tail}`, 'areverse',
     'astats=measure_overall=Peak_level:measure_perchannel=0'].join(',');
   const { stderr } = await run('ffmpeg', [...input, '-nostats', '-af', af, '-f', 'null', '-'], signal);
   const m = /Peak level dB:\s*(-?[\d.]+|-?inf)/.exec(stderr);
   return m && Number.isFinite(+m[1]) ? Math.round(+m[1] * 10) / 10 : null;
+}
+
+/** the stop click's cut (s) for a raw take: its last stretch decoded to 48 kHz mono, as 10 ms peak windows aligned
+ *  to the end, into names.ts clickTail. Undecodable: the old fixed cut */
+export async function tailCutOf(input: string[], signal?: AbortSignal): Promise<number> {
+  const T = VOX.click.tail, SR = 48000;
+  const args = [...input, '-nostats', '-loglevel', 'error', '-ac', '1', '-ar', String(SR), '-f', 'f32le', '-'];
+  let buf: Buffer;
+  try {
+    buf = await new Promise<Buffer>((ok, no) => {
+      const kill = () => c.kill('SIGKILL');
+      const c = execFile('ffmpeg', args, { ...RUN, encoding: 'buffer' }, (err, out) => {
+        signal?.removeEventListener('abort', kill);
+        if (signal?.aborted) no(new Error('booth: aborted')); else if (err) no(err); else ok(out as Buffer);
+      });
+      signal?.addEventListener('abort', kill, { once: true });
+    });
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    return T.max;
+  }
+  const x = new Float32Array(new Uint8Array(buf).buffer, 0, Math.floor(buf.length / 4));
+  const w = Math.round(SR * T.win), k = Math.min(Math.floor(x.length / w), Math.round(T.look / T.win) + 4);
+  const pk: number[] = [];
+  for (let j = k; j >= 1; j--) {
+    let m = 0;
+    for (let i = x.length - j * w; i < x.length - (j - 1) * w; i++) m = Math.max(m, Math.abs(x[i]));
+    pk.push(m > 0 ? 20 * Math.log10(m) : -120);
+  }
+  return clickTail(pk, T);
 }
 
 const clampTo = (v: number, lo: number, hi: number) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : hi);
@@ -272,7 +304,8 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
   const ext = path.extname(raw).slice(1), tmp = out.replace(/\.ogg$/, '.tmp.wav');
   const input = ['-hide_banner', '-protocol_whitelist', 'file', '-f', DEMUX[ext], '-i', raw, '-t', '120'];
   // the clip guard first: a take that clipped at the input is refused before any work (the raw stays in assets-raw/)
-  const rawPeak = await peakOf(input, o.signal);
+  const tail = await tailCutOf(input, o.signal);
+  const rawPeak = await peakOf(input, tail, o.signal);
   // (a preview runs a clipped take anyway, to audition the FX, and says so)
   if (rawVerdict(rawPeak) === 'clip' && !o.allowClip) throw new Clipped(rawPeak!);
   const clean = ['aformat=channel_layouts=mono', `atrim=start=${VOX.click.head}`, 'asetpts=PTS-STARTPTS', `highpass=f=${VOX.highpass}`, `lowpass=f=${VOX.lowpass}`, VOX.denoise];
@@ -287,7 +320,7 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
     ...clean,
     `agate=threshold=${(10 ** (expand / 20)).toFixed(6)}:ratio=${E.ratio}:range=${E.range}:attack=${E.attack}:release=${E.release}:knee=${E.knee}:detection=rms`,
     trim(VOX.head), `afade=t=in:d=${VOX.fadeIn}`,
-    'areverse', `atrim=start=${VOX.click.tail}`, 'asetpts=PTS-STARTPTS', trim(VOX.tail), `afade=t=in:d=${VOX.fadeOut}`, 'areverse',
+    'areverse', `atrim=start=${tail}`, 'asetpts=PTS-STARTPTS', trim(VOX.tail), `afade=t=in:d=${VOX.fadeOut}`, 'areverse',
   ].join(',');
   try {
     await sh('ffmpeg', [...input, '-loglevel', 'error', '-y', '-af', chain, '-ar', '44100', '-ac', '1', tmp]);
