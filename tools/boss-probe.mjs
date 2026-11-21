@@ -41,6 +41,7 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD]) => {
     const G = $.G, r1 = LY.slotRow(1), r0 = LY.slotRow(0);
     G.route = ['ice', 'fire']; G.bx = [r0.gateLate ?? r0.x0, r1.gateLate ?? r1.x0, null]; G.visitNo = [0, 0];
     BI.biomeStage(1, G.bx[1]);
+    G.stage = LY.stageOfSlot(1); // its real stage ordinal, so stage-order HP (D58 #2) and depth read slot B, not Orbit
     return r1.bossX + 200;
   };
   const hasKeep = !!LY.layout().picker;
