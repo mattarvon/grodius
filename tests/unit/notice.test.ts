@@ -193,3 +193,17 @@ describe('the aimed-hazard rules (D61)', () => {
     expect(flayerTx(470, 480)).toBe(480 * NOTICE.flayHi);
   });
 });
+
+describe('the hunting flayer tells honestly (D61)', () => {
+  it('locks its aim for the last flayLock f of the 34 f tell and stops drifting to the ship\'s height', () => {
+    $.P.x = 100; $.P.y = 100;
+    const e: any = { k: 'flayer', x: 190, tx: 190, y: 100, y0: 100, ws: 'tel', wt: 0, cool: 0, t: 10, ang: Math.PI, flash: 0 };
+    run(e, 34 - NOTICE.flayLock);
+    const a = e.ang, y0 = e.y0;
+    $.P.y = 160; // the ship steps off the line during the lock
+    run(e, NOTICE.flayLock - 1);
+    expect(e.ws).toBe('tel');
+    expect(e.ang).toBe(a);
+    expect(e.y0).toBe(y0);
+  });
+});

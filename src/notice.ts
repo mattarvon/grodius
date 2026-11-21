@@ -29,6 +29,7 @@ export const NOTICE = {
   flayDx: 90, //     the flayer parks 90 px ahead of the ship, inside its 155 px strike radius
   flayLo: 60, //     its parking x never goes left of 60 px
   flayHi: .85, //    nor right of W * .85 (it only strikes from x < W - 20)
+  flayLock: 16, //   its aim locks for the last 16 f of its 34 f tell (it tracked to the end; with hunting that left no dodge)
 };
 
 /** the hazard's warm-up (frames) before it can hurt: biomes.ts stepBiome's icicle 50, geyser 70, jet 60 */

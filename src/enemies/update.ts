@@ -222,7 +222,7 @@ export function updEnemy(e) {
         const wx = e.x + $.G.scroll,
           lo = ceilAt(wx) + 18,
           hi = floorAt(wx) - 18;
-        e.y0 += clamp($.P.y - e.y0, -.5, .5) * .5;
+        if (e.ws === 'idle') e.y0 += clamp($.P.y - e.y0, -.5, .5) * .5; // D61: it stops drifting to your height once it winds up
         e.y = clamp(e.y0 + Math.sin(e.t * .035) * 16, lo, Math.max(lo, hi));
         if (e.ws === 'idle') {
           e.cool--;
@@ -235,7 +235,9 @@ export function updEnemy(e) {
           }
         } else if (e.ws === 'tel') {
           e.wt++;
-          e.ang = aimA(e.x - 7, e.y + 1);
+          // D61: a hunting flayer is always in reach, so its aim LOCKS for the last flayLock f of the 34 f tell (the
+          // sentry's grammar): it used to track to the last frame, leaving ~5 f to leave a line that followed you
+          if (e.wt <= 34 - NOTICE.flayLock) e.ang = aimA(e.x - 7, e.y + 1);
           if (e.wt >= 34) {
             e.ws = 'strike';
             e.wt = 0;

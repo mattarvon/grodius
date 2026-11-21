@@ -907,12 +907,11 @@ export function drawWhip(e) {
     pr = pts[pts.length - 2];
   drawHookTip(ctx, tip.x, tip.y, Math.atan2(tip.y - pr.y, tip.x - pr.x) - Math.PI / 2, 1);
   if (e.ws === 'tel') {
-    const k = e.wt / 34;
+    const k = e.wt / 34, lock = e.wt > 34 - NOTICE.flayLock; // locked (D61): solid and blinking, as the sentry's line
     ctx.save();
-    ctx.setLineDash([2, 3]);
-    ctx.lineDashOffset = -$.T;
-    ctx.strokeStyle = `rgba(255,40,40,${.25 + k * .6})`;
-    ctx.lineWidth = 1;
+    if (!lock) { ctx.setLineDash([2, 3]); ctx.lineDashOffset = -$.T; }
+    ctx.strokeStyle = lock ? `rgba(255,40,40,${($.T >> 1) & 1 ? .85 : .45})` : `rgba(255,40,40,${.25 + k * .6})`;
+    ctx.lineWidth = lock ? 1.2 : 1;
     ctx.beginPath();
     ctx.moveTo(e.x - 7, e.y + 1);
     ctx.lineTo(e.x - 7 + Math.cos(e.ang) * 122, e.y + 1 + Math.sin(e.ang) * 122);
