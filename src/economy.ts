@@ -166,7 +166,7 @@ const LATE_LONG4: LateSet = {
 const HARD_LONG4: HardSet = {
   wardTop: 1, // +1 hit, not a refill (difficulty package section 3 Pass 2: "the biggest single leak")
   recover: 2, // the main gun plus one pod (D61 Pass 2's BLACK BOX rule, Matt), for the lifeline and BLACK BOX alike
-  powHP: 1, //   x(1 + pow): end of Descent 1 (pow ~.8) fodder takes ~1.8x the hits it did
+  powHP: 1.5, // x(1 + 1.5 pow): end of Descent 1 (pow ~.8-.9) fodder takes ~2.3x the hits it did (1 left the pilot 3 of 5 clears, 2 deathless)
   powCap: 2, //  the cap every()/BS()/formation() already put on pow
   rankCap: 1.25, // package Pass 2: pressure keeps climbing past 1 (midboss cooldowns, litters, the Drive's HP)
   cal: 1.18, serr: 1.2, // package Pass 2: graft damage softened (was 1.22 / 1.25)
