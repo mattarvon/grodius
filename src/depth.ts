@@ -17,8 +17,8 @@
 // =====================================================================
 import { $ } from './state';
 import { midRow } from './enemies/mid/roster';
-import { kindOf } from './layout';
-import { descDepth, econId } from './economy';
+import { kindOf, slotOf } from './layout';
+import { ECON, bossOrdMul, descDepth, econId, lateStage } from './economy';
 
 /** a midboss kind not named in DEPTH.w takes its tag's share (spec §6.4: WINDOW and ANGLE .6, RACE .5; the rest 1),
  *  so a pool lane's new kind needs no line here */
@@ -48,18 +48,33 @@ export const over = () => Math.max(0, Math.min(2, ($.G.pow || 0) - 1));
  *  stays at 1x and the Drive stage's fodder reads loop + .35. Midboss and stage-boss HP and the Drive's keep the integer loop */
 export const dep = () => descDepth(econId(), $.G.loop || 0, $.G.stage || 0);
 const f = (k, L) => (L > 0 ? 1 + k * L : 1);
+/** D58 (Matt, 2026-11-15): the active entry's late-stage set (src/economy.ts LateSet) when the current stage is a late
+ *  one (biome slot B or later, the Drive), else null. Always null on short */
+export const late = () => { const L = ECON[econId()].late, i = $.G.stage || 0; return L && lateStage(kindOf(i), slotOf(i)) ? L : null; };
+/** D58 #4: a held midboss's HP multiplier at the current stage: LateSet.midLate in biome slot B and later, else 1. Not
+ *  the Drive (no midboss) and not DRIFT kinds (spawn.ts midboss only; their forced exit sets the fight) */
+export const midLateMul = (k = '') => { const L = late(); return L && kindOf($.G.stage || 0) === 'biome' ? L.midLateK[k] ?? L.midLate : 1; };
 /** HP multiplier for a fresh enemy of kind k, stats b (its ET row); o = mk()'s options */
 export function depthHP(k, b, o) {
+  if (o.par && o.par.dm) return o.par.dm; // a boss's parts (the Crucifer's nailbars, the Choir's) are as tough as it is
+  const m = loopHP(k, b, o);
+  // D58 #2: a stage boss also grows with the stage's order in the descent (economy.ts bossOrd; 1 on short). Here, in the
+  // shared path, so every biome stage boss gets it uniformly; midbosses, the Orbit Maw and the Drive (driveMul) do not
+  return b.mini && !isMid(k, b, o) ? m * bossOrdMul(econId(), $.G.stage || 0, k) : m;
+}
+/** the Open Orbit Maw and the mid-stage Maw count as midbosses: they escape on a clock and must stay killable */
+const isMid = (k, b, o) => b.mid || (k === 'maw' && (!o.stageBoss || kindOf($.G.stage || 0) === 'orbit'));
+/** depthHP's loop (and, for regular enemies, intra-descent) term */
+function loopHP(k, b, o) {
   const D = dep();
   if (!(D > 0)) return 1;
-  if (o.par && o.par.dm) return o.par.dm; // a boss's parts (the Crucifer's nailbars, the Choir's) are as tough as it is
   if (!b.mini) return f(DEPTH.fod, D);
   // the Open Orbit Maw and the mid-stage Maw count as midbosses: they escape on a clock and must stay killable
   // D29: midboss HP (the biome midbosses, the Saucer and these Maws) takes the integer loop only, no intra-descent term,
   // so D27's one 8-11 s TTK band holds in both biome slots. Their fire (cdm/firem) still reads dep(). Stage bosses
   // were already on the integer loop. So within a descent, intra-depth HP reaches regular enemies only
   const L = $.G.loop || 0;
-  const mid = b.mid || (k === 'maw' && (!o.stageBoss || kindOf($.G.stage || 0) === 'orbit')), m = mid ? f(DEPTH.mid, L) : f(DEPTH.boss, L);
+  const mid = isMid(k, b, o), m = mid ? f(DEPTH.mid, L) : f(DEPTH.boss, L);
   return 1 + (DEPTH.w[k === 'maw' && mid ? 'maw0' : k] ?? TAG_W[midRow(k)?.tag ?? ''] ?? 1) * (m - 1);
 }
 /** the Gravity Drive's HP multiplier (x560 HP, x48 per plate): loop and, as the one D1 exception, rank and over() */

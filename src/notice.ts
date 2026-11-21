@@ -21,8 +21,8 @@ export const NOTICE = {
   uLock: 16, //      the lane line goes solid for these last frames (the sentry's lock grammar, 18 f there)
   uVx: 2.6, //       the return run, px/f rightward in screen space, straight along the locked lane (no homing: step off it)
   // --- hazards that mark the ship's column ---
-  hazEvery: 3, //    every 3rd hazard is aimed (Descent 1-2)
-  hazEveryD3: 2, //  1 in 2 from Descent 3 (G.loop 2)
+  hazEvery: 6, //    every 6th hazard is aimed (Descent 1-2). D61: 3; D62 toned it down (biome B 7.2 hits/min)
+  hazEveryD3: 4, //  1 in 4 from Descent 3 (G.loop 2). D61: 2
   hazHw: 12, //      the mark's half width: the band is 24 px, the hazard's own hit column 10-14 px
   hazPad: 4, //      frames added to a geyser's or jet's warm-up for its reach to grow to the ship (it grows over 8 f)
   // --- flayers hunt ---
@@ -30,6 +30,11 @@ export const NOTICE = {
   flayLo: 60, //     its parking x never goes left of 60 px
   flayHi: .85, //    nor right of W * .85 (it only strikes from x < W - 20)
   flayLock: 16, //   its aim locks for the last 16 f of its 34 f tell (it tracked to the end; with hunting that left no dodge)
+  // --- D62 (Matt, 2026-11-21): Pass 1 toned down to D61's own D1 bands on the fixed playtest probe (bullets counted).
+  // The mechanics stay; these set how often they come. 1 / 1 / true are D61 as merged ---
+  flayEvery: 2, //   every 2nd flayer hunts (the others park at their spawn x, as before D61)
+  flayCool: 1.4, //  a hunting flayer's cooldown after a lash, x its coolFor('flayer') (it is always in reach)
+  hazInFight: false, // no aimed hazards while a midboss or boss is up (the fight is the threat then)
 };
 
 /** the hazard's warm-up (frames) before it can hurt: biomes.ts stepBiome's icicle 50, geyser 70, jet 60 */
@@ -54,6 +59,9 @@ export function hazReach(k: string, top: number, y: number): number {
 export function hazLeadX(k: string, px: number, py: number, ss: number, top: number, W: number): number {
   return Math.min(W * .92, Math.max(16, px + ss * hazReach(k, top, py)));
 }
+
+/** whether the n-th flayer of a run (1-based) hunts (D62: every flayEvery-th) */
+export const flayHunts = (n: number): boolean => n % NOTICE.flayEvery === 0;
 
 /** the flayer's parking x: 90 px ahead of the ship, clamped (it used to park at a fixed random x) */
 export function flayerTx(px: number, W: number): number {

@@ -8,10 +8,11 @@ import { startBoss } from '../boss/update';
 // harness runs the dev server, not the bundle, so a removal that breaks the built game would pass every gate.
 import './mid';
 import { MID_ET, MID_SIM } from './mid/roster';
-import { depthHP } from '../depth';
+import { depthHP, midLateMul } from '../depth';
+import { flayHunts } from '../notice';
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
 import { bandClamp } from '../terrainb';
-import { capKept, econId } from '../economy';
+import { ECON, capKept, econId, formExtra } from '../economy';
 
 // ---------------- enemies ----------------
 // the midbosses' rows come from their own files (enemies/mid/): MID_ET is this same object
@@ -217,13 +218,16 @@ export function behindWave(y, n = 5, o = {}, fit = (v) => v) {
   y = fit(rearLane(y));
   rearWarn(y, () => formation('behind', fit(y), n, o));
 }
-/** extra drones a power-scaled formation gets: round(3 * min(2, pow)), 0..6 (density is where power shows, D1) */
-export const formationExtra = () => Math.round(Math.min(2.0, $.G.pow || 0) * 3);
+/** extra drones a power-scaled formation gets (density is where power shows, D1): the entry's round(k * min(cap, pow)),
+ *  economy.ts form. short: round(3 * min(2, pow)), 0..6. long4 (D58 #3, Matt: break the snowball): round(2 * min(1, pow)),
+ *  0..2, and those drones pay half XP and no pod or biomass (enemies/update.ts killEnemy, e.extra) */
+export const formationExtra = () => formExtra(econId(), $.G.pow || 0);
 /** a drone wave of n (+ formationExtra()). o.fixed: a scripted set piece whose layout must hold (the acid biome's
  *  double wall would merge into one at +6 drones), so it spawns exactly n; other o fields go to every drone's mk() */
 export function formation(pat, y, n = 5, o = {}) {
   const { fixed, pod, ...mo } = o; // pod: the group always drops its pod (the biome breath's release, D31)
-  if (!fixed) n += formationExtra(); // denser waves as you power up; uncapped past rank 1 so Infirmary buys still add bodies
+  const n0 = n, tag = ECON[econId()].form.extra; // D58 #3: mark the rank drones (long4); short marks none
+  if (!fixed) n += formationExtra(); // denser waves as you power up (short: uncapped past rank 1 so Infirmary buys still add bodies)
   const g = {
     n,
     killed: 0
@@ -238,6 +242,7 @@ export function formation(pat, y, n = 5, o = {}) {
       ghost: pat === 'behind' ? 60 + i * 9 : 0,
       ...mo
     });
+    if (tag && i >= n0) { e.extra = 1; e.cap = false; } // after mk(): its keep roll (if any) is still drawn, so R() counts hold
     if (pat === 'wall') {
       e.x = W + 16;
       e.y = y + (i - (n - 1) / 2) * 15;
@@ -332,7 +337,10 @@ export function midboss(k, title, host?, leave = 1400) {
   const M = MID_SIM[k];
   if (!M) throw new Error(`midboss '${k}' is not registered (enemies/mid/${k}.ts defineMid)`);
   const e = mk(k, W + 50, PH * (M.spawnY ?? .5), { title, tx: W - 92, st: 'idle', wt: 0, cool: 110, att: 0, ba: -2.3, leave, host });
-  const hm = midHpMul(k, ET[k].hp); // D27: long4's per-kind TTK band (midslot.ts MID_HP); 1 on short
+  // D27: long4's per-kind TTK band (midslot.ts MID_HP); 1 on short. D58 #4 (Matt, revising D27/D29): x LateSet.midLate in
+  // biome slot B and later, re-banded to the power runs carry there; its parts (the Choir's nailbars, depthHP par.dm) too
+  const lm = midLateMul(k), hm = midHpMul(k, ET[k].hp) * lm;
+  if (lm !== 1) e.dm *= lm;
   if (hm !== 1) { e.hp *= hm; e.max = e.hp; }
   meetMid(k);
   if (M.onSpawn) M.onSpawn(e);
@@ -374,7 +382,8 @@ export function flayer(y) {
     wt: 0,
     ang: Math.PI,
     cool: ri(60, 110),
-    cap: R() < .35
+    cap: R() < .35,
+    hunt: flayHunts($.G.flayN = ($.G.flayN || 0) + 1) ? 1 : 0 // D62: every NOTICE.flayEvery-th flayer hunts (no R() draw)
   });
 }
 export function logLine(s) {

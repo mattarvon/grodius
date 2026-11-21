@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { $ } from '../../src/state';
 import { DEPTH, cdm, dep, depthHP, driveMul, firem, over, xtra } from '../../src/depth';
 import { setLayout } from '../../src/layout';
+import { bossOrdMul } from '../../src/economy';
 
 const fresh = (loop: number, pow = 0) => {
   $.G = { loop, pow, rank: Math.max(0, Math.min(1, pow)) };
@@ -143,13 +144,13 @@ describe('intra-descent depth on long4', () => {
     }
   });
 
-  it('leaves stage bosses, the burst bullet and the Drive on the integer loop', () => {
+  it('leaves stage bosses, the burst bullet and the Drive on the integer loop (stage bosses: x D58 stage order)', () => {
     at(0, 2);
-    expect(depthHP('crux', { mini: 1 }, { stageBoss: true })).toBe(1);
+    expect(depthHP('crux', { mini: 1 }, { stageBoss: true })).toBeCloseTo(bossOrdMul('long4', 2, 'crux'), 12); // D58 #2: no intra-depth term, only bossOrd
     expect(xtra()).toBe(0);
     expect(driveMul()).toBe(1);
     at(1, 2);
-    expect(depthHP('crux', { mini: 1 }, { stageBoss: true })).toBeCloseTo(1 + DEPTH.w.crux * DEPTH.boss);
+    expect(depthHP('crux', { mini: 1 }, { stageBoss: true })).toBeCloseTo((1 + DEPTH.w.crux * DEPTH.boss) * bossOrdMul('long4', 2, 'crux'));
     at(1, 3, 0);
     expect(driveMul()).toBeCloseTo(1 + DEPTH.driveL);
   });

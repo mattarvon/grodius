@@ -31,7 +31,7 @@ vi.mock('../../src/enemies/spawn', () => ({
 }));
 
 const { updEnemy } = await import('../../src/enemies/update');
-const { NOTICE, HAZ_WARM, flayerTx, hazAimed, hazLeadX, hazReach } = await import('../../src/notice');
+const { NOTICE, HAZ_WARM, flayHunts, flayerTx, hazAimed, hazLeadX, hazReach } = await import('../../src/notice');
 
 /** step one enemy n frames, $.T counting frames */
 const run = (e: any, n: number) => { for (let i = 0; i < n; i++) { $.T++; updEnemy(e); } };
@@ -147,7 +147,7 @@ describe('a Descent 2+ dive drone that missed U-turns once (D61)', () => {
 });
 
 describe('flayers hunt (D61)', () => {
-  const flayer = () => ({ k: 'flayer', x: 400, tx: 400, y: 100, y0: 100, ws: 'idle', wt: 0, cool: 9999, t: 10, ang: Math.PI, flash: 0 });
+  const flayer = () => ({ k: 'flayer', x: 400, tx: 400, y: 100, y0: 100, ws: 'idle', wt: 0, cool: 9999, t: 10, ang: Math.PI, flash: 0, hunt: 1 }); // a hunter (D62: spawn.ts marks every NOTICE.flayEvery-th)
 
   it('re-parks 90 px ahead of the ship while idle', () => {
     $.P.x = 100;
@@ -159,6 +159,13 @@ describe('flayers hunt (D61)', () => {
     expect(e.tx).toBe(240);
   });
 
+  it('leaves a non-hunter at its spawn x (D62)', () => {
+    $.P.x = 100;
+    const e = { ...flayer(), hunt: 0 };
+    run(e, 1);
+    expect(e.tx).toBe(400);
+  });
+
   it('holds its spot through the 34 f tell', () => {
     $.P.x = 100;
     const e = { ...flayer(), ws: 'tel' };
@@ -168,11 +175,15 @@ describe('flayers hunt (D61)', () => {
 });
 
 describe('the aimed-hazard rules (D61)', () => {
-  it('aims every 3rd column hazard, 1 in 2 from Descent 3, never a strand', () => {
-    const d1 = [1, 2, 3, 4, 5, 6].map((n) => hazAimed(n, 0, 'icicle'));
-    expect(d1).toEqual([false, false, true, false, false, true]);
-    expect([1, 2, 3, 4].map((n) => hazAimed(n, 2, 'jet'))).toEqual([false, true, false, true]);
-    expect(hazAimed(3, 0, 'strand')).toBe(false);
+  it('aims every NOTICE.hazEvery-th column hazard (hazEveryD3 from Descent 3), never a strand (D62: 6 and 4)', () => {
+    const N = 12, d1 = Array.from({ length: N }, (_, i) => hazAimed(i + 1, 0, 'icicle'));
+    expect(d1).toEqual(Array.from({ length: N }, (_, i) => (i + 1) % NOTICE.hazEvery === 0));
+    expect(Array.from({ length: N }, (_, i) => hazAimed(i + 1, 2, 'jet'))).toEqual(Array.from({ length: N }, (_, i) => (i + 1) % NOTICE.hazEveryD3 === 0));
+    expect(hazAimed(NOTICE.hazEvery, 0, 'strand')).toBe(false);
+  });
+
+  it('hunts with every NOTICE.flayEvery-th flayer (D62)', () => {
+    expect(Array.from({ length: 6 }, (_, i) => flayHunts(i + 1))).toEqual(Array.from({ length: 6 }, (_, i) => (i + 1) % NOTICE.flayEvery === 0));
   });
 
   it('every hazard it aims has a warm-up tell of at least 44 f (D59)', () => {

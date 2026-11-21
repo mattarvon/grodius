@@ -12,7 +12,7 @@ import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
-import { bankBio, econId, firstKillPay, grpDrops, killBio, killXP } from '../economy';
+import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { KH, hookBehind, hookHits } from './butcherhook';
@@ -218,7 +218,7 @@ export function updEnemy(e) {
       {
         // D61 "flayers hunt": while it waits it re-parks 90 px ahead of the ship (src/notice.ts flayerTx), so the 155 px
         // strike follows; during the 34 f tell and the lash its spot holds, so the tell stays honest
-        if (e.ws === 'idle' && $.P.alive) e.tx = flayerTx($.P.x, W);
+        if (e.hunt && e.ws === 'idle' && $.P.alive) e.tx = flayerTx($.P.x, W); // D62: only the hunters (spawn.ts flayer)
         if (e.t < 520) e.x = lerp(e.x, e.tx, .03);else e.x -= 1.3;
         const wx = e.x + $.G.scroll,
           lo = ceilAt(wx) + 18,
@@ -260,6 +260,7 @@ export function updEnemy(e) {
           if (e.wt >= 26) {
             e.ws = 'idle';
             e.cool = coolFor('flayer', ri(0, 40));
+            if (e.hunt) e.cool = Math.round(e.cool * NOTICE.flayCool); // D62: a hunter is always in reach, so it lashes less often
           }
         }
         if (R() < .15) drop(e.x + rr(-5, 5), e.y + rr(-2, 8), rr(-.3, .3), rr(0, .5), 1, R() < .5 ? 0 : 1, 80);
@@ -672,7 +673,9 @@ export function killEnemy(e, dir = 1) {
   $.G.score += sc;
   // per-kill XP and kill biomass scale by the layout's economy entry (src/economy.ts killXP/killBio: short x1, long4 per
   // D31, fitted with pod-probe)
-  if (!e.par) gainXP(killXP(econId(), e.mini ? 30 : Math.max(1, e.score / 100)));
+  // D58 #3: a rank drone (spawn.ts formation, e.extra; long4 only) pays the entry's form.xp share and drops no biomass
+  const rk = e.extra && ECON[econId()].form.extra; // spawn.ts marks rank drones on such an entry only
+  if (!e.par) gainXP(killXP(econId(), e.mini ? 30 : Math.max(1, e.score / 100)) * (rk ? ECON[econId()].form.xp : 1));
   const vo = pk('volatile');
   // VOLATILE MEAT: one burst per kill, and meat killed BY a burst doesn't burst again (no screen-wide chains)
   if (vo && !e.mini && !e.par && !VOL.on) {
@@ -690,7 +693,7 @@ export function killEnemy(e, dir = 1) {
   }
   pop(e.x, e.y - 8, '+' + sc, '#cfd9e3', 8, 40);
   const bio = Math.ceil(e.bio * (1 + .25 * lv('gland')));
-  const n = Math.min(8, Math.max(1, Math.round(bio / 3)));
+  const n = rk ? 0 : Math.min(8, Math.max(1, Math.round(bio / 3)));
   for (let i = 0; i < n; i++) orbs.push({
     x: e.x,
     y: e.y,

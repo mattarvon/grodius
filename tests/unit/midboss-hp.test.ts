@@ -58,13 +58,22 @@ describe('midboss() base HP per layout (D27)', () => {
     expect(long.max).toBe(long.hp);
   });
 
-  it('spawns the Apprentice at exactly 180 (D61) on long4 and 150 on short at biome slots A and B in Descent 1 (D29)', () => {
-    for (const stage of [1, 2]) {
-      const e = meet('long4', 'prentice', 0, stage);
-      expect(e.hp).toBe(180);
-      expect(e.max).toBe(180);
-      expect(meet('short', 'prentice', 0, stage).hp).toBe(150);
-    }
+  it('spawns the Apprentice at exactly 180 (D61) on long4 and 150 on short at biome slot A in Descent 1 (D29)', () => {
+    const e = meet('long4', 'prentice', 0, 1);
+    expect(e.hp).toBe(180);
+    expect(e.max).toBe(180);
+    expect(meet('short', 'prentice', 0, 1).hp).toBe(150);
+  });
+
+  it('re-bands biome slot B on long4 only: x its midLate (D58 #4, revising D29), body and parts', async () => {
+    const { ECON } = await import('../../src/economy');
+    const L = ECON.long4.late!, m = L.midLateK.prentice ?? L.midLate;
+    const e = meet('long4', 'prentice', 0, 2);
+    expect(e.hp).toBeCloseTo(180 * m, 9);
+    expect(e.max).toBe(e.hp);
+    expect(e.dm).toBeCloseTo(m, 12); // what its parts read (depthHP par.dm)
+    expect(meet('short', 'prentice', 0, 2).hp).toBe(150);
+    expect(meet('long4', 'prentice', 0, 3).hp).toBe(180); // the Drive stage is not a biome slot
   });
 });
 

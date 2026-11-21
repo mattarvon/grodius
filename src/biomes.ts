@@ -26,7 +26,7 @@ import { midForce, midsWip } from './lab';
 import { drawPicks } from './setdraw';
 import { MOVES, bandClamp, gimmick, hazInterval, moveAt, snapVent } from './terrainb';
 import { BOSS_SIM, bossFor } from './enemies/boss/registry';
-import { hazAimed, hazLeadX } from './notice';
+import { NOTICE, hazAimed, hazLeadX } from './notice';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -515,7 +515,9 @@ function spawnHazard(b) {
   // D61 "it notices you" (src/notice.ts): every 3rd column hazard (1 in 2 in Descent 3) is aimed. It drops where the
   // ship's column will be when it reaches the ship's height if the ship holds still, and is marked (h.aim: biomeart draws
   // D59's hatched column band over its whole warm-up, 50-70 f). The rest still re-roll off the ship
-  const aim = !!P && P.alive && hazAimed(G.hazN = (G.hazN || 0) + 1, G.loop || 0, b);
+  // D62: and none while a midboss or boss is up (NOTICE.hazInFight false); the count still advances
+  const n = G.hazN = (G.hazN || 0) + 1, fight = (G.mini && !G.mini.dead) || G.boss;
+  const aim = !!P && P.alive && hazAimed(n, G.loop || 0, b) && (NOTICE.hazInFight || !fight);
   let x;
   if (aim) {
     const c0 = ceilAt(P.x + G.scroll);

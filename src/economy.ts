@@ -23,6 +23,20 @@ export type Kind = 'orbit' | 'biome' | 'interior' | 'drive';
 /** the hits/min column a stage reads: by stage kind, and by biome slot for biome stages (spec §8) */
 export type HpmCol = 'orbit' | 'biome0' | 'interior' | 'biome1' | 'drive';
 export type Grade = 'S' | 'A' | 'B' | 'C';
+/** D58 (Matt, 2026-11-15; rebuilt on D61, 2026-11-21): what changes in a late stage (lateStage: biome slot B and later,
+ *  and the Drive) on a long entry. null = nothing (short: today's game). Enemy fire is untouched (D58 #1 dropped: the
+ *  fixed probe showed late pressure at or over its band) and so is the death refill (D58 #5 dropped: D61 Pass 2's
+ *  BLACK BOX rule owns it). production/decision-log.md D58, D62 */
+export interface LateSet {
+  /** D58 #4: held midboss HP multiplier in biome slot B and later (spawn.ts midboss), on top of D27's MID_HP. Revises
+   *  D27/D29's one slot-blind band: slot B is re-banded to the power runs carry into it */
+  midLate: number;
+  /** D58 #4: per-kind overrides of midLate, for a kind the one multiplier leaves outside its band */
+  midLateK: Readonly<Record<string, number>>;
+}
+/** D58 #3: rank drones (formationExtra) = round(k * min(cap, pow)); `extra` = the extra drones carry no pod and drop no
+ *  biomass, and pay `xp` x their kill XP. short keeps today's round(3 * min(2, pow)) at full pay */
+export interface FormSet { k: number; cap: number; xp: number; extra: boolean }
 /** a stage's grading counters (the fields of `G.st` that grading reads) */
 export interface StageCounts { kills: number; spawned: number; hits: number; deaths: number }
 type Band = readonly [number, number];
@@ -54,6 +68,16 @@ export interface EconEntry {
   firstKill: number;
   /** intra-descent depth: dep = loop + intra * ord / (n - 1) */
   intra: number;
+  /** D58 #2: stage-boss HP x (1 + bossOrd * ord / (n - 1)) by the stage's order in the descent (depth.ts depthHP, the
+   *  shared stage-boss path: every biome boss, a registry stage boss included). 0 = none */
+  bossOrd: number;
+  /** D58 #2: a stage-boss kind's share of bossOrd (default 1), so one global knob can land every slot-B boss in its
+   *  band: a kind whose base fight is already long takes less, the Maw (short by its escape clock) more */
+  bossOrdW: Readonly<Record<string, number>>;
+  /** D58 #3: rank drones (spawn.ts formationExtra) and what they pay */
+  form: FormSet;
+  /** D58 #1, #4, #5: the late-stage set; null = none */
+  late: LateSet | null;
   /** GLUTTONY graft thresholds (mutations.ts GM 'over' n: Maw + midboss kills) */
   glut: readonly number[];
   /** Descent 1 elites from stage ordinal `ord` at chance `p`; null = none in Descent 1 (today) */
@@ -95,6 +119,15 @@ const HPM_LONG4 = {
 /** spec §7: the biomass targets are the same for both long entries (holds 2-4 purchases per Infirmary visit) */
 const BIO_LONG: readonly [Band, Band, Band] = [[1300, 1500], [2100, 2400], [2600, 3600]];
 
+/** today's formation density and pay (short, long5) */
+const FORM_TODAY: FormSet = { k: 3, cap: 2, xp: 1, extra: false };
+/** D58 #4 (rebuilt on D61): long4's late-stage set. Slot-B midbosses to D61's 10-13 s at the BIOME B kit (rank .71),
+ *  midboss-probe --ord 2 --leave 1260; D61 base (x1): Choir 5.8, Womb 4.9, Apprentice 4.8, Brood 4.1 s */
+const LATE_LONG4: LateSet = {
+  midLateK: { choir: 2.0, cyst: 2.4, prentice: 2.4, brood: 2.7 }, // #4: per kind, each to ~11 s
+  midLate: 2.2, // #4: any other held kind in slot B (a new pool kind starts here)
+};
+
 export const ECON: Readonly<Record<EntryId, EconEntry>> = {
   // today's game, exactly. Deleted one milestone after the long layout becomes the default (spec §2.2)
   short: {
@@ -110,6 +143,10 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     graftMul: 1, // today's GM thresholds
     firstKill: 0, // today's game pays nothing and writes no kill record
     intra: 0, // depth is per descent only
+    bossOrd: 0, // today: a stage boss's HP reads the loop only
+    bossOrdW: {},
+    form: FORM_TODAY,
+    late: null, // today's game in every stage
     glut: [2, 4],
     d1Elite: null,
     driveLife: null,
@@ -151,6 +188,17 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // (pod-probe grades[3].kit.gm, kills)
     graftMul: 1.8,
     intra: .35, // late Descent 1 would otherwise stay soft over a longer descent (depth-probe, playtest.mjs hits/min)
+    // D58 #2 (Matt): bosses grow per stage, x1.2 in biome slot A and x1.4 in slot B. Before: the biome-B boss died in
+    // 5-7 s at the carried kit (boss-probe --ord 2, BIOME B kit); target 12-15 s
+    // D58 #2 (rebuilt on D61): x1.3 in slot A and x1.6 in slot B by default; the biome bosses now fight in slot A only
+    // (THE KEEPSAKE holds slot B). Weights to D61's 15-22 s at the BIOME B kit (boss-probe --ord 1 / 2): Bloat x1.2 (13.1
+    // s at x1), Butcher x1.6 (10.1), the Maw capped at x2 (4.5 s; more would put the STAGE 1 kit at its 28 s escape
+    // clock), THE KEEPSAKE x1.5 (28.4 s, D61 38-46)
+    bossOrd: .9,
+    bossOrdW: { crux: .667, butcher: 2, maw: 3.333, keepsake: .833 },
+    // D58 #3 (Matt): break the snowball. +2 rank drones at most (was +6), and they pay half XP and no pod/biomass
+    form: { k: 2, cap: 1, xp: .5, extra: true },
+    late: LATE_LONG4,
     // GLUTTONY counts Maw + midboss kills: per long4 descent the Saucer + 2 + 2 biome midbosses, the Open Orbit Maw and
     // 0-2 biome Maw stage bosses, so 6-8 when every one is killed (short: 2-4)
     glut: [3, 6],
@@ -176,6 +224,10 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     graftMul: 1,
     firstKill: 100, // spec §6.4
     intra: .35,
+    bossOrd: 0, // D58 is a long4 pass, as D31 was: long5 keeps today's until LS3-0 fits its own
+    bossOrdW: {},
+    form: FORM_TODAY,
+    late: null,
     glut: [3, 7], // ~9 Maw + midboss kills per descent
     d1Elite: { ord: 3, p: .05 }, // optional in spec §7: teaches elites before Descent 2 (stage 4 = biome slot 1)
     driveLife: { add: 1, cap: 5 }, // Q11: exposure per descent doubles
@@ -184,6 +236,19 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     targets: { lvD1: [13, 15], lvStage: { 0: 4, 1: 8 }, bio: BIO_LONG },
   },
 };
+
+/** D58 #1/#4/#5: is a stage of kind `kind` in biome slot `slot` a late stage: biome slot B or later, or the Drive */
+export const lateStage = (kind: Kind | undefined, slot: number): boolean => kind === 'drive' || (kind === 'biome' && slot >= 1);
+
+/** D58 #2: stage-boss kind `k`'s HP multiplier at stage ordinal `ord`: 1 + bossOrd * w_k * ord / (n - 1), w_k from
+ *  bossOrdW (default 1); 1 on short */
+export const bossOrdMul = (id: EntryId, ord: number, k = ''): number => {
+  const e = E(id);
+  return e.bossOrd && e.n > 1 ? 1 + e.bossOrd * (e.bossOrdW[k] ?? 1) * Math.min(1, Math.max(0, ord / (e.n - 1))) : 1;
+};
+
+/** D58 #3: rank drones in a formation at power `pow`: round(k * min(cap, pow)) (short: round(3 * min(2, pow)), 0..6) */
+export const formExtra = (id: EntryId, pow: number): number => { const f = E(id).form; return Math.round(Math.min(f.cap, pow || 0) * f.k); };
 
 /** the hits/min exit band: within ±30% of the target (build plan item G) */
 export const HPM_TOL = .3;
