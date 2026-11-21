@@ -17,7 +17,7 @@
 //   in the per-frame hook, instead of moving P toward (tx, ty):  window.__pilotStep(g, tx, ty);
 // `window.__pilotLog` reports `frames` piloted, `trapped` (frames where every candidate move was unsafe) and `deaths`
 // (for each life lost: the stage, scroll, position, the midboss or Drive up, and the two nearest threats just before).
-// Attacks with no projectile that it models from their telegraphs: the Saucer's lash, the Drive's beam, the
+// Attacks with no projectile that it models from their telegraphs: the Saucer's lash, the flayer's whip, the Drive's beam, the
 // Apprentice's and the Butcher's cleaver sectors, and the Butcher's hook; with window.__DN loaded (src/enemies/mid/_deny.ts),
 // the midbosses' denial moves (the lane bar, the acid pools, the Apprentice's hook); the Drive's tentacles are predicted from
 // boss/update.ts tentPts. Not modelled (seen only through the enemy's body and shots): any other no-projectile attack.
@@ -61,6 +61,13 @@ export const PILOT = `(() => {
       // the Saucer's lash (enemies/mid/ufo.ts): telegraph (aims, locks 16 f before), then the whip hits from wt 4 to 20
       const ox = e.x - 34, oy = e.y + 9, tel = e.lash2 ? 28 : 42, w0 = e.st === 'lash' ? tel - e.wt : -e.wt;
       lines.push({ x: ox, y: oy, a: e.la, len: 238, w: 6, t0: w0 + 4, t1: w0 + 21 });
+    }
+    // the flayer's whip (enemies/update.ts 'flayer', whipPts): a 34 f tell whose aim tracks the ship to its last frame, then
+    // the lash reaches 122 px from (x - 7, y + 1) along e.ang and hits (4.5 px) from strike frame 5 to 15. D61 made
+    // flayers hunt (they park 90 px ahead of the ship), so the pilot has to see it
+    for (const e of g.enemies) if (!e.dead && e.k === 'flayer' && (e.ws === 'tel' || e.ws === 'strike')) {
+      const w0 = e.ws === 'tel' ? 34 - e.wt : -e.wt;
+      lines.push({ x: e.x - 7, y: e.y + 1, a: e.ang, len: 122, w: 5, t0: w0 + 5, t1: w0 + 16 });
     }
     // the Apprentice's cleaver (enemies/update.ts 'tel' 50 f, then 'cut' hits for 12 f): a sector of radius 14-84 px
     // around its cleaver, angles 2.30-3.99 rad (down-left round to up-left); the safe places are above, below, behind it

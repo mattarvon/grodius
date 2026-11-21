@@ -54,7 +54,10 @@ await p.addInitScript(([g0, g1, OPT]) => {
       // hazards
       for (const z of B.haz) if (!hz.has(z)) {
         hz.add(z); st.hazSpawn++; st.hazKinds[z.k] = (st.hazKinds[z.k] || 0) + 1;
-        const bad = G.fork || G.forkHold || G.tally || !h.P.alive ? 'state' : z.k !== 'strand' && Math.abs(z.x - h.P.x) < 40 ? 'on-ship' : '';
+        // D61: an aimed hazard (z.aim, biomes.ts spawnHazard) is meant to be in the ship's column, behind its >= 50 f marked
+        // warm-up; only an unaimed one there is bad. st.hazAim counts the aimed ones
+        if (z.aim) st.hazAim = (st.hazAim || 0) + 1;
+        const bad = G.fork || G.forkHold || G.tally || !h.P.alive ? 'state' : z.k !== 'strand' && !z.aim && Math.abs(z.x - h.P.x) < 40 ? 'on-ship' : '';
         if (bad) st.hazBad.push(bad + ':' + z.k);
       }
       if (G.hazHit) st.hazHits++;
@@ -126,7 +129,7 @@ while (f < 60 * 60 * 40) {
 const r = await p.evaluate(() => ({ ev: __ev, st: __st }));
 console.log(r.ev.join('\n'));
 const mx = Object.entries(r.st.mixes).filter(([, v]) => v > 30).map(([k, v]) => k + ' x' + v).join('\n  ');
-console.log(`minGap ${r.st.minGap.toFixed(1)} @${r.st.minGapAt}  slams ${r.st.slam} (max ${r.st.slamMax.toFixed(1)} at ${r.st.slamAt})  hazards ${r.st.hazSpawn} ${JSON.stringify(r.st.hazKinds)} bad [${r.st.hazBad.join(',')}] hazHitFrames ${r.st.hazHits} deaths ${r.st.deaths} frames ${r.st.frames}`);
+console.log(`minGap ${r.st.minGap.toFixed(1)} @${r.st.minGapAt}  slams ${r.st.slam} (max ${r.st.slamMax.toFixed(1)} at ${r.st.slamAt})  hazards ${r.st.hazSpawn} (aimed ${r.st.hazAim || 0}) ${JSON.stringify(r.st.hazKinds)} bad [${r.st.hazBad.join(',')}] hazHitFrames ${r.st.hazHits} deaths ${r.st.deaths} frames ${r.st.frames}`);
 console.log('music:\n  ' + mx);
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none');
 ranOn('route-probe');

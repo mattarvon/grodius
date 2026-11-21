@@ -28,6 +28,7 @@ import { PH, W, ctx, hash } from '../../../core';
 import { ceilAt, floorAt } from '../../../world';
 import { KB, lobFrames, pendXY, riseCap, rotXY } from '../../../enemies/boss/_keepsake';
 import { glow } from '../../util';
+import { colMark, hatch } from '../../colmark';
 import { BIG_LEN, bigFork as atlasFork, drawFork, mobFork } from '../../fork';
 import { spr, sprReady } from '../../../sprites';
 import { drawParts, emit, fxs, glowC, GROSS, rn, rnd, spray, stepParts, strand } from '../midbosses';
@@ -253,12 +254,6 @@ function homing(e) {
   for (let j = 0; j < e.fh; j++) drawFork(ctx, e.hX[j], e.hY[j], Math.atan2(e.hVY[j], e.hVX[j]), 1);
   ctx.restore();
 }
-/** stripes across the current clip, every `step` px at 45 deg (the beam's and the mark's hatching) */
-function hatch(x0, y0, x1, y1, step, off) {
-  ctx.beginPath();
-  for (let u = x0 - (y1 - y0) + (off % step); u < x1; u += step) { ctx.moveTo(u, y1); ctx.lineTo(u + (y1 - y0), y0); }
-  ctx.stroke();
-}
 /** CRACKED's search beam: a hatched cone along the rocker's wire, pale glass blue, dimmed while it rests; and the mark,
  *  a hatched band down the ship's column with its edges ruled, filling from the ceiling to the floor as the forks come
  *  (three chevrons at the top where they will fall) */
@@ -276,15 +271,9 @@ function searchBeam(e) {
   ctx.strokeStyle = BEAM_EDGE[ri]; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a - h) * L, y + Math.sin(a - h) * L); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a + h) * L, y + Math.sin(a + h) * L); ctx.stroke();
   if (e.mkT > 0) {
-    const k = 1 - e.mkT / KB.bTel, hw = KB.bRainDx + 8, x0 = e.mkX - hw, x1 = e.mkX + hw, sc = $.G.scroll;
-    const top = Math.max(0, ceilAt(e.mkX + sc)), bot = Math.min(PH, floorAt(e.mkX + sc)), fill = top + (bot - top) * k;
-    ctx.beginPath(); ctx.rect(x0, top, 2 * hw, fill - top); ctx.save(); ctx.clip();
-    ctx.strokeStyle = 'rgba(255,90,60,.55)'; ctx.lineWidth = 1.5;
-    hatch(x0, top, x1, fill, 6, 0); // the part filled so far: dense red hatching
-    ctx.restore();
-    ctx.strokeStyle = '#ff6e50'; ctx.globalAlpha = .45 + .45 * k; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x0, bot); ctx.moveTo(x1, top); ctx.lineTo(x1, bot); ctx.stroke();
-    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0, fill); ctx.lineTo(x1, fill); ctx.stroke(); // the fill's edge, dropping
+    const k = 1 - e.mkT / KB.bTel, hw = KB.bRainDx + 8, sc = $.G.scroll;
+    const top = Math.max(0, ceilAt(e.mkX + sc)), bot = Math.min(PH, floorAt(e.mkX + sc));
+    colMark(e.mkX, hw, top, bot, k); // the band, filling ceiling to floor (render/colmark.ts, shared with D61's hazards)
     for (let i = 0; i < KB.bRainN; i++) { // where the three forks fall
       const fx = e.mkX + (i - (KB.bRainN - 1) / 2) * KB.bRainDx;
       ctx.beginPath(); ctx.moveTo(fx - 4, top + 4); ctx.lineTo(fx, top + 9); ctx.lineTo(fx + 4, top + 4); ctx.stroke();
