@@ -2,6 +2,13 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-21 (Descent 1 balance)
+
+- Bigger formations no longer snowball: once you are strong, waves gain at most two extra drones (was up to six), and those extra drones give half XP and drop no biomass or pods.
+- The second biome's midbosses take about twice as long to kill, and the first biome's bosses are tougher: the Bloat a little, the Butcher more, the Maw most.
+- The Gravity Drive stage's enemies open fire as soon as they arrive and shoot more often.
+- Easing back on two of the 2026-11-20 threats: fewer hazards drop on your position (and none while a midboss or boss is up), and only every other flayer hunts you.
+
 ## 2026-11-20 (THE KEEPSAKE: a new stage boss)
 
 - THE KEEPSAKE, a giant vinyl doll's head with a fork in its soft spot, is now the boss at the end of the second biome stage in Descent 1 (and in Descents 3 and 5, taking turns with that biome's own boss). The old midboss version is gone. Only the top of the head takes full damage. It sleeps, wakes, rocks, cracks open, and dies with PUT TO BED. It never runs away.

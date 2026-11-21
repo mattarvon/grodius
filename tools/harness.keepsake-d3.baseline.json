@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "977e36f",
+  "commit": "07dc894",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "keepsake-d3",
@@ -11,9 +11,9 @@
     "scroll": 19247,
     "lives": 3,
     "px": 50,
-    "py": 110.181,
+    "py": 143.581,
     "en": 1,
-    "gibs": 70,
+    "gibs": 59,
     "drops": 9,
     "caps": 0,
     "jump": true,
@@ -26,11 +26,11 @@
     "kills": 0,
     "t": 1170,
     "seen": "mini:keepsake",
-    "sig": "60aae11867"
+    "sig": "2c2ff997ae"
   },
   "hashes": [
-    "e2fa354fce",
-    "a14dda025d"
+    "72bcfe325b",
+    "fd56d85a8d"
   ],
   "errs": []
 }

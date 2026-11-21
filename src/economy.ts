@@ -24,9 +24,9 @@ export type Kind = 'orbit' | 'biome' | 'interior' | 'drive';
 export type HpmCol = 'orbit' | 'biome0' | 'interior' | 'biome1' | 'drive';
 export type Grade = 'S' | 'A' | 'B' | 'C';
 /** D58 (Matt, 2026-11-15; rebuilt on D61, 2026-11-21): what changes in a late stage (lateStage: biome slot B and later,
- *  and the Drive) on a long entry. null = nothing (short: today's game). Enemy fire is untouched (D58 #1 dropped: the
- *  fixed probe showed late pressure at or over its band) and so is the death refill (D58 #5 dropped: D61 Pass 2's
- *  BLACK BOX rule owns it). production/decision-log.md D58, D62 */
+ *  and the Drive) on a long entry. null = nothing (short: today's game). Enemy fire changes only on the Drive (D62);
+ *  D58 #1, the everywhere version, was dropped once the fixed probe showed late pressure at its band. The death refill
+ *  is untouched: D58 #5 was dropped for D61 Pass 2's BLACK BOX rule. production/decision-log.md D62 */
 export interface LateSet {
   /** D58 #4: held midboss HP multiplier in biome slot B and later (spawn.ts midboss), on top of D27's MID_HP. Revises
    *  D27/D29's one slot-blind band: slot B is re-banded to the power runs carry into it */
@@ -82,7 +82,7 @@ export interface EconEntry {
   bossOrdW: Readonly<Record<string, number>>;
   /** D58 #3: rank drones (spawn.ts formationExtra) and what they pay */
   form: FormSet;
-  /** D58 #1, #4, #5: the late-stage set; null = none */
+  /** D58 #4 and D62's Drive bump: the late-stage set; null = none */
   late: LateSet | null;
   /** GLUTTONY graft thresholds (mutations.ts GM 'over' n: Maw + midboss kills) */
   glut: readonly number[];
@@ -196,8 +196,6 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // (pod-probe grades[3].kit.gm, kills)
     graftMul: 1.8,
     intra: .35, // late Descent 1 would otherwise stay soft over a longer descent (depth-probe, playtest.mjs hits/min)
-    // D58 #2 (Matt): bosses grow per stage, x1.2 in biome slot A and x1.4 in slot B. Before: the biome-B boss died in
-    // 5-7 s at the carried kit (boss-probe --ord 2, BIOME B kit); target 12-15 s
     // D58 #2 (rebuilt on D61): x1.3 in slot A and x1.6 in slot B by default; the biome bosses now fight in slot A only
     // (THE KEEPSAKE holds slot B). Weights to D61's 15-22 s at the BIOME B kit (boss-probe --ord 1 / 2): Bloat x1.2 (13.1
     // s at x1), Butcher x1.6 (10.1), the Maw capped at x2 (4.5 s; more would put the STAGE 1 kit at its 28 s escape
@@ -246,7 +244,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
   },
 };
 
-/** D58 #1/#4/#5: is a stage of kind `kind` in biome slot `slot` a late stage: biome slot B or later, or the Drive */
+/** D58 #4 / D62: is a stage of kind `kind` in biome slot `slot` a late stage: biome slot B or later, or the Drive */
 export const lateStage = (kind: Kind | undefined, slot: number): boolean => kind === 'drive' || (kind === 'biome' && slot >= 1);
 
 /** D58 #2: stage-boss kind `k`'s HP multiplier at stage ordinal `ord`: 1 + bossOrd * w_k * ord / (n - 1), w_k from

@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "977e36f",
+  "commit": "07dc894",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "breath2",
@@ -9,28 +9,28 @@
     "state": "play",
     "score": 1500,
     "scroll": 10739,
-    "lives": 0,
+    "lives": 1,
     "px": 50,
-    "py": 110.538,
+    "py": 125.498,
     "en": 1,
-    "gibs": 32,
-    "drops": 97,
-    "caps": 3,
+    "gibs": 14,
+    "drops": 299,
+    "caps": 0,
     "jump": true,
     "stage": 1,
     "pair": "choir+cyst",
     "loop": 0,
-    "pow": 0,
-    "rank": 0,
+    "pow": 0.227,
+    "rank": 0.227,
     "lvl": 6,
     "kills": 0,
-    "t": 1180,
+    "t": 1190,
     "seen": "mini:cyst",
-    "sig": "2238826f8b"
+    "sig": "ab12409b26"
   },
   "hashes": [
-    "38493e9284",
-    "74a4498517"
+    "c2180116be",
+    "fc66357056"
   ],
   "errs": []
 }

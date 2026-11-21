@@ -1289,3 +1289,92 @@ Main sat at 0.3-1.4 would-be hits/min with the rank capped by D2 Orbit and bosse
 - **Pass 3 (later):** midboss enrage instead of leaving (D2+), crossfire/drag set pieces, optional Sinus contractions.
 
 **Category:** balance, design
+
+### D62 Descent-1 balance on D61: the bullet counter fixed, Pass 1 toned down, D58 rebuilt, a Drive-only bump — 2026-11-21 (Matt's calls)
+
+**Decision point:** `tools/playtest.mjs` never counted enemy bullets: `main.ts` `__G()` carries no `eshots`, so every
+would-be hit, D61's source tally included, was a body, lash or hazard (fixed in dab3421). D58, Matt's five-point
+Descent-1 pass of 2026-11-15 (branch `balance-d1`, kept as reference, never merged), had been fitted on that blind
+probe. Main's D61 sim re-measured with bullets counted (16 seeds, invincible bot, Descent 1) sat over D61's own D1 bands
+in Orbit 2.94, biome A 3.25 and biome B 7.22 (aimed hazards 149 and lash 22 of 313 hits), under it on the Drive 2.03,
+with slot-B midbosses at 4.1-5.8 s (D61: 10-13) and the mortal pilot clearing 4 of 5.
+
+**Chosen (Matt):**
+1. **Tone down D61 Pass 1's rates, not the bands.** The mechanics stay; how often they come is cut (`src/notice.ts`):
+   every 6th column hazard aimed (D61 3; Descent 3 1 in 4, D61 1 in 2), none while a midboss or boss is up
+   (`hazInFight` false); every 2nd flayer hunts (`flayEvery` 2; the rest park at their spawn x as before D61), and a
+   hunter's cooldown after a lash is x1.4 (`flayCool`).
+2. **D61 Pass 2's BLACK BOX rule wins over D58 #5** (no refill in late fights): #5 is dropped and its slot left clear for
+   Pass 2.
+3. **I (this lane) own the tuning round** on main, rebuilding D58 on D61 as `balance-d2` (`balance-d1` untouched).
+4. **Accept the fit with Orbit and biome B over their bands.** The non-dodging bot overcounts Furnace jets (unaimed jets
+   drift onto a parked ship and live 70 f; pre-D61): don't touch the Furnace jets or the sentry turn-around.
+5. **Yes to a Drive-only pressure bump** until the Drive lands in 3.5-4.9 hits/min.
+
+**Built** (long4 only unless noted; `src/economy.ts` `LATE_LONG4`, `bossOrd`, `bossOrdW`, `form`):
+- D58 #1 (late fire everywhere) and #5 dropped.
+- D58 #3 snowball as built: rank drones round(2·min(1, pow)), half XP, no biomass, no carrier.
+- D58 #4 slot-B midboss HP (revises D27/D29): Choir x2.0, Womb x2.4, Apprentice x2.4, Brood x2.7, any other held kind
+  x2.2; their parts follow (e.dm).
+- D58 #2 stage-boss HP x(1 + .9·w·ord/3): Bloat w .667 (x1.2 in slot A), Butcher 2 (x1.6), Maw 3.333 (x2.0, capped: more
+  puts its STAGE 1 kit fight at its ~28 s escape clock), THE KEEPSAKE 0 (D59 fitted its base HP 440 to 38-46 s at kit=mid
+  with no stage term; its note asked for exactly this), any other boss 1. The biome bosses now fight in slot A only.
+- Drive-only bump (#5 above): its regular shooters' first shot ri(20, 60) f (`driveFirst`) and their cooldowns x.7
+  (`driveCool`, `cadence.ts` `coolFor`). x.8 alone gave 3.10/min.
+- Pass 1 rates (#1 above) act on every layout, as Pass 1 does.
+- Tools: boss-probe stages THE KEEPSAKE at its real stage ordinal (it fought at stage 0, so stage-order HP never reached
+  it); layout-parity's default seed 15 (0111) is replaced by 10 (1111).
+
+**Measured** (fixed probe; invincible bot, 32 seeds; pilot = pod-probe --mortal --pilot on seeds 1/3/5/7/11; TTK =
+midboss-probe --ord 2 --leave 1260 and boss-probe --ord 1/2):
+
+| | D61 target | Main (D61, fixed probe) | D62 |
+|---|---|---|---|
+| Orbit hits/min | 1.0-1.4 | 2.94 (16 seeds) | 2.17 (lash 45, orbs 46, hatchlings 39) |
+| Biome A hits/min | 1.8-2.52 | 3.25 | 3.89 (Furnace 6.65/min in 12 of 32 runs; acid 1.50, ice 3.90, snot 1.24) |
+| Biome B hits/min | 3.0-4.2 | 7.22 | 4.76 (Furnace 8.42; acid 3.21, ice 4.32, snot 3.92) |
+| Drive hits/min | 3.5-4.9 | 2.03 | 3.78 |
+| Slot-B midbosses, BIOME B kit (s) | 10-13 | 4.1-5.8 | Choir 10.3, Womb 11.4, Apprentice 11.8, Brood 10.7 |
+| Slot-A midbosses, STAGE 1 kit (s) | 8-11 | 8.7-11.2 | unchanged |
+| Slot-A bosses, BIOME B kit / STAGE 1 kit (s) | 15-22 | Maw 4.5/8.2, Bloat 13.1/25.0, Butcher 10.1/20.0 | Maw 8.4/16.9, Bloat 14.8/31.9, Butcher 15.4/32.4 |
+| THE KEEPSAKE, STAGE 1 / BIOME B kit (s) | 38-46 at kit=mid | 34.6 / 28.4 | unchanged (STRONG floor PASS 26.1) |
+| Gravity Drive, BIOME B kit (s) | >= 24 | 32.4 | 32.1 |
+| Mortal pilot, Descent 1 clears | 2-3 of 5 | 4 of 5 | 3 of 5 (seeds 3, 7, 11) |
+| End-of-D1 LV (playtest) | 10-12 | 10-14 | 10-13 (one 13 in 32) |
+| Stage seconds, Orbit / A / B / Drive | 120-150 | 128 / 143 / 163 / 146 | 128 / 150 / 173 / 146 |
+
+**Over or under, and why:**
+- Biome A is over its band by the same Furnace artifact as B. Without the Furnace runs it is about 2.0 (acid, ice and snot, run-weighted).
+- The slot-B midbosses escape the STAGE 1 kit (21 s clock). A run carries .55-.84 rank into slot B, so the BIOME B kit
+  is the real one.
+- The Maw stays under 15 s by its cap. The Bloat and Butcher take ~32 s at the STAGE 1 kit, over 22.
+- Biome B now runs 173 s, over the 150 s stage ceiling: THE KEEPSAKE's fight plus the slot-B midbosses.
+
+**Category:** balance
+
+**Harness and parity:**
+- Re-baselined, each a move from this change:
+  - long4 and the orbit scenario: the hunting share and lash cadence, and the rank-drone cap. The skipped biomass orbs
+    also shift R().
+  - breath2: the aimed-hazard rate and the fight gate.
+  - drive: the Drive bump.
+  - crux-d1/d3 and butcher-d1/d3: stage-order HP.
+  - keepsake-d1/d3: no aimed hazards during its fight.
+- Unchanged and PASS: short @ 977e36f, saucer, maw-d1/d3, drive-d1/d3.
+- `--runs 2` is identical everywhere.
+- layout-parity (short) had failed on main since D61: Pass 1 changed short's sim, seeds 3 and 11 timed out on the Drive
+  and the baseline was never re-taken. D62 changes short again (the Pass 1 rates). On this tree seed 15 (0111) times out
+  (its kit can't kill the Drive inside 100830 frames), so seed 10 (1111) replaces it; 3, 6, 7 and 11 already cover both
+  gates at every fork. The baseline is re-taken and the next run PASSes 7 of 7.
+- A layout-parity run during a source edit recorded `haz: 0`: Vite's reload detached its hazard counter. Re-take
+  baselines on a quiet server.
+- Probes: rng-probe 12 of 12 identical; route-probe bad [] on 3 routes, 0 hazard-hit frames; beat-probe peak 1.65/s;
+  depth and perk-pace error-free (perk-pace bot LV 9 at the end of Descent 1, playtest 10-13).
+- tsc clean, vitest 83 files / 1623 tests, vite build OK.
+
+**Open for Matt:**
+- Biome A over band (the same Furnace artifact; not in his accept list).
+- The slot-B midbosses escape a STAGE 1 kit.
+- Biome B runs 173 s.
+- The Bloat and Butcher take ~32 s at the STAGE 1 kit, over 22.
+- G.flayN, like D61's G.hazN, isn't in the run save, so a resume restarts the hunter count.
