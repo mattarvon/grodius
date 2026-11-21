@@ -261,7 +261,7 @@ export function updateCombo() {
 }
 export const HYPE = {
   // tone note §4(A)8 (D39): grim understatement from a tired controller, no exclamation marks
-  10: ['THAT ONE', 'HAD A NAME'],
+  10: ['YOU', 'RASCAL'], // Matt renamed it 2026-11-21 (was THAT ONE / HAD A NAME)
   20: ['CLEAN-UP CREW', 'IS NOT COMING'],
   35: ['WE WILL NEED', 'A BIGGER BAG'],
   50: ['FILE IT', 'UNDER LOSSES'],
