@@ -8,8 +8,10 @@
 // under Node's type stripping.
 import { FX_CHAIN, cleanFx, fxOn, type FxSet } from './fx.ts';
 
-/** what a render was made from: a keep may use it only when every field is its own */
-export type RenderKey = { cat: string; sha: string; squeeze: boolean; fx: string; chain: number };
+/** what a render was made from: a keep may use it only when every field is its own. `denoise`: the denoise stage
+ *  it was cleaned up with (denoise.ts denoiseTag: 'dfn-<version>' or 'afftdn'), so a DFN render is never filed as an
+ *  afftdn keep or the other way round */
+export type RenderKey = { cat: string; sha: string; squeeze: boolean; fx: string; chain: number; denoise: string };
 
 /** the rack as the key holds it: the cleanFx'd rack's JSON, or '' when no effect is on (processTake renders such a
  *  rack as the clean take, and a keep files it clean) */
@@ -17,11 +19,12 @@ export const fxKey = (fx: FxSet | null | undefined): string => {
   const c = cleanFx(fx);
   return fxOn(c) ? JSON.stringify(c) : '';
 };
-/** the key of a render: the slot, the raw bytes' sha-256 (hex), the pause squeeze, the rack, the FX chain version */
-export const renderKey = (cat: string, sha: string, squeeze: boolean, fx: FxSet | null | undefined, chain: number = FX_CHAIN): RenderKey =>
-  ({ cat, sha, squeeze, fx: fxKey(fx), chain });
+/** the key of a render: the slot, the raw bytes' sha-256 (hex), the pause squeeze, the rack, the FX chain version,
+ *  the denoise stage */
+export const renderKey = (cat: string, sha: string, squeeze: boolean, fx: FxSet | null | undefined, chain: number = FX_CHAIN, denoise = ''): RenderKey =>
+  ({ cat, sha, squeeze, fx: fxKey(fx), chain, denoise });
 export const sameKey = (a: RenderKey, b: RenderKey) =>
-  a.cat === b.cat && a.sha === b.sha && a.squeeze === b.squeeze && a.fx === b.fx && a.chain === b.chain;
+  a.cat === b.cat && a.sha === b.sha && a.squeeze === b.squeeze && a.fx === b.fx && a.chain === b.chain && a.denoise === b.denoise;
 
 /** a preview id as the page sends it back: 24 hex digits (12 random bytes) */
 export const PREVIEW_ID_RE = /^[0-9a-f]{24}$/;
