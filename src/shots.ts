@@ -15,6 +15,7 @@ import { chainArc, critMul, gmL, graftTake } from './mutations';
 import { applyPower, meterAdvance, playerHit, slotMaxed } from './player';
 import { light } from './render/util';
 import { impact, ring, smoke, stepGunFX } from './fx/gunfx';
+import { segDist } from './enemies/butcherhook';
 
 // ---------------- shots / collisions ----------------
 export function hitShot(s, cx, cy, r) {
@@ -223,9 +224,30 @@ export function updateShots() {
     if (dead || s.x > W + 12 || s.x < -14 || s.y < -12 || s.y > PH + 12) swapRm(shots, i);
   }
 }
+/** the enemy-shot hit test (Matt, BRUTAL: "some of the green enemy weapons pass through me"). The core stays the
+ *  Gradius-small circle, ship 2.6 px + the shot's r; what changed is WHEN it is tested. It was a point test at the end
+ *  of each frame only, so a shot whose path crossed the core between two tests while the ship moved too went through
+ *  untouched (tools/eshot-hit-probe.mjs). That gets more common as BS() and the BRUTAL bs lever speed shots up. Now it
+ *  is swept: the shot's path in the ship's frame, from the last test to this one */
+export const EHIT = {
+  ship: 2.6, //  the ship's core radius (SHRUNKEN CORE takes 20% a level); _deny.ts SHIP_R is the same 2.6
+  jump: 16, //   a ship that moved more than this on an axis since the last test was placed (respawn, stage start,
+  //             checkpoint), not flown: sweep from where it is now. The fastest flown move is a touch drag, 9 px an axis
+};
+/** did a shot going from (ox, oy) to (x, y) touch a ship going from (lx, ly) to (px, py)? r: core + shot. Pure: the
+ *  closest approach of the shot's path in the ship's frame */
+export function eshotTouches(ox, oy, x, y, lx, ly, px, py, r) {
+  if (Math.abs(px - lx) > EHIT.jump || Math.abs(py - ly) > EHIT.jump) (lx = px), (ly = py);
+  return segDist(ox - lx, oy - ly, x - px, y - py, 0, 0) < r;
+}
 export function updateEShots() {
+  const P = $.P,
+    lx = P && (P.ex ?? P.x), // where the ship was at the last test (the end of the last updateEShots)
+    ly = P && (P.ey ?? P.y);
   for (let i = eshots.length - 1; i >= 0; i--) {
-    const s = eshots[i];
+    const s = eshots[i],
+      ox = s.x,
+      oy = s.y;
     s.t++;
     let dead = false;
     if (s.k === 'glob') {
@@ -262,7 +284,7 @@ export function updateEShots() {
         dead = true;
       }
     }
-    if (!dead && $.P.alive && dist2(s.x, s.y, $.P.x, $.P.y) < (s.r + 2.6 * (1 - .2 * pk('tiny'))) ** 2) {
+    if (!dead && $.P.alive && eshotTouches(ox, oy, s.x, s.y, lx, ly, P.x, P.y, s.r + EHIT.ship * (1 - .2 * pk('tiny')))) {
       if ($.P.inv <= 0 || $.P.shield > 0) {
         playerHit();
         dead = true;
@@ -297,6 +319,7 @@ export function updateEShots() {
     }
     if (dead || s.x < -12 || s.x > W + 12 || s.y < -12 || s.y > PH + 12) swapRm(eshots, i);
   }
+  if (P) (P.ex = P.x), (P.ey = P.y); // the next frame sweeps from here (never saved: runsave.ts allowlists P's fields)
 }
 export function updateEnemies() {
   for (let i = enemies.length - 1; i >= 0; i--) {
