@@ -4,7 +4,8 @@
 //   power  - level, power rank (0..1; enemy HP scales with it), weapon levels, grafts, contraptions, per stage
 //   kill   - how long regular enemies live once on screen (median / p90 s), % killed in the right quarter of the screen,
 //            % that escape; boss / midboss kill times
-//   danger - would-be hits per minute (enemy shot or body overlapping the ship while it's invincible), per stage and for the run
+//   danger - would-be hits per minute (enemy shot or body overlapping the ship, a flayer's lash or a biome hazard reaching
+//            it, while it's invincible), per stage and for the run
 //   variety - enemy kinds per stage, wave signatures (kinds spawned together) and how often the top one repeats,
 //            how much of descent N's stage repeats descent N-1's mix, hype voice count, music per stage
 // Screenshots every SHOT seconds of game time go to <outDir>. Needs the VITE dev server (imports live modules).
@@ -51,6 +52,21 @@ fs.mkdirSync(OUT, { recursive: true });
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript((seed) => {
+  // would-be hits with no projectile (D61): the flayer's lash (enemies/update.ts, the same test on whipPts from strike
+  // frame 5 to 15) and the biome hazards (biomes.ts stepBiome's geometry). Before D61 neither was counted
+  window.noShotHit = (h, P) => {
+    const EU = window.__EU;
+    if (EU) for (const e of h.enemies) if (!e.dead && e.k === 'flayer' && e.ws === 'strike' && e.wt > 4 && e.wt < 16) {
+      const pts = EU.whipPts(e); for (let i = 4; i < pts.length; i++) if ((P.x - pts[i].x) ** 2 + (P.y - pts[i].y) ** 2 < 4.5 * 4.5) return true; }
+    const B = globalThis.__biome ? globalThis.__biome() : null;
+    if (B) for (const z of B.haz) {
+      if (z.k === 'icicle' && Math.abs(P.x - z.x) < 5 && P.y > z.y && P.y < z.y + z.len + 4) return true;
+      if ((z.k === 'geyser' || z.k === 'jet') && z.reach && Math.abs(P.x - z.x) < 7) {
+        const y0 = z.k === 'geyser' ? z.y - z.reach : z.dir > 0 ? z.y : z.y - z.reach, y1 = z.k === 'geyser' ? z.y : z.dir > 0 ? z.y + z.reach : z.y;
+        if (P.y > y0 && P.y < y1) return true; }
+    }
+    return false;
+  };
   let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);
   try { localStorage.clear(); } catch (e) {}
@@ -77,7 +93,7 @@ await p.addInitScript((seed) => {
         if (r.f0 != null && !r.big) L.life.push({ k: r.k, st: r.st, s: (L.fr - r.f0) / 60, killed: r.x > -8 && r.x < 490, right: r.x > 360 }); }
       // would-be hits (ship hitbox ~4 px), at most one per 30 frames like real i-frames
       if (L.hitCD > 0) L.hitCD--;
-      else if (h.eshots && h.eshots.some((s) => (s.x - P.x) ** 2 + (s.y - P.y) ** 2 < 36) || h.enemies.some((e) => !e.dead && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < ((e.r || 6) + 2) ** 2)) { L.hits++; L.hitsBy[st] = (L.hitsBy[st] || 0) + 1; L.hitCD = 30; }
+      else if (h.eshots && h.eshots.some((s) => (s.x - P.x) ** 2 + (s.y - P.y) ** 2 < 36) || h.enemies.some((e) => !e.dead && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < ((e.r || 6) + 2) ** 2) || noShotHit(h, P)) { L.hits++; L.hitsBy[st] = (L.hitsBy[st] || 0) + 1; L.hitCD = 30; }
       // bosses
       for (const m of [G.mini, G.boss]) if (m && !m.__pt) { m.__pt = 1; L.bosses.push({ k: m.k || 'drive', title: m.title || '', st, f0: L.fr, m }); }
       for (const bo of L.bosses) if (bo.f1 == null && (bo.m.dead || (bo.m !== G.mini && bo.m !== G.boss))) { bo.f1 = L.fr; bo.killed = !!bo.m.dead || (bo.m.hp != null && bo.m.hp <= 0); }
@@ -86,6 +102,7 @@ await p.addInitScript((seed) => {
 await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'playtest');
 // stage-relative x for the signature (script x is relative to its row's x0), read from the layout useLayout activated
+await p.evaluate(async () => { window.__EU = await import('/src/enemies/update.ts'); }); // whipPts for noShotHit
 const LAY = await p.evaluate(() => { const M = window.__LY; window.__x0 = (i) => (M.row(i) ? M.row(i).x0 : 0); return { id: M.layout().id, ufoAt: M.ufoAt() }; });
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
