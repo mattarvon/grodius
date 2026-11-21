@@ -18,7 +18,8 @@
 // `window.__pilotLog` reports `frames` piloted, `trapped` (frames where every candidate move was unsafe) and `deaths`
 // (for each life lost: the stage, scroll, position, the midboss or Drive up, and the two nearest threats just before).
 // Attacks with no projectile that it models from their telegraphs: the Saucer's lash, the Drive's beam, the
-// Apprentice's and the Butcher's cleaver sectors, and the Butcher's hook; the Drive's tentacles are predicted from
+// Apprentice's and the Butcher's cleaver sectors, and the Butcher's hook; with window.__DN loaded (src/enemies/mid/_deny.ts),
+// the midbosses' denial moves (the lane bar, the acid pools, the Apprentice's hook); the Drive's tentacles are predicted from
 // boss/update.ts tentPts. Not modelled (seen only through the enemy's body and shots): any other no-projectile attack.
 // Like the older bots it moves the ship by writing P.x / P.y, not through input; the speed cap keeps that honest.
 
@@ -50,6 +51,9 @@ export const PILOT = `(() => {
     for (const e of g.enemies) { if (e.dead || e.ghost > 0) continue; const [vx, vy] = vel(e); th.push({ x: e.x, y: e.y, vx, vy, r: (e.r || 6) + 4, k: e.k });
       if (e.hb) for (const h of e.hb) th.push({ x: e.x + h[0], y: e.y + h[1], vx, vy, r: h[2] + 4 }); }
     if (G.boss && !G.boss.dying) { const b = G.boss, [vx, vy] = vel(b); th.push({ x: b.x, y: b.y, vx, vy, r: 62, k: 'drive' }); }
+    // the midbosses' area denial (D61, src/enemies/mid/_deny.ts denyPts: the Choir's loose bar, the Womb's pools, the
+    // Apprentice's hook and chain), when the tool has loaded it as window.__DN
+    if (window.__DN && G.mini && G.mini.mid) window.__DN.denyPts(G.mini, sc, th);
     const B = globalThis.__biome ? globalThis.__biome() : null, haz = B ? B.haz : [];
     // line attacks with no projectile, each { x, y, a, len, w, t0, t1 }: active for look-ahead frames t0 <= t < t1
     const lines = [];
