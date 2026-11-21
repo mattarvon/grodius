@@ -13,6 +13,7 @@ import { BOSS_ART, BOSS_DRAW } from './gross/boss'; // the registered stage boss
 import { HOST_TINT, isCross } from '../enemies/midhost';
 import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'; // flyers: wasp / eyeball / corpse
 import { drawEliteAura, drawElitePus } from '../enemies/elite';
+import { KH } from '../enemies/butcherhook';
 
 // --- enemies ---
 export function drawDrone(c, e) {
@@ -980,16 +981,35 @@ export function drawEnemy(e) {
       ctx.strokeStyle = `rgba(255,40,40,${.3 + .6 * e.wt / 40})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(e.x + 10, e.y - 8);
-      ctx.lineTo(e.x + 10 + Math.cos(e.ha) * 230, e.y - 8 + Math.sin(e.ha) * 230);
+      const ph2 = e.hp < e.max * .5, tl = ph2 ? KH.tell2 : KH.tell1, lk = ph2 && e.wt >= tl - KH.lock;
+      const len = ph2 ? KH.reach2 : KH.reach1;
+      ctx.strokeStyle = `rgba(255,${lk ? 90 : 40},${lk ? 60 : 40},${.3 + .6 * e.wt / tl})`; // D61: the aim line locks solid-bright for the last frames
+      if (lk) ctx.setLineDash([]);
+      const lx = lk && e.lx != null ? e.lx : e.x + 10, ly = lk && e.ly != null ? e.ly : e.y - 8; // locked: the line stays where the hook will fly
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(lx + Math.cos(e.ha) * len, ly + Math.sin(e.ha) * len);
       ctx.stroke();
       ctx.restore();
     }
     if (e.hk) {
-      const tx = e.x + 10 + Math.cos(e.ha) * e.hk.d,
-        ty = e.y - 8 + Math.sin(e.ha) * e.hk.d;
-      drawChain(ctx, e.x + 10, e.y - 8, tx, ty, 1.4);
-      drawHookTip(ctx, tx, ty, e.ha - Math.PI / 2, 1.4);
+      const h2 = e.hk.v2;
+      let tx = h2 ? e.hk.tx : e.x + 10 + Math.cos(e.ha) * e.hk.d,
+        ty = h2 ? e.hk.ty : e.y - 8 + Math.sin(e.ha) * e.hk.d;
+      if (h2 && e.hk.pl) { // D61 planted: the chain drawn taut and hot across the lane, shuddering through its last frames before the reel
+        const sh = e.hk.pt > KH.plant - KH.warn ? srr(-1.6, 1.6) : 0;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,70,40,.55)';
+        ctx.lineWidth = 3 + (sh ? 1 : 0);
+        ctx.beginPath();
+        ctx.moveTo(e.x + 10, e.y - 8);
+        ctx.lineTo(tx, ty + sh);
+        ctx.stroke();
+        ctx.restore();
+        ty += sh;
+      }
+      const ha = h2 ? Math.atan2(ty - (e.y - 8), tx - (e.x + 10)) : e.ha;
+      drawChain(ctx, e.x + 10, e.y - 8, tx, ty, e.hk.pl ? 2 : 1.4);
+      drawHookTip(ctx, tx, ty, ha - Math.PI / 2, 1.4);
     }
   }
   if (e.burn > 0) {
