@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, TAU, ctx, hash } from '../core';
+import { C, TAU, W, ctx, hash } from '../core';
+import { NOTICE } from '../notice';
 import { srnd, srr } from '../srnd';
 import { ceilAt } from '../world';
 import { whipPts } from '../enemies/update';
@@ -15,9 +16,26 @@ import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'
 import { drawEliteAura, drawElitePus } from '../enemies/elite';
 
 // --- enemies ---
+/** D61: a dive drone's U-turn tell (enemies/update.ts uTurn, 46 f): its lane, a dashed line out to the right edge
+ *  while it tracks the ship's height, solid and blinking once it locks (the sentry's aim-line grammar), and a red flare
+ *  that builds. Hatching aside, it reads without colour: the line's dash, then its blink */
+function uTurnTell(c, e) {
+  const lk = NOTICE.uTel - NOTICE.uLock, lock = e.uw >= lk, k = Math.min(1, e.uw / NOTICE.uTel);
+  c.save();
+  if (!lock) { c.setLineDash([3, 3]); c.lineDashOffset = -$.T * .5; }
+  c.strokeStyle = `rgba(255,40,30,${lock ? (($.T >> 1) & 1 ? .85 : .45) : .15 + .35 * Math.min(1, e.uw / lk)})`;
+  c.lineWidth = lock ? 1.2 : 1;
+  c.beginPath(); c.moveTo(8, 0); c.lineTo(W - e.x + 10, 0); c.stroke();
+  c.restore();
+  c.globalCompositeOperation = 'lighter';
+  glow(0, 0, 5 + 7 * k, '255,40,30', .25 + .5 * k * ((($.T >> 2) & 1) ? 1 : .6));
+  c.globalCompositeOperation = 'source-over';
+}
 export function drawDrone(c, e) {
-  // the wasp (Tiamalt, CC-BY 3.0): sick yellow-green, faint wingbeat; rear waves fly right so they're mirrored
-  const d = e.pat === 'behind' ? -1 : 1, ph = (e.i || 0) * 7;
+  if (e.ut === 1) uTurnTell(c, e);
+  // the wasp (Tiamalt, CC-BY 3.0): sick yellow-green, faint wingbeat; rear waves fly right so they're mirrored, and so
+  // does a U-turned dive drone from the half of its tell on (D61)
+  const d = e.pat === 'behind' || e.ut === 2 || (e.ut === 1 && e.uw >= NOTICE.uTel / 2) ? -1 : 1, ph = (e.i || 0) * 7;
   if (sprF(c, 'wasp', sprAtF(e.t + ph, 50), 0, -4.5, { sx: d })) {
     c.save();
     c.scale(d, 1);
@@ -1111,6 +1129,10 @@ export function drawSlime(c, e) {
   }
 }
 export function drawMutant(c, e) {
+  if (e.bk && !e.dead) { c.save(); c.scale(-1, 1); drawMutant0(c, e); c.restore(); return; } // turned round to hurl back (D61)
+  drawMutant0(c, e);
+}
+function drawMutant0(c, e) {
   let k = 'mutant-walk', f = sprAt(e.t, 9);
   if (e.dead) { k = 'mutant-die'; f = Math.min(7, ($.T - (e.dT || $.T)) / 6 | 0); } // the torn halves stagger as they fly
   else if (e.st === 'tel') { k = 'mutant-hurl'; f = Math.min(4, e.wt * 5 / 44 | 0); }

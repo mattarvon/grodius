@@ -1,5 +1,7 @@
 // S2 (ls1-audit): behindWave's lane filter `fit` (biomes.ts rearY for backdraft and pincer). It must reach the telegraph
-// and the spawn, the spawn after rearLane's re-pick, and default to the identity so every other caller is unchanged.
+// and the spawn, and default to the identity so every other caller is unchanged.
+// D61 Pass 1 ("it notices you"): the wave comes in at the ship's height (rearLane no longer flips it 60 px clear), and
+// the lane is picked once, at the 100 f telegraph, so the warning is where the wave flies.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
@@ -16,12 +18,12 @@ const { behindWave } = await import('../../src/enemies/spawn');
 
 /** fire the wave's pending spawn (rearWarn's 100 f telegraph, run out) */
 const land = () => { const p = $.G.pend.shift(); p.f(); };
-const LANE = 120, PLAYER_FAR = 240; // rearLane keeps y when the player is >= 60 px away; PH - 55 = 199 / 55 when not
+const LANE = 120, SCRIPTED = 60; // the ship flies at LANE; SCRIPTED is the caller's y, used only with no ship
 
 describe('behindWave fit', () => {
   beforeEach(() => {
     $.G = { loop: 0, pow: 0, st: { spawned: 0 }, warn: [], pend: [] };
-    $.P = { y: PLAYER_FAR };
+    $.P = { y: LANE };
     enemies.length = 0;
   });
 
@@ -48,11 +50,24 @@ describe('behindWave fit', () => {
     expect(enemies.map((e) => e.x)).toEqual([-16, -32, -48]);
   });
 
-  it('fits the lane rearLane re-picks at spawn time when the player has moved onto it', () => {
-    const fit = (v: number) => Math.min(v, 180);
-    behindWave(LANE, 2, { fixed: 1 }, fit);
-    $.P.y = LANE; // within 60 px: rearLane moves the wave to PH - 55 = 199, which fit then holds at 180
+  it("comes in at the ship's height, not the scripted y (D61)", () => {
+    behindWave(SCRIPTED, 3, { fixed: 1 });
+    expect($.G.warn[0].y).toBe(LANE);
+    expect($.G.warn[0].t).toBe(100); // the 100 f warning is kept
     land();
-    expect(enemies.map((e) => e.y)).toEqual([180, 180]);
+    expect(enemies.map((e) => e.y)).toEqual([LANE, LANE, LANE]);
+  });
+
+  it('keeps the telegraphed lane when the ship moves off it before the spawn', () => {
+    behindWave(SCRIPTED, 2, { fixed: 1 });
+    $.P.y = LANE + 70; // stepped off during the warning: the wave still flies where it was shown
+    land();
+    expect(enemies.map((e) => e.y)).toEqual([LANE, LANE]);
+  });
+
+  it('falls back to the scripted y with no ship', () => {
+    $.P = null;
+    behindWave(SCRIPTED, 2, { fixed: 1 });
+    expect($.G.warn[0].y).toBe(SCRIPTED);
   });
 });

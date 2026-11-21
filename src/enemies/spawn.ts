@@ -191,9 +191,11 @@ export function eshoot(x, y, a, sp, k = 'orb') {
 export const aimA = (x, y) => Math.atan2($.P.y - y, $.P.x - x),
   wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
 export const onScreen = e => e.x > -10 && e.x < W - 6;
+/** a rear wave's lane: the ship's height when it is called (D61 Pass 1, "it notices you"; src/notice.ts). It used to
+ *  flip the wave 60 px clear of the ship, which made the back half of the screen a sanctuary. The scripted y is the
+ *  fallback with no ship. The 100 f warning (rearWarn) and the caller's terrain fit still apply */
 export function rearLane(y) {
-  const py = $.P ? $.P.y : PH / 2;
-  return Math.abs(py - y) < 60 ? py < PH / 2 ? PH - 55 : 55 : y;
+  return $.P ? $.P.y : y;
 }
 export function rearWarn(y, f) {
   $.G.warn.push({
@@ -207,11 +209,13 @@ export function rearWarn(y, f) {
     f
   });
 }
-/** a rear drone wave at y, telegraphed 100 f ahead. fit: a lane filter (biomes.ts rearY keeps a set piece's wave out of
- *  the terrain); it runs again at fire time because rearLane re-picks the lane then. Default identity: every other caller */
+/** a rear drone wave at the ship's height, telegraphed 100 f ahead. The lane is picked once, at the telegraph, so the
+ *  warning tells the truth and the ship has its 100 f to step off it (D59's tell rule). fit: a lane filter (biomes.ts
+ *  rearY keeps a set piece's wave out of the terrain); it runs again at fire time because the terrain has scrolled by
+ *  then. Default identity: every other caller */
 export function behindWave(y, n = 5, o = {}, fit = (v) => v) {
   y = fit(rearLane(y));
-  rearWarn(y, () => formation('behind', fit(rearLane(y)), n, o));
+  rearWarn(y, () => formation('behind', fit(y), n, o));
 }
 /** extra drones a power-scaled formation gets: round(3 * min(2, pow)), 0..6 (density is where power shows, D1) */
 export const formationExtra = () => Math.round(Math.min(2.0, $.G.pow || 0) * 3);

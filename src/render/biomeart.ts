@@ -9,6 +9,8 @@ import { FIRE, PH, TAU, W, ctx, hash } from '../core';
 import { ceilAt, floorAt } from '../world';
 import { GROSS, mkTex, texPat } from '../textures';
 import { HUD_TOP, glow, light } from './util';
+import { colMark } from './colmark';
+import { HAZ_WARM, NOTICE } from '../notice';
 import { spr as sprite } from '../sprites';
 import { BIOMES, biomeK } from '../biomes';
 import { drawMoveProps } from './moveprops';
@@ -682,6 +684,16 @@ export function drawBiomeDecor(sc) {
 }
 
 // ---------------- ambient, hazards, fork gates ----------------
+/** D61: an aimed hazard (biomes.ts spawnHazard h.aim) marks its column with D59's band (render/colmark.ts) over its
+ *  whole warm-up, filling from its source along the reach it will have: an icicle ceiling to floor (still drawn as it
+ *  falls), a geyser up from the floor, a jet out from its vent. Once a geyser or jet is live it is its own mark */
+function aimMark(h, sc) {
+  const warm = HAZ_WARM[h.k];
+  if (!warm || h.reach) return;
+  const top = Math.max(0, ceilAt(h.x + sc)), bot = Math.min(PH, floorAt(h.x + sc)), k = Math.min(1, h.t / warm);
+  const [y0, y1] = h.k === 'icicle' ? [top, bot] : h.k === 'geyser' ? [h.y, h.y - (h.y - h.top) * .62] : [h.y, h.y + h.dir * h.span * .55];
+  ctx.save(); colMark(h.x, NOTICE.hazHw, y0, y1, k); ctx.restore();
+}
 export function drawFX(haz, amb, gatePos) {
   const [bk] = $.G ? biomeK($.G.scroll + W / 2) : [null];
   const wk = bk === 'acid' || bk === 'ice' ? woundLook($.G.scroll + W / 2) : null;
@@ -699,6 +711,7 @@ export function drawFX(haz, amb, gatePos) {
   if (bk === 'fire') lit(() => { for (let i = 0; i < amb.length; i += 3) { const p = amb[i]; if (p.em) glow(p.x, p.y, 3, '255,120,30', .35); } });
   const sc = $.G ? $.G.scroll : 0, T = $.T;
   for (const h of haz) {
+    if (h.aim) aimMark(h, sc);
     if (h.k === 'icicle') {
       const warn = h.t < 50, sh = warn ? Math.sin(h.t * 1.7) * (h.t / 50) * 1.6 : 0, x = h.x + sh, y = h.y, L = h.len;
       if (warn) {
