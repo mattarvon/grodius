@@ -3,7 +3,9 @@
 import { $ } from '../../../state';
 import { TAU, ctx, hash } from '../../../core';
 import { ceilAt } from '../../../world';
-import { drawChain } from '../../util';
+import { drawChain, drawHookTip } from '../../util';
+import { DN } from '../../../enemies/mid/_deny';
+import { aimLine } from './_deny';
 import { glowC, fxs, emit, spray, stepParts, drawParts, strand, snd, rnd, rn, GROSS } from '../midbosses';
 import { bakedBuilt, bakedDrop, bakedFallback, bakedWarm, bf, breath, pour, trackDeath, twitch, woundStage } from '../baked';
 
@@ -79,9 +81,24 @@ function grossPrentice(c, e) {
   }
 }
 
-/** under the body: its chain, and the sweep cone */
+/** the hook (D61): its line to the screen's edge on the tell, dashed while it tracks you and ruled solid red once it locks;
+ *  then the chain and the Butcher's hook tip (render/util.ts, the one hook art); biting, the chain hums and the tip bleeds */
+function hookArt(e) {
+  const ox = e.x + DN.hOx, oy = e.y + DN.hOy;
+  if (e.st === 'htel') { const lock = e.wt > DN.hTel - DN.hLock; aimLine(ox, oy, e.ha, DN.hMax, e.wt / DN.hTel, lock, lock ? '255,40,30' : '255,120,60'); }
+  if (!(e.hd > 0)) return;
+  const bite = e.st === 'bite', hum = bite ? Math.sin(($.T || 0) * 1.7) * 1.2 : 0, c = Math.cos(e.ha), s = Math.sin(e.ha);
+  const tx = ox + c * e.hd, ty = oy + s * e.hd;
+  if (bite) { ctx.strokeStyle = 'rgba(255,60,40,.35)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(tx, ty); ctx.stroke(); } // the wire is live
+  drawChain(ctx, ox - s * hum, oy + c * hum, tx, ty, 1.4);
+  drawHookTip(ctx, tx, ty, e.ha - Math.PI / 2, 1.4);
+  if (bite) { ctx.fillStyle = '#7a0a12'; ctx.fillRect(tx - 1, ty - 1, 2, 2 + (($.T >> 2) % 3)); }
+}
+
+/** under the body: its chain, the hook, and the sweep cone */
 function under(e) {
   drawChain(ctx, e.x, e.y - 20, e.x + 4, Math.max(-8, ceilAt(e.x + $.G.scroll)), 1.4);
+  hookArt(e);
   const sx = e.x - 8, sy = e.y - 6;
   if (e.st === 'tel') { // same sweep cone as the Butcher's, shorter
     const k = e.wt / 50;

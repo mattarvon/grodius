@@ -26,6 +26,7 @@ import { midForce, midsWip } from './lab';
 import { drawPicks } from './setdraw';
 import { MOVES, bandClamp, gimmick, hazInterval, moveAt, snapVent } from './terrainb';
 import { BOSS_SIM, bossFor } from './enemies/boss/registry';
+import { hazAimed, hazLeadX } from './notice';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -506,22 +507,36 @@ const haz = [], amb = [];
 export function biomeReset() {
   haz.length = amb.length = MOVES.length = 0;
   applyPalette(null);
-  if ($.G) { $.G.bx = Array(nSlots() + 1).fill(null); $.G.hazT = 90; $.G.hazHit = 0; $.G.mb = {}; $.G.mbUsed = []; $.G.picks = {}; } // a new descent forgets what it met (spec §6.3 step 2); G.mbLast and G.spUsed are kept
+  if ($.G) { $.G.bx = Array(nSlots() + 1).fill(null); $.G.hazT = 90; $.G.hazHit = 0; $.G.hazN = 0; $.G.mb = {}; $.G.mbUsed = []; $.G.picks = {}; } // a new descent forgets what it met (spec §6.3 step 2); G.mbLast and G.spUsed are kept
 }
 
 function spawnHazard(b) {
   const G = $.G, P = $.P;
-  let x = rr(W * .45, W * .9);
-  for (let k = 0; k < 8 && P && Math.abs(x - P.x) < 46; k++) x = rr(W * .45, W * .9); // never drop it on the ship
+  // D61 "it notices you" (src/notice.ts): every 3rd column hazard (1 in 2 in Descent 3) is aimed. It drops where the
+  // ship's column will be when it reaches the ship's height if the ship holds still, and is marked (h.aim: biomeart draws
+  // D59's hatched column band over its whole warm-up, 50-70 f). The rest still re-roll off the ship
+  const aim = !!P && P.alive && hazAimed(G.hazN = (G.hazN || 0) + 1, G.loop || 0, b);
+  let x;
+  if (aim) {
+    const c0 = ceilAt(P.x + G.scroll);
+    x = hazLeadX(b, P.x, P.y, G.scrollSpeed, c0 + 16, W);
+  } else {
+    x = rr(W * .45, W * .9);
+    for (let k = 0; k < 8 && P && Math.abs(x - P.x) < 46; k++) x = rr(W * .45, W * .9); // never drop it on the ship
+  }
   // the Chimney (movement B1): jets come down its vents. A vent past the right edge would burn its telegraph off-screen
   let vent = false;
   if (b === 'jet') ({ x, vent } = snapVent(x, G.scroll, W)); // src/terrainb.ts; never on short (no bands)
-  if (P && Math.abs(x - P.x) < 46) return;
+  if (!aim && P && Math.abs(x - P.x) < 46) return;
   const wx = x + G.scroll, c = ceilAt(wx), f = floorAt(wx);
-  if (b === 'icicle' && c > 4) haz.push({ k: b, x, y: c + 2, t: 0, vy: 0, len: rr(10, 18) });
-  else if (b === 'geyser' && f < PH - 2) haz.push({ k: b, x, y: f, t: 0, top: c });
-  else if (b === 'jet') { const up = (vent || R() < .5) && c > 4, h = { k: b, x, y: up ? c : f, dir: up ? 1 : -1, t: 0, span: f - c }; if (vent && up) h.vent = 1; haz.push(h); } // vent: the Chimney's own jet (biomeart draws its telegraph bold)
-  else if (b === 'strand' && G.scrollSpeed > .5) haz.push({ k: b, x: W + 10, t: 0, hp: 3, ph: R() * TAU });
+  let h = null;
+  if (b === 'icicle' && c > 4) h = { k: b, x, y: c + 2, t: 0, vy: 0, len: rr(10, 18) };
+  else if (b === 'geyser' && f < PH - 2) h = { k: b, x, y: f, t: 0, top: c };
+  else if (b === 'jet') { const up = (vent || (aim ? P.y < (c + f) / 2 : R() < .5)) && c > 4; h = { k: b, x, y: up ? c : f, dir: up ? 1 : -1, t: 0, span: f - c }; if (vent && up) h.vent = 1; } // vent: the Chimney's own jet (biomeart draws its telegraph bold)
+  else if (b === 'strand' && G.scrollSpeed > .5) h = { k: b, x: W + 10, t: 0, hp: 3, ph: R() * TAU };
+  if (!h) return;
+  if (aim) h.aim = 1;
+  haz.push(h);
 }
 
 export function stepBiome() {

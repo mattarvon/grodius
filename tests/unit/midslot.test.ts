@@ -4,7 +4,7 @@
 // - the picks: two different bodies per long biome stage, none repeated in a descent, made once per stage from
 //   midStream(i); the Orbit's Saucer counted as met; the fork's acid/snot rule; a 200-descent route sweep
 // - filler suppression while a midboss is up, the slot clocks, meta.mb on meet
-// - D27: long4's per-kind base HP (the Apprentice at 200), short unchanged
+// - D27: long4's per-kind base HP (the Apprentice at 180, D61), short unchanged
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
@@ -375,9 +375,9 @@ describe('midHpMul (D27 per-kind TTK band)', () => {
   // the Apprentice's ET base HP (enemies/spawn.ts); the real ET is mocked out of this file
   const PRENTICE_ET = 150;
 
-  it('raises the Apprentice from its ET 150 to 200 base HP on long4', () => {
+  it('raises the Apprentice from its ET 150 to 180 base HP (D61) on long4', () => {
     L.setLayout('long4');
-    try { expect(PRENTICE_ET * midHpMul('prentice', PRENTICE_ET)).toBe(200); } finally { L.setLayout('short'); }
+    try { expect(PRENTICE_ET * midHpMul('prentice', PRENTICE_ET)).toBe(180); } finally { L.setLayout('short'); }
   });
 
   it('leaves every kind at its ET base HP on short, so layout parity holds', () => {

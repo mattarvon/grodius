@@ -15,6 +15,7 @@ import { countKill } from '../mutations';
 import { bankBio, econId, firstKillPay, grpDrops, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
+import { KH, hookBehind, hookHits } from './butcherhook';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
 import { MID_SIM, midHitSnd, midMul, midRow } from './mid/roster';
@@ -24,9 +25,23 @@ import { BOSS_SIM } from './boss/registry';
 import { eliteKill, eliteTick } from './elite';
 import { corpseKilled } from './corpsevoice';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
+import { NOTICE, flayerTx } from '../notice';
 
 /** seconds from a midboss's death to its spoken kill word: the roar (sfx.roar) gets the first beat */
 export const KILL_WORD_AT = .45;
+
+/** a dive drone's U-turn (D61, src/notice.ts). ut 1, the tell (uTel 46 f): it brakes, its lane tracks the ship's height
+ *  and then locks for the last uLock f (render/enemies.ts drawDrone draws the lane line and flips it at the half).
+ *  ut 2: it flies back right along the locked lane at uVx, straight, and leaves off the right edge. Once per drone */
+function uTurn(e) {
+  e.uw++;
+  if (e.ut === 1) {
+    e.uvx = lerp(e.uvx, 0, .15);
+    e.x += e.uvx;
+    if (e.uw <= NOTICE.uTel - NOTICE.uLock) e.y = lerp(e.y, $.P.y, .06);
+    if (e.uw >= NOTICE.uTel) { e.ut = 2; e.uw = 0; }
+  } else e.x += NOTICE.uVx;
+}
 
 // --- enemy behaviour ---
 export function updEnemy(e) {
@@ -52,12 +67,15 @@ export function updEnemy(e) {
         } else if (e.pat === 'behind') {
           e.x += 1.8;
           e.y = e.y0 + Math.sin(e.t * .06 + e.i) * 14 + (e.x > W * .5 ? (e.i - 2) * (e.x - W * .5) * .06 : 0);
-        } else {
+        } else if (e.ut) uTurn(e);
+        else {
           if (!e.turn && e.x > W * .6) e.x -= 2.3;else {
             e.turn = 1;
             e.vy = lerp(e.vy, clamp(($.P.y - e.y) * .04, -1.9, 1.9), .06);
             e.x -= 2.7;
             e.y += e.vy;
+            // D61: from Descent 2 a dive that missed U-turns once, like Gradius (src/notice.ts; uTurn below)
+            if (($.G.loop || 0) >= NOTICE.uLoop && $.P.alive && !(e.ghost > 0) && e.x < $.P.x - NOTICE.uGap && e.x > NOTICE.uMinX) { e.ut = 1; e.uw = 0; e.uvx = -2.7; }
           }
         }
         if (onScreen(e) && !(e.ghost > 0) && R() < .0025 * firem() && e.x > $.P.x + 40) eshoot(e.x, e.y, aimA(e.x, e.y), 1.5);
@@ -198,11 +216,14 @@ export function updEnemy(e) {
       }
     case 'flayer':
       {
+        // D61 "flayers hunt": while it waits it re-parks 90 px ahead of the ship (src/notice.ts flayerTx), so the 155 px
+        // strike follows; during the 34 f tell and the lash its spot holds, so the tell stays honest
+        if (e.ws === 'idle' && $.P.alive) e.tx = flayerTx($.P.x, W);
         if (e.t < 520) e.x = lerp(e.x, e.tx, .03);else e.x -= 1.3;
         const wx = e.x + $.G.scroll,
           lo = ceilAt(wx) + 18,
           hi = floorAt(wx) - 18;
-        e.y0 += clamp($.P.y - e.y0, -.5, .5) * .5;
+        if (e.ws === 'idle') e.y0 += clamp($.P.y - e.y0, -.5, .5) * .5; // D61: it stops drifting to your height once it winds up
         e.y = clamp(e.y0 + Math.sin(e.t * .035) * 16, lo, Math.max(lo, hi));
         if (e.ws === 'idle') {
           e.cool--;
@@ -215,7 +236,9 @@ export function updEnemy(e) {
           }
         } else if (e.ws === 'tel') {
           e.wt++;
-          e.ang = aimA(e.x - 7, e.y + 1);
+          // D61: a hunting flayer is always in reach, so its aim LOCKS for the last flayLock f of the 34 f tell (the
+          // sentry's grammar): it used to track to the last frame, leaving ~5 f to leave a line that followed you
+          if (e.wt <= 34 - NOTICE.flayLock) e.ang = aimA(e.x - 7, e.y + 1);
           if (e.wt >= 34) {
             e.ws = 'strike';
             e.wt = 0;
@@ -314,6 +337,7 @@ export function updEnemy(e) {
             if (e.st === 'ctel') sfx.tele();
             if (e.st === 'htel') {
               e.ha = aimA(e.x + 10, e.y - 8);
+              e.lx = e.ly = null;
               sfx.chain();
             }
           }
@@ -344,33 +368,90 @@ export function updEnemy(e) {
             e.cool = ph2 ? 50 : 80;
           }
         } else if (e.st === 'htel') {
-          e.ha = lerp(e.ha, aimA(e.x + 10, e.y - 8), .05);
-          if (e.wt >= 40) {
+          if (!ph2 || e.wt < KH.tell2 - KH.lock) e.ha = lerp(e.ha, aimA(e.x + 10, e.y - 8), .05);
+          else if (e.wt === KH.tell2 - KH.lock) {
+            e.lx = e.x + 10; // D61 second half: the line locks (origin and angle) for the last frames: the hook flies exactly down it, a fair dodge
+            e.ly = e.y - 8;
+            e.ha = aimA(e.lx, e.ly); // the line is true from where it is drawn
+          }
+          if (e.wt >= (ph2 ? KH.tell2 : KH.tell1)) {
             e.st = 'hook';
             e.wt = 0;
-            e.hk = {
+            const ax0 = e.x + 10,
+              ay0 = e.y - 8;
+            e.hk = ph2 ? {
+              v2: 1,
+              d: 10,
+              out: 1,
+              tx: e.lx ?? ax0,
+              ty: e.ly ?? ay0,
+              pl: 0,
+              pt: 0
+            } : {
               d: 10,
               out: 1
             };
             sfx.lash();
           }
         } else if (e.st === 'hook') {
-          const h = e.hk;
-          h.d += h.out ? 7 : -5;
-          if (h.d > 230) h.out = 0;
-          const tx = e.x + 10 + Math.cos(e.ha) * h.d,
-            ty = e.y - 8 + Math.sin(e.ha) * h.d;
-          if (ty > floorAt(tx + $.G.scroll) || ty < ceilAt(tx + $.G.scroll) || tx < 0) {
+          const h = e.hk,
+            ax = e.x + 10,
+            ay = e.y - 8;
+          if (h.v2) {
+            // D61 SECOND HALF: the tip flies down the locked line over the whole screen; at terrain or the left edge it PLANTS
+            // (tip fixed in the world) for KH.plant frames as a taut, solid chain, then is reeled home along it
+            const ca = Math.cos(e.ha),
+              sa = Math.sin(e.ha);
             if (h.out) {
-              h.out = 0;
-              for (let k = 0; k < 8; k++) spark(tx, ty, rr(-2, 2), rr(-2, 2), 8, '#cfe6ff');
+              h.tx += ca * KH.out2;
+              h.ty += sa * KH.out2;
+              h.d += KH.out2;
+              if ((h.ty > floorAt(h.tx + $.G.scroll) || h.ty < ceilAt(h.tx + $.G.scroll)) && !hookBehind(h.tx, h.ty, ca, sa, $.P.alive, $.P.x, $.P.y) || h.tx < 0) {
+                h.out = 0;
+                h.pl = 1;
+                h.pt = 0;
+                h.tx = Math.max(0, h.tx);
+                h.wx = h.tx + $.G.scroll;
+                for (let k = 0; k < 8; k++) spark(h.tx, h.ty, rr(-2, 2), rr(-2, 2), 8, '#cfe6ff');
+                $.G.shake += 3;
+                sfx.tele();
+              } else if (h.d > KH.reach2) h.out = 0;
+            } else if (h.pl) {
+              h.tx = h.wx - $.G.scroll;
+              if (++h.pt === KH.plant - KH.warn) sfx.chain();
+              if (h.pt >= KH.plant || h.tx < -30) h.pl = 0;
+            } else {
+              const dx = ax - h.tx,
+                dy = ay - h.ty,
+                l = Math.hypot(dx, dy);
+              if (l <= KH.back2 + 2) h.tx = ax;else {
+                h.tx += dx / l * KH.back2;
+                h.ty += dy / l * KH.back2;
+              }
             }
-          }
-          if ($.P.alive && h.out && dist2($.P.x, $.P.y, tx, ty) < 8 * 8) playerHit();
-          if (!h.out && h.d <= 12) {
-            e.hk = null;
-            e.st = 'idle';
-            e.cool = ph2 ? 45 : 70;
+            if ($.P.alive && hookHits(ax, ay, h.tx, h.ty, $.P.x, $.P.y, true)) playerHit();
+            if (!h.out && !h.pl && Math.hypot(ax - h.tx, ay - h.ty) <= 12) {
+              e.hk = null;
+              e.st = 'idle';
+              e.cool = 45;
+            }
+          } else {
+            h.d += h.out ? KH.out1 : -KH.back1;
+            if (h.d > KH.reach1) h.out = 0;
+            const tx = ax + Math.cos(e.ha) * h.d,
+              ty = ay + Math.sin(e.ha) * h.d;
+            if (ty > floorAt(tx + $.G.scroll) || ty < ceilAt(tx + $.G.scroll) || tx < 0) {
+              if (h.out) {
+                h.out = 0;
+                for (let k = 0; k < 8; k++) spark(tx, ty, rr(-2, 2), rr(-2, 2), 8, '#cfe6ff');
+              }
+            }
+            if ($.P.alive && h.out && hookHits(ax, ay, tx, ty, $.P.x, $.P.y, false)) playerHit();
+            if (!h.out && h.d <= 12) {
+              e.hk = null;
+              e.st = 'idle';
+              e.cool = ph2 ? 45 : 70;
+            }
           }
         } else if (e.st === 'spit') {
           if (e.wt === 10 || e.wt === 26) {
@@ -874,25 +955,27 @@ function updNew(e, ss) {
     e.fy = lerp(e.fy, f, f < e.fy ? .3 : .15);
     e.y = e.fy - 18;
     e.wt++;
-    const hx = e.x - 6, hy = e.y - 14;
+    const dir = e.bk ? -1 : 1, hx = e.x - 6 * dir, hy = e.y - 14; // dir -1: turned round (D61), the hand is behind it
     if (e.st === 'walk') {
       e.x -= ss + e.spd;
       if (--e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 30 && e.x > 50 && P.x < e.x - 30) { e.st = 'tel'; e.wt = 0; sfx.groan(); }
+      // D61: a mutant the ship has passed turns round once and hurls back (bk: render flips it; same 44 f tell)
+      else if (!e.back && P.alive && onScreen(e) && e.x < W - 30 && e.x > NOTICE.backMinX + 10 && P.x > e.x + NOTICE.mutantGap) { e.back = 1; e.bk = 1; e.st = 'tel'; e.wt = 0; sfx.groan(); }
     } else if (e.st === 'tel') {
       e.x -= ss;
       if (R() < .4) drop(hx + rr(-4, 4), hy + rr(-4, 4), rr(-.3, .3), rr(0, .6), 1.2, R() < .6 ? 0 : 1, 60);
       if (e.wt >= 44) { e.st = 'hurl'; e.wt = 0; sfx.lash(); }
     } else {
-      e.x -= ss + (e.wt < 10 ? 1 : 0); // lunges a step into the throw
+      e.x -= ss + (e.wt < 10 ? dir : 0); // lunges a step into the throw
       if (e.wt === 6 && P.alive) {
         const n = $.G.loop > 0 ? 5 : 3;
         for (let i = 0; i < n; i++) lobAt(hx, hy, P.x + (i - (n - 1) / 2) * 26, P.y, 1.2, 2.8);
-        gib(hx, hy, rr(-2, -.5), rr(-2, -.5), 'chunk', 3);
-        for (let k = 0; k < 18; k++) drop(hx, hy, rr(-3, .5), rr(-2, 1), rr(1.2, 1.9), R() < .3 ? 1 : 0, 80);
+        gib(hx, hy, rr(-2, -.5) * dir, rr(-2, -.5), 'chunk', 3);
+        for (let k = 0; k < 18; k++) drop(hx, hy, rr(-3, .5) * dir, rr(-2, 1), rr(1.2, 1.9), R() < .3 ? 1 : 0, 80);
         $.G.shake += 2;
         sample('splat_m', { vol: .6, rate: .8 }) || sfx.squish();
       }
-      if (e.wt >= 34) { e.st = 'walk'; e.wt = 0; e.cool = coolFor('mutant', ri(0, 50)); }
+      if (e.wt >= 34) { e.st = 'walk'; e.wt = 0; e.bk = 0; e.cool = coolFor('mutant', ri(0, 50)); }
     }
     if (R() < .25) drop(e.x + rr(-6, 6), e.y + rr(-12, 10), rr(-.2, .2), rr(.1, .6), 1.2, R() < .5 ? 0 : 1, 90);
     if (e.fy > PH + 30) e.dead = true;
@@ -901,23 +984,32 @@ function updNew(e, ss) {
     // and then LOCKS for 18f (step out of it), then a 3-round burst down that line (4 from Descent 2). Two bursts, then it moves on
     const wx = e.x + sc, lo = Math.max(14, ceilAt(wx) + 14), hi = Math.min(PH - 14, floorAt(wx) - 14);
     e.wt++;
-    if (e.st !== 'leave') e.x = lerp(e.x, e.tx, .04);
+    if (e.st !== 'leave' && !e.lv) e.x = lerp(e.x, e.tx, .04); // lv: a leaving sentry turned round to fire back holds still
+    // D61: a sentry the ship has passed turns once and fires ONE burst back down the same 52 f aim line (bk)
+    if (!e.back && (e.st === 'hover' || e.st === 'leave') && P.alive && P.x > e.x + NOTICE.sentryGap && e.x > NOTICE.backMinX && e.x < W - 24) {
+      e.back = 1; e.bk = 1; e.lv = e.st === 'leave' ? 1 : 0; e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x + 5, e.y); sfx.tele();
+    }
     e.y = lerp(e.y, clamp(e.y0 + Math.sin(e.t * .03 + e.ph) * 14, lo, Math.max(lo, hi)), .08);
     if (e.st === 'hover') {
       e.cool--;
       if (e.t > 700 || e.shots >= 2) e.st = 'leave';
       else if (e.cool <= 0 && P.alive && e.x < W - 24 && P.x < e.x - 20) { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 5, e.y); sfx.tele(); }
     } else if (e.st === 'tel') {
-      if (e.wt < 34) e.ha += wrapA(aimA(e.x - 5, e.y) - e.ha) * .2;
+      if (e.wt < 34) e.ha += wrapA(aimA(e.x + (e.bk ? 5 : -5), e.y) - e.ha) * .2;
       if (e.wt >= 52) { e.st = 'fire'; e.wt = 0; }
     } else if (e.st === 'fire') {
       const n = ($.G.loop > 0 ? 4 : 3) + xtra();
       if (e.wt % 7 === 1 && e.wt < n * 7) {
-        eshoot(e.x - 6, e.y, e.ha, 1.9);
-        flash(e.x - 7, e.y, 9, 4, '255,70,50');
-        e.x += 1.5;
+        const d = e.bk ? -1 : 1;
+        eshoot(e.x - 6 * d, e.y, e.ha, 1.9);
+        flash(e.x - 7 * d, e.y, 9, 4, '255,70,50');
+        e.x += 1.5 * d;
       }
-      if (e.wt >= n * 7 + 14) { e.shots++; e.st = 'hover'; e.wt = 0; e.cool = coolFor('sentry', ri(0, 30)); }
+      if (e.wt >= n * 7 + 14) {
+        if (e.bk) { e.bk = 0; e.st = e.lv ? 'leave' : 'hover'; e.lv = 0; } // the back burst is its own: it doesn't spend a forward one
+        else { e.shots++; e.st = 'hover'; }
+        e.wt = 0; e.cool = coolFor('sentry', ri(0, 30));
+      }
     } else {
       e.x -= 1.3 + ss * .3;
       e.y0 += e.y0 < PH / 2 ? -.2 : .2;

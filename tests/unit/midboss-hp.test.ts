@@ -1,4 +1,4 @@
-// D27: the real midboss() applies midslot.ts MID_HP on picker layouts (the Apprentice at 200 base HP on long4) and
+// D27: the real midboss() applies midslot.ts MID_HP on picker layouts (the Apprentice at 180 base HP (D61; 200 before) on long4) and
 // leaves short at spawn.ts ET's values. midslot.test.ts covers the pure midHpMul; this covers the wiring in spawn.ts.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
@@ -33,10 +33,10 @@ function meet(id: 'short' | 'long4', k: string, loop = 0, stage = 0) {
 describe('midboss() base HP per layout (D27)', () => {
   afterEach(() => L.setLayout('short'));
 
-  it('spawns the Apprentice at 200 HP, full, on long4', () => {
+  it('spawns the Apprentice at 180 HP (D61), full, on long4', () => {
     const e = meet('long4', 'prentice');
-    expect(e.hp).toBe(200);
-    expect(e.max).toBe(200);
+    expect(e.hp).toBe(180);
+    expect(e.max).toBe(180);
   });
 
   it('spawns the Apprentice at its ET 150 HP on short', () => {
@@ -51,18 +51,18 @@ describe('midboss() base HP per layout (D27)', () => {
     expect(e.hp).toBe(ET.cyst.hp);
   });
 
-  it('keeps the 200 / 150 ratio in Descent 3, so depth HP still multiplies on top', () => {
+  it('keeps the 180 / 150 ratio in Descent 3, so depth HP still multiplies on top', () => {
     const short = meet('short', 'prentice', 2), long = meet('long4', 'prentice', 2);
     expect(short.hp).toBeGreaterThan(150); // depth (and loop) HP applied
-    expect(long.hp / short.hp).toBeCloseTo(200 / 150, 9);
+    expect(long.hp / short.hp).toBeCloseTo(180 / 150, 9);
     expect(long.max).toBe(long.hp);
   });
 
-  it('spawns the Apprentice at exactly 200 on long4 and 150 on short at biome slots A and B in Descent 1 (D29)', () => {
+  it('spawns the Apprentice at exactly 180 (D61) on long4 and 150 on short at biome slots A and B in Descent 1 (D29)', () => {
     for (const stage of [1, 2]) {
       const e = meet('long4', 'prentice', 0, stage);
-      expect(e.hp).toBe(200);
-      expect(e.max).toBe(200);
+      expect(e.hp).toBe(180);
+      expect(e.max).toBe(180);
       expect(meet('short', 'prentice', 0, stage).hp).toBe(150);
     }
   });

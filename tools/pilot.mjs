@@ -17,8 +17,9 @@
 //   in the per-frame hook, instead of moving P toward (tx, ty):  window.__pilotStep(g, tx, ty);
 // `window.__pilotLog` reports `frames` piloted, `trapped` (frames where every candidate move was unsafe) and `deaths`
 // (for each life lost: the stage, scroll, position, the midboss or Drive up, and the two nearest threats just before).
-// Attacks with no projectile that it models from their telegraphs: the Saucer's lash, the Drive's beam, the
-// Apprentice's and the Butcher's cleaver sectors, and the Butcher's hook; the Drive's tentacles are predicted from
+// Attacks with no projectile that it models from their telegraphs: the Saucer's lash, the flayer's whip, the Drive's beam, the
+// Apprentice's and the Butcher's cleaver sectors, and the Butcher's hook; with window.__DN loaded (src/enemies/mid/_deny.ts),
+// the midbosses' denial moves (the lane bar, the acid pools, the Apprentice's hook); the Drive's tentacles are predicted from
 // boss/update.ts tentPts. Not modelled (seen only through the enemy's body and shots): any other no-projectile attack.
 // Like the older bots it moves the ship by writing P.x / P.y, not through input; the speed cap keeps that honest.
 
@@ -50,6 +51,9 @@ export const PILOT = `(() => {
     for (const e of g.enemies) { if (e.dead || e.ghost > 0) continue; const [vx, vy] = vel(e); th.push({ x: e.x, y: e.y, vx, vy, r: (e.r || 6) + 4, k: e.k });
       if (e.hb) for (const h of e.hb) th.push({ x: e.x + h[0], y: e.y + h[1], vx, vy, r: h[2] + 4 }); }
     if (G.boss && !G.boss.dying) { const b = G.boss, [vx, vy] = vel(b); th.push({ x: b.x, y: b.y, vx, vy, r: 62, k: 'drive' }); }
+    // the midbosses' area denial (D61, src/enemies/mid/_deny.ts denyPts: the Choir's loose bar, the Womb's pools, the
+    // Apprentice's hook and chain), when the tool has loaded it as window.__DN
+    if (window.__DN && G.mini && G.mini.mid) window.__DN.denyPts(G.mini, sc, th);
     const B = globalThis.__biome ? globalThis.__biome() : null, haz = B ? B.haz : [];
     // line attacks with no projectile, each { x, y, a, len, w, t0, t1 }: active for look-ahead frames t0 <= t < t1
     const lines = [];
@@ -57,6 +61,13 @@ export const PILOT = `(() => {
       // the Saucer's lash (enemies/mid/ufo.ts): telegraph (aims, locks 16 f before), then the whip hits from wt 4 to 20
       const ox = e.x - 34, oy = e.y + 9, tel = e.lash2 ? 28 : 42, w0 = e.st === 'lash' ? tel - e.wt : -e.wt;
       lines.push({ x: ox, y: oy, a: e.la, len: 238, w: 6, t0: w0 + 4, t1: w0 + 21 });
+    }
+    // the flayer's whip (enemies/update.ts 'flayer', whipPts): a 34 f tell whose aim tracks the ship to its last frame, then
+    // the lash reaches 122 px from (x - 7, y + 1) along e.ang and hits (4.5 px) from strike frame 5 to 15. D61 made
+    // flayers hunt (they park 90 px ahead of the ship), so the pilot has to see it
+    for (const e of g.enemies) if (!e.dead && e.k === 'flayer' && (e.ws === 'tel' || e.ws === 'strike')) {
+      const w0 = e.ws === 'tel' ? 34 - e.wt : -e.wt;
+      lines.push({ x: e.x - 7, y: e.y + 1, a: e.ang, len: 122, w: 5, t0: w0 + 5, t1: w0 + 16 });
     }
     // the Apprentice's cleaver (enemies/update.ts 'tel' 50 f, then 'cut' hits for 12 f): a sector of radius 14-84 px
     // around its cleaver, angles 2.30-3.99 rad (down-left round to up-left); the safe places are above, below, behind it
@@ -70,7 +81,14 @@ export const PILOT = `(() => {
     for (const e of g.enemies) if (!e.dead && e.k === 'butcher') {
       const [vx, vy] = vel(e);
       if (e.st === 'ctel' || e.st === 'cut') { const w0 = e.st === 'ctel' ? 48 - e.wt : -e.wt; sectors.push({ x: e.x - 10, y: e.y - 10, vx, vy, r0: 18, r1: 100, a0: 2.30, a1: 3.99, t0: w0, t1: w0 + 13 }); }
-      if (e.st === 'htel' || (e.st === 'hook' && e.hk && e.hk.out)) { const w0 = e.st === 'htel' ? 40 - e.wt : 0;
+      // D61 second half (enemies/butcherhook.ts): 'htel' 48 f, its line locks for the last 16 (origin e.lx,e.ly), the tip flies the
+      // whole screen at 8 px/f, PLANTS at terrain or the left edge for 90 f as a solid chain (hk.v2, hk.pl, hk.pt), then reels at 12 px/f
+      const ph2 = e.hp < e.max * .5;
+      if (e.st === 'htel' && ph2) { const w0 = 48 - e.wt, ox = e.lx != null ? e.lx : e.x + 10, oy = e.ly != null ? e.ly : e.y - 8;
+        lines.push({ x: ox, y: oy, a: e.ha, len: 520, w: 6, t0: w0, t1: w0 + 150 }); }
+      else if (e.st === 'hook' && e.hk && e.hk.v2) { const h = e.hk, ax = e.x + 10, ay = e.y - 8, a = Math.atan2(h.ty - ay, h.tx - ax), l = Math.hypot(h.tx - ax, h.ty - ay);
+        lines.push({ x: ax, y: ay, a, len: h.out ? 520 : l, w: 6, t0: 0, t1: h.out ? 150 : h.pl ? 90 - h.pt + 40 : 40 }); }
+      else if (e.st === 'htel' || (e.st === 'hook' && e.hk && e.hk.out)) { const w0 = e.st === 'htel' ? 40 - e.wt : 0;
         lines.push({ x: e.x + 10, y: e.y - 8, a: e.ha, len: 236, w: 8, t0: w0, t1: w0 + 34 }); }
     }
     const Bo = G.boss;

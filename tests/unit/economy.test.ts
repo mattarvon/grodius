@@ -33,6 +33,8 @@ const SPEC_HPM = {
   biome1: [1.1, 1.6, 1.9],
   drive: [1.3, 1.8, 2.0],
 };
+/** D61: long4's HARDER cells (src/economy.ts HPM_LONG4), rows D1..D3 */
+const D61_HPM = { orbit: [1.0, 1.6, 2.0], biome0: [1.8, 2.6, 3.0], biome1: [3.0, 3.8, 4.2], drive: [3.5, 4.2, 4.6] } as Record<string, number[]>;
 const COLS = [['orbit', 0, 'orbit'], ['biome', 0, 'biome0'], ['interior', 0, 'interior'], ['biome', 1, 'biome1'], ['drive', 0, 'drive']] as const;
 
 type St = { kills: number; spawned: number; hits: number; deaths: number };
@@ -168,11 +170,11 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(livesAfterDrive('long4', 3)).toBe(3);
   });
 
-  it('sets every §8 hits/min cell except the interior column it does not have', () => {
+  it('sets every D61 HARDER hits/min cell except the interior column it does not have', () => {
     for (const [kind, slot, col] of COLS) for (let loop = 0; loop < 3; loop++) {
       const h = hpmTarget('long4', kind, slot, loop);
       if (col === 'interior') expect(h).toBeNull();
-      else expect(h?.t, `${col} D${loop + 1}`).toBe(SPEC_HPM[col][loop]);
+      else expect(h?.t, `${col} D${loop + 1}`).toBe(D61_HPM[col][loop]);
     }
   });
 
@@ -208,10 +210,10 @@ describe('long4 matches spec §7 (LS1)', () => {
   });
 
   it('bands only the biome slots in LS1, measuring Orbit and the Drive', () => {
-    expect(hpmTarget('long4', 'biome', 0, 0)).toMatchObject({ t: .8, banded: true });
-    expect(hpmTarget('long4', 'biome', 1, 1)).toMatchObject({ t: 1.6, banded: true });
-    expect(hpmTarget('long4', 'orbit', 0, 2)).toMatchObject({ t: 1.3, banded: false });
-    expect(hpmTarget('long4', 'drive', 0, 0)).toMatchObject({ t: 1.3, banded: false });
+    expect(hpmTarget('long4', 'biome', 0, 0)).toMatchObject({ t: 1.8, banded: true });
+    expect(hpmTarget('long4', 'biome', 1, 1)).toMatchObject({ t: 3.8, banded: true });
+    expect(hpmTarget('long4', 'orbit', 0, 2)).toMatchObject({ t: 2.0, banded: false });
+    expect(hpmTarget('long4', 'drive', 0, 0)).toMatchObject({ t: 3.5, banded: false });
   });
 
   it('targets LV 10-11 at the end of Descent 1 (D31), LV 3 after Open Orbit, and D1 biomass 1.3-1.5k', () => {
