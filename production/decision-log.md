@@ -1266,3 +1266,26 @@ lives next is open (Matt to decide). Commits fae9418, 36cbcfd, 4d31140
 - **The one-off flatten** uses low smoothing quality (the Fold hitch).
 
 **Category:** art, design
+
+### D61 HARDER: Pass 1 first, new target bands, BLACK BOX nerf, rank cap stays — 2026-11-20 (Matt's calls)
+
+Matt: "we need to make the game harder overall. fan out the studio to do this." The studio's package is
+`production/qa/difficulty-package-2026-11-20.md` (qa-lead numbers; systems + economy and game + level design lanes).
+Main sat at 0.3-1.4 would-be hits/min with the rank capped by D2 Orbit and bosses dying in 4-12 s (mortal pilot: 3 of
+5 D1 clears); D58 as built overshot 2-5x (D2 Orbit 9.8/min; pilot 0 of 5).
+
+- **Pass 1 first: "it notices you."** Encounter changes before numbers: passed sentries/mutants fire back, D2+ dive
+  drones U-turn once; rear waves come in at the ship's height; 1 in 3 hazards marks the ship's column first (1 in 2 in
+  D3); flayers hunt; one area-denial move per midboss (Choir lane sweep, Cyst acid pools, Apprentice full-reach hook,
+  Brood litter from behind in phase 2); the Butcher's hook reaches the whole screen in its second half and plants for
+  ~90 f. Every new threat keeps a tell of at least 44 f and a guaranteed gap (D59's fairness rules).
+- **New target bands** replace the gentle HPM bands (floor gated, top +40%): would-be hits/min D1/D2/D3 Orbit 1.0/1.6/
+  2.0, biome A 1.8/2.6/3.0, biome B 3.0/3.8/4.2, Drive 3.5/4.2/4.6. TTKs: midbosses slot A 8-11 s, slot B 10-13 s;
+  stage bosses 15-22 s; KEEPSAKE 38-46 s at kit=mid; Drive >= 24 s. Mortal pilot: D1 2-3 of 5 clears, D2 1-2, D3 0-1.
+  This re-scopes D58: its changes are no longer blocked for beating the old bands.
+- **Pass 2 (later): the curve.** D58 reshaped, WARD +1 not a refill, grafts softened, HULL dearer, kill biomass down,
+  KEEPSAKE DOZING recall. **BLACK BOX nerf: yes** (late fights give back the main gun plus one pod).
+  **Rank cap: stays at 1** (Matt did not pick 1.25).
+- **Pass 3 (later):** midboss enrage instead of leaving (D2+), crossfire/drag set pieces, optional Sinus contractions.
+
+**Category:** balance, design
