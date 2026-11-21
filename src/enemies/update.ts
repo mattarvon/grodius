@@ -15,6 +15,7 @@ import { countKill } from '../mutations';
 import { bankBio, econId, firstKillPay, grpDrops, killBio, killXP } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
+import { KH, hookBehind, hookHits } from './butcherhook';
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
 import { MID_SIM, midHitSnd, midMul, midRow } from './mid/roster';
@@ -314,6 +315,7 @@ export function updEnemy(e) {
             if (e.st === 'ctel') sfx.tele();
             if (e.st === 'htel') {
               e.ha = aimA(e.x + 10, e.y - 8);
+              e.lx = e.ly = null;
               sfx.chain();
             }
           }
@@ -344,33 +346,90 @@ export function updEnemy(e) {
             e.cool = ph2 ? 50 : 80;
           }
         } else if (e.st === 'htel') {
-          e.ha = lerp(e.ha, aimA(e.x + 10, e.y - 8), .05);
-          if (e.wt >= 40) {
+          if (!ph2 || e.wt < KH.tell2 - KH.lock) e.ha = lerp(e.ha, aimA(e.x + 10, e.y - 8), .05);
+          else if (e.wt === KH.tell2 - KH.lock) {
+            e.lx = e.x + 10; // D61 second half: the line locks (origin and angle) for the last frames: the hook flies exactly down it, a fair dodge
+            e.ly = e.y - 8;
+            e.ha = aimA(e.lx, e.ly); // the line is true from where it is drawn
+          }
+          if (e.wt >= (ph2 ? KH.tell2 : KH.tell1)) {
             e.st = 'hook';
             e.wt = 0;
-            e.hk = {
+            const ax0 = e.x + 10,
+              ay0 = e.y - 8;
+            e.hk = ph2 ? {
+              v2: 1,
+              d: 10,
+              out: 1,
+              tx: e.lx ?? ax0,
+              ty: e.ly ?? ay0,
+              pl: 0,
+              pt: 0
+            } : {
               d: 10,
               out: 1
             };
             sfx.lash();
           }
         } else if (e.st === 'hook') {
-          const h = e.hk;
-          h.d += h.out ? 7 : -5;
-          if (h.d > 230) h.out = 0;
-          const tx = e.x + 10 + Math.cos(e.ha) * h.d,
-            ty = e.y - 8 + Math.sin(e.ha) * h.d;
-          if (ty > floorAt(tx + $.G.scroll) || ty < ceilAt(tx + $.G.scroll) || tx < 0) {
+          const h = e.hk,
+            ax = e.x + 10,
+            ay = e.y - 8;
+          if (h.v2) {
+            // D61 SECOND HALF: the tip flies down the locked line over the whole screen; at terrain or the left edge it PLANTS
+            // (tip fixed in the world) for KH.plant frames as a taut, solid chain, then is reeled home along it
+            const ca = Math.cos(e.ha),
+              sa = Math.sin(e.ha);
             if (h.out) {
-              h.out = 0;
-              for (let k = 0; k < 8; k++) spark(tx, ty, rr(-2, 2), rr(-2, 2), 8, '#cfe6ff');
+              h.tx += ca * KH.out2;
+              h.ty += sa * KH.out2;
+              h.d += KH.out2;
+              if ((h.ty > floorAt(h.tx + $.G.scroll) || h.ty < ceilAt(h.tx + $.G.scroll)) && !hookBehind(h.tx, h.ty, ca, sa, $.P.alive, $.P.x, $.P.y) || h.tx < 0) {
+                h.out = 0;
+                h.pl = 1;
+                h.pt = 0;
+                h.tx = Math.max(0, h.tx);
+                h.wx = h.tx + $.G.scroll;
+                for (let k = 0; k < 8; k++) spark(h.tx, h.ty, rr(-2, 2), rr(-2, 2), 8, '#cfe6ff');
+                $.G.shake += 3;
+                sfx.tele();
+              } else if (h.d > KH.reach2) h.out = 0;
+            } else if (h.pl) {
+              h.tx = h.wx - $.G.scroll;
+              if (++h.pt === KH.plant - KH.warn) sfx.chain();
+              if (h.pt >= KH.plant || h.tx < -30) h.pl = 0;
+            } else {
+              const dx = ax - h.tx,
+                dy = ay - h.ty,
+                l = Math.hypot(dx, dy);
+              if (l <= KH.back2 + 2) h.tx = ax;else {
+                h.tx += dx / l * KH.back2;
+                h.ty += dy / l * KH.back2;
+              }
             }
-          }
-          if ($.P.alive && h.out && dist2($.P.x, $.P.y, tx, ty) < 8 * 8) playerHit();
-          if (!h.out && h.d <= 12) {
-            e.hk = null;
-            e.st = 'idle';
-            e.cool = ph2 ? 45 : 70;
+            if ($.P.alive && hookHits(ax, ay, h.tx, h.ty, $.P.x, $.P.y, true)) playerHit();
+            if (!h.out && !h.pl && Math.hypot(ax - h.tx, ay - h.ty) <= 12) {
+              e.hk = null;
+              e.st = 'idle';
+              e.cool = 45;
+            }
+          } else {
+            h.d += h.out ? KH.out1 : -KH.back1;
+            if (h.d > KH.reach1) h.out = 0;
+            const tx = ax + Math.cos(e.ha) * h.d,
+              ty = ay + Math.sin(e.ha) * h.d;
+            if (ty > floorAt(tx + $.G.scroll) || ty < ceilAt(tx + $.G.scroll) || tx < 0) {
+              if (h.out) {
+                h.out = 0;
+                for (let k = 0; k < 8; k++) spark(tx, ty, rr(-2, 2), rr(-2, 2), 8, '#cfe6ff');
+              }
+            }
+            if ($.P.alive && h.out && hookHits(ax, ay, tx, ty, $.P.x, $.P.y, false)) playerHit();
+            if (!h.out && h.d <= 12) {
+              e.hk = null;
+              e.st = 'idle';
+              e.cool = ph2 ? 45 : 70;
+            }
           }
         } else if (e.st === 'spit') {
           if (e.wt === 10 || e.wt === 26) {

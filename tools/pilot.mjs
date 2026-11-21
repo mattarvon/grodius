@@ -70,7 +70,14 @@ export const PILOT = `(() => {
     for (const e of g.enemies) if (!e.dead && e.k === 'butcher') {
       const [vx, vy] = vel(e);
       if (e.st === 'ctel' || e.st === 'cut') { const w0 = e.st === 'ctel' ? 48 - e.wt : -e.wt; sectors.push({ x: e.x - 10, y: e.y - 10, vx, vy, r0: 18, r1: 100, a0: 2.30, a1: 3.99, t0: w0, t1: w0 + 13 }); }
-      if (e.st === 'htel' || (e.st === 'hook' && e.hk && e.hk.out)) { const w0 = e.st === 'htel' ? 40 - e.wt : 0;
+      // D61 second half (enemies/butcherhook.ts): 'htel' 48 f, its line locks for the last 16 (origin e.lx,e.ly), the tip flies the
+      // whole screen at 8 px/f, PLANTS at terrain or the left edge for 90 f as a solid chain (hk.v2, hk.pl, hk.pt), then reels at 12 px/f
+      const ph2 = e.hp < e.max * .5;
+      if (e.st === 'htel' && ph2) { const w0 = 48 - e.wt, ox = e.lx != null ? e.lx : e.x + 10, oy = e.ly != null ? e.ly : e.y - 8;
+        lines.push({ x: ox, y: oy, a: e.ha, len: 520, w: 6, t0: w0, t1: w0 + 150 }); }
+      else if (e.st === 'hook' && e.hk && e.hk.v2) { const h = e.hk, ax = e.x + 10, ay = e.y - 8, a = Math.atan2(h.ty - ay, h.tx - ax), l = Math.hypot(h.tx - ax, h.ty - ay);
+        lines.push({ x: ax, y: ay, a, len: h.out ? 520 : l, w: 6, t0: 0, t1: h.out ? 150 : h.pl ? 90 - h.pt + 40 : 40 }); }
+      else if (e.st === 'htel' || (e.st === 'hook' && e.hk && e.hk.out)) { const w0 = e.st === 'htel' ? 40 - e.wt : 0;
         lines.push({ x: e.x + 10, y: e.y - 8, a: e.ha, len: 236, w: 8, t0: w0, t1: w0 + 34 }); }
     }
     const Bo = G.boss;
