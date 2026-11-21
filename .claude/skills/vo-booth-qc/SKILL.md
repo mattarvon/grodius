@@ -96,3 +96,11 @@ a bank was un-shelved by accident.
 4. Re-keyed or reprocessed takes: listen to any shipped take the run reported before committing.
 5. `npx vitest run` passes.
 6. Only the intended files are staged under `src/sfx/`.
+
+## Drafting lines on the local model
+
+For candidate VO copy (barks, quips, kill words) and other bulk low-stakes text, use the rig's local LLM first:
+`node tools/local-llm.mjs --n 8 --system "<caller's DIRECTION from tools/booth/slots.ts>" "<slot moment + current line>"`
+(qwen3.8:27b on the RTX 5090 via Ollama, ~75-110 tok/s, free). Curate its output (it misspells and drifts off voice)
+and give Matt a shortlist next to the current copy; never ship a local draft unreviewed. Exit 2 = Ollama is down:
+draft with Claude instead. Example output: production/keepsake-bark-drafts-2026-11-20.md.
