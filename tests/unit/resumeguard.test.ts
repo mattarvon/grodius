@@ -23,7 +23,7 @@ vi.mock('../../src/contraptions', () => ({ resetContraptions: () => {}, rigFresh
 vi.mock('../../src/shipform', () => ({ shipShed: () => {} }));
 vi.mock('../../src/rng', () => ({ newRunSeed: () => 1 }));
 vi.mock('../../src/stagebuild', () => ({ rebuildAt: (x: number) => rebuild(x) }));
-vi.mock('../../src/lab', () => ({ cpTrigger: () => trigger }));
+vi.mock('../../src/lab', () => ({ cpTrigger: () => trigger, brutalPick: () => 0 }));
 
 const { jumpRun, killPlayer, resumeLast, respawn, startLoop } = await import('../../src/flow');
 const { warmBlocked } = await import('../../src/warmplan');

@@ -56,7 +56,7 @@ describe('labOf', () => {
   it('fills defaults and drops unknown values', () => {
     expect(labOf(null)).toEqual(LAB_DEFAULT);
     expect(labOf({ layout: 'sideways', mids: 1, cp: 'z', extra: 5 })).toEqual(LAB_DEFAULT);
-    expect(labOf({ layout: 'long', mids: 'wip', cp: 'b' })).toEqual({ layout: 'long', mids: 'wip', cp: 'b', mid: '' });
+    expect(labOf({ layout: 'long', mids: 'wip', cp: 'b' })).toEqual({ layout: 'long', mids: 'wip', cp: 'b', mid: '', brutal: 2 });
   });
 });
 
@@ -74,7 +74,7 @@ describe('LAB storage', () => {
   it('persists a toggle under grodius.lab, outside the meta and run saves, and reads it back after a reload', async () => {
     const first = await load({ 'grodius.v1': '{"meta":{"v":3}}' });
     first.setLab({ layout: 'long', cp: 'b' });
-    expect(JSON.parse(first.ls.map.get('grodius.lab')!)).toEqual({ layout: 'long', mids: '', cp: 'b', mid: '' });
+    expect(JSON.parse(first.ls.map.get('grodius.lab')!)).toEqual({ layout: 'long', mids: '', cp: 'b', mid: '', brutal: 2 });
     expect(first.ls.map.get('grodius.v1')).toBe('{"meta":{"v":3}}');
     const again = await load(Object.fromEntries(first.ls.map));
     expect(again.activeLayout()).toEqual({ id: 'long4', src: 'lab' });
@@ -145,5 +145,17 @@ describe('applyRunLayout', () => {
     L.setLayout('short');
     expect(applyRunLayout(true)).toEqual({ id: 'long4', src: 'default' });
     expect(L.layout().id).toBe('long4');
+  });
+});
+
+describe('the BRUTAL dial choice (D63)', () => {
+  it('is 0 off long4, ?brutal= over the LAB over the default 2 on long4, and ignores junk', async () => {
+    const { brutalChoice, labOf } = await import('../../src/lab');
+    expect(brutalChoice('?brutal=3', null, 'short')).toBe(0);
+    expect(brutalChoice('', null, 'long4')).toBe(2);
+    expect(brutalChoice('', labOf({ brutal: 1 }), 'long4')).toBe(1);
+    expect(brutalChoice('?brutal=0', labOf({ brutal: 3 }), 'long4')).toBe(0);
+    expect(brutalChoice('?brutal=9', labOf({ brutal: 3 }), 'long4')).toBe(3);
+    expect(labOf({ brutal: 'x' }).brutal).toBe(2);
   });
 });

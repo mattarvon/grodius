@@ -19,6 +19,7 @@ import { $ } from './state';
 import { midRow } from './enemies/mid/roster';
 import { kindOf, slotOf } from './layout';
 import { ECON, bossOrdMul, descDepth, econId, lateStage } from './economy';
+import { bru } from './brutal';
 
 /** a midboss kind not named in DEPTH.w takes its tag's share (spec §6.4: WINDOW and ANGLE .6, RACE .5; the rest 1),
  *  so a pool lane's new kind needs no line here */
@@ -61,7 +62,9 @@ export function depthHP(k, b, o) {
   // G.pow is the measure because it already weighs every power source (guns, grafts, perks, rigs) and is what fire
   // and density read; it is read once, at spawn
   const H = ECON[econId()].hard;
-  const m = loopHP(k, b, o) * (H && !b.mini ? 1 + H.powHP * Math.min(H.powCap, Math.max(0, $.G.pow || 0)) : 1);
+  const m = loopHP(k, b, o) * (H && !b.mini ? 1 + H.powHP * Math.min(H.powCap, Math.max(0, $.G.pow || 0)) : 1)
+    // D63 BRUTAL dial (src/brutal.ts): fodder x hp; midbosses and stage bosses x bossHp (THE KEEPSAKE half the extra)
+    * (!b.mini ? bru('hp') : k === 'keepsake' ? 1 + (bru('bossHp') - 1) / 2 : bru('bossHp'));
   // D58 #2: a stage boss also grows with the stage's order in the descent (economy.ts bossOrd; 1 on short). Here, in the
   // shared path, so every biome stage boss gets it uniformly; midbosses, the Orbit Maw and the Drive (driveMul) do not
   return b.mini && !isMid(k, b, o) ? m * bossOrdMul(econId(), $.G.stage || 0, k) : m;
@@ -82,11 +85,11 @@ function loopHP(k, b, o) {
   return 1 + (DEPTH.w[k === 'maw' && mid ? 'maw0' : k] ?? TAG_W[midRow(k)?.tag ?? ''] ?? 1) * (m - 1);
 }
 /** the Gravity Drive's HP multiplier (x560 HP, x48 per plate): loop and, as the one D1 exception, rank and over() */
-export const driveMul = () => { const L = $.G.loop || 0; return (1 + DEPTH.driveL * L) * (1 + DEPTH.driveRank * ($.G.rank || 0)) * (L > 0 ? 1 + DEPTH.driveO * over() : 1); };
+export const driveMul = () => { const L = $.G.loop || 0; return bru('driveHp') * (1 + DEPTH.driveL * L) * (1 + DEPTH.driveRank * ($.G.rank || 0)) * (L > 0 ? 1 + DEPTH.driveO * over() : 1); };
 /** enemy cooldown multiplier (<= 1): shorter waits between telegraphed attacks with depth (dep(): from Descent 2 on, and
  *  within a long descent). Its callers are regular enemies, midbosses and the Saucer; stage bosses do not read it */
-export const cdm = () => 1 / (1 + DEPTH.fire * dep());
+export const cdm = () => bru('cool') / (1 + DEPTH.fire * dep()); // D63: x the BRUTAL dial's cool
 /** enemy fire-chance multiplier (>= 1), on dep() like cdm() */
-export const firem = () => 1 + DEPTH.fire * dep();
+export const firem = () => (1 + DEPTH.fire * dep()) * bru('fire'); // D63: x the BRUTAL dial's fire
 /** one more bullet in a burst from Descent 3 on */
 export const xtra = () => (($.G.loop || 0) >= 2 ? 1 : 0);

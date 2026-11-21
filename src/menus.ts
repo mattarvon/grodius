@@ -9,7 +9,7 @@ import { LAYOUTS, setLayout } from './layout';
 import { bossJump, midJump } from './jump';
 import { midRow } from './enemies/mid/roster';
 import { RIG, RIG_BY, SOCKET_COST, rigInit, rigged, sockets } from './contraptions';
-import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, midForce, setLab, wipMids } from './lab';
+import { LAYOUT_ID, activeLayout, applyRunLayout, brutalPick, lab, layoutName, midForce, setLab, wipMids } from './lab';
 import { ARM_T, backStep, descendTap, exitLive } from './backstep';
 import { NATIVE } from './platform';
 
@@ -155,6 +155,11 @@ function labItems() {
     l: 'CHECKPOINT',
     r: L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
     a: () => setLab({ cp: L.cp === 'b' ? 'a' : 'b' })
+  }, {
+    // D63: the BRUTAL dial (src/brutal.ts) for the next long run: 0 (pass2) to 3; ?brutal=N over it is shown, as ?layout= is
+    l: 'BRUTAL',
+    r: ((b) => String(L.brutal) + (c.id !== 'long4' ? ' (LONG ONLY)' : b !== L.brutal ? ' > URL ' + b : ''))(brutalPick(c.id)),
+    a: () => setLab({ brutal: (L.brutal + 1) % 4 })
   }, ...(wipMids().length > 1 || L.mid ? [{
     // D53: the wip midboss forced into slot A of every biome stage (lab.ts midForce): off, then each wip kind. The
     // LAB's own setting; a ?mid= query over it is shown, as the layout's URL flag is. Picker layouts only. Hidden while

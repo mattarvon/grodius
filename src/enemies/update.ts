@@ -10,7 +10,8 @@ import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world'
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
-import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
+import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, shootB, wrapA } from '../enemies/spawn';
+import { bru } from '../brutal';
 import { countKill } from '../mutations';
 import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP, noticeOf } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
@@ -78,7 +79,7 @@ export function updEnemy(e) {
             if (($.G.loop || 0) >= NOTICE.uLoop && $.P.alive && !(e.ghost > 0) && e.x < $.P.x - NOTICE.uGap && e.x > NOTICE.uMinX) { e.ut = 1; e.uw = 0; e.uvx = -2.7; }
           }
         }
-        if (onScreen(e) && !(e.ghost > 0) && R() < .0025 * firem() && e.x > $.P.x + 40) eshoot(e.x, e.y, aimA(e.x, e.y), 1.5);
+        if (onScreen(e) && !(e.ghost > 0) && R() < .0025 * firem() && (bru('aimAll') || e.x > $.P.x + 40)) shootB(e.x, e.y, aimA(e.x, e.y), 1.5); // D63: BRUTAL aims anywhere, fans
         break;
       }
     case 'corpse':
@@ -102,7 +103,7 @@ export function updEnemy(e) {
           e.cool = coolFor('eye', ri(0, 40)); // depth: src/enemies/cadence.ts -> src/depth.ts
           const ex = e.x,
             ey = e.y - e.o * 8;
-          eshoot(ex, ey, aimA(ex, ey), 1.7);
+          shootB(ex, ey, aimA(ex, ey), 1.7); // D63: the BRUTAL fan
           if ($.G.loop > 0) eshoot(ex, ey, aimA(ex, ey) + .25, 1.7);
           if (xtra()) eshoot(ex, ey, aimA(ex, ey) - .25, 1.7);
           flash(ex, ey, 12, 5, '255,60,60');
@@ -717,7 +718,7 @@ export function killEnemy(e, dir = 1) {
   if (e.group) {
     e.group.killed++;
     // D31: a cleared formation drops on the entry's grpPod chance (short 1: no draw); the breath's release always does
-    if (e.group.killed === e.group.n && grpDrops(econId(), e.group.pod, R)) dropCap(e.x, e.y);
+    if (e.group.killed === e.group.n && grpDrops(econId(), e.group.pod, R, bru('pod'))) dropCap(e.x, e.y);
   }
   if (e.k === 'crux' || e.k === 'butcher') {
     for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);
@@ -843,6 +844,7 @@ export function podType() {
     if (slotMaxed(i)) continue;
     let w = POD[i].w;
     if (i === 0 && $.P.speed >= 3) w *= .4;
+    if (i === 6) w *= bru('ward'); // D63: the BRUTAL dial makes WARD rarer
     if (i === 2 && $.P.laser || i === 3 && $.P.double || i === 1 && $.P.pyre || i === 4 && $.P.missile) w *= .5;
     ok.push([i, w]);
     tot += w;
@@ -996,7 +998,7 @@ function updNew(e, ss) {
     if (e.st === 'hover') {
       e.cool--;
       if (e.t > 700 || e.shots >= 2) e.st = 'leave';
-      else if (e.cool <= 0 && P.alive && e.x < W - 24 && P.x < e.x - 20) { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 5, e.y); sfx.tele(); }
+      else if (e.cool <= 0 && P.alive && e.x < W - 24 && (P.x < e.x - 20 || bru('aimAll') && !e.bk && e.x > NOTICE.backMinX)) { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 5, e.y); sfx.tele(); }
     } else if (e.st === 'tel') {
       if (e.wt < 34) e.ha += wrapA(aimA(e.x + (e.bk ? 5 : -5), e.y) - e.ha) * .2;
       if (e.wt >= 52) { e.st = 'fire'; e.wt = 0; }
@@ -1004,7 +1006,7 @@ function updNew(e, ss) {
       const n = ($.G.loop > 0 ? 4 : 3) + xtra();
       if (e.wt % 7 === 1 && e.wt < n * 7) {
         const d = e.bk ? -1 : 1;
-        eshoot(e.x - 6 * d, e.y, e.ha, 1.9);
+        shootB(e.x - 6 * d, e.y, e.ha, 1.9); // D63: the BRUTAL fan
         flash(e.x - 7 * d, e.y, 9, 4, '255,70,50');
         e.x += 1.5 * d;
       }

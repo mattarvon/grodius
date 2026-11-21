@@ -346,12 +346,12 @@ export const killBio = (id: EntryId, v: number): number => v * E(id).killBio;
 
 /** D31: does a carrier spawn keep its pod, given the keep roll r (one R() draw). Drops at r < 1 - capKeep, the old
  *  `r < .65` exactly on short (1 - .35 === .65 in doubles), so the same draw keeps the same pods */
-export const capKept = (id: EntryId, r: number): boolean => !(r < 1 - E(id).capKeep);
+export const capKept = (id: EntryId, r: number, m = 1): boolean => !(r < 1 - E(id).capKeep * m); // m: D63's BRUTAL pod share
 
 /** D31: does a cleared formation drop its pod. `pod`: the biome breath's release formation, always. `rnd` is drawn
  *  only when the entry's grpPod is below 1 and the formation is not exempt (short draws nothing) */
-export const grpDrops = (id: EntryId, pod: unknown, rnd: () => number): boolean => {
-  const p = E(id).grpPod;
+export const grpDrops = (id: EntryId, pod: unknown, rnd: () => number, m = 1): boolean => {
+  const p = E(id).grpPod * m; // m: D63's BRUTAL pod share (1 on short, which still draws nothing)
   return !!pod || p >= 1 || rnd() < p;
 };
 

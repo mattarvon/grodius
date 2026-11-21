@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "977e36f",
+  "commit": "9948f85",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "maw-d1",
@@ -15,7 +15,7 @@
     "en": 1,
     "gibs": 24,
     "drops": 129,
-    "caps": 3,
+    "caps": 2,
     "jump": true,
     "stage": 0,
     "pair": "ufo",
@@ -26,11 +26,11 @@
     "kills": 0,
     "t": 1180,
     "seen": "mini:maw",
-    "sig": "02db3772c3"
+    "sig": "43a3e30843"
   },
   "hashes": [
     "a0bc0aaa9e",
-    "5a0d40347f"
+    "a841e33c62"
   ],
   "errs": []
 }

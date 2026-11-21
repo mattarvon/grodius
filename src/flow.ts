@@ -21,7 +21,7 @@ import { clearRun, decodeRun, decodeRunAs, lastRun } from './runsave';
 import { sealFor, stageBanner } from './stages';
 import { CP, cp1Release, cp1X, writeCp } from './checkpoint';
 import { rebuildAt } from './stagebuild';
-import { cpTrigger } from './lab';
+import { brutalPick, cpTrigger } from './lab';
 import { jumpBlob } from './jump';
 import { ECON, econId } from './economy';
 
@@ -72,6 +72,8 @@ export function newGame(startL = 0) {
     ...baseG(),
     seed: newRunSeed(R) // the run seed (B2): every stage build draws from a stream hashed from it (src/rng.ts); kept in the run save
   };
+  const bz = brutalPick(); // D63: the BRUTAL dial (src/brutal.ts); unset at 0, so short's G is unchanged. In the run save
+  if (bz) $.G.brutal = bz;
   perksReset();
   startLoop(startL);
 }
@@ -162,6 +164,8 @@ export function jumpRun(j) {
   if (!d) { console.error(`?stage=${j.kind}: the jump built a checkpoint that doesn't decode; normal boot`); return false; }
   if (!tryResume(d)) return false;
   $.G.jump = true;
+  const bz = brutalPick(); // D63: a jump flies the dial too (the harness passes ?brutal=0)
+  if (bz) $.G.brutal = bz;
   if (j.rank != null) $.G.powPin = j.rank;
   return true;
 }

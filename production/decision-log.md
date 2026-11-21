@@ -1378,3 +1378,28 @@ midboss-probe --ord 2 --leave 1260 and boss-probe --ord 1/2):
 - Biome B runs 173 s.
 - The Bloat and Butcher take ~32 s at the STAGE 1 kit, over 22.
 - G.flayN, like D61's G.hazN, isn't in the run save, so a resume restarts the hunter count.
+
+### D63 BRUTAL: pass2 curve + a live difficulty dial — 2026-11-21 (Matt's calls; branch `pass2`)
+
+Matt on D62: "this is still so easy. I don't need to do anything but hold the spacebar down. can't die and I am way
+overpowered, and the enemies are predictable and die instantly." On pass2: "still too easy" (D1 beaten deathless);
+wants "brutal everywhere", old-school arcade hard from the first stage, dying a lot is the point.
+
+- **Pass 2 curve (long4 `HardSet`, economy.ts HARD_LONG4; short unchanged):** WARD at cap +1 hit (was a refill); a
+  death's FULL pods (boss lifeline and BLACK BOX) capped at the main gun + one; fodder HP x(1 + 1.5 * min(2, G.pow))
+  (revises D1: toughness follows the power budget); rank cap 1.25; serration 1.2 / caliber 1.18; D61 Pass 1 rates back
+  (aimed hazard every 3rd / D3 2nd, in fights too, every flayer hunts, lash cooldown x1). HULL 400 / 1100 (all layouts).
+- **BRUTAL dial (src/brutal.ts), G.brutal 0-3, in the run save.** ?brutal=N > LAB row BRUTAL > default 2 on long4;
+  always 0 on short; the harness flies ?brutal=0. Per step 0/1/2/3: fodder HP x1/1.5/2.2/3; midboss and stage-boss HP
+  x1/1.3/1.6/2 (KEEPSAKE half the extra); Drive HP x1/.5/.55/.6; every cooldown and pattern interval x1/.7/.55/.42;
+  random fire x1/2.5/4/6; bullet speed x1/1.15/1.3/1.45; drones and sentries fire wherever the ship is from 1; +0/0/1/2
+  fan bullets each side; +0/1/2/3 drones per formation; carrier/formation pods kept x1/.7/.5/.35; WARD pod weight
+  x1/1/.5/.25.
+- **Gate finding:** a parked bot (pod-probe --mortal --park) game-overs in Open Orbit on main already (8/8, < 50 s,
+  aimed orbs), so it cannot measure this; the dodging pilot is the floor and Matt calibrates the dial by playing.
+- **Measured** (pod-probe --mortal --pilot --hull 1, seeds 1/3/5/7/11): dial 0 1 of 5 D1 clears (median death biome B),
+  dial 1 1 of 5 (median biome A), dial 2 0 of 5 (median Orbit/biome A), dial 3 0 of 5 (all in Orbit by 80 s).
+- **Harness:** short and layout-parity identical. long4 and every scenario except maw-d3 re-baselined at dial 0 for
+  the pass2 curve (fodder HP, grafts, Pass 1 rates, rank cap); --runs identical.
+
+**Category:** balance

@@ -10,6 +10,7 @@ import './mid';
 import { MID_ET, MID_SIM } from './mid/roster';
 import { depthHP, midLateMul } from '../depth';
 import { flayHunts } from '../notice';
+import { bru } from '../brutal';
 import { firstShot } from './cadence'; // D62: the Drive's first-shot range
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
 import { bandClamp } from '../terrainb';
@@ -172,11 +173,11 @@ export function mk(k, x, y, o = {}) {
   e.hp *= e.dm;
   e.max = e.hp;
   if (!b.mini && !o.par && !o.kid && $.G.st) $.G.st.spawned++; // kid: born from a midboss, not scripted
-  if (e.cap && !e.mini && !capKept(econId(), R())) e.cap = false; // D31: the entry's keep (economy.ts capKeep; short .35)
+  if (e.cap && !e.mini && !capKept(econId(), R(), bru('pod'))) e.cap = false; // D31: the entry's keep (economy.ts capKeep; short .35)
   enemies.push(e);
   return e;
 }
-export const BS = () => Math.min(1.45, 1 + .12 * $.G.loop) * (1 + .35 * Math.min(2.0, $.G.pow || 0));
+export const BS = () => Math.min(1.45, 1 + .12 * $.G.loop) * (1 + .35 * Math.min(2.0, $.G.pow || 0)) * bru('bs'); // D63: x the BRUTAL dial's bs
 export function eshoot(x, y, a, sp, k = 'orb') {
   if (eshots.length > 260) return;
   eshots.push({
@@ -189,6 +190,11 @@ export function eshoot(x, y, a, sp, k = 'orb') {
     t: 0
   });
   k === 'glob' ? sfx.glob() : sfx.eshot();
+}
+/** D63: a regular shooter's aimed shot, plus the BRUTAL dial's fan (bru('fan') extra bullets each side, .22 rad apart) */
+export function shootB(x, y, a, sp, k = 'orb') {
+  eshoot(x, y, a, sp, k);
+  for (let i = 1, n = bru('fan'); i <= n; i++) { eshoot(x, y, a + .22 * i, sp, k); eshoot(x, y, a - .22 * i, sp, k); }
 }
 export const aimA = (x, y) => Math.atan2($.P.y - y, $.P.x - x),
   wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -228,7 +234,7 @@ export const formationExtra = () => formExtra(econId(), $.G.pow || 0);
 export function formation(pat, y, n = 5, o = {}) {
   const { fixed, pod, ...mo } = o; // pod: the group always drops its pod (the biome breath's release, D31)
   const n0 = n, tag = ECON[econId()].form.extra; // D58 #3: mark the rank drones (long4); short marks none
-  if (!fixed) n += formationExtra(); // denser waves as you power up (short: uncapped past rank 1 so Infirmary buys still add bodies)
+  if (!fixed) n += formationExtra() + bru('dens'); // D63: the BRUTAL dial's extra drones // denser waves as you power up (short: uncapped past rank 1 so Infirmary buys still add bodies)
   const g = {
     n,
     killed: 0
@@ -397,7 +403,7 @@ export const fan = (x, y, a, n, spread, sp, k) => {
 export const ring = (x, y, n, a0, sp, k) => {
   for (let i = 0; i < n; i++) eshoot(x, y, a0 + i * TAU / n, sp, k);
 };
-export const every = (e, n) => e.t % Math.max(18, Math.round(n * (1 - .4 * Math.min(2.0, $.G.pow || 0)))) === 0;
+export const every = (e, n) => e.t % Math.max(18, Math.round(n * (1 - .4 * Math.min(2.0, $.G.pow || 0)) * bru('cool'))) === 0; // D63: x the BRUTAL dial's cool (render/gross/crux.ts per() mirrors it)
 export function miniWarn(name, f) {
   banner('WARNING', name, '#ff2a2a', 170, true);
   sfx.dread();

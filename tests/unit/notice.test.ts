@@ -27,7 +27,7 @@ vi.mock('../../src/enemies/spawn', () => ({
   BS: () => 1, wrapA: (a: number) => Math.atan2(Math.sin(a), Math.cos(a)), fan: noop, ring: noop, every: () => false,
   aimA: (x: number, y: number) => Math.atan2($.P.y - y, $.P.x - x), onScreen: (e: any) => e.x > -10 && e.x < 474,
   eshoot: (x: number, y: number, a: number, sp: number, k = 'orb') => { W.eshots.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, k, f: $.T }); },
-  banner: noop, mk: noop,
+  banner: noop, mk: noop, shootB: (x: number, y: number, a: number, sp: number, k = 'orb') => { W.eshots.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, k, f: $.T }); },
 }));
 
 const { updEnemy } = await import('../../src/enemies/update');

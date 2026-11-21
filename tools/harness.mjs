@@ -10,6 +10,7 @@
 //   HARNESS_ALLOW_FLAKY=1 lets a local FLAKY pass with a warning, and is ignored when CI is set.
 //   --layout long4 flies ?layout=long4 (the game default since D24) against tools/harness.long4.baseline.json.
 //   No --layout: ?layout=short against tools/harness.baseline.json, exactly as before.
+//   Every run adds ?brutal=0 (D63): the BRUTAL dial's long4 default is 2, and the baselines record dial 0 (pass2).
 //   --scenario <name>|all flies a jump-switch scenario (SCENARIOS below; src/jump.ts) on long4 against its own
 //   tools/harness.<name>.baseline.json. --runs N flies each N times and fails unless all N match (the determinism
 //   proof). --shots <dir> keeps each scenario's first frame there. Scenario `st` adds the stage, rank, what the run met
@@ -110,7 +111,7 @@ async function runOnce(b, sc = null, name = null) {
   let loads = 0; p.on('load', () => loads++);
   await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
   await p.addInitScript(init, FLASHES);
-  await p.goto(url + (url.includes('?') ? '&' : '?') + 'layout=' + (sc ? 'long4' : LAYOUT) + (sc ? '&' + sc.q : '')); // pinned either way: the short baseline stays short although long4 is the default (D24)
+  await p.goto(url + (url.includes('?') ? '&' : '?') + 'layout=' + (sc ? 'long4' : LAYOUT) + (sc ? '&' + sc.q : '') + '&brutal=0'); // pinned either way: the short baseline stays short although long4 is the default (D24)
   let ok = false;
   for (let i = 0; i < 300 && !ok; i++) { ok = await ready().catch(() => false); if (!ok) await sleep(50); }
   if (!ok) errs.push('harness: game not ready after 15 s (boot, fonts or images)');

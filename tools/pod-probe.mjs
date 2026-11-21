@@ -1,6 +1,6 @@
 // Seeded pacing probe: progression.mjs bot + pick/fork/shop handling, seeded RNG,
 // per-frame pod-pickup timestamps, per-stage pods/min, bio per descent.
-// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout long4|short] [--mortal] [--pilot | --park] [--hull N] [--kit mid|full]
+// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout long4|short] [--mortal] [--pilot | --park] [--hull N] [--kit mid|full] [--brutal 0-3]
 // --pilot: steer with the dodging autopilot (tools/pilot.mjs) instead of the plain target-seeker; use it with --mortal
 // (the plain bot game-overs in long4's first biome). Its frames with no safe move are reported as `pilot.trapped`.
 // --mortal: the bot is not kept invincible, so it takes real hits, loses ships and can game over (the run then ends
@@ -33,6 +33,7 @@ import { PILOT } from './pilot.mjs';
 const mi = process.argv.indexOf('--mortal'), MORTAL = mi >= 0; if (MORTAL) process.argv.splice(mi, 1);
 const pli = process.argv.indexOf('--pilot'), PIL = pli >= 0; if (PIL) process.argv.splice(pli, 1);
 const pki = process.argv.indexOf('--park'), PARK = pki >= 0; if (PARK) process.argv.splice(pki, 1);
+const bri = process.argv.indexOf('--brutal'), BRU = bri >= 0 ? process.argv.splice(bri, 2)[1] : null; // D63: ?brutal=N (default: the game's, 2 on long4)
 const kti = process.argv.indexOf('--kit'), KIT = kti >= 0 ? process.argv.splice(kti, 2)[1] : null;
 const hui = process.argv.indexOf('--hull'), HULL = hui >= 0 ? +process.argv.splice(hui, 2)[1] : 0;
 const [url, SEED = '1', MIN = '12', END = '1'] = process.argv.slice(2);
@@ -84,7 +85,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit]) => { let now = 0; c
           const kind = c.graft ? 'graft' : c.blue ? 'blue' : c.choice ? 'choice' : c.salv ? 'salv' : 'pod';
           if (kind === 'choice') { if (chosen) continue; chosen = true; }
           window.__pods.push({ f: window.__fr, kind, src: window.__capSrc.get(c) || 'unknown', st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, [+SEED, MORTAL, PIL, PARK, HULL, KITP]);
-await p.goto(url); await p.waitForFunction(() => window.__started);
+await p.goto(BRU != null ? url + (url.includes('?') ? '&' : '?') + 'brutal=' + BRU : url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'pod-probe', { quiet: true }); // stdout stays one JSON object; it carries the layout
 if (HULL) await p.evaluate(async (h) => { (await import('/src/state.ts')).$.meta.lv.hull = h; }, HULL); // --hull N: REINFORCED HULL bought N times (a played profile's extra ships)
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
@@ -118,5 +119,5 @@ const stages = seg.slice(0, -1).map((sg, i) => { const f1 = seg[i + 1].f0; const
   return { stage: sg.k, dur: +dur.toFixed(1), pods: n, kinds, src, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
-  mortal: MORTAL, park: PARK, hull: HULL, kit: KIT, deaths: fin.deaths, hitLog: fin.hitLog, lives0: fin.lives0, pilot: PIL ? await p.evaluate(() => window.__pilotLog) : null, stages, tally_s: tally, grades, warns, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
+  mortal: MORTAL, park: PARK, hull: HULL, kit: KIT, brutal: await p.evaluate(() => __G().G.brutal || 0), deaths: fin.deaths, hitLog: fin.hitLog, lives0: fin.lives0, pilot: PIL ? await p.evaluate(() => window.__pilotLog) : null, stages, tally_s: tally, grades, warns, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
 console.error(`pod-probe: ran on ${LAYOUT}`); await b.close();

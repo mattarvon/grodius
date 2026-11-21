@@ -111,6 +111,7 @@ const G_FIELDS = {
   seal: (v) => isNat(v) && v <= SEAL_MAX, cleared: isNat,
   // rewards still pending at the checkpoint (H entry criterion 1): queued level-up picks, the biome boost offer
   pickQ: isNat, boostReq: isStrOrNull,
+  brutal: (v) => isInt(v) && v >= 0 && v <= 3, // D63: the BRUTAL dial the run started on (absent = 0)
   // route and freshness
   route: (v) => Array.isArray(v) && v.length === nSlots() && v.every((b) => b === null || isBiome(b)), // one per biome slot (layout.ts)
   bvis: isNumMap,

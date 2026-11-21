@@ -12,12 +12,15 @@ export const LAB_KEY = 'grodius.lab';
 
 /** the LAB's own values. layout: which descent a new run flies; mids: LS2's unfinished midbosses (`wip` rows in enemies/mid/roster.ts; biomes.ts stageMids reads it);
  *  cp: the checkpoint trigger, spec §4 option a (app kill or quit only, the default) or b (also on death; item H);
- *  mid: the wip kind forced into slot A of every biome stage, the LAB's ?mid= (midForce), or '' (off, the default) */
-export interface Lab { layout: 'short' | 'long'; mids: '' | 'wip'; cp: 'a' | 'b'; mid: string }
+ *  mid: the wip kind forced into slot A of every biome stage, the LAB's ?mid= (midForce), or '' (off, the default);
+ *  brutal: D63's BRUTAL dial (src/brutal.ts) for a long run, 0-3 (2 the default) */
+export interface Lab { layout: 'short' | 'long'; mids: '' | 'wip'; cp: 'a' | 'b'; mid: string; brutal: number }
 /** the layout a run flies when neither a ?layout= flag nor the LAB chose one. long4 since 2026-11-02 (D24, Matt:
  *  make long the default); short stays reachable through the LAB and ?layout=short until it is deleted */
 export const DEFAULT_LAYOUT = 'long4';
-export const LAB_DEFAULT: Lab = { layout: 'long', mids: '', cp: 'a', mid: '' };
+/** D63 (Matt): the BRUTAL dial a long run flies when neither ?brutal= nor the LAB chose one */
+export const BRUTAL_DEFAULT = 2;
+export const LAB_DEFAULT: Lab = { layout: 'long', mids: '', cp: 'a', mid: '', brutal: BRUTAL_DEFAULT };
 
 /** the LAB layout name -> the layout table id it flies (src/layout.ts LAYOUTS) */
 export const LAYOUT_ID = { short: 'short', long: 'long4' } as const;
@@ -32,9 +35,20 @@ export function labOf(v: unknown): Lab {
     mids: o.mids === 'wip' ? 'wip' : '',
     cp: o.cp === 'b' ? 'b' : 'a',
     mid: typeof o.mid === 'string' && midRow(o.mid)?.wip ? o.mid : '', // a wip kind only: finished or unknown is off
+    brutal: brutalOf(o.brutal) ?? BRUTAL_DEFAULT,
   };
 }
 
+/** a dial value 0-3 from anything, or null */
+export const brutalOf = (v: unknown): number | null => { const n = typeof v === 'string' && v !== '' ? +v : v; return Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 3 ? (n as number) : null; };
+/** D63: the BRUTAL dial a run started now flies on layout `id`: ?brutal=N > the LAB > BRUTAL_DEFAULT on long4; 0 on
+ *  any other layout (short stays today's game, byte for byte). Pure */
+export function brutalChoice(search: string, l: Lab | null, id: string): number {
+  if (id !== 'long4') return 0;
+  let q: string | null = null;
+  try { q = new URLSearchParams(search).get('brutal'); } catch (e) {}
+  return brutalOf(q) ?? (l ? l.brutal : BRUTAL_DEFAULT);
+}
 /** the raw ?layout= value, or null when the URL does not set one */
 export function urlLayout(search: string): string | null {
   try { return new URLSearchParams(search).get('layout'); } catch (e) { return null; }
@@ -106,6 +120,8 @@ export const wipMids = (): string[] => ['', ...ROSTER.filter((r) => r.wip).map((
  *  twin. A forced wip kind still leaves the profile alone: meetMid and firstKill skip wip rows (no meta.mb, meta.mbK
  *  or first-kill pay). With neither set it is null and no run changes */
 export const midForce = () => forcedMid(search()) ?? (lab().mid || null);
+/** D63: the dial the next run flies on the active layout (flow.ts newGame / jumpRun) */
+export const brutalPick = (id: string = layout().id): number => brutalChoice(search(), cur, id);
 /** the checkpoint trigger for item H: 'a' = app kill or quit only (spec §4 default), 'b' = also on death */
 export const cpTrigger = (): Lab['cp'] => lab().cp;
 

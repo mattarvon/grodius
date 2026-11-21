@@ -1,20 +1,20 @@
 {
   "frames": 1200,
-  "commit": "07dc894",
+  "commit": "9948f85",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "crux-d1",
   "q": "stage=ice&x=5940&loop=0&kit=mid&rank=.5&seed=7",
   "st": {
     "state": "play",
-    "score": 1000,
+    "score": 500,
     "scroll": 12947,
     "lives": 0,
     "px": 50,
     "py": 112.062,
     "en": 5,
-    "gibs": 21,
-    "drops": 60,
+    "gibs": 19,
+    "drops": 58,
     "caps": 0,
     "jump": true,
     "stage": 1,
@@ -26,11 +26,11 @@
     "kills": 0,
     "t": 1180,
     "seen": "mini:crux",
-    "sig": "6d1ff000de"
+    "sig": "6760587676"
   },
   "hashes": [
-    "36498464ff",
-    "350902f5c5"
+    "28ed7aedd4",
+    "82757f79d1"
   ],
   "errs": []
 }
