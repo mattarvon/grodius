@@ -249,7 +249,9 @@ describe('the chain levels (LS2-booth2, audio-director)', () => {
     expect(VOX.clipAt).toBe(-0.5);
     expect(VOX.hotAt).toBe(-3);
     expect(VOX.squeeze).toEqual({ over: 0.4, keep: 0.25, after: 0.15, xfade: 0.005 });
-    expect(VOX.denoise).toBe('afftdn=nr=10:nf=-50:tn=1'); // kept at nr=10 (audio-director)
+    expect(VOX.denoise.afftdn).toBe('afftdn=nr=10:nf=-50:tn=1'); // kept at nr=10 (audio-director)
+    expect(VOX.denoise.mode).toBe('dfn'); // DeepFilterNet when installed, afftdn as the fallback (booth-dfn)
+    expect(VOX.denoise.dfn).toEqual({ atten: 25, peak: -3, pad: 1440 });
   });
   it('sets the trim gate from the noise floor and the expander from the RMS trough, each over its own offset', () => {
     // a floor (windowed peak minimum) of -60 and a trough (RMS) of -66, both inside their clamps

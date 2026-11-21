@@ -11,7 +11,7 @@ const SHA = 'a'.repeat(64) + '.webm';
 describe('renderKey / sameKey', () => {
   const k = renderKey('hype10', SHA, true, ROBOT);
   it('binds the slot, the raw bytes, the squeeze, the rack and the FX chain', () => {
-    expect(k).toEqual({ cat: 'hype10', sha: SHA, squeeze: true, fx: JSON.stringify(ROBOT), chain: FX_CHAIN });
+    expect(k).toEqual({ cat: 'hype10', sha: SHA, squeeze: true, fx: JSON.stringify(ROBOT), chain: FX_CHAIN, denoise: '' });
     expect(sameKey(k, renderKey('hype10', SHA, true, ROBOT))).toBe(true);
     expect(sameKey(k, renderKey('hype35', SHA, true, ROBOT))).toBe(false);
     expect(sameKey(k, renderKey('hype10', 'b'.repeat(64) + '.webm', true, ROBOT))).toBe(false);
@@ -19,6 +19,13 @@ describe('renderKey / sameKey', () => {
     expect(sameKey(k, renderKey('hype10', SHA, false, ROBOT))).toBe(false);
     expect(sameKey(k, renderKey('hype10', SHA, true, {}))).toBe(false);
     expect(sameKey(k, renderKey('hype10', SHA, true, ROBOT, FX_CHAIN + 1))).toBe(false);
+  });
+  it('binds the denoise stage: a DFN render is never filed as an afftdn keep, nor one DFN version as another', () => {
+    const d = renderKey('hype10', SHA, true, ROBOT, FX_CHAIN, 'dfn-0.5.6');
+    expect(sameKey(d, renderKey('hype10', SHA, true, ROBOT, FX_CHAIN, 'dfn-0.5.6'))).toBe(true);
+    expect(sameKey(d, renderKey('hype10', SHA, true, ROBOT, FX_CHAIN, 'afftdn'))).toBe(false);
+    expect(sameKey(d, renderKey('hype10', SHA, true, ROBOT, FX_CHAIN, 'dfn-0.5.7'))).toBe(false);
+    expect(sameKey(d, k)).toBe(false);
   });
   it('compares racks as cleanFx leaves them: knob order, junk keys and unsnapped values do not matter', () => {
     const shuffled = Object.fromEntries(Object.entries(ROBOT).reverse().map(([id, v]) => [id, Object.fromEntries(Object.entries(v).reverse())]));

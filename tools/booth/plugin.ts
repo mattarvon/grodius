@@ -11,7 +11,7 @@
 //          &squeeze=0 keeps the mid-take pauses as recorded (default: shortened, VOX.squeeze). A raw take that clipped
 //          (VOX.clipAt) is saved but refused: 422 { error, clipped: true, rawPeak }. &preview=<id> (the preview's
 //          x-booth-info `preview`): filed from that preview's render, not rendered again, when it is still kept (CACHE)
-//          and was made from the same bytes, line, squeeze, rack and FX_CHAIN (cache.ts); else rendered as ever.
+//          and was made from the same bytes, line, squeeze, rack, FX_CHAIN and denoise (cache.ts); else rendered as ever.
 //          Same answer, same .json either way; x-booth-promoted: 1 says it was filed from the preview
 //   DELETE /__booth/take?cat=<cat>&name=<file> removes one processed take (a raw take stays in assets-raw/)
 //   POST   /__booth/restore?cat=<cat>&name=<file>  (body: the deleted take's Ogg bytes) puts a just-deleted take back: the booth's Z undo
@@ -50,6 +50,7 @@ import { newId, normText, parseQuips, QUIP_ID_MAX, QUIP_ID_RE, quipCat, quipLine
 import { TAKE_MAX, clickTail, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, TAKE_RE } from './names.ts';
 import { FX_CHAIN, cleanFx, fxGraph, fxName, fxOn, fxPreGain, type FxSet } from './fx.ts';
 import { Shelf, previewParam, renderKey, sameKey, type RenderKey } from './cache.ts';
+import { denoiser, denoiseTag, type Denoise, type DenoiseMode } from './denoise.ts';
 
 const exec = promisify(execFile);
 const RUN = { timeout: 60_000, killSignal: 'SIGKILL', maxBuffer: 1 << 24 } as const;
@@ -87,9 +88,18 @@ export const VOX = {
   /** the laptop's hiss fills the band above 14 kHz (audio-director, LS2-booth2 listen); the shipped reference rolls off
    *  near 17 kHz anyway, and nothing in a voice the game needs lives up there */
   lowpass: 14000,
-  /** light FFT denoise for the laptop mic: 10 dB reduction against a tracked noise floor (it learns the room in the
-   *  lead-in). Never above 12: consonants start to smear at 15-20 dB. A quiet take is a gain problem, see quiet */
-  denoise: 'afftdn=nr=10:nf=-50:tn=1',
+  /** the denoise stage (denoise.ts): `mode` 'dfn' runs DeepFilterNet's deep-filter CLI when it is installed
+   *  (BOOTH_DFN, or the default install), else the booth falls back to afftdn with a one-time note; BOOTH_DENOISE=afftdn
+   *  forces the fallback. CI has no DFN, so it runs afftdn.
+   *  afftdn: light FFT denoise for the laptop mic: 10 dB reduction against a tracked noise floor (it learns the room in
+   *  the lead-in). Never above 12: consonants start to smear at 15-20 dB. A quiet take is a gain problem, see quiet.
+   *  dfn: the take (clicks cut, filtered) goes to deep-filter as 48 kHz mono (the model's rate), lifted to a `peak`
+   *  dBFS sample peak first (deep-filter writes 16-bit, and a quiet Yeti take peaks at -17 to -27) and turned back down after;
+   *  `pad` samples of silence at the end, so its delay compensation (-D: 2 frames of lookahead plus one hop, 1440
+   *  samples at 48 kHz) shifts the take into place without dropping the last word's tail. `atten` dB is the most it
+   *  takes off the noisy signal (-a): enough to put the room under the expander, not so much that a breathy onset or a
+   *  decaying tail goes with it (measured: tools/booth/README.md, DeepFilterNet) */
+  denoise: { mode: 'dfn' as DenoiseMode, afftdn: 'afftdn=nr=10:nf=-50:tn=1', dfn: { atten: 25, peak: -3, pad: 1440 } },
   /** the key click that starts and stops every take (the laptop mic sits over the keyboard): cut before the trim,
    *  or the trim stops at the click and keeps it. A reaction to Space is longer than the head cut. The tail is found,
    *  not fixed (names.ts clickTail): on the Yeti the stop click lands 30-90 ms before the end, and the old fixed 0.2 s
@@ -321,7 +331,7 @@ export function levels(floor: number, trough: number): { gate: number; expand: n
 
 /** a raw take cleaned up, before the rack (prepTake): the wav, the per-take levels it was cut with, the raw peak, the
  *  pause squeeze, and the wav's loudness and length (the rack's take info, or the clean take's gain to the target) */
-export type Prep = { wav: string; gate: number; expand: number; rawPeak: number | null; squeeze: boolean; squeezed: number; lufs: number | null; dur: number | null };
+export type Prep = { wav: string; gate: number; expand: number; rawPeak: number | null; squeeze: boolean; squeezed: number; lufs: number | null; dur: number | null; denoise: string };
 
 /** raw take -> the game's clip: the clip guard, mono, the key clicks cut, highpass, lowpass, denoise, the expander
  *  between phrases, head/tail trim, fades at the cuts, the long pauses shortened (unless o.squeeze is false), gain
@@ -332,7 +342,7 @@ export type Prep = { wav: string; gate: number; expand: number; rawPeak: number 
  *  o.signal aborted (a preview whose page went away) kills the ffmpeg running and rejects; the temp files go.
  *  prepTake (everything before the rack) then finishTake (the rack, the gain, the encode): a preview renders its
  *  clean A and its racked B from one prepTake */
-export async function processTake(raw: string, out: string, o: { squeeze?: boolean; fx?: FxSet | null; allowClip?: boolean; signal?: AbortSignal } = {}) {
+export async function processTake(raw: string, out: string, o: { squeeze?: boolean; fx?: FxSet | null; allowClip?: boolean; signal?: AbortSignal; denoise?: Denoise } = {}) {
   const prep = await prepTake(raw, out.replace(/\.ogg$/, '.tmp.wav'), o);
   try {
     return await finishTake(prep, out, o);
@@ -345,22 +355,52 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
  *  mono): the key clicks cut, the filters, the denoise, the expander, the head/tail trim and the pause squeeze. The
  *  same for every rack, so a preview computes it once for its A and its B. `wav` is the caller's to delete (it is
  *  gone already when this rejects) */
-export async function prepTake(raw: string, wav: string, o: { squeeze?: boolean; allowClip?: boolean; signal?: AbortSignal } = {}): Promise<Prep> {
+export async function prepTake(raw: string, wav: string, o: { squeeze?: boolean; allowClip?: boolean; signal?: AbortSignal; denoise?: Denoise } = {}): Promise<Prep> {
   const sh = (cmd: string, args: string[]) => run(cmd, args, o.signal), meas = (f: string) => measure(f, o.signal);
   const ext = path.extname(raw).slice(1), tmp = wav;
+  // the denoise stage (VOX.denoise, denoise.ts): o.denoise is a caller's own (an A/B, a test), else this process's
+  const dn = o.denoise ?? denoiser(VOX.denoise.mode), D = VOX.denoise.dfn;
   const input = ['-hide_banner', '-protocol_whitelist', 'file', '-f', DEMUX[ext], '-i', raw, '-t', '120'];
-  const clean = ['aformat=channel_layouts=mono', `atrim=start=${VOX.click.head}`, 'asetpts=PTS-STARTPTS', `highpass=f=${VOX.highpass}`, `lowpass=f=${VOX.lowpass}`, VOX.denoise];
-  // the stop click's cut, and pass 0 beside it: the room under the denoise, its noise floor for the trim gate, its RMS
-  // trough for the expander (the whole overall set: astats only reports the trough with it; ffmpeg spells it "RMS
-  // through"). Both only read the raw
-  const [tail, { stderr }] = await settled([
-    tailCutOf(input, o.signal),
-    sh('ffmpeg', [...input, '-nostats', '-af', [...clean, 'astats=measure_perchannel=0'].join(','), '-f', 'null', '-']),
-  ]);
-  // the clip guard: a take that clipped at the input is refused before the take is cut (the raw stays in assets-raw/)
-  const rawPeak = await peakOf(input, tail, o.signal);
-  // (a preview runs a clipped take anyway, to audition the FX, and says so)
-  if (rawVerdict(rawPeak) === 'clip' && !o.allowClip) throw new Clipped(rawPeak!);
+  const filt = ['aformat=channel_layouts=mono', `atrim=start=${VOX.click.head}`, 'asetpts=PTS-STARTPTS', `highpass=f=${VOX.highpass}`, `lowpass=f=${VOX.lowpass}`];
+  // what the rest of the chain reads (`src`) and runs first (`clean`): afftdn, the raw with the filters and the
+  // denoise; DFN, its cleaned 48 kHz wav (the clicks already cut), turned back down by the lift
+  let src = input, clean = [...filt, VOX.denoise.afftdn], tail: number, rawPeak: number | null, stderr: string;
+  const dfnIn = tmp.replace(/(\.tmp)?\.wav$/, '.dfn-in.wav'), dfnDir = tmp.replace(/(\.tmp)?\.wav$/, '.dfn');
+  const dfnGone = () => { fs.rmSync(dfnIn, { force: true }); fs.rmSync(dfnDir, { recursive: true, force: true }); };
+  try {
+    if (dn.mode === 'afftdn') {
+      // the stop click's cut, and pass 0 beside it: the room under the denoise, its noise floor for the trim gate, its
+      // RMS trough for the expander (the whole overall set: astats only reports the trough with it; ffmpeg spells it
+      // "RMS through"). Both only read the raw
+      [tail, { stderr }] = await settled([
+        tailCutOf(input, o.signal),
+        sh('ffmpeg', [...input, '-nostats', '-af', [...clean, 'astats=measure_perchannel=0'].join(','), '-f', 'null', '-']),
+      ]);
+      // the clip guard: a take that clipped at the input is refused before the take is cut (the raw stays in assets-raw/)
+      rawPeak = await peakOf(input, tail, o.signal);
+      // (a preview runs a clipped take anyway, to audition the FX, and says so)
+      if (rawVerdict(rawPeak) === 'clip' && !o.allowClip) throw new Clipped(rawPeak!);
+    } else {
+      // DFN: the clip guard first (the net costs more than a pass of ffmpeg), then both clicks cut before the net
+      // hears them, the take lifted toward D.peak (never turned down) and padded for -D, then pass 0 on its output
+      tail = await tailCutOf(input, o.signal);
+      rawPeak = await peakOf(input, tail, o.signal);
+      if (rawVerdict(rawPeak) === 'clip' && !o.allowClip) throw new Clipped(rawPeak!);
+      const lift = rawPeak == null ? 0 : Math.max(0, Math.round((D.peak - rawPeak) * 10) / 10);
+      await sh('ffmpeg', [...input, '-loglevel', 'error', '-y', '-af', [...filt, 'areverse', `atrim=start=${tail}`, 'asetpts=PTS-STARTPTS', 'areverse',
+        `volume=${lift}dB`, `apad=pad_len=${D.pad}`].join(','), '-ar', '48000', '-ac', '1', '-c:a', 'pcm_f32le', '-f', 'wav', dfnIn]);
+      fs.mkdirSync(dfnDir, { recursive: true });
+      await sh(dn.bin, ['-D', '-a', String(D.atten), '-o', dfnDir, dfnIn]);
+      const dfnOut = path.join(dfnDir, path.basename(dfnIn));
+      if (!fs.existsSync(dfnOut)) throw new Error('booth: deep-filter wrote no output (BOOTH_DENOISE=afftdn falls back)');
+      src = ['-hide_banner', '-f', 'wav', '-i', dfnOut];
+      clean = [`volume=${-lift}dB`];
+      ({ stderr } = await sh('ffmpeg', [...src, '-nostats', '-af', [...clean, 'astats=measure_perchannel=0'].join(','), '-f', 'null', '-']));
+    }
+  } catch (e) {
+    dfnGone();
+    throw e;
+  }
   const num = (re: RegExp) => +(re.exec(stderr)?.[1] ?? NaN);
   const { gate, expand } = levels(num(/Noise floor dB:\s*(-?[\d.]+)/), num(/RMS th?rough dB:\s*(-?[\d.]+)/));
   const trim = (s: number) => `silenceremove=start_periods=1:start_threshold=${gate}dB:start_silence=${s}:detection=peak`;
@@ -369,10 +409,11 @@ export async function prepTake(raw: string, wav: string, o: { squeeze?: boolean;
     ...clean,
     `agate=threshold=${(10 ** (expand / 20)).toFixed(6)}:ratio=${E.ratio}:range=${E.range}:attack=${E.attack}:release=${E.release}:knee=${E.knee}:detection=rms`,
     trim(VOX.head), `afade=t=in:d=${VOX.fadeIn}`,
-    'areverse', `atrim=start=${tail}`, 'asetpts=PTS-STARTPTS', trim(VOX.tail), `afade=t=in:d=${VOX.fadeOut}`, 'areverse',
+    // the stop click (DFN's input had it cut already)
+    'areverse', ...(dn.mode === 'afftdn' ? [`atrim=start=${tail}`] : []), 'asetpts=PTS-STARTPTS', trim(VOX.tail), `afade=t=in:d=${VOX.fadeOut}`, 'areverse',
   ].join(',');
   try {
-    await sh('ffmpeg', [...input, '-loglevel', 'error', '-y', '-af', chain, '-ar', '44100', '-ac', '1', tmp]);
+    await sh('ffmpeg', [...src, '-loglevel', 'error', '-y', '-af', chain, '-ar', '44100', '-ac', '1', tmp]);
     let squeezed = 0;
     // the cleaned-up take's loudness and length: kept when the squeeze cuts nothing
     let m0: Awaited<ReturnType<typeof measure>> | null = null;
@@ -402,10 +443,12 @@ export async function prepTake(raw: string, wav: string, o: { squeeze?: boolean;
       fs.rmSync(sq, { force: true });
     }
     const { lufs, dur } = m0 ?? await meas(tmp);
-    return { wav: tmp, gate, expand, rawPeak, squeeze: o.squeeze !== false, squeezed, lufs, dur };
+    return { wav: tmp, gate, expand, rawPeak, squeeze: o.squeeze !== false, squeezed, lufs, dur, denoise: denoiseTag(dn) };
   } catch (e) {
     fs.rmSync(tmp, { force: true });
     throw e;
+  } finally {
+    dfnGone();
   }
 }
 
@@ -487,7 +530,7 @@ export async function finishTake(prep: Prep, out: string, o: { fx?: FxSet | null
       rawVerdict(rawPeak) === 'clip' ? `clipped input (raw peak ${rawPeak} dBFS): a preview only, the booth refuses to keep it` : '',
       rawVerdict(rawPeak) === 'hot' ? `hot take (raw peak ${rawPeak} dBFS, past ${VOX.hotAt}): back off the mic a little` : '',
     ].filter(Boolean).join('; ') || undefined;
-    return { gain: Math.round(g * 100) / 100, gate, expand, rawPeak, squeeze: prep.squeeze, squeezed, fx: fxName(o.fx), ...m, warn };
+    return { gain: Math.round(g * 100) / 100, gate, expand, rawPeak, squeeze: prep.squeeze, squeezed, fx: fxName(o.fx), denoise: prep.denoise, ...m, warn };
   } finally {
     fs.rmSync(fxw, { force: true });
     fs.rmSync(sat, { force: true });
@@ -526,7 +569,7 @@ export const skipWhy = (e: unknown) => (e instanceof Clipped ? e.message.replace
  *  repeat (the pause squeeze), and the words the take was recorded to (LS2-quips: a quip whose text changed since
  *  shows its older takes as stale), and the FX chain version it was rendered with (fx.ts FX_CHAIN; none: a take kept
  *  before fx-dsp, see legacyWhy) */
-export type TakeOpts = { squeeze: boolean; text?: string; fx?: FxSet; chain?: number };
+export type TakeOpts = { squeeze: boolean; text?: string; fx?: FxSet; chain?: number; denoise?: string };
 const optsFile = (rdir: string, name: string) => path.join(rdir, name.replace(/\.ogg$/, '.json'));
 /** a take's saved choices, or null for a take kept before LS2-booth2 (or an unreadable record) */
 export function readOpts(rdir: string, name: string): TakeOpts | null {
@@ -538,6 +581,8 @@ export function readOpts(rdir: string, name: string): TakeOpts | null {
     // the FX rack the take was kept with (none: a take from before the rack, or kept clean)
     if (fxOn(cleanFx(j.fx))) o.fx = cleanFx(j.fx);
     if (Number.isInteger(j.chain) && j.chain > 0) o.chain = j.chain;
+    // the denoise stage it was last rendered with (denoise.ts denoiseTag): a note for the ear, never a gate
+    if (typeof j.denoise === 'string' && /^(afftdn|dfn(-[\d.]+)?)$/.test(j.denoise)) o.denoise = j.denoise;
     return o;
   } catch { return null; }
 }
@@ -567,12 +612,14 @@ export class LegacyTakes extends Error {
 export type Redone = { cat: string; name: string; done: boolean; why?: string; lufs?: number | null; peak?: number | null; dur?: number | null; gain?: number; fx?: string; long?: string; warn?: string; legacy?: string };
 /** a rewritten take's record, stamped with the chain it now carries: the record as on disk (or the squeeze it got,
  *  for a take kept before records existed), the applied rack over its own, and `chain` */
-function stamp(rdir: string, name: string, squeeze: boolean, fx: FxSet | undefined) {
+function stamp(rdir: string, name: string, squeeze: boolean, fx: FxSet | undefined, denoise?: string) {
   let j: Record<string, unknown> = {};
   try { const r = JSON.parse(fs.readFileSync(optsFile(rdir, name), 'utf8')); if (r && typeof r === 'object' && !Array.isArray(r) && typeof r.squeeze === 'boolean') j = r; } catch { /* no record */ }
   if (typeof j.squeeze !== 'boolean') j = { squeeze };
   // an applied rack replaces the take's own; an applied empty rack (clean) leaves no fx key at all
   if (fx) { const { fx: _was, ...rest } = j; j = fxOn(fx) ? { ...rest, fx } : rest; }
+  // the denoise it now carries (a stand-in process reports none: the record keeps what it had)
+  if (denoise) j = { ...j, denoise };
   fs.writeFileSync(optsFile(rdir, name), JSON.stringify({ ...j, chain: FX_CHAIN }));
 }
 /** the takes a reprocess of these slots would rewrite that were kept before fx-dsp and would change (legacyWhy):
@@ -635,7 +682,7 @@ export async function reprocess(root: string, cats: string[], o: { squeeze?: boo
           const had = readOpts(rdir, name), fx = o.fx ?? had?.fx;
           const p = await proc(path.join(rdir, f), part, { squeeze: had?.squeeze ?? o.squeeze, ...(fx ? { fx } : {}) });
           fs.renameSync(part, dest);
-          stamp(rdir, name, had?.squeeze ?? o.squeeze !== false, o.fx);
+          stamp(rdir, name, had?.squeeze ?? o.squeeze !== false, o.fx, (p as { denoise?: string }).denoise);
           const was = legacyOf.get(`${cat}/${name}`);
           r = { cat, name, done: true, lufs: p.lufs, peak: p.peak, dur: p.dur, gain: p.gain, fx: p.fx, long: lenWarn(slot, p.dur), warn: p.warn, ...(was ? { legacy: was } : {}) };
         } catch (e) {
@@ -807,7 +854,7 @@ export function booth(): Plugin {
   /** the prep of this raw (made by `raw()` when it is not on the shelf yet; `owned`: a temp copy, deleted once the
    *  prep is done), held until the returned release() */
   async function sharedPrep(sha: string, squeeze: boolean, raw: () => { file: string; owned: boolean }, signal?: AbortSignal) {
-    const k = `${sha}|${squeeze ? 1 : 0}`;
+    const k = `${sha}|${squeeze ? 1 : 0}|${denoiseTag(denoiser(VOX.denoise.mode))}`;
     let e = preps.get(k);
     if (!e) {
       const src = raw(), ac = new AbortController(), wav = path.join(workDir(), `prep-${randomBytes(6).toString('hex')}.wav`);
@@ -880,8 +927,8 @@ export function booth(): Plugin {
       const file = fs.readFileSync(out);
       // only a posted take: a keep uploads the take under review, never a kept one
       keepIt = !kept;
-      if (keepIt) renders.put(id, { key: renderKey(cat, sha, squeeze, fx), file: out, r });
-      return { file, info: { lufs: r.lufs, peak: r.peak, dur: r.dur, fx: r.fx, warn: r.warn, ...(keepIt ? { preview: id } : {}) } };
+      if (keepIt) renders.put(id, { key: renderKey(cat, sha, squeeze, fx, FX_CHAIN, r.denoise), file: out, r });
+      return { file, info: { lufs: r.lufs, peak: r.peak, dur: r.dur, fx: r.fx, denoise: r.denoise, warn: r.warn, ...(keepIt ? { preview: id } : {}) } };
     } finally {
       release();
       if (!keepIt) rm(out);
@@ -919,7 +966,9 @@ export function booth(): Plugin {
           res.setHeader('cache-control', 'no-store');
           res.setHeader('x-frame-options', 'SAMEORIGIN');
           res.setHeader('content-security-policy', "frame-ancestors 'self'");
-          return res.end(fs.readFileSync(path.join(root, 'tools', 'booth', page), 'utf8').replace('%BOOTH_TOKEN%', token));
+          const dn = denoiser(VOX.denoise.mode);
+          return res.end(fs.readFileSync(path.join(root, 'tools', 'booth', page), 'utf8').replace('%BOOTH_TOKEN%', token)
+            .replace('%BOOTH_DENOISE%', dn.mode === 'dfn' ? `DFN${dn.version ? ' ' + dn.version : ''}` : 'afftdn'));
         }
         const cat = u.searchParams.get('cat') ?? '';
         if (u.pathname === '/__booth/takes' && req.method === 'GET') {
@@ -1020,7 +1069,7 @@ export function booth(): Plugin {
         let promoted = false;
         const job = readBody(req).then((body) => {
           if (body.length < 256) throw new Error('booth: empty take');
-          const key = renderKey(cat, createHash('sha256').update(body).digest('hex') + '.' + ext, squeeze, fx);
+          const key = renderKey(cat, createHash('sha256').update(body).digest('hex') + '.' + ext, squeeze, fx, FX_CHAIN, denoiseTag(denoiser(VOX.denoise.mode)));
           const step = queue.then(async () => {
             // the list again, inside the queue: a quip deleted while this take uploaded is not filed
             const now = readQuips(root).quips, s = voiceSlot(cat, now);
@@ -1048,6 +1097,8 @@ export function booth(): Plugin {
               } else r = await processTake(raw, part, { squeeze, ...(fxOn(fx) ? { fx } : {}) });
               if (fs.existsSync(dest)) throw new Error(`booth: ${name} appeared meanwhile; not overwritten`);
               fs.renameSync(part, dest);
+              // and the denoise it was rendered with, in its record beside the chain stamp
+              try { const rec = JSON.parse(fs.readFileSync(optsFile(rdir, name), 'utf8')); fs.writeFileSync(optsFile(rdir, name), JSON.stringify({ ...rec, denoise: r.denoise })); } catch { /* the record stays as written */ }
               return { name, url: `/src/sfx/${cat}/${name}`, raw: path.relative(root, raw), ...r, long: lenWarn(s, r.dur) };
             } finally {
               fs.rmSync(part, { force: true });

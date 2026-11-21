@@ -106,7 +106,7 @@ ffmpeg does it, in `tools/booth/plugin.ts` (`VOX`), and the audio-director signe
 - the key clicks at the start and the end cut;
 - an 80 Hz highpass;
 - a 14 kHz lowpass (the laptop's hiss lives above it);
-- a light FFT denoise;
+- the **denoise**: DeepFilterNet when it is installed (below), else a light FFT denoise (ffmpeg `afftdn`);
 - an **expander between the phrases**: it turns the room down by up to 20 dB wherever the take falls quiet, from a
   threshold set per take from the room's level, so the gain below doesn't lift the room in every gap. The gaps land
   around -35 to -45 dBFS, like the shipped corpsevoice clip, and word tails decay rather than chop;
@@ -131,6 +131,48 @@ and the rack's own Keep button, the labels and the KEPT deck's chain tag), "appl
 with FX and back to clean (the other take byte-identical), a clipped take
 refused, the studio UI (waveforms, meter, A/B, the render cache, bypass, solo, search, a user preset saved, exported,
 deleted and imported), the layout at 1280 and 760 wide. It records into `hype100` and deletes every file it made afterwards.
+
+### Denoise: DeepFilterNet (optional)
+
+The booth's denoise is DeepFilterNet's `deep-filter` CLI when the binary is on this machine, and ffmpeg's `afftdn`
+when it isn't (CI, a fresh checkout): then the server prints `booth: denoise falls back to ffmpeg afftdn (...)` once,
+and the booth works as before. The header shows which one runs (`denoise DFN 0.5.6` or `denoise afftdn`). No binary
+goes in the repo.
+
+Install (Windows): download `deep-filter-0.5.6-x86_64-pc-windows-msvc.exe` from the official releases page,
+<https://github.com/Rikorose/DeepFilterNet/releases> (MIT / Apache-2.0), into `E:\projects\tools\deepfilternet\`.
+sha256 of v0.5.6: `75e11fa16445f560cb6b021521ddb89e89270d13b83089705d98776f58fd7915`. It runs on the CPU (about 0.4 s
+for a 2 s take); nothing else to install. Restart the dev server after installing: the choice is made once per process.
+
+- `BOOTH_DFN=<path>`: the binary somewhere else (the file, or a folder holding `deep-filter[.exe]` or a
+  `deep-filter-<version>-*` release). Without it the booth looks in `E:/projects/tools/deepfilternet` (`denoise.ts`
+  `DFN_HOME`).
+- `BOOTH_DENOISE=afftdn`: force the old denoise, for an A/B or if DFN misbehaves. Works for `reprocess.mjs` too.
+
+What the DFN stage does (`VOX.denoise.dfn`, `prepTake`): the take with both key clicks cut and the 80 Hz / 14 kHz
+filters goes to `deep-filter -D -a 25` as 48 kHz mono (the model's rate: the CLI takes a 44.1 kHz file without a warning
+and writes 44.1 kHz back, but the model is 48 kHz, so the booth always resamples first). It is lifted to a -3 dBFS peak first (the CLI
+writes 16-bit, and these Yeti takes peak at -17 to -27) and turned back down after, and padded with 1440 samples of silence so
+`-D` (delay compensation) lines the output up sample for sample without dropping the last 30 ms. `-a 25` limits the
+attenuation to 25 dB, so it never fully mutes the room between words (100, the default, writes digital silence there,
+which leaves the trim gate unmeasurable and at its -40 top). Then the chain goes on as ever: expander, trim, squeeze.
+
+Measured on three real Yeti takes (A/B against afftdn, clean, same chain otherwise):
+
+| take | denoise | LUFS | duration | room in the lead-in (RMS, 0-60 ms) | gaps under -45 dB | gate / expander |
+|---|---|---|---|---|---|---|
+| boss-keepsake put-to-bed-2 | afftdn | -12.3 | 1.264 s | -36.3 dBFS | none | -40 / -49 |
+| | DFN -a 25 | -12.4 | 1.293 s | -63.4 dBFS | 0.08 s at -62 RMS | -59 / -65 |
+| carn5 opened-1 | afftdn | -14.1 | 0.561 s | -36.1 dBFS | none | -40 / -47 |
+| | DFN -a 25 | -13.5 | 0.593 s | -58.5 dBFS | (none long enough) | -59 / -65 |
+| hype100 you-are-part-of-it-now-1 | afftdn | -13.0 | 1.201 s | -38.8 dBFS | none | -40 / -44 |
+| | DFN -a 25 | -13.2 | 1.226 s | -63.5 dBFS | 0.07 s at -63 RMS | -59 / -65 |
+
+The room in the gaps comes down 22-27 dB. The takes come out 25-32 ms longer: the trim gate sits under the room now,
+so more of each word's decay is kept, never less (the click cut is unchanged). The high band (over 4 kHz, the S and T)
+in the words sits 2.4-5.1 dB higher against the take's level than with afftdn, which smears consonants. Attenuation
+limits of 12, 20, 24, 25, 30 and 100 dB measured the same on the consonants (within 0.4 dB); 20 left the gaps at -54
+to -57 dBFS, 30 at -72 to -86. 25 is the middle.
 
 ### Reprocess old takes
 
