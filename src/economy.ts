@@ -33,6 +33,9 @@ export interface LateSet {
   midLate: number;
   /** D58 #4: per-kind overrides of midLate, for a kind the one multiplier leaves outside its band */
   midLateK: Readonly<Record<string, number>>;
+  /** D62 (Matt, 2026-11-21): the Drive stage's regular-enemy cooldowns x driveCool (cadence.ts coolFor): the one stage
+   *  under its D61 band on the fixed probe. 1 = none */
+  driveCool: number;
 }
 /** D58 #3: rank drones (formationExtra) = round(k * min(cap, pow)); `extra` = the extra drones carry no pod and drop no
  *  biomass, and pay `xp` x their kill XP. short keeps today's round(3 * min(2, pow)) at full pay */
@@ -125,6 +128,7 @@ const FORM_TODAY: FormSet = { k: 3, cap: 2, xp: 1, extra: false };
  *  midboss-probe --ord 2 --leave 1260; D61 base (x1): Choir 5.8, Womb 4.9, Apprentice 4.8, Brood 4.1 s */
 const LATE_LONG4: LateSet = {
   midLateK: { choir: 2.0, cyst: 2.4, prentice: 2.4, brood: 2.7 }, // #4: per kind, each to ~11 s
+  driveCool: .8, // D62: the Drive's fodder fires sooner again (tools/playtest.mjs hits/min, 1-4 column)
   midLate: 2.2, // #4: any other held kind in slot B (a new pool kind starts here)
 };
 
@@ -193,9 +197,10 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // D58 #2 (rebuilt on D61): x1.3 in slot A and x1.6 in slot B by default; the biome bosses now fight in slot A only
     // (THE KEEPSAKE holds slot B). Weights to D61's 15-22 s at the BIOME B kit (boss-probe --ord 1 / 2): Bloat x1.2 (13.1
     // s at x1), Butcher x1.6 (10.1), the Maw capped at x2 (4.5 s; more would put the STAGE 1 kit at its 28 s escape
-    // clock), THE KEEPSAKE x1.5 (28.4 s, D61 38-46)
+    // clock). THE KEEPSAKE 0: D59 fitted its base HP 440 to 38-46 s at kit=mid with no stage-order term (its note asks
+    // for exactly this if D58 #2 ships), and boss-probe gives it 34.6 s at the STAGE 1 kit, 28.5 at BIOME B
     bossOrd: .9,
-    bossOrdW: { crux: .667, butcher: 2, maw: 3.333, keepsake: .833 },
+    bossOrdW: { crux: .667, butcher: 2, maw: 3.333, keepsake: 0 },
     // D58 #3 (Matt): break the snowball. +2 rank drones at most (was +6), and they pay half XP and no pod/biomass
     form: { k: 2, cap: 1, xp: .5, extra: true },
     late: LATE_LONG4,

@@ -16,12 +16,15 @@
 //   7m   seed 7 with a MORTAL bot (same pilot, no invincibility) until game over: hits, deaths, BLACK BOX/salvage
 //        pods, respawn, lives and game over
 //
-// Usage: node tools/layout-parity.mjs [url] [--seeds 3,6,7,11,15] [--descents 2] [--update] [--out file]
+// Usage: node tools/layout-parity.mjs [url] [--seeds 3,6,7,11,10] [--descents 2] [--update] [--out file]
 //   A default seed must have a bot kit that kills the Gravity Drive (it has no escape clock, so a seed that can't
 //   times out). Every sim-stream change re-rolls the kits, so the set is re-checked then:
 //   - LS1-B1fix (render-gated draws moved to srnd): seeds 1 and 5 began timing out; 3 (gates 1001) and 15 (0111)
 //     replaced them, and 3 replaced 1 in the 3-descent run. Seed 10 (1111) also times out.
 //   - Seeds 3 and 7 each fly a slot-1 repeat visit in Descent 2 (snot and fire).
+//   - D61/D62 (aimed hazards, hunting flayers and their D62 rates): seed 15 (0111) began timing out on the Gravity
+//     Drive (its bot kit can't kill it inside 100830 frames); seed 10 (1111) replaced it. Seeds 3, 6, 7 and 11 already
+//     cover both gates at every fork position, so 10 only adds the all-B route
 //   The gate taken at each fork is a hash of the seed; over the default seeds every fork position takes both gates.
 //   The url must be a Vite DEV server (the anchors are read by importing /src modules).
 //   Not measured (printed at the end of every run): anything render-only (canvas calls are stubbed;
@@ -36,7 +39,7 @@ import { execSync } from 'node:child_process';
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
 const UPDATE = argv.includes('--update');
-const SEEDS = opt('--seeds', '3,6,7,11,15').split(',').map(Number);
+const SEEDS = opt('--seeds', '3,6,7,11,10').split(',').map(Number);
 const DESCENTS = +opt('--descents', '2');
 const OUT = opt('--out', null);
 let url = argv.find((a, i) => !a.startsWith('--') && !['--seeds', '--descents', '--out'].includes(argv[i - 1]));

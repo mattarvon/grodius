@@ -103,3 +103,19 @@ describe('D58 #2 stage-boss HP by stage order (depthHP)', () => {
     expect(crux(2, 1)).toBeCloseTo(1 + DEPTH.w.crux * DEPTH.boss, 12);
   });
 });
+
+describe('D62 Drive-only fire bump (cadence.ts coolFor)', () => {
+  it('shortens regular-enemy cooldowns in the Drive stage on long4 only', async () => {
+    const { coolFor } = await import('../../src/enemies/cadence');
+    const m = ECON.long4.late!.driveCool;
+    expect(m).toBeLessThan(1);
+    setLayout('long4');
+    at(2); const slotB = coolFor('eye', 20);
+    at(3); const drive = coolFor('eye', 20);
+    const cdm3 = 1 / (1 + DEPTH.fire * .35), cdm2 = 1 / (1 + DEPTH.fire * .35 * 2 / 3);
+    expect(slotB).toBe(Math.round(140 * cdm2));
+    expect(drive).toBe(Math.round(140 * cdm3 * m));
+    setLayout('short');
+    at(3); expect(coolFor('eye', 20)).toBe(140);
+  });
+});

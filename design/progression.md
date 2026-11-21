@@ -12,7 +12,7 @@ in the table at the end.
 |---|---|
 | Attack cadence: `every()` (period × (1 − .4·min(2, pow)), floor 18 frames) | Enemy HP: `mk()` ×(1 + .4·loop), then `depthHP()` |
 | Enemy bullet speed: `BS()` (×(1 + .35·min(2, pow))) | Cooldowns and fire chance: `cdm()`, `firem()` |
-| Wave size: `formation()` + `formationExtra()` = round(3·min(2, pow)) drones | Extra burst bullet from Descent 3: `xtra()` |
+| Wave size: `formation()` + `formationExtra()` = round(3·min(2, pow)) drones (long4: round(2·min(1, pow)), and those pay half XP and no biomass, D62) | Extra burst bullet from Descent 3: `xtra()` |
 | Boss and midboss cooldowns and litter sizes read `G.rank` | Bullet speed loop term in `BS()` |
 
 Enemy HP never reads `G.pow` or `G.rank`. **The one exception is the Gravity Drive** (section 4).
@@ -55,6 +55,11 @@ Until M2 these multipliers also read `over()` = clamp(pow − 1, 0, 2) with weig
 weights absorbed what a typical build paid through that term (over ≈ .4 in Descent 2 and ≈ .8 in Descent 3,
 so .8 + .8·.4 = 1.12 and 1.1 + .4 = 1.5). A typical build's HP stays within about 2% (depth-probe Descent 2:
 242 → 237 for the Saucer, Descent 3: 472 → 467). A stacked build no longer buys tougher enemies.
+
+**Stage order (D62, long4 only).** A stage boss also takes x(1 + .9·w·ord/3) by its stage's order in the descent
+(`economy.ts` `bossOrd`, `bossOrdW`: Bloat .667, Butcher 2, Maw 3.333, THE KEEPSAKE 0, any other boss 1), and a held
+midboss in biome slot B takes `LateSet.midLate` (2.2; Choir 2.0, Womb 2.4, Apprentice 2.4, Brood 2.7). Both are depth
+terms (stage order), not power: D1 still holds.
 
 **What doesn't scale HP:** `G.rank`, `G.pow`, `over()`, perks, grafts and contraptions. The only exception is the Drive.
 

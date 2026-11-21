@@ -9,7 +9,8 @@
 //  Measured with tools/fire-probe.mjs (bullets/s per kind, Descent 1-3).
 // =====================================================================
 import { $ } from '../state';
-import { cdm, xtra } from '../depth';
+import { cdm, late, xtra } from '../depth';
+import { kindOf } from '../layout';
 
 /** per kind: Descent 1 base cooldown (frames, before the caller's ri() jitter), frames shaved per descent, floor */
 export const COOL = {
@@ -23,7 +24,9 @@ export const COOL = {
 /** kind k's authored curve at the current descent, before the global depth step */
 export const curve = (k) => { const c = COOL[k]; return Math.max(c.floor, c.base - c.step * ($.G.loop || 0)); };
 /** cooldown for kind k after an attack; roll = the ri() jitter the caller drew */
-export const coolFor = (k, roll) => Math.round((curve(k) + roll) * cdm());
+export const coolFor = (k, roll) => Math.round((curve(k) + roll) * cdm() * driveCool());
+/** D62: the Drive stage's cooldown multiplier on a long entry (economy.ts LateSet.driveCool), else 1 (short: 1) */
+const driveCool = () => { const L = late(); return L && kindOf($.G.stage || 0) === 'drive' ? L.driveCool : 1; };
 /** frames between a womb's litters: Matt's curve, deliberately without cdm() (more would swamp the screen) */
 export const wombCool = () => Math.max(70, 120 - 15 * ($.G.loop || 0));
 /** bullets in a dying enemy's revenge fan: a pair in Descent 2, a 3-fan from Descent 3 (the caller gates on Descent 2+) */
