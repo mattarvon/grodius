@@ -84,7 +84,14 @@ const HPM_LONG = {
   biome1: [1.1, 1.6, 1.9],
   drive: [1.3, 1.8, 2.0],
 } as const;
-const HPM_LONG4 = { orbit: HPM_LONG.orbit, biome0: HPM_LONG.biome0, biome1: HPM_LONG.biome1, drive: HPM_LONG.drive };
+/** D61 (Matt, 2026-11-20, "make the game harder overall"): long4 (the default layout) gates on the HARDER bands, rows
+ *  D1..D3; they replace spec §8's gentle cells for long4 only (long5 keeps HPM_LONG). Floors are the gate */
+const HPM_LONG4 = {
+  orbit: [1.0, 1.6, 2.0],
+  biome0: [1.8, 2.6, 3.0],
+  biome1: [3.0, 3.8, 4.2],
+  drive: [3.5, 4.2, 4.6],
+} as const;
 /** spec §7: the biomass targets are the same for both long entries (holds 2-4 purchases per Infirmary visit) */
 const BIO_LONG: readonly [Band, Band, Band] = [[1300, 1500], [2100, 2400], [2600, 3600]];
 
