@@ -87,7 +87,7 @@ const S = {
   /** a take rewritten in place (re-kept, applied, reprocessed): when, so the take list's player fetches it again */
   bust: {} as Record<string, number>,
 };
-type Info = { lufs?: number | null; peak?: number | null; dur?: number | null; fx?: string; warn?: string };
+type Info = { lufs?: number | null; peak?: number | null; dur?: number | null; fx?: string; warn?: string; preview?: string };
 type Render = { url: string; info: Info };
 const say = (msg: string, tone: '' | 'err' | 'warn' = '') => { S.msg = msg; S.tone = tone; };
 const errText = (e: unknown) => String((e as Error)?.message ?? e);
@@ -456,7 +456,10 @@ async function keep() {
   say('Processing...');
   draw();
   try {
-    const k = await api('POST', { cat: s.cat, slug: slugOf(s), ...(S.squeeze ? {} : { squeeze: '0' }), ...(fxOn(S.fx) ? { fx: JSON.stringify(S.fx) } : {}) }, S.raw);
+    // the preview of this very take through this rack, if the page has one: the plugin files its render instead of
+    // rendering the take again (it checks the bytes, line, squeeze and rack itself, and renders when they differ)
+    const pid = await previewId(S.fx, S.raw);
+    const k = await api('POST', { cat: s.cat, slug: slugOf(s), ...(S.squeeze ? {} : { squeeze: '0' }), ...(fxOn(S.fx) ? { fx: JSON.stringify(S.fx) } : {}), ...(pid ? { preview: pid } : {}) }, S.raw);
     // the processed player's src is fixed here: a redraw must not restart it
     S.kept = { ...k, src: `${k.url}?t=${Date.now()}` };
     discard(true);
@@ -1344,6 +1347,9 @@ const srcKey = (body: Blob | null) => (body ? 'b' + (blobIds.get(body) ?? (blobI
 const inUse = (u: string) => S.prev?.url === u || S.prev?.clean?.url === u;
 const drop = (p: Promise<Render>) => p.then((r) => { if (!inUse(r.url)) URL.revokeObjectURL(r.url); }, () => {});
 const renderKey = (fx: FxSet, body: Blob | null) => [ALL[S.sel].cat, srcKey(body), S.squeeze ? 1 : 0, JSON.stringify(cleanFx(fx))].join('|');
+/** the plugin's id for the render of this take through this rack (renderKey), or '' when there is none: a render
+ *  still on its way is waited for (it finishes sooner than a keep would render), a failed one is none */
+const previewId = async (fx: FxSet, body: Blob) => (await cache.get(renderKey(fx, body))?.catch(() => null))?.info.preview ?? '';
 /** the renders still on their way, by cache key: one preview's worth at a time (its B and its clean A) */
 const inflight = new Map<string, AbortController>();
 /** aborts every render on its way but these (a newer preview replaced it; the plugin kills its ffmpeg) and forgets it,

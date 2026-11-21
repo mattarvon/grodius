@@ -9,7 +9,10 @@
 //          src/sfx/<cat>/<slug>-matty-<n>.ogg; -> { name, url, lufs, peak, dur, gain, fx, warn? }. &fx=<json> keeps it
 //          through that FX rack (fx.ts, cleanFx'd) and records the rack in its .json
 //          &squeeze=0 keeps the mid-take pauses as recorded (default: shortened, VOX.squeeze). A raw take that clipped
-//          (VOX.clipAt) is saved but refused: 422 { error, clipped: true, rawPeak }
+//          (VOX.clipAt) is saved but refused: 422 { error, clipped: true, rawPeak }. &preview=<id> (the preview's
+//          x-booth-info `preview`): filed from that preview's render, not rendered again, when it is still kept (CACHE)
+//          and was made from the same bytes, line, squeeze, rack and FX_CHAIN (cache.ts); else rendered as ever.
+//          Same answer, same .json either way; x-booth-promoted: 1 says it was filed from the preview
 //   DELETE /__booth/take?cat=<cat>&name=<file> removes one processed take (a raw take stays in assets-raw/)
 //   POST   /__booth/restore?cat=<cat>&name=<file>  (body: the deleted take's Ogg bytes) puts a just-deleted take back: the booth's Z undo
 //   POST   /__booth/reprocess?cat=<cat>[&name=<take>][&squeeze=0][&fx=<json>][&confirm=1]  re-runs the current chain on
@@ -24,8 +27,10 @@
 //          asks with it first
 //   POST   /__booth/preview?cat=<cat>&fx=<json>[&squeeze=0][&name=<take>]  runs the chain plus the FX rack (fx.ts) on the
 //          posted raw take, or on the kept raw take <name> of that slot, into a temp file and answers the .ogg itself
-//          (x-booth-info: its numbers). Writes nothing in src/; a clipped take is previewed anyway, with a warning. A request
-//          the page aborts (a newer preview replaced it) kills its ffmpeg
+//          (x-booth-info: its numbers, and for a posted take `preview`, the id a keep may name). Writes nothing in src/;
+//          a clipped take is previewed anyway, with a warning. The cleaned-up take (prepTake) is cached, so the clean
+//          A and the racked B (and the next rack) share it. A request the page aborts (a newer preview replaced it)
+//          kills its ffmpeg, unless another preview is waiting on the same cleaned-up take
 //   GET    /__booth/quips                      -> { quips: [{ id, text, note? }], errors: [...] } (src/voice/quips.json)
 //   POST   /__booth/quips  body JSON { op: 'add', text } | { op: 'edit', id, text } | { op: 'del', id, takes? }
 //          edits SLAB's quip list (LS2-quips, editQuips() below): writes only src/voice/quips.json and, for a delete
@@ -36,13 +41,15 @@ import type { Plugin, ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { lenWarn, quipSlot, SLOTS, voiceSlot } from './slots.ts';
 import { newId, normText, parseQuips, QUIP_ID_MAX, QUIP_ID_RE, quipCat, quipLines, textError, type Quip } from '../../src/voice/quiplist.ts';
 import { TAKE_MAX, clickTail, gainTo, nextTake, okCat, rawExt, slugify, squeezeCuts, takeName, TAKE_RE } from './names.ts';
 import { FX_CHAIN, cleanFx, fxGraph, fxName, fxOn, fxPreGain, type FxSet } from './fx.ts';
+import { Shelf, previewParam, renderKey, sameKey, type RenderKey } from './cache.ts';
 
 const exec = promisify(execFile);
 const RUN = { timeout: 60_000, killSignal: 'SIGKILL', maxBuffer: 1 << 24 } as const;
@@ -149,6 +156,10 @@ export const VOX = {
   quiet: 18,
 } as const;
 
+/** the preview caches (cache.ts Shelf): a render is kept 10 minutes after its last use for a keep to file, the last
+ *  8 of them; a cleaned-up take likewise, the last 4 (a take and the one before it, each with and without the squeeze) */
+export const CACHE = { ttl: 10 * 60_000, renders: 8, preps: 4 } as const;
+
 const MAX_BODY = 25 * 1024 * 1024; // a minute of 256 kbit/s Opus is ~2 MB; this only stops a runaway upload
 
 /** the loopback addresses a booth request may come from: `npm run dev` passes --host, so the dev server listens on
@@ -212,12 +223,27 @@ const list = (dir: string) => { try { return fs.readdirSync(dir); } catch { retu
  *  block, and a one-word kill line can be shorter; silence sits under the -70 LUFS gate, so it doesn't skew the
  *  reading */
 export async function measure(file: string, signal?: AbortSignal): Promise<{ lufs: number | null; peak: number | null; dur: number | null }> {
-  const { stderr } = await run('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-af', 'apad=pad_dur=0.5,ebur128=peak=true', '-f', 'null', '-'], signal);
+  // the loudness pass and the probe at once: neither reads what the other writes
+  const [{ stderr }, dur] = await settled([
+    run('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-af', 'apad=pad_dur=0.5,ebur128=peak=true', '-f', 'null', '-'], signal),
+    durOf(file, signal),
+  ]);
   const sum = stderr.slice(stderr.lastIndexOf('Summary:'));
   const num = (re: RegExp) => { const m = re.exec(sum); return m && Number.isFinite(+m[1]) ? +m[1] : null; };
-  const pr = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], signal);
-  const dur = Math.round(+pr.stdout.trim() * 1000) / 1000 || null;
   return { lufs: num(/I:\s*(-?[\d.]+) LUFS/), peak: num(/Peak:\s*(-?[\d.]+) dBFS/), dur };
+}
+/** a file's length (s, ms-rounded) by ffprobe, null if it has none: measure()'s own reading, without the loudness pass */
+async function durOf(file: string, signal?: AbortSignal): Promise<number | null> {
+  const pr = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], signal);
+  return Math.round(+pr.stdout.trim() * 1000) / 1000 || null;
+}
+/** Promise.all that waits for every child to exit before it rejects: a sibling ffmpeg still holding a temp file
+ *  would make the caller's cleanup fail on Windows */
+async function settled<T extends readonly unknown[]>(ps: { [K in keyof T]: Promise<T[K]> }): Promise<T> {
+  const r = await Promise.allSettled(ps);
+  const bad = r.find((x) => x.status === 'rejected');
+  if (bad) throw (bad as PromiseRejectedResult).reason;
+  return r.map((x) => (x as PromiseFulfilledResult<unknown>).value) as unknown as T;
 }
 
 /** the demuxer for a raw take, forced: ffmpeg must not probe the bytes into a playlist or any other format */
@@ -293,26 +319,48 @@ export function levels(floor: number, trough: number): { gate: number; expand: n
   return { gate: Math.round(clampTo(floor + G.over, G.min, G.max)), expand: Math.round(clampTo(trough, E.min, E.max) + E.over) };
 }
 
+/** a raw take cleaned up, before the rack (prepTake): the wav, the per-take levels it was cut with, the raw peak, the
+ *  pause squeeze, and the wav's loudness and length (the rack's take info, or the clean take's gain to the target) */
+export type Prep = { wav: string; gate: number; expand: number; rawPeak: number | null; squeeze: boolean; squeezed: number; lufs: number | null; dur: number | null };
+
 /** raw take -> the game's clip: the clip guard, mono, the key clicks cut, highpass, lowpass, denoise, the expander
  *  between phrases, head/tail trim, fades at the cuts, the long pauses shortened (unless o.squeeze is false), gain
  *  to VOX.lufs into a gentle voice compressor, the gain again, a 4x-oversampled limiter at the ceiling, 44.1 kHz
  *  Vorbis. Measured after the trim, after the compressor and after the encode (one makeup pass if the limiter still
  *  took the take short). The gain it reports is every plain gain stage from the cleaned-up take to the clip: for a
  *  racked take that includes the rack's FX_LEVEL pre-gain (fx.ts fxPreGain), not the effects' own levels.
- *  o.signal aborted (a preview whose page went away) kills the ffmpeg running and rejects; the temp files go */
+ *  o.signal aborted (a preview whose page went away) kills the ffmpeg running and rejects; the temp files go.
+ *  prepTake (everything before the rack) then finishTake (the rack, the gain, the encode): a preview renders its
+ *  clean A and its racked B from one prepTake */
 export async function processTake(raw: string, out: string, o: { squeeze?: boolean; fx?: FxSet | null; allowClip?: boolean; signal?: AbortSignal } = {}) {
+  const prep = await prepTake(raw, out.replace(/\.ogg$/, '.tmp.wav'), o);
+  try {
+    return await finishTake(prep, out, o);
+  } finally {
+    fs.rmSync(prep.wav, { force: true });
+  }
+}
+
+/** the clean-up half of processTake: the clip guard (Clipped unless o.allowClip), then the take to `wav` (44.1 kHz
+ *  mono): the key clicks cut, the filters, the denoise, the expander, the head/tail trim and the pause squeeze. The
+ *  same for every rack, so a preview computes it once for its A and its B. `wav` is the caller's to delete (it is
+ *  gone already when this rejects) */
+export async function prepTake(raw: string, wav: string, o: { squeeze?: boolean; allowClip?: boolean; signal?: AbortSignal } = {}): Promise<Prep> {
   const sh = (cmd: string, args: string[]) => run(cmd, args, o.signal), meas = (f: string) => measure(f, o.signal);
-  const ext = path.extname(raw).slice(1), tmp = out.replace(/\.ogg$/, '.tmp.wav');
+  const ext = path.extname(raw).slice(1), tmp = wav;
   const input = ['-hide_banner', '-protocol_whitelist', 'file', '-f', DEMUX[ext], '-i', raw, '-t', '120'];
-  // the clip guard first: a take that clipped at the input is refused before any work (the raw stays in assets-raw/)
-  const tail = await tailCutOf(input, o.signal);
+  const clean = ['aformat=channel_layouts=mono', `atrim=start=${VOX.click.head}`, 'asetpts=PTS-STARTPTS', `highpass=f=${VOX.highpass}`, `lowpass=f=${VOX.lowpass}`, VOX.denoise];
+  // the stop click's cut, and pass 0 beside it: the room under the denoise, its noise floor for the trim gate, its RMS
+  // trough for the expander (the whole overall set: astats only reports the trough with it; ffmpeg spells it "RMS
+  // through"). Both only read the raw
+  const [tail, { stderr }] = await settled([
+    tailCutOf(input, o.signal),
+    sh('ffmpeg', [...input, '-nostats', '-af', [...clean, 'astats=measure_perchannel=0'].join(','), '-f', 'null', '-']),
+  ]);
+  // the clip guard: a take that clipped at the input is refused before the take is cut (the raw stays in assets-raw/)
   const rawPeak = await peakOf(input, tail, o.signal);
   // (a preview runs a clipped take anyway, to audition the FX, and says so)
   if (rawVerdict(rawPeak) === 'clip' && !o.allowClip) throw new Clipped(rawPeak!);
-  const clean = ['aformat=channel_layouts=mono', `atrim=start=${VOX.click.head}`, 'asetpts=PTS-STARTPTS', `highpass=f=${VOX.highpass}`, `lowpass=f=${VOX.lowpass}`, VOX.denoise];
-  // pass 0: the room under the denoise: its noise floor for the trim gate, its RMS trough for the expander (the whole
-  // overall set: astats only reports the trough with it; ffmpeg spells it "RMS through")
-  const { stderr } = await sh('ffmpeg', [...input, '-nostats', '-af', [...clean, 'astats=measure_perchannel=0'].join(','), '-f', 'null', '-']);
   const num = (re: RegExp) => +(re.exec(stderr)?.[1] ?? NaN);
   const { gate, expand } = levels(num(/Noise floor dB:\s*(-?[\d.]+)/), num(/RMS th?rough dB:\s*(-?[\d.]+)/));
   const trim = (s: number) => `silenceremove=start_periods=1:start_threshold=${gate}dB:start_silence=${s}:detection=peak`;
@@ -326,12 +374,17 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
   try {
     await sh('ffmpeg', [...input, '-loglevel', 'error', '-y', '-af', chain, '-ar', '44100', '-ac', '1', tmp]);
     let squeezed = 0;
-    const sq = out.replace(/\.ogg$/, '.sq.wav');
+    // the cleaned-up take's loudness and length: kept when the squeeze cuts nothing
+    let m0: Awaited<ReturnType<typeof measure>> | null = null;
+    const sq = tmp.replace(/(\.tmp)?\.wav$/, '.sq.wav');
     if (o.squeeze !== false) try {
       // the long pauses: silencedetect at the trim gate (sample peaks, like the trim), then one aselect over the cuts
-      const sd = await sh('ffmpeg', ['-hide_banner', '-nostats', '-f', 'wav', '-i', tmp, '-af', `silencedetect=n=${gate}dB:d=${Q.over}`, '-f', 'null', '-']);
+      const [sd, m] = await settled([
+        sh('ffmpeg', ['-hide_banner', '-nostats', '-f', 'wav', '-i', tmp, '-af', `silencedetect=n=${gate}dB:d=${Q.over}`, '-f', 'null', '-']),
+        meas(tmp),
+      ]);
       const at = (k: string) => [...sd.stderr.matchAll(new RegExp(`silence_${k}: (-?[\\d.]+)`, 'g'))].map((m) => +m[1]);
-      const len = (await meas(tmp)).dur ?? Infinity;
+      const len = m.dur ?? Infinity;
       const cuts = squeezeCuts(at('start'), at('end'), Q, len);
       if (cuts.length) {
         // cut at the sample (atrim; aselect drops whole 4096-sample frames, up to 93 ms off) and join the kept
@@ -344,94 +397,100 @@ export async function processTake(raw: string, out: string, o: { squeeze?: boole
         await sh('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', tmp, '-filter_complex', g.join(';'), '-map', `[${last}]`, '-c:a', 'pcm_f32le', '-f', 'wav', sq]);
         fs.renameSync(sq, tmp);
         squeezed = Math.round(cuts.reduce((n, [a, b]) => n + b - a, 0) * 100) / 100;
-      }
+      } else m0 = m;
     } finally {
       fs.rmSync(sq, { force: true });
     }
-    // the FX rack (fx.ts): on the cleaned-up, trimmed, squeezed take, before the gain to the target, so a take with
-    // FX still lands at VOX.lufs under the same compressor and limiter
-    const racked = fxOn(cleanFx(o.fx));
-    // the quiet-take verdict is about the input (the mic level), so it is read on the dry take: a rack that thins the
-    // voice (a radio band, a ring mod) takes more gain to the target without the take having been recorded quiet
-    let dry: number | null = null, rackPre = 0;
+    const { lufs, dur } = m0 ?? await meas(tmp);
+    return { wav: tmp, gate, expand, rawPeak, squeeze: o.squeeze !== false, squeezed, lufs, dur };
+  } catch (e) {
+    fs.rmSync(tmp, { force: true });
+    throw e;
+  }
+}
+
+/** the rack-and-level half of processTake, from a prepTake: the FX rack (o.fx), the gain to the target, the
+ *  compressor, the limited Vorbis encode to `out`, the makeup passes and the warnings. Reads prep.wav, never changes
+ *  or deletes it (a preview's A and B both finish one prep) */
+export async function finishTake(prep: Prep, out: string, o: { fx?: FxSet | null; signal?: AbortSignal } = {}) {
+  const sh = (cmd: string, args: string[]) => run(cmd, args, o.signal), meas = (f: string) => measure(f, o.signal);
+  const { gate, expand, rawPeak, squeezed } = prep;
+  // the FX rack (fx.ts): on the cleaned-up, trimmed, squeezed take, before the gain to the target, so a take with
+  // FX still lands at VOX.lufs under the same compressor and limiter
+  const racked = fxOn(cleanFx(o.fx));
+  // the quiet-take verdict is about the input (the mic level), so it is read on the dry take: a rack that thins the
+  // voice (a radio band, a ring mod) takes more gain to the target without the take having been recorded quiet
+  let dry: number | null = null, rackPre = 0, src = prep.wav, preLufs = prep.lufs;
+  const fxw = out.replace(/\.ogg$/, '.fx.wav'), sat = out.replace(/\.ogg$/, '.sat.wav');
+  try {
     if (racked) {
-      const d0 = await meas(tmp);
-      dry = gainTo(VOX.lufs, d0.lufs);
-      rackPre = fxPreGain(d0.lufs); // the graph's first step: counted in the gain the booth shows
+      dry = gainTo(VOX.lufs, prep.lufs);
+      rackPre = fxPreGain(prep.lufs); // the graph's first step: counted in the gain the booth shows
       // the graph is told the take's length (the tails end FX_TAIL past it) and loudness (the rack runs at FX_LEVEL)
-      const graph = fxGraph(o.fx, { dur: d0.dur, lufs: d0.lufs })!;
-      const fxw = out.replace(/\.ogg$/, '.fx.wav');
-      try {
-        await sh('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', tmp, '-filter_complex', graph, '-map', '[fx]', '-c:a', 'pcm_f32le', '-f', 'wav', fxw]);
-        fs.renameSync(fxw, tmp);
-      } finally {
-        fs.rmSync(fxw, { force: true });
-      }
+      const graph = fxGraph(o.fx, { dur: prep.dur, lufs: prep.lufs })!;
+      await sh('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', prep.wav, '-filter_complex', graph, '-map', '[fx]', '-c:a', 'pcm_f32le', '-f', 'wav', fxw]);
+      src = fxw;
+      preLufs = (await meas(fxw)).lufs;
     }
-    const pre = await meas(tmp);
-    let g = gainTo(VOX.lufs, pre.lufs);
+    let g = gainTo(VOX.lufs, preLufs);
     if (g == null) throw new Error('the take is silent or too short to measure (did the mic pick anything up?)');
     const first = dry ?? g;
     // pass 1, to float: the gain to the target, then a gentle voice compressor. Raw speech runs 15-18 LU
     // peak-to-loudness (syllable dynamics), the shipped clips ~11: under a -1.2 dBTP ceiling a limiter alone only
     // turns such a take down. The compressor evens the syllables out instead. (A tanh soft clip was tried: it
     // flat-topped the wave, cost ~6 dB and threw intersample overs to +2.8 dBTP after Vorbis; production/qa/evidence/ls2-booth.md)
-    const sat = out.replace(/\.ogg$/, '.sat.wav');
     let m: Awaited<ReturnType<typeof measure>>;
-    try {
-      await sh('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', tmp, '-af', `volume=${g}dB,${VOX.comp}`, '-c:a', 'pcm_f32le', '-f', 'wav', sat]);
-      const mid = await meas(sat);
-      let g2 = gainTo(VOX.lufs, mid.lufs) ?? 0;
-      // pass 2: the remaining gain under the ceiling, to Vorbis
-      let rel: number = VOX.release, ceil: number = VOX.ceil;
-      const enc = (gain: number) => sh('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', sat,
-        // the limiter runs 4x oversampled so it sees the peaks between samples (the encode would otherwise put them
-        // back over the ceiling)
-        '-af', `volume=${gain}dB,aresample=176400,alimiter=limit=${Math.round(ceil * 1e4) / 1e4}:level=false:attack=1:release=${rel},aresample=44100`,
-        '-ar', '44100', '-ac', '1', '-c:a', 'libvorbis', '-q:a', String(VOX.q), '-f', 'ogg', out]);
+    await sh('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', src, '-af', `volume=${g}dB,${VOX.comp}`, '-c:a', 'pcm_f32le', '-f', 'wav', sat]);
+    const mid = await meas(sat);
+    let g2 = gainTo(VOX.lufs, mid.lufs) ?? 0;
+    // pass 2: the remaining gain under the ceiling, to Vorbis
+    let rel: number = VOX.release, ceil: number = VOX.ceil;
+    const enc = (gain: number) => sh('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'wav', '-i', sat,
+      // the limiter runs 4x oversampled so it sees the peaks between samples (the encode would otherwise put them
+      // back over the ceiling)
+      '-af', `volume=${gain}dB,aresample=176400,alimiter=limit=${Math.round(ceil * 1e4) / 1e4}:level=false:attack=1:release=${rel},aresample=44100`,
+      '-ar', '44100', '-ac', '1', '-c:a', 'libvorbis', '-q:a', String(VOX.q), '-f', 'ogg', out]);
+    await enc(g2);
+    m = await meas(out);
+    // the makeup: what the limiter took short of the target, added back (capped). A clean take gets one pass of at
+    // most VOX.makeup; a racked take up to fxPasses of at most fxMakeup in all (the limiter gives back less than it
+    // is given, so each later pass asks a little more)
+    const cap = racked ? VOX.fxMakeup : VOX.makeup;
+    let spent = 0;
+    for (let pass = 0; pass < (racked ? VOX.fxPasses : 1); pass++) {
+      const short = m.lufs == null ? 0 : VOX.lufs - m.lufs;
+      if (short <= VOX.tol || spent >= cap) break;
+      const add = Math.round(Math.min(short * (pass ? 1.4 : 1), cap - spent) * 100) / 100;
+      g2 += add;
+      spent += add;
       await enc(g2);
       m = await meas(out);
-      // the makeup: what the limiter took short of the target, added back (capped). A clean take gets one pass of at
-      // most VOX.makeup; a racked take up to fxPasses of at most fxMakeup in all (the limiter gives back less than it
-      // is given, so each later pass asks a little more)
-      const cap = racked ? VOX.fxMakeup : VOX.makeup;
-      let spent = 0;
-      for (let pass = 0; pass < (racked ? VOX.fxPasses : 1); pass++) {
-        const short = m.lufs == null ? 0 : VOX.lufs - m.lufs;
-        if (short <= VOX.tol || spent >= cap) break;
-        const add = Math.round(Math.min(short * (pass ? 1.4 : 1), cap - spent) * 100) / 100;
-        g2 += add;
-        spent += add;
-        await enc(g2);
-        m = await meas(out);
-      }
-      // a rack whose gaps hold the limiter down (a chopper, a deep ring mod: the 80 ms release spans the gaps) still
-      // short: the limiter lets go faster (VOX.fxRelease), only for that take
-      for (const r of racked ? VOX.fxRelease : []) {
-        if (m.lufs == null || VOX.lufs - m.lufs <= VOX.tol) break;
-        rel = r;
-        await enc(g2);
-        m = await meas(out);
-      }
-      // a limiter pushed that hard hands Vorbis a dense wave, and the encode overshoots: past VOX.fxPeak (dBTP) the
-      // ceiling comes down by the overshoot (and a little), at most twice
-      for (let i = 0; racked && i < 2 && m.peak != null && m.peak > VOX.fxPeak; i++) {
-        ceil *= 10 ** ((VOX.fxPeak - 0.3 - m.peak) / 20);
-        await enc(g2);
-        m = await meas(out);
-      }
-      g += g2 + rackPre;
-    } finally {
-      fs.rmSync(sat, { force: true });
     }
+    // a rack whose gaps hold the limiter down (a chopper, a deep ring mod: the 80 ms release spans the gaps) still
+    // short: the limiter lets go faster (VOX.fxRelease), only for that take
+    for (const r of racked ? VOX.fxRelease : []) {
+      if (m.lufs == null || VOX.lufs - m.lufs <= VOX.tol) break;
+      rel = r;
+      await enc(g2);
+      m = await meas(out);
+    }
+    // a limiter pushed that hard hands Vorbis a dense wave, and the encode overshoots: past VOX.fxPeak (dBTP) the
+    // ceiling comes down by the overshoot (and a little), at most twice
+    for (let i = 0; racked && i < 2 && m.peak != null && m.peak > VOX.fxPeak; i++) {
+      ceil *= 10 ** ((VOX.fxPeak - 0.3 - m.peak) / 20);
+      await enc(g2);
+      m = await meas(out);
+    }
+    g += g2 + rackPre;
     const warn = [
       first > VOX.quiet ? `quiet take (+${first} dB to reach ${VOX.lufs} LUFS): move closer or raise the input gain, or the room's hiss comes up with it` : '',
       rawVerdict(rawPeak) === 'clip' ? `clipped input (raw peak ${rawPeak} dBFS): a preview only, the booth refuses to keep it` : '',
       rawVerdict(rawPeak) === 'hot' ? `hot take (raw peak ${rawPeak} dBFS, past ${VOX.hotAt}): back off the mic a little` : '',
     ].filter(Boolean).join('; ') || undefined;
-    return { gain: Math.round(g * 100) / 100, gate, expand, rawPeak, squeeze: o.squeeze !== false, squeezed, fx: fxName(o.fx), ...m, warn };
+    return { gain: Math.round(g * 100) / 100, gate, expand, rawPeak, squeeze: prep.squeeze, squeezed, fx: fxName(o.fx), ...m, warn };
   } finally {
-    fs.rmSync(tmp, { force: true });
+    fs.rmSync(fxw, { force: true });
+    fs.rmSync(sat, { force: true });
   }
 }
 
@@ -728,38 +787,104 @@ export function booth(): Plugin {
   // per dev-server process: the booth page carries it; a page on another local port, a tunnel peer or a script
   // without the page never sees it
   const token = randomBytes(16).toString('hex');
+  /** where previews render, and where their caches keep files: a folder of the OS temp dir, this process's own
+   *  (never served, nothing in the repo); made at the first preview, deleted with the server */
+  let work = '';
+  const workDir = () => {
+    if (!work || !fs.existsSync(work)) work = fs.mkdtempSync(path.join(os.tmpdir(), 'grodius-booth-'));
+    return work;
+  };
+  const rm = (f: string) => { try { fs.rmSync(f, { force: true }); } catch { /* a file still open: the folder goes with the server */ } };
+  /** a preview's render of a posted raw take, under the id the page got (x-booth-info `preview`): a keep with
+   *  ?preview=<id> of the same raw, line, squeeze, rack and chain files it instead of rendering it again (cache.ts) */
+  type Kept = { key: RenderKey; file: string; r: Awaited<ReturnType<typeof finishTake>> };
+  const renders = new Shelf<Kept>({ max: CACHE.renders, ttl: CACHE.ttl, drop: (k) => rm(k.file) });
+  /** a raw take's cleaned-up wav, by sha-256 and squeeze: a preview's A and B, and the next rack's preview of the
+   *  same take, finish the one prepTake. `waiting`: the requests awaiting it; when the last goes away (the page
+   *  aborted them) before it is done, its ffmpeg is killed */
+  type Prepping = { p: Promise<Prep>; ac: AbortController; waiting: number; done: boolean };
+  const preps = new Shelf<Prepping>({ max: CACHE.preps, ttl: CACHE.ttl, drop: (e) => void e.p.then((x) => rm(x.wav), () => {}) });
+  /** the prep of this raw (made by `raw()` when it is not on the shelf yet; `owned`: a temp copy, deleted once the
+   *  prep is done), held until the returned release() */
+  async function sharedPrep(sha: string, squeeze: boolean, raw: () => { file: string; owned: boolean }, signal?: AbortSignal) {
+    const k = `${sha}|${squeeze ? 1 : 0}`;
+    let e = preps.get(k);
+    if (!e) {
+      const src = raw(), ac = new AbortController(), wav = path.join(workDir(), `prep-${randomBytes(6).toString('hex')}.wav`);
+      const made: Prepping = { p: prepTake(src.file, wav, { squeeze, allowClip: true, signal: ac.signal }), ac, waiting: 0, done: false };
+      made.p.then(() => {}, () => preps.forget(k, made)).finally(() => { made.done = true; if (src.owned) rm(src.file); });
+      preps.put(k, made);
+      e = made;
+    }
+    const it = e;
+    preps.hold(k);
+    it.waiting++;
+    let gone = false;
+    const release = () => { if (!gone) { gone = true; preps.release(k); } };
+    try {
+      const prep = await new Promise<Prep>((ok, no) => {
+        let left = false;
+        const leave = () => { left = true; it.waiting--; signal?.removeEventListener('abort', off); };
+        const off = () => {
+          if (left) return;
+          leave();
+          no(new Error('booth: aborted'));
+          if (it.waiting === 0 && !it.done) it.ac.abort();
+        };
+        if (signal?.aborted) return off();
+        signal?.addEventListener('abort', off, { once: true });
+        it.p.then((v) => { if (!left) { leave(); ok(v); } }, (x) => { if (!left) { leave(); no(x); } });
+      });
+      return { prep, release };
+    } catch (x) {
+      release();
+      throw x;
+    }
+  }
+  const sha256 = (b: Buffer) => createHash('sha256').update(b).digest('hex');
   /** an FX preview (POST /__booth/preview): the posted raw take, or the slot's kept raw take `name`, through the chain
-   *  and the rack into assets-raw/voice/.preview/ (git-ignored, never served), read back and deleted. Outside the keep
-   *  queue: it writes nothing a keep or a reprocess reads */
+   *  and the rack in the work folder, read back. The cleaned-up take is shared (sharedPrep); a posted take's render
+   *  is kept for a keep (renders), a kept take's is deleted. Outside the keep queue: it writes nothing a keep or a
+   *  reprocess reads */
   async function preview(req: IncomingMessage, cat: string, quips: readonly Quip[], name: string | null, squeeze: boolean, fx: FxSet | undefined, signal?: AbortSignal) {
-    const rawBase = path.join(root, 'assets-raw', 'voice'), pdir = path.join(rawBase, '.preview');
-    fs.mkdirSync(pdir, { recursive: true });
-    if (fs.lstatSync(pdir).isSymbolicLink()) throw new Error('booth: the preview folder is not a plain folder');
-    const id = randomBytes(6).toString('hex');
-    let raw: string, made = false;
+    const rawBase = path.join(root, 'assets-raw', 'voice');
+    let bytes: Buffer, ext: string, kept: string | null = null;
     if (name) {
       if (!TAKE_RE.test(name)) throw new Error('booth: not a take name');
       const rdir = realDir(rawBase, cat, quips);
       const f = rdir && list(rdir).find((x) => RAW_RE.exec(x)?.[1] + '.ogg' === name);
       if (!rdir || !f) throw new Error(`booth: no raw take for ${name}`);
-      raw = path.join(rdir, f);
+      kept = path.join(rdir, f);
+      ext = path.extname(f).slice(1);
       req.resume();
+      bytes = fs.readFileSync(kept);
     } else {
-      const ext = rawExt(req.headers['content-type']);
-      if (!ext) throw new Error('booth: body must be recorded audio');
-      const body = await readBody(req);
-      if (body.length < 256) throw new Error('booth: empty take');
-      raw = path.join(pdir, `${id}.${ext}`);
-      fs.writeFileSync(raw, body, { flag: 'wx' });
-      made = true;
+      const e = rawExt(req.headers['content-type']);
+      if (!e) throw new Error('booth: body must be recorded audio');
+      ext = e;
+      bytes = await readBody(req);
+      if (bytes.length < 256) throw new Error('booth: empty take');
     }
-    const out = path.join(pdir, `${id}.ogg`);
+    // the bytes and the demuxer they are read with
+    const sha = sha256(bytes) + '.' + ext;
+    const { prep, release } = await sharedPrep(sha, squeeze, () => {
+      if (kept) return { file: kept, owned: false };
+      const file = path.join(workDir(), `raw-${randomBytes(6).toString('hex')}.${ext}`);
+      fs.writeFileSync(file, bytes, { flag: 'wx' });
+      return { file, owned: true };
+    }, signal);
+    const id = randomBytes(12).toString('hex'), out = path.join(workDir(), `${id}.ogg`);
+    let keepIt = false;
     try {
-      const r = await processTake(raw, out, { squeeze, allowClip: true, signal, ...(fxOn(fx) ? { fx } : {}) });
-      return { file: fs.readFileSync(out), info: { lufs: r.lufs, peak: r.peak, dur: r.dur, fx: r.fx, warn: r.warn } };
+      const r = await finishTake(prep, out, { signal, ...(fxOn(fx) ? { fx } : {}) });
+      const file = fs.readFileSync(out);
+      // only a posted take: a keep uploads the take under review, never a kept one
+      keepIt = !kept;
+      if (keepIt) renders.put(id, { key: renderKey(cat, sha, squeeze, fx), file: out, r });
+      return { file, info: { lufs: r.lufs, peak: r.peak, dur: r.dur, fx: r.fx, warn: r.warn, ...(keepIt ? { preview: id } : {}) } };
     } finally {
-      fs.rmSync(out, { force: true });
-      if (made) fs.rmSync(raw, { force: true });
+      release();
+      if (!keepIt) rm(out);
     }
   }
   return {
@@ -769,6 +894,18 @@ export function booth(): Plugin {
     configureServer(server: ViteDevServer) {
       const sfx = path.join(root, 'src', 'sfx'), rawDir = path.join(root, 'assets-raw', 'voice');
       const PAGES: Record<string, string> = { '/booth.html': 'booth.html', '/tools/booth/text.html': 'text.html' };
+      // the caches' files go with the server (and with the process, if it dies without closing it)
+      const sweep = setInterval(() => { renders.sweep(); preps.sweep(); }, 60_000);
+      sweep.unref?.();
+      const bye = () => {
+        clearInterval(sweep);
+        renders.clear();
+        preps.clear();
+        if (work) try { fs.rmSync(work, { recursive: true, force: true }); } catch { /* a file still open */ }
+        work = '';
+      };
+      process.once('exit', bye);
+      server.httpServer?.once('close', () => { process.removeListener('exit', bye); bye(); });
       server.middlewares.use((req, res, next) => {
         const u = new URL(req.url ?? '/', 'http://x');
         const page = PAGES[u.pathname];
@@ -877,8 +1014,13 @@ export function booth(): Plugin {
         const ext = rawExt(req.headers['content-type']);
         if (!slug) return send(res, 400, { error: 'booth: empty slug' });
         if (!ext) return send(res, 415, { error: 'booth: body must be recorded audio' });
+        // ?preview=<id>: the page previewed this very take through this rack; filed from that render when it is
+        // still kept and was made from the same bytes, line, squeeze, rack and chain (else rendered as ever)
+        const pid = previewParam(u.searchParams);
+        let promoted = false;
         const job = readBody(req).then((body) => {
           if (body.length < 256) throw new Error('booth: empty take');
+          const key = renderKey(cat, createHash('sha256').update(body).digest('hex') + '.' + ext, squeeze, fx);
           const step = queue.then(async () => {
             // the list again, inside the queue: a quip deleted while this take uploaded is not filed
             const now = readQuips(root).quips, s = voiceSlot(cat, now);
@@ -894,20 +1036,30 @@ export function booth(): Plugin {
             fs.writeFileSync(optsFile(rdir, name), JSON.stringify((s.quip ? { squeeze, text: quipLines(s.quip.text).join(' '), ...rack, chain: FX_CHAIN } : { squeeze, ...rack, chain: FX_CHAIN }) satisfies TakeOpts));
             // processed beside the raw and renamed in, so the audio glob never sees a half-written .ogg
             const part = path.join(rdir, name + '.part.ogg'), dest = path.join(dir, name);
+            const hit = pid ? renders.take(pid, (k) => sameKey(k.key, key)) : undefined;
             try {
-              const r = await processTake(raw, part, { squeeze, ...(fxOn(fx) ? { fx } : {}) });
+              let r: Awaited<ReturnType<typeof processTake>>;
+              if (hit) {
+                // the preview ran with allowClip: the clip guard is the keep's, as processTake would refuse it
+                if (rawVerdict(hit.r.rawPeak) === 'clip') throw new Clipped(hit.r.rawPeak!);
+                fs.copyFileSync(hit.file, part);
+                r = hit.r;
+                promoted = true;
+              } else r = await processTake(raw, part, { squeeze, ...(fxOn(fx) ? { fx } : {}) });
               if (fs.existsSync(dest)) throw new Error(`booth: ${name} appeared meanwhile; not overwritten`);
               fs.renameSync(part, dest);
               return { name, url: `/src/sfx/${cat}/${name}`, raw: path.relative(root, raw), ...r, long: lenWarn(s, r.dur) };
             } finally {
               fs.rmSync(part, { force: true });
+              if (hit) rm(hit.file);
             }
           });
           queue = step.catch(() => {});
           return step;
         });
-        // a clipped take is the singer's to fix, not a server fault: 422, with the peak, and the raw kept
-        job.then((r) => send(res, 200, r), (e) => e instanceof Clipped
+        // a clipped take is the singer's to fix, not a server fault: 422, with the peak, and the raw kept.
+        // x-booth-promoted: 1 when the take was filed from its preview's render (the body is the same either way)
+        job.then((r) => { if (promoted) res.setHeader('x-booth-promoted', '1'); send(res, 200, r); }, (e) => e instanceof Clipped
           ? send(res, 422, { error: e.message, clipped: true, rawPeak: e.rawPeak })
           : send(res, 500, { error: String(e?.message ?? e).replace(/^booth: /, '') }));
       });

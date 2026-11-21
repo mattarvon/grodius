@@ -239,8 +239,15 @@ pitch, synth, dirt, modulation, time and space last.
 - **Apply current FX to this line's takes** rewrites **every** take of the line that has a raw take with the rack as it
   stands (for one take, use Re-keep above), and records that rack with each (each keeps its own pause setting). With the rack off it strips the FX.
   A raw take that clipped is skipped.
-- **Previews write nothing to `src/`:** they render into `assets-raw/voice/.preview/` (git-ignored, never served)
-  and are deleted once sent. A clipped take can be previewed, with a warning, but is still refused on a keep.
+- **Previews write nothing to `src/`:** they render into a folder of the OS temp dir (`grodius-booth-*`, this dev
+  server's own, never served), deleted when the server closes. A clipped take can be previewed, with a warning, but is
+  still refused on a keep.
+- **A keep reuses its preview:** the server keeps each preview render of the take under review for 10 minutes (the
+  last 8, `CACHE` in `plugin.ts`), and the page's Keep names it (`&preview=<id>`). When the keep is of the same raw
+  bytes, line, pause setting, rack and FX chain (`tools/booth/cache.ts`), the render is filed as it is, with the same
+  record and numbers a full keep writes, and the keep is near instant; anything else (the rack changed since, Solo
+  on, the server restarted) renders the take as ever. The take's clean-up (everything before the rack) is cached
+  the same way, so A and B share it and the next rack's preview of the same take skips it.
 - **One preview at a time:** a new preview (a knob let go, a preset) aborts the renders still on their way from the
   last one, and the dev server kills their ffmpeg and deletes their temp files.
 - The rack setting is remembered by the browser across reloads.
