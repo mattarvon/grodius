@@ -6,7 +6,7 @@ import { sfx } from './audio';
 import { arcs, caps, enemies, shots } from './world';
 import { drop, flash, gore, pop, spark } from './fx/spawn';
 import { hurt } from './enemies/update';
-import { econId, gluttonyN, graftN } from './economy';
+import { ECON, econId, gluttonyN, graftN } from './economy';
 
 // ---------------- mutations: you become what you kill ----------------
 export const GM = [{
@@ -125,7 +125,7 @@ export const gmL = id => $.G && $.G.gm ? $.G.gm[id] || 0 : 0;
 export const dmMul = () => (1 + .1 * pk('dmg')) * (pk('glass') ? 1.35 : 1);
 /** the main gun's damage multiplier: CALIBER and SERRATION grafts (geometric, +22-25% a level) times dmMul(). Every
  *  periodic player shot multiplies its base damage by this, so it keeps pace with depth HP (design/progression.md) */
-export const gunDm = () => 1.25 ** gmL('serr') * 1.22 ** gmL('cal') * dmMul();
+export const gunDm = () => { const h = ECON[econId()].hard; return (h ? h.serr : 1.25) ** gmL('serr') * (h ? h.cal : 1.22) ** gmL('cal') * dmMul(); }; // D63 long4: 1.2 / 1.18
 export const gunSlots = () => Math.min(3, 1 + ($.G && $.G.seal || 0));
 export function countKill(e) {
   if (!$.G || !$.G.gm || e.kid) return; // a midboss's litter doesn't feed grafts

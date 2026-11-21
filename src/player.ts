@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { $ } from './state';
 import { pk, perkTick, lastGasp, ribShards } from './perks';
-import { bankBio } from './economy';
+import { ECON, bankBio, econId } from './economy';
 import { PH, R, TAU, W, clamp, lerp, ri, rr } from './core';
 import { SET, lv } from './save';
 import { sfx } from './audio';
@@ -41,11 +41,12 @@ export function slotMaxed(i) {
 export function applyPower(i, full) {
   if (i == null || i < 0 || !$.P.alive) return;
   if (i === 6 && slotLv(6) >= capLv(6) && $.P.shield < WARD_MAX) {
-    $.P.shield = WARD_MAX;
+    const h = ECON[econId()].hard; // D63 long4: +wardTop hits, not a refill to WARD_MAX
+    $.P.shield = h ? Math.min(WARD_MAX, Math.floor($.P.shield) + h.wardTop) : WARD_MAX;
     if ($.P.wardLv >= 3) $.P.aegis = 12;
     sfx.shield();
     buzz('light');
-    pop($.P.x, $.P.y - 14, 'WARD RESTORED', POD[6].h, 8, 40);
+    pop($.P.x, $.P.y - 14, h ? 'WARD +' + h.wardTop : 'WARD RESTORED', POD[6].h, 8, 40);
     return;
   }
   if (slotMaxed(i)) {

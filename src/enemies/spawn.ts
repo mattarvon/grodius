@@ -13,7 +13,7 @@ import { flayHunts } from '../notice';
 import { firstShot } from './cadence'; // D62: the Drive's first-shot range
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
 import { bandClamp } from '../terrainb';
-import { ECON, capKept, econId, formExtra } from '../economy';
+import { ECON, capKept, econId, formExtra, noticeOf } from '../economy';
 
 // ---------------- enemies ----------------
 // the midbosses' rows come from their own files (enemies/mid/): MID_ET is this same object
@@ -384,7 +384,7 @@ export function flayer(y) {
     ang: Math.PI,
     cool: ri(...firstShot(60, 110)),
     cap: R() < .35,
-    hunt: flayHunts($.G.flayN = ($.G.flayN || 0) + 1) ? 1 : 0 // D62: every NOTICE.flayEvery-th flayer hunts (no R() draw)
+    hunt: flayHunts($.G.flayN = ($.G.flayN || 0) + 1, noticeOf(econId())) ? 1 : 0 // D62: every flayEvery-th flayer hunts (no R() draw); D63 long4: every one
   });
 }
 export function logLine(s) {

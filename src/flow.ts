@@ -23,6 +23,7 @@ import { CP, cp1Release, cp1X, writeCp } from './checkpoint';
 import { rebuildAt } from './stagebuild';
 import { cpTrigger } from './lab';
 import { jumpBlob } from './jump';
+import { ECON, econId } from './economy';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
@@ -224,15 +225,19 @@ export function resetPlayer(keepGuns) {
     rig: rigFresh()
   };
 }
-/** BLACK BOX: on death your guns burst out as pods (full level each); fly through them to take them back */
+/** D63: the most FULL pods a death gives back (economy.ts HardSet recover; Infinity on short: everything) */
+const recoverCap = () => ECON[econId()].hard?.recover ?? Infinity;
+/** BLACK BOX: on death your guns burst out as pods (full level each); fly through them to take them back. D63 long4:
+ *  the main gun plus one pod (D61 Pass 2's rule, Matt) */
 function blackBox(P = $.P) {
   if (!lv('salvage')) return;
-  const ty = [];
+  let ty = [];
   if (P.double) ty.push(2);
   if (P.laser) ty.push(3);
   for (let i = 0; i < P.missile; i++) ty.push(1);
   for (let i = 0; i < (P.pyre || 0); i++) ty.push(4);
   for (let i = 0; i < Math.min(2, P.options); i++) ty.push(5);
+  ty = ty.slice(0, recoverCap());
   const S = $.P; // where the ship is now: an option-b restart reads the loadout that died, and drops by the restored ship
   ty.forEach((t, k) => caps.push({ x: clamp(S.x + 40 + k * 22, 30, 430), y: clamp(S.y + (k % 2 ? 18 : -18), 30, PH - 30), t: k * 10, blue: false, ty: t, full: 1, salv: 1 }));
 }
@@ -246,7 +251,7 @@ function bossRecoveryNote() {
   if (P.missile) ty.push(1); else if (P.pyre) ty.push(4);
   if (P.options) ty.push(5);
   if (P.wardLv) ty.push(6);
-  G.recover = ty.slice(0, 3);
+  G.recover = ty.slice(0, Math.min(3, recoverCap())); // D63 long4: the main gun plus one pod
 }
 /** a death's cost on the run (killPlayer; and D32, an option-b restart): the power cursor resets and every graft
  *  loses a level */

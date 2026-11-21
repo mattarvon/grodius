@@ -31,7 +31,8 @@ export const NOTICE = {
   flayHi: .85, //    nor right of W * .85 (it only strikes from x < W - 20)
   flayLock: 16, //   its aim locks for the last 16 f of its 34 f tell (it tracked to the end; with hunting that left no dodge)
   // --- D62 (Matt, 2026-11-21): Pass 1 toned down to D61's own D1 bands on the fixed playtest probe (bullets counted).
-  // The mechanics stay; these set how often they come. 1 / 1 / true are D61 as merged ---
+  // The mechanics stay; these set how often they come. 1 / 1 / true are D61 as merged. D63: long4 (the default) runs
+  // D61's rates again (economy.ts HARD_LONG4.notice, read through noticeOf); short and long5 keep these ---
   flayEvery: 2, //   every 2nd flayer hunts (the others park at their spawn x, as before D61)
   flayCool: 1.4, //  a hunting flayer's cooldown after a lash, x its coolFor('flayer') (it is always in reach)
   hazInFight: false, // no aimed hazards while a midboss or boss is up (the fight is the threat then)
@@ -42,9 +43,9 @@ export const HAZ_WARM: Record<string, number> = { icicle: 50, geyser: 70, jet: 6
 
 /** whether the n-th hazard of a descent (1-based) is aimed at the ship's column; loop is G.loop (2 = Descent 3).
  *  Only the column hazards are aimed (a strand sweeps in from the right edge and never is) */
-export function hazAimed(n: number, loop: number, k: string): boolean {
+export function hazAimed(n: number, loop: number, k: string, o: Pick<typeof NOTICE, 'hazEvery' | 'hazEveryD3'> = NOTICE): boolean {
   if (!(k in HAZ_WARM)) return false;
-  return n % (loop >= 2 ? NOTICE.hazEveryD3 : NOTICE.hazEvery) === 0;
+  return n % (loop >= 2 ? o.hazEveryD3 : o.hazEvery) === 0;
 }
 
 /** frames from a hazard's spawn until it reaches height y in its column. top: the icicle's tip at spawn (it hangs from
@@ -61,7 +62,7 @@ export function hazLeadX(k: string, px: number, py: number, ss: number, top: num
 }
 
 /** whether the n-th flayer of a run (1-based) hunts (D62: every flayEvery-th) */
-export const flayHunts = (n: number): boolean => n % NOTICE.flayEvery === 0;
+export const flayHunts = (n: number, o: Pick<typeof NOTICE, 'flayEvery'> = NOTICE): boolean => n % o.flayEvery === 0;
 
 /** the flayer's parking x: 90 px ahead of the ship, clamped (it used to park at a fixed random x) */
 export function flayerTx(px: number, W: number): number {

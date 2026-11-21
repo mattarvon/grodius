@@ -26,7 +26,8 @@ import { midForce, midsWip } from './lab';
 import { drawPicks } from './setdraw';
 import { MOVES, bandClamp, gimmick, hazInterval, moveAt, snapVent } from './terrainb';
 import { BOSS_SIM, bossFor } from './enemies/boss/registry';
-import { NOTICE, hazAimed, hazLeadX } from './notice';
+import { hazAimed, hazLeadX } from './notice';
+import { econId, noticeOf } from './economy';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -517,7 +518,8 @@ function spawnHazard(b) {
   // D59's hatched column band over its whole warm-up, 50-70 f). The rest still re-roll off the ship
   // D62: and none while a midboss or boss is up (NOTICE.hazInFight false); the count still advances
   const n = G.hazN = (G.hazN || 0) + 1, fight = (G.mini && !G.mini.dead) || G.boss;
-  const aim = !!P && P.alive && hazAimed(n, G.loop || 0, b) && (NOTICE.hazInFight || !fight);
+  const N = noticeOf(econId()); // D63: long4 runs D61's rates (every 3rd, 1 in 2 in Descent 3, in fights too)
+  const aim = !!P && P.alive && hazAimed(n, G.loop || 0, b, N) && (N.hazInFight || !fight);
   let x;
   if (aim) {
     const c0 = ceilAt(P.x + G.scroll);

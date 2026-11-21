@@ -148,7 +148,7 @@ export const UPG = [{
   name: 'REINFORCED HULL',
   desc: 'One more ship per run.',
   max: 2,
-  cost: [150, 500]
+  cost: [400, 1100] // D63 (Matt): was 150 / 500; an extra ship was the cheapest survival in the shop
 }, {
   id: 'gland',
   name: 'HARVEST GLAND',

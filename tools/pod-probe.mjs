@@ -1,6 +1,6 @@
 // Seeded pacing probe: progression.mjs bot + pick/fork/shop handling, seeded RNG,
 // per-frame pod-pickup timestamps, per-stage pods/min, bio per descent.
-// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout long4|short] [--mortal] [--pilot]
+// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout long4|short] [--mortal] [--pilot | --park] [--hull N] [--kit mid|full]
 // --pilot: steer with the dodging autopilot (tools/pilot.mjs) instead of the plain target-seeker; use it with --mortal
 // (the plain bot game-overs in long4's first biome). Its frames with no safe move are reported as `pilot.trapped`.
 // --mortal: the bot is not kept invincible, so it takes real hits, loses ships and can game over (the run then ends
@@ -21,31 +21,58 @@
 // spawned with pod: the biome breath's release), fixed:choice, carrier (e.cap), formation (a group's last kill), else
 // salv/graft/blue/unknown. A carrier that is also in a group counts as fixed:release or carrier, never formation.
 // `grades[].gradeBio` is the tally's grade biomass (G.tally.bio, stages.ts clearStage). Not measured: the Drive's own WARNING (its banner is its title, not WARNING).
+// --park (D63, Matt's "I don't need to do anything but hold the spacebar"): the ship never moves: it sits where it
+// spawned (and respawned), fire held. Use it with --mortal: the D63 gate is that this bot GAME OVERs in Descent 1.
+// `deaths[]` (every mortal run) and `hitLog` say what took each ship / shield hit, read by proximity the frame before
+// it happened (measure-only): shot:<kind> (an enemy bullet within 26 px), body:<k> (an enemy within its r + 14 px),
+// haz:<k> (a hazard within 12 px of the ship's column), terrain (the ship inside the floor or ceiling), else other
+// (a lash, hook, lane or beam); `ctx` names the fight that was up (mid:<k>, boss:<k>, drive).
 import { chromium } from 'playwright';
 import { useLayout, LAYOUT } from './layout-arg.mjs';
 import { PILOT } from './pilot.mjs';
 const mi = process.argv.indexOf('--mortal'), MORTAL = mi >= 0; if (MORTAL) process.argv.splice(mi, 1);
 const pli = process.argv.indexOf('--pilot'), PIL = pli >= 0; if (PIL) process.argv.splice(pli, 1);
+const pki = process.argv.indexOf('--park'), PARK = pki >= 0; if (PARK) process.argv.splice(pki, 1);
+const kti = process.argv.indexOf('--kit'), KIT = kti >= 0 ? process.argv.splice(kti, 2)[1] : null;
+const hui = process.argv.indexOf('--hull'), HULL = hui >= 0 ? +process.argv.splice(hui, 2)[1] : 0;
 const [url, SEED = '1', MIN = '12', END = '1'] = process.argv.slice(2);
+// --kit bare|mid|full: the first life starts with src/jump.ts KITS[kit].p fitted (guns only; lives and level are the
+// run's own). A death strips it as usual. With --park it asks Matt's question: once powered, can you just sit and fire?
+// restated from src/jump.ts KITS (its extensionless imports don't load in Node); keep in step
+const KITS = { bare: { p: {} }, mid: { p: { speed: 2, double: 1, missile: 1, options: 1 } }, full: { p: { speed: 4, laser: 1, missile: 2, pyre: 1, options: 3, wardLv: 2, shield: 3 } } };
+const KITP = KIT ? KITS[KIT] : null; if (KIT && !KITP) { console.error(`unknown kit ${KIT}`); process.exit(2); }
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 if (PIL) await p.addInitScript(PILOT);
-await p.addInitScript(([seed, mortal, pil]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
+await p.addInitScript(([seed, mortal, pil, park, hull, kit]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);
   try { localStorage.clear(); } catch (e) {}
-  window.__pods = []; window.__capSrc = new WeakMap(); window.__fr = 0; window.__bf = {};
+  window.__pods = []; window.__capSrc = new WeakMap(); window.__fr = 0; window.__bf = {}; window.__deaths = []; window.__hits = {};
+  // what was touching the ship the frame before a hit or a death (see the header's `deaths[]`)
+  window.__near = (g) => { const P = g.P, G = g.G, W_ = window.__W; let best = null, bd = 1e9; const put = (c, d) => { if (d < bd) { bd = d; best = c; } };
+    if (W_) { for (const q of W_.eshots) { const d = (q.x - P.x) ** 2 + (q.y - P.y) ** 2; if (d < 26 * 26) put('shot:' + (q.k || 'orb'), d); }
+      const wx = P.x + G.scroll; if (P.y + 6 >= W_.floorAt(wx) || P.y - 6 <= W_.ceilAt(wx)) put('terrain', 0); }
+    for (const e of g.enemies) if (!e.dead) { const d = (e.x - P.x) ** 2 + (e.y - P.y) ** 2, r = (e.r || 8) + 14; if (d < r * r) put('body:' + e.k, d + 1); }
+    const bi = globalThis.__biome && globalThis.__biome(); if (bi && bi.haz) for (const h of bi.haz) if (Math.abs(h.x - P.x) < 12) put('haz:' + h.k + (h.aim ? '(aimed)' : ''), 2);
+    const ctx = G.boss && !G.boss.dying ? 'drive' : G.mini && !G.mini.dead ? (G.mini.mid ? 'mid:' : 'boss:') + G.mini.k : '';
+    return { c: best || 'other', ctx }; };
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const g = window.__G && window.__G(); let before = null, beforeE = null;
-      if (g && g.P && g.state === 'play') { if (!mortal) { g.P.inv = 30; g.P.alive = true; } const G = g.G; let tx, ty;
+      if (g && g.P && g.state === 'play') { if (window.__lives0 == null) { if (hull) g.G.lives = Math.max(g.G.lives, 2 + hull); if (kit) Object.assign(g.P, kit.p); window.__lives0 = g.G.lives; } if (!mortal) { g.P.inv = 30; g.P.alive = true; } const G = g.G; let tx, ty;
         if (G.fork && G.fork.t > 45) { tx = 480 * .74; ty = (window.__gi ?? 0) % 2 ? 254 * .72 : 254 * .28; }
         else { const c = g.caps.filter((c) => c.x > 0 && c.x < 470).sort((a, b) => a.x - b.x)[0];
           const t = c || g.enemies.filter((e) => !e.dead && e.x > g.P.x + 20 && e.x < 480 && (e.hp || 1) > 0).sort((a, b) => (a.k === 'heart' || a.k === 'nailbar' ? -1 : 0) || Math.abs(a.y - g.P.y) - Math.abs(b.y - g.P.y))[0];
           if (t) { tx = c ? c.x : Math.min(140, t.x - 60); ty = t.y; }
           else { const m = (G.mini && !G.mini.dead && G.mini) || G.boss || g.enemies.find((e) => !e.dead); tx = 90; ty = m ? m.y : g.P.y; } }
-        if (pil) window.__pilotStep(g, tx, ty);
+        if (park) { /* --park: never move */ }
+        else if (pil) window.__pilotStep(g, tx, ty);
         else if (tx != null) { g.P.x += Math.sign(tx - g.P.x) * Math.min(3, Math.abs(tx - g.P.x)); g.P.y += Math.sign(ty - g.P.y) * Math.min(3, Math.abs(ty - g.P.y)); }
         before = g.caps.slice(); beforeE = g.enemies.slice(); }
+      const pre = mortal && g && g.P && g.state === 'play' && g.P.alive && g.P.inv <= 1 ? { sh: g.P.shield || 0, n: window.__near(g), x: g.P.x, y: g.P.y } : null;
       q.splice(0).forEach((f) => f(now));
       const h = window.__G && window.__G();
+      if (pre && h && h.P) { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, cause = pre.n.c + (pre.n.ctx ? ' @' + pre.n.ctx : '');
+        if (!h.P.alive || h.state === 'over') window.__deaths.push({ st, s: +(window.__fr / 60).toFixed(1), cause, lives: h.G.lives, x: Math.round(pre.x), y: Math.round(pre.y) });
+        else if ((h.P.shield || 0) < pre.sh) window.__hits[cause] = (window.__hits[cause] || 0) + 1; }
       if (h && h.G && h.state === 'play') { window.__fr++; if (h.G.boss && !h.G.boss.dying && !h.G.tally) { const k = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`; window.__bf[k] = (window.__bf[k] || 0) + 1; } }
       if (before && h && h.P) { const seen = new Set(h.caps); let chosen = false;
         // where each new cap came from, read off what died this frame (measure-only; see the header's `src`)
@@ -56,9 +83,10 @@ await p.addInitScript(([seed, mortal, pil]) => { let now = 0; const q = []; perf
         for (const c of before) if (!seen.has(c) && c.x >= -12 && (c.x - h.P.x) ** 2 + (c.y - h.P.y) ** 2 < 20 * 20) {
           const kind = c.graft ? 'graft' : c.blue ? 'blue' : c.choice ? 'choice' : c.salv ? 'salv' : 'pod';
           if (kind === 'choice') { if (chosen) continue; chosen = true; }
-          window.__pods.push({ f: window.__fr, kind, src: window.__capSrc.get(c) || 'unknown', st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, [+SEED, MORTAL, PIL]);
+          window.__pods.push({ f: window.__fr, kind, src: window.__capSrc.get(c) || 'unknown', st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, [+SEED, MORTAL, PIL, PARK, HULL, KITP]);
 await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'pod-probe', { quiet: true }); // stdout stays one JSON object; it carries the layout
+if (HULL) await p.evaluate(async (h) => { (await import('/src/state.ts')).$.meta.lv.hull = h; }, HULL); // --hull N: REINFORCED HULL bought N times (a played profile's extra ships)
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
@@ -80,7 +108,7 @@ for (let it = 0; it < MIN * 60 * 2; it++) {
   if (s.st === 'shop') { await p.evaluate('__tick(40)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(1)'); await key('keydown', 'Backspace'); await p.evaluate('__tick(1)'); await key('keyup', 'Backspace'); await p.evaluate('__tick(40)'); continue; } // the loop shop's back takes two presses (ls1-audit)
   if (s.st !== 'play' || s.loop >= +END) { endState = JSON.stringify(s); break; }
 }
-const fin = await p.evaluate(() => { const g = __G(), G = g.G; return { fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf, fk: Object.keys(window.__S.meta.mbK || {}) }; });
+const fin = await p.evaluate(() => { const g = __G(), G = g.G; return { deaths: window.__deaths, hitLog: window.__hits, lives0: window.__lives0, fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf, fk: Object.keys(window.__S.meta.mbK || {}) }; });
 seg.push({ k: 'END', f0: fin.fr });
 const podsOnly = fin.pods.filter((x) => x.kind === 'pod' || x.kind === 'choice');
 const first = podsOnly[0];
@@ -90,5 +118,5 @@ const stages = seg.slice(0, -1).map((sg, i) => { const f1 = seg[i + 1].f0; const
   return { stage: sg.k, dur: +dur.toFixed(1), pods: n, kinds, src, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
-  mortal: MORTAL, pilot: PIL ? await p.evaluate(() => window.__pilotLog) : null, stages, tally_s: tally, grades, warns, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
+  mortal: MORTAL, park: PARK, hull: HULL, kit: KIT, deaths: fin.deaths, hitLog: fin.hitLog, lives0: fin.lives0, pilot: PIL ? await p.evaluate(() => window.__pilotLog) : null, stages, tally_s: tally, grades, warns, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
 console.error(`pod-probe: ran on ${LAYOUT}`); await b.close();

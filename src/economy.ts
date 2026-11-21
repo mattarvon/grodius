@@ -15,6 +15,7 @@
 //  `targets` are met. Values marked Q<n> wait on Matt's answer to spec §12 question n (the recommended default is here).
 // =====================================================================
 import { layout } from './layout';
+import { NOTICE } from './notice';
 
 /** a layout entry (spec §2.2) */
 export type EntryId = 'short' | 'long4' | 'long5';
@@ -43,6 +44,29 @@ export interface LateSet {
 /** D58 #3: rank drones (formationExtra) = round(k * min(cap, pow)); `extra` = the extra drones carry no pod and drop no
  *  biomass, and pay `xp` x their kill XP. short keeps today's round(3 * min(2, pow)) at full pay */
 export interface FormSet { k: number; cap: number; xp: number; extra: boolean }
+/** D61 Pass 1's rate knobs (src/notice.ts NOTICE): how often the threats that notice the ship come */
+export type NoticeRates = Pick<typeof NOTICE, 'hazEvery' | 'hazEveryD3' | 'flayEvery' | 'flayCool' | 'hazInFight'>;
+/** D63 (Matt, 2026-11-21: "I don't need to do anything but hold the spacebar down. can't die and I am way overpowered,
+ *  and the enemies are predictable and die instantly"): Pass 2's curve on a long entry. null = none (short: today's
+ *  game). Gate: a parked mortal bot (tools/pod-probe.mjs --mortal --park) game-overs in Descent 1. decision-log D63 */
+export interface HardSet {
+  /** shield hits a WARD pod adds once WARD is at its cap (player.ts applyPower), up to WARD_MAX. Was a full refill */
+  wardTop: number;
+  /** most FULL pods a death gives back, main gun first: the boss-fight lifeline (flow.ts bossRecoveryNote) and BLACK
+   *  BOX (flow.ts blackBox). Was up to 3 and everything */
+  recover: number;
+  /** regular enemies' HP x (1 + powHP * min(powCap, G.pow)) at spawn (depth.ts depthHP): toughness follows the one
+   *  power budget (src/power.ts), so a grown build no longer deletes fodder on contact. Revises D1's power rule */
+  powHP: number;
+  powCap: number;
+  /** G.rank = clamp(G.pow, 0, rankCap) (step.ts). Was 1 */
+  rankCap: number;
+  /** CALIBER / SERRATION graft damage per level (mutations.ts gunDm). Was 1.22 / 1.25 */
+  cal: number;
+  serr: number;
+  /** D61 Pass 1 at full strength (undoes D62's toning; short keeps D62's rates) */
+  notice: NoticeRates;
+}
 /** a stage's grading counters (the fields of `G.st` that grading reads) */
 export interface StageCounts { kills: number; spawned: number; hits: number; deaths: number }
 type Band = readonly [number, number];
@@ -84,6 +108,8 @@ export interface EconEntry {
   form: FormSet;
   /** D58 #4 and D62's Drive bump: the late-stage set; null = none */
   late: LateSet | null;
+  /** D63: Pass 2's curve (survival, toughness, rank, Pass 1 rates); null = none */
+  hard: HardSet | null;
   /** GLUTTONY graft thresholds (mutations.ts GM 'over' n: Maw + midboss kills) */
   glut: readonly number[];
   /** Descent 1 elites from stage ordinal `ord` at chance `p`; null = none in Descent 1 (today) */
@@ -136,6 +162,17 @@ const LATE_LONG4: LateSet = {
   midLate: 2.2, // #4: any other held kind in slot B (a new pool kind starts here)
 };
 
+/** D63 (Matt, 2026-11-21): long4's Pass 2 curve. Fitted on pod-probe --mortal --park (the gate) and --mortal --pilot */
+const HARD_LONG4: HardSet = {
+  wardTop: 1, // +1 hit, not a refill (difficulty package section 3 Pass 2: "the biggest single leak")
+  recover: 2, // the main gun plus one pod (D61 Pass 2's BLACK BOX rule, Matt), for the lifeline and BLACK BOX alike
+  powHP: 1, //   x(1 + pow): end of Descent 1 (pow ~.8) fodder takes ~1.8x the hits it did
+  powCap: 2, //  the cap every()/BS()/formation() already put on pow
+  rankCap: 1.25, // package Pass 2: pressure keeps climbing past 1 (midboss cooldowns, litters, the Drive's HP)
+  cal: 1.18, serr: 1.2, // package Pass 2: graft damage softened (was 1.22 / 1.25)
+  notice: { hazEvery: 3, hazEveryD3: 2, flayEvery: 1, flayCool: 1, hazInFight: true }, // D61 as merged
+};
+
 export const ECON: Readonly<Record<EntryId, EconEntry>> = {
   // today's game, exactly. Deleted one milestone after the long layout becomes the default (spec §2.2)
   short: {
@@ -155,6 +192,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     bossOrdW: {},
     form: FORM_TODAY,
     late: null, // today's game in every stage
+    hard: null, // today's game: WARD refills, full lifeline, flat fodder HP, rank cap 1, D62's Pass 1 rates
     glut: [2, 4],
     d1Elite: null,
     driveLife: null,
@@ -206,6 +244,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // D58 #3 (Matt): break the snowball. +2 rank drones at most (was +6), and they pay half XP and no pod/biomass
     form: { k: 2, cap: 1, xp: .5, extra: true },
     late: LATE_LONG4,
+    hard: HARD_LONG4,
     // GLUTTONY counts Maw + midboss kills: per long4 descent the Saucer + 2 + 2 biome midbosses, the Open Orbit Maw and
     // 0-2 biome Maw stage bosses, so 6-8 when every one is killed (short: 2-4)
     glut: [3, 6],
@@ -235,6 +274,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     bossOrdW: {},
     form: FORM_TODAY,
     late: null,
+    hard: null, // a long4 pass, as D58 was
     glut: [3, 7], // ~9 Maw + midboss kills per descent
     d1Elite: { ord: 3, p: .05 }, // optional in spec §7: teaches elites before Descent 2 (stage 4 = biome slot 1)
     driveLife: { add: 1, cap: 5 }, // Q11: exposure per descent doubles
@@ -389,3 +429,9 @@ export function hpmTarget(id: EntryId, kind: Kind, slot: number, loop: number): 
   const t = row[Math.min(row.length - 1, Math.max(0, loop))];
   return { t, lo: t * (1 - HPM_TOL), hi: t * (1 + HPM_TOL), banded: e.hpmBanded.includes(col) };
 }
+
+const NOTICE_OF: Readonly<Record<EntryId, typeof NOTICE>> = {
+  short: NOTICE, long4: { ...NOTICE, ...HARD_LONG4.notice }, long5: NOTICE,
+};
+/** D63: Pass 1's knobs for entry `id`: NOTICE with the entry's HardSet rates over it (short and long5: D62's NOTICE) */
+export const noticeOf = (id: EntryId): typeof NOTICE => NOTICE_OF[id];

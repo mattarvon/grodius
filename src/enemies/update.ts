@@ -12,7 +12,7 @@ import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, wrapA } from '../enemies/spawn';
 import { countKill } from '../mutations';
-import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP } from '../economy';
+import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP, noticeOf } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { KH, hookBehind, hookHits } from './butcherhook';
@@ -260,7 +260,7 @@ export function updEnemy(e) {
           if (e.wt >= 26) {
             e.ws = 'idle';
             e.cool = coolFor('flayer', ri(0, 40));
-            if (e.hunt) e.cool = Math.round(e.cool * NOTICE.flayCool); // D62: a hunter is always in reach, so it lashes less often
+            if (e.hunt) e.cool = Math.round(e.cool * noticeOf(econId()).flayCool); // D62: a hunter is always in reach, so it lashes less often (D63 long4: x1)
           }
         }
         if (R() < .15) drop(e.x + rr(-5, 5), e.y + rr(-2, 8), rr(-.3, .3), rr(0, .5), 1, R() < .5 ? 0 : 1, 80);

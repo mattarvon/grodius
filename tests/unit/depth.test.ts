@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { $ } from '../../src/state';
 import { DEPTH, cdm, dep, depthHP, driveMul, firem, over, xtra } from '../../src/depth';
 import { setLayout } from '../../src/layout';
-import { bossOrdMul } from '../../src/economy';
+import { ECON, bossOrdMul } from '../../src/economy';
 
 const fresh = (loop: number, pow = 0) => {
   $.G = { loop, pow, rank: Math.max(0, Math.min(1, pow)) };
@@ -112,8 +112,8 @@ describe('intra-descent depth on long4', () => {
   beforeEach(() => setLayout('long4'));
   afterEach(() => setLayout('short'));
 
-  it('keeps Open Orbit in Descent 1 at exactly 1x', () => {
-    at(0, 0, 3);
+  it('keeps Open Orbit in Descent 1 at exactly 1x (at pow 0: D63 adds the power term on top)', () => {
+    at(0, 0, 0);
     expect(dep()).toBe(0);
     expect(depthHP('drone', { hp: 1 }, {})).toBe(1);
     expect(cdm()).toBe(1);
@@ -155,12 +155,14 @@ describe('intra-descent depth on long4', () => {
     expect(driveMul()).toBeCloseTo(1 + DEPTH.driveL);
   });
 
-  it('gives no enemy more HP for more player power at any stage (D1)', () => {
+  it('D63: gives regular enemies x(1 + powHP * min(powCap, pow)) at every stage, and midbosses and bosses nothing', () => {
+    const H = ECON.long4.hard!;
     for (const stage of [0, 1, 2, 3]) {
       at(1, stage, 0);
-      const weak = depthHP('drone', { hp: 1 }, {});
+      const weak = depthHP('drone', { hp: 1 }, {}), mid = depthHP('choir', { mini: 1, mid: 1 }, {});
       at(1, stage, 3);
-      expect(depthHP('drone', { hp: 1 }, {})).toBe(weak);
+      expect(depthHP('drone', { hp: 1 }, {})).toBeCloseTo(weak * (1 + H.powHP * Math.min(H.powCap, $.G.pow)));
+      expect(depthHP('choir', { mini: 1, mid: 1 }, {})).toBe(mid);
     }
   });
 

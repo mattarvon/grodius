@@ -57,7 +57,11 @@ export const midLateMul = (k = '') => { const L = late(); return L && kindOf($.G
 /** HP multiplier for a fresh enemy of kind k, stats b (its ET row); o = mk()'s options */
 export function depthHP(k, b, o) {
   if (o.par && o.par.dm) return o.par.dm; // a boss's parts (the Crucifer's nailbars, the Choir's) are as tough as it is
-  const m = loopHP(k, b, o);
+  // D63 (Matt): regular enemies' toughness follows the one power budget, capped (economy.ts HardSet powHP; long4 only).
+  // G.pow is the measure because it already weighs every power source (guns, grafts, perks, rigs) and is what fire
+  // and density read; it is read once, at spawn
+  const H = ECON[econId()].hard;
+  const m = loopHP(k, b, o) * (H && !b.mini ? 1 + H.powHP * Math.min(H.powCap, Math.max(0, $.G.pow || 0)) : 1);
   // D58 #2: a stage boss also grows with the stage's order in the descent (economy.ts bossOrd; 1 on short). Here, in the
   // shared path, so every biome stage boss gets it uniformly; midbosses, the Orbit Maw and the Drive (driveMul) do not
   return b.mini && !isMid(k, b, o) ? m * bossOrdMul(econId(), $.G.stage || 0, k) : m;
