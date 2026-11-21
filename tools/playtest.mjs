@@ -15,10 +15,23 @@
 // Cross-seed signature report (LS1 row E): run several seeds into their own outDirs, then
 //   node tools/playtest.mjs --compare <outDir1> <outDir2> ...
 // prints whether the Descent 1 opener is identical across the seeds and how much of each stage's rest differs.
+// W5 (DIFFICULTY-SPEC §3.1, measure-only; the statue = this bot: invincible, always firing, never dodging):
+//   would-be hits also count the ship's hull inside terrain or a SOLID (terrain / solid), and every hit is split into
+//   the five sources terrain / solid / hazard / body (an enemy, a lash) / bullet: `split` per stage, with the
+//   non-bullet share and hits/min (L4); terrain and solid count once per touch. `behind`: the share of would-be
+//   bullet hits whose shot spawned behind the ship (its spawn x left of the ship's x at that frame, N2; the spawn point
+//   is back-projected along the shot's velocity, so a curving glob's is approximate). `fired`: per shooter kind (drone eye cross crawler sentry slime mutant), how
+//   many were on screen and how many fired at least once, a shot attributed to the enemy nearest its spawn point
+//   (within 40 px of its body; a tight formation can credit a neighbour) (N1).
+//   `entries`: regular spawns by entry edge, one per formation (N4), and `near` the spawns inside the fairness
+//   distances (bodies within 48 px of the ship, shots spawned within 64 px). The last line, PLAYTEST {...}, holds all
+//   of it as JSON for cross-seed sums. --no-shots skips the screenshots.
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
 import { ROSTER } from '../src/enemies/mid/roster.ts'; // the midboss kinds, from the registry
+import { pageLib } from './probe-lib.mjs';
+const nsi = process.argv.indexOf('--no-shots'), NOSHOTS = nsi >= 0; if (NOSHOTS) process.argv.splice(nsi, 1);
 if (process.argv[2] === '--compare') { compare(process.argv.slice(3)); process.exit(0); }
 /** the cross-seed signature report over sig.json files */
 function compare(dirs) {
@@ -51,9 +64,15 @@ const SHOT = 20;
 fs.mkdirSync(OUT, { recursive: true });
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+await p.addInitScript(pageLib);
 await p.addInitScript((seed) => {
   // would-be hits with no projectile (D61): the flayer's lash (enemies/update.ts, the same test on whipPts from strike
   // frame 5 to 15) and the biome hazards (biomes.ts stepBiome's geometry). Before D61 neither was counted
+  // W5: the ship's hull (player.ts's 5 points) inside terrain or a SOLID: a would-be terrain death on the statue
+  window.hullHit = (h, P) => { const PL = window.__PL, Wm = PL && PL.mods.W; if (!Wm) return '';
+    for (const [ox, oy] of [[12, 0], [-9, -4], [-9, 4], [0, -4], [0, 4]]) { const wx = P.x + ox + h.G.scroll, y = P.y + oy;
+      if (y >= Wm.floorAt(wx) || y <= Wm.ceilAt(wx)) return 'terrain'; if (PL.solids(wx).some(([a, b]) => y >= a && y <= b)) return 'solid'; }
+    return ''; };
   window.noShotHit = (h, P) => {
     const EU = window.__EU;
     if (EU) for (const e of h.enemies) if (!e.dead && e.k === 'flayer' && e.ws === 'strike' && e.wt > 4 && e.wt < 16) {
@@ -91,15 +110,23 @@ await p.addInitScript((seed) => {
       // enemy lifetimes: from first on screen to removal; killed if removed while still on screen
       const alive = new Set();
       for (const e of h.enemies) { alive.add(e);
-        if (!L.seen.has(e)) { L.seen.set(e, { k: e.k, f0: null, st, big: !!(e.big || e.mini || e.mid) }); L.spawns.push({ f: L.fr, k: e.k, st, el: !!e.elite, sx: Math.round(G.scroll - (window.__x0 ? window.__x0(G.stage || 0) : 0)) }); }
+        if (!L.seen.has(e)) { L.seen.set(e, { k: e.k, f0: null, st, big: !!(e.big || e.mini || e.mid) });
+          const PL = window.__PL; if (PL && PL.mods.W && PL.regular(e)) { const nr = ((L.near ||= {})[st] ||= { bodies48: 0, bodyMin: null, shot64: 0, shotMin: null }), d = Math.hypot(e.x - P.x, e.y - P.y);
+            if (d < 48) nr.bodies48++; if (nr.bodyMin == null || d < nr.bodyMin) nr.bodyMin = Math.round(d);
+            if (PL.entrant(e) && (!e.group || !(L.gSeen ||= new WeakSet()).has(e.group))) { if (e.group) L.gSeen.add(e.group); const ed = PL.entryEdge(e, G), en = ((L.entries ||= {})[st] ||= {}); en[ed] = (en[ed] || 0) + 1; } } L.spawns.push({ f: L.fr, k: e.k, st, el: !!e.elite, sx: Math.round(G.scroll - (window.__x0 ? window.__x0(G.stage || 0) : 0)) }); }
         const r = L.seen.get(e); if (r.f0 == null && e.x < 480 && e.x > 0) r.f0 = L.fr; r.x = e.x; }
+      if (window.__PL && window.__PL.mods.W) for (const t of window.__PL.tagShots(h, L.fr) || []) { const nr = ((L.near ||= {})[st] ||= { bodies48: 0, bodyMin: null, shot64: 0, shotMin: null }); if (t.sd < 64) nr.shot64++; if (nr.shotMin == null || t.sd < nr.shotMin) nr.shotMin = Math.round(t.sd); }
       for (const [e, r] of L.seen) if (!alive.has(e)) { L.seen.delete(e);
+        if (r.f0 != null && window.__PL && /^(drone|eye|cross|crawler|sentry|slime|mutant)$/.test(r.k)) { const fk = ((L.fired ||= {})[r.k] ||= [0, 0]); fk[0]++; if (window.__PL.fired.has(e)) fk[1]++; }
         if (r.f0 != null && !r.big) L.life.push({ k: r.k, st: r.st, s: (L.fr - r.f0) / 60, killed: r.x > -8 && r.x < 490, right: r.x > 360 }); }
       // would-be hits (ship hitbox ~4 px), at most one per 30 frames like real i-frames
+      { const hh = hullHit(h, P); L.hullRise = hh && !L.prevHull ? hh : ''; L.prevHull = hh; } // terrain counts once per touch (qa-lead review)
       if (L.hitCD > 0) L.hitCD--;
       else { // src: what it was (shot:<kind>, the enemy's kind, lash, haz:<kind>, * = an aimed hazard), tallied per stage in L.srcBy
         const sh = h.eshots && h.eshots.find((s) => (s.x - P.x) ** 2 + (s.y - P.y) ** 2 < 36), en = !sh && h.enemies.find((e) => !e.dead && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < ((e.r || 6) + 2) ** 2);
-        const src = sh ? 'shot:' + sh.k : en ? en.k + (en.ut ? '(u-turn)' : en.pat === 'behind' ? '(rear)' : '') : noShotHit(h, P);
+        const src = sh ? 'shot:' + sh.k : en ? en.k + (en.ut ? '(u-turn)' : en.pat === 'behind' ? '(rear)' : '') : noShotHit(h, P) || L.hullRise;
+        if (src) { const PL = window.__PL, bk = sh ? 'bullet' : en || src === 'lash' ? 'body' : src.startsWith('haz') ? 'hazard' : src; const sp = ((L.split ||= {})[st] ||= {}); sp[bk] = (sp[bk] || 0) + 1;
+          if (sh && PL) { const tg = PL.tag.get(sh), bh = ((L.behind ||= {})[st] ||= [0, 0]); bh[0]++; if (tg && tg.x0 < tg.px - 4) bh[1]++; } }
         if (src) { L.hits++; L.hitsBy[st] = (L.hitsBy[st] || 0) + 1; L.hitCD = 30; const b = (L.srcBy[st] ||= {}); b[src] = (b[src] || 0) + 1;
           if (sh) (L.shotHitBy ||= {})[st] = (L.shotHitBy[st] || 0) + 1; // a bullet, not a body (D58 probe fix)
           if ((G.mini && !G.mini.dead) || G.boss) (L.fightHitBy ||= {})[st] = (L.fightHitBy[st] || 0) + 1; } } // with a midboss or boss up
@@ -112,6 +139,7 @@ await p.addInitScript((seed) => {
 }, +SEED);
 await p.goto(url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'playtest');
+await p.evaluate(() => window.__PL.load());
 await p.evaluate(async () => { window.__ES = (await import('/src/world.ts')).eshots; }); // the enemy shots the would-be hits read
 // stage-relative x for the signature (script x is relative to its row's x0), read from the layout useLayout activated
 await p.evaluate(async () => { window.__EU = await import('/src/enemies/update.ts'); }); // whipPts for noShotHit
@@ -155,13 +183,13 @@ for (let it = 0; it < MAXM * 60 * 2; it++) {
   lastFork = s.fork;
   if (s.st === 'play' && (!cur || cur.k !== s.k)) { cur = { k: s.k, f0: s.fr, start: s, music: new Set(), biome: s.biome }; stages.push(cur); }
   if (cur && s.st === 'play') { cur.end = s; if (s.mix) cur.music.add(s.mix); if (s.biome) { cur.biome = s.biome; cur.remix = s.remix; } }
-  if (s.fr / 60 >= nextShot && s.st === 'play') { await p.screenshot({ path: `${OUT}/t${String(Math.round(s.fr / 60)).padStart(4, '0')}-${s.k}.png` }); nextShot += SHOT; }
+  if (!NOSHOTS && s.fr / 60 >= nextShot && s.st === 'play') { await p.screenshot({ path: `${OUT}/t${String(Math.round(s.fr / 60)).padStart(4, '0')}-${s.k}.png` }); nextShot += SHOT; }
   if (s.pick && s.pt > 36) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); }
   if (s.st === 'shop') { const r = await shop(); console.log(`INFIRMARY after descent ${s.loop + 1}: bought ${r.bought.join(' ') || 'nothing'} | bolted ${r.rig} levels ${r.cl} | bio left ${r.bio}`);
     await p.evaluate(async () => (await import('/src/menus.ts')).leaveShop()); await p.evaluate('__tick(60)'); continue; }
   if (s.st !== 'play' || s.loop >= +DESC) { end = JSON.stringify(s); break; }
 }
-const L = await p.evaluate(() => { const L = __pt; return { fightHitBy: L.fightHitBy || {}, fightFrBy: L.fightFrBy || {}, shotsBy: L.shotsBy || {}, shotHitBy: L.shotHitBy || {}, picks: L.picks || {}, fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, srcBy: L.srcBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r) }; });
+const L = await p.evaluate(() => { const L = __pt; return { fightHitBy: L.fightHitBy || {}, fightFrBy: L.fightFrBy || {}, shotsBy: L.shotsBy || {}, shotHitBy: L.shotHitBy || {}, picks: L.picks || {}, fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, srcBy: L.srcBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r), split: L.split || {}, behind: L.behind || {}, fired: L.fired || {}, entries: L.entries || {}, near: L.near || {} }; });
 const q = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(f * s.length))].toFixed(2) : null; };
 const prev = {}, prevB = {}, drn = { biome: [0, 0] };
 for (let i = 0; i < stages.length; i++) {
@@ -198,4 +226,11 @@ fs.writeFileSync(`${OUT}/sig.json`, JSON.stringify({ seed: +SEED, layout: LAY.id
 console.log(`\nscript signature written to ${OUT}/sig.json (layout ${LAY.id}); compare seeds with --compare`);
 console.log(`\nbiome stages: drones ${drn.biome[1] ? Math.round(100 * drn.biome[0] / drn.biome[1]) : 0}% of ${drn.biome[1]} regular spawns`);
 console.log(`\nwould-be hits: ${L.hits} in ${(L.fr / 3600).toFixed(1)} min (${(L.hits / (L.fr / 3600)).toFixed(1)}/min) | hype voices ${L.hype} | end ${end} | errors ${errs.slice(0, 3).join(' / ') || 'none'}`);
+{ // W5 summary (see the header): per stage, then the run, then one JSON line
+  const share = (o) => { const t = Object.values(o || {}).reduce((x, n) => x + n, 0); return t ? 1 - (o.bullet || 0) / t : null; };
+  for (const S of stages) { const sp = L.split[S.k] || {}, t = Object.values(sp).reduce((x, n) => x + n, 0), fb = L.frBy[S.k] || 0, bh = L.behind[S.k];
+    console.log(`W5 ${S.k}${S.biome ? ' [' + S.biome + ']' : ''}: hits ${t} (${fb ? (t / (fb / 3600)).toFixed(2) : '-'}/min) split ${JSON.stringify(sp)} non-bullet ${t ? Math.round(100 * share(sp)) + '%' : '-'} | bullet hits from behind ${bh ? bh[1] + '/' + bh[0] : '-'} | entries ${JSON.stringify(L.entries[S.k] || {})} | near ${JSON.stringify(L.near[S.k] || {})}`); }
+  const fd = Object.values(L.fired).reduce((a, [n, f]) => [a[0] + n, a[1] + f], [0, 0]);
+  console.log(`W5 shooters that fired at least once: ${fd[1]}/${fd[0]} (${fd[0] ? Math.round(100 * fd[1] / fd[0]) : '-'}%) by kind ${Object.entries(L.fired).map(([k, [n, f]]) => `${k} ${f}/${n}`).join(', ')}`);
+  console.log('PLAYTEST ' + JSON.stringify({ seed: +SEED, frBy: L.frBy, split: L.split, behind: L.behind, fired: L.fired, entries: L.entries, near: L.near, hitsBy: L.hitsBy })); }
 ranOn('playtest'); await b.close();

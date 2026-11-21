@@ -18,8 +18,22 @@
 //        The matrix also flies every non-biome kind with a roster `fit` (one a test path puts in biome slots, the
 //        KEEPSAKE's ?mid=) in each biome, with no home column.
 //  TTK = seconds from the midboss being on screen to dead; "esc" = it left (escape timer) first
+// W5 (DIFFICULTY-SPEC §3.1, measure-only):
+//  Every TTK run also reports each fight's enemy bullets on screen (counted shots, probe-lib's predicate), max and p90
+//  over every loadout's fight, against the spec's set-piece / midboss cap (16 on Normal; B3: max <= cap, p90 <= .6 cap).
+//  --kind <k>[,<k>...] flies only those kinds (maw, ufo, a roster key).
+//  --spots: the 8-spot park grid (probe-lib SPOTS; keepsake-probe's spot:X,Y generalised). Per kind and spot the ship
+//    never moves (clamped 10 px into the open band) and holds fire with --spot-kit (default STAGE 1 kit); would-be hits
+//    by phase (the half rule), each shot once and every other contact once per touch. K1: every reached phase >= 2 on
+//    every spot. The source split of all spot hits is K2's denial share. A phase the fight never reached is listed.
+//  --timeout: K4. Per kind, the NAKED ship parks level with it at x 90 and never fires, up to the leave clock + 20 s:
+//    reports how the fight ended (esc = the time-out fired) and whether the run is still in play.
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+import { pageLib, SPOTS, spotSummary, hq, hmax, CAPS } from './probe-lib.mjs';
+const flag = (n) => { const i = process.argv.indexOf(n); if (i < 0) return false; process.argv.splice(i, 1); return true; };
+const optv = (n) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv.splice(i, 2)[1] : null; };
+const SPOTM = flag('--spots'), TIMEOUT = flag('--timeout'), KINDS = (optv('--kind') || '').split(',').filter(Boolean), SPOTKIT = optv('--spot-kit') || 'STAGE 1 kit';
 import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
 const li = process.argv.indexOf('--leave'), LEAVE = li >= 0 ? +process.argv.splice(li, 2)[1] : 1400;
 const oi = process.argv.indexOf('--ord'), ORD = oi >= 0 ? +process.argv.splice(oi, 2)[1] : null;
@@ -38,7 +52,9 @@ const b = await chromium.launch(); const p = await b.newPage({ viewport: { width
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 if (SEED != null) await p.addInitScript((s0) => { let s = s0 | 0; window.__reseed = (n) => { s = n | 0; }; Math.random = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }, SEED);
+await p.addInitScript(pageLib);
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
+await p.evaluate(() => window.__PL.load());
 await useLayout(p, 'midboss-probe', { limits: 'fights are staged in Open Orbit, biome slot 0 and the Drive only; later biome slots and interior stages are not. Orbit and ship-pool midbosses fight in Open Orbit, not the ship interior' });
 const L = [
   ['NAKED (died)', {}, {}, {}],
@@ -49,7 +65,8 @@ const L = [
   ['STRONG D1', { speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }],
 ];
 const isBiome = (r) => BIOME_POOLS.includes(r.pool), HELD = ROSTER.filter(isBiome), REST = ROSTER.filter((r) => !isBiome(r)); // the registry, WIP kinds too
-const MIDS = [['maw', 'acid'], ...HELD.map((r) => [r.k, r.pool]), ...REST.map((r) => [r.k, null])];
+const MIDS = [['maw', 'acid'], ...HELD.map((r) => [r.k, r.pool]), ...REST.map((r) => [r.k, null])].filter(([k]) => !KINDS.length || KINDS.includes(k));
+if (!MIDS.length) { console.error(`--kind: none of ${KINDS} is a midboss kind`); process.exit(2); }
 // one loadout + biome, midboss spawned; returns a frame stepper with the bot attached
 const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && await p.evaluate((n) => window.__reseed(n), fightSeed(pw, k)), p.evaluate(async ([pw, gm, pkk, k, biome, host, at, LEAVE, ORD, CENTRE]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
@@ -77,37 +94,85 @@ const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && 
   W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
   if (ORD != null) $.G.stage = ORD;
   if (k === 'maw') SP.maw(false); else if (k === 'ufo') { $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(undefined, LEAVE); } else SP.midboss(k, BI.MID_NAMES[k], host, LEAVE); // its own name, wherever it fights
-  window.__mb = { $, ST, C, W, f: 0, t0: -1 };
+  // W5: window.__mbSpot = [x, y] parks the ship there (--spots) and counts would-be hits into m.spot; bh is the
+  // fight's bullets-on-screen histogram (B3)
+  window.__mb = { $, ST, C, W, f: 0, t0: -1, bh: {}, spot: window.__PL.spotNew() };
   window.__mbStep = (n) => {
-    const m = window.__mb;
+    const m = window.__mb, PL = window.__PL, sp = window.__mbSpot;
     for (let i = 0; i < n; i++) {
       const g = m.$.G.mini;
       if (!g || g.dead) return g && (g.gone || g.x > m.C.W + 50) ? 'esc' : ((m.f - Math.max(0, m.t0)) / 60).toFixed(1);
       if (m.t0 < 0 && g.x < m.C.W - 20) m.t0 = m.f;
-      const y = m.C.clamp(g.y + (CENTRE ? 0 : g.wy || 0), 8, m.C.PH - 8), P = m.$.P; // e.wy: a weak spot off centre
-      P.hist.unshift({ x: 90, y }); if (P.hist.length > 80) P.hist.pop();
-      Object.assign(P, { x: 90, y, alive: true, inv: 30 }); m.$.G.pick = null; m.$.G.pickQ = 0;
+      const x = sp ? sp[0] : 90, y = sp ? PL.spotY(sp[0], sp[1], m.$.G.scroll) : m.C.clamp(g.y + (CENTRE ? 0 : g.wy || 0), 8, m.C.PH - 8), P = m.$.P; // e.wy: a weak spot off centre
+      P.hist.unshift({ x, y }); if (P.hist.length > 80) P.hist.pop();
+      Object.assign(P, { x, y, alive: true, inv: 30 }); if (sp) { P.shield = 0; P.aegis = 0; } m.$.G.pick = null; m.$.G.pickQ = 0; // a spot ship has no WARD: it eats shots inside 16 px and would hide them (keepsake-probe)
       m.ST.step(); m.f++;
+      if (m.t0 >= 0) { PL.fightBul(m.bh); if (sp && m.$.G.mini && !m.$.G.mini.dead) PL.spotFrame(m.spot, window.__G(), x, y, PL.phase(m.$.G.mini)); }
     }
     return null;
   };
-  return +$.G.rank.toFixed(2);
+  // G.rank is the old 0-1.25 power rank; src/rank.ts's integer rank once W0 lands ('n/a' if neither)
+  const ir = window.__PL.rank();
+  return ir != null ? ir : typeof $.G.rank === 'number' ? +$.G.rank.toFixed(2) : 'n/a';
 }, [pw, gm, pkk, k, biome, host, at, LEAVE, ORD, CENTRE]));
 if (MATRIX) await matrix();
-const out = {}, rank = {};
+const out = {}, rank = {}, bul = {};
 for (const [name, pw, gm, pkk] of L) {
   out[name] = {};
   for (const [k, biome] of MIDS) {
+    await p.evaluate(() => { window.__mbSpot = null; });
     rank[name] = await prep(pw, gm, pkk, k, biome);
     let r = null;
     for (let i = 0; i < 80 && r == null; i++) r = await p.evaluate(() => window.__mbStep(60));
     out[name][k] = r ?? '--';
+    const bh = await p.evaluate(() => window.__mb.bh); bul[k] ||= {}; for (const [n, c] of Object.entries(bh)) bul[k][n] = (bul[k][n] || 0) + c;
   }
 }
+const LABEL = (k) => (k === 'maw' ? 'MAW(mid)' : (ROSTER.find((r) => r.k === k) || {}).label || k);
 console.log(`leave clock: ${LEAVE} f (${(LEAVE / 60).toFixed(1)} s)` + (SEED != null ? `, seed ${SEED} (per fight)` : ', unseeded'));
 console.log('rank per loadout:', JSON.stringify(rank));
-console.log('loadout'.padEnd(16), ...['MAW(mid)', ...HELD.map((r) => r.label), ...REST.map((r) => r.label)].map((s) => s.padStart(13))); // labels run to 12
+console.log('loadout'.padEnd(16), ...MIDS.map(([k]) => LABEL(k).padStart(13))); // labels run to 12
 for (const [n, r] of Object.entries(out)) console.log(n.padEnd(16), ...MIDS.map(([k]) => String(r[k]).padStart(13)));
+{ const cap = CAPS.setp[1];
+  console.log(`bullets on screen per fight (all loadouts' fights pooled; cap ${cap} = Normal set piece / midboss; B3: max <= ${cap}, p90 <= ${(.6 * cap).toFixed(1)}):`);
+  for (const [k] of MIDS) { const h = bul[k] || {}, mx = hmax(h), p9 = hq(h, .9); console.log(`  ${LABEL(k).padEnd(13)} max ${String(mx).padStart(3)}  p90 ${String(p9).padStart(3)}  ${mx != null && mx <= cap && p9 <= .6 * cap ? 'PASS' : 'FAIL'}`); }
+  console.log('BULLETS ' + JSON.stringify(Object.fromEntries(MIDS.map(([k]) => [k, { max: hmax(bul[k] || {}), p90: hq(bul[k] || {}, .9), cap }])))); }
+if (SPOTM) { // K1 / K2: the 8-spot park grid
+  const kit = L.find((r) => r[0] === SPOTKIT); if (!kit) { console.error(`--spot-kit: no loadout ${SPOTKIT}`); process.exit(2); }
+  const res = {};
+  for (const [k, biome] of MIDS) {
+    res[k] = [];
+    for (const sp of SPOTS) {
+      await p.evaluate(() => { window.__mbSpot = null; });
+      await prep(...kit.slice(1), k, biome);
+      await p.evaluate((sp) => { window.__mbSpot = sp; }, sp);
+      let r = null;
+      for (let i = 0; i < 80 && r == null; i++) r = await p.evaluate(() => window.__mbStep(60));
+      const ph = await p.evaluate(() => window.__mb.spot.ph);
+      res[k].push({ spot: sp, end: r ?? '--', ph });
+    }
+    await p.evaluate(() => { window.__mbSpot = null; });
+  }
+  console.log(`SPOT GRID (${SPOTKIT}, ship parked, fire held; hits per phase p0/p1; K1 wants >= 2 in every reached phase):`);
+  for (const [k] of MIDS) { const s = spotSummary(res[k]);
+    console.log(`  ${LABEL(k).padEnd(13)} ${res[k].map((r) => `${r.spot.join(',')}:${['0', '1'].map((q) => (r.ph[q] ? r.ph[q].hits : '-')).join('/')}${r.end === 'esc' ? 'e' : ''}`).join('  ')}  min ${s.min} phases [${s.phases}] ${s.pass ? 'PASS' : 'FAIL'}`);
+    console.log(`  ${''.padEnd(13)} hit sources: ${JSON.stringify(s.share)}`); }
+  console.log('SPOTS ' + JSON.stringify(Object.fromEntries(MIDS.map(([k]) => [k, { ...spotSummary(res[k]), spots: res[k].map((r) => ({ spot: r.spot, end: r.end, ph: Object.fromEntries(Object.entries(r.ph).map(([q, v]) => [q, v.hits])) })) }]))));
+}
+if (TIMEOUT) { // K4: a NAKED ship that never fires, parked level with the fight
+  const res = {};
+  for (const [k, biome] of MIDS) {
+    await p.evaluate(() => { window.__mbSpot = null; });
+    await prep(...L[0].slice(1), k, biome);
+    await p.evaluate(async () => { (await import('/src/input.ts')).K.KeyZ = false; });
+    let r = null;
+    for (let i = 0; i < Math.ceil((LEAVE + 1200) / 60) && r == null; i++) r = await p.evaluate(() => window.__mbStep(60));
+    res[k] = { end: r ?? 'none', s: await p.evaluate(() => +(window.__mb.f / 60).toFixed(1)), state: await p.evaluate(() => window.__mb.$.state) };
+    await p.evaluate(async () => { (await import('/src/input.ts')).K.KeyZ = true; });
+  }
+  console.log('TIME-OUT (NAKED, no fire): ' + MIDS.map(([k]) => `${LABEL(k)} ${res[k].end === 'esc' ? `timed out at ${res[k].s}s` : res[k].end === 'none' ? 'NO TIME-OUT' : 'killed ' + res[k].end + 's'} (${res[k].state})`).join(' | '));
+  console.log('TIMEOUT ' + JSON.stringify(res));
+}
 if (SHOTS) for (const [k, biome] of MIDS.slice(1)) {
   await prep(...L[1].slice(1), k, biome);
   // fight ~6 s in, then wait for a telegraph so the shot shows the attack being read
@@ -216,7 +281,7 @@ async function matrix() {
       mx = Math.max(mx, kids);
     }
     IN.K.KeyZ = true;
-    return { mx, births, rank: +m.$.G.rank.toFixed(2) };
+    return { mx, births, rank: typeof m.$.G.rank === "number" ? +m.$.G.rank.toFixed(2) : "n/a" };
   });
   console.log(`brood CROWD cap (STRONG kit holding fire, Descent 5, phase 2): max hatchlings alive ${cap.mx} over ${cap.births} litters, rank ${cap.rank} (cap 8)`);
   console.log('render frames sampled:', Object.values(res).reduce((a, r) => a + r.rendered, 0));

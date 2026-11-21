@@ -5,14 +5,25 @@
 // Usage: node tools/route-probe.mjs <url> [g0=0] [g1=1] [descents=1] [opts: die-fork,escape0,escape1,wait,mortal] [--layout long4|short]
 //   shots=<dir>: a fly<stage> shot is taken once the scroll is past the stage row's x0 + 1000 (biome), + 200 (Drive) or
 //   1200 (Open Orbit) in src/layout.ts; on short that is 3300 / 6150 / 8500 (stage 2 was 6400 before LS1-J).
+// W5 (DIFFICULTY-SPEC §3 L5, levels.md S1 / S5; measure-only):
+//   `fit`: the swept fit gap (min floor - max ceil over the ship's 21 px footprint, wx - 9 .. wx + 12, SOLIDS as
+//   terrain; probe-lib fitAt), the minimum over the visible screen every 8 px each tick. Outside the src/sigs.ts
+//   windows it must be >= 100; inside a window >= that window's floor and never below 72. On a build without sigs.ts
+//   every column counts as outside. `minGap` (the old single-column gap) is still printed.
+//   hazBad also lists `body-on-ship:<k>` (a regular enemy first seen within 48 px of the ship) and
+//   `solid-on-ship` (a SOLID slab, if src/solids.ts exposes its list as `solids`, appearing within 48 px). The L5 line
+//   says PASS when fit passes, slam is 0, hazBad is empty and there are no page errors.
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+import { pageLib } from './probe-lib.mjs';
 const [url, g0 = '0', g1 = '1', N = '1', OPT = ''] = process.argv.slice(2);
 const b = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(e.message));
-p.on('console', (m) => m.type() === 'error' && errs.push('console: ' + m.text()));
+// the optional modules probe-lib imports (src/rank.ts, sigs.ts, solids.ts, tier.ts, brutal.ts) 404 on a build that lacks them: not a page error
+p.on('console', (m) => m.type() === 'error' && !(/\/src\/(rank|sigs|solids|tier|brutal)\.ts/.test((m.location() || {}).url || '') && /404/.test(m.text())) && errs.push('console: ' + m.text()));
+await p.addInitScript(pageLib);
 await p.addInitScript(([g0, g1, OPT]) => {
   let now = 0; const q = [];
   performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
@@ -51,6 +62,18 @@ await p.addInitScript(([g0, g1, OPT]) => {
       for (let j = i0; j <= i1; j++) { const gap = B.F[j] - B.C[j]; if (gap < st.minGap && B.F[j] < 270 && B.C[j] > 0) { st.minGap = gap; st.minGapAt = j * B.TS; } vis.push(B.F[j], B.C[j]); }
       if (prevVis && prevVis.i0 === i0) for (let j = 0; j < vis.length; j++) { const d = Math.abs(vis[j] - prevVis.v[j]); if (d > 1.5) { st.slam++; st.slamMax = Math.max(st.slamMax, d); if (st.slamAt.length < 5) st.slamAt.push((i0 + (j >> 1)) * B.TS); } }
       prevVis = { i0, v: vis };
+      // W5: the swept fit gap and the S5 spawn distances (bodies, solids)
+      const PL = window.__PL;
+      if (PL && PL.mods.W) {
+        const ws = PL.sigs();
+        for (let x = 0; x <= 480; x += 8) { const u = G.scroll + x, f = PL.fitAt(u), w = PL.inSig(u, ws);
+          if (w) { const lim = Math.max(72, w.floor || 72); if (st.fitIn == null || f - lim < st.fitIn.f - st.fitIn.lim) st.fitIn = { f: Math.round(f), lim, at: Math.round(u), id: w.id }; }
+          else if (st.fitOut == null || f < st.fitOut.f) st.fitOut = { f: Math.round(f), at: Math.round(u), st: G.stage }; }
+        const seenE = (window.__seenE ||= new WeakSet());
+        for (const e of h.enemies) { if (seenE.has(e)) continue; seenE.add(e); if (!e.dead && PL.regular(e) && h.P.alive && Math.hypot(e.x - h.P.x, e.y - h.P.y) < 48) st.hazBad.push('body-on-ship:' + e.k); }
+        const SO = PL.mods.SO, sl = SO && Array.isArray(SO.solids) ? SO.solids : null;
+        if (sl) { const seenS = (window.__seenS ||= new WeakSet()); for (const q of sl) { if (seenS.has(q)) continue; seenS.add(q); const cx = q.x - G.scroll + (q.w || 0) / 2, cy = q.y + (q.h || 0) / 2; if (h.P.alive && Math.hypot(cx - h.P.x, cy - h.P.y) < 48) st.hazBad.push('solid-on-ship'); } }
+      }
       // hazards
       for (const z of B.haz) if (!hz.has(z)) {
         hz.add(z); st.hazSpawn++; st.hazKinds[z.k] = (st.hazKinds[z.k] || 0) + 1;
@@ -97,6 +120,7 @@ await p.addInitScript(([g0, g1, OPT]) => {
 await p.goto(url);
 await p.waitForFunction(() => window.__started);
 await useLayout(p, 'route-probe');
+await p.evaluate(() => window.__PL.load());
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await p.evaluate('__tick(40)'); await p.evaluate(() => __ev.push('TITLE music ' + JSON.stringify(__music())));
@@ -131,6 +155,10 @@ console.log(r.ev.join('\n'));
 const mx = Object.entries(r.st.mixes).filter(([, v]) => v > 30).map(([k, v]) => k + ' x' + v).join('\n  ');
 console.log(`minGap ${r.st.minGap.toFixed(1)} @${r.st.minGapAt}  slams ${r.st.slam} (max ${r.st.slamMax.toFixed(1)} at ${r.st.slamAt})  hazards ${r.st.hazSpawn} (aimed ${r.st.hazAim || 0}) ${JSON.stringify(r.st.hazKinds)} bad [${r.st.hazBad.join(',')}] hazHitFrames ${r.st.hazHits} deaths ${r.st.deaths} frames ${r.st.frames}`);
 console.log('music:\n  ' + mx);
+{ const fo = r.st.fitOut, fi = r.st.fitIn, sigs = await p.evaluate(() => window.__PL.sigs());
+  const fitOk = (!fo || fo.f >= 100) && (!fi || fi.f >= fi.lim);
+  console.log(`fit (swept 21 px): outside windows min ${fo ? fo.f + ' @' + fo.at + ' (stage ' + fo.st + ')' : '-'} (>= 100); inside ${sigs == null ? 'n/a (no sigs.ts)' : fi ? fi.f + ' @' + fi.at + ' in ' + (fi.id || 'window') + ' (>= ' + fi.lim + ')' : 'none flown'}`);
+  console.log(`L5 ${fitOk && r.st.slam === 0 && !r.st.hazBad.length && !errs.length ? 'PASS' : 'FAIL'}: fit ${fitOk ? 'ok' : 'LOW'}, slams ${r.st.slam}, hazBad [${r.st.hazBad.slice(0, 8).join(',')}${r.st.hazBad.length > 8 ? ',...' : ''}], page errors ${errs.length}`); }
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none');
 ranOn('route-probe');
 await b.close();
