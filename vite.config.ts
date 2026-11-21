@@ -10,6 +10,7 @@ export default defineConfig({
     // (outtakes included) kept in assets-raw/. Setting deny replaces Vite's defaults, so they are repeated here
     fs: { deny: ['.env', '.env.*', '*.{crt,pem,key,p12,pfx,cer,der}', '.npmrc', '.yarnrc.yml', '**/.git/**', '**/assets-raw/**'] },
     // the booth writes raw takes and temp files there; nothing in the game imports it
-    watch: { ignored: ['**/assets-raw/**'] },
+    // and never the agents' worktrees: an edit in .claude/worktrees reloaded the live booth page mid-take
+    watch: { ignored: ['**/assets-raw/**', '**/.claude/worktrees/**'] },
   },
 });
