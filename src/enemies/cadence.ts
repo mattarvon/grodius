@@ -25,6 +25,9 @@ export const COOL = {
 export const curve = (k) => { const c = COOL[k]; return Math.max(c.floor, c.base - c.step * ($.G.loop || 0)); };
 /** cooldown for kind k after an attack; roll = the ri() jitter the caller drew */
 export const coolFor = (k, roll) => Math.round((curve(k) + roll) * cdm() * driveCool());
+/** D62: a regular shooter's first-shot range: its own [lo, hi], or the Drive stage's LateSet.driveFirst on a long entry.
+ *  The caller draws one ri() over it either way, so the R() count is unchanged */
+export const firstShot = (lo, hi) => { const L = late(); return L && L.driveFirst && kindOf($.G.stage || 0) === 'drive' ? L.driveFirst : [lo, hi]; };
 /** D62: the Drive stage's cooldown multiplier on a long entry (economy.ts LateSet.driveCool), else 1 (short: 1) */
 const driveCool = () => { const L = late(); return L && kindOf($.G.stage || 0) === 'drive' ? L.driveCool : 1; };
 /** frames between a womb's litters: Matt's curve, deliberately without cdm() (more would swamp the screen) */

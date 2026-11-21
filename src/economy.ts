@@ -36,6 +36,9 @@ export interface LateSet {
   /** D62 (Matt, 2026-11-21): the Drive stage's regular-enemy cooldowns x driveCool (cadence.ts coolFor): the one stage
    *  under its D61 band on the fixed probe. 1 = none */
   driveCool: number;
+  /** D62: the Drive stage's regular shooters' first-shot delay (frames) in place of each spawner's own range; null = their
+   *  own. Still one ri() draw */
+  driveFirst: readonly [number, number] | null;
 }
 /** D58 #3: rank drones (formationExtra) = round(k * min(cap, pow)); `extra` = the extra drones carry no pod and drop no
  *  biomass, and pay `xp` x their kill XP. short keeps today's round(3 * min(2, pow)) at full pay */
@@ -128,7 +131,8 @@ const FORM_TODAY: FormSet = { k: 3, cap: 2, xp: 1, extra: false };
  *  midboss-probe --ord 2 --leave 1260; D61 base (x1): Choir 5.8, Womb 4.9, Apprentice 4.8, Brood 4.1 s */
 const LATE_LONG4: LateSet = {
   midLateK: { choir: 2.0, cyst: 2.4, prentice: 2.4, brood: 2.7 }, // #4: per kind, each to ~11 s
-  driveCool: .8, // D62: the Drive's fodder fires sooner again (tools/playtest.mjs hits/min, 1-4 column)
+  driveFirst: [20, 60], // D62: Drive shooters fire on arrival (was each spawner's 40-150 f; most died first)
+  driveCool: .7, // D62: the Drive's fodder fires sooner again (tools/playtest.mjs hits/min, 1-4 column)
   midLate: 2.2, // #4: any other held kind in slot B (a new pool kind starts here)
 };
 

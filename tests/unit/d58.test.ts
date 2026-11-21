@@ -119,3 +119,14 @@ describe('D62 Drive-only fire bump (cadence.ts coolFor)', () => {
     at(3); expect(coolFor('eye', 20)).toBe(140);
   });
 });
+
+describe('D62 Drive-only first shot (cadence.ts firstShot)', () => {
+  it('uses LateSet.driveFirst in the Drive stage on long4 and each spawner\'s own range elsewhere', async () => {
+    const { firstShot } = await import('../../src/enemies/cadence');
+    setLayout('long4');
+    at(3); expect(firstShot(110, 150)).toEqual(ECON.long4.late!.driveFirst);
+    at(2); expect(firstShot(110, 150)).toEqual([110, 150]);
+    setLayout('short');
+    at(3); expect(firstShot(40, 90)).toEqual([40, 90]);
+  });
+});

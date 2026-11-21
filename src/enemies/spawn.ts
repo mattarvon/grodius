@@ -10,6 +10,7 @@ import './mid';
 import { MID_ET, MID_SIM } from './mid/roster';
 import { depthHP, midLateMul } from '../depth';
 import { flayHunts } from '../notice';
+import { firstShot } from './cadence'; // D62: the Drive's first-shot range
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
 import { bandClamp } from '../terrainb';
 import { ECON, capKept, econId, formExtra } from '../economy';
@@ -267,7 +268,7 @@ export function eyeT(side) {
   if (y > PH + 4 || y < -4) return;
   mk('eye', W + 14, y, {
     o: side,
-    cool: ri(40, 90),
+    cool: ri(...firstShot(40, 90)),
     veins: Array.from({
       length: 6
     }, () => [R() * TAU, rr(3, 6)]),
@@ -282,7 +283,7 @@ export function crawler(side = 1) {
   mk('crawler', W + 14, y, {
     o: side,
     spd: rr(.4, .9),
-    cool: ri(80, 140),
+    cool: ri(...firstShot(80, 140)),
     cap: R() < .3
   });
 }
@@ -352,7 +353,7 @@ export function crossT(side) {
   if (sy > PH + 4 || sy < -4) return;
   mk('cross', W + 16, sy - side * 22, {
     o: side,
-    cool: ri(70, 130),
+    cool: ri(...firstShot(70, 130)),
     cap: R() < .3,
     noLeg: R() < .35
   });
@@ -381,7 +382,7 @@ export function flayer(y) {
     ws: 'idle',
     wt: 0,
     ang: Math.PI,
-    cool: ri(60, 110),
+    cool: ri(...firstShot(60, 110)),
     cap: R() < .35,
     hunt: flayHunts($.G.flayN = ($.G.flayN || 0) + 1) ? 1 : 0 // D62: every NOTICE.flayEvery-th flayer hunts (no R() draw)
   });
@@ -469,14 +470,14 @@ Object.assign(ET, {
 export function slime(side = 1) {
   const wx = $.G.scroll + W + 16, y = side > 0 ? floorAt(wx) : ceilAt(wx);
   if (y > PH + 4 || y < -4) return;
-  mk('slime', W + 16, y - side * 6, { o: side, spd: rr(.2, .45), cool: ri(90, 130), st: 'ooze', wt: 0, ph: R() * TAU, cap: R() < .2 });
+  mk('slime', W + 16, y - side * 6, { o: side, spd: rr(.2, .45), cool: ri(...firstShot(90, 130)), st: 'ooze', wt: 0, ph: R() * TAU, cap: R() < .2 });
 }
 export function mutant() {
   const wx = $.G.scroll + W + 24, f = floorAt(wx);
   if (f > PH + 4 || f - ceilAt(wx) < 70) return;
-  mk('mutant', W + 24, f - 18, { fy: f, st: 'walk', wt: 0, cool: ri(110, 150), spd: rr(.22, .36), cap: R() < .5 });
+  mk('mutant', W + 24, f - 18, { fy: f, st: 'walk', wt: 0, cool: ri(...firstShot(110, 150)), spd: rr(.22, .36), cap: R() < .5 });
 }
 /** a security pod in from the right that parks at tx, fires two telegraphed bursts, then moves on */
 export function sentry(y, tx) {
-  mk('sentry', W + 14, y, { y0: y, tx: tx ?? rr(W * .6, W * .82), st: 'hover', wt: 0, cool: ri(50, 80), shots: 0, ph: R() * TAU, cap: R() < .3 });
+  mk('sentry', W + 14, y, { y0: y, tx: tx ?? rr(W * .6, W * .82), st: 'hover', wt: 0, cool: ri(...firstShot(50, 80)), shots: 0, ph: R() * TAU, cap: R() < .3 });
 }
