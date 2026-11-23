@@ -113,9 +113,12 @@ describe('movement B on long4', () => {
     const P = fly(0, 'ice', L.slotRow(0).gateLate!, 1), M = P.moveB!, E = MOVE.stair.every;
     expect(E).toBe(120); // spec §3.3
     expect(MOVE.stair.rise).toBeLessThanOrEqual(24); // a face a naked ship clears in under 20 f
+    // the gimmick's own floor (long4 also insets the walls, capped column by column by the swept fit, DIFFICULTY-SPEC
+    // §2.4, so the flown floor is the stair minus a varying inset): o is slot 0's terrain offset in Descent 1
+    const fl = (x: number) => gimmick('ice', 1, x, 37.1, 20, 236)[1];
     for (let x = Math.ceil((M.a + M.blend) / E) * E; x + E < M.z - M.blend; x += E) {
-      expect(world.FLOOR[(x + 8) / TS], `tread at ${x}`).toBeCloseTo(world.FLOOR[(x + E - 8) / TS], 3);
-      expect(Math.abs(world.FLOOR[(x + E + 8) / TS] - world.FLOOR[(x + 8) / TS])).toBeCloseTo(MOVE.stair.rise, 3);
+      expect(fl(x + 8), `tread at ${x}`).toBeCloseTo(fl(x + E - 8), 3);
+      expect(Math.abs(fl(x + E + 8) - fl(x + 8))).toBeCloseTo(MOVE.stair.rise, 3);
     }
   });
 
@@ -151,6 +154,9 @@ describe('movement B on long4', () => {
     const step = (i: number) => Math.max(Math.abs(world.FLOOR[i + 1] - world.FLOOR[i]), Math.abs(world.CEIL[i + 1] - world.CEIL[i]));
     let A = 0, edge = 0;
     for (let i = Math.floor((M.a - 600) / TS); i < Math.floor((M.a - 8) / TS); i++) A = Math.max(A, step(i));
+    // and after the band: movement A is measured on the side of each edge too (fire's spire flanks run ~19 px a tile
+    // just past slot B's band once the D31 stretch is split, with or without the gimmick: W3b / W3c)
+    for (let i = Math.ceil((M.z + 8) / TS); i < Math.ceil((M.z + 600) / TS); i++) A = Math.max(A, step(i));
     for (const [lo, hi] of [[M.a - 8, M.a + M.blend / 4], [M.z - M.blend / 4, M.z + 8]]) for (let i = Math.floor(lo / TS); i < Math.ceil(hi / TS); i++) edge = Math.max(edge, step(i));
     expect(edge).toBeLessThanOrEqual(Math.max(A, 12));
   });
@@ -290,7 +296,7 @@ describe('the catalogue against the game', () => {
     }
     L.setLayout('short');
   });
-  it('spawns the breath-1 release formation with the pod flag on long4, and no other formation carries it', () => {
+  it('spawns the breath-1 release formation with the pod flag on long4, and only it and the opening carriers carry it', () => {
     // G2: formation() marks group.pod (podkeep.test.ts) and killEnemy skips the roll for it (poddrop.test.ts); this is
     // the link between them, biomeScript's release (biomes.ts)
     L.setLayout('long4');
@@ -305,7 +311,8 @@ describe('the catalogue against the game', () => {
           e.f(); for (const q of $.G.pend) q.f();
           for (const c of spawned) if (c[0] === 'formation' && (c[4] as { pod?: number } | undefined)?.pod === 1) flagged.push(e.k);
         }
-        expect(flagged, `${b} slot ${seg}`).toEqual(['pod']);
+        // DIFFICULTY-SPEC §2.2: long4's two authored opening carriers (src/biomes.ts OPEN_PODS, p .05 / .20) drop too
+        expect(flagged.sort(), `${b} slot ${seg}`).toEqual(['pod', 'pod:open', 'pod:open']);
       }
     } finally {
       L.setLayout('short');
