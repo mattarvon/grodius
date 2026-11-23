@@ -152,6 +152,9 @@ export function hazInterval(t: number, wx: number) {
 
 /** DYN tuning (every value: its rule and the gate that measures it) */
 export const DYN = {
+  /** a tide holds its fit against the far wall over this many columns a side (6 x 4 px: the swept S1 fit gap reads
+   *  [-9, +12] px, so a needle beside a column would otherwise close the swept gap under the window's floor; W6) */
+  sweepCols: 6,
   /** S2: no terrain edge moves faster than this, px/f. route-probe `slam` trips at 1.5 (gate L5); dynOff never exceeds it
    *  by construction (speed-capped ramp; cosine inset with S pi / T checked at arm). tests/unit/dyn.test.ts samples it */
   vMax: .5,
@@ -178,7 +181,10 @@ export type DynSpec = {
   S?: number; T?: number; dur?: number; split?: boolean;
 };
 /** a live window: its spec (as normDyn clamped it), the column range, the saved base and the arm frame t0 */
-export type DynWin = { spec: DynSpec; i0: number; i1: number; bc: Float32Array; bf: Float32Array; t0: number; arr: Float32Array; TS: number };
+export type DynWin = { spec: DynSpec; i0: number; i1: number; bc: Float32Array; bf: Float32Array; t0: number; arr: Float32Array; TS: number;
+  /** a tide's fixed far wall over each column's swept neighbourhood (DYN.sweepCols a side): the lowest ceiling a floor tide
+   *  can meet (side 1), the highest floor a ceiling tide can (side -1). Built at the arm; absent = per-column fit only */
+  ne?: Float32Array };
 /** the live windows (solids.ts steps and resets them; render/moveprops.ts reads them through dynAt) */
 export const DYNS: DynWin[] = [];
 
@@ -263,6 +269,11 @@ export function armDynWin(spec: DynSpec, t: number, CEIL: Float32Array, FLOOR: F
   if (i1 <= i0) return null;
   for (const w of DYNS) if (w.arr === FLOOR && i0 <= w.i1 && i1 >= w.i0) return null;
   const win: DynWin = { spec: s, i0, i1, bc: CEIL.slice(i0, i1 + 1), bf: FLOOR.slice(i0, i1 + 1), t0: t, arr: FLOOR, TS };
+  if (s.kind === 'tide') { // the far wall does not move under a tide: its swept extreme is fixed for the window's life
+    const ne = new Float32Array(i1 - i0 + 1), R = DYN.sweepCols, A = s.side === -1 ? FLOOR : CEIL, n = A.length;
+    for (let i = i0; i <= i1; i++) { let v = s.side === -1 ? Infinity : -Infinity; for (let q = Math.max(0, i - R); q <= Math.min(n - 1, i + R); q++) v = s.side === -1 ? Math.min(v, A[q]) : Math.max(v, A[q]); ne[i - i0] = v; }
+    win.ne = ne;
+  }
   DYNS.push(win);
   return win;
 }
@@ -274,7 +285,10 @@ function writeWin(w: DynWin, t: number, CEIL: Float32Array, FLOOR: Float32Array)
     const j = i - w.i0, bc = w.bc[j], bf = w.bf[j];
     offInto(s, i * w.TS, lt, OFF);
     let c = bc + OFF[0], f = bf - OFF[1];
-    if (f - c < s.fit) {
+    if (s.kind === 'tide' && w.ne) { // the swept fit against the far wall's neighbourhood, never past the base (W6)
+      if (s.side === -1) { const lim = w.ne[j] - s.fit; if (c > lim) c = Math.max(bc, lim); }
+      else { const lim = w.ne[j] + s.fit; if (f < lim) f = Math.min(bf, lim); }
+    } else if (f - c < s.fit) {
       if (bf - bc < s.fit) { c = bc; f = bf; } // the base itself is under the fit: the window leaves that column alone
       else if (s.kind === 'tide') { if (s.side === -1) c = f - s.fit; else f = c + s.fit; } // a tide stops short: only its own
       // side moves, so the far wall (and the eyes and wombs on it) never shifts

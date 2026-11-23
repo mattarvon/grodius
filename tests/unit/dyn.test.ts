@@ -164,3 +164,15 @@ describe('windows: overlap, reset, base, at', () => {
     resetDynWins();
   });
 });
+
+describe('a tide holds the swept fit against a needle beside the column (W6, route-probe L5)', () => {
+  it('a ceiling needle 3 columns over keeps the floor fit px under it, not just under its own column', () => {
+    resetDynWins();
+    const C = new Float32Array(N).fill(60), F = new Float32Array(N).fill(200);
+    C[230] = 90; // a needle hanging 30 px lower than its neighbours
+    const w = armDynWin({ id: 'n', kind: 'tide', x0: 400, x1: 1200, d: 70, rise: 140, hold: 240, drain: 140, tell: 44, fit: 100 }, 0, C, F, TS)!;
+    for (let t = 0; t < 44 + 140 + 100; t++) stepDynWins(t, C, F);
+    for (let i = 227; i <= 233; i++) expect(F[i], `col ${i}`).toBeGreaterThanOrEqual(90 + 100 - 1e-3); // within 6 columns of it
+    expect(F[170]).toBeLessThan(170); // far from it the tide still rises to its own fit (60 + 100)
+  });
+});
