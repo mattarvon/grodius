@@ -114,7 +114,6 @@ export const BUL = {
   revRing: 6, //       a large enemy's ring on Hard and Very Hard, from Descent 2
   // --- economy hooks this stream owns (§2.2) ---
   blueEvery: 12, //    every 12th red capsule dropped is blue [GR §4 S, Gradius II]; replaces the 7% roll; E2
-  wardW: .45, //       WARD's pod weight (was .9 x dial; §2.1 survival table, C19); H1
   recDy: 40, //        recovery carriers fly in at the ship's height +- 40 px (ECO §2.3, C17); E1
   uLoop: 0, //         Descent 1 gets the dive drone's U-turn (NOTICE.uLoop 1 -> 0, ENC roster "drone dive")
 };

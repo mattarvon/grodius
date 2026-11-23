@@ -22,3 +22,15 @@ export const cadMulOf = () => cadMul($);
 export const capCls = () => capCtx($);
 /** the cap for context cls (rank.ts bulletCap($, cls)) */
 export const capOf = (cls = capCtx($)) => bulletCap($, cls);
+
+// ---------------- W2 survival reads (DIFFICULTY-SPEC §2.1 survival). W2's branch g3-w2-death exports these; until it
+// merges, local mirrors with the same values. INTEGRATION (W6): replace each body with the import named in its comment
+/** SCAB WEAVE's chance per level that a kill regrows a WARD hit: perks.ts scabChance() (long4 SURV.scab .03, short .06) */
+export const scabChanceOf = () => (g3() ? .03 : .06);
+/** the most WARD hits a refill or top-up may reach: player.ts wardCap() (long4: min(WARD_MAX, wardLv), short WARD_MAX) */
+export const wardCapOf = (WARD_MAX) => (g3() ? Math.min(WARD_MAX, ($.P && $.P.wardLv) || 0) : WARD_MAX);
+/** WARD's weight in the pod roll at every tier: death.ts SURV.wardPodW (.45) */
+export const WARD_POD_W = .45;
+/** a recovery pod's type as its wave launches (spawn.ts recoveryWave). enemies/update.ts sets swap to turn a WRAITH pod
+ *  into WARD once WRAITH is capped (W2: R2's swap happens when it flies); identity until then */
+export const REC_TY = { swap: (ty) => ty };

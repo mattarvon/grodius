@@ -18,7 +18,7 @@ import { bandClamp } from '../terrainb';
 import { ECON, capKept, econId, formExtra, noticeOf } from '../economy';
 import { kindOf } from '../layout';
 // the W0 adapter (rank, tier, the cap context): one module, enemies/g3.ts
-import { cadMulOf, capOf, g3, rankOf, rhoOf, tierOf } from './g3';
+import { REC_TY, cadMulOf, capOf, g3, rankOf, rhoOf, tierOf } from './g3';
 export { cadMulOf, capCls, capOf, g3, rankOf, rhoOf, tierOf } from './g3';
 
 // ---------------- enemies ----------------
@@ -405,7 +405,7 @@ export function recoveryWave(types, y0?) {
   const py = clamp(y0 ?? ($.P ? $.P.y : PH / 2), 24 + BUL.recDy, PH - 24 - BUL.recDy);
   const g = { n, killed: 0, rec: 1 };
   for (let i = 0; i < n; i++) {
-    const t = types[i], ty = typeof t === 'number' ? t : t.ty, y = n > 1 ? py + BUL.recDy * (2 * i / (n - 1) - 1) : py;
+    const t = types[i], ty = REC_TY.swap(typeof t === 'number' ? t : t.ty), y = n > 1 ? py + BUL.recDy * (2 * i / (n - 1) - 1) : py;
     mk('drone', W + 16 + i * 22, y, { group: g, pat: 'sine', i, y0: y, rec: 1, cap: true, capTy: ty, capFull: typeof t === 'number' ? 0 : t.full ? 1 : 0 });
   }
   return g;

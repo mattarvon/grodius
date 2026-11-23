@@ -11,7 +11,7 @@ import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, ET, aimA, aimLead, aimShot, banner, eshoot, every, fan, mk, onScreen, revRing, revShot, ring, shootB, volley, wrapA } from '../enemies/spawn';
-import { g3, rankOf, tierOf } from './g3';
+import { REC_TY, WARD_POD_W, g3, rankOf, scabChanceOf, tierOf, wardCapOf } from './g3';
 import { BUL, ENTRY, KNOT, blueAt, kidAngle, mayFire, retryIn, revChanceOf } from '../notice';
 import { capRate } from '../tier'; // the tier's faucet multiplier at the formation pod roll (W0)
 import { revChance as revChanceT } from '../rank';
@@ -788,8 +788,9 @@ export function killEnemy(e, dir = 1) {
     VOL.on = 0;
   }
   if (!e.par) spillSlick(e.x, e.y);
-  if (pk('scab') && $.P && $.P.wardLv > 0 && $.P.shield < WARD_MAX && R() < .06 * pk('scab')) {
-    $.P.shield = Math.min(WARD_MAX, Math.floor($.P.shield) + 1);
+  // SCAB WEAVE (W2, §2.1 survival): scabChance() per level, every regrow capped at wardCap() (wardLv on long4)
+  if (pk('scab') && $.P && $.P.wardLv > 0 && $.P.shield < wardCapOf(WARD_MAX) && R() < scabChanceOf() * pk('scab')) {
+    $.P.shield = Math.min(wardCapOf(WARD_MAX), Math.floor($.P.shield) + 1);
     pop($.P.x, $.P.y - 12, 'SCAB', '#ff8aa0', 7, 30);
   }
   pop(e.x, e.y - 8, '+' + sc, '#cfd9e3', 8, 40);
@@ -932,6 +933,9 @@ function knotSplit(e) {
   }
   sample('splat_m', { vol: knot ? .7 : .5, rate: knot ? .85 : 1 }) || sfx.squish();
 }
+// a recovery wave's WRAITH pod becomes WARD when WRAITH is already capped as the wave flies (W2: R2's swap at launch).
+// Set here because spawn.ts cannot import player.ts (slotMaxed) without dragging the DOM into its unit tests
+REC_TY.swap = (ty) => (ty === 5 && $.P && slotMaxed(5) ? 6 : ty);
 export const POD = [{
   c: '127,224,255',
   h: '#7fe0ff',
@@ -971,7 +975,7 @@ export function podType() {
     if (slotMaxed(i)) continue;
     let w = POD[i].w;
     if (i === 0 && $.P.speed >= 3) w *= .4;
-    if (i === 6 && g3()) w = BUL.wardW; // G3 (§2.1 survival, C19): WARD weighs .45 at every tier
+    if (i === 6 && g3()) w = WARD_POD_W; // G3 (§2.1 survival, C19): WARD weighs .45 at every tier (W2 death.ts SURV.wardPodW)
     if (i === 2 && $.P.laser || i === 3 && $.P.double || i === 1 && $.P.pyre || i === 4 && $.P.missile) w *= .5;
     ok.push([i, w]);
     tot += w;

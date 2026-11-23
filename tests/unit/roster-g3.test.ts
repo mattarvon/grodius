@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
 const noop = () => {};
-const W = vi.hoisted(() => ({ enemies: [] as any[], eshots: [] as any[], caps: [] as any[], orbs: [] as any[], geysers: [] as any[], draws: 0 }));
+const W = vi.hoisted(() => ({ enemies: [] as any[], eshots: [] as any[], caps: [] as any[], orbs: [] as any[], geysers: [] as any[], draws: 0, maxed: [] as number[], scab: 0 }));
 vi.mock('../../src/core', () => ({
   FIRE: [], PH: 254, W: 480, TAU: Math.PI * 2, R: () => { W.draws++; return .5; }, rr: (a: number) => a, ri: (a: number) => a, pick: (a: any[]) => a[0],
   clamp: (v: number, a: number, b: number) => Math.max(a, Math.min(b, v)), lerp: (a: number, b: number, t: number) => a + (b - a) * t,
@@ -19,10 +19,10 @@ vi.mock('../../src/audio', () => ({ sample: () => false, thr: () => false, bankW
 vi.mock('../../src/music', () => ({ duckMusic: () => {} }));
 vi.mock('../../src/world', () => ({ ...W, ceilAt: () => 0, floorAt: () => 224 }));
 vi.mock('../../src/fx/spawn', () => ({ drop: noop, flash: noop, gib: noop, gore: noop, mist: noop, pop: noop, spark: noop, splat: noop }));
-vi.mock('../../src/perks', () => ({ gainXP: noop, pk: () => 0, spillSlick: noop }));
+vi.mock('../../src/perks', () => ({ gainXP: noop, pk: (k: string) => (k === 'scab' ? W.scab : 0), spillSlick: noop }));
 vi.mock('../../src/stages', () => ({ clearStage: noop, deepPay: () => 1 }));
 vi.mock('../../src/mutations', () => ({ countKill: noop }));
-vi.mock('../../src/player', () => ({ WARD_MAX: 3, playerHit: noop, slotMaxed: () => false }));
+vi.mock('../../src/player', () => ({ WARD_MAX: 3, playerHit: noop, slotMaxed: (i: number) => W.maxed.includes(i) }));
 vi.mock('../../src/contraptions', () => ({ onKillContraptions: noop }));
 vi.mock('../../src/enemies/elite', () => ({ eliteKill: noop, eliteTick: noop }));
 vi.mock('../../src/boss/update', () => ({ startBoss: noop }));
@@ -37,6 +37,7 @@ const { BUL } = await import('../../src/notice');
 const G0 = () => ({ t: 0, loop: 0, stage: 1, rank: 0, scroll: 0, scrollSpeed: 1, shake: 0, hitstop: 0, pow: 0, score: 0, bio: 0, combo: 0, comboT: 0, kills: 0, maxCombo: 0, st: { kills: 0, chain: 0, spawned: 0 }, warn: [], pend: [] });
 beforeEach(() => {
   L.setLayout('long4');
+  W.maxed = []; W.scab = 0;
   W.enemies.length = 0; W.eshots.length = 0; W.caps.length = 0; W.draws = 0;
   $.T = 0;
   $.G = G0();
@@ -219,5 +220,28 @@ describe('entries and retries (qa-lead coverage)', () => {
     U.lob(300, 200, 60, 100, 2.8);
     const s = W.eshots[0];
     expect(Math.hypot(s.vx, s.vy)).toBeLessThanOrEqual(2.6 + 1e-9);
+  });
+});
+
+describe('W2 survival hooks (§2.1 survival)', () => {
+  it("a recovery wave's WRAITH pod flies as WARD when WRAITH is already capped at launch", () => {
+    W.maxed = [5];
+    S.recoveryWave([{ ty: 5 }, { ty: 5 }]);
+    expect(W.enemies.map((e) => e.capTy)).toEqual([6, 6]);
+    W.enemies.length = 0; W.maxed = [];
+    S.recoveryWave([{ ty: 5 }]);
+    expect(W.enemies[0].capTy).toBe(5);
+  });
+
+  it('SCAB regrows a WARD hit at .03 a level on long4, never past wardLv', () => {
+    $.P = { x: 60, y: 127, alive: true, wardLv: 1, shield: 1 };
+    W.scab = 40; // 1.2 chance: always regrows when allowed
+    U.killEnemy(S.mk('drone', 300, 100, {}));
+    expect($.P.shield).toBe(1); // already at its wardLv cap (1)
+    $.P.wardLv = 2;
+    U.killEnemy(S.mk('drone', 300, 100, {}));
+    expect($.P.shield).toBe(2);
+    U.killEnemy(S.mk('drone', 300, 100, {}));
+    expect($.P.shield).toBe(2);
   });
 });
