@@ -132,7 +132,9 @@ await p.addInitScript((seed) => {
         const sh = h.eshots && h.eshots.find((s) => (s.x - P.x) ** 2 + (s.y - P.y) ** 2 < 36), en = !sh && h.enemies.find((e) => !e.dead && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < ((e.r || 6) + 2) ** 2);
         const src = sh ? 'shot:' + sh.k : en ? en.k + (en.ut ? '(u-turn)' : en.pat === 'behind' ? '(rear)' : '') : noShotHit(h, P) || L.hullRise;
         if (src) { const PL = window.__PL, bk = sh ? 'bullet' : en || src === 'lash' ? 'body' : src.startsWith('haz') ? 'hazard' : src; const sp = ((L.split ||= {})[st] ||= {}); sp[bk] = (sp[bk] || 0) + 1;
-          if (sh && PL) { const tg = PL.tag.get(sh), bh = ((L.behind ||= {})[st] ||= [0, 0]); bh[0]++; if (tg && tg.x0 < tg.px - 4) bh[1]++; } }
+          if (sh && PL) { const tg = PL.tag.get(sh), bh = ((L.behind ||= {})[st] ||= [0, 0]); bh[0]++; if (tg && tg.x0 < tg.px - 4) bh[1]++;
+            // N2 on regular shooters (pending amendment, W6 te/game-designer): the same count with no midboss or boss up
+            if (!((G.mini && !G.mini.dead) || G.boss)) { const br = ((L.behindReg ||= {})[st] ||= [0, 0]); br[0]++; if (tg && tg.x0 < tg.px - 4) br[1]++; } } }
         if (src) { L.hits++; L.hitsBy[st] = (L.hitsBy[st] || 0) + 1; L.hitCD = 30; const b = (L.srcBy[st] ||= {}); b[src] = (b[src] || 0) + 1;
           if (sh) (L.shotHitBy ||= {})[st] = (L.shotHitBy[st] || 0) + 1; // a bullet, not a body (D58 probe fix)
           if ((G.mini && !G.mini.dead) || G.boss) (L.fightHitBy ||= {})[st] = (L.fightHitBy[st] || 0) + 1; } } // with a midboss or boss up
@@ -199,7 +201,7 @@ for (let it = 0; it < MAXM * 60 * 2; it++) {
     await p.evaluate(async () => (await import('/src/menus.ts')).leaveShop()); await p.evaluate('__tick(60)'); continue; }
   if (s.st !== 'play' || s.loop >= +DESC) { end = JSON.stringify(s); break; }
 }
-const L = await p.evaluate(() => { const L = __pt; return { fightHitBy: L.fightHitBy || {}, fightFrBy: L.fightFrBy || {}, shotsBy: L.shotsBy || {}, shotHitBy: L.shotHitBy || {}, picks: L.picks || {}, fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, srcBy: L.srcBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r), split: L.split || {}, behind: L.behind || {}, fired: L.fired || {}, entries: L.entries || {}, near: L.near || {}, recPods: L.recPods || {} }; });
+const L = await p.evaluate(() => { const L = __pt; return { fightHitBy: L.fightHitBy || {}, fightFrBy: L.fightFrBy || {}, shotsBy: L.shotsBy || {}, shotHitBy: L.shotHitBy || {}, picks: L.picks || {}, fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, srcBy: L.srcBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r), split: L.split || {}, behind: L.behind || {}, behindReg: L.behindReg || {}, fired: L.fired || {}, entries: L.entries || {}, near: L.near || {}, recPods: L.recPods || {} }; });
 const q = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(f * s.length))].toFixed(2) : null; };
 const prev = {}, prevB = {}, drn = { biome: [0, 0] };
 for (let i = 0; i < stages.length; i++) {
@@ -243,5 +245,5 @@ console.log(`\nwould-be hits: ${L.hits} in ${(L.fr / 3600).toFixed(1)} min (${(L
   const fd = Object.entries(L.fired).filter(([k]) => !k.startsWith('drone(')).reduce((a, [, [n, f]]) => [a[0] + n, a[1] + f], [0, 0]); // N1 counts designated drones only
   if (L.fired['drone(undesignated)'] && !L.fired.drone) console.log('W5 N1: no drone carries e.sh (pre-W1 build): drones are left out, so the share below is not the N1 gate');
   console.log(`W5 shooters that fired at least once: ${fd[1]}/${fd[0]} (${fd[0] ? Math.round(100 * fd[1] / fd[0]) : '-'}%) by kind ${Object.entries(L.fired).map(([k, [n, f]]) => `${k} ${f}/${n}`).join(', ')}`);
-  console.log('PLAYTEST ' + JSON.stringify({ seed: +SEED, frBy: L.frBy, split: L.split, behind: L.behind, fired: L.fired, entries: L.entries, near: L.near, recPods: L.recPods, hitsBy: L.hitsBy })); }
+  console.log('PLAYTEST ' + JSON.stringify({ seed: +SEED, frBy: L.frBy, split: L.split, behind: L.behind, behindReg: L.behindReg, fired: L.fired, entries: L.entries, near: L.near, recPods: L.recPods, hitsBy: L.hitsBy })); }
 ranOn('playtest'); await b.close();

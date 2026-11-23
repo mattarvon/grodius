@@ -50,7 +50,8 @@
 //   guess is marked ~), `shot` for a shot death (null when the shot spawned and hit inside one step):
 //   { age (its own frame counter s.t), sd (its spawn distance from the ship, px), atRsp (it existed when the ship
 //   last respawned), sinceInv (frames since that respawn's i-frames ended), by (the shooter's kind) } (F1),
-//   `rebuild_s` { k0, kit }: seconds from control returning to K0 and to the death's own kit (null = never) (E6),
+//   `rebuild_s` { k0, kit, k0w }: seconds from control returning to K0 and to the death's own kit (null = never) (E6),
+//   k0w = K0 with the WARD slot ignored (the pending 'K0 minus WARD' reading of E6),
 //   `restart` (a checkpoint restart rather than a respawn in place). `recovery[]`: per respawn or restart, the pods
 //   that appeared within 10 s (`n`), those tagged rec, and those picked up (E1). `slack` = WARD hits + deaths,
 //   `shieldHits` the WARD hits (H1, H2). `revenge`: enemy shots flagged rev (D3; 'n/a' when no shot carries a rev field).
@@ -131,7 +132,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
       if (pre && h && h.P) { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, cause = pre.n.c + (pre.n.ctx ? ' @' + pre.n.ctx : '');
         if (!h.P.alive || h.state === 'over') { const sq = pre.n.shot, tg = sq && PL ? PL.tag.get(sq) : null;
           window.__deaths.push({ st, s: +(window.__fr / 60).toFixed(1), f: window.__fr, cause, src: PL ? PL.bucket(pre.n.c) : null, lives: h.G.lives, x: Math.round(pre.x), y: Math.round(pre.y), kit: pre.kit,
-            shot: tg ? { age: sq.t != null ? sq.t : window.__fr - tg.f, sd: Math.round(tg.sd), atRsp: X.rspShots.has(sq), sinceInv: X.invEnd != null ? window.__fr - X.invEnd : null, by: tg.by } : null, rank1: null, rebuild_s: { k0: null, kit: null } });
+            shot: tg ? { age: sq.t != null ? sq.t : window.__fr - tg.f, sd: Math.round(tg.sd), atRsp: X.rspShots.has(sq), sinceInv: X.invEnd != null ? window.__fr - X.invEnd : null, by: tg.by } : null, rank1: null, rebuild_s: { k0: null, kit: null, k0w: null } });
           X.pendRank = window.__deaths.length - 1; }
         else if ((h.P.shield || 0) < pre.sh) window.__hits[cause] = (window.__hits[cause] || 0) + 1; }
       else if (X.pendRank != null && PL && window.__fr > window.__deaths[X.pendRank].f) { window.__deaths[X.pendRank].rank1 = PL.rank(); X.pendRank = null; }
@@ -150,6 +151,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
           const sl = slotsOf(P); if (X.k0 == null && isK0(sl)) X.k0 = window.__fr; if (X.k1 == null && isK1(sl)) X.k1 = window.__fr;
           if (P.alive) for (const d of window.__deaths) if (d.rsp != null) { const r0 = X.rsp[d.rsp].f;
             if (d.rebuild_s.k0 == null && isK0(sl)) d.rebuild_s.k0 = +((window.__fr - r0) / 60).toFixed(1);
+            if (d.rebuild_s.k0w == null && isK0([...sl.slice(0, 6), 1])) d.rebuild_s.k0w = +((window.__fr - r0) / 60).toFixed(1); // E6 read as 'K0 minus WARD' (pending amendment, tune-tc)
             if (d.rebuild_s.kit == null && has(sl, d.kit)) d.rebuild_s.kit = +((window.__fr - r0) / 60).toFixed(1); }
           const r = X.rsp[X.rsp.length - 1];
           if (r && window.__fr - r.f <= 600) for (const c of h.caps) if (!r.caps.has(c)) { r.caps.add(c); r.n++; } } }
