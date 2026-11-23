@@ -171,7 +171,7 @@ export function drawGrossMaw(c, e) {
  *  second line through the hold. Boss-local: the caller has translated to (e.x, e.y) */
 const DASH = [6, 5], NODASH = [], EDGES = [-24, 24]; // hoisted: no per-frame arrays
 function biteTell(c, e) {
-  const ly = e.ly - e.y, x1 = W * MAW.lungeX - 24 - e.x;
+  const ly = e.ly - e.y, x1 = (e.lsx ?? W * MAW.lungeX) - 24 - e.x; // e.lsx: where this bite stops (bossfights.ts)
   if (e.bs === 1) {
     const u = Math.min(1, e.bt / MAW.tell), locked = e.bt > MAW.tell - MAW.lock;
     c.strokeStyle = locked ? `rgba(255,228,214,${.45 + .4 * (($.T >> 1) & 1)})` : `rgba(255,60,40,${.2 + .35 * u})`;

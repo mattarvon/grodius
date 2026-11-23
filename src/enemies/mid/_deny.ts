@@ -83,7 +83,10 @@ export const DN = {
   h2Lock: 16, h2Gap: 40,
   /** the Brood's phase-1 litter from an edge: a column at x = the ship's + eDx[att % 4] (spec 60-90), eDy apart, starting
    *  eY0 off the edge and falling at eV until it reaches the ship's lane (then an ordinary hatchling); its tell is bTel */
-  eDx: [60, 70, 80, 90] as readonly number[], eDy: 14, eV: 1.4, eY0: 12,
+  /** ...its tell (the edge chevron): eTel (W6 56 -> 46, >= TELL_MIN) [FIT K1: a near ship's first half ended a few frames
+   *  before the opening litter arrived]. The litter from behind keeps bTel (it is on short too) */
+  eTel: 46,
+  eDx: [60, 70, 80, 90] as readonly number[], eDy: 14, eV: 1.8, eY0: 12, // eV: W6 1.4 -> 1.8 [FIT K1: the first litter reached a near ship 10 f after its short first half]
   /** ...then it dives at the ship at eV until it is past the ship's x or eT frames old (then an ordinary hatchling). A
    *  column that only fell to the lane met the ship's forward fire head on (K2: bodies >= 50% of would-be hits) */
   eT: 150,

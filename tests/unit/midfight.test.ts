@@ -8,7 +8,7 @@ import { $ } from '../../src/state';
 const eshots = vi.hoisted(() => [] as any[]);
 vi.mock('../../src/world', () => ({ eshots })); // world.ts loads the canvas; the budget reads only the shot list
 import { setLayout } from '../../src/layout';
-import { FT, cad, counted, fightCap, fightRank, fightRho, g3, ledger, litter, pTerm, per, spend, spent, variant } from '../../src/enemies/mid/_fight';
+import { FT, cad, counted, lobRise, fightCap, fightRank, fightRho, g3, ledger, litter, pTerm, per, spend, spent, variant } from '../../src/enemies/mid/_fight';
 import { DN, SHIP_R, TELL_MIN, UFO_SW, edgeSlot, edgeX, hook2Aim, hookAt, hookSag, lanePair, laneY, segD2, sweepA, sweepHit } from '../../src/enemies/mid/_deny';
 
 const PH = 254, W = 480;
@@ -189,5 +189,36 @@ describe('tells (E5)', () => {
     expect(42 + 8).toBeGreaterThanOrEqual(TELL_MIN); // the sweep wedge
     expect(DN.lTel).toBeGreaterThanOrEqual(TELL_MIN); // the twin lanes share the lane's tell
     expect(SHIP_R).toBeGreaterThan(0);
+  });
+});
+
+describe('lobRise (W6: lobs under the long4 falling-glob cap and a ceiling)', () => {
+  // flies a glob as shots.ts does on long4: gravity .025/f, a FALLING glob clamped to the cap; returns where it crosses tx
+  const fly = (dx: number, dy: number, w: number, cap: number) => {
+    const t0 = (w + Math.sqrt(w * w + .05 * dy)) / .025, vx0 = dx / t0;
+    let x = 0, y = 0, vx = vx0, vy = -w, top = 0;
+    for (let f = 0; f < 600 && Math.abs(x) < Math.abs(dx); f++) {
+      vy += .025;
+      if (vy > 0) { const v = Math.hypot(vx, vy); if (v > cap) { vx *= cap / v; vy *= cap / v; } }
+      x += vx; y += vy; top = Math.min(top, y);
+    }
+    return { y, top, launch: Math.hypot(vx0, w) };
+  };
+  it('picks a throw that launches and lands at or under the cap, so it comes down through its mark', () => {
+    for (const [dx, dy] of [[-162, 65], [-120, 30], [-200, 100]]) {
+      const w = lobRise(dx, dy, 2.55, .8), r = fly(dx, dy, w, 2.6);
+      expect(r.launch).toBeLessThanOrEqual(2.55 + 1e-9);
+      expect(Math.abs(r.y - dy)).toBeLessThan(5); // inside a glob's 3 + the ship's 2.6 (lob() solves the continuous arc)
+    }
+  });
+  it('the old rise (.8 up) over the cap lands short of a mid-height mark it now reaches', () => {
+    expect(Math.abs(fly(-162, 65, 1.6, 2.6).y - 65)).toBeGreaterThan(Math.abs(fly(-162, 65, lobRise(-162, 65, 2.55, 1.6), 2.6).y - 65));
+  });
+  it('keeps the apex under a ceiling when one is given (rise px above the throw)', () => {
+    const w = lobRise(-162, 65, 2.55, 1.6, 12);
+    expect(fly(-162, 65, w, 2.6).top).toBeGreaterThanOrEqual(-12.5);
+  });
+  it('returns the slowest arrival when nothing fits (too far for the cap)', () => {
+    expect(Number.isFinite(lobRise(-360, 0, 2.55))).toBe(true);
   });
 });

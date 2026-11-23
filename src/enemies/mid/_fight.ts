@@ -13,8 +13,8 @@
 // =====================================================================
 import { $ } from '../../state';
 import { ECON, econId } from '../../economy';
-import { eshots } from '../../world';
-import { bulletCap, rank, rankP, rho } from '../../rank';
+import { ceilAt, eshots } from '../../world';
+import { VCAP, bsMul, bulletCap, rank, rankP, rho } from '../../rank';
 import { tierG } from '../../tier';
 import { DN } from './_deny';
 
@@ -70,6 +70,34 @@ export const entered = (e: any) => e.t > (g3() ? FT.enter : 120);
 /** the first cooldown at spawn on long4 (FT.open); a kind's onSpawn calls it */
 export function opening(e: any): void { if (g3()) e.cool = FT.open; }
 /**
+ * The rise of a lob that keeps under the long4 falling-glob cap (shots.ts: a glob FALLING faster than V_CAP is slowed
+ * along its path, so a lob that would come down faster lands short of its mark: W6 measured the Butcher's spit and the
+ * Saucer's swell missing every parked spot at mid height). The upward launch speed w (px/f) of a glob from (0, 0) that
+ * comes down through (dx, dy) (screen y, down +; it falls .025/f), launching AND arriving at <= cap and still falling as
+ * it arrives (lob()'s root): of those, the one nearest the preferred rise w0. None fits (too far for the cap): the one
+ * that arrives slowest. Pure; tests/unit/midfight.test.ts
+ */
+export function lobRise(dx: number, dy: number, cap: number, w0 = 0, rise = Infinity, g = .025): number {
+  let best = w0, bd = Infinity, low = w0, bl = Infinity, slow = w0, bs = Infinity;
+  for (let t = 6; t <= 320; t += 2) {
+    const vx = dx / t, w = (g * t * t / 2 - dy) / t, va = g * t - w;
+    if (va < 0) continue; // still rising when it gets there: lob() solves the falling root
+    const sp = Math.max(Math.hypot(vx, w), Math.hypot(vx, va)), under = w <= 0 || w * w / (2 * g) <= rise;
+    if (under && sp <= cap) { if (Math.abs(w - w0) < bd) { bd = Math.abs(w - w0); best = w; } }
+    else if (under && sp < bl) { bl = sp; low = w; }
+    else if (sp < bs) { bs = sp; slow = w; }
+  }
+  return bd < Infinity ? best : bl < Infinity ? low : slow;
+}
+/** lob()'s vy (its rise, in BS units) for a glob from (x, y) through (tx, ty) under the flown tier's V_CAP (2% margin)
+ *  and under the cave's ceiling (its apex 8 px below the lowest ceiling at the throw, the middle and the mark: W6 found
+ *  the Butcher's arcs striking the fire arena's ceiling), as near the authored rise v0 (BS units) as fits. long4 only */
+export const lobV = (x: number, y: number, tx: number, ty: number, v0: number): number => {
+  const bs = Math.max(.1, bsMul($)), sc = $.G.scroll || 0;
+  const top = Math.max(ceilAt(x + sc), ceilAt((x + tx) / 2 + sc), ceilAt(tx + sc)) + 8;
+  return lobRise(tx - x, ty - y, VCAP(fightTier()) * .98, v0 * bs, Math.max(0, y - top)) / bs;
+};
+/**
  * A fan of n lobbed globs from (x, y) whose centre comes down exactly through (tx, ty) and the rest dx px apart along x
  * (pass enemies/update.ts lob as lobF: this file stays out of the sim's import cycle). A glob falls .025/f, so a glob
  * fan aimed straight at the ship (the old fan of globs) curves under a ship that sits still; this one is aimed: K1
@@ -77,7 +105,7 @@ export function opening(e: any): void { if (g3()) e.cool = FT.open; }
 export function lobFan(lobF: (x: number, y: number, tx: number, ty: number, vy: number) => void, x: number, y: number, tx: number, ty: number, n: number, dx: number, vy: number): void {
   // a target above: just enough rise to come down through it (apex a few px over it, so a cave's ceiling rarely eats it)
   const v = ty < y ? Math.sqrt(.05 * (y - ty)) + .2 : vy;
-  for (let i = 0; i < n; i++) lobF(x, y, tx + (i - (n - 1) / 2) * dx, ty, v);
+  for (let i = 0; i < n; i++) { const gx = tx + (i - (n - 1) / 2) * dx; lobF(x, y, gx, ty, lobV(x, y, gx, ty, v)); } // each under the falling-glob cap (lobV)
 }
 /** a ring's first spoke on the long4 fights: aimed at the ship (rings never lead; DIFFICULTY-SPEC §2.1), so a ship that
  *  sits still meets one spoke wherever it parks (K1) */

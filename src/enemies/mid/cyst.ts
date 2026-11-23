@@ -14,7 +14,7 @@ import { bandFit, lob, midLeave } from '../update';
 import { HOST_SPARK, isCross, midPh2 } from '../midhost';
 import { DN, agePools, eruptStage, plantPool, poolHit, poolReach } from './_deny';
 import { defineMid } from './roster';
-import { FT, RING_V, cad, entered, g3, ledger, lurch, opening, spend, variant } from './_fight';
+import { FT, RING_V, cad, entered, g3, ledger, lobV, lurch, opening, spend, variant } from './_fight';
 
 /** DIFFICULTY-SPEC §2.3 (W4a), long4 only: the Womb's numbers. Each with its tag and the gate that measures it */
 export const WOMB = {
@@ -31,6 +31,12 @@ export const WOMB = {
   /** where each lob of a spray lands, px from the ship's x, centre first: the first pool sits under the ship and the next
    *  four feed it (DN.plMerge 30), so its column stands where the ship is; phase 2's outer two plant pools of their own.
    *  Its R() draws are kept (the old jitter's), so a spray draws as many as before [K1 midboss-probe --spots] */
+  /** a ship further left than this (px) is past any lob under V_CAP (the spray falls short of it): it is answered with the
+   *  swell's aimed ring in place of the spray in the first half (the second half's sprays still plant their pools on the
+   *  way) [W6 K1: the spray's globs came down ~70 px short of spot 40,127, 1 hit a phase] */
+  lobFar: 250,
+  /** the spray's aimed first glob: its preferred rise (x BS), a flat throw that still fits V_CAP (lobV) */
+  aimRise: .3,
   comb: [0, 0, 14, -14, 28, -28, 42] as readonly number[], // [0] is the aimed glob's slot (li 1); the first surface pool lands under the ship
 } as const;
 
@@ -46,10 +52,10 @@ function lobUp(x, y, tx, ty) {
 function sprayLob(e) {
   const jx = rr(-36, 36), jy = rr(-20, 20), vy = rr(1.3, 1.8), tx = $.P.x + WOMB.comb[Math.min(WOMB.comb.length - 1, e.li++ || 0)], wx = tx + $.G.scroll, c = ceilAt(wx), f = floorAt(wx);
   void jx;
-  if (e.li === 1) lob(e.x - 2, e.y - 20, $.P.x, $.P.y, Math.max(vy, Math.sqrt(Math.max(0, .05 * (e.y - 20 - $.P.y))) + .45)); // the first glob of a spray at the ship itself (it pools wherever it lands); the rest pool on the surfaces [K1]
+  if (e.li === 1) lob(e.x - 2, e.y - 20, $.P.x, $.P.y, lobV(e.x - 2, e.y - 20, $.P.x, $.P.y, WOMB.aimRise)); // under the falling-glob cap (_fight.ts lobV), as flat as fits: the old high arc took ~150 f to reach a mid-height ship [W6 K1] // the first glob of a spray at the ship itself (it pools wherever it lands); the rest pool on the surfaces [K1]
   else if (e.sd < 0 && c > 2 && c < e.y - 30) lobUp(e.x - 2, e.y - 20, tx, c); // the ceiling, when there is one above it
-  else if (f < PH + 2) lob(e.x - 2, e.y - 20, tx, f, vy); // the floor
-  else lob(e.x - 2, e.y - 20, tx, $.P.y + jy, vy); // open space below: at the ship, as before
+  else if (f < PH + 2) lob(e.x - 2, e.y - 20, tx, f, lobV(e.x - 2, e.y - 20, tx, f, vy)); // the floor (lobV: it lands where its pool is meant to be)
+  else lob(e.x - 2, e.y - 20, tx, $.P.y + jy, lobV(e.x - 2, e.y - 20, tx, $.P.y + jy, vy)); // open space below: at the ship, as before
 }
 
 /** a spray glob's land hook (shots.ts updateEShots, sim side, no R()): where it strikes, a pool */
@@ -76,7 +82,7 @@ function updCyst(e) {
     if (lurch(e, ph2)) e.att = 2; // g3: phase 2 opens on the swell (its aimed ring)
     if (e.st === 'idle') {
       e.sw = Math.max(0, (e.sw || 0) - 1.5);
-      if (e.wt >= e.cool) { e.att++; e.st = e.att % 3 ? 'tel' : 'swell'; e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.squish(); if (e.st === 'tel') e.sd = -(e.sd || -1); } // g3: floor, ceiling, floor...
+      if (e.wt >= e.cool) { e.att++; e.st = e.att % 3 && !(G3 && !ph2 && e.x - $.P.x > WOMB.lobFar) ? 'tel' : 'swell'; e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.squish(); if (e.st === 'tel') e.sd = -(e.sd || -1); } // g3: floor, ceiling, floor...
     } else if (e.st === 'tel') {
       if (R() < .6) spark(e.x + rr(-6, 6), e.y - 18, rr(-.3, .3), -rr(.8, 2), 14, '#7ff0d8');
       if (e.wt >= 45) { e.st = 'spray'; e.wt = 0; e.li = 0; geysers.push({ wx: 0, y: 0, att: e, ox: -2, oy: -19, a: -Math.PI / 2, l: ph2 ? 44 : 32, rate: 4, c: 2 }); }

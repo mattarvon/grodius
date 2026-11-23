@@ -87,7 +87,7 @@ export function drawButcher(c, e) {
     glowC(c, PX + ca * 30, PY + sa * 30, 10 + 8 * heat, '255,110,30', .2 + .45 * heat);
   }
   if (e.st === 'spit') glowC(c, -6, -36, 7 + (e.wt < 34 ? 6 : 0), '255,120,40', e.wt < 34 ? .5 : .15);
-  if (e.st === 'htel') glowC(c, 10, -8, 5 + 6 * e.wt / 40, '255,40,30', .2 + .4 * e.wt / 40 * (((t >> 2) & 1) ? 1 : .6));
+  if (e.st === 'htel') { const k = Math.min(1, e.wt / (e.hT || 40)); glowC(c, 10, -8, 5 + 6 * k, '255,40,30', .2 + .4 * k * (((t >> 2) & 1) ? 1 : .6)); } // e.hT: the sim's tell (48 on long4)
   c.globalCompositeOperation = 'source-over';
   if (e.mc != null && e.mc >= 0 && e.mc < BUTCHER.meat.tell) meatTell(c, e);
 }

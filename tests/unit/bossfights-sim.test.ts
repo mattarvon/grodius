@@ -38,7 +38,7 @@ vi.mock('../../src/enemies/spawn', async () => ({
 }));
 
 const { updEnemy } = await import('../../src/enemies/update');
-const { BLOAT, BUTCHER, HAZ_HOOK, MAW, PHASE_F } = await import('../../src/boss/bossrules');
+const { BLOAT, BOSS_HPK, BUTCHER, HAZ_HOOK, MAW, PHASE_F, lungeStop } = await import('../../src/boss/bossrules');
 const F = await import('../../src/boss/bossfights');
 const L = await import('../../src/layout');
 
@@ -92,7 +92,7 @@ const mkMaw = (o: any = {}) => {
 
 describe('THE MAW: the bite', () => {
   beforeEach(() => reset());
-  it('tells 46 f with its lane locked for the last 16, lunges to W*.35, holds and comes home', () => {
+  it('tells 46 f with its lane locked for the last 16, lunges past the ship (W*.35 at most), holds and comes home', () => {
     const e = mkMaw();
     let f = 0;
     while (!e.bs && f++ < 2000) { updEnemy(e); W.eshots.length = 0; }
@@ -105,7 +105,7 @@ describe('THE MAW: the bite', () => {
     expect(lane[0]).not.toBe(last[0]); // it tracked the ship before that
     let minX = 999, held = 0;
     while (e.bs && f++ < 4000) { updEnemy(e); W.eshots.length = 0; minX = Math.min(minX, e.x); if (e.bs === 3) held++; expect(Math.abs(e.y - last[0])).toBeLessThan(1e-6); }
-    expect(minX).toBeCloseTo(480 * MAW.lungeX, 6);
+    expect(minX).toBeCloseTo(lungeStop($.P.x, 480), 6); // W6: on past the ship's x (inside W * lungeMin .. W * lungeX)
     expect(held).toBe(MAW.hold);
     expect(e.x).toBe(480 - 82);
   });
@@ -280,5 +280,21 @@ describe('the long4 half clock and the variants (qa-lead)', () => {
     W.eshots.length = 0;
     for (let i = 0; i < 20 && !W.eshots.some((s) => s.k === 'glob'); i++) updEnemy(e);
     expect(W.eshots.filter((s) => s.k === 'glob')).toHaveLength(MAW.fanN);
+  });
+});
+
+describe('W6 hpOnce: a stage boss HP factor, once', () => {
+  it('scales the body and its live parts by BOSS_HPK once, and leaves an unlisted kind alone', () => {
+    const b1 = { hp: 10, max: 10, dead: false }, b2 = { hp: 10, max: 10, dead: true };
+    const e: any = { hp: 100, max: 100, bars: [b1, b2] };
+    F.hpOnce(e, 'crux');
+    const k = BOSS_HPK.crux;
+    expect(e.hp).toBeCloseTo(100 * k, 9); expect(e.max).toBeCloseTo(100 * k, 9);
+    expect(b1.hp).toBeCloseTo(10 * k, 9); expect(b2.hp).toBe(10); // a dead bar is left
+    F.hpOnce(e, 'crux');
+    expect(e.hp).toBeCloseTo(100 * k, 9); // not twice
+    const o: any = { hp: 50, max: 50 };
+    F.hpOnce(o, 'gravity');
+    expect(o.hp).toBe(50);
   });
 });

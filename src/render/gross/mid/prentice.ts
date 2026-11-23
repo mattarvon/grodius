@@ -112,10 +112,11 @@ function oneHook(ox, oy, st, ha, hd, sag) {
 function under(e) {
   drawChain(ctx, e.x, e.y - 20, e.x + 4, Math.max(-8, ceilAt(e.x + $.G.scroll)), 1.4);
   hookArt(e);
-  const sx = e.x - 8, sy = e.y - 6;
+  let sx = e.x - 8, sy = e.y - 6;
   if (e.st === 'tel') { // same sweep cone as the Butcher's, shorter
-    const k = e.wt / 50;
-    ctx.fillStyle = `rgba(255,60,20,${.08 + .22 * k * (($.T >> 2) % 2 ? 1 : .6)})`;
+    const k = e.wt / 50, lk = !!e.clk; // e.clk (sim: prentice.ts cutLocked), long4: the last 50 - APP.cutLock f the cone is locked where it will swing: drawn there, solid
+    if (lk) { sx = e.tx - 8; sy = e.y - 6; }
+    ctx.fillStyle = `rgba(255,60,20,${.08 + .22 * k * (lk || ($.T >> 2) % 2 ? 1 : .6)})`; // locked: the fill holds steady too
     ctx.beginPath();
     ctx.moveTo(sx, sy);
     ctx.arc(sx, sy, 84, 2.3, 3.99);
@@ -123,7 +124,7 @@ function under(e) {
     ctx.fill();
     ctx.strokeStyle = `rgba(255,120,60,${.4 + .5 * k})`;
     ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
+    ctx.setLineDash(lk ? [] : [3, 3]);
     ctx.beginPath();
     ctx.arc(sx, sy, 84, 2.3, 3.99);
     ctx.stroke();

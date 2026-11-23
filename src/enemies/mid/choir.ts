@@ -4,7 +4,7 @@
 // Its LINE denial (D61, ./_deny.ts): every DN.lEvery-th attack a nailbar comes loose and sweeps a lane at the ship's height.
 import { $ } from '../../state';
 import { PH, R, lerp, pick, rr } from '../../core';
-import { sfx } from '../../audio';
+import { sfx, thr } from '../../audio';
 import { drop, flash, spark } from '../../fx/spawn';
 import { cdm } from '../../depth';
 import { playerHit } from '../../player';
@@ -20,7 +20,26 @@ const cool = (ph2) => g3() ? cad(ph2 ? 60 : 85) : Math.round((ph2 ? 60 : 85) * (
 /** the glare before the spike fan: 40 f, 44 on long4 (spec §2.3, the E5 floor) */
 export const glareF = () => (g3() ? 44 : 40);
 /** g3 weak point (spec §2.3): the eye takes .4 while either bar lives ("core and wall", the Bloat's grammar) */
-export const CHOIR_EYE = .4;
+export const CHOIR_EYE = .7; // W6 tune-tf: .4 (the spec) made the first half 2.7x the second at the STAGE 1 kit (380 f to 140: K1 1 hit in phase 2); HP up to match (midslot.ts)
+/** g3 (W6 tune-tf, K2): the loose bar is armoured while it is the lane (its tell, the sweep out, the turn and back): it
+ *  takes CHOIR_LANE of a hit, a tink. The lane flies AT the ship's height, straight into its forward fire, so a bar at
+ *  full HP died in its 56 f tell every time: the probes saw the lane hit a parked ship 0 times. Flying home it is a bar again */
+export const CHOIR_LANE = .15;
+/** g3: a singing bar's led spike flies at SING_V (x BS; was 1.35): from the right edge it took ~150 f to cross, longer than a
+ *  first half the ship's fire cuts short at the STAGE 1 kit (W6 K1: 225 f at spot 150,160) */
+export const SING_V = 1.8;
+/** the armoured lane bar's hit sound (audio only, roster.ts midHitSnd): the shared tink at most every 240 ms on its own
+ *  clock, so steady fire on the lane doesn't hold the tink throttle (audio.ts 't', 60 ms) and eat the sing's and the
+ *  lane end's tinks (audio-director, W6). Full-share hits keep the shared hit */
+function barSnd(b, m) {
+  if (!(m < 1)) return false;
+  if (!thr('choirBar', 240)) sfx.tink();
+  return true;
+}
+function barArmor(b) {
+  const e = b.par;
+  return g3() && e && e.lp && e.lp !== LP.home && (b === e.lb || b === e.lb2) ? CHOIR_LANE : 1;
+}
 /** the lane is over (or cut short): the bar(s) fly home from wherever they are */
 const laneOff = (e) => {
   e.st = 'idle'; e.wt = 0;
@@ -83,6 +102,7 @@ function updChoir(e) {
   if (go && e.lp && e.lp !== LP.home) laneOff(e); // it withdraws mid-lane (midLeave has set it idle): the bar comes home
   if (!go && entered(e) && $.P.alive) {
     e.wt++;
+    if (G3 && !e.sung) { e.sung = 1; for (const b of e.bars) if (!b.dead) b.sing = 36; } // g3 (W6 K1): both bars sing as it opens, so a first half the ship's fire cuts short still meets two aimed attacks
     if (lurch(e, ph2)) { e.att = 0; e.rq = 2; for (const b of e.bars) if (!b.dead && !(b.sing > 0) && b !== e.lb && b !== e.lb2) b.sing = 36; } // g3: phase 2 opens on the fan, the ring and both bars singing (aimed: they reach every spot)
     if (e.st === 'idle' && e.wt >= e.cool) {
       e.att++;
@@ -98,7 +118,8 @@ function updChoir(e) {
       } else { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 10, e.y); sfx.tele(); }
     }
     else if (e.st === 'tel') {
-      e.ha += wrapA(aimA(e.x - 10, e.y) - e.ha) * .04;
+      if (!G3) e.ha += wrapA(aimA(e.x - 10, e.y) - e.ha) * .04;
+      else if (e.wt < glareF() - 16) e.ha = aimA(e.x - 10, e.y); // g3 (W6 K1): the glare line follows the ship, then locks its last 16 f (it lagged .04 a frame behind an eye still flying in: the opening fan missed every spot)
       const n = nLive || G3 ? 5 : 7; // g3: 5 always (7 with no bars held the Normal screen at p90 10: B3)
       if (e.wt >= glareF() && !(G3 && !spend(e, n))) { // g3: the fan waits for room in the budget (all n or none)
         fan(e.x - 10, e.y, e.ha, n, .16, 1.8, 'spike');
@@ -112,7 +133,7 @@ function updChoir(e) {
       if (ph2 && every(e, 130)) ring(e.x, e.y, 10, e.t * .05, 1.05);
     } else { // spec §2.3: each bar sings ONE led spike (not a 3-fan); the ring is 8 every 160, never two in a 120 f window
       if (ev(e, ph2 ? 110 : 150)) for (const b of e.bars) if (!b.dead && !(b.sing > 0) && b !== e.lb && b !== e.lb2) b.sing = 36;
-      for (const b of e.bars) if (!b.dead && b.sing > 0 && (b.sing > 1 || spendP(e, 1)) && --b.sing === 0) { eshoot(b.x, b.y, aimLed(b.x, b.y, 1.35), 1.35, 'spike'); sfx.tink(); } // its last glint frame holds until there is room
+      for (const b of e.bars) if (!b.dead && b.sing > 0 && (b.sing > 1 || spendP(e, 1)) && --b.sing === 0) { eshoot(b.x, b.y, aimLed(b.x, b.y, SING_V), SING_V, 'spike'); sfx.tink(); } // its last glint frame holds until there is room
       if (ph2 && ev(e, 160)) e.rq = 1;
       if (e.rq && (e.rq === 2 ? spend(e, 8) : spendP(e, 8))) { e.rq = 0; ring(e.x, e.y, 8, ringA(e.x, e.y), RING_V); }
     }
@@ -137,7 +158,7 @@ function updChoir(e) {
 defineMid('choir', {
   et: { hp: 80, r: 13, gsz: 4, score: 6000, bio: 60, skull: 1, eyes: 5, teeth: 4, big: 1, mini: 1, mid: 1 },
   word: 'SILENCED',
-  onSpawn: (e) => { e.bars = [0, 1].map(i => mk('nailbar', e.x, e.y, { par: e, ox: 0, oy: 0, i, hpm: 1.6 })); e.lp = 0; e.lb = null; e.lb2 = null; e.tw = 0; if (g3()) { ledger(e); opening(e); } },
+  onSpawn: (e) => { e.bars = [0, 1].map(i => mk('nailbar', e.x, e.y, { par: e, ox: 0, oy: 0, i, hpm: 1.6, armor: barArmor, hitSnd: barSnd })); e.lp = 0; e.lb = null; e.lb2 = null; e.tw = 0; if (g3()) { ledger(e); opening(e); } },
   update: updChoir,
   hurt: (e) => { if (!g3()) return 1; for (const b of e.bars) if (!b.dead) return CHOIR_EYE; return 1; }, // a loop, no closure per hit
 });
