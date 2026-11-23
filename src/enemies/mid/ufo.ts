@@ -23,13 +23,16 @@ import { enemies } from '../../world';
 import { drop, flash, spark } from '../../fx/spawn';
 import { aimA, banner, every, fan, miniWarn, mk, ring, wrapA } from '../spawn';
 import { playerHit } from '../../player';
-import { dropCap } from '../update';
+import { dropCap, lob } from '../update';
 import { cdm } from '../../depth';
 import { layout, ufoDrift, ufoGapEnd } from '../../layout';
 import { slotClock } from '../../midpick';
 import { meetMid, registerDrift } from '../../midslot';
 import { midPh2 } from '../midhost';
 import { MID_NAMES, MID_SIM, defineMid } from './roster';
+import { RING_V, cad, entered, ev, g3, ledger, litter, lobFan, lurch, opening, ringA, spend, spendP, variant } from './_fight';
+import { midHpMul } from '../../midslot';
+import { UFO_SW, sweepA } from './_deny';
 
 export const UFO_NAME = MID_NAMES.ufo;
 // Where its WARNING is (it lands ~150 px later, ~45% through the stage) and where it must be gone by (before the
@@ -38,6 +41,9 @@ export const UFO_NAME = MID_NAMES.ufo;
 /** where the lash, the tumours and the belly hatch sit, relative to its centre (the art in render/gross/mid/ufo.ts uses these) */
 export const LASH_O = [-34, 9], TUMOURS = [[-24, -7], [6, -10], [30, -5]], HATCH_O = [12, 11];
 const LASH_LEN = 220;
+/** the lash's tell: 42 f (the quick phase-2 second lash 28, kept as it shipped); 44 on long4, the E5 floor (DIFFICULTY-SPEC
+ *  C10). It tracks the ship until its last 16 f, then locks (the art reads the same numbers) */
+export const lashTel = (e) => (e.lash2 ? 28 : g3() ? 44 : 42);
 
 /** the WARNING beat (buildScript): the filler stops here, a breath, then the wreck drifts in */
 export function ufoWarn() {
@@ -57,6 +63,10 @@ export function spawnUfo(exitX = ufoGapEnd() - ufoDrift().exitLead, maxLeave = 1
   // short of the forced exit, and the exit check in updUfo is the backstop. Written as (exitX + exitLead) - scroll - 70
   // so the Orbit case is gapEnd - scroll - 70 to the bit, as before (all integers until the scroll)
   e.leave = clamp(Math.round(exitX + ufoDrift().exitLead - $.G.scroll - 70), 420, maxLeave);
+  if (g3()) { // spec §2.3: HP per the fight table (midslot.ts MID_HP [FIT], never the dial or powHP), and the bullet ledger
+    const hm = midHpMul('ufo', MID_SIM.ufo.et.hp); if (hm !== 1) { e.hp *= hm; e.max = e.hp; }
+    ledger(e); e.swN = 0; opening(e); e.att = 1; // the swell opens the fight (its globs reach every spot: K1)
+  }
   $.G.mini = e;
   meetMid('ufo');
 }
@@ -71,7 +81,8 @@ function onLash(e) {
   const px = $.P.x - ox, py = $.P.y - oy, u = clamp(px * dx + py * dy, 0, e.ll);
   return dist2(px, py, dx * u, dy * u) < 6 * 6;
 }
-const cd = (e, ph2) => Math.round((ph2 ? 52 : 78) * (1 - .3 * ($.G.rank || 0)) * cdm()); // cdm: depth, src/depth.ts
+// g3 (DIFFICULTY-SPEC §2.3): the one rank rule, cad() (no pow term, no dial); short keeps its old line (layout parity)
+const cd = (e, ph2) => g3() ? cad(ph2 ? 52 : 78) : Math.round((ph2 ? 52 : 78) * (1 - .3 * ($.G.rank || 0)) * cdm()); // cdm: depth, src/depth.ts
 
 function updUfo(e) {
   const ph2 = midPh2(e);
@@ -98,50 +109,57 @@ function updUfo(e) {
   // bob, but hold still while a lash is lined up so the telegraph line is honest
   const still = e.st === 'lash' || e.st === 'whip';
   if (!still) e.y = lerp(e.y, PH * .45 + Math.sin(e.t * .012) * PH * .2, .04);
-  if (e.t > 120 && $.P.alive) {
+  if (entered(e) && $.P.alive) {
     e.wt++;
+    // g3: into phase 2 the next attack is the swell (spec §2.3 E8: each phase meets its globs, which reach every spot)
+    if (lurch(e, ph2)) { e.att = 1; e.rq = 2; } // g3: phase 2 opens on the swell, and its first ring now
     if (e.st === 'idle') {
       e.ll = Math.max(0, e.ll - 6);
       if (e.wt >= e.cool) {
         const k = e.att++ % 4;
         e.st = k === 1 ? 'swell' : k === 3 ? 'brood' : 'lash';
         e.wt = 0;
-        if (e.st === 'lash') { e.la = aimA(...lashO(e)); sfx.tele(); } else sfx.squish();
+        if (e.st === 'lash') { e.la = aimA(...lashO(e)); sfx.tele(); e.sw = g3() && ph2 ? (e.swN++ % 2 ? -1 : 1) : 0; } else sfx.squish(); // g3 phase 2: this lash sweeps (UFO_SW), first one way then the other, alternating
       }
     } else if (e.st === 'lash') { // telegraph: tracks you for 26f, then locks
-      const tel = e.lash2 ? 28 : 42;
+      const tel = lashTel(e);
       if (e.wt < tel - 16) e.la += wrapA(aimA(...lashO(e)) - e.la) * .12;
       if (e.wt >= tel) { e.st = 'whip'; e.wt = 0; sfx.lash(); }
-    } else if (e.st === 'whip') { // out in 8f, holds 8f, back over 18f
-      const w = e.wt, ext = w < 8 ? w / 8 : w < 16 ? 1 : Math.max(0, 1 - (w - 16) / 18);
+    } else if (e.st === 'whip') { // out in 8f, holds 8f, back over 18f (g3 phase 2: the SWEEP, UFO_SW.f frames at full reach, before it comes back)
+      const sw = e.sw ? UFO_SW.f : 0, w = e.wt, ext = w < 8 ? w / 8 : w < 16 + sw ? 1 : Math.max(0, 1 - (w - 16 - sw) / 18);
+      if (sw) { if (w === 16) e.la0 = e.la; if (w >= 16 && w < 16 + sw) e.la = sweepA(e.la0, w - 16, e.sw); else if (w === 16 + sw) e.la = e.la0; }
       e.ll = 18 + LASH_LEN * ext;
       if (w === 8) {
         $.G.shake += 2;
         const [ox, oy] = lashO(e), tx = ox + Math.cos(e.la) * e.ll, ty = oy + Math.sin(e.la) * e.ll;
         for (let k = 0; k < 10; k++) drop(tx, ty, rr(-1.5, 1.5), rr(-1.5, 1), 1.4, R() < .5 ? 0 : 2, 70);
       }
-      if (w >= 4 && w <= 20 && onLash(e)) playerHit();
-      if (w >= 34) {
-        e.ll = 0;
-        if (ph2 && !e.lash2) { e.lash2 = 1; e.st = 'lash'; e.wt = 0; sfx.tele(); } // under 50%: a second, quicker lash
+      if (w >= 4 && w <= 20 + sw && onLash(e)) playerHit();
+      if (w >= 34 + sw) {
+        e.ll = 0; e.sw = 0;
+        // under 50%: a second, quicker lash (never sweeps: its tell is short). g3: at rank >= 14 phase 1 re-aims once too (spec §2.3 variant)
+        if ((ph2 || (g3() && variant())) && !e.lash2) { e.lash2 = 1; e.st = 'lash'; e.wt = 0; sfx.tele(); }
         else { e.lash2 = 0; e.st = 'idle'; e.wt = 0; e.cool = cd(e, ph2); }
       }
-    } else if (e.st === 'swell') { // tumours swell 36f, burst into pus fans (twice under 50%)
-      if (e.wt === 36 || (ph2 && e.wt === 54)) {
+    } else if (e.st === 'swell') { // tumours swell 36f, burst into pus fans (twice under 50%; g3: once, the sweep replaces the second)
+      const G3 = g3();
+      if (G3 && e.wt === 36 && !spendP(e, 9)) e.wt = 35; // g3: the swell waits for a clear screen (the soft ceiling: its 9 slow globs alone held the screen near the cap, B3 p90), all 9 or none
+      else if (e.wt === 36 || (!G3 && ph2 && e.wt === 54)) {
         e.burst++;
         for (const [tx, ty] of TUMOURS) {
           const x = e.x + tx, y = e.y + ty;
-          fan(x, y, aimA(x, y), e.wt === 36 ? 3 : 2, .24, 1.45, 'glob');
+          if (G3) lobFan(lob, x, y, $.P.x, $.P.y, 3, 24, 1.5); // g3: lobbed so the centre glob comes down through the ship (a straight glob fan curves under it)
+          else fan(x, y, aimA(x, y), e.wt === 36 ? 3 : 2, .24, 1.45, 'glob');
           for (let k = 0; k < 6; k++) drop(x, y, rr(-1.6, 1.2), rr(-2, .4), 1.4, R() < .6 ? 2 : 0, 70);
         }
         flash(e.x, e.y - 6, 22, 6, '230,215,90');
         sfx.glob();
       }
-      if (e.wt >= (ph2 ? 66 : 50)) { e.st = 'idle'; e.wt = 0; e.cool = cd(e, ph2); }
+      if (e.wt >= (ph2 && !G3 ? 66 : 50)) { e.st = 'idle'; e.wt = 0; e.cool = cd(e, ph2); }
     } else if (e.st === 'brood') { // the belly hatch dilates 40f, then a litter drops out
       if (R() < .3) drop(e.x + HATCH_O[0] + rr(-3, 3), e.y + HATCH_O[1] + 2, rr(-.4, .4), rr(.3, 1), 1.2, 4, 50);
       if (e.wt === 40) {
-        const kids = enemies.filter(q => q.kid && !q.dead).length, n = Math.min(8 - kids, 3 + Math.round(($.G.rank || 0) * 2) + (ph2 ? 1 : 0)), g = { n, killed: 0 };
+        const kids = enemies.filter(q => q.kid && !q.dead).length, n = Math.min(8 - kids, (g3() ? litter() : 3 + Math.round(($.G.rank || 0) * 2)) + (ph2 ? 1 : 0)), g = { n, killed: 0 };
         // the litter is a formation: kill all of it for a pod (it stands in for the filler it ate)
         for (let i = 0; i < n; i++) mk('hatch', e.x + HATCH_O[0] - i * 7, e.y + HATCH_O[1] + 4, { kid: 1, group: g, ph: R() * TAU, vy: (i % 2 ? 1 : -1) * rr(.4, 1.3) });
         for (let k = 0; k < 16; k++) drop(e.x + HATCH_O[0], e.y + HATCH_O[1] + 2, rr(-1.5, 1.5), rr(0, 2), 1.5, R() < .5 ? 4 : 0, 80);
@@ -149,10 +167,22 @@ function updUfo(e) {
       }
       if (e.wt >= 56) { e.st = 'idle'; e.wt = 0; e.cool = cd(e, ph2); }
     }
-    if (ph2 && every(e, 140)) ring(e.x, e.y + 4, 8, e.t * .05, 1);
+    if (!g3()) { if (ph2 && every(e, 140)) ring(e.x, e.y + 4, 8, e.t * .05, 1); }
+    else { // spec §2.3: a ring of 6 every 180 x cadence, never two in the 120 f budget window; it waits for room (all or none)
+      if (ph2 && ev(e, 180)) e.rq = 1;
+      if (e.rq && (e.rq === 2 ? spend(e, 6) : spendP(e, 6))) { e.rq = 0; ring(e.x, e.y + 4, 6, ringA(e.x, e.y + 4), RING_V); }
+    }
   }
   if (R() < .3) drop(e.x + rr(-40, 40), e.y + rr(6, 14), rr(-.2, .2), rr(.2, .7), 1.3, R() < .5 ? 0 : 2, 90);
   if (R() < .06) spark(e.x + rr(-50, 50), e.y + rr(-8, 8), rr(-.3, .3), -rr(.2, .6), 18, '#d8c860');
+}
+/** g3 weak point (spec §2.3): the eye-core takes full damage, the wings (e.hb) .3, a tink and a dim flash. A hit counts
+ *  as the core's when it lands within the core's radius (+ a bolt's 4 px); area damage arrives at the centre: full */
+export const UFO_WING = .3;
+function ufoHurt(e, d, hx, hy) {
+  if (!g3()) return 1;
+  const r = e.r + 4;
+  return (hx - e.x) ** 2 + (hy - e.y) ** 2 <= r * r ? 1 : UFO_WING;
 }
 /** killEnemy hook (the e.mid block already drops the pods and banners it): the filler resumes */
 function ufoKilled(e) {
@@ -168,4 +198,5 @@ defineMid('ufo', {
   word: 'CALAMARI SERVED', // Matt's call (2026-11-09): this one kill word overrides D39's sensor-reading SEVERED
   update: updUfo,
   kill: ufoKilled,
+  hurt: ufoHurt,
 });

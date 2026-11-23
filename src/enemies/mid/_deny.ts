@@ -11,6 +11,15 @@
 //          the taut chain a wire across the screen, then reels in
 //   CROWD  THE BROOD MOTHER: from her phase 2 her litter comes in from behind the ship, at its height
 //
+//  DIFFICULTY-SPEC §2.3 (W4a, long4 only: the kinds gate these on _fight.ts g3()):
+//   DRIFT  SQUID SAUCER 2000: in phase 2 the lash, held at full reach, SWEEPS +-.5 rad (UFO_SW) under a hatched wedge
+//   LINE   the Choir's phase 2 sweeps TWIN lanes (lanePair: a free band >= 40 px between them); at rank >= 14 the
+//          return sweep re-locks on the ship at the turn (LP.turn, a 16 f solid line, the bar off screen)
+//   SPACE  the Womb's spray alternates floor and ceiling (cyst.ts)
+//   RANGE  the Apprentice's phase-2 bite holds DN.hBite2 with the wire SAGGING (hookSag); at rank >= 14 a SECOND hook
+//          (e.st2, e.ha2, e.hd2) is thrown on the ship's new lane, never within DN.h2Gap of the first's wire (hook2Aim)
+//   CROWD  the Brood's phase-1 litter drops in from the TOP or BOTTOM edge (alternating) under a DN.bTel edge chevron
+//
 //  Pure: no imports, so the kinds' files, the unit tests and the probes (tools/mid-deny-probe.mjs, tools/pilot.mjs via
 //  window.__DN) all read the same numbers and the same hit tests. The hit tests read only the midboss's own fields, so
 //  an invincible probe ship can count the hits it would have taken.
@@ -61,7 +70,40 @@ export const DN = {
   bX: -8, bDx: 9, bDy: 14,
   /** the lane stays this far inside the screen's top and bottom */
   bEdge: 30,
+  // ---- DIFFICULTY-SPEC §2.3 (W4a): the extensions, long4 only
+  /** the Choir's twin lanes: the second sits lGap2 from the first, a free band of lGap2 - 2 lHH = 50 >= lFree between */
+  lGap2: 80, lFree: 40,
+  /** the rank >= 14 re-lock at the turn: the bar waits off screen for lTurn, its new lane ruled solid (spec: 16 f) */
+  lTurn: 16,
+  /** the Apprentice's phase-2 bite: held hBite2 (spec 44 -> 60), the wire sagging hSag at its middle, never nearer than
+   *  hSagGap to the floor or the ceiling there */
+  hBite2: 60, hSag: 30, hSagGap: 30,
+  /** the rank >= 14 second hook: its line locks h2Lock after the first bites and it throws hLock after that, never sooner
+   *  than TELL_MIN from the start of its own tell; at the ship's range it stays h2Gap from the first's wire */
+  h2Lock: 16, h2Gap: 40,
+  /** the Brood's phase-1 litter from an edge: a column at x = the ship's + eDx[att % 4] (spec 60-90), eDy apart, starting
+   *  eY0 off the edge and falling at eV until it reaches the ship's lane (then an ordinary hatchling); its tell is bTel */
+  eDx: [60, 70, 80, 90] as readonly number[], eDy: 14, eV: 1.4, eY0: 12,
+  /** ...then it dives at the ship at eV until it is past the ship's x or eT frames old (then an ordinary hatchling). A
+   *  column that only fell to the lane met the ship's forward fire head on (K2: bodies >= 50% of would-be hits) */
+  eT: 150,
+  /** no hatchling of an edge litter spawns within eClear of the ship (it may have moved under the column during the tell;
+   *  spec C9 / N4 hold bodies to 48, the brood gate asks 64) */
+  eClear: 64,
 } as const;
+
+// ---------------- SQUID SAUCER 2000 (its sim is ufo.ts; the sweep's numbers live here for the probes and the art) ----------------
+/** the phase-2 sweep: f frames at full reach, swinging amp rad either side of the locked line (spec: +-.5 over 24 f).
+ *  The lash's root and reach (ufo.ts LASH_O, LASH_LEN + 18) are copied here so this file stays a leaf */
+export const UFO_SW = { f: 24, amp: .5, ox: -34, oy: 9, len: 238, w: 6 } as const;
+/** the lash's angle u frames into the sweep from the locked a0, first toward dir (+-1): one full swing, back to a0 */
+export const sweepA = (a0: number, u: number, dir: number) => a0 + dir * UFO_SW.amp * Math.sin(2 * Math.PI * u / UFO_SW.f);
+/** is the ship at (px, py) on the sweeping lash? The frames past the plain stab only (the probes count the stab as 'lash') */
+export function sweepHit(e: any, px: number, py: number): boolean {
+  if (e.k !== 'ufo' || e.st !== 'whip' || !e.sw || e.wt <= 20 || e.wt > 20 + UFO_SW.f || !(e.ll >= 30)) return false;
+  const ox = e.x + UFO_SW.ox, oy = e.y + UFO_SW.oy;
+  return segD2(ox, oy, ox + Math.cos(e.la) * e.ll, oy + Math.sin(e.la) * e.ll, px, py) < UFO_SW.w * UFO_SW.w;
+}
 
 /** D59: no new threat with a tell under this */
 export const TELL_MIN = 44;
@@ -80,13 +122,16 @@ export function segD2(ax: number, ay: number, bx: number, by: number, px: number
 // ---------------- THE NAIL CHOIR ----------------
 /** the lane's y for a ship at py: on it, kept a bar's length inside the screen (ph = the playfield's height) */
 export const laneY = (py: number, ph: number) => Math.max(DN.lHH + 4, Math.min(ph - DN.lHH - 4, py));
-/** the lane's phases (e.lp): its tell, the sweep left, the sweep back, the bar flying home */
-export const LP = { tel: 1, out: 2, back: 3, home: 4 } as const;
-/** is the ship at (px, py) on the loose bar? Only while it sweeps (out and back); the bar's own body still touches as
- *  every enemy does (enemies/update.ts updateEnemies) */
+/** the twin lane's y for a first lane at y1: DN.lGap2 below it when the whole bar fits there, else DN.lGap2 above */
+export const lanePair = (y1: number, ph: number) => (y1 + DN.lGap2 <= ph - DN.lHH - 4 ? y1 + DN.lGap2 : y1 - DN.lGap2);
+/** the lane's phases (e.lp): its tell, the sweep left, the sweep back, the bar flying home, the re-lock at the turn */
+export const LP = { tel: 1, out: 2, back: 3, home: 4, turn: 5 } as const;
+/** is the ship at (px, py) on the loose bar, or on the twin bar (e.tw, at e.ly2)? Only while they sweep (out and back);
+ *  the bars' own bodies still touch as every enemy does (enemies/update.ts updateEnemies) */
 export function laneHit(e: any, px: number, py: number): boolean {
   if (e.lp !== LP.out && e.lp !== LP.back) return false;
-  return Math.abs(px - e.lx) < DN.lHW + SHIP_R && Math.abs(py - e.ly) < DN.lHH + SHIP_R;
+  if (Math.abs(px - e.lx) >= DN.lHW + SHIP_R) return false;
+  return Math.abs(py - e.ly) < DN.lHH + SHIP_R || (!!e.tw && Math.abs(py - e.ly2) < DN.lHH + SHIP_R);
 }
 
 // ---------------- THE DISSOLVING WOMB ----------------
@@ -153,13 +198,32 @@ export function agePools(e: any, t: number): void {
 export const HOOK_ST = ['htel', 'hook', 'bite', 'reel'] as const;
 /** the hook's eye in screen px */
 export const hookO = (e: any, out: number[]) => { out[0] = e.x + DN.hOx; out[1] = e.y + DN.hOy; return out; };
-/** is the ship at (px, py) hit by the hook: its tip while thrown or reeling, the taut chain while it bites or reels */
-export function hookHit(e: any, px: number, py: number): boolean {
-  if (!(e.hd > 0) || (e.st !== 'hook' && e.st !== 'bite' && e.st !== 'reel')) return false;
-  const ox = e.x + DN.hOx, oy = e.y + DN.hOy, tx = ox + Math.cos(e.ha) * e.hd, ty = oy + Math.sin(e.ha) * e.hd;
+/** one hook's hit: its tip while thrown or reeling, its chain while it bites or reels (sagging sag px at its middle) */
+export function hookAt(st: string, ha: number, hd: number, sag: number, ox: number, oy: number, px: number, py: number): boolean {
+  if (!(hd > 0) || (st !== 'hook' && st !== 'bite' && st !== 'reel')) return false;
+  const tx = ox + Math.cos(ha) * hd, ty = oy + Math.sin(ha) * hd;
   const tr = DN.hR + SHIP_R, dt = (px - tx) * (px - tx) + (py - ty) * (py - ty);
-  if (e.st !== 'bite' && dt < tr * tr) return true;
-  return e.st !== 'hook' && segD2(ox, oy, tx, ty, px, py) < (DN.hW + SHIP_R) ** 2;
+  if (st !== 'bite' && dt < tr * tr) return true;
+  if (st === 'hook') return false;
+  const w2 = (DN.hW + SHIP_R) ** 2;
+  if (!(sag > 0)) return segD2(ox, oy, tx, ty, px, py) < w2;
+  const mx = (ox + tx) / 2, my = (oy + ty) / 2 + sag; // the sagging wire: a 3-point polyline
+  return segD2(ox, oy, mx, my, px, py) < w2 || segD2(mx, my, tx, ty, px, py) < w2;
+}
+/** is the ship at (px, py) hit by the hook, or by the second hook (rank >= 14: e.st2, e.ha2, e.hd2, e.sag2)? */
+export function hookHit(e: any, px: number, py: number): boolean {
+  const ox = e.x + DN.hOx, oy = e.y + DN.hOy;
+  return hookAt(e.st, e.ha, e.hd, e.sag || 0, ox, oy, px, py) || (!!e.st2 && hookAt(e.st2, e.ha2, e.hd2, e.sag2 || 0, ox, oy, px, py));
+}
+/** the sag of a wire from y oy to y ty: DN.hSag, less if its middle would come within DN.hSagGap of the floor (fl) there,
+ *  or if the wire's middle already sits that close (it never sags into a closing cave); never negative */
+export function hookSag(oy: number, ty: number, fl: number): number {
+  return Math.max(0, Math.min(DN.hSag, fl - DN.hSagGap - (oy + ty) / 2));
+}
+/** the second hook's aim: a, kept at least DN.h2Gap from the first's wire (angle a1) at range d (the ship's distance) */
+export function hook2Aim(a: number, a1: number, d: number): number {
+  const dm = Math.asin(Math.min(1, DN.h2Gap / Math.max(1, d))), da = Math.atan2(Math.sin(a - a1), Math.cos(a - a1));
+  return Math.abs(da) >= dm ? a : a1 + (da < 0 ? -dm : dm);
 }
 
 // ---------------- THE BROOD MOTHER ----------------
@@ -172,6 +236,18 @@ export function rearSlot(i: number, y: number, out: number[]): number[] {
   return out;
 }
 
+/** the phase-1 litter's column x for a ship at px on attack att: the ship's + DN.eDx, kept 40 px inside the right edge
+ *  (w = the screen's width). Always ahead of a ship left of it, so the dive meets the ship (a column behind it was wasted) */
+export function edgeX(px: number, att: number, w: number): number {
+  return Math.min(w - 40, px + DN.eDx[((att % 4) + 4) % 4]);
+}
+/** where hatchling i of a phase-1 litter starts: the column at x, off the top (side 1) or bottom (side -1) edge */
+export function edgeSlot(i: number, x: number, side: number, ph: number, out: number[]): number[] {
+  out[0] = x;
+  out[1] = side > 0 ? -DN.eY0 - i * DN.eDy : ph + DN.eY0 + i * DN.eDy;
+  return out;
+}
+
 // ---------------- for the probes (tools only: allocates) ----------------
 /**
  * What a midboss's denial move threatens right now, as circles { x, y, vx, vy, r, k } for tools/pilot.mjs's eyes and
@@ -181,7 +257,14 @@ export function denyPts(e: any, sc: number, out: any[] = []): any[] {
   if (!e || e.dead) return out;
   if (e.k === 'choir' && (e.lp === LP.out || e.lp === LP.back)) {
     const vx = e.lp === LP.out ? -DN.lSp : DN.lBack;
-    for (let dy = -DN.lHH + 4; dy <= DN.lHH - 4; dy += 8) out.push({ x: e.lx, y: e.ly + dy, vx, vy: 0, r: DN.lHW + 2, k: 'lane' });
+    for (let dy = -DN.lHH + 4; dy <= DN.lHH - 4; dy += 8) {
+      out.push({ x: e.lx, y: e.ly + dy, vx, vy: 0, r: DN.lHW + 2, k: 'lane' });
+      if (e.tw) out.push({ x: e.lx, y: e.ly2 + dy, vx, vy: 0, r: DN.lHW + 2, k: 'lane' });
+    }
+  }
+  if (e.k === 'ufo' && e.st === 'whip' && e.sw && e.wt > 20 && e.wt <= 20 + UFO_SW.f) {
+    const ox = e.x + UFO_SW.ox, oy = e.y + UFO_SW.oy, c = Math.cos(e.la), s = Math.sin(e.la);
+    for (let d = 30; d < e.ll; d += 10) out.push({ x: ox + c * d, y: oy + s * d, vx: 0, vy: 0, r: UFO_SW.w + 2, k: 'sweep' });
   }
   if (e.k === 'cyst') for (let i = 0; i < (e.pn || 0); i++) {
     const a = e.t - e.pT[i];
@@ -191,11 +274,12 @@ export function denyPts(e: any, sc: number, out: any[] = []): any[] {
     const b = a - DN.plArm - DN.plEr0, q = b >= 0 ? b % DN.plEvery : -1; // the column: seen from the last 24 f of its tell
     if (poolStage(a) === 1 && q >= DN.plErTel - 24 && q < DN.plErTel + DN.plErLive) for (let d = 8; d < e.pR[i]; d += 12) out.push({ x, y: e.pY[i] - s * d, vx: 0, vy: 0, r: DN.plCW + 4, k: 'column' });
   }
-  if (e.k === 'prentice' && e.hd > 0 && (e.st === 'hook' || e.st === 'bite' || e.st === 'reel')) {
-    const ox = e.x + DN.hOx, oy = e.y + DN.hOy, c = Math.cos(e.ha), s = Math.sin(e.ha);
-    const v = e.st === 'hook' ? DN.hSp : e.st === 'reel' ? -DN.hIn : 0;
-    out.push({ x: ox + c * e.hd, y: oy + s * e.hd, vx: c * v, vy: s * v, r: DN.hR + 2, k: 'hook' });
-    if (e.st !== 'hook') for (let d = 12; d < e.hd; d += 8) out.push({ x: ox + c * d, y: oy + s * d, vx: 0, vy: 0, r: DN.hW + 2, k: 'chain' });
+  if (e.k === 'prentice') for (const [st, ha, hd, sag] of [[e.st, e.ha, e.hd, e.sag || 0], [e.st2, e.ha2, e.hd2, e.sag2 || 0]]) {
+    if (!(hd > 0) || (st !== 'hook' && st !== 'bite' && st !== 'reel')) continue;
+    const ox = e.x + DN.hOx, oy = e.y + DN.hOy, c = Math.cos(ha), s = Math.sin(ha);
+    const v = st === 'hook' ? DN.hSp : st === 'reel' ? -DN.hIn : 0;
+    out.push({ x: ox + c * hd, y: oy + s * hd, vx: c * v, vy: s * v, r: DN.hR + 2, k: 'hook' });
+    if (st !== 'hook') for (let d = 12; d < hd; d += 8) { const u = d / hd; out.push({ x: ox + c * d, y: oy + s * d + sag * (1 - Math.abs(2 * u - 1)), vx: 0, vy: 0, r: DN.hW + 2, k: 'chain' }); }
   }
   return out;
 }
@@ -203,6 +287,7 @@ export function denyPts(e: any, sc: number, out: any[] = []): any[] {
 export function denyHit(e: any, sc: number, px: number, py: number): string {
   if (!e || e.dead) return '';
   if (e.k === 'choir' && laneHit(e, px, py)) return 'lane';
+  if (e.k === 'ufo' && sweepHit(e, px, py)) return 'sweep';
   if (e.k === 'cyst' && poolHit(e, sc, px, py)) return 'pool';
   if (e.k === 'prentice' && hookHit(e, px, py)) return 'hook';
   return '';

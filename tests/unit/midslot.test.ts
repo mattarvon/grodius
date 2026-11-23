@@ -48,7 +48,7 @@ vi.mock('../../src/enemies/spawn', () => {
 const L = await import('../../src/layout');
 const { BIOMES, BIOME_KEYS, MID_NAMES, SPAWN_KINDS, biomeReset, biomeScript, fixedMids, midStream, openFork, stageMids } = await import('../../src/biomes');
 const { HOME, MIDS, MID_CLOCK, PHASE1_BIOME_POOL, forkAllows, slotClock } = await import('../../src/midpick');
-const { BIOME_FILL, MID_HP, fillerQuiet, isFiller, meetMid, midHpMul, miniUp, registerDrift, whenNoMini } = await import('../../src/midslot');
+const { BIOME_FILL, MID_HP, MID_HP_G3, fillerQuiet, isFiller, meetMid, midHpMul, miniUp, registerDrift, whenNoMini } = await import('../../src/midslot');
 
 /** the stub DRIFT member: the Saucer's spawner as enemies/mid/ufo.ts registers it (a drift mini forced out at exitX) */
 const UFO_EXIT_SPEED = 1.6, UFO_OFF = 180; // ufo.ts: it slides off at 1.6 px/f from about tx (W - 96) to W + 80
@@ -385,11 +385,12 @@ describe('midHpMul (D27 per-kind TTK band)', () => {
     for (const k of Object.keys(MID_HP)) expect(midHpMul(k, PRENTICE_ET)).toBe(1);
   });
 
-  it('leaves an unlisted kind, such as the DRIFT Saucer, at 1 on long4', () => {
+  it('leaves an unlisted kind at 1 on long4, and reads the hard set table (MID_HP_G3, DIFFICULTY-SPEC §2.3) there', () => {
     L.setLayout('long4');
     try {
-      expect(midHpMul('choir', 80)).toBe(1);
-      expect(midHpMul('ufo', 80)).toBe(1);
+      expect(midHpMul('nokind', 80)).toBe(1);
+      expect(midHpMul('choir', 80)).toBeCloseTo(MID_HP_G3.choir / 80);
+      expect(midHpMul('ufo', 80)).toBeCloseTo(MID_HP_G3.ufo / 80);
     } finally { L.setLayout('short'); }
   });
 });

@@ -1,10 +1,10 @@
 // @ts-nocheck
 // Render-only: own RNG and particles (../midbosses.ts), no gameplay state touched. Sim: enemies/mid/choir.ts.
 import { $ } from '../../../state';
-import { TAU, ctx, hash } from '../../../core';
+import { PH, TAU, ctx, hash } from '../../../core';
 import { glowC, fxs, spray, stepParts, drawParts, strand, snd, emit, rnd, rn, GROSS } from '../midbosses';
 import { bakedBuilt, bakedDrop, bakedFallback, bakedWarm, bf, breath, pour, trackDeath, twitch, woundStage } from '../baked';
-import { DN, LP } from '../../../enemies/mid/_deny';
+import { DN, LP, lanePair } from '../../../enemies/mid/_deny';
 import { laneBand } from './_deny';
 
 // =====================================================================
@@ -75,12 +75,17 @@ export function drawChoirNail(c, e) {
  *  while the bar sweeps; a smear of blood and rime follows the bar along it */
 function lane(e) {
   if (!e.lp || e.lp === LP.home) return;
-  const x1 = e.x - DN.lFront + 8, tel = e.lp === LP.tel, k = tel ? e.wt / DN.lTel : 1;
-  laneBand(0, x1, e.ly, DN.lHH + 2, k, !tel || e.wt >= DN.lTel - 16, tel && e.wt >= DN.lTel - 16 ? '255,70,60' : '170,220,255');
-  if (!tel) { // the wake: blood on the frost where the nails went
+  const x1 = e.x - DN.lFront + 8, tel = e.lp === LP.tel, turn = e.lp === LP.turn, k = tel ? e.wt / DN.lTel : 1;
+  const red = (tel && e.wt >= DN.lTel - 16) || turn; // the last 16 f of the tell, and the re-lock at the turn (DIFFICULTY-SPEC §2.3)
+  const rgb = red ? '255,70,60' : '170,220,255';
+  // the turn rules the NEW lane solid at once (e.lyB; the bar eases there off screen)
+  laneBand(0, x1, turn ? e.lyB : e.ly, DN.lHH + 2, k, !tel || e.wt >= DN.lTel - 16, rgb);
+  if (e.tw) laneBand(0, x1, turn ? lanePair(e.lyB, PH) : e.ly2, DN.lHH + 2, k, !tel || e.wt >= DN.lTel - 16, rgb); // phase 2: the twin lane, same tell
+  if (!tel && !turn) { // the wake: blood on the frost where the nails went
     const a = Math.min(x1, e.lx + 4), b = e.lp === LP.out ? x1 : Math.max(0, e.lx - 4);
     ctx.fillStyle = 'rgba(120,10,18,.28)';
     ctx.fillRect(Math.min(a, b), e.ly - 3, Math.abs(b - a), 6);
+    if (e.tw) ctx.fillRect(Math.min(a, b), e.ly2 - 3, Math.abs(b - a), 6);
   }
 }
 

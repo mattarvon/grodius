@@ -86,12 +86,25 @@ function grossPrentice(c, e) {
 function hookArt(e) {
   const ox = e.x + DN.hOx, oy = e.y + DN.hOy;
   if (e.st === 'htel') { const lock = e.wt > DN.hTel - DN.hLock; aimLine(ox, oy, e.ha, DN.hMax, e.wt / DN.hTel, lock, lock ? '255,40,30' : '255,120,60'); }
-  if (!(e.hd > 0)) return;
-  const bite = e.st === 'bite', hum = bite ? Math.sin(($.T || 0) * 1.7) * 1.2 : 0, c = Math.cos(e.ha), s = Math.sin(e.ha);
-  const tx = ox + c * e.hd, ty = oy + s * e.hd;
-  if (bite) { ctx.strokeStyle = 'rgba(255,60,40,.35)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(tx, ty); ctx.stroke(); } // the wire is live
-  drawChain(ctx, ox - s * hum, oy + c * hum, tx, ty, 1.4);
-  drawHookTip(ctx, tx, ty, e.ha - Math.PI / 2, 1.4);
+  // DIFFICULTY-SPEC §2.3 rank >= 14: the second hook's line, locked DN.h2Lock into the first's bite
+  if (e.st2 === 'htel') { const lock = e.st === 'bite' && e.wt >= DN.h2Lock; aimLine(ox, oy, e.ha2, DN.hMax, Math.min(1, (e.wt2 || 0) / DN.hTel), lock, lock ? '255,40,30' : '255,120,60'); }
+  oneHook(ox, oy, e.st, e.ha, e.hd, e.sag || 0);
+  if (e.st2) oneHook(ox, oy, e.st2, e.ha2, e.hd2, e.sag2 || 0);
+}
+/** one thrown hook: its chain (sagging sag px at the middle in phase 2 on long4, a 3-point wire as the sim's hit test)
+ *  and the Butcher's tip; biting, the wire glows live and the tip bleeds */
+function oneHook(ox, oy, st, ha, hd, sag) {
+  if (!(hd > 0)) return;
+  const bite = st === 'bite', hum = bite ? Math.sin(($.T || 0) * 1.7) * 1.2 : 0, c = Math.cos(ha), s = Math.sin(ha);
+  const tx = ox + c * hd, ty = oy + s * hd, mx = (ox + tx) / 2, my = (oy + ty) / 2 + sag;
+  if (bite) { // the wire is live
+    ctx.strokeStyle = 'rgba(255,60,40,.35)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(ox, oy);
+    if (sag > 0) ctx.lineTo(mx, my);
+    ctx.lineTo(tx, ty); ctx.stroke();
+  }
+  if (sag > 0) { drawChain(ctx, ox - s * hum, oy + c * hum, mx, my, 1.4); drawChain(ctx, mx, my, tx, ty, 1.4); }
+  else drawChain(ctx, ox - s * hum, oy + c * hum, tx, ty, 1.4);
+  drawHookTip(ctx, tx, ty, ha - Math.PI / 2, 1.4);
   if (bite) { ctx.fillStyle = '#7a0a12'; ctx.fillRect(tx - 1, ty - 1, 2, 2 + (($.T >> 2) % 3)); }
 }
 
