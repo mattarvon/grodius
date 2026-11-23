@@ -54,7 +54,10 @@ const prep = (k, biome, spot, seed) => p.evaluate(async ([pw, gm, pkk, k, biome,
   BI.openFork(0); $.G.fork.opts = [biome, biome]; $.G.fork.t = 50; $.G.tally = null;
   Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 });
   ST.step();
-  $.G.scroll = LY.slotRow(0).x0 + 1000;
+  // long4 (W6 round 2): where the game holds a biome midboss, the first held-midboss breath of the fork's build (as
+  // midboss-probe): tune-ts's lane weave and spurs run at full at the old stage-relative 1000
+  { const hold = LY.layout().id === 'long4' ? LY.beatPlan(LY.slotRow(0), ($.G.bx && $.G.bx[0]) ?? LY.slotRow(0).x0, false).breaths.find((r) => r.mid) : null;
+    $.G.scroll = hold ? Math.round(hold.a) : LY.slotRow(0).x0 + 1000; }
   for (let i = 0; i < 60; i++) { $.P.inv = 30; ST.step(); }
   $.G.si = $.G.script.length; $.G.pick = null; $.G.pickQ = 0; $.G.tally = null;
   if ($.G.pend) $.G.pend.length = 0;

@@ -6,7 +6,8 @@
 //        node tools/midboss-probe.mjs <url> matrix [shotsDir]   (LS1 P0 crossovers: each of the 4 biome midbosses in each of
 //        the 4 biomes, STAGE 1 kit; TTK, y range, terrain clipping, render errors, and a mid-fight xmb-<kind>-<biome>.png)
 //        Either form takes [--layout long4|short]. World x comes from src/layout.ts: the biome fights sit in biome slot 0, at
-//        stage-relative x 1000 (matrix: 1000 / 1400 / 1800 / 2200), and the Saucer at ufoAt() + 150.
+//        stage-relative x 1000 (matrix: 1000 / 1400 / 1800 / 2200), and the Saucer at ufoAt() + 150. On long4 (W6 round 2)
+//        the biome fights sit where the game holds a midboss: the first held-midboss breath of the fork's build (G.bx[0]).
 //        --leave <frames> spawns every midboss on that leave clock instead of today's 1400 f (LS1-F: the long4 slot
 //        clocks are 1080 for slot A and 1260 for slot B, src/midpick.ts MID_CLOCK); the Saucer keeps its forced exit.
 //        --seed <n> seeds Math.random, and re-seeds it at the start of every fight from n, the loadout and the kind, so
@@ -69,7 +70,7 @@ const isBiome = (r) => BIOME_POOLS.includes(r.pool), HELD = ROSTER.filter(isBiom
 const MIDS = [['maw', 'acid'], ...HELD.map((r) => [r.k, r.pool]), ...REST.map((r) => [r.k, null])].filter(([k]) => !KINDS.length || KINDS.includes(k));
 if (!MIDS.length) { console.error(`--kind: none of ${KINDS} is a midboss kind`); process.exit(2); }
 // one loadout + biome, midboss spawned; returns a frame stepper with the bot attached
-const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && await p.evaluate((n) => window.__reseed(n), fightSeed(pw, k)), p.evaluate(async ([pw, gm, pkk, k, biome, host, at, LEAVE, ORD, CENTRE]) => {
+const prep = async (pw, gm, pkk, k, biome, host, at = null) => (SEED != null && await p.evaluate((n) => window.__reseed(n), fightSeed(pw, k)), p.evaluate(async ([pw, gm, pkk, k, biome, host, at, LEAVE, ORD, CENTRE]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
   const UF = await import('/src/enemies/mid/ufo.ts'), LY = await import('/src/layout.ts');
@@ -82,7 +83,12 @@ const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && 
   BI.openFork(0); $.G.fork.opts = [biome, biome]; $.G.fork.t = 50; $.G.tally = null;
   const gy = $.G.fork.gy[0]; Object.assign($.P, { x: C.W * .74, y: gy, alive: true, inv: 30 });
   ST.step();
-  $.G.scroll = LY.slotRow(0).x0 + at; // stage-relative at: past the rewrite blend, inside the biome; skip its script (matrix: several stage positions)
+  // where long4 really holds a biome midboss (W6 round 2): the first held-midboss breath of the plan the fork's build used
+  // (from = G.bx[0], biomes.ts biomeStage), where tune-ts's flow mask fades the lane weave and the spurs out. At the old
+  // stage-relative 1000 the weave and spurs run at full, a screen no real midboss is held on. Matrix / other layouts:
+  // the given stage-relative at (default 1000), as before
+  const hold = at == null && LY.layout().id === 'long4' ? LY.beatPlan(LY.slotRow(0), ($.G.bx && $.G.bx[0]) ?? LY.slotRow(0).x0, false).breaths.find((r) => r.mid) : null;
+  $.G.scroll = hold ? Math.round(hold.a) : LY.slotRow(0).x0 + (at ?? 1000); window.__mbAt = $.G.scroll - LY.slotRow(0).x0;
   for (let i = 0; i < 60; i++) { $.P.inv = 30; ST.step(); }
   }
   $.G.si = $.G.script.length; $.G.pick = null; $.G.pickQ = 0; $.G.tally = null;
@@ -130,6 +136,7 @@ for (const [name, pw, gm, pkk] of L) {
   }
 }
 const LABEL = (k) => (k === 'maw' ? 'MAW(mid)' : (ROSTER.find((r) => r.k === k) || {}).label || k);
+console.log('biome fight x (stage-relative, slot 0):', await p.evaluate(() => window.__mbAt ?? '-'));
 console.log(`leave clock: ${LEAVE} f (${(LEAVE / 60).toFixed(1)} s)` + (SEED != null ? `, seed ${SEED} (per fight)` : ', unseeded'));
 console.log('rank per loadout:', JSON.stringify(rank));
 console.log('loadout'.padEnd(16), ...MIDS.map(([k]) => LABEL(k).padStart(13))); // labels run to 12
