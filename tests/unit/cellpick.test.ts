@@ -8,12 +8,12 @@ import { LAYOUTS, type StageRow } from '../../src/layout';
 // scripts.ts pulls in canvas/audio modules through spawn.ts; stub them and record what each cell spawns
 const calls: string[] = [];
 const rec = (k: string) => (..._a: unknown[]) => { calls.push(k); };
-vi.mock('../../src/core', () => ({ PH: 254, W: 480 }));
+vi.mock('../../src/core', () => ({ H: 270, PH: 254, W: 480 })); // H: world.ts (scripts.ts reads its terrain for THE STROKE) fills its arrays with it at load
 vi.mock('../../src/audio', () => ({ sfx: { dread: () => {}, siren: () => {} } }));
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
 vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: () => {} }));
 vi.mock('../../src/enemies/spawn', () => Object.fromEntries(
-  ['banner', 'behindWave', 'corpse', 'crawler', 'eyeT', 'flayer', 'formation', 'hatch', 'logLine', 'maw', 'mutant', 'sentry', 'womb'].map((k) => [k, (...a: unknown[]) => rec(k)(...a)]),
+  ['banner', 'behindWave', 'corpse', 'crawler', 'edgeWave', 'eyeT', 'flayer', 'formation', 'hatch', 'knot', 'logLine', 'maw', 'mk', 'mutant', 'sentry', 'womb'].map((k) => [k, (...a: unknown[]) => rec(k)(...a)]),
 ));
 const { ORBIT_CELLS, ORBIT_OPENER, DRIVE_CELLS, pickPlanned, placePlanned } = await import('../../src/enemies/scripts');
 
@@ -166,9 +166,9 @@ describe('long4 Orbit and Drive rows', () => {
     expect(LONG4_ORBIT.warnX! - exit).toBeGreaterThanOrEqual(300);
   });
 
-  it('has plans on both long4 rows, and puts the Drive startBoss 5100 px into the approach (D31 stretch), after its WARNING', () => {
+  it('has plans on both long4 rows, and puts the Drive startBoss 4800 px into the approach (rev 3), after its WARNING', () => {
     expect(LONG4_ORBIT.plan && DRIVE.plan).toBeTruthy();
-    expect(DRIVE.bossX - DRIVE.x0).toBe(5100);
+    expect(DRIVE.bossX - DRIVE.x0).toBe(4800);
     expect(DRIVE.warnX!).toBeLessThan(DRIVE.bossX);
   });
 

@@ -52,12 +52,26 @@ export interface StageRow {
    *  layout.test.ts holds it >= 300 px past every drift's forced exit and >= 300 px before the Maw's banner
    *  (heldRange below) */
   held?: { at: number };
+  /** long4 Orbit / Drive rows (DIFFICULTY-SPEC §2.1 "Checkpoints", C21): the checkpoint list, stage-relative scroll x
+   *  in order. 0 is the stage start (CP0). The rules (tests/unit/orbitdrive.test.ts): <= CP_RULE.maxGap px of scroll
+   *  between any two, one at the end encounter's WARNING - CP_RULE.warnLead, none inside a `sigs` window, each on a
+   *  screen with no fight up. checkpoint.ts (W2) reads it through cpsOf(); absent (short, biome rows): its own rule */
+  cps?: number[];
+  /** long4 Orbit / Drive rows: the signature windows (LVL §2.3 SIG_WINDOWS), stage-relative [a, b) with the window's
+   *  swept-fit floor. sigs.ts sigWindows() (W3) and the probes read them in world x through rowSigWindows() */
+  sigs?: SigWin[];
 }
+
+/** a signature window, stage-relative: the span of the ship's world x (scroll + ship x) while the set piece meets it,
+ *  and its swept-fit floor (LVL S1: >= 72; 100 outside every window). CREW KNOTS' bodies spawn from 2150 but drift into
+ *  the ship from ~2450, so its window is 2400-3450 */
+export interface SigWin { id: string; a: number; b: number; floor: number }
 
 /** a generated stage (spec §3.4 "Authoring method"; LS1 row E). All x are stage-relative to the row's x0 */
 export interface StagePlan {
   /** hand-authored cells, about 300 px each: where each starts, and which tagged pool it draws from. `floor` is the
-   *  Drive's first slot, the only stretch of the corridor with a floor and ceiling for mutants, crawlers and wombs */
+   *  Drive's first slot, the cells that open on the corridor-floor kinds (mutants, crawlers, wombs). The long4 corridor
+   *  has a floor and ceiling until its chamber, so the tag is a pool, not the only stretch with a floor */
   slots: { x: number; tag: 'intro' | 'build' | 'peak' | 'floor' }[];
   /** generator filler: a beat every `gap` px over [a, b), kinds from the `mix` table (src/cellpick.ts) */
   fill: { a: number; b: number; gap: number; mix: 'orbit' | 'interior' }[];
@@ -117,8 +131,14 @@ export interface LayoutEntry {
   /** world bands, each [rise0, rise1] or [rise0, rise1, fall0, fall1] (sstep up, then 1 - sstep down) */
   bands: { hull: number[]; corr: number[]; core: number[]; space: number[]; inner: number[] };
   /** buildTerrain's bands: floor in (fT), ceiling in (cT), the corridor's squeeze (kT), the chamber (zT), and the
-   *  x range of the hull's alternating blocks */
-  terrain: { fT: number[]; cT: number[]; kT: number[]; zT: number[]; blocks: [number, number] };
+   *  x range of the hull's alternating blocks. long4 only (absent on short, so its arithmetic is untouched): `hT` the
+   *  hull lift (the floor rises `lift` px over the MERIDIAN's hull), `oT` the breach (a ceiling flap comes down
+   *  `flap` px past the base ceiling, and the floor lifts too), `oClamp` the breach's minimum column gap, `kD` the
+   *  corridor squeeze depths [floor, ceiling] (short's 24 / 28 when absent) */
+  terrain: {
+    fT: number[]; cT: number[]; kT: number[]; zT: number[]; blocks: [number, number];
+    hT?: number[]; oT?: number[]; lift?: number; flap?: number; oClamp?: number; kD?: [number, number];
+  };
   /** hell-flash weights, keyed to stage kinds: `corr` spans the last biome slot and the Drive approach, `core` the
    *  Drive chamber. In `short` they are exactly the AMT corr/core bands they replaced (neutral re-key) */
   hell: { corr: number[]; core: number[] };
@@ -178,17 +198,20 @@ const STRETCH = {
    *  ships out of ?mids=wip the Orbit runs short (~116-120 s, under the 120 s floor). Extra length lands in the climax
    *  filler (it ends ORBIT_RUNUP before the Maw's banner). Measured by pod-probe tally_s (~126-130 s with the tug) */
   orbit: 2400,
-  /** each biome stage: gate to bossX 3550 -> 6100 px (~102 s of scroll). The plan's +2400 (+2100 put the low end at
-   *  ~113 s) measured 118-141 s after the fit-1 cut (seeds 1/3/5/7/11), 3 stage-runs under 120; fitted +150 (~2.5 s).
-   *  pod-probe tally_s, stage-clock */
-  biome: 2550,
-  /** the Drive approach: 2700 -> 5100 px (~85 s). Its time is mostly the fight: after the fit-1 cut the plan's +2100
-   *  measured 109-146 s (fight 28-65 s), so the plan's fallback +300 went in, all of it in the last filler window
-   *  (it ends at DRIVE_WARN - 80). The fight's spread (~37 s) is wider than the band, so length alone cannot hold
-   *  every seed in 120-150. pod-probe tally_s */
-  drive: 2400,
+  /** biome slot A (stage 1-2): gate to bossX 3550 + this. D31's single +2550 (~102 s of scroll) is split per slot so the
+   *  biome lane can set each. DIFFICULTY-SPEC §2.4 / LVL §8 ask 1950 (slot A measured 151 s median, L6 band <= 145) and
+   *  1450 for slot B (165 s, band <= 150; it drops midboss B, C24). Both held at 2550 in W3b: at 1450 slot B's movement-B
+   *  band blends in with a 19 px cliff (terrainb.test.ts, limit 14), which is the biome lane's geometry (W3c / W3a) to
+   *  fix first. Flipping them moves only S1 / S2, the biome rows and every anchor after them. pod-probe tally_s, gate L6 */
+  biomeA: 2550,
+  biomeB: 2550,
+  /** the Drive approach: 2700 -> 4800 px (~77.5 s from the stage start at ~x0 + 148; DIFFICULTY-SPEC §2.4, LVL §8).
+   *  D31 had +2400 (its last 300 px a filler window to DRIVE_WARN - 80); C23 caps the fight at 60 s (collapse 45 s,
+   *  self-destruct 60 s, W4b), so 77.5 + 60 = ~138 s holds the Drive at <= 140 (L6 <= 145). The 300 px came out of
+   *  that last filler window, which is gone: the WARNING now follows ~7.7 s of quiet (LVL §6.2). pod-probe tally_s */
+  drive: 2100,
 };
-const S0 = STRETCH.orbit, S1 = S0 + STRETCH.biome, S2 = S1 + STRETCH.biome, S3 = S2 + STRETCH.drive;
+const S0 = STRETCH.orbit, S1 = S0 + STRETCH.biomeA, S2 = S1 + STRETCH.biomeB, S3 = S2 + STRETCH.drive;
 /** #19 (game-designer): the Orbit climax's last spawn sits >= 300 px (~5 s at ~59.8 px/s) before SOMETHING IS COMING
  *  (the window ends here and its last beat is <= b - 1). LS1 had 80 px (~1.3 s), so the Maw's banner landed on a busy
  *  screen. density-probe */
@@ -196,47 +219,57 @@ const ORBIT_RUNUP = 300;
 /** stage-relative x of the long Orbit's Maw banner, and of the Drive's WARNING */
 const ORBIT_WARN = 4080 + S0, DRIVE_WARN = 2460 + STRETCH.drive;
 
+/** the checkpoint list's rules (DIFFICULTY-SPEC §2.1 "Checkpoints", C21; GR rule 7 "at most about 30 s back") */
+export const CP_RULE = {
+  /** px of scroll between two checkpoints at most: 30 s at the base 1 px/f (held screens add no scroll) */
+  maxGap: 1800,
+  /** one checkpoint at the end encounter's WARNING - 10 s, so a fight death replays the run-up, never the stage */
+  warnLead: 600,
+};
+
 // The cell-and-filler plans (spec §3.4 "Authoring method"; enemies/scripts.ts builds them, src/cellpick.ts picks the
 // cells). Draw order is the array order (scripts.ts pickPlanned: every cell slot, then every filler window), so new
 // slots and windows go at the END, and a moved window keeps its length and gap (stretch plan §2.1). Caveat the plan
 // missed: a new cell slot adds a draw before the first filler draw, so the filler (the Saucer's window included)
 // draws shift on long4, and the bigger build/peak pools change which cell the same draw picks (cellpick.ts
 // tier[floor(r * len)]). Only Descent 1's teaching opener, fixed rather than drawn, is stable (level-design review).
-/** long Open Orbit: 3 intro cells (the ~15 s teaching opener in Descent 1, 180..1060), the Saucer, build x2, the
- *  mid-Orbit breath (3300-3700, empty: reserved for the held slot B), build, peak, peak, the climax, a quiet run-up,
- *  the Maw. Two arcs of rising tension with one rest between them (stretch plan §2.3) */
+/** long Open Orbit, rev 3 (DIFFICULTY-SPEC §2.4, LVL §3): the teaching opener (3 intro cells, 180..1060, each ending on
+ *  an authored carrier in Descent 1), the Saucer (1080-2100), CREW KNOTS (2150-3300, fixed beats in enemies/scripts.ts:
+ *  they replace rev 2's build slots 2100 / 2700 and the filler at 2400-2700 / 3000-3300), the breath while the hull
+ *  rises (3300-3700, empty: still reserved for the held slot B), then the rush along the hull (build 3700, peak 4300)
+ *  and through the breach (peak 5000, the climax filler), the quiet run-up, the Maw. The hull turrets and the breach's
+ *  wombs are fixed beats too (ORBIT_SIG.turrets). Draw order: the slots in x order, then the windows */
 const LONG4_ORBIT_PLAN: StagePlan = {
   slots: [
-    { x: 180, tag: 'intro' }, { x: 480, tag: 'intro' }, { x: 780, tag: 'intro' }, { x: 2100, tag: 'build' }, { x: 2700, tag: 'build' },
-    { x: 4300, tag: 'peak' }, // peak #1, moved from 3300 past the breath
-    { x: 3700, tag: 'build' }, // new: build #3, right after the breath
-    { x: 5000, tag: 'peak' }, // new: peak #2
+    { x: 180, tag: 'intro' }, { x: 480, tag: 'intro' }, { x: 780, tag: 'intro' },
+    { x: 3700, tag: 'build' }, { x: 4300, tag: 'peak' }, { x: 5000, tag: 'peak' },
   ],
   fill: [
     { a: 1150, b: 2100, gap: 80, mix: 'orbit' }, // the Saucer's window: eaten while it is up (runScript, $.G.eat)
-    { a: 2400, b: 2700, gap: 70, mix: 'orbit' }, // build, ~0.9 beats/s
-    { a: 3000, b: 3300, gap: 70, mix: 'orbit' },
-    { a: 4600, b: 5000, gap: 55, mix: 'orbit' }, // peak, ~1.1 beats/s (moved from 3600-4000)
-    { a: 4000, b: 4300, gap: 70, mix: 'orbit' }, // new: build #3's filler
-    { a: 5300, b: ORBIT_WARN - ORBIT_RUNUP, gap: 55, mix: 'orbit' }, // new: the climax (880 px, ~14.7 s at +2400)
+    { a: 4000, b: 4300, gap: 70, mix: 'orbit' }, // the hull run, ~0.9 beats/s
+    { a: 4600, b: 5000, gap: 55, mix: 'orbit' }, // into the breach, ~1.1 beats/s
+    { a: 5300, b: ORBIT_WARN - ORBIT_RUNUP, gap: 55, mix: 'orbit' }, // the climax under the flap (880 px, ~14.7 s)
   ],
   opener: 3,
 };
-/** long Drive approach (x relative to the row's x0): the floor cell where the corridor still has a floor, the wall eyes
- *  at 430 and the log line at 230 (both clear the stage start, ~x0 + 148; fixed beats in enemies/scripts.ts), the
- *  build, the pressure breath (2400-2750, empty, CP1's resume screen), three peaks, then the WARNING (§2.4) */
+/** long Drive approach, rev 3 (x relative to the row's x0; DIFFICULTY-SPEC §2.4, LVL §6). The corridor keeps its floor
+ *  and ceiling over the whole approach: the slot-B biome's terrain hands back over tEnd (480-780), the base corridor
+ *  holds its squeeze (kT) until it falls over 4250-4600 into the chamber, so the rev-2 note that only the first slot has
+ *  a floor was stale (grodius-audit open item). The `floor` slot is just the first one, the cell that opens on a
+ *  mutant; the interior mix's terrain kinds fit anywhere before ~4250. Beats: the log line at 230 and the wall eyes
+ *  at 430 (fixed, in enemies/scripts.ts; both clear the stage start, ~x0 + 148), the floor and intro cells, two
+ *  authored carriers (830, 1000), THE STROKE (1100-2420, pistons, fixed beats; it replaces rev 2's build slots 1140 /
+ *  1800 and the filler at 1440-1740 / 2100-2400), a sparse filler through it (one beat per 140 px, no terrain kinds:
+ *  LVL §4 rule 3 keeps turrets 60 px off a piston), the pressure breath (2420-2750, a checkpoint), the rush (filler, then
+ *  three peaks), and ~7.7 s of quiet to the WARNING (rev 2's last filler window, 4090-4780, is gone) */
 const LONG4_DRIVE_PLAN: StagePlan = {
   slots: [
-    { x: 230, tag: 'floor' }, { x: 520, tag: 'intro' }, { x: 830, tag: 'build' }, { x: 1140, tag: 'build' },
-    { x: 3150, tag: 'peak' }, { x: 3470, tag: 'peak' }, // moved from 1760 / 2080 past the breath
-    { x: 1800, tag: 'build' }, // new: build #3
-    { x: 3790, tag: 'peak' }, // new: peak #3
+    { x: 230, tag: 'floor' }, { x: 520, tag: 'intro' },
+    { x: 3150, tag: 'peak' }, { x: 3470, tag: 'peak' }, { x: 3790, tag: 'peak' },
   ],
   fill: [
-    { a: 1440, b: 1740, gap: 65, mix: 'interior' },
-    { a: 2100, b: 2400, gap: 65, mix: 'interior' }, // new: up to the pressure breath
-    { a: 2750, b: 3150, gap: 60, mix: 'interior' }, // new: out of it, into the peaks
-    { a: 4090, b: DRIVE_WARN - 80, gap: 55, mix: 'interior' }, // new: ends 80 px before the WARNING, as the LS1 Orbit's did
+    { a: 1180, b: 2420, gap: 140, mix: 'orbit' }, // through THE STROKE: drones, sentries, crew, flayers, swarms only
+    { a: 2750, b: 3150, gap: 60, mix: 'interior' }, // out of the breath, into the peaks
   ],
 };
 
@@ -247,23 +280,28 @@ const LONG4_DRIVE_PLAN: StagePlan = {
 // D31 stretch adds STRETCH.biome to that.
 const LONG4: LayoutEntry = {
   id: 'long4',
-  rev: 2, // 2: the D31 stretch (rev 1 was the LS1 geometry, LEVEL 15150)
+  rev: 3, // 3: DIFFICULTY-SPEC §2.4 (Orbit hull and breach, CREW KNOTS, THE STROKE, the biome A/B stretch split, the
+  //          4800 px Drive approach); 2 was the D31 stretch, 1 the LS1 geometry (LEVEL 15150)
   level: 15150 + S3,
   stages: [
     // Open Orbit. The Saucer's WARNING at 1080 (spec §3.4 "around 1100"; not 1100 itself, an Orbit script x in
     // enemies/scripts.ts that layout-literals.test.ts would trip), its filler window to 2100 (docs/pacing.md 3.2's
     // ~1000 px), forced out at 2040 (D20 rule 1). The drifting Saucer holds no scroll, so the row is sized by its
-    // content (D22). The Maw 120 px after SOMETHING IS COMING. CP1 after the mid-Orbit breath (3700 + 150, ~54% in:
-    // the LS1 rule put it at 2250, ~32%). `held`: LS2-orbit's slot-B WARNING goes in the breath (~3490), heldRange
-    { kind: 'orbit', x0: 0, x1: 4380 + S0, bossX: 4200 + S0, warnX: ORBIT_WARN, drift: [{ k: 'ufo', at: 1080, gapEnd: 2100, exitLead: 60 }], plan: LONG4_ORBIT_PLAN, cp1: 3850 },
+    // content (D22). The Maw 120 px after SOMETHING IS COMING. `held`: LS2-orbit's slot-B WARNING goes in the breath
+    // (~3490), heldRange. Checkpoints (C21, <= 30 s apart): the start, before the Saucer, after it and before CREW KNOTS,
+    // after the knots, at the breach, and the Maw banner - 10 s. cp1 (rev 2's single CP1) is the post-knots one
+    { kind: 'orbit', x0: 0, x1: 4380 + S0, bossX: 4200 + S0, warnX: ORBIT_WARN, drift: [{ k: 'ufo', at: 1080, gapEnd: 2100, exitLead: 60 }], plan: LONG4_ORBIT_PLAN, cp1: 3550,
+      cps: [0, 1000, 2110, 3550, 4900, ORBIT_WARN - CP_RULE.warnLead], sigs: [{ id: 'crew_knots', a: 2400, b: 3450, floor: 100 }] },
     // gate scroll ~bossX + 50 of the Maw, so the gate x (scroll + W + 10) is ~that + 490; gateLate rounds up
     { kind: 'biome', slot: 0, fork: true, x0: 4380 + S0, x1: 8000 + S1, end: 7900 + S1, bossX: 7800 + S1, gateLate: 4750 + S0 },
     // gate scroll ~the slot-0 row's x1 (the biome boss lands 150 f after its WARNING, then the scroll coasts ~50 px)
     { kind: 'biome', slot: 1, fork: true, x0: 8000 + S1, x1: 11750 + S2, end: 11650 + S2, bossX: 11550 + S2, gateLate: 8500 + S1 },
-    // the Drive approach: 5100 px (~85 s) from where slot 1's boss leaves the scroll to startBoss; its WARNING: GRAVITY
-    // WELL CRITICAL 240 px before, and 700 px of chamber past it. CP1 in the pressure breath (the midpoint rule put it
-    // in filler; rebuildAt resumes 120 px before it, onto an empty screen)
-    { kind: 'drive', x0: 11750 + S2, x1: 15150 + S3, bossX: 14450 + S3, warnX: 14210 + S3, plan: LONG4_DRIVE_PLAN, cp1: 2600 },
+    // the Drive approach: 4800 px (~77.5 s) from where slot 1's boss leaves the scroll to startBoss; its WARNING: GRAVITY
+    // WELL CRITICAL 240 px before, and 700 px of chamber past it. Checkpoints: the start, just before THE STROKE's first
+    // spawn beat, the pressure breath (CP1: rebuildAt resumes 120 px before it, onto an empty screen), the WARNING - 10 s.
+    // THE STROKE's window is where the ship's world x meets the pistons
+    { kind: 'drive', x0: 11750 + S2, x1: 15150 + S3, bossX: 14450 + S3, warnX: 14210 + S3, plan: LONG4_DRIVE_PLAN, cp1: 2460,
+      cps: [0, 660, 2460, DRIVE_WARN - CP_RULE.warnLead], sigs: [{ id: 'stroke', a: 1100, b: 2385, floor: 80 }] },
   ],
   // the biome hands back to the ship one screen into the Drive approach, so slot 1's boss arena (screen to x0 + 480)
   // stays on movement C; biomeExit's look hand-back (G.bx[2] = scroll + W + 10) lands at the same x
@@ -307,15 +345,33 @@ const LONG4: LayoutEntry = {
   // where slot 0's boss is and squeezes from slot 1's start, and everything opens into the chamber over the 400 px
   // before the Drive's bossX
   bands: {
-    hull: [4280 + S0, 4780 + S0],
+    // the hull band (render/terrain.ts hull decor, fx/update.ts's hull low-pass) arrives with the hull floor at 3500
+    hull: [3500, 3950],
     corr: [7850 + S1, 8350 + S1, 14050 + S3, 14450 + S3],
     core: [14050 + S3, 14500 + S3],
     space: [7650 + S1, 8250 + S1],
     inner: [7850 + S1, 8250 + S1, 14250 + S3, 14650 + S3],
   },
   terrain: {
-    fT: [4330 + S0, 4780 + S0, 14000 + S3, 14350 + S3], cT: [5580 + S0, 6030 + S0, 14000 + S3, 14350 + S3],
-    kT: [7900 + S1, 8350 + S1, 13900 + S3, 14250 + S3], zT: [14050 + S3, 14450 + S3], blocks: [4880 + S0, 7850 + S1],
+    // rev 3, Orbit (LVL §3.1, D-3 "hull from 3500"): the floor comes in over 3500-3950 (rev 2: 6730-7180) and the
+    // hull blocks start at 3950 (rev 2: 7280). The ceiling's own band (cT) still starts in biome A, where the biome
+    // rewrite covers it; the Orbit's only ceiling is the breach flap (oT)
+    fT: [3500, 3950, 14000 + S3, 14350 + S3], cT: [5580 + S0, 6030 + S0, 14000 + S3, 14350 + S3],
+    kT: [7900 + S1, 8350 + S1, 13900 + S3, 14250 + S3], zT: [14050 + S3, 14450 + S3], blocks: [3950, 7850 + S1],
+    // the hull lift: the plating floor sits 36 px higher (mean floor y ~188, FH ~74%) from the hull's arrival. It falls
+    // inside biome A's stretch (the slot-A rewrite owns that terrain from its gate), so neither the biomes nor the Drive
+    // see it. D-5: kept under the Maw (fade over 6300-6550 only if the Maw's fit fails). space-probe L1
+    hT: [3500, 3950, 7850 + S1, 8350 + S1], lift: 36,
+    // the breach (LVL §3.1): a ceiling flap comes down over 4900-5250 and goes back up over 5850-6200, `flap` px below
+    // the base ceiling (mean ~52), over the lifted floor: FH median ~54% (136 px) for ~10 s at full, the column gap
+    // clamped to 108 inside it (104 elsewhere), no hull block under it (world.ts). The ramps are 350 px, not LVL's 250,
+    // so the flap's visible edge slopes <= .6 (S3; orbitdrive.test.ts). space-probe L1 / L2, route-probe minGap
+    oT: [4900, 5250, 5850, 6200], flap: 28, oClamp: 108,
+    // the Drive approach deepened (LVL §6.1): the squeeze terms 24 / 28 -> 38 / 42, mean gap ~148 -> ~130 (~51%), the
+    // 104 clamp kept. [FIT] LVL's 34 / 38 measured a terrain-only median of 54% (orbitdrive.test.ts), over L1's 52 even
+    // before THE STROKE's pistons (which count in the probe's FH): +4 a side. space-probe L1 (approach median <= 52%,
+    // p10 <= 43%), route-probe minGap
+    kD: [38, 42],
   },
   // PROVISIONAL (creative-director condition, LS1-A review): per-kind hell values are authored after art round 2, never
   // copied from the AMT bands. Until then they are keyed to the stage rows, not to AMT: `corr` rises over slot 1's
@@ -445,3 +501,106 @@ export function beatPlan(r: StageRow, from: number, remix: boolean, L: LayoutEnt
 
 /** test hook (tools/layout-parity.mjs): the static anchors, under their pre-table names */
 export const parityAnchors = () => ({ level: active.level, bossAt: bossAt(), seg: slotSpans(), tEnd: [...active.tEnd], ufoAt: ufoAt(), ufoGapEnd: ufoGapEnd() });
+
+// ---------------- long4 checkpoints and signature windows (DIFFICULTY-SPEC §2.1, §2.4; LVL §2.3) ----------------
+/** stage i's checkpoint list in scroll x (world), or null when the row has none (short, biome rows: checkpoint.ts's
+ *  own rule). Pure: the row data only. W2's checkpoint.ts reads this (the list replaces rev 2's single CP1) */
+export function cpsOf(i: number, L: LayoutEntry = active): number[] | null {
+  const r = L.stages[i];
+  return r && r.cps ? r.cps.map((x) => r.x0 + x) : null;
+}
+/** every fixed-row signature window of an entry in world x, as the probes read them ({ x0, x1, floor, id }). The biome
+ *  windows move with their gate (beatPlan), so sigs.ts adds those itself */
+export const rowSigWindows = (L: LayoutEntry = active) => L.stages.flatMap((r) => (r.sigs || []).map((s) => ({ id: s.id, x0: r.x0 + s.a, x1: r.x0 + s.b, floor: s.floor })));
+
+// ---------------- the long Open Orbit's set pieces (LVL §3.2-3.4) ----------------
+/** a CREW KNOTS variation: trigger x (stage-relative scroll x), each knot's lane as a share of PH and its trigger
+ *  offset, an optional sentry, then the entry wave that follows. Knots spawn at x = W + 30 (spawn.ts knot, W1) */
+export interface KnotVar {
+  x: number; lanes: number[]; dx: number[]; sentry?: { dt: number; y: number; tx: number };
+  then: { dt: number; k: 'drop' | 'rise' | 'behind'; n: number; teach?: boolean; carrier?: boolean };
+}
+/** a terrain turret: its world x (stage-relative: where it sits, not when it is called), kind and wall */
+export interface Turret { wx: number; k: 'eye' | 'crawler' | 'womb'; side: 1 | -1 }
+export const ORBIT_SIG = {
+  /** CREW KNOTS (LVL §3.2): three escalating variations over 2150-3300 (36-55 s), no bullets added. v1 teaches (one
+   *  knot, then a slow drop wave: Orbit's 4th authored carrier, at ~38 s), v2 splits the lane (knots 102 px apart, a
+   *  46 px band between them and 48 above and below), v3 staggers three with a sentry behind and a rear wave. L7 body
+   *  cover p90 40-55%, L4 statue body hits >= 4/min in the window */
+  knots: [
+    { x: 2150, lanes: [.5], dx: [0], then: { dt: 120, k: 'drop', n: 3, teach: true, carrier: true } },
+    { x: 2550, lanes: [.3, .7], dx: [0, 0], then: { dt: 150, k: 'rise', n: 3 } },
+    { x: 2950, lanes: [.25, .55, .8], dx: [0, 60, 120], sentry: { dt: 80, y: .4, tx: .8 }, then: { dt: 200, k: 'behind', n: 3 } },
+  ] as KnotVar[],
+  /** the hull run (3950-4950) and the breach (5200-5800) turrets, 10 in all (LVL §3.3 "8-10 terrain turrets"; rev 2
+   *  had 0). Floor eyes and crawlers on the plating, a ceiling eye 40 px before the flap's full drop (a squeeze lip,
+   *  LVL §4 rule 1), wombs and an eye on the flap. The ship passes every one, so D61's turn-and-fire-once covers the
+   *  back half. N1 (shooters that fire), L4 */
+  turrets: [
+    { wx: 4150, k: 'crawler', side: 1 }, { wx: 4250, k: 'eye', side: 1 }, { wx: 4450, k: 'crawler', side: 1 },
+    { wx: 4640, k: 'eye', side: 1 }, { wx: 4780, k: 'crawler', side: 1 }, { wx: 4900, k: 'eye', side: 1 },
+    { wx: 5210, k: 'eye', side: -1 }, { wx: 5300, k: 'womb', side: -1 }, { wx: 5450, k: 'eye', side: -1 }, { wx: 5600, k: 'womb', side: -1 },
+  ] as Turret[],
+  /** the breach's wall birth: hatchlings out of the flap (LVL §3.3 hatch(4, 'top')), trigger x */
+  breachHatch: { x: 5500, n: 4 },
+};
+
+// ---------------- the long Drive approach's set piece (LVL §6.3, THE STROKE) ----------------
+/** a STROKE variation: piston x (world, stage-relative: the piston's left edge), and either `side` per piston (a
+ *  single piston rooted in the ceiling -1 or the floor 1, leaving `gap` to the far wall) or `pair` (an opposed pair
+ *  whose `gap` is centred at that share of the corridor). eyes: wall eyes' world x; behind: a rear wave's trigger x */
+export interface StrokeVar { id: string; x: number[]; side?: (1 | -1)[]; pair?: number[]; gap: number; eyes?: number; behind?: number }
+export const DRIVE_SIG = {
+  /** the approach's authored carriers (§2.2 faucet: 2 in the Drive's first 45 s, "2 pods by 18 s"), trigger x.
+   *  E2 fixed:open */
+  carriers: [{ x: 830, pat: 'sine', y: .4, n: 4 }, { x: 1000, pat: 'loop', y: .6, n: 4 }],
+  stroke: {
+    /** piston width px (LVL §6.3) */
+    w: 30,
+    /** the engine cycle (W3A-API spawnPiston): tell 50 f (S4 >= 44), hold 90, rest 60; v .5 px/f is S2's edge-speed cap,
+     *  so LVL's draft 1.2 extend / .8 retract run at .5 */
+    tell: 50, hold: 90, rest: 60, v: .5,
+    /** the ship's reference screen x: each piston is phased (from its world x) to sit mid-hold as the scroll brings it
+     *  to this x, so the open lane alternates piston to piston (the weave the S3 numbers assume). A ship further right
+     *  meets it earlier, in its rest. Deterministic: frame-counter math, no R() (§5.2) */
+    shipX: 120,
+    /** the spawn beat fires this far before a variation's first piston reaches the right edge. 0: built just off screen
+     *  (x = scroll + W), and as late as that allows, so the checkpoint before THE STROKE (660) still replays v1's beat
+     *  (670) on a restore (stagebuild.ts rebuildAt keeps only entries past the checkpoint) and the one after it (2460)
+     *  stays within 1800 px (C21). orbitdrive.test.ts */
+    lead: 0,
+    /** a piston that would intrude less than this (px) is skipped: the corridor is already that tight there */
+    minDepth: 8,
+    /** LVL §6.3: v1 3 singles alternating ceiling / floor, pitch 130, gap 96; v2 3 opposed pairs, pitch 130, gap 84,
+     *  centre alternating .38 / .62 of the corridor; v3 4 pairs, pitch 120, gap 80 (the window floor), wall eyes
+     *  between pairs 2 and 3 (60 px from both piston centres, LVL §4 rule 3), a rear wave at trigger x 2190 (~+200).
+     *  The variations sit 200 / 110 px apart (LVL's 1100-1500 / 1600-2000 / 2050-2400, packed 70 px tighter so the
+     *  window plus its spawn lead fits between two checkpoints) */
+    vars: [
+      { id: 'v1', x: [1150, 1280, 1410], side: [-1, 1, -1], gap: 96 },
+      { id: 'v2', x: [1610, 1740, 1870], pair: [.38, .62, .38], gap: 84 },
+      { id: 'v3', x: [1980, 2100, 2220, 2340], pair: [.62, .38, .62, .38], gap: 80, eyes: 2175, behind: 2190 },
+    ] as StrokeVar[],
+  },
+};
+
+/** a single piston's tip y at full stroke: rooted in the ceiling (side -1) it stops `gap` above the floor; in the floor
+ *  (side 1), `gap` below the ceiling. ce / fl: the tightest walls over the piston's swept columns. null when it would
+ *  intrude less than minDepth (the corridor needs no piston there) */
+export function pistonReach(side: 1 | -1, gap: number, ce: number, fl: number, minDepth = DRIVE_SIG.stroke.minDepth): number | null {
+  const tip = side < 0 ? fl - gap : ce + gap, depth = side < 0 ? tip - ce : fl - tip;
+  return depth < minDepth ? null : tip;
+}
+/** an opposed pair's gap centre: share q of the corridor, kept inside it so both tips leave the full `gap` (a centre
+ *  pushing one tip into its wall would narrow the opening below the window floor) */
+export function pairCentre(q: number, gap: number, ce: number, fl: number): number {
+  const c = ce + (fl - ce) * q, lo = ce + gap / 2, hi = fl - gap / 2;
+  return lo > hi ? (ce + fl) / 2 : Math.max(lo, Math.min(hi, c));
+}
+/** frames into its cycle a piston starts at (W3A-API spawnPiston `phase`, the cycle rest -> extend -> hold -> retract)
+ *  so it is mid-hold when the scroll brings its world x to the ship's reference screen x. Spawned at scroll s for world x
+ *  x, it gets there in x - shipX - s frames (1 px/f: the approach holds no screen). ext: its extend frames (depth / v) */
+export function pistonPhase(x: number, s: number, cycle: number, ext: number, S = DRIVE_SIG.stroke): number {
+  const mid = S.rest + ext + S.hold / 2, d = x - S.shipX - s;
+  return (((mid - d) % cycle) + cycle) % cycle;
+}

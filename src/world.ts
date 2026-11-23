@@ -50,6 +50,8 @@ export const grav = () => {
   const s = $.G.scroll;
   return lerp(lerp(.035, .12, AMT.corr(s)), .075, AMT.core(s));
 };
+/** a 4-number layout band's weight at x: sstep up over [b0, b1], times 1 - sstep down over [b2, b3] (layout.ts bandAt) */
+const band = (b, x) => sstep(b[0], b[1], x) * (1 - sstep(b[2], b[3], x));
 export function buildTerrain(L) {
   const LY = layout(), T = LY.terrain, n = Math.ceil((LY.level + W * 2) / TS) + 2;
   CEIL = new Float32Array(n);
@@ -68,21 +70,34 @@ export function buildTerrain(L) {
     const a2 = vnoise(x / 190 + o + 40) * 2 - 1,
       b2 = vnoise(x / 57 + o + 45) * 2 - 1,
       c2 = vnoise(x / 23 + o + 49) * 2 - 1;
-    let fl = PH - 30 - a * 24 - b * 8 - c * 2 - kT * (24 + a * 12);
-    let ce = 24 + a2 * 20 + b2 * 8 + c2 * 2 + kT * (28 + a2 * 10);
+    // the squeeze depths: short's 24 / 28; long4's deepened Drive corridor (layout kD, LVL §6.1)
+    const kF = T.kD ? T.kD[0] : 24, kC = T.kD ? T.kD[1] : 28;
+    let fl = PH - 30 - a * 24 - b * 8 - c * 2 - kT * (kF + a * 12);
+    let ce = 24 + a2 * 20 + b2 * 8 + c2 * 2 + kT * (kC + a2 * 10);
+    // long4's Orbit hull and breach (layout hT / oT, LVL §3.1). Absent on short, whose arithmetic stays as it was
+    let oT = 0;
+    if (T.hT) {
+      const hT = band(T.hT, x);
+      oT = band(T.oT, x);
+      fl -= Math.max(hT, oT) * T.lift; // the hull plating lifts the floor; the breach keeps it lifted
+      ce += oT * (T.flap + a2 * 10); // the flap hangs below the base ceiling, ragged with it
+    }
     const blk = Math.floor(x / 360),
       bx = x % 360;
-    if (blk % 2 === 1 && bx < 44 && x > T.blocks[0] && x < T.blocks[1]) {
+    // no hull block under the breach flap (oT > 0): a 34 px step on top of the flap's squeeze would cut the swept fit
+    // gap under S1's 100 (short has no oT: unchanged)
+    if (blk % 2 === 1 && bx < 44 && x > T.blocks[0] && x < T.blocks[1] && oT < .01) {
       if (hash(blk + L) < .5) fl -= 34;else ce += 34;
     }
     fl = lerp(PH + 70, fl, fT);
-    ce = lerp(-70, ce, cT);
+    ce = lerp(-70, ce, T.hT ? Math.max(cT, oT) : cT); // the breach flap is the Orbit's only ceiling
     fl = lerp(fl, PH - 12, zT);
     ce = lerp(ce, 12, zT);
-    if (fl - ce < 104) {
+    const gap = oT > 0 ? T.oClamp : 104; // the breach's columns keep >= 108 (LVL §3.1), every other column >= 104
+    if (fl - ce < gap) {
       const m = (fl + ce) / 2;
-      fl = m + 52;
-      ce = m - 52;
+      fl = m + gap / 2;
+      ce = m - gap / 2;
     }
     FLOOR[i] = fl;
     CEIL[i] = ce;
