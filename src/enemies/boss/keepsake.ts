@@ -225,6 +225,12 @@ function planFount(e) {
     e.fz[i] = i === must ? Math.min(fl, Math.max($.P.y, KB.top + 40)) : fl;
   }
 }
+// S1 (W6 tune-tf, DIFFICULTY-SPEC §2.1 V_CAP): the forks that FALL (fk 1: the fountain's lobs here, the mobile's drops below)
+// are exempt from the long4 falling-glob clamp (shots.ts skips s.fk) and so from S1's max: they fall up to ~3.3 px/f. They are
+// not aimed bullets a ship must outrun: each falls down a column marked >= 48 f ahead (the fountain's marks, a mobile fork's
+// 50 f chime and shiver), the same class as the Bloat's curtain icicles (biome hazards, never in S1). Clamping them would
+// put every fork behind the lattice the marks and the fount's clock (e.fl, lobFrames) promise. The thrown forks (fk 2, the
+// aim fan) and the cry's shaken forks are eshoot shots and keep the cap. The probe's S1 is asked to leave fk 1 out (request)
 function launch(e, i) {
   if (e.rsv > 0) e.rsv--;
   const x = wX(e), y = wY(e) - 4, n0 = eshots.length;
@@ -598,7 +604,7 @@ function update(e) {
     }
   }
   // a phase cut reached: the transition (an attack in flight is dropped with it, and so is the boomerang)
-  if (e.tr <= 0 && e.ph < 2 && e.hp <= floorOf(e) + 1e-6 && ((e.ph === 0 ? e.d0 >= KB.p1MinAtt : e.wins >= KB.p2MinWin) || e.late)) { phaseTo(e, e.ph + 1, e.late); e.late = 0; return; }
+  if (e.tr <= 0 && e.ph < 2 && !(e.ph === 0 && e.st === 'fount' && !e.late) && e.hp <= floorOf(e) + 1e-6 && ((e.ph === 0 ? e.d0 >= KB.p1MinAtt : e.wins >= KB.p2MinWin) || e.late)) { phaseTo(e, e.ph + 1, e.late); e.late = 0; return; } // W6 K1: DOZING's last fountain lands inside DOZING (its forks are out, so it counted, but they fell in AWAKE). Ungated: THE KEEPSAKE is placed on picker layouts only (bossFor); gate it on g3() if a picker layout without the hard set ever places it
   if (e.ph === 2 && e.hp <= e.max * KB.end + 1e-6 && p3Done(e)) { e.st = 'dying'; e.wt = 0; e.r = 0; e.hb = null; e.pl = 0; letGo(e); return; }
   if (e.tr > 0) { e.tr--; if (e.tr === 0) eyes(false); return; }
   if (e.t < KB.enter) return;

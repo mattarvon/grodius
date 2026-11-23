@@ -19,7 +19,9 @@ import { ECON, econId } from '../economy';
 import { hazLeadX } from '../notice';
 import { driveMul } from '../depth';
 import { bulletCap, cadI, cadMul, capRoom, leadL, rank, rho, variantOn } from '../rank';
-import { BLOAT, BUTCHER, HAZ_HOOK, MAW, PHASE_F, VOLLEY, combStep, curtainXs, lungeX, steerLane } from './bossrules';
+import { kindOf } from '../layout';
+import { lobV } from '../enemies/mid/_fight';
+import { BLOAT, BOSS_HPK, BUTCHER, HAZ_HOOK, MAW, PHASE_F, VOLLEY, combStep, curtainXs, lungeStop, lungeX, steerLane } from './bossrules';
 
 // ---------------- the rank API (W0 src/rank.ts, spec §5.6): the one spot the fights read it ----------------
 /** the integer rank 0-31 */
@@ -47,12 +49,31 @@ export function leadA(x, y, v) {
   const L = leadL($), sp = Math.max(.5, v * BS()), t = Math.min(60, Math.hypot(P.x - x, P.y - y) / sp);
   return Math.atan2(clamp(P.y + L * vy * t, 6, 248) - y, P.x + L * vx * t - x);
 }
+const LA = [0, 0]; // lobAim's scratch: no allocation per volley
+/** the launch (angle, speed in BS units) into LA of a glob from (x, y) that comes down through (tx, ty) under V_CAP and the
+ *  ceiling (mid/_fight.ts lobV, near the rise v0), for a fan whose centre must land on the ship */
+export function lobAim(x, y, tx, ty, v0) {
+  const bs = Math.max(.1, BS()), w = lobV(x, y, tx, ty, v0) * bs, t = (w + Math.sqrt(Math.max(0, w * w + .05 * (ty - y)))) / .025, vx = (tx - x) / Math.max(1, t);
+  LA[0] = Math.atan2(-w, vx); LA[1] = Math.hypot(vx, w) / bs;
+  return LA;
+}
 /** a timer countdown under the cap: true on the frame a volley of n fires; a full field holds it min(interval, 20 f) */
 export function due(e, key, n, every) {
   if ((e[key] = (e[key] ?? every) - 1) > 0) return false;
   if (!room(n)) { e[key] = Math.min(every, VOLLEY.retry); return false; }
   e[key] = every;
   return true;
+}
+
+/** K3: a stage boss's HP factor (bossrules.ts BOSS_HPK[k]), once, on its fight's first frame: the body, and the parts it
+ *  was spawned with (e.bars), so a bar still dies in the same share of the fight. The spawners are spawn.ts's */
+export function hpOnce(e, k) {
+  if (e.hpk) return;
+  e.hpk = 1;
+  const m = BOSS_HPK[k] ?? 1;
+  if (m === 1) return;
+  e.hp *= m; e.max = (e.max || e.hp / m) * m;
+  for (const b of e.bars || []) if (!b.dead) { b.hp *= m; b.max = (b.max || b.hp / m) * m; }
 }
 
 // ---------------- the biome bosses' half clock ----------------
@@ -100,6 +121,8 @@ export function clock3(e) {
  *  is a bite: e.bs 1 the 46 f tell (the lane e.ly tracks the ship's height, then locks for the last 16), 2 the lunge
  *  down it at 6 px/f to W*.35, 3 the hold (snapping), 4 home at 3 px/f. The body is the hazard; the fan waits */
 export function maw3(e) {
+  hpOnce(e, e.stageBoss && kindOf($.G.stage || 0) !== 'orbit' ? 'maw' : 'maw0'); // K3 (depth.ts isMid's split: the Open Orbit Maw counts as a midboss)
+  if (e.jn == null) e.jn = MAW.biteFirst; // W6 K1: its first bite on the first jaw cycle, inside the first half
   const tx = W - 82, h2 = e.hp < e.max * .5;
   const leaving = e.t >= e.leave && !e.bs;
   if (!leaving) { if (!e.bs) e.x = lerp(e.x, tx, .025); }
@@ -135,8 +158,8 @@ export function maw3(e) {
   if (!e.bs && e.jc === Math.round(MAW.fanAt * J / 130)) e.fw = 1; // the fan is due; a full field holds it (min(rest, 20 f) apart)
   if (e.bs) e.fw = 0; // a bite cancels it
   if (e.fw > 0 && --e.fw === 0 && e.x < W - 20) { if (!room(MAW.fanN)) e.fw = VOLLEY.retry; else {
-    const a = aimA(e.x - 14, e.y), m = (MAW.fanN - 1) / 2;
-    for (let k = -m; k <= m; k++) eshoot(e.x - 14, e.y, a + k * MAW.fanSpread, MAW.fanV + Math.abs(k) * .1, 'glob');
+    const m = (MAW.fanN - 1) / 2; lobAim(e.x - 14, e.y, $.P.x, $.P.y, 0); // W6: the centre glob comes down THROUGH the ship (aimed straight, gravity took every glob under a parked ship: K1)
+    for (let k = -m; k <= m; k++) eshoot(e.x - 14, e.y, LA[0] + k * MAW.fanSpread, LA[1] + Math.abs(k) * .1, 'glob');
     for (let k = 0; k < 24; k++) drop(e.x - 14, e.y, rr(-3, -.5), rr(-1.5, 1.5), 1.6, R() < .4 ? 2 : 0, 80);
     $.G.shake += 2;
   } }
@@ -160,10 +183,11 @@ function bite(e, tx) {
   e.bt++;
   if (e.bs === 1) { // the tell: the eyes flare; the lane tracks the ship's height, then locks
     if (e.bt <= MAW.tell - MAW.lock && P.alive) e.ly = clamp(steerLane(e.ly, P.y), 30, PH - 30);
+    if (e.bt <= MAW.tell - MAW.lock || e.lsx == null) e.lsx = lungeStop(P.x, W); // where it will stop, locked with the lane (the render draws the line to it)
     if (e.bt >= MAW.tell) { e.bs = 2; e.bt = 0; e.bx0 = e.x; sfx.lash(); $.G.shake += 3; }
   } else if (e.bs === 2) { // the lunge
-    e.x = lungeX(e.bx0, W, e.bt);
-    if (e.x <= W * MAW.lungeX) { e.bs = 3; e.bt = 0; e.ly2 = e.ly; }
+    e.x = lungeX(e.bx0, W, e.bt, e.lsx);
+    if (e.x <= e.lsx) { e.bs = 3; e.bt = 0; e.ly2 = e.ly; }
   } else if (e.bs === 3) { // the hold, snapping; the variant re-aims its way home and shows the second line
     if (V && e.bt <= V.hold - V.lock && P.alive) e.ly2 = clamp(steerLane(e.ly2, P.y), 30, PH - 30);
     if (e.bt % 6 === 0) $.G.shake = Math.max($.G.shake, 2);
@@ -172,7 +196,7 @@ function bite(e, tx) {
     const v = V ? V.backV : MAW.backV;
     e.x = Math.min(tx, e.x + v);
     if (V) { const u = clamp((e.x - e.bx1) / Math.max(1, tx - e.bx1), 0, 1); e.ly = lerp(e.by1, e.ly2, u); }
-    if (e.x >= tx) { e.bs = 0; e.bt = 0; e.jc = 0; }
+    if (e.x >= tx) { e.bs = 0; e.bt = 0; e.jc = 0; e.lsx = null; }
   }
 }
 
@@ -196,7 +220,7 @@ export function crux3(e) {
     }
     if (e.cs && --e.cst <= 0) {
       if (room(e.cl.length)) {
-        for (const dy of e.cl) eshoot(e.x + C.x, e.y + dy, Math.PI, C.v, 'spike');
+        for (const dy of e.cl) { const n0 = eshots.length; eshoot(e.x + C.x, e.y + dy, Math.PI, C.v, 'spike'); if (eshots.length > n0) eshots[n0].dn = 'comb'; } // dn: measure-only, the probes' denial split (K2: the comb, not the aimed fan)
         e.cs--; e.cst = combStep(BS());
         if (!e.cs0) { e.cs0 = 1; sfx.tink(); $.G.shake = Math.max($.G.shake, 1); }
       } else e.cst = 1; // a full field: the next emission waits a frame (a stream counts each emission)
@@ -225,7 +249,7 @@ export function crux3(e) {
 
 /** the Bloat's aimed 3-fan of spikes, for the ship parked outside the comb's sweep or the curtain */
 function aim3(e) {
-  if (!due(e, 'ta', BLOAT.aim.n, iv(BLOAT.aim.every))) return;
+  if (!due(e, 'ta', BLOAT.aim.n, iv(e.shielded ? BLOAT.aim.every : BLOAT.aim.every2))) return;
   const x = e.x - 28, y = e.y - 4, a = aimA(x, y), m = (BLOAT.aim.n - 1) / 2;
   for (let k = -m; k <= m; k++) eshoot(x, y, a + k * BLOAT.aim.spread, BLOAT.aim.v, 'spike');
   e.fa = e.t; // the render's recoil frame

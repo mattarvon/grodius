@@ -85,6 +85,16 @@ describe('THE KEEPSAKE through hurt() and midMul', () => {
     expect(e.ph).toBe(0);
   });
 
+  it('W6: holds DOZING while its last fountain is still in the air, then hands over (a forced cut is not held)', () => {
+    e.d0 = KB.p1MinAtt; e.hp = e.max * KB.cut1 - .5; e.st = 'fount'; e.wt = 0; e.fn = 0;
+    const fl = e.fl; e.fl = [1e9]; e.fn = 1; // one fork still flying
+    updEnemy(e);
+    expect(e.ph).toBe(0);
+    e.fl = fl; e.fn = 0; e.st = 'idle'; e.cool = 999;
+    updEnemy(e);
+    expect(e.ph).toBe(1);
+  });
+
   it('stops a hit at the phase cut, then closes the crown (x.15) through IT WOKE UP', () => {
     e.d0 = KB.p1MinAtt; e.hp = e.max * (KB.cut1 + .01);
     hurt(e, 999, e.x, e.y - 40, 1); // a nuke-sized crown hit

@@ -22,10 +22,11 @@ import { playerHit, slotMaxed, wardCap } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { KH, hookBehind, hookHits } from './butcherhook';
 import { BUTCHER } from '../boss/bossrules';
-import { clock3, crux3, iv, maw3, meat3, reelSweep, room, variant } from '../boss/bossfights'; // long4 boss fights (W4b)
+import { clock3, crux3, hpOnce, iv, maw3, meat3, reelSweep, room, variant } from '../boss/bossfights'; // long4 boss fights (W4b)
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
 import { MID_SIM, midHitSnd, midMul, midRow } from './mid/roster';
+import { lobV } from './mid/_fight'; // the fights' lob rise under the long4 falling-glob cap (the Butcher's spit)
 // the registered stage bosses (D55: THE KEEPSAKE) load the same way, and update and die through BOSS_SIM
 import './boss';
 import { BOSS_SIM } from './boss/registry';
@@ -375,6 +376,7 @@ export function updEnemy(e) {
       }
     case 'crux':
       {
+        if (g3()) hpOnce(e, 'crux'); // long4 K3: the Bloat's HP factor (boss/bossrules.ts BOSS_HPK)
         if (g3() ? clock3(e) : phaseClock(e)) break; // long4: 1200 f halves (boss/bossfights.ts)
         if (e.t < 220) e.x = lerp(e.x, e.tx, .03);
         const ph2 = e.hp < e.max * .5;
@@ -407,9 +409,11 @@ export function updEnemy(e) {
     case 'butcher':
       {
         const G3 = g3(); // long4 (W4b, DIFFICULTY-SPEC §2.3): cooldowns x the rank rule, one spit, meat hooks for the ring
+        if (G3) hpOnce(e, 'butcher'); // long4 K3 (boss/bossrules.ts BOSS_HPK)
         if (G3 ? clock3(e) : phaseClock(e)) break;
-        if (e.t < 240) e.x = lerp(e.x, e.tx, .025);
         const ph2 = e.hp < e.max * .5;
+        const hold1 = G3 && !ph2 && ((e.st === 'htel' && e.wt >= KH.tell2 - KH.lock) || e.st === 'hook'); // long4 first half: from the hook's lock to its return the body holds (x and bob), so the locked line is the one it flies
+        if (e.t < 240 && !hold1) e.x = lerp(e.x, e.tx, .025);
         if (ph2 && !e.cut) {
           e.cut = 1;
           banner('IT SNAPPED A CHAIN', '', undefined, 100);
@@ -418,7 +422,7 @@ export function updEnemy(e) {
             chain: 5
           });
         }
-        e.sw += ph2 ? .03 : .018;
+        if (!hold1) e.sw += ph2 ? .03 : .018;
         e.y = (ph2 ? 112 : 96) + Math.sin(e.sw) * (ph2 ? 42 : 14);
         if (e.t >= 240) e.x = e.tx + (ph2 ? Math.cos(e.sw) * 22 : 0);
         const sx = e.x - 10,
@@ -426,11 +430,11 @@ export function updEnemy(e) {
         e.wt++;
         if (e.st === 'idle') {
           e.ba = lerp(e.ba, -2.3, .1);
-          if (--e.cool <= 0 && e.t > 160 && $.P.alive) {
+          if (--e.cool <= 0 && e.t > (G3 ? BUTCHER.open : 160) && $.P.alive) { // long4: in a beat sooner (K1: a first half at the END D1 kit holds two attacks)
             e.att++;
             const near = Math.abs($.P.x - sx) < 120 && Math.abs($.P.y - sy) < 100;
             const far = G3 && !ph2 && Math.hypot($.P.x - e.x - 10, $.P.y - e.y + 8) > BUTCHER.spitFar; // long4: a far ship is spat at (K1)
-            e.st = near && e.att % 3 !== 0 ? 'ctel' : far ? 'spit' : e.att % 2 ? 'htel' : 'spit';
+            e.st = near && e.att % 3 !== 0 ? 'ctel' : far && !BUTCHER.farHook ? 'spit' : far ? (e.att % 3 ? 'htel' : 'spit') : e.att % 2 ? 'htel' : 'spit'; // long4: a far ship meets two hooks to a spit (BUTCHER.farHook)
             e.wt = 0;
             if (e.st === 'ctel') sfx.tele();
             if (e.st === 'htel') {
@@ -466,13 +470,17 @@ export function updEnemy(e) {
             e.cool = G3 ? iv(BUTCHER.cutCool[ph2 ? 1 : 0]) : ph2 ? 50 : 80;
           }
         } else if (e.st === 'htel') {
-          if (!ph2 || e.wt < KH.tell2 - KH.lock) e.ha = lerp(e.ha, aimA(e.x + 10, e.y - 8), .05);
+          const lk1 = G3 && !ph2; // long4 first half: the second half's tell and lock (KH.tell2 48 f, its line still the last KH.lock): the old 40 f tracked to its last frame
+          if ((!ph2 && !lk1) || e.wt < KH.tell2 - KH.lock) e.ha = lerp(e.ha, aimA(e.x + 10, e.y - 8), .05);
+          else if (lk1 && e.wt === KH.tell2 - KH.lock) { e.ha = aimA(e.x + 10, e.y - 8); e.hR = clamp(Math.hypot($.P.x - e.x - 10, $.P.y - e.y + 8) + BUTCHER.past1, KH.reach1, BUTCHER.reach1); } // the first half's line locks true too, its reach with it (the render draws e.hR)
+          if (lk1 && e.wt < KH.tell2 - KH.lock) e.hR = 0;
+          if (G3) { e.hT = ph2 || lk1 ? KH.tell2 : KH.tell1; e.hL = ph2 || lk1 ? 1 : 0; } // the render's tell length and lock rule (render/enemies.ts); short reads its old rule
           else if (e.wt === KH.tell2 - KH.lock) {
             e.lx = e.x + 10; // D61 second half: the line locks (origin and angle) for the last frames: the hook flies exactly down it, a fair dodge
             e.ly = e.y - 8;
             e.ha = aimA(e.lx, e.ly); // the line is true from where it is drawn
           }
-          if (e.wt >= (ph2 ? KH.tell2 : KH.tell1)) {
+          if (e.wt >= (ph2 || lk1 ? KH.tell2 : KH.tell1)) {
             e.st = 'hook';
             e.wt = 0;
             const ax0 = e.x + 10,
@@ -537,8 +545,9 @@ export function updEnemy(e) {
               e.cool = G3 ? iv(BUTCHER.hookCool[1]) : 45;
             }
           } else {
-            h.d += h.out ? KH.out1 : -KH.back1;
-            if (h.d > KH.reach1) h.out = 0;
+            if (G3 && h.rch == null) h.rch = e.hR || BUTCHER.reach1; // long4: out past the ship as locked (e.hR), no further
+            h.d += h.out ? KH.out1 : -(G3 ? BUTCHER.back1 : KH.back1);
+            if (h.d > (G3 ? h.rch : KH.reach1)) h.out = 0;
             const tx = ax + Math.cos(e.ha) * h.d,
               ty = ay + Math.sin(e.ha) * h.d;
             if (ty > floorAt(tx + $.G.scroll) || ty < ceilAt(tx + $.G.scroll) || tx < 0) {
@@ -559,7 +568,7 @@ export function updEnemy(e) {
           if (G3 ? e.wt >= BUTCHER.spitAt && e.spat !== e.att && room(sn) : e.wt === 10 || e.wt === 26) {
             const hx = e.x - 6,
               hy = e.y - 34;
-            if (G3) { e.spat = e.att; for (let k = 0; k < sn; k++) lob(hx, hy, $.P.x, $.P.y + (k - (sn - 1) / 2) * 22, BUTCHER.spitVy); } // lobbed through the ship's height
+            if (G3) { e.spat = e.att; for (let k = 0; k < sn; k++) { const gy = $.P.y + (k - (sn - 1) / 2) * 22; lob(hx, hy, $.P.x, gy, lobV(hx, hy, $.P.x, gy, BUTCHER.spitVy)); } } // lobbed through the ship's height, each under the falling-glob cap (mid/_fight.ts lobV: at spitVy .8 the cap slowed every glob short of a mid-height ship)
             else fan(hx, hy, aimA(hx, hy), ph2 ? 7 : 5, .2, 1.8, 'glob');
             for (let k = 0; k < 16; k++) drop(hx, hy, rr(-3, -.5), rr(-1, 1), 1.5, R() < .5 ? 0 : 1, 80);
           }

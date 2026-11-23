@@ -20,7 +20,7 @@ const SLOT = [0, 0]; // rearSlot's / edgeSlot's scratch
 // g3 (DIFFICULTY-SPEC §2.3): the one rank rule, cad() (no pow term, no dial); short keeps its old line (layout parity)
 const cool = (ph2) => g3() ? cad(ph2 ? 60 : 85) : Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm());
 /** DIFFICULTY-SPEC §2.3 (W4a), long4 only: the sneeze is TWO bursts (wt 26, 38; was three) of 3 (phase 2: 4) [B3] */
-export const SNEEZE = { at: [26, 38] as readonly number[], n: [3, 4] as readonly number[] } as const; // phase 2: 4, not the spec's 5 (2 x 5 lobbed globs held the screen at 10: B3 p90 <= 9.6)
+export const SNEEZE = { at: [26, 38] as readonly number[], n: [3, 4] as readonly number[], rise: .3 } as const; // rise: the lob's preferred rise (x BS; was 1.4), as flat as V_CAP lets it (_fight.ts lobV) [W6 K1: the high arc took ~100 f] // phase 2: 4, not the spec's 5 (2 x 5 lobbed globs held the screen at 10: B3 p90 <= 9.6)
 
 /**
  * g3: steer the phase-1 litter in from its edge (q.ent = the side it came from: 1 top, -1 bottom). The hatchling's own
@@ -44,12 +44,12 @@ function updBrood(e) {
         e.rear = e.st === 'birth' && ph2 ? 1 : 0; // phase 2: this litter comes from behind, at your height now
         if (e.rear) { e.ry = broodLane($.P.y, PH); $.G.warn.push({ y: e.ry, t: DN.bTel, ml: DN.bTel }); sfx.tele(); }
         // g3 phase 1 (spec §2.3): the litter drops in from the TOP or BOTTOM edge, alternating, in a column at the ship's
-        // x + 60..90, falling to its lane; the tell is a DN.bTel edge chevron at that column (render/gross/mid/brood.ts)
+        // x + 60..90, falling to its lane; the tell is a DN.eTel edge chevron at that column (render/gross/mid/brood.ts)
         e.edge = e.st === 'birth' && !ph2 && g3() ? (e.en = -(e.en || -1)) : 0;
         if (e.edge) { e.ex = edgeX($.P.x, e.att >> 1, W); e.ey = broodLane($.P.y, PH); sfx.tele(); }
       }
     } else if (e.st === 'birth') {
-      const tel = e.rear || e.edge ? DN.bTel : 44;
+      const tel = e.rear ? DN.bTel : e.edge ? DN.eTel : 44;
       e.bul = e.wt / tel;
       if (R() < .3) drop(e.x - 8 + rr(-4, 4), e.y + 14, rr(-.5, .5), rr(.3, 1), 1.2, 4, 60);
       if (e.wt >= tel) {
@@ -70,7 +70,7 @@ function updBrood(e) {
       }
     } else if (e.st === 'sneeze') {
       if (!g3()) { if (e.wt >= 26 && e.wt <= 38 && e.wt % 6 === 2) fan(e.x - 18, e.y - 4, aimA(e.x - 18, e.y - 4), ph2 ? 5 : 3, .22, 1.8, 'glob'); }
-      else if (e.wt === SNEEZE.at[0] || e.wt === SNEEZE.at[1]) { const n = SNEEZE.n[ph2 ? 1 : 0]; if (e.wt === SNEEZE.at[0] ? spend(e, n) : spendP(e, n)) lobFan(lob, e.x - 18, e.y - 4, $.P.x, $.P.y, n, 26, 1.4); } // the second burst only under the soft ceiling (B3 p90) // lobbed: the centre glob comes down through the ship
+      else if (e.wt === SNEEZE.at[0] || e.wt === SNEEZE.at[1]) { const n = SNEEZE.n[ph2 ? 1 : 0]; if (e.wt === SNEEZE.at[0] ? spend(e, n) : spendP(e, n)) lobFan(lob, e.x - 18, e.y - 4, $.P.x, $.P.y, n, 26, SNEEZE.rise); } // the second burst only under the soft ceiling (B3 p90) // lobbed: the centre glob comes down through the ship
       if (e.wt >= 50) { e.st = 'idle'; e.wt = 0; e.cool = cool(ph2); }
     }
   }
@@ -81,6 +81,6 @@ function updBrood(e) {
 defineMid('brood', {
   et: { hp: 105, r: 20, gsz: 4, score: 6000, bio: 70, half: 1, amnio: 1, eyes: 3, teeth: 8, big: 1, mini: 1, mid: 1 },
   word: 'LANCED', // was STILLBORN: too close to the crude-not-cruel line (Matt, D34)
-  onSpawn: (e) => { e.en = -1; e.edge = 0; if (g3()) { ledger(e); opening(e); e.att = 1; } }, // g3: the sneeze first (aimed lobs reach every spot)
+  onSpawn: (e) => { e.en = -1; e.edge = 0; if (g3()) { ledger(e); opening(e); e.cool = 0; e.att = 0; } }, // cool 0: the heave starts as it is in (its 46 f tell is the wait) // g3: the litter first (W6 K1: it dives at the ship wherever it is; the sneeze's lobs cannot climb to a ship well above her under V_CAP, so a high spot met nothing in a short first half)
   update: updBrood,
 });

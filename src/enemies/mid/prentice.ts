@@ -26,7 +26,15 @@ export const APP = {
   spitF: 30, spit: [5, 7] as readonly number[],
   /** the phase-2 ring: 8 every 150 x cadence (was 10 every 120), never two inside the 120 f window [spec §2.3; B3] */
   ring: 8, ringI: 150,
+  /** the cleaver's tell (50 f): the cone follows the ship (x and y) until cutLock, then its spot is LOCKED for the last
+   *  50 - cutLock f and the body glides onto it (arriving on the cut's frame), so the cone the player sees is the one that
+   *  swings. Before (and on short) its x chased the ship to the last frame: a cone 64 px ahead that a ship could not leave
+   *  sideways, the one way out a 63 px climb in 25 f (W6: the mortal pilot's top killer, 12-13 deaths per 10 runs).
+   *  25 f locked >= the 16 f lock every aimed move keeps (the hook's hLock); 28 px clears it at 2.09 px/f in 14 f */
+  cutLock: 25,
 } as const;
+/** the cleaver's tell is locked: long4 only (short keeps the chasing cone, layout parity) */
+export const cutLocked = (e) => g3() && e.st === 'tel' && e.wt >= APP.cutLock;
 /** the bite's hold: DN.hBite, DN.hBite2 in phase 2 on long4 (spec: 44 -> 60) */
 const biteF = (ph2) => (g3() && ph2 ? DN.hBite2 : DN.hBite);
 /** the wire's sag for a hook at angle a, hd out, from (ox, oy): DN.hSag in phase 2 on long4 (hookSag keeps it clear of the floor), else 0 */
@@ -93,7 +101,8 @@ function hook(e, ph2, sp) {
 
 function updPrentice(e) {
   // THE BUTCHER'S APPRENTICE: a small carcass on one chain with a cleaver. Lunges in behind a red sweep cone (50f to get out), or spits ember fans
-  const go = midLeave(e, e.st === 'tel' ? .06 : .03), ph2 = midPh2(e), cx = isCross(e), G3 = g3(), sp = cx ? HOST_SPARK[e.host] : FIRE; // its embers burn in the host's colours
+  e.clk = cutLocked(e) ? 1 : 0; // the render draws a locked cone where it will swing
+  const go = midLeave(e, cutLocked(e) ? 1 / Math.max(1, 50 - e.wt) : e.st === 'tel' ? .06 : .03), ph2 = midPh2(e), cx = isCross(e), G3 = g3(), sp = cx ? HOST_SPARK[e.host] : FIRE; // its embers burn in the host's colours
   e.sw = (e.sw || 0) + (ph2 ? .028 : .018);
   if (e.st === 'tel' && e.wt < 25) e.y = lerp(e.y, clamp($.P.y + 6, 50, PH - 40), .06);
   else if (e.st !== 'tel' && e.st !== 'cut' && !(e.hd > 0) && e.st !== 'htel' && !e.st2) e.y = lerp(e.y, PH * .42 + Math.sin(e.sw) * 34, .05); // holds still on the hook's line
@@ -113,7 +122,7 @@ function updPrentice(e) {
         else e.st === 'tel' ? sfx.tele() : sfx.chain();
       }
     } else if (e.st === 'tel') {
-      e.tx = clamp($.P.x + 64, 130, W - 70);
+      if (!cutLocked(e)) e.tx = clamp($.P.x + 64, 130, W - 70); // g3: locked for the last 50 - APP.cutLock f (the body arrives on the cut)
       e.ba = lerp(e.ba, -2.4, .2);
       if (e.wt >= 50) { e.st = 'cut'; e.wt = 0; sfx.lash(); }
     } else if (e.st === 'cut') {
@@ -157,6 +166,6 @@ defineMid('prentice', {
   et: { hp: 150, r: 15, gsz: 4, score: 6000, bio: 70, skull: 1, limbs: 3, eyes: 3, teeth: 6, big: 1, mini: 1, mid: 1 },
   word: 'CLEAVED',
   spawnY: .42,
-  onSpawn: (e) => { e.st2 = ''; e.hd2 = 0; e.ha2 = Math.PI; e.wt2 = 0; e.sag = e.sag2 = 0; if (g3()) { ledger(e); opening(e); } },
+  onSpawn: (e) => { e.st2 = ''; e.hd2 = 0; e.ha2 = Math.PI; e.wt2 = 0; e.sag = e.sag2 = 0; if (g3()) { ledger(e); opening(e); e.att = 2; } }, // g3: the spit opens (W6 K1: its fan is the quick reach; cleaver first, a near ship's short first half held one attack)
   update: updPrentice,
 });

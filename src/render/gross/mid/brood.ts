@@ -75,12 +75,12 @@ function grossBrood(c, e) {
   }
 }
 
-/** under the body (DIFFICULTY-SPEC §2.3, long4): the phase-1 litter's edge chevron at its column for the heave's DN.bTel,
+/** under the body (DIFFICULTY-SPEC §2.3, long4): the phase-1 litter's edge chevron at its column for the heave's DN.eTel,
  *  ruled solid for the last 16 f */
 function under(e) {
   if (e.st !== 'birth' || !e.edge) return;
   const wt = e.wt || 0;
-  edgeChevron(e.ex, e.edge, PH, Math.min(1, wt / DN.bTel), wt >= DN.bTel - 16, '230,110,60');
+  edgeChevron(e.ex, e.edge, PH, Math.min(1, wt / DN.eTel), wt >= DN.eTel - 16, '230,110,60');
 }
 
 /** the kind's art for the registry (./index.ts): draw, and its atlas for the per-route warm-up (render/warmup.ts) */

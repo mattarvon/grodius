@@ -235,7 +235,7 @@ describe('THE BROOD MOTHER: the litter from behind', () => {
     expect(kids.length).toBeGreaterThan(0);
     for (const k of kids) { expect(k.fromLeft).toBeFalsy(); expect(k.x).toBeGreaterThan(300); }
   });
-  it('on long4 drops her phase-1 litter in from the top, then the bottom edge, at the ship x + 60..90, after a DN.bTel chevron', () => {
+  it('on long4 drops her phase-1 litter in from the top, then the bottom edge, at the ship x + 60..90, after a DN.eTel chevron (W6: 46 f; the rear litter keeps DN.bTel)', () => {
     $.P = { x: 120, y: 130, alive: true };
     const e = spawn('brood');
     step(e);
@@ -243,7 +243,9 @@ describe('THE BROOD MOTHER: the litter from behind', () => {
     expect(e.edge).toBe(1); // the top first
     expect(e.ex - $.P.x).toBeGreaterThanOrEqual(60);
     expect(e.ex - $.P.x).toBeLessThanOrEqual(90);
-    step(e, DN.bTel - 2);
+    expect(DN.eTel).toBeGreaterThanOrEqual(TELL_MIN);
+    expect(DN.bTel).toBe(56);
+    step(e, DN.eTel - 2);
     expect(W.enemies.filter((q) => q.k === 'hatch').length).toBe(0); // nothing before the tell is out
     step(e, 2);
     const kids = W.enemies.filter((q) => q.k === 'hatch');
@@ -375,13 +377,22 @@ describe('THE NAIL CHOIR (long4): twin lanes, the eye, the re-lock', () => {
     expect(e.ly).toBe(y2);
     expect(e.lp).toBe(LP.out);
   });
-  it('takes .4 on the eye while a bar lives, full once both are gone', () => {
+  it('takes CHOIR_EYE (.7, W6) on the eye while a bar lives, full once both are gone', () => {
     const e = spawn('choir');
-    expect(MID_SIM.choir.hurt!(e, 1, e.x, e.y, 1)).toBeCloseTo(.4);
+    expect(MID_SIM.choir.hurt!(e, 1, e.x, e.y, 1)).toBeCloseTo(.7);
     e.bars[0].dead = true;
-    expect(MID_SIM.choir.hurt!(e, 1, e.x, e.y, 1)).toBeCloseTo(.4);
+    expect(MID_SIM.choir.hurt!(e, 1, e.x, e.y, 1)).toBeCloseTo(.7);
     e.bars[1].dead = true;
     expect(MID_SIM.choir.hurt!(e, 1, e.x, e.y, 1)).toBe(1);
+  });
+  it('W6: the loose bar takes CHOIR_LANE while it is the lane, full share flying home and in orbit', () => {
+    const e = spawn('choir'), b = e.bars[0];
+    expect(b.armor(b)).toBe(1);
+    e.lp = LP.tel; e.lb = b;
+    expect(b.armor(b)).toBeCloseTo(.15);
+    expect(e.bars[1].armor(e.bars[1])).toBe(1); // the bar still orbiting
+    e.lp = LP.home;
+    expect(b.armor(b)).toBe(1);
   });
   it('at rank >= 14 re-locks the return sweep on the ship at the turn, over DN.lTurn, off screen', () => {
     $.P = { x: 200, y: 100, alive: true, ...VARIANT_KIT };

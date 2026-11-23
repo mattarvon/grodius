@@ -41,6 +41,11 @@ export const UFO_NAME = MID_NAMES.ufo;
 /** where the lash, the tumours and the belly hatch sit, relative to its centre (the art in render/gross/mid/ufo.ts uses these) */
 export const LASH_O = [-34, 9], TUMOURS = [[-24, -7], [6, -10], [30, -5]], HATCH_O = [12, 11];
 const LASH_LEN = 220;
+/** g3 (W6 tune-tf, K1/K2): THE LEAN. The wreck hovers d px ahead of the ship (never nearer the left than minX, never
+ *  past its old home W - 96) between attacks, so its lash (238 px from LASH_O) reaches a ship anywhere in the field; at
+ *  its old fixed home a ship left of x ~115 sat out of reach (K1: 0 hits there in phase 1; K2: the lash 13% of the
+ *  spot hits). It holds its x through a lash's tell and whip (the locked line stays true) */
+export const UFO_LEAN = { d: 210, minX: 250, k: .025 } as const;
 /** the lash's tell: 42 f (the quick phase-2 second lash 28, kept as it shipped); 44 on long4, the E5 floor (DIFFICULTY-SPEC
  *  C10). It tracks the ship until its last 16 f, then locks (the art reads the same numbers) */
 export const lashTel = (e) => (e.lash2 ? 28 : g3() ? 44 : 42);
@@ -98,7 +103,9 @@ function updUfo(e) {
     if (e.x > W + 80) { e.dead = true; $.G.eat = 0; }
     return;
   }
-  e.x = lerp(e.x, e.tx, .025);
+  if (g3()) { // THE LEAN (UFO_LEAN): hover ahead of the ship; hold still through the lash
+    if (e.st !== 'lash' && e.st !== 'whip') { if ($.P.alive) e.tx = clamp($.P.x + UFO_LEAN.d, UFO_LEAN.minX, W - 96); e.x = lerp(e.x, e.tx, UFO_LEAN.k); }
+  } else e.x = lerp(e.x, e.tx, .025);
   // it pays out as it breaks up (it eats the filler's formation pods while it's up): a pod off the hull at 66% and 33%
   for (const [k, f] of [['p1', .66], ['p2', .33]]) if (!e[k] && e.hp < e.max * f) {
     e[k] = 1;

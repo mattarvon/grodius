@@ -3,7 +3,7 @@
 // gap (spec §3 unit-test list), the rank rule's floor (C2), the time-outs (C23, PHASE_F) and each fight's designed bullet
 // budget per 120 f under its cap (E7: the design-time check; boss-probe's on-screen max is the gate).
 import { describe, expect, it } from 'vitest';
-import { BLOAT, BUTCHER, DRIVE, MAW, PHASE_F, VOLLEY, combStep, curtainXs, driveClock, ivOf, lungeX, pincerTargets, reachPose, steerLane, tentBase, twinAngle, twinGap } from '../../src/boss/bossrules';
+import { BLOAT, BUTCHER, DRIVE, MAW, PHASE_F, VOLLEY, combStep, curtainXs, driveClock, ivOf, lungeStop, lungeX, pincerTargets, reachPose, steerLane, tentBase, twinAngle, twinGap } from '../../src/boss/bossrules';
 
 const W = 480, PH = 254;
 /** a fixed LCG so the sweep is the same every run */
@@ -28,6 +28,10 @@ describe('THE MAW: the bite', () => {
     expect(lungeX(398, W, 0)).toBe(398);
     expect(lungeX(398, W, 10)).toBe(338);
     expect(lungeX(398, W, 200)).toBeCloseTo(W * .35, 9);
+    expect(lungeX(398, W, 200, 74)).toBe(74); // W6: it stops where lungeStop put it
+    expect(lungeStop(90, W)).toBe(90 - MAW.past); // past a ship left of W * .35
+    expect(lungeStop(400, W)).toBeCloseTo(W * MAW.lungeX, 9); // never short of W * .35
+    expect(lungeStop(0, W)).toBeCloseTo(W * MAW.lungeMin, 9); // never off the left edge
   });
   it('the lane drifts toward the ship at most 1.5 px a frame', () => {
     expect(steerLane(100, 200)).toBe(101.5);

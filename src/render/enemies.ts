@@ -1039,11 +1039,11 @@ export function drawEnemy(e) {
       ctx.strokeStyle = `rgba(255,40,40,${.3 + .6 * e.wt / 40})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      const ph2 = e.hp < e.max * .5, tl = ph2 ? KH.tell2 : KH.tell1, lk = ph2 && e.wt >= tl - KH.lock;
-      const len = ph2 ? KH.reach2 : KH.reach1;
+      const ph2 = e.hp < e.max * .5, tl = e.hT || (ph2 ? KH.tell2 : KH.tell1), lk = (e.hL ?? (ph2 ? 1 : 0)) && e.wt >= tl - KH.lock; // e.hT/e.hL: the sim's tell and lock rule (long4's first half locks too: enemies/update.ts)
+      const len = ph2 ? KH.reach2 : e.hR || KH.reach1; // e.hR: long4's first-half reach, locked with the line
       ctx.strokeStyle = `rgba(255,${lk ? 90 : 40},${lk ? 60 : 40},${.3 + .6 * e.wt / tl})`; // D61: the aim line locks solid-bright for the last frames
       if (lk) ctx.setLineDash([]);
-      const lx = lk && e.lx != null ? e.lx : e.x + 10, ly = lk && e.ly != null ? e.ly : e.y - 8; // locked: the line stays where the hook will fly
+      const lx = lk && ph2 && e.lx != null ? e.lx : e.x + 10, ly = lk && ph2 && e.ly != null ? e.ly : e.y - 8; // locked: the line stays where the hook will fly
       ctx.moveTo(lx, ly);
       ctx.lineTo(lx + Math.cos(e.ha) * len, ly + Math.sin(e.ha) * len);
       ctx.stroke();
