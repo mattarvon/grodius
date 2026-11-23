@@ -9,6 +9,9 @@ vi.mock('../../src/enemies/spawn', () => ({ banner: () => {} }));
 vi.mock('../../src/platform', () => ({ buzz: () => {} }));
 vi.mock('../../src/biomes', () => ({ BIOMES: {}, openFork: () => {}, holdForFork: () => {}, biomeExit: () => {} }));
 vi.mock('../../src/stagebuild', () => ({ buildStage: () => {} }));
+// a live signature window for the W3a request below (sigs.ts sigWindows; empty in the real W0 skeleton)
+const SIG = vi.hoisted(() => ({ w: [] as { x0: number; x1: number }[] }));
+vi.mock('../../src/sigs', () => ({ sigWindows: () => SIG.w }));
 
 const { CP, cp1Release, cp1X, cpSafe, cpStep, cpView, writeCp } = await import('../../src/checkpoint');
 const { RUN_KEY, RUN_V, clearRun, decodeRun, decodeRunAs, lastRun, readRun, rewriteRun, runInfo, serializeRun } = await import('../../src/runsave');
@@ -313,5 +316,37 @@ describe('rewards pending at the checkpoint (H entry criterion 1)', () => {
     playing(1);
     expect(cpView().stT).toBe(100);
     expect(serializeRun(cpView()).g.stT).toBe(100);
+  });
+});
+
+// W3a request (DIFFICULTY-SPEC §5.1): no checkpoint is written while the restore's lead-in would land in a live
+// signature window, so a restore never resumes mid-set-piece; on long4 only (short has no windows)
+describe('checkpoints and live signature windows (long4)', () => {
+  it('refuses to write inside a window and writes once the ship is past it', () => {
+    setLayout('long4');
+    playing(1);
+    cpStep(); // CP0, before the window
+    const n0 = $.G.cpWant, s0 = lastRun();
+    const x = $.G.scroll + 400;
+    SIG.w = [{ x0: x, x1: x + 600 }];
+    $.G.cpQ[n0 - 1] = { x: x - 20, rel: null }; // a planned checkpoint whose lead-in touches the window
+    $.G.cp1X = x - 20;
+    for (const sc of [x - 20, x, x + 300, x + 600]) {
+      $.G.scroll = sc;
+      cpStep();
+      expect(lastRun(), `scroll ${sc}`).toBe(s0);
+      expect($.G.cpWant).toBe(n0);
+    }
+    $.G.scroll = x + 600 + CP.lead; // the lead-in clears the window
+    cpStep();
+    expect(lastRun()).not.toBe(s0);
+    expect(JSON.parse(lastRun()!).g.cpX).toBe(x + 600 + CP.lead);
+    SIG.w = [];
+  });
+  it('holds no checkpoint while a recovery wave is queued', () => {
+    setLayout('long4');
+    playing(1, { recovery: [{ t: 30, pods: [] }] });
+    cpStep();
+    expect(lastRun()).toBeNull();
   });
 });
