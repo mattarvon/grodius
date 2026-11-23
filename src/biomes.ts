@@ -13,6 +13,8 @@ import { spark, drop, flash, gore, pop, mist } from './fx/spawn';
 import { banner, behindWave, butcher, corpse, crawler, crossT, eyeT, flayer, formation, hatch, hookE, logLine, maw, midboss, miniWarn, womb, crux } from './enemies/spawn';
 import { glow, light } from './render/util';
 import { mutant, slime } from './enemies/spawn';
+import * as SPW from './enemies/spawn'; // W1's entryWave (g3-w1-bullets), read through w1() until it lands
+import * as CPK from './cellpick'; // W1's droneEntry, likewise
 import { eliteChance, eliteRoll } from './enemies/elite';
 import { enemies } from './world';
 import { startStage } from './stages';
@@ -264,6 +266,10 @@ const SPAWN = {
   hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
 };
 Object.assign(SPAWN, { slime: () => slime(R() < .65 ? 1 : -1), mutant: () => mutant() }); // new enemies: snot slime (floor or ceiling), hulking mutant (floor)
+/** the drone formation kinds of the spawn roll (W1's entry mix applies to these) */
+const DRONE_KINDS = new Set(['sine', 'zig', 'dive', 'wall', 'behind']);
+/** an export of a module that may not have it yet (W1's branch), or null; a vitest mock throws on a missing key */
+const w1 = (m, k) => { try { return typeof m[k] === 'function' ? m[k] : null; } catch (e) { return null; } };
 /** the spawn-roll kinds (test hook: midslot.ts BIOME_FILL must list exactly these as filler) */
 export const SPAWN_KINDS = Object.keys(SPAWN);
 /** merge script entries into the unplayed part of G.script, kept sorted by x (a stable sort: equal x keep their
@@ -405,6 +411,12 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
   // the tempo band (layout().beats.tempo) for scroll x at progress q: the first whose `until` is still ahead
   const band = (x, q) => { for (const T of BT.tempo) if (typeof T.until === 'number' ? q < T.until : x < BR[T.until.breath].z) return T; return BT.tempo[BT.tempo.length - 1]; };
   const led = new Set();
+  // long4 (DIFFICULTY-SPEC §2.3 entry mix, biome A 55/15/10/10/10, B 50/18/12/12/8): a filler drone beat takes its entry
+  // edge from W1's cellpick droneEntry on one draw of this build stream (never the sim R()), and spawns through
+  // spawn.ts entryWave (top / bottom chevrons, rear waves, wall births). Before W1 lands (no such exports) it is the
+  // biome's own spawner, as on short
+  const entry = isL4() && !legacy ? w1(CPK, 'droneEntry') : null, wave = entry ? w1(SPW, 'entryWave') : null;
+  const spawnOf = (k) => { if (!wave || !DRONE_KINDS.has(k)) return SPAWN[k]; const e = entry('biome', seg, rs()); return () => wave(e, rr(50, PH - 90), FM); };
   // long4: two authored opening carriers (DIFFICULTY-SPEC §2.2 faucet, levels.md §5.0b): fixed formations at p .05 and
   // .20 whose last kill always drops (pod), tagged open (pod-probe's fixed:open, gate E2). Fixed heights and no rs()
   // draw, so the build stream's order is unchanged
@@ -428,8 +440,8 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     const pk = T.sig ? sig : roll, dbl = T.rel ? Math.min(.85, B.dbl + T.dbl) : T.dbl;
     if (T.lead && !led.has(T)) { led.add(T); const k = T.lead === 'sig' || !two ? X.sig : two; at(x, el(SPAWN[k]), k); x += st; continue; } // the band's first slot, alone
     const k1 = pk();
-    if (!quiet(lands(x, k1))) at(x, el(SPAWN[k1]), k1); // x itself is never quiet here (breaths skip above, the run-up stops)
-    if (rs() < dbl && !quiet(y2)) { const k = pk(); if (!quiet(lands(y2, k))) at(y2, el(SPAWN[k]), k); } // extras never spill into a breath or the run-up
+    if (!quiet(lands(x, k1))) at(x, el(spawnOf(k1)), k1); // x itself is never quiet here (breaths skip above, the run-up stops)
+    if (rs() < dbl && !quiet(y2)) { const k = pk(); if (!quiet(lands(y2, k))) at(y2, el(spawnOf(k)), k); } // extras never spill into a breath or the run-up
     const p3 = T.third === true ? .35 : T.third || 0; // a number is the chance (long4's climax, layout.ts); true is 35%
     if (hard && p3 && rs() < p3 && !quiet(y3)) { const k = pk(); if (!quiet(lands(y3, k))) at(y3, el(SPAWN[k]), k); }
     x += st;
