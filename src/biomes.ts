@@ -821,7 +821,8 @@ function stepWin(w) {
   if (w.arr !== FLOOR) return; // a rebuild replaced the arrays: the window is stale
   if (w.kind === 'tide') {
     const lv = tideLevel(w.v, w.t), cap = w.fit + TIDE.pad;
-    for (let i = w.i0; i <= w.i1; i++) { const b0 = w.bf[i - w.i0], d = w.d * lv * envelope(i * TS, w.x0, w.x1, TIDE.ramp); FLOOR[i] = Math.min(b0, Math.max(b0 - d, CEIL[i] + cap)); }
+    // the cap reads the highest ceiling within 6 columns (24 px), so the swept 21 px fit holds the floor, not just each column
+    for (let i = w.i0; i <= w.i1; i++) { let c = -1e9; for (let q = Math.max(0, i - 6); q <= Math.min(CEIL.length - 1, i + 6); q++) c = Math.max(c, CEIL[q]); const b0 = w.bf[i - w.i0], d = w.d * lv * envelope(i * TS, w.x0, w.x1, TIDE.ramp); FLOOR[i] = Math.min(b0, Math.max(b0 - d, c + cap)); }
     return;
   }
   const g = w.fit + 2;
@@ -979,7 +980,7 @@ function armSigs(seg, b, plan) {
     SG.runs.push(run);
     if (plan.k === 'swallow' && 'plug' in SWALLOW.vars[V.v]) {
       let x = V.x0;
-      for (const nx of plugNarrows(V)) { wins.push({ x0: x, x1: nx - 17, floor: V.floor, id, k: plan.k, cp: x === V.x0 ? cp : undefined }); wins.push({ x0: nx - 17, x1: nx + 19, floor: 0, id: id + ':plug', k: plan.k }); x = nx + 19; }
+      for (const nx of plugNarrows(V)) { wins.push({ x0: x, x1: nx - 22, floor: V.floor, id, k: plan.k, cp: x === V.x0 ? cp : undefined }); wins.push({ x0: nx - 22, x1: nx + 26, floor: 0, id: id + ':plug', k: plan.k }); x = nx + 26; }
       wins.push({ x0: x, x1: V.x1, floor: V.floor, id, k: plan.k });
     } else wins.push({ x0: V.x0, x1: V.x1, floor: V.floor, id, k: plan.k, cp });
     insertScript([{ x: V.s0, f: () => { run.on = true; run.t = 0; }, k: 'sig:' + plan.k }]);
