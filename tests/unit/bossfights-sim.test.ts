@@ -41,6 +41,7 @@ const { updEnemy } = await import('../../src/enemies/update');
 const { BLOAT, BOSS_HPK, BUTCHER, HAZ_HOOK, MAW, PHASE_F, lungeStop } = await import('../../src/boss/bossrules');
 const F = await import('../../src/boss/bossfights');
 const L = await import('../../src/layout');
+const { KH } = await import('../../src/enemies/butcherhook');
 
 const reset = (P = { x: 60, y: 60 }) => {
   L.setLayout('long4');
@@ -220,6 +221,22 @@ describe('THE BURNING BUTCHER', () => {
     for (; f < BUTCHER.meat.tell + BUTCHER.meat.drop + BUTCHER.meat.life + BUTCHER.meat.reel + 2; f++) updEnemy(e);
     expect(hooks()).toHaveLength(0);
     expect(S.rings).toBe(0);
+  });
+  it("second half: the chain hook's line locks (D61) for its last frames and flies from the lock point (W6 merge fix)", () => {
+    const e = mkButcher(.4);
+    e.st = 'htel'; e.wt = 0; e.lx = e.ly = null; e.ha = Math.PI;
+    let lx: number | null = null, ly: number | null = null, ha0 = 0;
+    while (e.st === 'htel') {
+      updEnemy(e);
+      if (e.st !== 'htel') break;
+      if (e.wt < KH.tell2 - KH.lock) expect(e.lx ?? null).toBe(null);
+      else if (lx == null) { lx = e.lx; ly = e.ly; ha0 = e.ha; expect(e.ha).toBeCloseTo(Math.atan2($.P.y - e.ly, $.P.x - e.lx), 9); }
+      else { expect(e.lx).toBe(lx); expect(e.ly).toBe(ly); expect(e.ha).toBe(ha0); }
+    }
+    expect(lx).not.toBe(null);
+    expect(e.hk.v2).toBe(1);
+    expect(e.hk.tx).toBe(lx);
+    expect(e.hk.ty).toBe(ly);
   });
 });
 

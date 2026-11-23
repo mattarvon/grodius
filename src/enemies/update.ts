@@ -482,7 +482,10 @@ export function updEnemy(e) {
           else if (lk1 && e.wt === KH.tell2 - KH.lock) { e.ha = aimA(e.x + 10, e.y - 8); e.hR = clamp(Math.hypot($.P.x - e.x - 10, $.P.y - e.y + 8) + BUTCHER.past1, KH.reach1, BUTCHER.reach1); } // the first half's line locks true too, its reach with it (the render draws e.hR)
           if (lk1 && e.wt < KH.tell2 - KH.lock) e.hR = 0;
           if (G3) { e.hT = ph2 || lk1 ? KH.tell2 : KH.tell1; e.hL = ph2 || lk1 ? 1 : 0; } // the render's tell length and lock rule (render/enemies.ts); short reads its old rule
-          else if (e.wt === KH.tell2 - KH.lock) {
+          // the second half's D61 lock, both layouts, as on 128cbac (W6 merge fix, technical-director): its own statement, so
+          // neither short's first half nor long4's G3 line above reaches it (an `else if` here locked short first-half hooks
+          // and dropped long4's second-half lock)
+          if (ph2 && e.wt === KH.tell2 - KH.lock) {
             e.lx = e.x + 10; // D61 second half: the line locks (origin and angle) for the last frames: the hook flies exactly down it, a fair dodge
             e.ly = e.y - 8;
             e.ha = aimA(e.lx, e.ly); // the line is true from where it is drawn

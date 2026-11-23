@@ -125,4 +125,25 @@ describe('the second-half hook through updEnemy', () => {
     expect(e.hk.d).toBeLessThan(245);
     expect(S.hits).toBe(0); // the ship at x 40 is out of reach: the park the first half keeps
   });
+
+  it("short's first-half tell tracks by lerp to its last frame and never locks (W6 merge fix: 128cbac's rule)", async () => {
+    const Lay = await import('../../src/layout');
+    const was = Lay.layout().id;
+    Lay.setLayout('short');
+    try {
+      mkButcher(.9, 140);
+      e.st = 'htel'; e.wt = 0; e.lx = e.ly = null; e.ha = Math.PI;
+      let tell = 0;
+      while (e.st === 'htel' && tell < 200) {
+        const ha = e.ha;
+        updEnemy(e); tell++;
+        if (e.st !== 'htel') break;
+        expect(e.lx ?? null).toBe(null);
+        // the aim reads the body where updEnemy just moved it (aimA is the exact-aim mock): a pure .05 lerp every frame
+        expect(e.ha).toBeCloseTo(ha + (Math.atan2($.P.y - (e.y - 8), $.P.x - (e.x + 10)) - ha) * .05, 9);
+      }
+      expect(tell).toBe(KH.tell1);
+      expect(e.hk.v2).toBe(undefined);
+    } finally { Lay.setLayout(was); }
+  });
 });
