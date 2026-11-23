@@ -30,9 +30,10 @@ import { MOVE, MOVES, bandClamp, gimmick, hazInterval, moveAt, narrowNear, snapV
 import { BOSS_SIM, bossFor } from './enemies/boss/registry';
 import { hazAimed, hazLeadX } from './notice';
 import { ECON, econId, noticeOf } from './economy';
-import { FURNACE, GRILL, GULLET, ICICLE, INSET_MID, MORGUE, SPACE, SWALLOW, TIDE, envelope, grillCols, hazRankMul, insetOf, morgueLane, planSig, setSigWindows, throatInset, tideLen, tideLevel } from './sigs';
+import { FURNACE, GRILL, GULLET, ICICLE, INSET_MID, MORGUE, SPACE, SWALLOW, TIDE, envelope, grillCols, hazRankMul, insetOf, morgueLane, planSig, setSigWindows, tideLen } from './sigs';
 import { srr } from './srnd';
 import { rho } from './rank';
+import { SC, armSwallow, armTide, solids, spawnIce, spawnPlug } from './solids'; // the space engine (W3a)
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -740,7 +741,7 @@ export function stepBiome() {
       if (h.t > warm + live) dead = true;
     } else if (h.k === 'strand') {
       const wx = h.x + sc, c = ceilAt(wx), f = floorAt(wx);
-      if (L4 && ENG.plugs.some((q) => q.vis && Math.abs(q.wx + q.cell / 2 - wx) < q.cell && q.cells.some((c2) => c2.on))) { dead = true; sfx.squish(); } // levels.md §5.4: a strand that touches a plug is absorbed
+      if (L4 && plugAt(wx)) { dead = true; sfx.squish(); } // levels.md §5.4: a strand that touches a plug is absorbed
       if (P && P.alive && Math.abs(P.x - h.x) < 5 && P.y > c && P.y < f) {
         P.slow = 55;
         dead = true;
@@ -762,193 +763,26 @@ export function stepBiome() {
 
 // ---------------- the biome signatures (long4; DIFFICULTY-SPEC §2.4, levels.md §5.1-5.4; numbers: src/sigs.ts) ----------------
 // One run per planned variation (sigs.ts planSig), armed by its script entry `sig:<k>` and stepped every frame by
-// stepSigs. A run only schedules: what moves the walls or makes a solid is the space engine, called through ENG below
+// stepSigs. A run only schedules: what moves the walls or makes a solid is the space engine (solids.ts), called below
 // with W3a's API (scratchpad spec/W3A-API.md: armTide, armSwallow, spawnIce, spawnPlug). No R() anywhere: frame
 // counters, world x and the ship's position; fx draw srr. Checkpoints sit before a window (its `cp`), and a rebuild
 // (buildTerrain, then biomeStage) clears the runs, so nothing here is saved.
 const SG = { runs: [] };
 
-// ---- ENGINE ADAPTER: a local stand-in for W3a's src/solids.ts until it lands; the rebase swaps this block for an
-// import. Same names and options. Moving terrain is levels.md §2.2's design (a window's base FLOOR / CEIL saved and
-// rewritten each frame, put back at the end); a lodged block and a mucus plug are written into the terrain arrays, so
-// they kill like walls through WARD (Decision 5) and every floorAt / ceilAt reader agrees; a flying block is a body hit
-// (WARD takes it). The real engine steps before the ship moves; this one steps in stepBiome, a frame later ----
-const ENG = {
-  wins: [], blocks: [], lodged: [], plugs: [],
-  /** a tide window: the floor rises d px over [x0, x1], tell / rise / hold / drain, no column under `fit` */
-  armTide(o) { const w = dynWin('tide', o); w.len = TIDE.tell + o.rise + o.hold + o.drain; return w; },
-  /** a swallow window: each wall in by S (1 - cos 2 pi t / T) / 2 for `dur` frames; split: halves out of phase */
-  armSwallow(o) { const w = dynWin('swallow', o); w.len = o.dur; return w; },
-  /** a MORGUE RUSH block on `lane` (S5: null within 48 px of the ship) */
-  spawnIce(o) {
-    const P = $.P, G = $.G, M = MORGUE;
-    if (!P) return null;
-    const sx = W + M.enter + M.w / 2, wx = G.scroll + sx, lo = ceilAt(wx) + M.wallPad + M.h / 2, hi = floorAt(wx) - M.wallPad - M.h / 2;
-    if (hi <= lo) return null;
-    const y = clamp(o.lane ?? P.y, lo, hi);
-    if ((P.x - sx) ** 2 + (P.y - y) ** 2 < SPACE.noSpawn ** 2) return null;
-    const k = { sig: o.sig, st: 'tell', t: 0, tell: o.tell ?? M.tell, x: W + M.enter, y, xStop: o.xStop ?? Math.max(P.x + M.stopLead, M.stopMin), hp: o.hp ?? M.hp, fit: o.fit ?? 100, dir: 0 };
-    ENG.blocks.push(k);
-    return k;
-  },
-  /** a MUCUS PLUG column at world x: cells from the relaxed walls (a window's base) growing over `tell` f */
-  spawnPlug(o) {
-    const Q = SWALLOW.plug, cell = o.cell ?? Q.cell, w = ENG.wins.find((v) => o.wx >= v.x0 && o.wx < v.x1), j = Math.round((o.wx + cell / 2) / TS);
-    const c0 = w ? w.bc[j - w.i0] : ceilAt(o.wx), f0 = w ? w.bf[j - w.i0] : floorAt(o.wx), n = Math.max(1, Math.ceil((f0 - c0) / cell));
-    const p = { sig: o.sig, wx: o.wx - cell / 2, cell, yTop: c0, n, t: 0, tell: o.tell ?? Q.grow, regrow: o.regrow ?? Q.regrow, cells: Array.from({ length: n }, () => ({ on: false, g: false, cut: -1e9 })), vis: null };
-    ENG.plugs.push(p);
-    return p;
-  },
-  /** forget everything whose sig starts with `pre` (every thing: ''), putting the windows' base terrain back */
-  reset(pre = '') {
-    const keep = (o) => !o.sig.startsWith(pre);
-    for (const w of ENG.wins) if (!keep(w)) restoreWin(w);
-    ENG.wins = ENG.wins.filter(keep); ENG.blocks = ENG.blocks.filter(keep); ENG.lodged = ENG.lodged.filter(keep); ENG.plugs = ENG.plugs.filter(keep);
-  },
-  step() {
-    for (let i = ENG.wins.length - 1; i >= 0; i--) { const w = ENG.wins[i]; if (++w.t >= w.len) { restoreWin(w); ENG.wins.splice(i, 1); } else stepWin(w); }
-    stepBlocks();
-    stepPlugs();
-  },
-};
-function dynWin(kind, o) {
-  const i0 = Math.max(0, Math.floor(o.x0 / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil(o.x1 / TS));
-  const w = { kind, ...o, t: 0, i0, i1, arr: FLOOR, bc: CEIL.slice(i0, i1 + 1), bf: FLOOR.slice(i0, i1 + 1) };
-  ENG.wins.push(w);
-  return w;
-}
-/** put a window's base terrain back (unless the arrays were rebuilt under it) */
-function restoreWin(w) { if (w.arr === FLOOR) { CEIL.set(w.bc, w.i0); FLOOR.set(w.bf, w.i0); } }
-function stepWin(w) {
-  if (w.arr !== FLOOR) return; // a rebuild replaced the arrays: the window is stale
-  if (w.kind === 'tide') {
-    const lv = tideLevel(w.v, w.t), cap = w.fit + TIDE.pad;
-    // the cap reads the highest ceiling within 6 columns (24 px), so the swept 21 px fit holds the floor, not just each column
-    for (let i = w.i0; i <= w.i1; i++) { let c = -1e9; for (let q = Math.max(0, i - 6); q <= Math.min(CEIL.length - 1, i + 6); q++) c = Math.max(c, CEIL[q]); const b0 = w.bf[i - w.i0], d = w.d * lv * envelope(i * TS, w.x0, w.x1, TIDE.ramp); FLOOR[i] = Math.min(b0, Math.max(b0 - d, c + cap)); }
-    return;
-  }
-  const g = w.fit + 2;
-  for (let i = w.i0; i <= w.i1; i++) {
-    const c0 = w.bc[i - w.i0], f0 = w.bf[i - w.i0], s = throatInset(w.v, w.t, i * TS, w.x0, w.x1);
-    let ce = c0 + s, fl = f0 - s;
-    if (fl - ce < g) { const m = (c0 + f0) / 2, h = Math.min(g, f0 - c0) / 2; ce = m - h; fl = m + h; } // never under the window floor
-    CEIL[i] = ce; FLOOR[i] = fl;
-  }
-}
-/** the swept S1 fit gap's minimum over ship positions [a, b] (world x); blk: a block [x0, x1, edge y, on the ceiling]
- *  to count as lodged (MORGUE's lodge rule) */
-function fitSpan(a, b, blk) {
-  const ce = (u) => (blk && u >= blk[0] && u <= blk[1] && blk[3] ? Math.max(ceilAt(u), blk[2]) : ceilAt(u));
-  const fl = (u) => (blk && u >= blk[0] && u <= blk[1] && !blk[3] ? Math.min(floorAt(u), blk[2]) : floorAt(u));
-  let m = 1e9;
-  for (let p = a; p <= b; p += 2) { let c = -1e9, f = 1e9; for (let u = p - 9; u <= p + 12; u += 3) { c = Math.max(c, ce(u)); f = Math.min(f, fl(u)); } m = Math.min(m, f - c); }
-  return m;
-}
-/** one of the ship's shots overlapping the rect [x, x + w] x [y, y + h] (screen) this frame or the next, spent on it */
-function shotInto(x, y, w, h) {
-  for (let j = shots.length - 1; j >= 0; j--) {
-    const s = shots[j], tip = s.k === 'laser' ? s.x + (s.len || 0) : s.x;
-    if (s.g || tip + Math.max(0, s.vx || 0) < x || s.x > x + w || s.y < y || s.y > y + h) continue;
-    shots.splice(j, 1);
-    return s;
-  }
-  return null;
-}
-function stepBlocks() {
-  const G = $.G, P = $.P, M = MORGUE, sc = G.scroll;
-  for (let i = ENG.blocks.length - 1; i >= 0; i--) {
-    const k = ENG.blocks[i];
-    k.t++;
-    if (k.st === 'tell') { if (k.t >= k.tell) { k.st = 'fly'; crack({ vol: .35, rate: 1.3 }); } continue; }
-    if (k.st === 'fly') {
-      k.x -= M.vx;
-      if (k.x <= k.xStop) { k.st = 'turn'; const cx = k.x + M.w / 2 + sc; k.dir = k.y - ceilAt(cx) < floorAt(cx) - k.y ? -1 : 1; }
-    } else { // turning: fixed in the world now, sliding to the nearer wall until it meets it (or a block already there)
-      k.x -= G.scrollSpeed;
-      k.y += k.dir * M.vLodge;
-      const wx = k.x + sc, edge = k.dir < 0 ? Math.max(ceilAt(wx), ceilAt(wx + M.w / 2), ceilAt(wx + M.w)) : Math.min(floorAt(wx), floorAt(wx + M.w / 2), floorAt(wx + M.w));
-      if (k.dir < 0 ? k.y - M.h / 2 <= edge : k.y + M.h / 2 >= edge) { lodge(k, k.dir < 0 ? edge + M.h / 2 : edge - M.h / 2); ENG.blocks.splice(i, 1); continue; }
-    }
-    // flying, a block is a body: WARD takes it (levels.md §5.1)
-    if (P && P.alive && Math.abs(P.x - (k.x + M.w / 2)) < M.w / 2 + 8 && Math.abs(P.y - k.y) < M.h / 2 + 4) { G.hazHit = 1; shatter(k); ENG.blocks.splice(i, 1); continue; }
-    if (shotInto(k.x, k.y - M.h / 2, M.w, M.h)) {
-      for (let q = 0; q < 3; q++) spark(k.x, k.y + srr(-4, 4), srr(-2, 0), srr(-1.5, 1.5), 8, '#e8f6ff');
-      if (--k.hp <= 0) { shatter(k); ENG.blocks.splice(i, 1); continue; }
-      sfx.tink();
-    }
-    if (k.x < -M.w - 20 || k.y < -20 || k.y > PH + 20) ENG.blocks.splice(i, 1);
-  }
-}
-/** a block meets its wall at centre y yc: it becomes terrain, unless that leaves the swept fit gap under its `fit` (or
- *  under what the walls there already leave), and then it shatters (levels.md §5.1 lodge rule) */
-function lodge(k, yc) {
-  const M = MORGUE, wx = k.x + $.G.scroll, up = k.dir < 0, e = up ? yc + M.h / 2 : yc - M.h / 2;
-  if (fitSpan(wx - 12, wx + M.w + 12, [wx, wx + M.w, e, up]) < Math.min(k.fit, fitSpan(wx - 12, wx + M.w + 12, null))) { shatter(k); return; }
-  const i0 = Math.max(0, Math.floor(wx / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil((wx + M.w) / TS));
-  for (let i = i0; i <= i1; i++) { if (up) CEIL[i] = Math.max(CEIL[i], e); else FLOOR[i] = Math.min(FLOOR[i], e); }
-  ENG.lodged.push({ sig: k.sig, wx, y: yc });
-  crack({ vol: .6, rate: .9 }) || sfx.tink();
-  for (let q = 0; q < 8; q++) spark(k.x + srr(0, M.w), e, srr(-1.5, 1.5), up ? srr(.2, 1.5) : -srr(.2, 1.5), 14, q % 2 ? '#e8f6ff' : '#9fd8ff');
-}
-/** the ice crack sample, at most once every 12 frames (a v3 rush releases a block every 45 f, each cracking 2-3 times) */
-let crackT = -99;
-function crack(o) { const t = $.G ? $.G.t : 0; if (t - crackT < 12) return true; crackT = t; return sample('gicecrack', o); }
-function shatter(k) {
-  const M = MORGUE, cx = k.x + M.w / 2;
-  for (let q = 0; q < 12; q++) spark(cx + srr(-8, 8), k.y + srr(-5, 5), srr(-2.5, 2.5), srr(-2.5, 1.5), 16, q % 3 ? '#e8f6ff' : '#9fd8ff');
-  gore(cx, k.y, .4); // the crewman inside comes apart too
-  crack({ vol: .8, rate: 1.1 }) || sfx.tink();
-}
-/** the plugs: grow in from both walls over `tell` f, take the ship's fire a cell a shot, regrow a cut cell `regrow` f
- *  later (never within SPACE.regrowMin of the ship), and are written into the terrain every frame */
-function stepPlugs() {
-  const G = $.G, P = $.P;
-  for (const p of ENG.plugs) {
-    const x = p.wx - G.scroll;
-    p.t++;
-    const reach = Math.ceil(p.n / 2 * Math.min(1, p.t / p.tell));
-    const far = (j) => !P || (P.x - x - p.cell / 2) ** 2 + (P.y - p.yTop - (j + .5) * p.cell) ** 2 >= SPACE.regrowMin ** 2; // S5: a cell never forms on the ship (it waits)
-    for (let j = 0; j < p.n; j++) { const c = p.cells[j]; if (!c.g && Math.min(j, p.n - 1 - j) < reach && far(j)) { c.g = true; c.on = true; } }
-    for (let j = 0; j < p.n; j++) {
-      const c = p.cells[j];
-      if (c.g && !c.on && p.t - c.cut >= p.regrow && far(j)) c.on = true;
-    }
-    for (let k = shots.length - 1; k >= 0; k--) { // 1 hp a cell: a ship-sized hole is 3 bolts (S6)
-      const s = shots[k], tip = s.k === 'laser' ? s.x + (s.len || 0) : s.x;
-      if (s.g || !(s.vx > 0) || tip > x + p.cell || tip + s.vx < x - 1) continue;
-      const c = p.cells[Math.floor((s.y - p.yTop) / p.cell)];
-      if (!c || !c.on) continue;
-      c.on = false; c.cut = p.t; shots.splice(k, 1);
-      for (let q = 0; q < 6; q++) drop(x, s.y + srr(-4, 4), srr(-1.5, -.2), srr(-1, 1), srr(1, 1.8), 0, 60);
-      sfx.squish();
-    }
-    bakePlug(p);
-  }
-}
-/** write a plug into the terrain: at its columns the opening is its longest run of missing cells (a tie: the one
- *  nearest the ship), or nothing when it is whole. p.vis keeps the throat's own edges for the draw */
-function bakePlug(p) {
-  const P = $.P, i0 = Math.max(0, Math.floor(p.wx / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil((p.wx + p.cell) / TS));
-  let best = null;
-  for (let j = 0; j < p.n;) {
-    if (p.cells[j].on) { j++; continue; }
-    let e = j; while (e < p.n && !p.cells[e].on) e++;
-    const a = p.yTop + j * p.cell, b = p.yTop + e * p.cell, d = best ? b - a - (best[1] - best[0]) : 1;
-    if (d > .5 || (d > -.5 && P && Math.abs((a + b) / 2 - P.y) < Math.abs((best[0] + best[1]) / 2 - P.y))) best = [a, b];
-    j = e;
-  }
-  p.vis = [CEIL[i0], FLOOR[i0]];
-  for (let i = i0; i <= i1; i++) {
-    const top = best ? Math.max(CEIL[i], best[0]) : 0, bot = best ? Math.min(FLOOR[i], best[1]) : 0;
-    if (best && bot > top) { CEIL[i] = top; FLOOR[i] = bot; } else { const m = (CEIL[i] + FLOOR[i]) / 2; CEIL[i] = FLOOR[i] = m; }
-  }
-}
-// ---- end of the engine adapter ----
+// ---- the space engine (W3a src/solids.ts, scratchpad spec/W3A-API.md): DYN windows (armTide, armSwallow) and the
+// solids (spawnIce, spawnPlug) step in step.ts's stepSolids, before the ship moves, and draw in render/solids.ts. The
+// W3c stand-in that lived here was swapped for these imports at the W6 merge. A lodged block and a plug are terrain
+// class (they kill like walls through WARD, decision 5A); a flying block is a body hit (WARD takes it) ----
+/** retire every solid this signature run (or slot prefix) made: marked dead, dropped at the engine's next step. The DYN
+ *  windows need nothing: a rebuild replaces the arrays (the engine resets itself) and a window ends on its own clock */
+function engDrop(pre) { for (const q of solids) if (q.sig.startsWith(pre)) { q.st = 'dead'; q.cls = 0; } }
+/** a live mucus plug cell at world x (the strand hazard is absorbed by it, levels.md §5.4) */
+const plugAt = (wx) => solids.some((q) => q.k === 'plug' && (q.cls & SC.PLUG) && Math.abs(q.x + q.w / 2 - wx) < q.w);
 
 /** forget slot seg's signature runs and engine pieces (null: every slot). The caller rebuilds the terrain */
 function sigClear(seg) {
   SG.runs = seg == null ? [] : SG.runs.filter((r) => r.seg !== seg);
-  ENG.reset(seg == null ? 'b' : `b${seg}:`);
+  engDrop(seg == null ? 'b' : `b${seg}:`);
 }
 /** rho for the hazard timer: rank.ts (W0), computed from $ at once (W0 contract: never the legacy G.rank) */
 const rhoNow = () => rho($);
@@ -995,7 +829,7 @@ const SIGSTEP = {
     const V = MORGUE.vars[r.v], n = r.V.n;
     r.rel ||= 0;
     while (r.rel < n && r.t >= r.rel * V.every) {
-      if ($.P && ENG.spawnIce({ lane: morgueLane(r.v, r.rel, $.P.y), fit: r.V.floor, sig: r.sig })) sfx.tink(); // the racks rattle
+      if ($.P && spawnIce({ lane: morgueLane(r.v, r.rel, $.P.y), fit: r.V.floor, sig: r.sig, tell: MORGUE.tell, hp: MORGUE.hp, w: MORGUE.w, h: MORGUE.h, vFly: MORGUE.vx, vTurn: MORGUE.vLodge, xStop: Math.max($.P.x + MORGUE.stopLead, MORGUE.stopMin) })) sfx.tink(); // the racks rattle
       r.rel++;
     }
     if ('cross' in V && (r.t === 1 || r.t === Math.round(n * V.every / 2))) crossT(r.t === 1 ? 1 : -1);
@@ -1005,7 +839,7 @@ const SIGSTEP = {
   high_tide(r) {
     if (r.t !== 1) { if (r.t >= tideLen(r.v)) r.done = true; return; }
     const V = TIDE.vars[r.v];
-    ENG.armTide({ x0: r.V.x0, x1: r.V.x1, d: V.d, rise: V.rise, hold: V.hold, drain: V.drain, tell: TIDE.tell, fit: r.V.floor, sig: r.sig, v: r.v });
+    armTide({ x0: r.V.x0, x1: r.V.x1, d: V.d, rise: V.rise, hold: V.hold, drain: V.drain, tell: TIDE.tell, fit: r.V.floor + TIDE.pad, sig: r.sig }); // the engine tapers each end over max(60, 2.5 d) px (S3)
     sample('gross_gargle', { vol: .7, rate: .8 }) || sfx.glob(); // the tell: the tank glugs
     if ('eye' in V) eyeT(-1); // the floor is liquid: turrets ride the ceiling folds, aiming down into the squeeze
     if ('womb' in V) womb();
@@ -1033,7 +867,7 @@ const SIGSTEP = {
   swallow(r) {
     const G = $.G, V = SWALLOW.vars[r.v], X = r.V;
     if (r.t === 1) {
-      ENG.armSwallow({ x0: X.x0, x1: X.x1, S: V.S, T: V.T, dur: Math.max(1, Math.round(X.x1 + 20 - G.scroll)), tell: SWALLOW.tell, fit: X.floor, split: 'oop' in V, sig: r.sig, v: r.v });
+      armSwallow({ x0: X.x0, x1: X.x1, S: V.S, T: V.T, dur: Math.max(1, Math.round(X.x1 + 20 - G.scroll)), tell: SWALLOW.tell, fit: X.floor, split: 'oop' in V, sig: r.sig });
       sample('gross_slosh', { vol: .6, rate: .7 }) || sfx.squish(); // the tell: the airway draws in
       if (r.v === 1) { slime(1); slime(-1); } // slimes on both lips
       if ('plug' in V) { womb(); r.plugs = plugNarrows(X).map((nx) => ({ nx, on: false })); }
@@ -1043,31 +877,21 @@ const SIGSTEP = {
     if (r.plugs) for (const p of r.plugs) if (!p.on && $.P && p.nx - G.scroll - $.P.x < SPACE.sigLead) p.on = true; // S4 too (W3a request): it starts growing >= 120 px (120 f) ahead
     if (r.plugs) for (const p of r.plugs) if (!p.on && p.nx - G.scroll < W - 20 && u > 0 && (u + Q.grow) % V.T === V.T / 2) {
       p.on = true;
-      ENG.spawnPlug({ wx: p.nx, tell: Q.grow, fit: X.floor, hp: Q.hp, cell: Q.cell, regrow: Q.regrow, sig: r.sig });
+      spawnPlug({ wx: p.nx, tell: Q.grow, fit: X.floor, hp: Q.hp, cell: Q.cell, regrow: Q.regrow, sig: r.sig });
       sample('gross_gargle', { vol: .5, rate: 1.2 }) || sfx.squish();
     }
     if (u > 0 && u % V.T === V.T / 2 - 20) sample('gross_slosh', { vol: .35, rate: .55 }); // each clench is heard closing
-    if (G.scroll > X.x1 + 20) { ENG.reset(r.sig); r.done = true; }
+    if (G.scroll > X.x1 + 20) { engDrop(r.sig); r.done = true; }
   },
 };
 function stepSigs() {
   for (const r of SG.runs) if (r.on && !r.done) { r.t++; SIGSTEP[r.k](r); }
-  ENG.step();
 }
 /** the signatures' own draws (procedural, from the corpse and glob palettes; S7 keeps them off the background) */
 function drawSigs() {
   const G = $.G;
   if (!G) return;
-  const sc = G.scroll, M = MORGUE, T = $.T;
-  for (const k of ENG.blocks) {
-    if (k.st !== 'tell') { drawBlock(k.x, k.y); continue; }
-    // the tell: a frost streak along the lane over the screen's right 120 px, brightening, and a red edge mark
-    const q = k.t / k.tell;
-    ctx.fillStyle = `rgba(225,244,255,${.25 + .55 * q})`;
-    for (let x = W - M.streak; x < W; x += 6) if ((x + T * 3) % 12 < 7) ctx.fillRect(x, k.y - .5, 4, 1);
-    ctx.fillStyle = (k.t >> 2) % 2 ? '#ff5a4a' : '#eaf7ff'; ctx.fillRect(W - 3, k.y - M.h / 2, 2, M.h);
-  }
-  for (const l of ENG.lodged) { const x = l.wx - sc; if (x > -M.w - 2 && x < W + 2) drawBlock(x, l.y); }
+  const sc = G.scroll, T = $.T;
   for (const r of SG.runs) {
     if (!r.on || r.done) continue;
     if (r.k === 'high_tide' && r.t < TIDE.tell + TIDE.vars[r.v].rise) { // the tell: the lake boils hard over the window
@@ -1079,42 +903,13 @@ function drawSigs() {
       for (let nx = narrowNear(r.V.x0); nx < r.V.x1; nx += MOVE.throat.every) { const x = nx - sc; if (x < -4 || x > W + 4) continue; ctx.beginPath(); ctx.moveTo(x, ceilAt(nx)); ctx.quadraticCurveTo(x + 6 * Math.sin(T * .05 + nx), (ceilAt(nx) + floorAt(nx)) / 2, x, floorAt(nx)); ctx.stroke(); }
     }
   }
-  for (const p of ENG.plugs) {
-    if (!p.vis) continue;
-    const x = p.wx - sc;
-    if (x < -12 || x > W + 2) continue;
-    for (let j = 0; j < p.n; j++) {
-      if (!p.cells[j].on) continue;
-      const cy = p.yTop + (j + .5) * p.cell;
-      if (cy < p.vis[0] - 3 || cy > p.vis[1] + 3) continue; // inside the clenched wall
-      ctx.fillStyle = '#9c8228'; ctx.beginPath(); ctx.ellipse(x + 5, cy, 6.2, 5.8, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#dcc860'; ctx.beginPath(); ctx.ellipse(x + 4.4, cy - .6, 4.4, 4, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = 'rgba(255,250,220,.85)'; ctx.fillRect(x + 2.6, cy - 2.8, 1.5, 1.5);
-    }
-  }
 }
-/** a frozen crewman in a block of ice, left edge x, centre y (screen) */
-function drawBlock(x, y) {
-  // art-director review: it must read as solid ice in front of the vault's background coffins (S7), so it gets a dark
-  // contact shadow, a solid rim and a pale, skin-toned body (the background figures' tone), not a dark smear
-  const M = MORGUE, t = y - M.h / 2;
-  ctx.fillStyle = 'rgba(0,6,16,.55)'; ctx.fillRect(x + 2, t + 2, M.w, M.h); // contact shadow
-  ctx.fillStyle = '#5d8fb8'; ctx.fillRect(x, t, M.w, M.h); // the ice, opaque
-  ctx.fillStyle = '#d9a99a'; ctx.fillRect(x + 4, y - 2, 11, 4); // the body, laid in the ice, mid-scream
-  ctx.beginPath(); ctx.arc(x + 17, y - .5, 2.7, 0, TAU); ctx.fill();
-  ctx.fillRect(x + 1.5, y - 3.5, 3, 1.4); ctx.fillRect(x + 1.5, y + 2, 3, 1.4); // feet
-  ctx.fillRect(x + 9, y - 5, 1.4, 3); ctx.fillRect(x + 12, y + 2, 1.4, 3); // arms pressed to the ice
-  ctx.fillStyle = '#7a1222'; ctx.fillRect(x + 8, y - 1, 4, 2); ctx.fillStyle = '#2a0408'; ctx.fillRect(x + 18, y - 1, 1.5, 1.5); // a wound, the open mouth
-  ctx.fillStyle = 'rgba(170,220,255,.35)'; ctx.fillRect(x, t, M.w, M.h); // frost over it
-  ctx.fillStyle = 'rgba(240,252,255,.9)'; ctx.fillRect(x + 2, t + 1.5, 7, 1); ctx.fillRect(x + M.w - 4, t + 3, 1, 5);
-  ctx.strokeStyle = '#eef9ff'; ctx.lineWidth = 1.5; ctx.strokeRect(x + .75, t + .75, M.w - 1.5, M.h - 1.5);
-}
-/** test hook (tests/unit/sigs.test.ts, tools): the live signature runs and the adapter's engine state */
-export const sigRuns = () => ({ runs: SG.runs, eng: ENG, pause: sigPause });
+/** test hook (tests/unit/sigrun.test.ts, tools): the live signature runs, the hazard pause, one signature step */
+export const sigRuns = () => ({ runs: SG.runs, pause: sigPause, step: stepSigs });
 
 // ---------------- drawing (art lives in render/biomeart.ts) ----------------
 export function drawBiomeFX() { drawFX(haz, amb, gatePos); if (isL4()) drawSigs(); }
 /** consume a hazard hit this frame (applied by the caller so playerHit stays in one place) */
 export function hazardHit() { const h = $.G && $.G.hazHit; if (h) $.G.hazHit = 0; return !!h; }
 /** test hook (tools/route-probe.mjs): live terrain + hazards */
-(globalThis as any).__biome = () => ({ F: FLOOR, C: CEIL, TS, haz, k: $.G ? biomeK($.G.scroll + W / 2) : null, sig: sigRuns() }); // sig: the signature runs and the engine adapter (MORGUE RUSH blocks in flight are bodies outside haz)
+(globalThis as any).__biome = () => ({ F: FLOOR, C: CEIL, TS, haz, k: $.G ? biomeK($.G.scroll + W / 2) : null, sig: sigRuns() }); // sig: the signature runs (MORGUE RUSH blocks in flight are solids.ts BODY solids, outside haz)

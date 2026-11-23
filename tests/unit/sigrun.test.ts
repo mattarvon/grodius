@@ -1,6 +1,5 @@
-// The biome signatures' runtime (src/biomes.ts: the runs and the local engine adapter that stands in for W3a's
-// solids.ts): the terrain comes back exactly, the lodge rule, S5 for the mucus plug, the hazard pause, and a stage
-// built twice plans the same runs. core's hash / vnoise are the real arithmetic; only the DOM side is stubbed.
+// The biome signatures' runtime (src/biomes.ts: the runs, which drive W3a's solids.ts engine): the runs reach the
+// engine, the hazard pause, and a stage built twice plans the same runs. core's hash / vnoise are the real arithmetic; only the DOM side is stubbed.
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
@@ -35,67 +34,35 @@ const { CATALOG } = await import('../../src/setdraw');
 /** a flat corridor: ceiling 30, floor 224 (gap 194) */
 function flat() { const n = 6000; world.CEIL = new Float32Array(n).fill(30); world.FLOOR = new Float32Array(n).fill(224); }
 function freshG(extra: object = {}) { $.G = { t: 0, loop: 0, seed: 7, scroll: 1000, scrollSpeed: 1, pend: [], script: [], si: 0, route: [null, null], visitNo: [0, 0], bx: [null, null, null], ...extra }; $.P = { x: 150, y: 127, alive: true, inv: 0 }; world.shots.length = 0; }
-const E = () => BI.sigRuns().eng as any;
-const step = (n: number) => { for (let i = 0; i < n; i++) { $.G.t++; E().step(); } };
+const SO = await import('../../src/solids');
+const TB = await import('../../src/terrainb');
 
-describe('the engine adapter', () => {
+// the engine itself (tides, swallows, blocks, plugs, S5) is W3a's, tested in solids.test.ts / terrainb.test.ts; these
+// check that the signature runs drive it (W6: the W3c stand-in adapter was swapped for the solids.ts imports)
+describe('the runs drive the space engine (solids.ts)', () => {
   beforeAll(() => L.setLayout('long4'));
-  it('a tide rises, never under its fit floor, and puts the terrain back exactly', () => {
-    flat(); freshG(); E().reset();
-    const F0 = world.FLOOR.slice(), C0 = world.CEIL.slice(), V = S.TIDE.vars[2];
-    E().armTide({ x0: 1200, x1: 1650, d: V.d, rise: V.rise, hold: V.hold, drain: V.drain, tell: S.TIDE.tell, fit: 160, sig: 'b0:t', v: 2 });
-    step(S.TIDE.tell + V.rise + 10);
-    expect(Math.min(...world.FLOOR.slice(300, 412))).toBeCloseTo(30 + 160 + S.TIDE.pad, 0); // the 70 px rise capped at the fit floor + pad
-    for (let i = 300; i < 412; i++) expect(world.FLOOR[i] - world.CEIL[i]).toBeGreaterThanOrEqual(160);
-    step(S.tideLen(2));
-    expect(world.FLOOR).toEqual(F0); expect(world.CEIL).toEqual(C0);
-    expect(E().wins.length).toBe(0);
+  function built(b: string) {
+    const n = Math.ceil(L.layout().level / 4) + 300; world.CEIL = new Float32Array(n).fill(10); world.FLOOR = new Float32Array(n).fill(244);
+    const i = L.stageOfSlot(0), route = [b, null] as (string | null)[];
+    freshG({ route, mb: { [i]: ['choir', 'cyst'] }, picks: { [i]: { mv: 0, sp: CATALOG[b].slice(0, 3) } }, spUsed: {} });
+    BI.biomeStage(0, L.slotRow(0).gateLate!);
+    return BI.sigRuns() as any;
+  }
+  it('MORGUE RUSH releases its blocks into solids.ts, and a rebuild of the slot retires them', () => {
+    const R = built('ice'), r = R.runs[0];
+    $.G.scroll = r.V.x0; r.on = true; r.t = 0;
+    for (let k = 0; k < 3; k++) { $.G.t++; R.step(); SO.stepSolids(); }
+    const mine = () => SO.solids.filter((q: any) => q.k === 'ice' && q.sig === r.sig && q.st !== 'dead');
+    expect(mine().length).toBeGreaterThan(0);
+    built('ice');
+    expect(mine().length).toBe(0);
   });
-  it('a swallow clenches inside its window only and puts the terrain back exactly', () => {
-    flat(); freshG(); E().reset();
-    const F0 = world.FLOOR.slice(), V = S.SWALLOW.vars[0];
-    E().armSwallow({ x0: 1200, x1: 1680, S: V.S, T: V.T, dur: 400, tell: S.SWALLOW.tell, fit: 72, split: false, sig: 'b0:s', v: 0 });
-    step(S.SWALLOW.tell + V.T / 2);
-    expect(world.CEIL[360]).toBeGreaterThan(30 + V.S - 1);
-    expect(world.CEIL[250]).toBe(30); // outside
-    step(400);
-    expect(world.FLOOR).toEqual(F0);
-  });
-  it('a block that would leave the fit under its floor shatters; one that would not lodges into the terrain', () => {
-    for (const [fit, lodges] of [[190, false], [100, true]] as const) {
-      flat(); freshG(); E().reset();
-      $.P.y = 60; // near the ceiling: the block turns up to it
-      const k = E().spawnIce({ lane: 60, fit, sig: 'b0:m' });
-      expect(k).not.toBeNull();
-      step(400);
-      expect(E().blocks.length).toBe(0);
-      expect(E().lodged.length).toBe(lodges ? 1 : 0);
-      expect(Math.max(...world.CEIL) > 30).toBe(lodges);
-    }
-  });
-  it('S5: never spawns a block within 48 px of the ship', () => {
-    flat(); freshG(); E().reset();
-    $.P.x = 480; $.P.y = 127;
-    expect(E().spawnIce({ lane: 127, fit: 100, sig: 'b0:m' })).toBeNull();
-  });
-  it('S5: a plug cell never forms (or re-forms) within 24 px of the ship, and the plug closes the column once grown', () => {
-    flat(); freshG(); E().reset();
-    $.G.scroll = 1000; $.P.x = 200; $.P.y = 127; // the ship sits on the plug's column
-    const p = E().spawnPlug({ wx: 1205, tell: 44, sig: 'b0:p' });
-    step(60);
-    const near = p.cells.filter((c: any, j: number) => Math.abs(p.yTop + (j + .5) * p.cell - 127) < 24);
-    expect(near.length).toBeGreaterThan(0);
-    for (const c of near) expect(c.on).toBe(false);
-    // the ship leaves: the waiting cells form, the column is whole and closed
-    $.P.x = 20; step(5);
-    expect(p.cells.every((c: any) => c.on)).toBe(true);
-    const i = Math.round(1205 / 4);
-    expect(world.FLOOR[i] - world.CEIL[i]).toBeLessThanOrEqual(0);
-    // a shot cuts the cell it meets, and only that one
-    world.shots.push({ x: 1200 - 1000 - 6, y: 127, vx: 8, k: 'bolt' });
-    step(1);
-    expect(p.cells.filter((c: any) => !c.on).length).toBe(1);
-    expect(world.shots.length).toBe(0);
+  it('HIGH TIDE arms a DYN tide window over its span on its first step', () => {
+    const R = built('acid'), r = R.runs[0];
+    $.G.scroll = r.V.x0 - 200; r.on = true; r.t = 0;
+    $.G.t++; R.step();
+    expect(TB.DYNS.some((w: any) => w.spec.kind === 'tide' && w.spec.x0 === r.V.x0 && w.spec.x1 === r.V.x1)).toBe(true);
+    SO.resetSolids();
   });
 });
 

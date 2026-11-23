@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { gainXP, pk, spillSlick } from '../perks';
+import { gainXP, pk, scabChance, spillSlick } from '../perks';
 const VOL = { on: 0 };
 import { clearStage, deepPay } from '../stages';
 import { FIRE, PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '../core';
@@ -11,17 +11,18 @@ import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, ET, aimA, aimLead, aimShot, banner, eshoot, every, fan, mk, onScreen, revRing, revShot, ring, shootB, volley, wrapA } from '../enemies/spawn';
-import { REC_TY, WARD_POD_W, g3, rankOf, scabChanceOf, tierOf, wardCapOf } from './g3';
+import { REC_TY, g3, rankOf, tierOf } from './g3';
+import { SURV } from '../death'; // WARD's pod weight (W2 SURV.wardPodW)
 import { BUL, ENTRY, KNOT, blueAt, kidAngle, mayFire, retryIn, revChanceOf } from '../notice';
 import { capRate } from '../tier'; // the tier's faucet multiplier at the formation pod roll (W0)
 import { revChance as revChanceT } from '../rank';
 import { countKill } from '../mutations';
 import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP, noticeOf } from '../economy';
-import { WARD_MAX, playerHit, slotMaxed } from '../player';
+import { playerHit, slotMaxed, wardCap } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { KH, hookBehind, hookHits } from './butcherhook';
 import { BUTCHER } from '../boss/bossrules';
-import { clock3, crux3, g3, iv, maw3, meat3, reelSweep, room, variant } from '../boss/bossfights'; // long4 boss fights (W4b)
+import { clock3, crux3, iv, maw3, meat3, reelSweep, room, variant } from '../boss/bossfights'; // long4 boss fights (W4b)
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
 import { MID_SIM, midHitSnd, midMul, midRow } from './mid/roster';
@@ -801,8 +802,8 @@ export function killEnemy(e, dir = 1) {
   }
   if (!e.par) spillSlick(e.x, e.y);
   // SCAB WEAVE (W2, §2.1 survival): scabChance() per level, every regrow capped at wardCap() (wardLv on long4)
-  if (pk('scab') && $.P && $.P.wardLv > 0 && $.P.shield < wardCapOf(WARD_MAX) && R() < scabChanceOf() * pk('scab')) {
-    $.P.shield = Math.min(wardCapOf(WARD_MAX), Math.floor($.P.shield) + 1);
+  if (pk('scab') && $.P && $.P.wardLv > 0 && $.P.shield < wardCap() && R() < scabChance() * pk('scab')) {
+    $.P.shield = Math.min(wardCap(), Math.floor($.P.shield) + 1);
     pop($.P.x, $.P.y - 12, 'SCAB', '#ff8aa0', 7, 30);
   }
   pop(e.x, e.y - 8, '+' + sc, '#cfd9e3', 8, 40);
@@ -987,7 +988,7 @@ export function podType() {
     if (slotMaxed(i)) continue;
     let w = POD[i].w;
     if (i === 0 && $.P.speed >= 3) w *= .4;
-    if (i === 6 && g3()) w = WARD_POD_W; // G3 (§2.1 survival, C19): WARD weighs .45 at every tier (W2 death.ts SURV.wardPodW)
+    if (i === 6 && g3()) w = SURV.wardPodW; // G3 (§2.1 survival, C19): WARD weighs .45 at every tier (W2 death.ts SURV.wardPodW)
     if (i === 2 && $.P.laser || i === 3 && $.P.double || i === 1 && $.P.pyre || i === 4 && $.P.missile) w *= .5;
     ok.push([i, w]);
     tot += w;

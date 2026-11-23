@@ -151,6 +151,8 @@ export const PILOT = `(() => {
         near, en: g.enemies.filter((e) => !e.dead && Math.hypot(e.x - P.x, e.y - P.y) < 90).map((e) => e.k + ':' + (e.st || '')).slice(0, 4), safe, inv: P.inv, shield: P.shield }; }
     P.x = Math.min(W - 16, Math.max(10, P.x + best[0])); P.y = Math.min(PH - 6, Math.max(6, P.y + best[1]));
     for (const e of g.enemies) prev.set(e, [e.x, e.y]); if (G.boss) prev.set(G.boss, [G.boss.x, G.boss.y]);
-    { const Bb = globalThis.__biome ? globalThis.__biome() : null, eng = Bb && Bb.sig && Bb.sig.eng; if (eng && Array.isArray(eng.blocks)) for (const k of eng.blocks) if (k) prev.set(k, [k.x, k.y]); }
+    { const Bb = globalThis.__biome ? globalThis.__biome() : null, eng = Bb && Bb.sig && Bb.sig.eng; if (eng && Array.isArray(eng.blocks)) for (const k of eng.blocks) if (k) prev.set(k, [k.x, k.y]); 
+      // W3a engine BODY solids (world x): the stored x is advanced by this frame's scroll, so vel() reads screen velocity (W6)
+      if (window.__PL && window.__PL.blocks) for (const b of window.__PL.blocks()) if (b.k && 'cls' in b.k) prev.set(b.k, [b.k.x + (G.scrollSpeed || 0), b.k.y]); }
   };
 })();`;
