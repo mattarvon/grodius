@@ -159,8 +159,11 @@ export function applyPower(i, full) {
     $.P.pyre++;
     $.P.missile = 0;
   } else if (i === 5) $.P.options++;else {
+    const c0 = wardCap();
     $.P.wardLv = Math.min(3, ($.P.wardLv || 0) + 1);
-    $.P.shield = wardCap(); // long4: the new level's hits (1/2/3); elsewhere a refill to WARD_MAX
+    // long4 (Matt, decision 18, gate H2): a level-up raises the capacity and adds the new level's hit, but does NOT refill
+    // the hits already lost (WARD 1 with 0 left -> WARD 2 with 1). Elsewhere (short) a refill to WARD_MAX, as before
+    $.P.shield = hardOn() ? Math.min(wardCap(), Math.floor($.P.shield || 0) + Math.max(0, wardCap() - c0)) : wardCap();
     if ($.P.wardLv >= 3) $.P.aegis = 12;
   }
   $.G.slotF = $.G.slotF || [];

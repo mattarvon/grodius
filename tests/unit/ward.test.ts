@@ -54,6 +54,26 @@ describe('WARD hits = WARD level (long4)', () => {
     P.applyPower(6, true); // the surplus: no third hit
     expect($.P.shield).toBe(2);
   });
+  it('a level-up adds the new level\'s hit but does not refill lost hits (decision 18)', () => {
+    $.P = ship({ wardLv: 1, shield: 0 }) as any; // WARD 1, its hit spent
+    P.applyPower(6, true);
+    expect([$.P.wardLv, $.P.shield]).toEqual([2, 1]); // was a refill to 2
+    $.P = ship({ wardLv: 2, shield: 1 }) as any;
+    P.applyPower(6, true);
+    expect([$.P.wardLv, $.P.shield]).toEqual([3, 2]); // was 3
+    $.P = ship({ wardLv: 2, shield: 0 }) as any;
+    P.applyPower(6, true);
+    expect([$.P.wardLv, $.P.shield]).toEqual([3, 1]);
+    $.P = ship({ wardLv: 0, shield: 0 }) as any; // the first level still arrives with its hit
+    P.applyPower(6, true);
+    expect([$.P.wardLv, $.P.shield]).toEqual([1, 1]);
+  });
+  it('short still refills a level-up to WARD_MAX from an empty shield', () => {
+    setLayout('short');
+    $.P = ship({ wardLv: 1, shield: 0 }) as any;
+    P.applyPower(6, true);
+    expect([$.P.wardLv, $.P.shield]).toEqual([2, P.WARD_MAX]);
+  });
   it('short keeps the refill to WARD_MAX', () => {
     setLayout('short');
     P.applyPower(6, true);
