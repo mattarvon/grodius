@@ -290,7 +290,7 @@ describe('the catalogue against the game', () => {
     }
     L.setLayout('short');
   });
-  it('spawns the breath-1 release formation with the pod flag on long4, and no other formation carries it', () => {
+  it('spawns the breath-1 release formation with the pod flag on long4, and only it and the opening carriers carry it', () => {
     // G2: formation() marks group.pod (podkeep.test.ts) and killEnemy skips the roll for it (poddrop.test.ts); this is
     // the link between them, biomeScript's release (biomes.ts)
     L.setLayout('long4');
@@ -305,7 +305,8 @@ describe('the catalogue against the game', () => {
           e.f(); for (const q of $.G.pend) q.f();
           for (const c of spawned) if (c[0] === 'formation' && (c[4] as { pod?: number } | undefined)?.pod === 1) flagged.push(e.k);
         }
-        expect(flagged, `${b} slot ${seg}`).toEqual(['pod']);
+        // DIFFICULTY-SPEC §2.2: long4's two authored opening carriers (src/biomes.ts OPEN_PODS, p .05 / .20) drop too
+        expect(flagged.sort(), `${b} slot ${seg}`).toEqual(['pod', 'pod:open', 'pod:open']);
       }
     } finally {
       L.setLayout('short');

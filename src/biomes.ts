@@ -19,15 +19,17 @@ import { startStage } from './stages';
 import { drawFX } from './render/biomeart';
 import { beatPlan, layout, nSlots, slotRow, stageOfSlot } from './layout';
 import { midSeedOf, pickSeedOf, seedOf, stream } from './rng';
-import { HOME, MIDS, forceSlotA, forkAllows, noteMids, pickBiomeMids, slotClock } from './midpick';
+import { HOME, MIDS, forceSlotA, forkAllows, midsWanted, noteMids, pickBiomeMids, slotClock } from './midpick';
 import { driftOf, whenNoMini } from './midslot';
 import { MID_NAMES, ROSTER } from './enemies/mid/roster';
 import { midForce, midsWip } from './lab';
 import { drawPicks } from './setdraw';
-import { MOVES, bandClamp, gimmick, hazInterval, moveAt, snapVent } from './terrainb';
+import { MOVE, MOVES, bandClamp, gimmick, hazInterval, moveAt, narrowNear, snapVent } from './terrainb';
 import { BOSS_SIM, bossFor } from './enemies/boss/registry';
 import { hazAimed, hazLeadX } from './notice';
-import { econId, noticeOf } from './economy';
+import { ECON, econId, noticeOf } from './economy';
+import { FURNACE, GRILL, GULLET, ICICLE, INSET_MID, MORGUE, SPACE, SWALLOW, TIDE, envelope, grillCols, hazRankMul, insetOf, morgueLane, planSig, setSigWindows, throatInset, tideLen, tideLevel } from './sigs';
+import { srr } from './srnd';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -128,7 +130,8 @@ function applyPalette(b) {
 }
 
 // ---------------- terrain ----------------
-function shape(b, x, o) {
+/** movement A at world x. ins: px each wall comes in (src/sigs.ts INSET, long4 only), before the 108 px clamp */
+function shape(b, x, o, ins = 0) {
   const a = vnoise(x / 200 + o) * 2 - 1, n = vnoise(x / 47 + o + 7) * 2 - 1, f = vnoise(x / 17 + o + 3) * 2 - 1;
   let ce, fl;
   if (b === 'ice') {
@@ -145,6 +148,7 @@ function shape(b, x, o) {
     ce = 34 + 26 * Math.abs(Math.sin(x / 83 + o)) + n * 10;
     fl = PH - 34 - 26 * Math.abs(Math.sin(x / 71 + o + 1.3)) - n * 10; // bulbous sinus walls
   }
+  if (ins) { ce += ins; fl -= ins; } // the resting walls come in (levels.md §5.0); 0 on short, so its terrain is untouched
   if (fl - ce < 108) { const m = (fl + ce) / 2; fl = m + 54; ce = m - 54; }
   return [ce, fl];
 }
@@ -170,6 +174,28 @@ function arena(b, ce, fl) {
   if (fl - ce < ARENA_GAP) { const m = (fl + ce) / 2; fl = m + ARENA_GAP / 2; ce = m - ARENA_GAP / 2; }
   return [ce, fl];
 }
+/** the difficulty rebuild's long4 rules are on (DIFFICULTY-SPEC §2: gated on ECON[econId()].hard; short is untouched) */
+const isL4 = () => { const E = ECON[econId()]; return !!(E && E.hard); };
+/** 0..1, how close world x is to the held screen of a midboss this stage really flies (mids: its picks by slot; a
+ *  breath with no pick, THE KEEPSAKE stage's dropped slot B, is a rest and keeps the full inset). The held screen runs
+ *  from the breath's start to W px past its end; INSET_MID.pad more either side, eased over ramp. null: none */
+function midNear(seg, from, mids) {
+  const P = INSET_MID, R = beatPlan(slotRow(seg), from, false).breaths.filter((r) => r.mid).filter((_, s) => !mids || mids[s] != null);
+  if (!R.length) return null;
+  return (x) => { let k = 0; for (const r of R) k = Math.max(k, sstep(r.a - P.pad - P.ramp, r.a - P.pad, x) * (1 - sstep(r.z + W + P.pad, r.z + W + P.pad + P.ramp, x))); return k; };
+}
+/** slot B's GULLET (src/sigs.ts): its world x span, starting GULLET.lead past the scroll x of its spawn-span p */
+function gulletAt(seg, from) {
+  const x0 = beatPlan(slotRow(seg), from, false).P(GULLET.p) + GULLET.lead;
+  return { x0, x1: x0 + GULLET.len };
+}
+/** the gullet's edges at world x: gap 108-118 around a centre swinging +-amp on its period, blended in at both ends
+ *  (a lerp of two >= 108 gaps stays >= 108) */
+function gullet(g, x, ce, fl) {
+  const G = GULLET, k = envelope(x, g.x0, g.x1, G.blend), u = (x - g.x0) / G.period;
+  const m = (ce + fl) / 2 + G.amp * Math.sin(2 * Math.PI * u), gap = G.gap[0] + (G.gap[1] - G.gap[0]) * (.5 + .5 * Math.cos(4 * Math.PI * u));
+  return [lerp(ce, m - gap / 2, k), lerp(fl, m + gap / 2, k)];
+}
 /** blend the terrain from world x `from` onward (over 300px, all of it off-screen) into biome b; it stays that
  *  biome until the next rewrite, and always fades back to the untouched level over layout().tEnd, where the biome
  *  terrain hands back to the level's own corridor (the Gravity Drive approach; its chamber band is in world.ts). The biome shape
@@ -177,17 +203,23 @@ function arena(b, ce, fl) {
  *  beat (long4) blends movement A (shape) into movement C (arena) over arenaBlend px from the run-up's scroll x, so
  *  the whole screen is arena by the time the run-up starts; a lerp of a >=108 and a >=150 gap stays >=108. Variant mv
  *  (a layout with moveB) blends movement B (src/terrainb.ts) in and out over its band, by the same argument */
-function rewriteTerrain(seg, b, from, mv = null) {
+function rewriteTerrain(seg, b, from, mv = null, mids = null) {
   const o = ($.G.loop + 1) * 37.1 + seg * 11, LY = layout(), [T_END0, T_END1] = LY.tEnd;
   const xC = LY.beats.runup != null ? beatPlan(slotRow(seg), from, false).runup : null, xC1 = xC != null ? xC + LY.beats.arenaBlend : 0;
   const M = mv != null ? beatPlan(slotRow(seg), from, false).moveB : null, SB = slotBoss(seg); // SB: a registered boss owns its arena (movement C)
   if (M) MOVES[seg] = { ...M, b, mv, o };
+  // long4 (DIFFICULTY-SPEC §2.4): the resting walls come in by INSET px a side, halved near a held midboss's screen, and
+  // slot B gets the GULLET narrow in its rush. Movement C (the arena) is built from the un-inset walls, so the boss
+  // arenas don't move. short: ins0 is 0 and there is no gullet, so the loop is the arithmetic it was
+  const ins0 = isL4() ? insetOf(b, seg) : 0, near = ins0 ? midNear(seg, from, mids) : null, gul = isL4() && seg ? gulletAt(seg, from) : null;
   const i0 = Math.max(0, Math.floor(from / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil(T_END1 / TS));
   for (let i = i0; i <= i1; i++) {
     const x = i * TS, w = sstep(from, from + 300, x) * (1 - sstep(T_END0, T_END1, x));
-    let [ce, fl] = shape(b, x, o);
+    const ins = near ? ins0 * (1 - (1 - INSET_MID.k) * near(x)) : ins0;
+    let [ce, fl] = shape(b, x, o, ins);
     if (M && x > M.a && x < M.z) { const k = sstep(M.a, M.a + M.blend, x) * (1 - sstep(M.z - M.blend, M.z, x)), [cb, fb] = gimmick(b, mv, x, o, ce, fl); ce = lerp(ce, cb, k); fl = lerp(fl, fb, k); }
-    if (xC != null && x > xC) { const k = sstep(xC, xC1, x), [cc, ff] = SB && SB.arena ? SB.arena(...(REST[b] || REST.snot), ce, fl, AR) : arena(b, ce, fl); ce = lerp(ce, cc, k); fl = lerp(fl, ff, k); }
+    if (gul && x > gul.x0 && x < gul.x1) [ce, fl] = gullet(gul, x, ce, fl);
+    if (xC != null && x > xC) { if (ins) [ce, fl] = shape(b, x, o); const k = sstep(xC, xC1, x), [cc, ff] = SB && SB.arena ? SB.arena(...(REST[b] || REST.snot), ce, fl, AR) : arena(b, ce, fl); ce = lerp(ce, cc, k); fl = lerp(fl, ff, k); }
     FLOOR[i] = lerp(FLOOR[i], fl, w);
     CEIL[i] = lerp(CEIL[i], ce, w);
   }
@@ -289,6 +321,11 @@ const SET = {
 };
 /** the set pieces there are (test hook: setdraw.ts CATALOG must name only these) */
 export const SET_KINDS = Object.keys(SET);
+/** long4's authored opening carriers: [p in the spawn span, spawn height as a fraction of PH] (DIFFICULTY-SPEC §2.2:
+ *  2 per biome stage in its first 45 s, ~1 pod every 10 s with the release; gate E2 counts fixed:open) */
+const OPEN_PODS: readonly [number, number][] = [[.05, .4], [.2, .6]];
+/** which drawn set piece the signature's v2 replaces (0-based: S2, levels.md §5.0b) */
+const SIG_SET = 1;
 /** a repeat visit to a biome (v = earlier visits this run): its own second signature + set, the set pieces moved, some
  *  of its kinds gone, its drone pattern swapped (add), two kinds borrowed from other biomes (a fresh pick each time),
  *  and more elites (enemies/elite.ts) */
@@ -315,8 +352,10 @@ export const logPick = (B, v) => [0, 1, 2].map((k) => B.logs[(k + 3 * v) % B.log
  *  for that stage), so the same inputs always give the same x and kind list. Elite rolls stay at spawn time on the sim
  *  R() (el(), below; spec §4). Every entry carries `k`, what it spawns. The beats are layout().beats through
  *  beatPlan (src/layout.ts): short's single breath, or long4's beat template v2 (spec §3.2). setIds: the stage's drawn
- *  set pieces in play order (stagePicks); null is the visit's one signature piece, three times (short) */
-export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(seg)), mids = null, setIds = null) {
+ *  set pieces in play order (stagePicks); null is the visit's one signature piece, three times (short). sigOn: the stage
+ *  flies its biome signature (biomeStage: long4, movement B0), whose v2 replaces set piece S2; S2's draw is still
+ *  consumed, so G.spUsed and the pick stream hold (levels.md §5.0b) */
+export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(seg)), mids = null, setIds = null, sigOn = false) {
   const B = BIOMES[b], g = slotRow(seg), BT = layout().beats, S = [], at = (x, f, k) => S.push({ x, f, k }), hard = $.G.loop > 0, X = remix(b, v, $.G.loop, rs), MX = X.mix;
   const tot = MX.reduce((s, m) => s + m[1], 0), roll = () => { let r = rs() * tot, k = 0; while ((r -= MX[k][1]) > 0 && k < MX.length - 1) k++; return MX[k][0]; };
   // elites: every spawn this slot makes (rear waves and staggered set pieces included) rolls eliteChance once
@@ -344,6 +383,10 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
   // the tempo band (layout().beats.tempo) for scroll x at progress q: the first whose `until` is still ahead
   const band = (x, q) => { for (const T of BT.tempo) if (typeof T.until === 'number' ? q < T.until : x < BR[T.until.breath].z) return T; return BT.tempo[BT.tempo.length - 1]; };
   const led = new Set();
+  // long4: two authored opening carriers (DIFFICULTY-SPEC §2.2 faucet, levels.md §5.0b): fixed formations at p .05 and
+  // .20 whose last kill always drops (pod), tagged open (pod-probe's fixed:open, gate E2). Fixed heights and no rs()
+  // draw, so the build stream's order is unchanged
+  if (isL4() && !legacy) for (const [p, y] of OPEN_PODS) at(P(p), () => formation('sine', PH * y, FM, { pod: 1, open: 1 }), 'pod:open');
   for (let x = a; x < z;) {
     const q = (x - a) / (z - a), T = band(x, q), st = Math.round(B.gap * T.gap), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
     const br = inBreath(x);
@@ -355,7 +398,11 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
       continue;
     }
     if (T.stop) break; // the arena run-up: nothing spawns from here to the boss
-    if (sets.length && x + st / 2 > sets[0]) { const sx = legacy ? x : sets[0], id = (setIds && setIds[setN]) || X.set; sets.shift(); setN++; at(sx, el(SET[id]), 'set:' + id); x += st; continue; }
+    if (sets.length && x + st / 2 > sets[0]) {
+      const sx = legacy ? x : sets[0], id = (setIds && setIds[setN]) || X.set; sets.shift(); setN++;
+      if (sigOn && setN === SIG_SET + 1) { x += st; continue; } // the signature's v2 takes S2's place: its slot stays empty
+      at(sx, el(SET[id]), 'set:' + id); x += st; continue;
+    }
     const pk = T.sig ? sig : roll, dbl = T.rel ? Math.min(.85, B.dbl + T.dbl) : T.dbl;
     if (T.lead && !led.has(T)) { led.add(T); const k = T.lead === 'sig' || !two ? X.sig : two; at(x, el(SPAWN[k]), k); x += st; continue; } // the band's first slot, alone
     const k1 = pk();
@@ -414,8 +461,12 @@ export function stagePicks(i, b, v) {
 export function biomeStage(seg, from) {
   const G = $.G, b = G.route[seg], v = G.visitNo[seg], i = stageOfSlot(seg);
   const pk = layout().beats.moveB ? stagePicks(i, b, v) : null;
-  rewriteTerrain(seg, b, from, pk && pk.mv);
-  insertScript(biomeScript(seg, b, from, v, stageStream(i), layout().picker ? stageMids(i, b) : null, pk && pk.sp));
+  // the picks come first now (the inset reads which midboss breaths are held): midStream(i) is independent of the
+  // terrain and of stageStream(i), so the order doesn't move either
+  const mids = layout().picker ? stageMids(i, b, seg) : null, sp = sigPlanOf(seg, b, from, v, pk && pk.mv, mids);
+  rewriteTerrain(seg, b, from, pk && pk.mv, mids);
+  insertScript(biomeScript(seg, b, from, v, stageStream(i), mids, pk && pk.sp, !!sp));
+  armSigs(seg, b, sp);
 }
 
 // ---------------- midbosses (picker layouts: build plan LS1 row F, spec §6.3-6.4) ----------------
@@ -423,10 +474,12 @@ export function biomeStage(seg, from) {
  *  stage's previous pair (whole run). A stage is picked once: a rebuild (resume, item H) reads G.mb back */
 const midState = () => { const G = $.G; G.mb ||= {}; G.mbUsed ||= []; G.mbLast ||= {}; return G; };
 /** biome stage i's midbosses (biome b): picked on first call from midStream(i), never stageStream(i) */
-export function stageMids(i, b) {
+export function stageMids(i, b, seg = null) {
   const G = midState();
   if (!G.mb[i]) {
-    const picks = pickBiomeMids(G, b, G.loop, midStream(i), $.meta && $.meta.mb, false, midsWip()).picks, f = midForce();
+    // THE KEEPSAKE's Descent 1 stage flies midboss A only (midpick.ts midsWanted, DIFFICULTY-SPEC C24)
+    const n = seg != null ? midsWanted(bossFor(seg, G.loop || 0, !!layout().picker), G.loop || 0) : 2;
+    const picks = pickBiomeMids(G, b, G.loop, midStream(i), $.meta && $.meta.mb, false, midsWip(), n).picks, f = midForce();
     G.mb[i] = f ? forceSlotA(picks, f) : picks; // ?mid=<wip kind>: the test path (lab.ts forcedMid); the draw is made either way
   }
   return G.mb[i];
@@ -507,12 +560,15 @@ function gateYs() {
 const haz = [], amb = [];
 export function biomeReset() {
   haz.length = amb.length = MOVES.length = 0;
+  sigClear(null);
   applyPalette(null);
-  if ($.G) { $.G.bx = Array(nSlots() + 1).fill(null); $.G.hazT = 90; $.G.hazHit = 0; $.G.hazN = 0; $.G.mb = {}; $.G.mbUsed = []; $.G.picks = {}; } // a new descent forgets what it met (spec §6.3 step 2); G.mbLast and G.spUsed are kept
+  if ($.G) { $.G.bx = Array(nSlots() + 1).fill(null); $.G.hazT = 90; $.G.hazHit = 0; $.G.hazN = 0; $.G.mb = {}; $.G.mbUsed = []; $.G.picks = {}; $.G.sigW = {}; } // a new descent forgets what it met (spec §6.3 step 2); G.mbLast and G.spUsed are kept
 }
 
-function spawnHazard(b) {
-  const G = $.G, P = $.P;
+/** spawn one biome hazard of kind b ('icicle' | 'geyser' | 'jet' | 'strand') on the random timer's rules. Exported for
+ *  the fights (W4: the Bloat's icicle curtain); a placed one goes through spawnHazardAt */
+export function spawnHazard(b) {
+  const G = $.G, P = $.P, nearX = isL4() ? SPACE.noSpawn : 46; // C9: hazards 48 px from the ship on long4 (46 before)
   // D61 "it notices you" (src/notice.ts): every 3rd column hazard (1 in 2 in Descent 3) is aimed. It drops where the
   // ship's column will be when it reaches the ship's height if the ship holds still, and is marked (h.aim: biomeart draws
   // D59's hatched column band over its whole warm-up, 50-70 f). The rest still re-roll off the ship
@@ -526,12 +582,12 @@ function spawnHazard(b) {
     x = hazLeadX(b, P.x, P.y, G.scrollSpeed, c0 + 16, W);
   } else {
     x = rr(W * .45, W * .9);
-    for (let k = 0; k < 8 && P && Math.abs(x - P.x) < 46; k++) x = rr(W * .45, W * .9); // never drop it on the ship
+    for (let k = 0; k < 8 && P && Math.abs(x - P.x) < nearX; k++) x = rr(W * .45, W * .9); // never drop it on the ship
   }
   // the Chimney (movement B1): jets come down its vents. A vent past the right edge would burn its telegraph off-screen
   let vent = false;
   if (b === 'jet') ({ x, vent } = snapVent(x, G.scroll, W)); // src/terrainb.ts; never on short (no bands)
-  if (!aim && P && Math.abs(x - P.x) < 46) return;
+  if (!aim && P && Math.abs(x - P.x) < nearX) return;
   const wx = x + G.scroll, c = ceilAt(wx), f = floorAt(wx);
   let h = null;
   if (b === 'icicle' && c > 4) h = { k: b, x, y: c + 2, t: 0, vy: 0, len: rr(10, 18) };
@@ -541,6 +597,23 @@ function spawnHazard(b) {
   if (!h) return;
   if (aim) h.aim = 1;
   haz.push(h);
+}
+/** a placed hazard at screen x: kind k, `up` (a jet from the ceiling, else the floor), `aim` (draw the marked column),
+ *  `shootable` (an icicle the ship's fire may break on long4; ICICLE.immune otherwise), `live` (a jet's burn, frames).
+ *  No R(): the caller places it. Returns the hazard, or null where the terrain has no room for it. For the fights (W4)
+ *  and the signatures */
+export function spawnHazardAt(k, x, o: { up?: boolean; aim?: boolean; shootable?: boolean; live?: number; len?: number } = {}) {
+  const wx = x + $.G.scroll, c = ceilAt(wx), f = floorAt(wx);
+  let h = null;
+  if (k === 'icicle' && c > 4) h = { k, x, y: c + 2, t: 0, vy: 0, len: o.len || 14 };
+  else if (k === 'geyser' && f < PH - 2) h = { k, x, y: f, t: 0, top: c };
+  else if (k === 'jet') { const up = !!o.up && c > 4; h = { k, x, y: up ? c : f, dir: up ? 1 : -1, t: 0, span: f - c }; }
+  if (!h) return null;
+  if (o.aim) h.aim = 1;
+  if (o.shootable) h.shoot = 1;
+  if (o.live) h.live = o.live;
+  haz.push(h);
+  return h;
 }
 
 export function stepBiome() {
@@ -579,10 +652,14 @@ export function stepBiome() {
   // hazards
   // hazards: only while actually flying a biome (never during a fork / tally / death / pick / boss intro)
   const P0 = $.P;
-  if (B && k > .9 && $.state === 'play' && !G.fork && !G.forkHold && !G.tally && !G.pick && !G.clearT && P0 && P0.alive && P0.inv < 60) {
+  // long4: the timer pauses while a signature variation runs (C29: one threat type at a time at a peak), its base is the
+  // Furnace's own cadence for fire (sigs.ts FURNACE), and rank scales it (x(1.15 - .3 rho), DIFFICULTY-SPEC §2.1)
+  const L4 = isL4();
+  if (B && k > .9 && $.state === 'play' && !G.fork && !G.forkHold && !G.tally && !G.pick && !G.clearT && P0 && P0.alive && P0.inv < 60 && !(L4 && sigPause())) {
     G.hazT = (G.hazT || 60) - 1;
-    if (G.hazT <= 0) { spawnHazard(B.haz); G.hazT = hazInterval(B.hazEvery * (G.mini ? 1.6 : 1) * rr(.7, 1.3) / (1 + .3 * G.loop), sc + W / 2); } // hazInterval: movement B's rate, src/terrainb.ts
+    if (G.hazT <= 0) { spawnHazard(B.haz); G.hazT = hazInterval((L4 && b === 'fire' ? FURNACE.every : B.hazEvery) * (G.mini ? 1.6 : 1) * rr(.7, 1.3) / (1 + .3 * G.loop) * (L4 ? hazRankMul(rhoNow()) : 1), sc + W / 2); } // hazInterval: movement B's rate, src/terrainb.ts
   }
+  if (L4) stepSigs();
   const P = $.P;
   for (let i = haz.length - 1; i >= 0; i--) {
     const h = haz[i];
@@ -595,15 +672,18 @@ export function stepBiome() {
       if (h.y + h.len > floorAt(wx)) { dead = true; for (let q = 0; q < 10; q++) spark(h.x, floorAt(wx) - 2, rr(-2, 2), -rr(.5, 2.5), ri(10, 20), q % 2 ? '#e8f6ff' : '#9fd8ff'); sfx.tink(); }
       if (P && P.alive && Math.abs(P.x - h.x) < 5 && P.y > h.y && P.y < h.y + h.len + 4) { G.hazHit = 1; dead = true; }
     } else if (h.k === 'geyser' || h.k === 'jet') {
-      const warm = h.k === 'geyser' ? 70 : 60, live = h.k === 'geyser' ? 45 : 70;
-      if (h.t < warm && R() < .4) spark(h.x + rr(-4, 4), h.y - (h.dir || -1) * -2, rr(-.3, .3), (h.dir || -1) * rr(.3, 1.2), 12, h.k === 'geyser' ? '#7ff0d8' : pick(FIRE));
+      const warm = h.k === 'geyser' ? 70 : 60, live = h.live || (h.k === 'geyser' ? 45 : 70); // h.live: a grill column burns until it has passed the ship
+      if (h.grill) { // a grill column's sparks come from the render stream: a placed hazard adds no sim R() draws
+        if (h.t < warm && srr(0, 1) < .4) spark(h.x + srr(-4, 4), h.y + h.dir * 2, srr(-.3, .3), h.dir * srr(.3, 1.2), 12, FIRE[(h.t >> 2) % FIRE.length]);
+      } else if (h.t < warm && R() < .4) spark(h.x + rr(-4, 4), h.y - (h.dir || -1) * -2, rr(-.3, .3), (h.dir || -1) * rr(.3, 1.2), 12, h.k === 'geyser' ? '#7ff0d8' : pick(FIRE));
       if (h.t === warm) { sfx.glob(); if (h.k === 'jet') sfx.fireball && sfx.fireball(); }
       if (h.t >= warm) {
         const reach = (h.k === 'geyser' ? h.y - h.top : h.span) * (h.k === 'geyser' ? .62 : .55) * Math.min(1, (h.t - warm) / 8);
         h.reach = reach;
         const y0 = h.k === 'geyser' ? h.y - reach : h.dir > 0 ? h.y : h.y - reach, y1 = h.k === 'geyser' ? h.y : h.dir > 0 ? h.y + reach : h.y;
         if (P && P.alive && Math.abs(P.x - h.x) < 7 && P.y > y0 && P.y < y1) G.hazHit = 1;
-        if (R() < .6) drop(h.x + rr(-3, 3), y0, rr(-1.2, 1.2), rr(-1.5, .5), rr(1, 1.6), h.k === 'geyser' ? 2 : 5, 40);
+        if (h.grill) { if (srr(0, 1) < .6) drop(h.x + srr(-3, 3), y0, srr(-1.2, 1.2), srr(-1.5, .5), srr(1, 1.6), 5, 40); }
+        else if (R() < .6) drop(h.x + rr(-3, 3), y0, rr(-1.2, 1.2), rr(-1.5, .5), rr(1, 1.6), h.k === 'geyser' ? 2 : 5, 40);
         if (h.k === 'jet') light(h.x, (y0 + y1) / 2, 40, .9);
       }
       if (h.t > warm + live) dead = true;
@@ -621,14 +701,315 @@ export function stepBiome() {
         if (--h.hp <= 0) { dead = true; for (let q = 0; q < 10; q++) drop(h.x, s.y + rr(-10, 10), rr(-1, 1), rr(-1, 1), 1.4, 0, 70); sfx.squish(); }
       }
     }
-    if (h.k === 'icicle') for (const s of shots) if (!dead && Math.abs(s.x - h.x) < Math.max(6, Math.abs(s.vx || 0) * .6 + 1) && s.y > h.y - 4 && s.y < h.y + h.len + 4) { dead = true; for (let q = 0; q < 8; q++) spark(h.x, h.y + h.len / 2, rr(-2, 2), rr(-2, 2), 12, '#e8f6ff'); sfx.tink(); }
+    if (h.k === 'icicle' && L4 && ICICLE.immune && !h.shoot) { // long4: the ship's fire tinks off the ice and is spent (sigs.ts ICICLE)
+      for (let j = shots.length - 1; j >= 0; j--) { const s = shots[j]; if (!dead && Math.abs(s.x - h.x) < Math.max(6, Math.abs(s.vx || 0) * .6 + 1) && s.y > h.y - 4 && s.y < h.y + h.len + 4) { shots.splice(j, 1); for (let q = 0; q < 3; q++) spark(h.x, s.y, srr(-2, 0), srr(-1.5, 1.5), 8, '#e8f6ff'); sfx.tink(); } }
+    } else if (h.k === 'icicle') for (const s of shots) if (!dead && Math.abs(s.x - h.x) < Math.max(6, Math.abs(s.vx || 0) * .6 + 1) && s.y > h.y - 4 && s.y < h.y + h.len + 4) { dead = true; for (let q = 0; q < 8; q++) spark(h.x, h.y + h.len / 2, rr(-2, 2), rr(-2, 2), 12, '#e8f6ff'); sfx.tink(); }
     if (dead) haz.splice(i, 1);
   }
 }
 
+// ---------------- the biome signatures (long4; DIFFICULTY-SPEC §2.4, levels.md §5.1-5.4; numbers: src/sigs.ts) ----------------
+// One run per planned variation (sigs.ts planSig), armed by its script entry `sig:<k>` and stepped every frame by
+// stepSigs. ENGINE ADAPTER, until W3a's SOLIDS / DYN land (scratchpad spec/W3A-API.md): moving terrain is levels.md
+// §2.2's own design done here, a saved base copy of the window's FLOOR / CEIL rewritten each frame and put back after;
+// a lodged ice block and a mucus plug are written into the terrain arrays, so they kill like walls through WARD
+// (Decision 5) and every floorAt / ceilAt reader (the ship, shots, hazards, turrets, the probes) agrees; a flying block
+// is a body hit (WARD takes it). Swapping onto W3a's API touches only this block. No R(): frame counters, world x and
+// the ship's position; the fx draw srr. Checkpoints sit before a window (its `cp`), and a rebuild (buildTerrain, then
+// biomeStage) clears the runs, so nothing here is saved
+const SG = { runs: [], blocks: [], lodged: [], plugs: [] };
+/** forget slot seg's signature runs (null: every slot). Whatever they wrote into the terrain is rebuilt by the caller */
+function sigClear(seg) {
+  const keep = (o) => seg != null && o.seg !== seg;
+  SG.runs = SG.runs.filter(keep); SG.blocks = SG.blocks.filter(keep); SG.lodged = SG.lodged.filter(keep); SG.plugs = SG.plugs.filter(keep);
+}
+/** ADAPTER: rank.ts rho($) once W0 lands. Until then G.rank is the old power clamp (0-1.25), not a rank: null, no change */
+const rhoNow = () => { const G = $.G; return G && G.tier != null && Number.isFinite(G.rank) ? Math.min(Math.max(G.rank, 0), 16) / 16 : null; };
+/** a signature variation is running that pauses the random hazard timer (HIGH TIDE v3 keeps its geysers) */
+const sigPause = () => SG.runs.some((r) => r.on && !r.done && !(r.k === 'high_tide' && TIDE.vars[r.v].geysers));
+/** biome slot seg's signature plan, or null: long4, movement B0 (a first visit in Descent 1), inside its band. It runs
+ *  from the band's start (midboss A's breath end) to the next midboss WARNING - 40, or 150 px into breath 2 when that
+ *  breath holds no midboss (THE KEEPSAKE stage) */
+function sigPlanOf(seg, b, from, v, mv, mids) {
+  if (!isL4() || mv !== 0 || !layout().beats.moveB) return null;
+  const BP = beatPlan(slotRow(seg), from, !!v), M = BP.moveB;
+  if (!M || BP.breaths.length < 2) return null;
+  const lim = mids && mids.length > 1 && BP.warns[1] != null ? BP.warns[1] - 40 : BP.breaths[1].a + 150;
+  return planSig(b, seg, M.a, lim);
+}
+/** the two B0 narrows inside a swallow window (where v3's plugs grow), world x of each narrowest column */
+function plugNarrows(V) {
+  const out = [], a = V.x0 + SWALLOW.ramp, z = V.x1 - SWALLOW.ramp;
+  for (let nx = narrowNear(a); nx <= z && out.length < 2; nx = narrowNear(nx + MOVE.throat.every)) if (nx >= a) out.push(nx);
+  return out;
+}
+/** register slot seg's windows (sigs.ts setSigWindows: the probes' exception list, the cap context) and queue each
+ *  variation's arming entry. A v3 swallow window is split around its plugs: a closed plug is a shootable barrier (S6),
+ *  so the swept fit there is 0 by design and those columns register with floor 0 */
+function armSigs(seg, b, plan) {
+  sigClear(seg);
+  if (!isL4()) return;
+  const G = $.G, wins = [];
+  if (plan) for (const V of plan.vars) {
+    const run = { seg, b, k: plan.k, v: V.v, V, on: false, done: false, t: 0 }, id = `${b}:${plan.k}:v${V.v + 1}`, cp = Math.round(V.s0 - 60);
+    SG.runs.push(run);
+    if (plan.k === 'swallow' && 'plug' in SWALLOW.vars[V.v]) {
+      let x = V.x0;
+      for (const nx of plugNarrows(V)) { wins.push({ x0: x, x1: nx - 17, floor: V.floor, id, k: plan.k, cp: x === V.x0 ? cp : undefined }); wins.push({ x0: nx - 17, x1: nx + 19, floor: 0, id: id + ':plug', k: plan.k }); x = nx + 19; }
+      wins.push({ x0: x, x1: V.x1, floor: V.floor, id, k: plan.k });
+    } else wins.push({ x0: V.x0, x1: V.x1, floor: V.floor, id, k: plan.k, cp });
+    insertScript([{ x: V.s0, f: () => { run.on = true; run.t = 0; }, k: 'sig:' + plan.k }]);
+  }
+  setSigWindows(G, 'b' + seg, wins);
+}
+/** the swept S1 fit gap's minimum over ship positions [a, b] (world x); blk: a block [x0, x1, edge y, on the ceiling]
+ *  to count as lodged (MORGUE's lodge rule) */
+function fitSpan(a, b, blk) {
+  const ce = (u) => (blk && u >= blk[0] && u <= blk[1] && blk[3] ? Math.max(ceilAt(u), blk[2]) : ceilAt(u));
+  const fl = (u) => (blk && u >= blk[0] && u <= blk[1] && !blk[3] ? Math.min(floorAt(u), blk[2]) : floorAt(u));
+  let m = 1e9;
+  for (let p = a; p <= b; p += 2) { let c = -1e9, f = 1e9; for (let u = p - 9; u <= p + 12; u += 3) { c = Math.max(c, ce(u)); f = Math.min(f, fl(u)); } m = Math.min(m, f - c); }
+  return m;
+}
+/** one of the ship's shots overlapping the rect [x, x + w] x [y, y + h] (screen) this frame or the next, spent on it */
+function shotInto(x, y, w, h) {
+  for (let j = shots.length - 1; j >= 0; j--) {
+    const s = shots[j], tip = s.k === 'laser' ? s.x + (s.len || 0) : s.x;
+    if (s.g || tip + Math.max(0, s.vx || 0) < x || s.x > x + w || s.y < y || s.y > y + h) continue;
+    shots.splice(j, 1);
+    return s;
+  }
+  return null;
+}
+const SIGSTEP = {
+  /** ICE: release the variation's blocks on its cadence (v3 adds the shelf crosses) */
+  morgue_rush(r) {
+    const V = MORGUE.vars[r.v], n = r.V.n;
+    r.rel ||= 0;
+    while (r.rel < n && r.t >= r.rel * V.every) releaseBlock(r, r.rel++);
+    if ('cross' in V && (r.t === 1 || r.t === Math.round(n * V.every / 2))) crossT(r.t === 1 ? 1 : -1);
+    if (r.rel >= n && !SG.blocks.some((k) => k.run === r)) r.done = true;
+  },
+  /** ACID: the lake rises by d over the window (capped at the window floor), holds, drains; then the base goes back */
+  high_tide(r) {
+    const V = TIDE.vars[r.v], X = r.V;
+    if (!r.base) {
+      r.i0 = Math.max(0, Math.floor(X.x0 / TS)); r.i1 = Math.min(FLOOR.length - 1, Math.ceil(X.x1 / TS)); r.base = FLOOR.slice(r.i0, r.i1 + 1);
+      sample('gross_gargle', { vol: .7, rate: .8 }) || sfx.glob(); // the tell: the tank glugs
+      if ('eye' in V) eyeT(-1); // the floor is liquid: turrets ride the ceiling folds, aiming down into the squeeze
+      if ('womb' in V) womb();
+    }
+    if (r.t >= tideLen(r.v)) { FLOOR.set(r.base, r.i0); r.done = true; return; }
+    const lv = tideLevel(r.v, r.t), cap = X.floor + TIDE.pad;
+    for (let i = r.i0; i <= r.i1; i++) { const b0 = r.base[i - r.i0], d = V.d * lv * envelope(i * TS, X.x0, X.x1, TIDE.ramp); FLOOR[i] = Math.min(b0, Math.max(b0 - d, CEIL[i] + cap)); }
+  },
+  /** FIRE: each column warms when it is GRILL.lead px ahead of the ship and burns until it has passed it */
+  grill(r) {
+    const G = $.G, P = $.P, V = GRILL.vars[r.v];
+    if (!r.cols) { r.cols = grillCols(r.v, r.V.n).map(([dx, up]) => ({ wx: r.V.x0 + 20 + dx, up, on: false })); r.hk = 0; }
+    let left = 0, lit = 0;
+    for (const c of r.cols) {
+      if (c.on) { lit++; continue; }
+      left++;
+      const x = c.wx - G.scroll;
+      if (!P || x - P.x > GRILL.lead || x > W - 6) continue;
+      c.on = true; lit++;
+      if (Math.abs(x - P.x) < GRILL.skipNear) continue; // the ship is on it: this column sits the comb out (spawnHazard's rule)
+      const h = spawnHazardAt('jet', x, { up: c.up, live: GRILL.lead - GRILL.warm + GRILL.after });
+      if (h) { h.grill = 1; h.run = r; }
+    }
+    if ('hooks' in V && r.hk < V.hooks && lit >= r.hk * r.cols.length / V.hooks) { r.hk++; hookE(); } // v3: meat hooks swing among the spires
+    if (!left && !haz.some((h) => h.run === r)) r.done = true;
+  },
+  /** SNOT: the throat clenches over the window (DYN); v3 grows a plug across each narrow. Runs until the window leaves */
+  swallow(r) {
+    const G = $.G, V = SWALLOW.vars[r.v], X = r.V;
+    if (!r.bc) {
+      r.i0 = Math.max(0, Math.floor(X.x0 / TS)); r.i1 = Math.min(FLOOR.length - 1, Math.ceil(X.x1 / TS));
+      r.bc = CEIL.slice(r.i0, r.i1 + 1); r.bf = FLOOR.slice(r.i0, r.i1 + 1);
+      sample('gross_slosh', { vol: .6, rate: .7 }) || sfx.squish(); // the tell: the airway draws in
+      if (r.v === 1) { slime(1); slime(-1); } // slimes on both lips
+      if ('plug' in V) { womb(); for (const nx of plugNarrows(X)) SG.plugs.push({ seg: r.seg, run: r, wx: nx - SWALLOW.plug.cell / 2, st: 'wait', cells: null }); }
+    }
+    if (G.scroll > X.x1 + 20) { CEIL.set(r.bc, r.i0); FLOOR.set(r.bf, r.i0); SG.plugs = SG.plugs.filter((p) => p.run !== r); r.done = true; return; }
+    const g = X.floor + 2;
+    for (let i = r.i0; i <= r.i1; i++) {
+      const c0 = r.bc[i - r.i0], f0 = r.bf[i - r.i0], s = throatInset(r.v, r.t, i * TS, X.x0, X.x1);
+      let ce = c0 + s, fl = f0 - s;
+      if (fl - ce < g) { const m = (c0 + f0) / 2, h = Math.min(g, f0 - c0) / 2; ce = m - h; fl = m + h; } // never under the window floor
+      CEIL[i] = ce; FLOOR[i] = fl;
+    }
+    const u = r.t - SWALLOW.tell;
+    if (u > 0 && u % V.T === V.T / 2 - 20) sample('gross_slosh', { vol: .35, rate: .55 }); // each clench is heard closing
+  },
+};
+/** a MORGUE RUSH block's tell, on the lane the ship holds now (S5: never within 48 px of it) */
+function releaseBlock(r, i) {
+  const P = $.P, G = $.G, M = MORGUE;
+  if (!P) return;
+  const sx = W + M.enter + M.w / 2, wx = G.scroll + sx, lo = ceilAt(wx) + M.wallPad + M.h / 2, hi = floorAt(wx) - M.wallPad - M.h / 2;
+  if (hi <= lo) return;
+  const y = clamp(morgueLane(r.v, i, P.y), lo, hi);
+  if ((P.x - sx) ** 2 + (P.y - y) ** 2 < SPACE.noSpawn ** 2) return;
+  SG.blocks.push({ seg: r.seg, run: r, ph: 'tell', t: 0, x: W + M.enter, y, xStop: Math.max(P.x + M.stopLead, M.stopMin), hp: M.hp, dir: 0 });
+  sfx.tink(); // the racks rattle
+}
+function stepBlocks() {
+  const G = $.G, P = $.P, M = MORGUE, sc = G.scroll;
+  for (let i = SG.blocks.length - 1; i >= 0; i--) {
+    const k = SG.blocks[i];
+    k.t++;
+    if (k.ph === 'tell') { if (k.t >= M.tell) { k.ph = 'fly'; sample('gicecrack', { vol: .35, rate: 1.3 }); } continue; }
+    if (k.ph === 'fly') {
+      k.x -= M.vx;
+      if (k.x <= k.xStop) { k.ph = 'turn'; const cx = k.x + M.w / 2 + sc; k.dir = k.y - ceilAt(cx) < floorAt(cx) - k.y ? -1 : 1; }
+    } else { // turning: fixed in the world now, sliding to the nearer wall until it meets it (or a block already there)
+      k.x -= G.scrollSpeed;
+      k.y += k.dir * M.vLodge;
+      const wx = k.x + sc, edge = k.dir < 0 ? Math.max(ceilAt(wx), ceilAt(wx + M.w / 2), ceilAt(wx + M.w)) : Math.min(floorAt(wx), floorAt(wx + M.w / 2), floorAt(wx + M.w));
+      if (k.dir < 0 ? k.y - M.h / 2 <= edge : k.y + M.h / 2 >= edge) { lodge(k, k.dir < 0 ? edge + M.h / 2 : edge - M.h / 2); SG.blocks.splice(i, 1); continue; }
+    }
+    // flying, a block is a body: WARD takes it (levels.md §5.1)
+    if (P && P.alive && Math.abs(P.x - (k.x + M.w / 2)) < M.w / 2 + 8 && Math.abs(P.y - k.y) < M.h / 2 + 4) { G.hazHit = 1; shatter(k); SG.blocks.splice(i, 1); continue; }
+    if (shotInto(k.x, k.y - M.h / 2, M.w, M.h)) {
+      for (let q = 0; q < 3; q++) spark(k.x, k.y + srr(-4, 4), srr(-2, 0), srr(-1.5, 1.5), 8, '#e8f6ff');
+      if (--k.hp <= 0) { shatter(k); SG.blocks.splice(i, 1); continue; }
+      sfx.tink();
+    }
+    if (k.x < -M.w - 20 || k.y < -20 || k.y > PH + 20) SG.blocks.splice(i, 1);
+  }
+}
+/** a block meets its wall at centre y yc: it becomes terrain, unless that leaves the swept fit gap under the window's
+ *  floor (or under what the walls there already leave), and then it shatters (levels.md §5.1 lodge rule) */
+function lodge(k, yc) {
+  const M = MORGUE, wx = k.x + $.G.scroll, up = k.dir < 0, e = up ? yc + M.h / 2 : yc - M.h / 2;
+  if (fitSpan(wx - 12, wx + M.w + 12, [wx, wx + M.w, e, up]) < Math.min(k.run.V.floor, fitSpan(wx - 12, wx + M.w + 12, null))) { shatter(k); return; }
+  const i0 = Math.max(0, Math.floor(wx / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil((wx + M.w) / TS));
+  for (let i = i0; i <= i1; i++) { if (up) CEIL[i] = Math.max(CEIL[i], e); else FLOOR[i] = Math.min(FLOOR[i], e); }
+  SG.lodged.push({ seg: k.seg, wx, y: yc });
+  sample('gicecrack', { vol: .6, rate: .9 }) || sfx.tink();
+  for (let q = 0; q < 8; q++) spark(k.x + srr(0, M.w), e, srr(-1.5, 1.5), up ? srr(.2, 1.5) : -srr(.2, 1.5), 14, q % 2 ? '#e8f6ff' : '#9fd8ff');
+}
+function shatter(k) {
+  const M = MORGUE, cx = k.x + M.w / 2;
+  for (let q = 0; q < 12; q++) spark(cx + srr(-8, 8), k.y + srr(-5, 5), srr(-2.5, 2.5), srr(-2.5, 1.5), 16, q % 3 ? '#e8f6ff' : '#9fd8ff');
+  gore(cx, k.y, .4); // the crewman inside comes apart too
+  sample('gicecrack', { vol: .8, rate: 1.1 }) || sfx.tink();
+}
+/** THE SWALLOW's plugs: wait for the clench, grow in from both walls over `grow` f to close as the narrow is at its
+ *  tightest, take the ship's fire a cell at a time, regrow a cut cell later; then written into the terrain */
+function stepPlugs() {
+  const G = $.G, P = $.P, Q = SWALLOW.plug;
+  for (const p of SG.plugs) {
+    const r = p.run, V = SWALLOW.vars[r.v], x = p.wx - G.scroll, u = r.t - SWALLOW.tell;
+    if (p.st === 'wait') {
+      if (!(x < W - 20 && u > 0 && (u + Q.grow) % V.T === V.T / 2)) continue;
+      const j = Math.round((p.wx + Q.cell / 2) / TS) - r.i0, c0 = r.bc[j], f0 = r.bf[j]; // the relaxed throat: cells span it all
+      p.st = 'grow'; p.gt = 0; p.yTop = c0; p.n = Math.max(1, Math.ceil((f0 - c0) / Q.cell)); p.cells = Array.from({ length: p.n }, () => ({ on: false, g: false, cut: -1e9 }));
+      sample('gross_gargle', { vol: .5, rate: 1.2 }) || sfx.squish();
+    }
+    if (p.st === 'grow') {
+      const reach = Math.ceil(p.n / 2 * Math.min(1, ++p.gt / Q.grow));
+      for (let j = 0; j < p.n; j++) { const c = p.cells[j]; if (!c.g && Math.min(j, p.n - 1 - j) < reach) { c.g = true; c.on = true; } }
+      if (p.gt >= Q.grow) p.st = 'up';
+    }
+    for (let j = 0; j < p.n; j++) { // a cut cell regrows Q.regrow f later, never within SPACE.regrowMin of the ship (S5)
+      const c = p.cells[j];
+      if (c.g && !c.on && r.t - c.cut >= Q.regrow && (!P || (P.x - x - Q.cell / 2) ** 2 + (P.y - p.yTop - (j + .5) * Q.cell) ** 2 >= SPACE.regrowMin ** 2)) c.on = true;
+    }
+    for (let k = shots.length - 1; k >= 0; k--) { // the ship's fire, a cell a shot (1 hp: a ship-sized hole is 3 bolts, S6)
+      const s = shots[k], tip = s.k === 'laser' ? s.x + (s.len || 0) : s.x;
+      if (s.g || !(s.vx > 0) || tip > x + Q.cell || tip + s.vx < x - 1) continue;
+      const j = Math.floor((s.y - p.yTop) / Q.cell), c = p.cells[j];
+      if (!c || !c.on) continue;
+      c.on = false; c.cut = r.t; shots.splice(k, 1);
+      for (let q = 0; q < 6; q++) drop(x, s.y + srr(-4, 4), srr(-1.5, -.2), srr(-1, 1), srr(1, 1.8), 0, 60);
+      sfx.squish();
+    }
+    bakePlug(p);
+  }
+}
+/** write a plug into the terrain: at its columns the opening is its longest run of missing cells (a tie: the one
+ *  nearest the ship), or nothing when it is whole. p.vis keeps the throat's own edges for the draw */
+function bakePlug(p) {
+  if (!p.cells) return;
+  const Q = SWALLOW.plug, P = $.P, i0 = Math.max(0, Math.floor(p.wx / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil((p.wx + Q.cell) / TS));
+  let best = null;
+  for (let j = 0; j < p.n;) {
+    if (p.cells[j].on) { j++; continue; }
+    let e = j; while (e < p.n && !p.cells[e].on) e++;
+    const a = p.yTop + j * Q.cell, b = p.yTop + e * Q.cell, d = best ? b - a - (best[1] - best[0]) : 1;
+    if (d > .5 || (d > -.5 && P && Math.abs((a + b) / 2 - P.y) < Math.abs((best[0] + best[1]) / 2 - P.y))) best = [a, b];
+    j = e;
+  }
+  p.vis = [CEIL[i0], FLOOR[i0]];
+  for (let i = i0; i <= i1; i++) {
+    const top = best ? Math.max(CEIL[i], best[0]) : 0, bot = best ? Math.min(FLOOR[i], best[1]) : 0;
+    if (best && bot > top) { CEIL[i] = top; FLOOR[i] = bot; } else { const m = (CEIL[i] + FLOOR[i]) / 2; CEIL[i] = FLOOR[i] = m; }
+  }
+}
+function stepSigs() {
+  for (const r of SG.runs) if (r.on && !r.done) { r.t++; SIGSTEP[r.k](r); }
+  stepBlocks();
+  stepPlugs();
+}
+/** the signatures' own draws (procedural, from the corpse and glob palettes; S7 keeps them off the background) */
+function drawSigs() {
+  const G = $.G;
+  if (!G) return;
+  const sc = G.scroll, M = MORGUE, T = $.T;
+  for (const k of SG.blocks) {
+    if (k.ph !== 'tell') { drawBlock(k.x, k.y); continue; }
+    // the tell: a frost streak along the lane over the screen's right 120 px, brightening, and a red edge mark
+    const q = k.t / M.tell;
+    ctx.fillStyle = `rgba(225,244,255,${.25 + .55 * q})`;
+    for (let x = W - M.streak; x < W; x += 6) if ((x + T * 3) % 12 < 7) ctx.fillRect(x, k.y - .5, 4, 1);
+    ctx.fillStyle = (k.t >> 2) % 2 ? '#ff5a4a' : '#eaf7ff'; ctx.fillRect(W - 3, k.y - M.h / 2, 2, M.h);
+  }
+  for (const l of SG.lodged) { const x = l.wx - sc; if (x > -M.w - 2 && x < W + 2) drawBlock(x, l.y); }
+  for (const r of SG.runs) {
+    if (!r.on || r.done) continue;
+    if (r.k === 'high_tide' && r.t < TIDE.tell + TIDE.vars[r.v].rise) { // the tell: the lake boils hard over the window
+      ctx.strokeStyle = 'rgba(120,240,210,.75)'; ctx.lineWidth = .8;
+      for (let n = 0; n < 12; n++) { const wx = srr(r.V.x0, r.V.x1), x = wx - sc; if (x < 0 || x > W) continue; ctx.beginPath(); ctx.arc(x, floorAt(wx) - srr(0, 4), srr(1, 2.8), 0, TAU); ctx.stroke(); }
+    } else if (r.k === 'swallow' && r.t < SWALLOW.tell + 30) { // the tell: pale strands thicken across the narrows
+      const a = Math.min(1, r.t / SWALLOW.tell);
+      ctx.strokeStyle = `rgba(244,232,170,${.25 + .5 * a})`; ctx.lineWidth = 1 + 2 * a;
+      for (let nx = narrowNear(r.V.x0); nx < r.V.x1; nx += MOVE.throat.every) { const x = nx - sc; if (x < -4 || x > W + 4) continue; ctx.beginPath(); ctx.moveTo(x, ceilAt(nx)); ctx.quadraticCurveTo(x + 6 * Math.sin(T * .05 + nx), (ceilAt(nx) + floorAt(nx)) / 2, x, floorAt(nx)); ctx.stroke(); }
+    }
+  }
+  for (const p of SG.plugs) {
+    if (!p.cells || !p.vis) continue;
+    const x = p.wx - sc;
+    if (x < -12 || x > W + 2) continue;
+    for (let j = 0; j < p.n; j++) {
+      if (!p.cells[j].on) continue;
+      const cy = p.yTop + (j + .5) * SWALLOW.plug.cell;
+      if (cy < p.vis[0] - 3 || cy > p.vis[1] + 3) continue; // inside the clenched wall
+      ctx.fillStyle = '#9c8228'; ctx.beginPath(); ctx.ellipse(x + 5, cy, 6.2, 5.8, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#dcc860'; ctx.beginPath(); ctx.ellipse(x + 4.4, cy - .6, 4.4, 4, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(255,250,220,.85)'; ctx.fillRect(x + 2.6, cy - 2.8, 1.5, 1.5);
+    }
+  }
+}
+/** a frozen crewman in a block of ice, left edge x, centre y (screen) */
+function drawBlock(x, y) {
+  const M = MORGUE, t = y - M.h / 2;
+  ctx.fillStyle = '#3a0c14'; ctx.fillRect(x + 4, y - 2, 11, 4); // the body, laid in the ice, mid-scream
+  ctx.beginPath(); ctx.arc(x + 17, y - .5, 2.7, 0, TAU); ctx.fill();
+  ctx.fillRect(x + 1.5, y - 3.5, 3, 1.4); ctx.fillRect(x + 1.5, y + 2, 3, 1.4); // feet
+  ctx.fillRect(x + 9, y - 5, 1.4, 3); ctx.fillRect(x + 12, y + 2, 1.4, 3); // arms pressed to the ice
+  ctx.fillStyle = '#7a1222'; ctx.fillRect(x + 8, y - 1, 4, 2); ctx.fillRect(x + 18, y - 1, 1, 1); // a wound, the open mouth
+  ctx.fillStyle = 'rgba(160,215,255,.42)'; ctx.fillRect(x, t, M.w, M.h);
+  ctx.fillStyle = 'rgba(235,250,255,.75)'; ctx.fillRect(x + 2, t + 1.5, 7, 1); ctx.fillRect(x + M.w - 4, t + 3, 1, 5);
+  ctx.strokeStyle = 'rgba(230,248,255,.9)'; ctx.lineWidth = 1; ctx.strokeRect(x + .5, t + .5, M.w - 1, M.h - 1);
+}
+/** test hook (tests/unit/sigs.test.ts, tools): the live signature runs */
+export const sigRuns = () => SG;
+
 // ---------------- drawing (art lives in render/biomeart.ts) ----------------
-export function drawBiomeFX() { drawFX(haz, amb, gatePos); }
+export function drawBiomeFX() { drawFX(haz, amb, gatePos); if (isL4()) drawSigs(); }
 /** consume a hazard hit this frame (applied by the caller so playerHit stays in one place) */
 export function hazardHit() { const h = $.G && $.G.hazHit; if (h) $.G.hazHit = 0; return !!h; }
 /** test hook (tools/route-probe.mjs): live terrain + hazards */
-(globalThis as any).__biome = () => ({ F: FLOOR, C: CEIL, TS, haz, k: $.G ? biomeK($.G.scroll + W / 2) : null });
+(globalThis as any).__biome = () => ({ F: FLOOR, C: CEIL, TS, haz, k: $.G ? biomeK($.G.scroll + W / 2) : null, sig: SG }); // sig: the signature runs (MORGUE RUSH blocks in flight are bodies outside haz)

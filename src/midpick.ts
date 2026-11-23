@@ -172,12 +172,21 @@ export function forceSlotA(picks: readonly string[], k: string, defs: Readonly<R
 }
 
 /** phase 1 biome stage: home preferred, crossovers from the other biome midbosses. wip: the ?mids=wip flag (src/lab.ts
- *  midsWip), which lets the unfinished kinds in */
-export function pickBiomeMids(st: MidState, b: string, L: number, rng: () => number, met?: Readonly<Record<string, number>>, ignoreMeta = false, wip = false): PickOut {
-  const out = pickMids({ pool: biomePool(wip), L, used: st.mbUsed, last: st.mbLast[b], met, ignoreMeta, prefer: HOME[b], rng });
+ *  midsWip), which lets the unfinished kinds in. n: midbosses wanted (midsWanted: 1 on THE KEEPSAKE's Descent 1 stage) */
+export function pickBiomeMids(st: MidState, b: string, L: number, rng: () => number, met?: Readonly<Record<string, number>>, ignoreMeta = false, wip = false, n: 1 | 2 = 2): PickOut {
+  const out = pickMids({ pool: biomePool(wip), L, n, used: st.mbUsed, last: st.mbLast[b], met, ignoreMeta, prefer: HOME[b], rng });
   noteMids(st, b, out.picks);
   return out;
 }
+
+/** the stages that fly one midboss, not two (DIFFICULTY-SPEC C24, levels.md D-2): the biome slot that ends on a long
+ *  registered stage boss, in the descents listed. THE KEEPSAKE's fight runs ~46 s, so its slot B stage is ~146 s
+ *  without midboss B and over 170 s with it (D31 caps a stage at 150 s); breath 2 becomes a rest, and biome B's
+ *  faucet loses that fight's pair, 10 -> 8 pods (ECO faucet). Measured by pod-probe tally_s (gate L6) and E2 */
+export const MID_DROP: Readonly<{ boss: readonly string[]; loops: readonly number[] }> = { boss: ['keepsake'], loops: [0] };
+/** how many midbosses a biome stage flies: 1 when its stage boss (registry.ts bossFor; null for the biome's own) is
+ *  in MID_DROP for this descent (L = G.loop, 0-based), else 2. Pure */
+export const midsWanted = (bossK: string | null | undefined, L: number): 1 | 2 => (bossK && MID_DROP.boss.includes(bossK) && MID_DROP.loops.includes(L) ? 1 : 2);
 
 // ---------------- slot clocks and the fork rule (spec §6.4, §6.5; LS1-F) ----------------
 /** midboss leave clocks in frames (spec §6.4; was 1400 f for every midboss, which the short layout keeps). Every kind
