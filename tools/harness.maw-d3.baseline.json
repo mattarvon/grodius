@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "77641b4",
+  "commit": "68d2835",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "maw-d3",
@@ -13,8 +13,8 @@
     "px": 50,
     "py": 47.02,
     "en": 1,
-    "gibs": 28,
-    "drops": 283,
+    "gibs": 43,
+    "drops": 490,
     "caps": 0,
     "jump": true,
     "stage": 0,
@@ -26,11 +26,11 @@
     "kills": 0,
     "t": 1200,
     "seen": "mini:maw",
-    "sig": "4e0452e141"
+    "sig": "642920cf5a"
   },
   "hashes": [
-    "1e622e4a91",
-    "75c24e887e"
+    "5221efedd8",
+    "4a30b7323b"
   ],
   "errs": []
 }
