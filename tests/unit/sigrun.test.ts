@@ -29,6 +29,7 @@ vi.mock('../../src/enemies/spawn', () => {
 const L = await import('../../src/layout');
 const BI = await import('../../src/biomes');
 const S = await import('../../src/sigs');
+const HR = await import('../../src/boss/bossrules');
 const { CATALOG } = await import('../../src/setdraw');
 
 /** a flat corridor: ceiling 30, floor 224 (gap 194) */
@@ -111,6 +112,7 @@ describe('W4b hook', () => {
     BI.dropHazard('jet', 200);
     expect(H.length).toBe(n + 1);
     expect(H[n]).toMatchObject({ k: 'icicle', x: 200, y: 32, aim: 1, shoot: 1 });
-    expect(() => BI.hookHazards()).not.toThrow(); // no bossrules.ts on this base: a no-op
+    BI.hookHazards();
+    expect(HR.HAZ_HOOK.drop).toBe(BI.dropHazard); // registered at load, and again by hookHazards
   });
 });

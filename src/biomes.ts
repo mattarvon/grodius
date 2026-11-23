@@ -33,6 +33,7 @@ import { ECON, econId, noticeOf } from './economy';
 import { FURNACE, GRILL, GULLET, ICICLE, INSET_MID, MORGUE, SPACE, SWALLOW, TIDE, envelope, grillCols, hazRankMul, insetOf, morgueLane, planSig, setSigWindows, tideLen } from './sigs';
 import { srr } from './srnd';
 import { rho } from './rank';
+import { HAZ_HOOK } from './boss/bossrules'; // the boss hazard drop (W4b)
 import { SC, armSwallow, armTide, solids, spawnIce, spawnPlug } from './solids'; // the space engine (W3a)
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
@@ -660,15 +661,13 @@ export function dropHazard(k, x) {
   const c = Math.max(0, ceilAt(x + $.G.scroll)); // an open sky drops it from the top edge
   haz.push({ k, x, y: c + 2, t: 0, vy: 0, len: 14, aim: 1, shoot: 1 });
 }
-// W4b's src/boss/bossrules.ts HAZ_HOOK, registered without a hard import so this branch builds before W4b lands (an eager
-// glob of a missing file is {}). Wired on the first stepBiome, after every module has evaluated (no import-order cycle)
-const BOSS_RULES = import.meta.glob('./boss/bossrules.ts', { eager: true }) as Record<string, { HAZ_HOOK?: { drop?: unknown } }>;
-let hazHooked = false;
-/** hand dropHazard to W4b's HAZ_HOOK (idempotent; stepBiome calls it once, tests may call it) */
-export function hookHazards() { hazHooked = true; for (const m of Object.values(BOSS_RULES)) if (m && m.HAZ_HOOK) m.HAZ_HOOK.drop = dropHazard; }
+// W4b's src/boss/bossrules.ts HAZ_HOOK (a leaf module, no imports): registered at load (W6, the static import replaced
+// the eager glob that let W3c build before W4b landed)
+HAZ_HOOK.drop = dropHazard;
+/** hand dropHazard to W4b's HAZ_HOOK again (idempotent; tests call it after swapping the hook) */
+export function hookHazards() { HAZ_HOOK.drop = dropHazard; }
 
 export function stepBiome() {
-  if (!hazHooked) hookHazards();
   const G = $.G;
   if (!G || !G.route) return;
   const sc = G.scroll, [b, k] = biomeK(sc + W / 2);
