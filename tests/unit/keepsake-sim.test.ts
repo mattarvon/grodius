@@ -186,7 +186,7 @@ describe('THE KEEPSAKE through hurt() and midMul', () => {
   });
 
   it('dies through PUT TO BED: the dying beat, then the kill, the stage clear and the readout', () => {
-    e.ph = 2; e.tr = 0; e.hp = e.max * .2;
+    e.ph = 2; e.tr = 0; e.hp = e.max * .2; e.d3 = 3; // CRACKED's attacks are out (KR.p3MinAtt: keepsake-rebuild.test.ts)
     hurt(e, 999, e.x, e.y - 40, 1);
     expect(e.hp).toBeCloseTo(e.max * KB.end, 6); // the last hit leaves the dying beat's sliver
     expect(e.dead).toBe(false);

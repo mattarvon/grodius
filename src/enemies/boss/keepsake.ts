@@ -76,7 +76,7 @@
 //   keep_whirr also on a recall's release, keep_squelch (quiet) as the forks come home, kboss_chime as cries shake them
 // =====================================================================
 import { $ } from '../../state';
-import { PH, R, W, dist2, lerp, rr } from '../../core';
+import { PH, R, W, lerp, rr } from '../../core';
 import { bankWant, sample, sfx, thr } from '../../audio';
 import { duckMusic } from '../../music';
 import { SET } from '../../save';
@@ -89,7 +89,9 @@ import { playerHit } from '../../player';
 import { killEnemy, lob, miniReward } from '../update';
 import { capGrade, defineBoss } from './registry';
 import { KEEPSAKE_BANNERS, KEEPSAKE_LOG, KEEPSAKE_NAME, KEEPSAKE_READOUT } from '../../voice/keepsake';
-import { KB, beamDir, beamSees, capsuleHit, recallBounds, forkCols, fountLattice, inWindow, kbArena, keepHurtRot, lineAtX, lobFrames, mobilePick, pendA, pendXY, phaseClamp, phaseFloor, recallPick, riseCap, rotXY, tiltAt, tiltEdge, TILT0 } from './_keepsake';
+import { ECON, econId } from '../../economy';
+import { CAD_FLOOR, VARIANT_RANK, bulletCap, cadMul, countShots, rank } from '../../rank';
+import { KB, KR, beamDir, beamSees, capsuleHit, recallBounds, forkCols, fountLattice, homeTouchJ, inWindow, kbArena, keepHurtRot, lineAtX, lobFrames, mobForkTip, mobForkX, mobTouch, mobilePick, pendA, pendXY, phaseClamp, phaseFloor, plantTouch, recallPick, riseCap, rotXY, tiltAt, tiltEdge, TILT0, p3Floor } from './_keepsake';
 
 const SND = {
   // the midboss's banks (D53 levels), the throws a touch slower for the bigger head
@@ -121,6 +123,7 @@ const SND = {
   topple: { vol: .25, wet: .25, spread: .03, prio: true },
   die: { vol: .29, wet: .45, spread: 0, prio: true },
   musicend: { vol: .15, wet: .45, spread: 0, prio: true },
+  recue: { vol: .26, rate: .75, wet: .5, spread: .02, prio: true }, // a held ring's own cry: keep_wail, the stand-in crier, under the wail's level
   creak: { vol: .22, wet: .2, spread: .05 }, creakFb: { vol: .1, rate: .55, wet: .2, spread: .05 }, // D59: a recall's threads drawing taut
   seen: { vol: .19, wet: .2, spread: .03, prio: true }, // D59: the beam finds the ship (a tell: prio)
   home: { vol: .05, rate: 1.15, wet: .12, spread: .14 }, // a recalled fork back in the wound: keep_squelch, quiet
@@ -162,9 +165,35 @@ function turnHb(e) {
   rotXY(0, KB.cy, e.th, V); e.hb[1][0] = V[0]; e.hb[1][1] = V[1];
   e.wy = e.hb[0][1]; // the probe bot's aim (tools/boss-probe.mjs: e.y + e.wy), as the midboss had
 }
-const cd = (e) => Math.round([KB.cool, KB.cool2, KB.cool3][e.ph] * (1 - .3 * ($.G.rank || 0)) * cdm() * (e.rage ? KB.rage : 1));
+// ---------------- the difficulty rebuild (DIFFICULTY-SPEC §2.3, the KEEPSAKE row; W0 contract §5.6), read here only ----------------
+/** the rebuild's rules apply: a long entry with a HardSet (long4). THE KEEPSAKE is placed on picker layouts only
+ *  (registry.ts bossFor: long4 is the only one today); a layout without a HardSet would keep D59's numbers (spec §5.3) */
+const hardOn = () => !!ECON[econId()].hard;
+/** the idle between attacks. long4: the one rank rule, KB's idle x rank.ts cadMul (1.25 - .6 rho) x the enrage's .75,
+ *  never under CAD_FLOOR (18 f, C2). The depth term (cdm) is not applied there: rank already carries the stage and the
+ *  descent. Elsewhere D59's (1 - .3 G.rank) x cdm() x rage */
+const cd = (e) => {
+  const I = [KB.cool, KB.cool2, KB.cool3][e.ph], rg = e.rage ? KB.rage : 1;
+  return hardOn() ? Math.max(CAD_FLOOR, Math.round(I * cadMul($) * rg)) : Math.round(I * (1 - .3 * ($.G.rank || 0)) * cdm() * rg);
+};
+/** the forks the recall needs planted before it calls: KR.recMinHi at rank >= VARIANT_RANK on long4 (C3), else KB's */
+const recMin = () => (hardOn() && rank($) >= VARIANT_RANK ? KR.recMinHi : KB.recMin);
+/** the ring sizes: KR's trims on long4 (gate B3), KB's elsewhere */
+const wailN = () => (hardOn() ? KR.wailN : KB.wailN);
+const mamaN = () => (hardOn() ? KR.mamaN : KB.wailN);
+/** does a volley of n more counted shots fit under the stage-boss cap (rank.ts bulletCap 'boss': 24 on Normal)? The
+ *  counted eshots now plus e.rsv, the shots this fight has reserved and not yet released (a fountain's staggered forks,
+ *  a drop's). Volleys are atomic (spec §2.1): one that doesn't fit waits (hold) and none of it spawns. Always true off
+ *  long4. Reads the sim only: no R() */
+const fits = (e, n) => !hardOn() || countShots(eshots) + e.rsv + n <= bulletCap($, 'boss');
+/** a release that doesn't fit: the attack holds on this frame (its tell stays up) and looks again KR.retry frames later */
+function hold(e) { e.wt--; e.hd = KR.retry - 1; e.hl = 1; e.hdN++; } // this frame + KR.retry - 1 = KR.retry; e.hdN: the probes' hold count
+/** the planted forks on side (1 floor, -1 ceiling) a cry would shake loose now (free of threads) */
+function shakeN(e, side) { let n = 0; for (let i = 0; i < e.pn; i++) if (e.pS[i] === side && !e.pQ[i]) n++; return n; }
 /** the floor the next hit may not pass (no carry, D55) */
-const floorOf = (e) => phaseFloor(e.max, e.ph, e.wins, e.d0);
+const floorOf = (e) => (e.ph === 2 && hardOn() ? e.max * p3Floor(e.d3) : phaseFloor(e.max, e.ph, e.wins, e.d0));
+/** CRACKED may be put to bed: its floor reached and, on long4, KR.p3MinAtt attacks finished (or the enrage) */
+const p3Done = (e) => !hardOn() || e.d3 >= KR.p3MinAtt || e.rage;
 
 /** e.armor (roster.ts midMul, every damage path): the rotated ANGLE share, x.15 through a transition (the crown is
  *  closed for that beat), clamped so no damage carries past a phase cut. Writes nothing */
@@ -177,7 +206,7 @@ function armor(e, d, hx, hy) {
 const rockArmor = () => 0;
 
 // ---------------- the attacks ----------------
-function rest(e) { e.st = 'idle'; e.wt = 0; e.cool = cd(e); if (!e.rage) eyes(false); }
+function rest(e) { e.st = 'idle'; e.wt = 0; e.cool = cd(e); e.rsv = 0; e.hd = 0; e.hl = 0; if (!e.rage) eyes(false); }
 
 /** plan a fountain (phase 0: 4-5 of 6 columns; phase 2: 5 of 7), drawn at the tell's first frame */
 function planFount(e) {
@@ -197,6 +226,7 @@ function planFount(e) {
   }
 }
 function launch(e, i) {
+  if (e.rsv > 0) e.rsv--;
   const x = wX(e), y = wY(e) - 4, n0 = eshots.length;
   const u = riseCap(e.fq[i], y), T = lobFrames(u, e.fz[i] - y);
   lob(x, y, e.fx[i], e.fz[i], u / BS());
@@ -206,24 +236,19 @@ function launch(e, i) {
   for (let k = 0; k < 3; k++) drop(x + rr(-3, 3), y, rr(-.8, .8), -rr(.5, 1.6), 1.2, 0, 50);
 }
 /** a hanging mobile fork i: its tip, screen px (the hoop drifts with the head) */
-const mobX = (e, i) => e.x + KB.mobX + (i - (KB.mobN - 1) / 2) * KB.mobDx;
-const mobTip = (e, i) => e.my + KB.mobLen + e.ml[i];
+const mobX = mobForkX;
+const mobTip = mobForkTip;
 /** fork i of the mobile lets go: a straight drop (u 0), drawn as a fork, tinks where it lands */
 function dropFork(e, i) {
   const x = mobX(e, i), y = mobTip(e, i), n0 = eshots.length;
   lob(x, y, x, floorAt(x + $.G.scroll), 0);
   if (eshots.length > n0) { const f = eshots[n0]; f.fk = 1; f.fs = KB.mobFs; f.r = KB.mobHit; f.land = forkLand; } // drawn at the mobile's scale (render/hud.ts), its hitbox the hanging fork's
   e.ma[i] = 0;
+  if (e.rsv > 0) e.rsv--;
 }
 /** the mobile's forks touch the ship (a contact hazard at the fork's middle and tip) */
 function mobileHit(e) {
-  if (!$.P.alive || e.my < -40) return;
-  const r2 = (KB.mobHit + 2.6) ** 2;
-  for (let i = 0; i < KB.mobN; i++) {
-    if (!e.ma[i]) continue;
-    const x = mobX(e, i), t = mobTip(e, i);
-    if (dist2($.P.x, $.P.y, x, t) < r2 || dist2($.P.x, $.P.y, x, t - 11) < r2 || dist2($.P.x, $.P.y, x, t - 22) < r2) { playerHit(); return; }
-  }
+  if ($.P.alive && mobTouch(e, $.P.x, $.P.y)) playerHit(); // _keepsake.ts: the probes read the same geometry (keepTouch)
 }
 
 // ---------------- IT WON'T LET GO (D59): the planted forks, the threads, the flights home ----------------
@@ -250,13 +275,7 @@ function unplant(e, i) {
 function tipOf(e, i) { V[0] = e.pX[i] - $.G.scroll; V[1] = e.pY[i] - e.pS[i] * 9; return V; }
 /** the planted forks touch the ship: a contact at 4 and 10 px out from the surface */
 function plantHit(e) {
-  if (!$.P.alive) return;
-  const r2 = (KB.plR + 2.6) ** 2, sc = $.G.scroll;
-  for (let i = 0; i < e.pn; i++) {
-    const x = e.pX[i] - sc;
-    if (Math.abs(x - $.P.x) > 12) continue;
-    if (dist2($.P.x, $.P.y, x, e.pY[i] - e.pS[i] * 4) < r2 || dist2($.P.x, $.P.y, x, e.pY[i] - e.pS[i] * 10) < r2) { playerHit(); return; }
-  }
+  if ($.P.alive && plantTouch(e, $.G.scroll, $.P.x, $.P.y)) playerHit();
 }
 /** a planted fork's thread: 0 none, TUG, RECALL (pQ) */
 const TUG = 1, RECALL = 2;
@@ -311,11 +330,15 @@ function release(e, q, sp) {
   ks('keep_whirr', SND.out, null, null, sfx.lash);
 }
 /** the forks in flight home: move, touch the ship, and go back into the wound when they arrive (one more fork in the
- *  next fountain every recPer of them) */
+ *  next fountain every recPer of them). The touch is swept (greenhit's tunnelling fix, shots.ts eshotTouches): the
+ *  fork's step against the ship's move since the last enemy-shot test (P.ex/P.ey, the end of the last updateEShots).
+ *  It was a point test at the end of the frame only, so a tug's fork (6 px/f x BS) could cross a moving ship's 7.1 px
+ *  reach between two tests untouched */
 function homeFly(e) {
+  const P = $.P, lx = P.ex ?? P.x, ly = P.ey ?? P.y;
   for (let j = e.fh - 1; j >= 0; j--) {
     e.hX[j] += e.hVX[j]; e.hY[j] += e.hVY[j];
-    if ($.P.alive && dist2($.P.x, $.P.y, e.hX[j], e.hY[j]) < (4.5 + 2.6) ** 2) playerHit();
+    if (P.alive && homeTouchJ(e, j, lx, ly, P.x, P.y)) playerHit();
     if (--e.hF[j] <= 0) {
       e.rl++;
       if (!thr('kbHome', 50)) ks('keep_squelch', SND.home, null, null, null);
@@ -326,6 +349,7 @@ function homeFly(e) {
 }
 /** a cry shakes the planted forks on one side loose (1 floor: up, -1 ceiling: down); they plant again where they strike */
 function shake(e, side) {
+  if (!fits(e, shakeN(e, side))) return; // safety only: the cry reserved ring + shake together (attack 'mama')
   for (let i = e.pn - 1; i >= 0; i--) {
     if (e.pS[i] !== side || e.pQ[i]) continue;
     tipOf(e, i);
@@ -341,6 +365,8 @@ function beam(e) {
   beamDir(e.pa, e.th, V);
   e.bdx = V[0]; e.bdy = V[1]; e.box = e.rocker.x; e.boy = e.rocker.y;
   if (e.mkT > 0) {
+    if (e.mkT === 1 && e.hdB > 0) { e.hdB--; return; } // the band stays marked, full, while its forks wait for room
+    if (e.mkT === 1 && !fits(e, KB.bRainN)) { e.hdB = KR.retry; return; }
     if (--e.mkT === 0) {
       for (let k = 0; k < KB.bRainN; k++) {
         const x = e.mkX + (k - (KB.bRainN - 1) / 2) * KB.bRainDx, n0 = eshots.length;
@@ -380,7 +406,7 @@ function recallTick(e) {
     return;
   }
   if (--e.rcT > 0) return;
-  if (e.pn >= KB.recMin && pickThreads(e, false) >= 2) { e.rcW = 1; ks('kboss_creak', SND.creak, 'keep_whirr', SND.creakFb, sfx.tele); }
+  if (e.pn >= recMin() && pickThreads(e, false) >= 2) { e.rcW = 1; ks('kboss_creak', SND.creak, 'keep_whirr', SND.creakFb, sfx.tele); }
   else e.rcT = 30; // not enough to call: look again shortly
 }
 const live = (e) => { let n = 0; for (let i = 0; i < KB.mobN; i++) n += e.ma[i]; return n; };
@@ -404,10 +430,11 @@ function attack(e) {
   const st = e.st;
   if (st === 'tell') {
     if (R() < .4) spark(wX(e) + rr(-7, 7), wY(e) - rr(0, 6), rr(-.3, .3), -rr(.4, 1.2), 12, '#e8e2d8');
-    if (e.wt >= KB.tell) { e.st = 'fount'; e.wt = 0; ks('keep_throw', SND.spray, null, null, sfx.lash); ks('keep_squelch', SND.pull, null, null, null); }
+    if (e.wt >= KB.tell && !fits(e, e.fn)) hold(e);
+    else if (e.wt >= KB.tell) { e.st = 'fount'; e.wt = 0; e.rsv = e.fn; ks('keep_throw', SND.spray, null, null, sfx.lash); ks('keep_squelch', SND.pull, null, null, null); }
   } else if (st === 'fount') {
     const i = (e.wt - 1) / KB.stagger;
-    if (i === (i | 0) && i < e.fn) { launch(e, i); if (i === e.fn - 1 && e.ph === 0) e.d0++; } // DOZING's attack floor counts an attack once its forks are out (D59)
+    if (i === (i | 0) && i < e.fn) { launch(e, i); if (i === e.fn - 1) { if (e.ph === 0) e.d0++; else if (e.ph === 2) e.d3++; } } // DOZING's (D59) and CRACKED's (KR.p3MinAtt) floors count an attack once its forks are out
     let left = 0;
     for (let j = 0; j < e.fn; j++) if (e.wt < e.fl[j]) left++;
     if (!left) { e.st = 'open'; e.wt = 0; ks('keep_squelch', SND.gape, null, null, sfx.squish); }
@@ -416,14 +443,15 @@ function attack(e) {
     if (e.wt >= KB.open) rest(e);
   } else if (st === 'aim') {
     if (e.wt < KB.aim - KB.lock) { e.la += wrapA(aimA(wX(e), wY(e)) - e.la) * .12; e.lx = wX(e); e.ly = wY(e); }
-    if (e.wt >= KB.aim) {
+    if (e.wt >= KB.aim && !fits(e, e.ph ? 3 : 1)) hold(e);
+    else if (e.wt >= KB.aim) {
       for (let k = e.ph ? -1 : 0; k <= (e.ph ? 1 : 0); k++) { // DOZING one fork; from AWAKE on a fan of three (D59)
         const n0 = eshots.length;
         eshoot(e.lx, e.ly, e.la + k * KB.fan, KB.throwSp, 'spike');
         if (eshots.length > n0) { eshots[n0].fk = 2; eshots[n0].land = forkLand; }
       }
       ks('keep_throw', SND.throw, null, null, sfx.lash);
-      if (e.ph === 0) e.d0++;
+      if (e.ph === 0) e.d0++; else if (e.ph === 2) e.d3++;
       rest(e);
     }
   } else if (st === 'boom') { // the big fork's line tracks, then locks from where the wound is at the lock (the head rocks on)
@@ -444,18 +472,35 @@ function attack(e) {
     if ($.P.alive && capsuleHit(e.bx, e.by, e.bsa, KB.boomHalf, KB.boomR + 2.6, $.P.x, $.P.y)) playerHit();
     if (e.bd < 0 && e.bs <= 0) { e.bs = 0; rest(e); }
   } else if (st === 'wail') {
-    if (e.wt >= KB.wail) { ring(e.x, e.y - 10, KB.wailN, e.t * .05, KB.wailSp); rest(e); }
+    if (e.wt >= KB.wail && !fits(e, wailN())) hold(e);
+    else if (e.wt >= KB.wail) {
+      ring(e.x, e.y - 10, wailN(), e.t * .05, KB.wailSp);
+      if (e.hl) ks('keep_wail', SND.recue, null, null, sfx.groan); // held: kboss_wail's 'maaa' landed at 44 f on no ring, so the ring gets its own cry
+      rest(e);
+    }
   } else if (st === 'mama') { // the first cry is the second's tell; the second is turned half a gap
-    if (e.wt === KB.mama) { shake(e, 1); e.ra = e.t * .05; ring(e.x + KB.crx, e.y + KB.cry, KB.wailN, e.ra, KB.wailSp); ks('kboss_mama', e.mamaN++ ? SND.mamaQ : SND.mama, 'keep_wail', SND.wailFb, sfx.groan); } // -2 dB after a phase's first
+    const mn = mamaN();
+    // each cry is one volley: its ring and the planted forks it shakes loose (floor forks on the first, ceiling on the second)
+    if ((e.wt === KB.mama && !fits(e, mn + shakeN(e, 1))) || (e.wt === KB.mama + KB.mamaGap && !fits(e, mn + shakeN(e, -1)))) hold(e);
+    else if (e.wt === KB.mama) { e.hl = 0; e.ra = e.t * .05; ring(e.x + KB.crx, e.y + KB.cry, mn, e.ra, KB.wailSp); shake(e, 1); ks('kboss_mama', e.mamaN++ ? SND.mamaQ : SND.mama, 'keep_wail', SND.wailFb, sfx.groan); } // -2 dB after a phase's first
     if (e.wt === 1 && e.pn && !thr('kbRat', 30)) sample('kboss_chime', SND.rattle); // the planted forks rattle: they go on the rings
-    if (e.wt >= KB.mama + KB.mamaGap) { shake(e, -1); ring(e.x + KB.crx, e.y + KB.cry, KB.wailN, e.ra + Math.PI / KB.wailN, KB.wailSp); rest(e); }
+    if (e.wt >= KB.mama + KB.mamaGap) {
+      ring(e.x + KB.crx, e.y + KB.cry, mn, e.ra + Math.PI / mn, KB.wailSp); shake(e, -1);
+      if (e.hl) ks('keep_wail', SND.recue, null, null, sfx.groan); // held: kboss_mama's baked second 'MA' (30 f) landed on no ring
+      e.d3++; rest(e);
+    }
   } else if (st === 'tug') { // one thread drawn from the wound (locked at the tell's start), then the fork is yanked home
     if (e.wt >= KB.tug) { release(e, TUG, KB.tugSp); rest(e); }
   } else if (st === 'drop' || st === 'rain') { // each fork shudders for its tell (staggered), then lets go
     const gap = st === 'rain' ? 6 : KB.dropGap, tel = st === 'rain' ? KB.rain : KB.drop;
+    if (e.wt === tel && !fits(e, e.dn)) { hold(e); return; } // the drop is one volley, reserved at its first fork
+    if (e.wt === tel) e.rsv = e.dn;
     for (let k = 0; k < e.dn; k++) {
       if (e.wt === 1 + k * gap) sample('kboss_chime', SND.chime); // its tell starts: the fork rattles on the hoop
-      if (e.wt === tel + k * gap && e.ma[e.dq[k]]) { dropFork(e, e.dq[k]); sample('kboss_snap', SND.snap); }
+      if (e.wt === tel + k * gap) {
+        if (e.ma[e.dq[k]]) { dropFork(e, e.dq[k]); sample('kboss_snap', SND.snap); } else if (e.rsv > 0) e.rsv--;
+        if (k === e.dn - 1 && e.ph === 2) e.d3++; // CRACKED's floor: the rain is out
+      }
     }
     if (e.wt >= tel + (e.dn - 1) * gap + 20) rest(e);
   }
@@ -463,7 +508,7 @@ function attack(e) {
 
 // ---------------- the phases ----------------
 function phaseTo(e, ph, late) {
-  e.ph = ph; e.pt = 0; e.tr = ph === 1 ? KB.tr1 : KB.tr2; e.st = 'idle'; e.wt = 0; e.cool = 30; e.att = 0; e.wins = 0; e.mamaN = 0;
+  e.ph = ph; e.pt = 0; e.tr = ph === 1 ? KB.tr1 : KB.tr2; e.st = 'idle'; e.wt = 0; e.cool = 30; e.att = 0; e.wins = 0; e.mamaN = 0; e.rsv = 0; e.hd = 0; e.hl = 0;
   for (let i = 0; i < e.pn; i++) e.pQ[i] = 0; // the threads are cut with the attack (the forks stay planted)
   e.rcW = 0; e.rcT = KB.recEvery[ph];
   if (late) { banner(KEEPSAKE_BANNERS.hold, KEEPSAKE_BANNERS.late, '#ff8a3a', 110); ks('kboss_enrage', SND.enrage, null, null, null); }
@@ -554,13 +599,16 @@ function update(e) {
   }
   // a phase cut reached: the transition (an attack in flight is dropped with it, and so is the boomerang)
   if (e.tr <= 0 && e.ph < 2 && e.hp <= floorOf(e) + 1e-6 && ((e.ph === 0 ? e.d0 >= KB.p1MinAtt : e.wins >= KB.p2MinWin) || e.late)) { phaseTo(e, e.ph + 1, e.late); e.late = 0; return; }
-  if (e.ph === 2 && e.hp <= e.max * KB.end + 1e-6) { e.st = 'dying'; e.wt = 0; e.r = 0; e.hb = null; e.pl = 0; letGo(e); return; }
+  if (e.ph === 2 && e.hp <= e.max * KB.end + 1e-6 && p3Done(e)) { e.st = 'dying'; e.wt = 0; e.r = 0; e.hb = null; e.pl = 0; letGo(e); return; }
   if (e.tr > 0) { e.tr--; if (e.tr === 0) eyes(false); return; }
   if (e.t < KB.enter) return;
   recallTick(e);
-  e.wt++;
-  if (e.st === 'idle') { if (e.wt >= e.cool) startAttack(e); }
-  else attack(e);
+  if (e.hd > 0) e.hd--; // a held volley (fits): the attack waits on its release frame; the recall and the beam run on
+  else {
+    e.wt++;
+    if (e.st === 'idle') { if (e.wt >= e.cool) startAttack(e); }
+    else attack(e);
+  }
   if (R() < .06) spark(e.x + rr(-30, 30), e.y + rr(-30, 30), 0, -rr(.2, .6), 18, '#d8d0c0');
 }
 
@@ -608,8 +656,8 @@ function spawn(b) {
   const x = W + 70, f = Math.min(PH - 2, floorAt(x + $.G.scroll));
   const e = mk('keepsake', x, f - KB.rest, {
     tx: W - KB.tx, st: 'idle', wt: 0, cool: 60, att: 0, ph: 0, tr: 0, th: 0, tc: 0, wins: 0, pt: 0, pl: KB.clock,
-    rage: 0, late: 0, my: -80, pa: 0, p3t: 0, pph: 0, d0: 0, rl: 0, pn: 0, fh: 0, rtx: 0, rty: 0, bsa: 0,
-    mkT: 0, mkX: 0, bCd: 0, spots: 0, rcW: 0, rcT: KB.recEvery[0], recalls: 0, tux: 0, tuy: 0, bdx: 0, bdy: 1, box: 0, boy: 0, la: Math.PI, lx: 0, ly: 0, bx: 0, by: 0, bs: 0, bl: 0, bd: 1, ra: 0, dn: 0,
+    rage: 0, late: 0, my: -80, pa: 0, p3t: 0, pph: 0, d0: 0, d3: 0, rl: 0, pn: 0, fh: 0, rtx: 0, rty: 0, bsa: 0,
+    mkT: 0, mkX: 0, bCd: 0, rsv: 0, hd: 0, hdB: 0, hl: 0, hdN: 0, spots: 0, rcW: 0, rcT: KB.recEvery[0], recalls: 0, tux: 0, tuy: 0, bdx: 0, bdy: 1, box: 0, boy: 0, la: Math.PI, lx: 0, ly: 0, bx: 0, by: 0, bs: 0, bl: 0, bd: 1, ra: 0, dn: 0,
     biome: b, title: KEEPSAKE_NAME, armor, hitSnd,
   });
   e.hb = [[KB.wx, KB.wy, KB.wr], [0, KB.cy, KB.cr]];

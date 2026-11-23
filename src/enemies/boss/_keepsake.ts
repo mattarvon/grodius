@@ -129,6 +129,30 @@ export const KB = {
   aCeil: 16, //     the ceiling never comes lower than this over the arena: the mobile needs the room
 } as const;
 
+/** the difficulty rebuild's numbers for this fight (DIFFICULTY-SPEC §2.3 "Fights", the KEEPSAKE row; W4c). They apply
+ *  on a long entry with a HardSet only (long4: keepsake.ts `hardOn`); every other layout flies KB's D59 values, so
+ *  short and layout parity never move (spec §5.3). The D59 design is kept whole: these trim bullets and set the rank
+ *  hooks, nothing else. HP stays the et row's 440 (no tier or dial touches it: depth.ts depthHP, C22) */
+export const KR = {
+  // gate B3: the on-screen peak <= the stage-boss cap (rank.ts bulletCap(.., 'boss'): 24 on Normal); p90 <= .6 cap
+  wailN: 10, //     AWAKE's wail ring: 12 -> 10 orbs (spec §2.3)
+  mamaN: 8, //      CRACKED's double cry: 2 x 12 -> 2 x 8 (the second still turned half a gap: a 16-point net)
+  //               the slow rings (.7 x BS) linger ~280-470 f, so one cry can still meet the last one's tail plus a
+  //               fountain and the beam's rain: every emitter of the fight reserves its whole volley under the cap
+  //               first (spec §2.1 "Volleys are atomic", keepsake.ts fits) and holds its release when it doesn't fit
+  retry: 20, //     a held volley looks again this many frames later (rank.ts VOLLEY_RETRY: min(remaining, 20 f))
+  // gate K1 (every phase hits every spot of the 8-spot grid >= 2) and the variant rule (C3: variants at rank >= 14)
+  recMinHi: 2, //   the recall calls with 2 planted forks (KB.recMin 3) once rank >= rank.ts VARIANT_RANK
+  p3MinAtt: 2, //   CRACKED runs at least this many attacks before it can be put to bed: staged like DOZING's p1Floor and
+  //               AWAKE's p2Floor (D59's own rule, now on the last phase too). Without it the END D1 kit emptied
+  //               CRACKED in ~4 s of fighting, one attack, and 5 of the 8 park spots took a single hit there (K1 wants
+  //               >= 2). At kit=mid CRACKED runs ~15 s, many attacks, so the TTK band (K3) doesn't move
+  // the forks flying home are tested swept (greenhit's tunnelling fix, shots.ts eshotTouches): the ship's move since
+  // the last test against the fork's step. A ship that moved further than this on an axis was placed, not flown
+  jump: 16, //      = shots.ts EHIT.jump (tests/unit/keepsake-rebuild.test.ts holds them equal)
+  homeR: 4.5, //    a fork flying home's radius (+ the ship's 2.6): the fork's spike r, as before
+} as const;
+
 // (the words, banners, readout and log lines, are src/voice/keepsake.ts's: the narrative lane's leaf, read by the booth)
 
 /** a head-local point (lx, ly) turned by the tilt th, as a screen offset from (e.x, e.y): writes [dx, dy] into out */
@@ -165,6 +189,9 @@ export function phaseFloor(max: number, ph: number, wins = 0, atts: number = KB.
 }
 /** DOZING's staged floor, as a share of max, after `atts` finished attacks (D59) */
 export const p1Floor = (atts: number) => Math.max(KB.cut1, 1 - (1 - KB.cut1) * Math.min(1, (atts + 1) / KB.p1MinAtt));
+/** CRACKED's staged floor on long4, as a share of max, after `atts` finished attacks (KR.p3MinAtt): from the cut
+ *  down to the dying sliver (KB.end), as p1Floor does for DOZING */
+export const p3Floor = (atts: number) => Math.max(KB.end, KB.cut2 - (KB.cut2 - KB.end) * Math.min(1, (atts + 1) / KR.p3MinAtt));
 /** AWAKE's staged floor, as a share of max, after `wins` closed windows */
 export const p2Floor = (wins: number) => Math.max(KB.cut2, KB.cut1 - (KB.cut1 - KB.cut2) * Math.min(1, (wins + 1) / KB.p2MinWin));
 
@@ -331,4 +358,56 @@ export function beamSees(bx: number, by: number, dx: number, dy: number, px: num
   const vx = px - bx, vy = py - by, d = Math.hypot(vx, vy);
   if (d < 1 || d > len) return false;
   return (vx * dx + vy * dy) / d >= Math.cos(half);
+}
+
+// ---------------- contact: the attacks that are not eshots (the sim and the probes read the same geometry) ----------------
+/** did a point going from (ox, oy) to (x, y) touch a ship going from (lx, ly) to (px, py), at radius r? The closest
+ *  approach of the point's path in the ship's frame, as shots.ts eshotTouches; a ship that moved more than KR.jump on
+ *  an axis was placed (a respawn), so it sweeps from where it is now. Pure */
+export function sweptTouch(ox: number, oy: number, x: number, y: number, lx: number, ly: number, px: number, py: number, r: number): boolean {
+  if (Math.abs(px - lx) > KR.jump || Math.abs(py - ly) > KR.jump) { lx = px; ly = py; }
+  const ax = ox - lx, ay = oy - ly, dx = x - px - ax, dy = y - py - ay, l2 = dx * dx + dy * dy;
+  const t = l2 > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0, qx = ax + t * dx, qy = ay + t * dy;
+  return qx * qx + qy * qy < r * r;
+}
+/** the hanging mobile fork i's screen x, and its tip's y (the hoop drifts with the head) */
+export const mobForkX = (m: any, i: number) => m.x + KB.mobX + (i - (KB.mobN - 1) / 2) * KB.mobDx;
+export const mobForkTip = (m: any, i: number) => m.my + KB.mobLen + m.ml[i];
+/** does a hanging mobile fork touch a ship core of radius ship at (px, py)? (at its tip, 11 and 22 px up) Pure */
+export function mobTouch(m: any, px: number, py: number, ship = 2.6): boolean {
+  if (!(m.ph >= 1) || !m.ma || m.my < -40) return false;
+  const r2 = (KB.mobHit + ship) ** 2;
+  for (let i = 0; i < KB.mobN; i++) {
+    if (!m.ma[i]) continue;
+    const x = mobForkX(m, i), t = mobForkTip(m, i), dx = (px - x) ** 2;
+    if (dx + (py - t) ** 2 < r2 || dx + (py - t + 11) ** 2 < r2 || dx + (py - t + 22) ** 2 < r2) return true;
+  }
+  return false;
+}
+/** does a planted fork (world x pX, surface y pY, side pS) touch a ship core at (px, py), scroll sc? (4 and 10 px out) */
+export function plantTouch(m: any, sc: number, px: number, py: number, ship = 2.6): boolean {
+  const r2 = (KB.plR + ship) ** 2;
+  for (let i = 0; i < (m.pn || 0); i++) {
+    const x = m.pX[i] - sc;
+    if (Math.abs(x - px) > 12) continue;
+    const dx = (px - x) ** 2;
+    if (dx + (py - m.pY[i] + m.pS[i] * 4) ** 2 < r2 || dx + (py - m.pY[i] + m.pS[i] * 10) ** 2 < r2) return true;
+  }
+  return false;
+}
+/** the fork flying home j: did its last step (hX - hVX -> hX) touch a ship that went from (lx, ly) to (px, py)?
+ *  Swept (sweptTouch). A probe's still ship passes its own position twice. Pure */
+export const homeTouchJ = (m: any, j: number, lx: number, ly: number, px: number, py: number, ship = 2.6): boolean =>
+  sweptTouch(m.hX[j] - m.hVX[j], m.hY[j] - m.hVY[j], m.hX[j], m.hY[j], lx, ly, px, py, KR.homeR + ship);
+/** what of THE KEEPSAKE's own attacks that are not eshots a still ship core at (px, py) touches this frame, scroll sc:
+ *  'boom' (the boomerang's capsule), 'mobile' (a hanging fork), 'planted', 'home' (a fork flying home), or ''. The
+ *  sim's own tests, read by the probes' would-be hit counters (tools/probe-lib.mjs PL.contact: the 8-spot grid, K1/K2;
+ *  keepsake-probe). The rocker's weight and the crier are enemies (parts): the probes see them as bodies. Pure */
+export function keepTouch(m: any, sc: number, px: number, py: number, ship = 2.6): string {
+  if (!m || m.dead || m.st === 'dying') return '';
+  if (m.st === 'fly' && capsuleHit(m.bx, m.by, m.bsa, KB.boomHalf, KB.boomR + ship, px, py)) return 'boom';
+  if (mobTouch(m, px, py, ship)) return 'mobile';
+  if (plantTouch(m, sc, px, py, ship)) return 'planted';
+  for (let j = 0; j < (m.fh || 0); j++) if (homeTouchJ(m, j, px, py, px, py, ship)) return 'home';
+  return '';
 }
