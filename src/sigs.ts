@@ -1,6 +1,6 @@
 // =====================================================================
-//  SIGNATURES AND SPACE (DIFFICULTY-SPEC §2.4, levels.md §1, §2.3, §5). A pure leaf, the NOTICE / DEPTH pattern: no
-//  imports, so biomes.ts, the probes (tools/probe-lib.mjs loads it as /src/sigs.ts) and tests/unit/sigs.test.ts all
+//  SIGNATURES AND SPACE (DIFFICULTY-SPEC §2.4, levels.md §1, §2.3, §5). Pure, the NOTICE / DEPTH pattern: it imports
+//  only layout.ts (itself import-free), so biomes.ts, the probes (tools/probe-lib.mjs loads it as /src/sigs.ts) and tests/unit/sigs.test.ts all
 //  read the same numbers. Every value carries its spec tag and the gate that measures it.
 //
 //  What lives here:
@@ -22,30 +22,39 @@
 //  tally_s), M3 (mortal pilot death sources), P2 (the drifter), plus tests/unit/sigs.test.ts for S3, S4, S5, S6.
 // =====================================================================
 
-/** the playfield height and width (core.ts PH / W; copied so this file stays a leaf) */
+import * as LY from './layout'; // a pure leaf itself (no imports): the active layout and its fixed rows' windows
+
+/** the playfield height and width (core.ts PH / W) */
 export const PH = 254, W = 480;
 
-// ---------------- the space rules (levels.md §1) ----------------
+// ---------------- the space rules (levels.md §1; the names are W0's skeleton contract, scratchpad spec/W0-CONTRACT.md) ----------------
 export const SPACE = {
-  /** S1: the swept 21 px fit gap outside every signature window (route-probe's existing gate) */
-  fitOut: 100,
+  /** S1: the swept fit gap outside every signature window (route-probe's existing gate), over a fitBox px footprint */
+  fitGap: 100,
+  fitBox: 21,
   /** S1: never below this inside a window: the ship's 8 px footprint + 32 px each side */
   fitMin: 72,
-  /** S2: the fastest a terrain edge may move, px/f (route-probe `slam` trips at 1.5) */
+  /** S2: the fastest a terrain edge may move, px/f (route-probe's slam trips at 1.5) */
   edgeV: .5,
   /** S3: a forced lane change of dy within L px of scroll: dy / L at most this (60% of naked speed 1.25) */
   weave: .75,
   /** S4: every moving solid, set-piece hazard and new entry has a tell of at least this many frames (D59) */
   tell: 44,
   /** S4: a signature's first variation is on screen this long before it can reach the ship's x */
-  onScreen: 120,
-  /** S5 / C9: nothing spawns within this of the ship's centre; split children 30, a regrowing plug cell 24 */
+  sigLead: 120,
+  /** S5 / C9: nothing spawns within this of the ship's centre; split children noSpawnKid; a regrowing plug cell regrowMin */
   noSpawn: 48,
-  child: 30,
+  noSpawnKid: 30,
   regrowMin: 24,
   /** S6: a barrier that can close a lane is cut by the naked main gun in <= 1 s: <= 8 bolts (8.57 bolts/s, SYS §2) */
   cutBolts: 8,
+  /** S7: Orbit's parallax deck dims to this once the collidable hull arrives (W3b) */
+  deckDim: .4,
+  /** S8: in every this many px of signature or rush, something reaches the ship from behind, above or below */
+  sanctuary: 600,
 } as const;
+/** Decision 5 (A): moving solids (pistons, lodged blocks, mucus plugs) kill like walls, through WARD */
+export const SOLID_KILLS = true;
 
 // ---------------- the resting walls (levels.md §5.0) ----------------
 /** px per side shape() moves each wall in, by biome, [slot A, slot B], applied before shape()'s 108 px clamp.
@@ -290,27 +299,41 @@ function shrinkCounts(ns: number[], ok: (n: number[]) => boolean) {
 }
 
 // ---------------- the registered windows (spec §2.4; route-probe / space-probe exception list, G.setp) ----------------
-/** a registered signature window, world x */
-export interface SigWin { x0: number; x1: number; floor: number; id: string; k: string; cp?: number }
-/** register (or replace) the windows of one owner key (a biome slot `b0` / `b1`, or W3b's `orbit` / `drive`) */
-export function setSigWindows(G: { sigW?: Record<string, SigWin[]> } | null | undefined, key: string, ws: SigWin[]) {
+/** a registered signature window, world x, x1 exclusive (W0 contract SigWindow, plus its kind and checkpoint) */
+export interface SigWin { x0: number; x1: number; floor: number; id: string; k?: string; cp?: number }
+type GSig = { sigW?: Record<string, SigWin[]>; sigV?: number } | null | undefined;
+/** register (or replace) the windows of one owner key (a biome slot `b0` / `b1`); the fixed rows' windows (W3b's
+ *  CREW KNOTS and THE STROKE) come from layout.ts rowSigWindows, read here */
+export function setSigWindows(G: GSig, key: string, ws: SigWin[]) {
   if (!G) return;
   (G.sigW ||= {})[key] = ws;
+  G.sigV = (G.sigV || 0) + 1;
 }
-/** every registered signature window this descent, sorted by x0: [{x0, x1, floor, id, k, cp}] in world x.
- *  `floor` is the window's swept fit floor (S1), `cp` the scroll x just before it a checkpoint may sit at */
-export function sigWindows($: { G?: { sigW?: Record<string, SigWin[]> } | null } | null | undefined): SigWin[] {
-  const S = $ && $.G && $.G.sigW;
-  if (!S) return [];
-  const out: SigWin[] = [];
+// the merged, sorted table, rebuilt only when a stage registers (the probes and step.ts call sigWindows every frame:
+// no per-call allocation, W0 contract)
+let cG: GSig = null, cV = -1, cL: unknown = null, cT: readonly SigWin[] = Object.freeze([]);
+let lastG: GSig = null;
+/** every signature window this descent, sorted by x0: [{x0, x1, floor, id, k, cp}] in world x. `floor` is the swept
+ *  fit floor inside it (S1), `cp` the scroll x just before it a checkpoint may sit at. $ is optional (W0 contract):
+ *  without it, the table of the last G seen */
+export function sigWindows($?: { G?: GSig } | null): readonly SigWin[] {
+  const G = $ === undefined ? lastG : ($ && $.G) || null;
+  if (!G) return EMPTY;
+  lastG = G;
+  const rows = (LY as unknown as { rowSigWindows?: () => SigWin[] }).rowSigWindows, L = LY.layout();
+  if (G === cG && (G.sigV || 0) === cV && L === cL) return cT;
+  const out: SigWin[] = rows ? rows().slice() : [];
+  const S = G.sigW || {};
   for (const k of Object.keys(S)) for (const w of S[k] || []) out.push(w);
-  return out.sort((p, q) => p.x0 - q.x0);
+  cG = G; cV = G.sigV || 0; cL = L; cT = Object.freeze(out.sort((p, q) => p.x0 - q.x0));
+  return cT;
 }
-/** the window holding world x, or null */
-export const sigAt = ($: Parameters<typeof sigWindows>[0], wx: number) => sigWindows($).find((w) => wx >= w.x0 && wx <= w.x1) || null;
+const EMPTY: readonly SigWin[] = Object.freeze([]);
+/** the window holding world x (x1 exclusive), or null; ws defaults to sigWindows() */
+export function sigAt(wx: number, ws: readonly SigWin[] = sigWindows()) { for (const w of ws) if (wx >= w.x0 && wx < w.x1) return w; return null; }
 /** the signature checkpoints (spec §2.1 "at every signature start", never inside a window): each variation's cp, in
  *  scroll x, for checkpoint.ts's list (W2 reads them) */
-export const sigCheckpoints = ($: Parameters<typeof sigWindows>[0]) => sigWindows($).filter((w) => w.cp != null).map((w) => w.cp as number);
+export const sigCheckpoints = ($?: { G?: GSig } | null) => sigWindows($).filter((w) => w.cp != null).map((w) => w.cp as number);
 
 // ---------------- helpers ----------------
 /** smoothstep, core.ts sstep's arithmetic */

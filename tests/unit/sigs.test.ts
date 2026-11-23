@@ -17,7 +17,7 @@ describe('space rules on the tuning table', () => {
     for (const t of [MORGUE.tell, TIDE.tell, GRILL.warm, SWALLOW.tell, SWALLOW.plug.grow]) expect(t).toBeGreaterThanOrEqual(SPACE.tell);
     // a block is seen from its tell, enters at the right edge and flies at 2.2 px/f to its turn >= 120 px ahead of the
     // ship (it never flies on into the ship's x): for the nominal ship at x 150, tell + flight >= 120 f
-    expect(MORGUE.tell + (480 + MORGUE.enter - Math.max(150 + MORGUE.stopLead, MORGUE.stopMin)) / MORGUE.vx).toBeGreaterThanOrEqual(SPACE.onScreen);
+    expect(MORGUE.tell + (480 + MORGUE.enter - Math.max(150 + MORGUE.stopLead, MORGUE.stopMin)) / MORGUE.vx).toBeGreaterThanOrEqual(SPACE.sigLead);
     // a grill column warms GRILL.lead px ahead of the ship, after the column has crossed the screen from x 480
     expect(GRILL.warm).toBeGreaterThanOrEqual(SPACE.tell);
   });
@@ -53,7 +53,7 @@ describe('space rules on the tuning table', () => {
   });
   it('S5: blocks turn >= 120 px ahead of the ship; the spawn distances are the spec C9 values', () => {
     expect(MORGUE.stopLead).toBeGreaterThanOrEqual(120);
-    expect([SPACE.noSpawn, SPACE.child, SPACE.regrowMin]).toEqual([48, 30, 24]);
+    expect([SPACE.noSpawn, SPACE.noSpawnKid, SPACE.regrowMin]).toEqual([48, 30, 24]);
   });
 });
 
@@ -156,7 +156,10 @@ describe('the window registry', () => {
     expect(sigWindows({ G }).map((w) => w.id)).toEqual(['a', 'b']);
     setSigWindows(G, 'b1', []);
     expect(sigWindows({ G }).map((w) => w.id)).toEqual(['a']);
-    expect(sigAt({ G }, 150)!.id).toBe('a'); expect(sigAt({ G }, 300)).toBeNull();
+    const ws = sigWindows({ G });
+    expect(sigAt(150, ws)!.id).toBe('a'); expect(sigAt(300, ws)).toBeNull(); expect(sigAt(200, ws)).toBeNull(); // x1 exclusive
+    expect(sigWindows({ G })).toBe(ws); // cached: no allocation per call (W0 contract)
+    expect(sigWindows()).toBe(ws); // no argument: the last G's table
     expect(sigCheckpoints({ G })).toEqual([40]);
     expect(sigWindows(null)).toEqual([]); expect(sigWindows({ G: null })).toEqual([]);
   });
