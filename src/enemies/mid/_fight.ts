@@ -6,15 +6,17 @@
 //  Everything here is gated on g3(): long4's hard set (ECON[econId()].hard). On `short` the kinds keep their old code
 //  paths line for line, so the short harness and layout parity stay byte-identical (spec §5.3, gate T1).
 //
-//  THE W0 ADAPTER. src/rank.ts (W0) is not merged yet. fightRank() / fightTier() below are the ONE spot that reads the
-//  rank: until W0 lands they compute the spec §2.1 formula from $ directly (T_base + stageIdx + 6 loop + P_term); when
-//  it lands they become `rank($)` and `$.G.tier`, and nothing else in the fights changes.
+//  THE W0 ADAPTER. fightRank() / fightRho() / fightTier() / fightCap() below are the ONE spot that reads src/rank.ts and
+//  src/tier.ts (W0 contract); nothing else in the fights reads the rank or the tier.
 //
-//  Pure of the DOM: imports state, economy and world only, so tests drive it (tests/unit/midfight.test.ts). No R().
+//  Pure of the DOM: imports state, economy, world, rank and tier only, so tests drive it (tests/unit/midfight.test.ts). No R().
 // =====================================================================
 import { $ } from '../../state';
 import { ECON, econId } from '../../economy';
 import { eshots } from '../../world';
+import { bulletCap, rank, rankP, rho } from '../../rank';
+import { tierG } from '../../tier';
+import { DN } from './_deny';
 
 /** the tuning (frames, bullets). Every value: its spec tag, and the gate that measures it */
 export const FT = {
@@ -27,10 +29,6 @@ export const FT = {
   /** a periodic emitter (ring, sing) never repeats inside the budget window, so one ring per 120 f at most (DER: the
    *  spec's per-fight 120 f tables count one ring; at rho 1 the cadence alone would put two in a window) */
   perMin: 121,
-  /** C4/C5 the midboss cap by tier (Easy, Normal, Hard, Very Hard): B1/B3 */
-  cap: [12, 16, 20, 20] as readonly number[],
-  /** spec §2.1 T_base by tier */
-  tBase: [0, 2, 4, 6] as readonly number[],
   /** the opening: a fight attacks from e.t > enter (was 120) with a first cooldown of open (was 100-110), so at the slot-A
    *  TTK (8-11 s, half of it phase 1) each phase holds at least two attacks: K1, every spot hit >= 2 times per phase
    *  (midboss-probe --spots). The first tell still runs >= 44 f, and the body is on screen by e.t 20 */
@@ -43,26 +41,17 @@ export const FT = {
 /** the difficulty rebuild is on: long4's hard set (short keeps every old path) */
 export const g3 = () => !!ECON[econId()].hard;
 
-// ---------------- the W0 adapter (replace the bodies with rank.ts when it lands) ----------------
-/** the tier, 0-3 (W0: G.tier, default 1 = Normal on long4) */
-export const fightTier = () => { const t = $.G && $.G.tier; return t >= 0 && t <= 3 ? t : 1; };
-/** spec §2.1 P_term: held power only, by slot (THRUST 0, MISSILE/PYRE 1 per level, SPLIT 2, ARC 3, WRAITH 1 per option,
- *  WARD 4 flat, CALIBER + SERRATION 1 per level capped 3). Perks, rigs, LV and XP never count */
-export function pTerm(P: any, gm: any): number {
-  if (!P) return 0;
-  return (P.missile || 0) + (P.pyre || 0) + (P.double ? 2 : 0) + (P.laser ? 3 : 0) + (P.options || 0) + ((P.wardLv || 0) >= 1 ? 4 : 0)
-    + Math.min(3, ((gm && gm.cal) || 0) + ((gm && gm.serr) || 0));
-}
-/** the integer rank (spec §2.1): clamp(T_base + stageIdx + 6 loop + P_term, 0, 16 in Descent 1 else 31). W0: rank($) */
-export function fightRank(): number {
-  const G = $.G || {}, loop = G.loop || 0, s = G.stage || 0; // as rank.ts: G.stage raw (W0 contract)
-  const r = FT.tBase[fightTier()] + s + 6 * loop + pTerm($.P, G.gm);
-  return Math.max(0, Math.min(loop === 0 ? 16 : 31, r));
-}
-/** rho = min(rank, 16) / 16. W0: rho($) */
-export const fightRho = () => Math.min(fightRank(), 16) / 16;
-/** the midboss bullet cap at the current tier. W0: bulletCap($, 'setp') */
-export const fightCap = () => FT.cap[fightTier()];
+// ---------------- the W0 adapter: the fights' one doorway to src/rank.ts and src/tier.ts ----------------
+/** the tier, 0-3 (tier.ts tierG: Normal when G carries none) */
+export const fightTier = () => tierG($.G);
+/** spec §2.1 P_term (rank.ts rankP): held power only, by slot */
+export const pTerm = (P: any, gm: any): number => rankP(P, { gm });
+/** the integer rank (spec §2.1; rank.ts rank) */
+export const fightRank = (): number => rank($);
+/** rho = min(rank, 16) / 16 (rank.ts rho) */
+export const fightRho = () => rho($);
+/** the midboss bullet cap at the current tier (rank.ts bulletCap, the set-piece / midboss class) */
+export const fightCap = () => bulletCap($, 'setp');
 
 // ---------------- the rules every fight reads ----------------
 /** an idle cooldown or pattern interval I under the one rank rule (no pow term, no dial): I x (1.25 - .6 rho), floor 18 */
@@ -110,6 +99,26 @@ export function lurch(e: any, ph2: boolean): boolean {
   if (!g3()) return false;
   if (e.st === 'idle') e.cool = Math.min(e.cool, e.wt + FT.open);
   return true;
+}
+
+/**
+ * g3: steer a midboss's diving hatchlings (spawned with own: e and ent = the edge they came from, 1 top, -1 bottom, or
+ * 2 from its body). The hatchling's own arm (enemies/update.ts 'hatch') runs after this in the same frame (a child is later
+ * in the list) and moves it 2.5 left and steers vy .05 toward the ship, so this pre-pays the arm: straight in off an edge,
+ * then a dive at the ship at DN.eV, until it is past the ship's x or DN.eT frames old (then an ordinary hatchling). A
+ * litter that only met the ship head on was erased by its forward fire (K2: bodies, not bullets). Frame math, no R()
+ */
+export function diveKids(e: any, list: readonly any[], ph: number): void {
+  const P = $.P;
+  for (const q of list) {
+    if (q.dead || q.own !== e || !q.ent) continue;
+    if (q.x < P.x - 8 || q.t > DN.eT) { q.ent = 0; continue; }
+    const dx = P.x - q.x, dy = P.y - q.y, d = Math.hypot(dx, dy) || 1;
+    const off = q.ent === 1 ? q.y < 0 : q.ent === -1 ? q.y > ph : false;
+    const vy = Math.max(-1.35, Math.min(1.35, off ? q.ent * DN.eV : DN.eV * dy / d));
+    q.x += 2.5 + (off ? 0 : DN.eV * dx / d);
+    q.vy = vy - (P.y > q.y ? .05 : -.05);
+  }
 }
 
 /** counted enemy shots alive (spec §2.1: every eshot not flagged haz) */

@@ -57,7 +57,7 @@ export const MID_HP: Readonly<Record<string, number>> = {
  *  probe before merge. The Saucer (DRIFT, spawned by ufo.ts) reads its row here too */
 export const MID_HP_G3: Readonly<Record<string, number>> = {
   ufo: 50, //      [FIT] 56 ran 11.8 s; spec §2.3 starts at 80 (64 if over 11 s); with the core rule (wings .3) the STAGE 1 kit ran out its forced exit at 80
-  choir: 48, //    [FIT] 58 ran 12.6 s; ET 80: with the eye at .4 while a bar lives the STAGE 1 kit took 14.0 s at 80 (slot A 8-11)
+  choir: 46, //    [FIT] W0's rank: 52 ran 12.2 s. Before W0: 48 ran 10.0 s; 58 ran 12.6 s; ET 80: with the eye at .4 while a bar lives the STAGE 1 kit took 14.0 s at 80 (slot A 8-11)
   cyst: 156, //    [FIT] ET 135 ran 8.9 s: inside the band, but its phase 1 was too short for its slow moves to reach every spot (K1)
   brood: 120, //   [FIT] ET 105 ran 8.9 s: as the Womb (K1)
   prentice: 180, // MID_HP's D61 value (9.8 s on this build)

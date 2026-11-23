@@ -30,7 +30,7 @@ import { slotClock } from '../../midpick';
 import { meetMid, registerDrift } from '../../midslot';
 import { midPh2 } from '../midhost';
 import { MID_NAMES, MID_SIM, defineMid } from './roster';
-import { RING_V, cad, entered, ev, g3, ledger, litter, lobFan, lurch, opening, ringA, spend, spendP, variant } from './_fight';
+import { RING_V, cad, diveKids, entered, ev, g3, ledger, litter, lobFan, lurch, opening, ringA, spend, spendP, variant } from './_fight';
 import { midHpMul } from '../../midslot';
 import { UFO_SW, sweepA } from './_deny';
 
@@ -148,7 +148,7 @@ function updUfo(e) {
         e.burst++;
         for (const [tx, ty] of TUMOURS) {
           const x = e.x + tx, y = e.y + ty;
-          if (G3) lobFan(lob, x, y, $.P.x, $.P.y, 3, 24, 1.5); // g3: lobbed so the centre glob comes down through the ship (a straight glob fan curves under it)
+          if (G3) lobFan(lob, x, y, $.P.x, $.P.y, 3, 24, 1.5); // g3: lobbed so each tumour's centre glob comes down through the ship (a straight glob fan curves under it). A 9-glob comb centred on the ship was tried for K2 (fewer bullet hits): it cost K1 and bought no lash share
           else fan(x, y, aimA(x, y), e.wt === 36 ? 3 : 2, .24, 1.45, 'glob');
           for (let k = 0; k < 6; k++) drop(x, y, rr(-1.6, 1.2), rr(-2, .4), 1.4, R() < .6 ? 2 : 0, 70);
         }
@@ -161,7 +161,7 @@ function updUfo(e) {
       if (e.wt === 40) {
         const kids = enemies.filter(q => q.kid && !q.dead).length, n = Math.min(8 - kids, (g3() ? litter() : 3 + Math.round(($.G.rank || 0) * 2)) + (ph2 ? 1 : 0)), g = { n, killed: 0 };
         // the litter is a formation: kill all of it for a pod (it stands in for the filler it ate)
-        for (let i = 0; i < n; i++) mk('hatch', e.x + HATCH_O[0] - i * 7, e.y + HATCH_O[1] + 4, { kid: 1, group: g, ph: R() * TAU, vy: (i % 2 ? 1 : -1) * rr(.4, 1.3) });
+        for (let i = 0; i < n; i++) mk('hatch', e.x + HATCH_O[0] - i * 7, e.y + HATCH_O[1] + 4, { kid: 1, group: g, ph: R() * TAU, vy: (i % 2 ? 1 : -1) * rr(.4, 1.3), ...(g3() ? { own: e, ent: 2 } : null) }); // g3: they dive at the ship (diveKids)
         for (let k = 0; k < 16; k++) drop(e.x + HATCH_O[0], e.y + HATCH_O[1] + 2, rr(-1.5, 1.5), rr(0, 2), 1.5, R() < .5 ? 4 : 0, 80);
         sfx.squish();
       }
@@ -173,6 +173,7 @@ function updUfo(e) {
       if (e.rq && (e.rq === 2 ? spend(e, 6) : spendP(e, 6))) { e.rq = 0; ring(e.x, e.y + 4, 6, ringA(e.x, e.y + 4), RING_V); }
     }
   }
+  if (g3()) diveKids(e, enemies, PH);
   if (R() < .3) drop(e.x + rr(-40, 40), e.y + rr(6, 14), rr(-.2, .2), rr(.2, .7), 1.3, R() < .5 ? 0 : 2, 90);
   if (R() < .06) spark(e.x + rr(-50, 50), e.y + rr(-8, 8), rr(-.3, .3), -rr(.2, .6), 18, '#d8c860');
 }

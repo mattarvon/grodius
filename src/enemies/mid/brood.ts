@@ -14,7 +14,7 @@ import { bandFit, lob, midLeave } from '../update';
 import { BROOD_CAP, fitsTerrain, midPh2 } from '../midhost';
 import { DN, broodLane, edgeSlot, edgeX, rearSlot } from './_deny';
 import { defineMid } from './roster';
-import { cad, entered, g3, ledger, litter, lobFan, lurch, opening, spend, spendP } from './_fight';
+import { cad, diveKids, entered, g3, ledger, litter, lobFan, lurch, opening, spend, spendP } from './_fight';
 
 const SLOT = [0, 0]; // rearSlot's / edgeSlot's scratch
 // g3 (DIFFICULTY-SPEC §2.3): the one rank rule, cad() (no pow term, no dial); short keeps its old line (layout parity)
@@ -28,19 +28,7 @@ export const SNEEZE = { at: [26, 38] as readonly number[], n: [3, 4] as readonly
  * and steers vy .05 toward the ship, so this sets it up to fall straight at DN.eV down its column: x back by 2.5, vy so the
  * arm's .05 lands it on DN.eV. Once it reaches the ship's lane it is an ordinary hatchling (ent 0). Pure frame math, no R()
  */
-function steer(e) {
-  const P = $.P;
-  for (const q of enemies) {
-    if (q.dead || q.own !== e || !q.ent) continue;
-    // past the ship's x, or out of time: an ordinary hatchling from here (it flies on left)
-    if (q.x < P.x - 8 || q.t > DN.eT) { q.ent = 0; continue; }
-    const dx = P.x - q.x, dy = P.y - q.y, d = Math.hypot(dx, dy) || 1;
-    const off = q.ent > 0 ? q.y < 0 : q.y > PH; // straight in off the edge, then it dives at the ship
-    const vy = Math.max(-1.35, Math.min(1.35, off ? q.ent * DN.eV : DN.eV * dy / d));
-    q.x += 2.5 + (off ? 0 : DN.eV * dx / d);
-    q.vy = vy - (P.y > q.y ? .05 : -.05);
-  }
-}
+const steer = (e) => diveKids(e, enemies, PH); // _fight.ts: shared with the Saucer's litter
 function updBrood(e) {
   // THE BROOD MOTHER: a swollen mucus sac. Heaves 44f, then births a litter of hatchlings; or flares 26f and sneezes snot globs
   const go = midLeave(e), ph2 = midPh2(e);

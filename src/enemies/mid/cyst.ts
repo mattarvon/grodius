@@ -31,7 +31,7 @@ export const WOMB = {
   /** where each lob of a spray lands, px from the ship's x, centre first: the first pool sits under the ship and the next
    *  four feed it (DN.plMerge 30), so its column stands where the ship is; phase 2's outer two plant pools of their own.
    *  Its R() draws are kept (the old jitter's), so a spray draws as many as before [K1 midboss-probe --spots] */
-  comb: [0, -14, 14, -28, 28, -42, 42] as readonly number[],
+  comb: [0, 0, 14, -14, 28, -28, 42] as readonly number[], // [0] is the aimed glob's slot (li 1); the first surface pool lands under the ship
 } as const;
 
 /** a glob thrown up from (x, y) that strikes (tx, ty) ABOVE it on the way up (the glob falls .025/f; shots.ts). The

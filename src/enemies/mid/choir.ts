@@ -99,7 +99,7 @@ function updChoir(e) {
     }
     else if (e.st === 'tel') {
       e.ha += wrapA(aimA(e.x - 10, e.y) - e.ha) * .04;
-      const n = nLive ? 5 : 7;
+      const n = nLive || G3 ? 5 : 7; // g3: 5 always (7 with no bars held the Normal screen at p90 10: B3)
       if (e.wt >= glareF() && !(G3 && !spend(e, n))) { // g3: the fan waits for room in the budget (all n or none)
         fan(e.x - 10, e.y, e.ha, n, .16, 1.8, 'spike');
         flash(e.x - 10, e.y, 16, 6, '200,235,255');
