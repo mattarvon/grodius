@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
-import { pk, perkTick, lastGasp, ribShards } from './perks';
+import { pk, perkTick, lastGasp, ribShards, twitchB } from './perks';
 import { ECON, bankBio, econId } from './economy';
 import { PH, R, TAU, W, clamp, lerp, ri, rr } from './core';
 import { SET, lv } from './save';
@@ -10,8 +10,8 @@ import { I, touch } from './input';
 import { ceilAt, floorAt, shots } from './world';
 import { solidAt } from './solids';
 import { flash, pop, spark } from './fx/spawn';
-import { killPlayer, respawn } from './flow';
-import { POD, hurt } from './enemies/update';
+import { feedAfter, killPlayer, respawn } from './flow';
+import { POD, hurt, podType } from './enemies/update';
 import { dmMul, gmL, gunDm, sporeBurst } from './mutations';
 import { gunTier, smoke } from './fx/gunfx';
 import { SURV, hardOn, wardCapOf } from './death';
@@ -38,13 +38,73 @@ export function needOf(i) {
 export function slotLocked(i) {
   return slotLv(i) >= capLv(i) && slotLv(i) < SMAX[i];
 }
+/** long4 (tune-tc, gate E3): is every slot at its seal-0 cap? The gun and side pairs count as one slot each (either
+ *  form held at its cap); WARD counts its level, not its hits. Pure read of $.P / $.G */
+function atCeiling() {
+  const P = $.P;
+  return P.speed >= capLv(0) && ((P.double && P.double >= capLv(2)) || (P.laser && P.laser >= capLv(3)))
+    && ((P.missile && P.missile >= capLv(1)) || (P.pyre && P.pyre >= capLv(4))) && P.options >= capLv(5) && (P.wardLv || 0) >= capLv(6);
+}
+/** SEAL PRIMING (long4 only, seal 0 only; tune-tc, gate E3 "K1 before biome B's first WARNING + 30 s"). Once the ship
+ *  holds the whole seal-0 kit (K0), a pod of a sealed slot the ship already flies (THRUST, its MISSILE, WRAITH, WARD)
+ *  is stored toward that slot's next level instead of turning into nothing. When the seal breaks at the stage-2 tally
+ *  the stored parts grow in, all at once under one banner (settlePrimes). ARC and PYRE are never primed: they
+ *  would swap out the held form, and a primed swap ate biome B's pods (it1: K1 at 443 s on seed 1, the kit SPLIT ->
+ *  ARC and MISSILE -> PYRE). Why: K1 costs 9 fragments past K0 (economy spec §1) and every one had to come from biome
+ *  B's ~5 pods before its WARNING + 30 s, spread over 6 pod types, so K1 never completed (W6 gates: 0/5 seeds), while
+ *  biome A's 8-11 pods were all wasted at K0. A death drops the stored parts (resetPlayer clears P.frag). Off in meter
+ *  mode (its POWER buys whole levels) and on short / long5, so they are unchanged */
+export const PRIME = {
+  /** pods short of the next level a primed slot stops at (0: the whole level is stored) */
+  short: 0,
+  /** the seal priming works under (0: toward K1 only; a later seal keeps today's dead pods) */
+  seal: 0,
+} as const;
+/** the slots priming may store into: THRUST, MISSILE while it is the held side gun, WRAITH, WARD */
+const primeSlot = (i) => i === 0 || i === 5 || i === 6 || (i === 1 && $.P.missile > 0);
+export function primeOk(i) {
+  if (!hardOn() || SET.meter || (($.G && $.G.seal) || 0) !== PRIME.seal || !primeSlot(i) || !slotLocked(i) || !atCeiling()) return false;
+  return (($.P.frag && $.P.frag[i]) || 0) < needOf(i) - PRIME.short;
+}
+/** set while settlePrimes grows the stored levels in: applyPower then skips its per-level pop and feed (one combined
+ *  banner says it instead: ux-designer, 4 banners in 160 f could not be read) */
+let quiet = false;
+/** after the seal breaks: every slot whose stored parts fill its next level takes it, all on one frame, under one
+ *  banner. A stored MISSILE level the ship no longer flies (it took PYRE since) is dropped, never shown as 2/1 */
+function settlePrimes() {
+  const P = $.P, G = $.G;
+  if (!P.frag || !hardOn() || (G.seal || 0) <= PRIME.seal) return;
+  if (P.frag[1] && !P.missile) P.frag[1] = 0;
+  let names = null;
+  for (const i of [0, 1, 5, 6]) if ((P.frag[i] || 0) >= needOf(i) && slotLv(i) < capLv(i) && primeSlot(i)) {
+    P.frag[i] = needOf(i) - 1;
+    quiet = true;
+    applyPower(i, false);
+    quiet = false;
+    (names ||= []).push(powerText(i)[2]);
+  }
+  if (names) {
+    pop(P.x, P.y - 16, 'STORED PARTS GROW IN', '#ffe2a0', 9, 70);
+    feedAfter({ s: 'STORED PARTS GROW IN', d: names.join(' // '), t: 180, ml: 180 });
+  }
+}
 export function slotMaxed(i) {
   const l = slotLv(i);
-  if (i === 6) return l >= capLv(6) && $.P.shield >= wardCap();
-  return l >= capLv(i);
+  if (i === 6) return l >= capLv(6) && $.P.shield >= wardCap() && !primeOk(6);
+  return l >= capLv(i) && !primeOk(i);
 }
 export function applyPower(i, full) {
   if (i == null || i < 0 || !$.P.alive) return;
+  // long4, seal 0 (tune-tc, gate E2 K0 in Orbit): a pod rolled for a slot that filled before it was taken (the Saucer's
+  // and the Maw's pairs drop together and roll the same state; updateCaps re-rolls a full slot only every 60 f) is
+  // re-rolled as it is taken, so it is never wasted while K0 still has room. One R() (podType), maxed pods only. Seal 0
+  // only: from seal 1 ARC and PYRE stay open beside SPLIT / MISSILE, and a re-roll there would swap the held gun form
+  // (economy-designer); past K0 a full pod is SURPLUS, as Gradius pays it. A non-FULL recovery pod (c.rec) is re-rolled
+  // here too, which is the point (it would otherwise be wasted), though shots.ts updateCaps never re-rolls one in flight
+  if (hardOn() && !full && !SET.meter && (($.G && $.G.seal) || 0) === PRIME.seal && slotMaxed(i)) {
+    const n = podType();
+    if (n >= 0) return applyPower(n, false);
+  }
   if (i === 6 && slotLv(6) >= capLv(6) && $.P.shield < wardCap()) {
     const h = ECON[econId()].hard; // D63 long4: +wardTop hits, not a refill, and never past the WARD level (W2)
     $.P.shield = h ? Math.min(wardCap(), Math.floor($.P.shield) + h.wardTop) : WARD_MAX;
@@ -52,6 +112,19 @@ export function applyPower(i, full) {
     sfx.shield();
     buzz('light');
     pop($.P.x, $.P.y - 14, h ? 'WARD +' + h.wardTop : 'WARD RESTORED', POD[6].h, 8, 40);
+    return;
+  }
+  if (primeOk(i)) {
+    // SEAL PRIMING: stored toward the sealed level, up to PRIME.short pods short of it (0: the whole level; a FULL pod
+    // stores it at once). The pop says STORED, so a full count is not read as a level that failed to arrive
+    $.P.frag = $.P.frag || [];
+    const nd = needOf(i), f = full ? nd - PRIME.short : Math.min(nd - PRIME.short, ($.P.frag[i] || 0) + 1);
+    $.P.frag[i] = f;
+    $.G.slotF = $.G.slotF || [];
+    $.G.slotF[i] = 20;
+    sfx.pick();
+    pop($.P.x, $.P.y - 14, SLOTS[i] + ' ' + f + '/' + nd + ' STORED', POD[i].h, 8, 40);
+    for (let k = 0; k < 5; k++) spark($.P.x, $.P.y, rr(-2, 2), rr(-2, 2), 10, POD[i].h);
     return;
   }
   if (slotMaxed(i)) {
@@ -96,8 +169,10 @@ export function applyPower(i, full) {
   {
     // POWER readout: say what just changed, in plain terms
     const [s, d, short] = powerText(i);
-    pop($.P.x, $.P.y - 16, short, POD[i].h, 9, 60);
-    $.G.feed = { s, d, t: 150, ml: 150 };
+    if (!quiet) {
+      pop($.P.x, $.P.y - 16, short, POD[i].h, 9, 60);
+      $.G.feed = { s, d, t: 150, ml: 150 };
+    }
   }
   flash($.P.x, $.P.y, 40, 10, POD[i].c);
   for (let k = 0; k < 10; k++) {
@@ -133,7 +208,7 @@ export function powerText(i) {
     case 0: return ['THRUST ' + P.speed, `ship speed +${Math.round(P.speed * .42 / 1.25 * 100)}%`, 'THRUST ' + P.speed + ': FASTER'];
     case 1: return P.missile > 1 ? ['MISSILE II // TWIN SALVO', 'up + down rockets, 40% faster reload, +20% blast', 'MISSILE II: TWIN SALVO'] : ['MISSILE // GROUND ROCKETS', 'splash rockets ride the floor', 'MISSILE: ROCKETS'];
     case 2: return ['SPLIT // 3-WAY FAN', 'three rounds per shot, fanned wide', 'SPLIT: 3-WAY FAN'];
-    case 3: return ['ARC // PIERCING BEAM', 'x1.7 damage, burns through every body in line', 'ARC: PIERCING BEAM'];
+    case 3: return ['ARC // PIERCING BEAM', `x${gun().arc} damage, burns through every body in line`, 'ARC: PIERCING BEAM'];
     case 4: return P.pyre > 1 ? ['PYRE II // EYE STORM', 'every gunner lobs, 50% faster', 'PYRE II: EYE STORM'] : ['PYRE // FLAMING EYES', 'lobbed eyes burst and set meat burning', 'PYRE: FIRE EYES'];
     case 5: return ['WRAITH ' + P.options + ' // +1 GUNNER', `${P.options + 1} guns firing, +${50 * P.options}% damage`, `WRAITH: ${P.options + 1} GUNS`];
     default: {
@@ -178,6 +253,18 @@ export const snotGlob = (x, y) => ({ k: 'bolt', x: x + 10, y, vx: 4.2, vy: 0, dm
 const FAN = [[0, 1], [-.2, .8], [.2, .8]];
 /** WRAITH gunners hit at half weight: +50% / +33% / +25% per wraith instead of x2/x3/x4 (keeps the top end sane) */
 const WR = .5;
+/** the gun numbers a long4 run fires (tune-tc, gate E4: the strongest LEGAL MAX D1 kit <= 50 single-target dps). At
+ *  today's numbers the four K1 variants measured 47 / 63 / 63 / 81 (SPLIT+MSL2 / SPLIT+PYRE1 / ARC+MSL2 / ARC+PYRE1,
+ *  tools/dps-probe.mjs): ARC out-hit SPLIT 1.33x on one target and PYRE I alone out-hit the main gun (2.3x bare
+ *  against MISSILE II's 1.0x, for 2 fragments against 3), and the perk / graft stack multiplied both. short and long5
+ *  read GUN_TODAY, so they are unchanged */
+const GUN_TODAY = { arc: 1.7, pyre: [0, 5, 5] };
+/** long4 [FIT, dps-probe 6000 f]: ARC 1.3 (single target ~1.0x SPLIT; ARC keeps the pierce, SPLIT the spread) and a
+ *  PYRE eye of .6 at level 1 (its burn, shots.ts pyreBoom, is most of PYRE I now: 12.5 ONE / 8.9 WALL, level with
+ *  MISSILE II's 8.8 WALL); PYRE II keeps today's 5 (seal 2, Descent 2 on, outside E4). With SERRATION 1.06 (economy.ts) LEGAL MAX D1 reads
+ *  41.7 / 46.5 / 42.7 / 47.4 */
+const GUN_L4 = { arc: 1.3, pyre: [0, .6, 5] };
+const gun = () => (hardOn() ? GUN_L4 : GUN_TODAY);
 export function fire() {
   const cal = gmL('cal'),
     serr = gmL('serr'),
@@ -185,7 +272,7 @@ export function fire() {
     rem = Math.max(-1, Math.min(0, $.P.cd || 0)),
     rp = gmL('rapid'),
     tier = gunTier(),
-    rate = 1.25 ** rp * (1 + [0, .08, .15, .21][pk('rof')]),
+    rate = 1.25 ** rp * (1 + twitchB(pk('rof'))),
     org = [{
       x: $.P.x,
       y: $.P.y
@@ -219,7 +306,7 @@ export function fire() {
         vx: 9,
         vy: 0,
         len: 6,
-        dmg: 1.7 * dm * (j ? WR : 1),
+        dmg: gun().arc * dm * (j ? WR : 1),
         hit: new Set(),
         r: 2,
         w: 1 + Math.min(1.6, (dm - 1) * .8),
@@ -310,7 +397,7 @@ export function fire() {
       y: src[j].y,
       vx: 4.4,
       vy: -1.1,
-      dmg: 5 * dm * (j ? WR : 1),
+      dmg: gun().pyre[Math.min(2, $.P.pyre)] * dm * (j ? WR : 1),
       r: p2 ? 5 : 4,
       lv: $.P.pyre,
       rot: R() * TAU
@@ -325,6 +412,7 @@ export function updatePlayer() {
     if ($.G.deadT <= 0) respawn();
     return;
   }
+  settlePrimes();
   if ($.P.slow > 0) $.P.slow--;
   if (pk('glass') && $.P.shield > 1) $.P.shield = 1;
   perkTick(hurt);

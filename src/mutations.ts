@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
-import { pk } from './perks';
+import { marrowB, pk } from './perks';
 import { PH, R, TAU, W, clamp, dist2, rr } from './core';
 import { sfx } from './audio';
 import { arcs, caps, enemies, shots } from './world';
@@ -71,8 +71,8 @@ export const GM = [{
   w: 'FLAYERS',
   n: [9, 30],
   name: 'FLAYED EDGE',
-  d: '+25% damage',
-  dl: l => `+${[0, 25, 56][l]}% damage, barbed rounds`
+  get d() { return `+${gPct('serr', 1)}% damage`; }, // the GRAFT GROWN feed: the live step (+6% a level on long4, +25% on short)
+  dl: l => `+${gPct('serr', l)}% damage, barbed rounds`
 }, {
   id: 'over',
   c: 'GLT',
@@ -94,7 +94,7 @@ export const GM = [{
   n: [120, 400, 800],
   name: 'CALIBER',
   d: 'bigger, harder rounds',
-  dl: l => `+${[0, 22, 49, 82][l]}% damage, fatter rounds`
+  dl: l => `+${gPct('cal', l)}% damage, fatter rounds`
 }, {
   id: 'regrow',
   c: 'RGR',
@@ -121,12 +121,16 @@ for (const m of GM) if (m.id !== 'over') {
   Object.defineProperty(m, 'n', { get: () => graftN(econId(), base), enumerable: true, configurable: true });
 }
 export const ROM = ['', 'I', 'II', 'III', 'IV'];
+/** a gun graft's damage step per level (economy.ts HardSet cal / serr on long4, 1.22 / 1.25 elsewhere) */
+const gStep = (k) => { const h = ECON[econId()].hard; return k === 'serr' ? (h ? h.serr : 1.25) : (h ? h.cal : 1.22); };
+/** the graft card's "+N% damage" at level l: the live step, so long4's softened values read true (tune-tc) */
+function gPct(k, l) { return Math.round((gStep(k) ** l - 1) * 100); }
 export const gmL = id => $.G && $.G.gm ? $.G.gm[id] || 0 : 0;
 /** perk-side damage multiplier (SERRATED MARROW, GLASS JAW) */
-export const dmMul = () => (1 + .1 * pk('dmg')) * (pk('glass') ? 1.35 : 1);
+export const dmMul = () => (1 + marrowB(pk('dmg'))) * (pk('glass') ? 1.35 : 1);
 /** the main gun's damage multiplier: CALIBER and SERRATION grafts (geometric, +22-25% a level) times dmMul(). Every
  *  periodic player shot multiplies its base damage by this, so it keeps pace with depth HP (design/progression.md) */
-export const gunDm = () => { const h = ECON[econId()].hard; return (h ? h.serr : 1.25) ** gmL('serr') * (h ? h.cal : 1.22) ** gmL('cal') * dmMul(); }; // D63 long4: 1.2 / 1.18
+export const gunDm = () => gStep('serr') ** gmL('serr') * gStep('cal') ** gmL('cal') * dmMul(); // long4: economy.ts HardSet cal / serr
 export const gunSlots = () => Math.min(3, 1 + ($.G && $.G.seal || 0));
 export function countKill(e) {
   if (!$.G || !$.G.gm || e.kid) return; // a midboss's litter doesn't feed grafts

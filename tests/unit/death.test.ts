@@ -47,6 +47,8 @@ describe('the tier death table (spec §2.1 Tiers)', () => {
     expect(t.map((x) => x.lifeline)).toEqual([true, false, false, false]); // C15
     expect(t.map((x) => x.gasp)).toEqual(['stage', 'descent', 'descent', 'off']);
     expect(t.map((x) => x.blackBox)).toEqual([true, true, true, false]); // C16
+    expect(t.map((x) => x.scar)).toEqual([false, true, true, true]); // Matt's decision 11: Easy keeps its perks
+    expect(t.map((x) => x.refund)).toEqual([true, false, false, false]); // decision 10: Easy's exact-slot R1
     expect(t.slice(1).map((x) => x.thrustKeep)).toEqual([1, 0, 0]); // C18
   });
 });
@@ -91,7 +93,7 @@ describe('WARD hits = WARD level, perk caps by seal', () => {
     expect(D.SURV.regrowPer).toEqual([0, 2400, 1440]);
     expect(D.SURV.scab).toBe(.03);
     expect([D.SURV.wardInv, D.SURV.respawnInv, D.SURV.cpInv]).toEqual([40, 120, 120]);
-    expect(D.SURV.wardPodW).toBe(.45);
+    expect(D.SURV.wardPodW).toBe(.25); // tune-tc [FIT, H2]: was .45
   });
 });
 
@@ -136,33 +138,43 @@ describe('contraptions in Descent 1 (Decision 4A)', () => {
   });
 });
 
+/** the queue grouped back into its waves (death.ts flies each carrier as its own entry, RECOVERY.file apart) */
+const waves = (q: any[]) => { const o: any[] = []; for (const e of q) { const w = o[o.length - 1]; if (w && e.t === w.t + w.pods.length * D.RECOVERY.file) w.pods.push(...e.pods); else o.push({ t: e.t, pods: [...e.pods] }); } return o; };
 describe('recovery waves (C16, C17)', () => {
   it('R1 is THRUST, the main-gun form that died, MISSILE or PYRE; BLACK BOX makes the gun FULL', () => {
     expect(D.r1Pods({ laser: 1, pyre: 1 }, true)).toEqual({ ty: [0, 3, 4], full: [1] });
     expect(D.r1Pods({ double: 1, missile: 1 }, false)).toEqual({ ty: [0, 2, 1], full: [] });
     expect(D.r1Pods({}, true)).toEqual({ ty: [0, 2, 1], full: [1] }); // a naked death still gets a gun
   });
-  it('R2 is two WRAITH, or two WARD once WRAITH is capped; R1 lands 3 s in, R2 12 s after', () => {
+  it('R2 is two WRAITH (two WARD once WRAITH is capped) and a WARD; R1 lands 3 s in, R2 12 s after', () => {
+    expect(D.RECOVERY.r2Ward).toBe(false); // tune-tc: built, off (spec §2.1; H2)
     expect(D.r2Pods(false)).toEqual([5, 5]);
     expect(D.r2Pods(true)).toEqual([6, 6]);
+    expect(D.r2Pods(false, true)).toEqual([5, 5, 6]); // gate E6: K0 holds WARD 1, so r2Ward brings it
     expect([D.RECOVERY.r1, D.RECOVERY.r2]).toEqual([180, 720]);
     // W0's queue (state.ts RecoveryQ): step.ts counts each t down and flies the pods through recoveryWave
-    expect(D.newRecovery({ laser: 1 }, true)).toEqual([
+    expect(waves(D.newRecovery({ laser: 1 }, true))).toEqual([
       { t: 180, pods: [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }] }, // no y: the ship's height when each launches
       { t: 900, pods: [{ ty: 5 }, { ty: 5 }] },
     ]);
   });
-  it('pulls R2 ahead of a boss WARNING, never closer than 4 s after R1 (a restore at WARNING - 10 s)', () => {
-    expect(D.newRecovery({}, false, { untilWarn: 720 })[1].t).toBe(660);
-    expect(D.newRecovery({}, false, { untilWarn: 300 })[1].t).toBe(180 + D.RECOVERY.r2Min);
-    expect(D.newRecovery({}, false, { untilWarn: 5000 })[1].t).toBe(900);
+  it('flies every carrier in single file, RECOVERY.file apart (tune-tc, E1 / E6)', () => {
+    expect(D.newRecovery({}, false).map((e: any) => [e.t, e.pods.length])).toEqual([[180, 1], [200, 1], [220, 1], [900, 1], [920, 1]]);
   });
-  it('Easy sends back the slot the gradual strip took, then WARD', () => {
-    const q = D.newRecovery({ options: 2, laser: 1, missile: 1 }, true, { gradual: true });
-    expect(q[0].pods).toEqual([{ ty: 5, full: true }, { ty: 5 }, { ty: 5 }]);
+  it('pulls R2 ahead of a boss WARNING, never closer than 4 s after R1 (a restore at WARNING - 10 s)', () => {
+    expect(waves(D.newRecovery({}, false, { untilWarn: 720 }))[1].t).toBe(720 - 60 - 2 * D.RECOVERY.file); // R2's last carrier (of up to 3) lands 60 f before the banner
+    expect(waves(D.newRecovery({}, false, { untilWarn: 300 }))[1].t).toBe(180 + D.RECOVERY.r2Min);
+    expect(waves(D.newRecovery({}, false, { untilWarn: 5000 }))[1].t).toBe(900);
+  });
+  it('Easy sends back exactly the slot the gradual strip took (decision 10: one FULL pod a level), then WARD', () => {
+    const q = waves(D.newRecovery({ options: 2, laser: 1, missile: 1 }, true, { gradual: true }));
+    expect(q[0].pods).toEqual([{ ty: 5, full: true }, { ty: 5, full: true }]);
     expect(q[1].pods).toEqual([{ ty: 6 }, { ty: 6 }]);
-    expect(D.newRecovery({ laser: 1 }, false, { gradual: true })[0].pods).toEqual([{ ty: 3 }, { ty: 3 }, { ty: 3 }]);
-    expect(D.newRecovery({}, false, { gradual: true })[0].pods.map((p: any) => p.ty)).toEqual([0, 2, 1]); // naked: the full wave
+    expect(waves(D.newRecovery({ laser: 1 }, false, { gradual: true }))[0].pods).toEqual([{ ty: 3, full: true }]);
+    expect(waves(D.newRecovery({ missile: 2, speed: 3 }, false, { gradual: true }))[0].pods).toEqual([{ ty: 1, full: true }, { ty: 1, full: true }]);
+    expect(waves(D.newRecovery({ pyre: 1, speed: 3 }, false, { gradual: true }))[0].pods).toEqual([{ ty: 4, full: true }]);
+    expect(waves(D.newRecovery({ speed: 3 }, false, { gradual: true }))[0].pods.map((p: any) => p.ty)).toEqual([0, 0, 0]);
+    expect(waves(D.newRecovery({}, false, { gradual: true }))[0].pods.map((p: any) => p.ty)).toEqual([0, 2, 1]); // naked: the full wave
   });
 });
 

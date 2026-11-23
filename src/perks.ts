@@ -17,8 +17,8 @@ import { decodeRun, lastRun, storeRun } from './runsave';
 
 /** perk table. d(l): what level l does. c: the price (trade-off perks). req: biome that unlocks it. */
 export const PERKS = [
-  { id: 'dmg', f: 'the marrow grows teeth', name: 'SERRATED MARROW', max: 3, w: 8, d: (l) => `+${10 * l}% damage, every gun` },
-  { id: 'rof', f: 'it will not stop shaking', name: 'TWITCH GLAND', max: 3, w: 8, d: (l) => `+${[0, 8, 15, 21][l]}% fire rate` },
+  { id: 'dmg', f: 'the marrow grows teeth', name: 'SERRATED MARROW', max: 3, w: 8, d: (l) => `+${Math.round(100 * marrowB(l))}% damage, every gun` },
+  { id: 'rof', f: 'it will not stop shaking', name: 'TWITCH GLAND', max: 3, w: 8, d: (l) => `+${Math.round(100 * twitchB(l))}% fire rate` },
   { id: 'spd', f: 'pulled tight as piano wire', name: 'SINEW THRUSTERS', max: 3, w: 7, d: (l) => `+${8 * l}% ship speed, on top of THRUST` },
   { id: 'pierce', f: 'sharpened on your own ribs', name: 'BONE TIPS', max: 2, w: 7, d: (l) => `shots punch through ${l} more enem${l > 1 ? 'ies' : 'y'}` },
   { id: 'crit', f: 'nothing in there but hunger', name: 'HOLLOW HEART', max: 3, w: 7, d: (l) => `${7 * l}% chance to crit for double (x3 with GLUTTONY)` },
@@ -47,6 +47,15 @@ export const PERKS = [
 const BYID = Object.fromEntries(PERKS.map((p) => [p.id, p]));
 
 export const pk = (id) => ($.G && $.G.pk && $.G.pk[id]) || 0;
+/** SERRATED MARROW's damage bonus and TWITCH GLAND's fire-rate bonus by level. long4 (tune-tc, gate E5: the ship a
+ *  death leaves at END D1 <= .32 x END D1's single-target dps): a death's perk scar eats the TOP level of one of them,
+ *  and at today's curves that bite was 8-9% either way, so the respawn kept .32-.34 of END D1 (dps-probe, 6000 f).
+ *  MARROW's second level and TWITCH's first carry more of the curve now, so the scar takes ~10% (MARROW 2 -> 1 or
+ *  TWITCH 1 -> 0); every TWITCH step stays a felt one (+11 / +6 / +5 points: game-designer). short and long5 keep
+ *  today's curves [FIT, dps-probe 6000 f] */
+const MARROW = { today: [0, .1, .1 * 2, .1 * 3], l4: [0, .08, .2, .3] }, TWITCH = { today: [0, .08, .15, .21], l4: [0, .11, .18, .24] }; // today: .1 * l exactly as before (.1 * 3 is not .3 in doubles: short parity)
+export const marrowB = (l) => (hardOn() ? MARROW.l4 : MARROW.today)[l | 0] || 0;
+export const twitchB = (l) => (hardOn() ? TWITCH.l4 : TWITCH.today)[l | 0] || 0;
 /** SCAB WEAVE's chance per level that a kill regrows a WARD hit: 3% on long4 (DIFFICULTY-SPEC §2.1, gate H1), 6%
  *  elsewhere. enemies/update.ts's SCAB roll reads it (with player.ts wardCap() as the cap) */
 export const scabChance = () => (hardOn() ? SURV.scab : .06);
@@ -213,7 +222,7 @@ export function perkTick(hurt) {
     const r = (e.r || 6) + 4;
     if ((e.x - t.x) ** 2 + (e.y - t.y) ** 2 < r * r && !(e.toothT > G.t)) {
       e.toothT = G.t + 15;
-      hurt(e, (e.big || e.mini ? .5 : 1) * (1 + .1 * pk('dmg')), t.x, t.y, Math.sign(e.x - t.x) || 1);
+      hurt(e, (e.big || e.mini ? .5 : 1) * (1 + marrowB(pk('dmg'))), t.x, t.y, Math.sign(e.x - t.x) || 1);
       if (R() < .5) spark(t.x, t.y, rr(-2, 2), rr(-2, 2), 8, '#f0e2c0');
     }
   }
