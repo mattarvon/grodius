@@ -218,3 +218,90 @@ describe('page kit on a stub window', () => {
     expect(PL.contact(g(G), 300, 127).other).toContain('beam');
   });
 });
+
+describe('W6 tune-tp: owner attribution, the solids timeline, one entry per swarm', () => {
+  let PL: any;
+  const g = (G: any, enemies: any[] = []) => ({ G: { scroll: 0, ...G }, P: { x: 100, y: 120, speed: 0 }, enemies });
+  beforeEach(() => {
+    (globalThis as any).window = {};
+    pageLib();
+    PL = (globalThis as any).window.__PL;
+    PL.mods.W = { eshots: [], floorAt: () => 200, ceilAt: () => 40 };
+  });
+  it('N1: a drone whose shot flag turned this frame owns the shot from its muzzle, not a nearer formation mate', () => {
+    const shooter = { k: 'drone', x: 320, y: 120, r: 6, shot: 0 }, mate = { k: 'drone', x: 312, y: 121, r: 6, shot: 0 };
+    PL.tagShots(g({}, [shooter, mate]), 1); // flags read: neither has fired
+    shooter.shot = 1; PL.mods.W.eshots = [{ x: 313, y: 120, vx: -2, vy: 0, t: 1 }]; // fired from (x - 5, y), moved one step
+    const t = PL.tagShots(g({}, [shooter, mate]), 2);
+    expect(t[0].e).toBe(shooter); expect(PL.fired.has(shooter)).toBe(true); expect(PL.fired.has(mate)).toBe(false);
+  });
+  it('N1: with no flag turned the nearest rule still applies (other kinds, older shots)', () => {
+    const eye = { k: 'eye', x: 300, y: 120, r: 7 }, d = { k: 'drone', x: 340, y: 120, r: 6, shot: 1 };
+    PL.tagShots(g({}, [eye, d]), 1);
+    PL.mods.W.eshots = [{ x: 298, y: 120, vx: -2, vy: 0, t: 1 }];
+    expect(PL.tagShots(g({}, [eye, d]), 2)[0].by).toBe('eye');
+  });
+  it('fm: a piston is read at its tip t frames on, on its own cycle (rest, extend, hold, retract)', () => {
+    const p = { k: 'piston', st: 'rest', cls: 1, x: 100, w: 30, side: 1, root: 200, reach: 120, rest: 60, ext: 160, hold: 90, v: .5, age: 0, phase: 0, skipN: -1, y: 200, h: 153 };
+    PL.mods.SO = { SC: { HARD: 1, LODGE: 2, PLUG: 4, BODY: 8, TERRAIN: 7 }, solids: [p], solidsCol: () => [[200, 353]] };
+    expect(PL.solidsAt(110, 30)[0][0]).toBe(200); // still at rest
+    expect(PL.solidsAt(110, 60 + 160 + 10)[0][0]).toBe(120); // held at the reach
+    const mid = PL.solidsAt(110, 60 + 80)[0][0]; expect(mid).toBeGreaterThan(120); expect(mid).toBeLessThan(200); // extending
+    expect(PL.solidsAt(200, 100)).toEqual([]); // not over its column
+    p.skipN = 0; expect(PL.solidsAt(110, 60 + 160 + 10)[0][0]).toBe(200); // a skipped cycle stays home
+  });
+  it('fm: a growing plug cell blocks only once it sets', () => {
+    const c = { k: 'plug', st: 'grow', cls: 0, x: 100, w: 10, y: 90, h: 10, t: 20, tell: 44 };
+    PL.mods.SO = { SC: { HARD: 1, LODGE: 2, PLUG: 4, BODY: 8, TERRAIN: 7 }, solids: [c], solidsCol: () => [] };
+    expect(PL.solidsAt(105, 10)).toEqual([]);
+    expect(PL.solidsAt(105, 30)).toEqual([[90, 100]]);
+  });
+  it('fm: the walls move with a live DYN window (dynOff), the arrays alone at t 0', () => {
+    const w = { t0: 0, spec: {} };
+    PL.mods.TB = { DYNS: [w], dynWinAt: () => w, dynOff: (_s: any, _x: number, t: number) => [0, t * .5] }; // the floor rises .5 px/f
+    PL.mods.S = { $: { G: { t: 100 } } };
+    expect(PL.wallAt(50, 0)).toEqual([40, 200]);
+    expect(PL.wallAt(50, 20)).toEqual([40, 190]);
+  });
+  it('N4: a hatchling swarm (same frame, same edge, no group) is one entry; grouped and other kinds are not folded', () => {
+    expect(PL.swarmSeen({ k: 'hatch' }, 5, 'right')).toBe(false);
+    expect(PL.swarmSeen({ k: 'hatch' }, 5, 'right')).toBe(true);
+    expect(PL.swarmSeen({ k: 'hatch' }, 5, 'wall')).toBe(false);
+    expect(PL.swarmSeen({ k: 'hatch' }, 6, 'right')).toBe(false);
+    expect(PL.swarmSeen({ k: 'hatch', group: {} }, 6, 'right')).toBe(false);
+    expect(PL.swarmSeen({ k: 'drone' }, 6, 'right')).toBe(false);
+  });
+});
+
+describe('W6 tune-tf requests: Butcher first-half hook, KEEPSAKE cause, K2 keys, the withdraw clock, S1 forks', () => {
+  let PL: any;
+  const g = (G: any, enemies: any[] = [], P: any = { x: 100, y: 120, speed: 0 }) => ({ G: { scroll: 0, ...G }, P, enemies });
+  beforeEach(() => { (globalThis as any).window = {}; pageLib(); PL = (globalThis as any).window.__PL; PL.mods.W = { eshots: [], floorAt: () => 200, ceilAt: () => 40 }; });
+  it('the first-half hook (no tx/ty) hits at its tip while out, not once it comes back', () => {
+    const b: any = { k: 'butcher', x: 200, y: 128, r: 20, st: 'hook', ha: Math.PI, hk: { out: 1, d: 100 } }; // tip at (110, 120)
+    expect(PL.contact(g({}, [b]), 110, 120).other).toContain('hook');
+    b.hk.out = 0; expect(PL.contact(g({}, [b]), 110, 120).other).not.toContain('hook');
+  });
+  it('a KEEPSAKE boomerang one frame from the ship is its cause, padded by its step', () => {
+    PL.mods.KS = { KB: { boomSp: 3.4 }, keepTouch: (_m: any, _sc: number, x: number, _y: number, pad: number) => (Math.abs(x - 106) < pad ? 'boom' : '') };
+    const m = { k: 'keepsake', fh: 0 };
+    expect(PL.cause(g({ mini: m }, [])).c).toBe('keep:boom');
+  });
+  it('K2: the Maw counts as its bite only in bs 2-4; a Choir bar as the lane only while it sweeps', () => {
+    expect(PL.bodyKey({ k: 'maw', bs: 3 })).toBe('deny:bite');
+    expect(PL.bodyKey({ k: 'maw', bs: 1 })).toBe('body:maw');
+    const ch: any = { k: 'choir', lp: 2 }, bar = { k: 'nailbar', par: ch }; ch.lb = bar;
+    expect(PL.bodyKey(bar)).toBe('deny:lane'); ch.lp = 1; expect(PL.bodyKey(bar)).toBe('body:nailbar');
+  });
+  it('a shot with s.dn is its denial; nothing counts once a midboss withdraws', () => {
+    PL.mods.W.eshots = [{ x: 100, y: 120, r: 2, vx: 0, vy: 0, k: 'spike', dn: 'comb' }];
+    const acc = PL.spotNew(), mid = { k: 'crux', mid: 0, t: 10, leave: 999 };
+    PL.spotFrame(acc, g({ mini: mid }), 100, 120, 0); expect(acc.ph[0].by).toEqual({ 'deny:comb': 1 });
+    const acc2 = PL.spotNew(), gone = { k: 'choir', mid: 1, t: 2000, leave: 1080 };
+    PL.spotFrame(acc2, g({ mini: gone }), 100, 120, 0); expect(acc2.ph[0]).toBeUndefined();
+  });
+  it('S1 leaves THE KEEPSAKE falling forks (fk 1) out of the speeds', () => {
+    PL.mods.W.eshots = [{ x: 200, y: 100, vx: 0, vy: 3.3, k: 'glob', fk: 1 }, { x: 210, y: 100, vx: -1.5, vy: 0, k: 'orb' }];
+    PL.bulFrame(g({}, []), '1-1'); expect(PL.bul.scroll.vmax).toBeCloseTo(1.5);
+  });
+});

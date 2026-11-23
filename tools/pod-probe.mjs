@@ -1,8 +1,11 @@
 // Seeded pacing probe: progression.mjs bot + pick/fork/shop handling, seeded RNG,
 // per-frame pod-pickup timestamps, per-stage pods/min, bio per descent.
-// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout long4|short] [--mortal] [--pilot | --park] [--hull N] [--kit mid|full|end] [--brutal 0-3 | --tier 0-3] [--drift] [--rig full]
+// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout long4|short] [--mortal] [--pilot | --park] [--hull N] [--kit mid|full|end] [--brutal 0-3 | --tier 0-3] [--drift] [--rig full] [--react N]
 // --pilot: steer with the dodging autopilot (tools/pilot.mjs) instead of the plain target-seeker; use it with --mortal
 // (the plain bot game-overs in long4's first biome). Its frames with no safe move are reported as `pilot.trapped`.
+// --react N (with --pilot): the pilot's reaction time, frames (tools/pilot.mjs PILOT_TUNE.react, 0 by default): a shot,
+// body, hazard or tell is unseen until N frames old. The M2 sensitivity runs (W6 tune-tp): how far the clear rate
+// moves with a slower reader
 // --mortal: the bot is not kept invincible, so it takes real hits, loses ships and can game over (the run then ends
 // early and `endState` says so). Without it, hits stay 0 and every tally grades on kill% alone.
 // `firstKills` lists the midboss kinds paid the first-kill biomass (meta.mbK; the probe starts on a fresh profile, so
@@ -65,7 +68,8 @@ const MORTAL = flag('--mortal'), PIL = flag('--pilot'), PARK = flag('--park'), D
 const BRU = opt('--brutal'); // D63: ?brutal=N (default: the game's)
 const TIER = opt('--tier'); // spec §2.1: ?tier=N
 if (TIER != null && !/^[0-3]$/.test(TIER)) { console.error('--tier needs 0-3'); process.exit(2); }
-const KIT = opt('--kit'), HULL = +(opt('--hull') || 0), RIG = opt('--rig');
+const KIT = opt('--kit'), HULL = +(opt('--hull') || 0), RIG = opt('--rig'), REACT = opt('--react');
+if (REACT != null && !(+REACT >= 0)) { console.error('--react needs frames >= 0'); process.exit(2); }
 if (RIG && RIG !== 'full') { console.error('--rig takes full'); process.exit(2); }
 const [url, SEED = '1', MIN = '12', END = '1'] = process.argv.slice(2);
 // --kit bare|mid|full: the first life starts with src/jump.ts KITS[kit].p fitted (guns only; lives and level are the
@@ -79,6 +83,7 @@ const KITP = KIT ? KITS[KIT] : null; if (KIT && !KITP) { console.error(`unknown 
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 if (PIL) await p.addInitScript(PILOT);
+if (PIL && REACT != null) await p.addInitScript((r) => { window.__pilotReact = r; }, +REACT);
 await p.addInitScript(pageLib);
 await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);
@@ -180,7 +185,7 @@ const RIGS = RIG ? await p.evaluate(async () => { // --rig full: own everything,
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
-const MODS = await p.evaluate(async () => { window.__fr = 0; window.__pods.length = 0; window.__S = (await import('/src/state.ts')).$; window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); window.__DN = await import('/src/enemies/mid/_deny.ts'); return window.__PL.load(); });
+const MODS = await p.evaluate(async () => { window.__fr = 0; window.__pods.length = 0; window.__S = (await import('/src/state.ts')).$; window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); window.__DN = await import('/src/enemies/mid/_deny.ts'); if (window.__pilotLoad) await window.__pilotLoad(); return window.__PL.load(); });
 let last = '', lastFork = false; const tally = {}, grades = {}, warns = []; const k0 = (s) => `${s.loop + 1}-${(s.stage || 0) + 1}`; const seg = []; let endState = '';
 for (let it = 0; it < MIN * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
@@ -199,7 +204,7 @@ for (let it = 0; it < MIN * 60 * 2; it++) {
   if (s.st !== 'play' || s.loop >= +END) { endState = JSON.stringify(s); break; }
 }
 const fin = await p.evaluate(() => { const g = __G(), G = g.G, X = window.__x; return { deaths: window.__deaths, hitLog: window.__hits, lives0: window.__lives0, fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf, fk: Object.keys(window.__S.meta.mbK || {}),
-  tier: Number.isInteger(G.tier) ? G.tier : 'n/a', brutal: G.brutal != null ? G.brutal : window.__PL.mods.BR ? 0 : 'n/a', bul: window.__PL.bul, rank: X.rank, rankAt: X.rankAt, rsp: X.rsp.map(({ caps, recSeen, ...r }) => r), rev: X.revTag ? X.rev : 'n/a', rankDrive: X.rankDrive ?? null, contractErr: window.__PL.contractErr, k0: X.k0, k1: X.k1, score: Math.round(G.score || 0) }; });
+  tier: Number.isInteger(G.tier) ? G.tier : 'n/a', brutal: G.brutal != null ? G.brutal : window.__PL.mods.BR ? 0 : 'n/a', bul: window.__PL.bul, rank: X.rank, rankAt: X.rankAt, rsp: X.rsp.map(({ caps, recSeen, ...r }) => r), rev: X.revTag ? X.rev : 'n/a', rankDrive: X.rankDrive ?? null, contractErr: window.__PL.contractErr, lobMax: +window.__PL.lobMax.toFixed(2), k0: X.k0, k1: X.k1, score: Math.round(G.score || 0) }; });
 seg.push({ k: 'END', f0: fin.fr });
 const podsOnly = fin.pods.filter((x) => x.kind === 'pod' || x.kind === 'choice');
 const first = podsOnly[0];
@@ -214,9 +219,9 @@ const shieldHits = Object.values(fin.hitLog).reduce((a, n) => a + n, 0);
 const deathSrc = fin.deaths.reduce((a, d) => ((a[d.src || 'other'] = (a[d.src || 'other'] || 0) + 1), a), {});
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
-  mortal: MORTAL, park: PARK, drift: DRIFT, hull: HULL, kit: KIT, rig: RIGS, tierAsked: TIER, tier: fin.tier, brutal: fin.brutal, mods: MODS,
+  mortal: MORTAL, park: PARK, drift: DRIFT, hull: HULL, kit: KIT, rig: RIGS, react: PIL ? +(REACT ?? 0) : null, tierAsked: TIER, tier: fin.tier, brutal: fin.brutal, mods: MODS,
   deaths: fin.deaths, deathSrc, hitLog: fin.hitLog, shieldHits, slack: shieldHits + fin.deaths.length, recovery: fin.rsp, revenge: fin.rev,
   k0_s: fin.k0 != null ? +(fin.k0 / 60).toFixed(1) : null, k1_s: fin.k1 != null ? +(fin.k1 / 60).toFixed(1) : null,
-  rankTrace: fin.rank.every((r) => r[2] == null) ? null : fin.rank, rankAtStage: fin.rankAt, rankAtDrive: fin.rankDrive, contractErr: fin.contractErr, bullets, bulletHist: fin.bul,
+  rankTrace: fin.rank.every((r) => r[2] == null) ? null : fin.rank, rankAtStage: fin.rankAt, rankAtDrive: fin.rankDrive, lobMax: fin.lobMax, contractErr: fin.contractErr, bullets, bulletHist: fin.bul,
   lives0: fin.lives0, pilot: PIL ? await p.evaluate(() => window.__pilotLog) : null, stages, tally_s: tally, grades, warns, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, finalScore: fin.score, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
 console.error(`pod-probe: ran on ${LAYOUT}`); await b.close();

@@ -42,7 +42,7 @@ await p.evaluate('__tick(20)'); await key('keydown', 'KeyZ'); // fire, held
 const SHOTS = process.env.SHOTS;
 if (SHOTS) (await import('node:fs')).mkdirSync(SHOTS, { recursive: true });
 await p.evaluate(async ([MODE, CAP]) => {
-  window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts');
+  window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); await window.__pilotLoad();
   const { KB, capsuleHit } = await import('/src/enemies/boss/_keepsake.ts');
   const W = window.__W, pilot = MODE === 'pilot', spot = MODE.startsWith('spot:') ? MODE.slice(5).split(',').map(Number) : null;
   const R = { mode: MODE, ph: [0, 1, 2].map(() => ({ f: 0, hits: 0, by: {}, deaths: 0, near: 0, att: {}, dmgF: 0 })), ttk: null, rank: null, hp: null, rage: 0, spots: 0, end: null };

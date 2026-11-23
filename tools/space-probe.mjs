@@ -9,12 +9,14 @@
 //             over the visible screen sampled every 8 px each 4th frame: `out` outside the src/sigs.ts windows,
 //             `in` inside them, with the window that held the minimum ('n/a' windows on a build without sigs.ts)
 //   fm / fmPerMin  forced moves: an episode where a ship holding its y at its x for the next 90 f would touch
-//             terrain or a SOLID (from the arrays; the solids are read at their current place), episodes >= 60 f apart
+//             terrain or a SOLID, each read where it will be at that frame (probe-lib PL.wallAt / PL.solidsAt: a DYN
+//             window's walls and a piston's tip on their own timelines, W6 tune-tp), episodes >= 60 f apart
 //   cover     body cover at the ship's x + 60: enemy circles (r + 4) crossing that column, the covered share of 254,
 //             p50 / p90, and p90 inside the CREW KNOTS window (`coverSig`, a window whose id names knot or crew: L7)
 //   entries   formation, drone and hatchling spawns by entry edge (right / left / top / bottom / wall / inside), one
 //             per formation, from where each is first seen (probe-lib entryEdge: e.pat behind / drop / rise and a wall
-//             birth decide first)
+//             birth decide first); a hatchling swarm (no group: one spawn.ts hatch / wallBirth, a womb's or a
+//             midboss's litter, first seen on the same frame at the same edge) is one entry (PL.swarmSeen, W6 tune-tp)
 //   near      spawns closer than the fairness distances (spec C9): bodies within 48 px of the ship, enemy shots
 //             spawned within 64 px (`near.shot64`), with the closest seen
 //   bullets   enemy bullets on screen as pod-probe's `bullets` (the "no increase" check)
@@ -23,6 +25,9 @@
 //   G.fork.opts after openFork's draws, not bot steering), so four runs cover every biome in both slots with routes
 //   the game can produce (midpick.ts forkAllows keeps acid and snot apart): ice,acid  acid,fire  fire,snot  snot,ice.
 //   fm counts the condition's false-to-true turns. Prints one JSON line.
+//   Per stage also `scope` (W6 tune-ts request, for Matt's pending band amendment (a)): fh / squeeze / fm split by the
+//   frame's scope (fight: a midboss or boss up; sig: inside a signature window; fly: the scroll moving; hold: scroll 0,
+//   an arena run-up), `flown` = fly + sig beside the whole-stage numbers, and `fmAt` [stage x, y, scope] per forced move.
 import { chromium } from 'playwright';
 import { useLayout, LAYOUT } from './layout-arg.mjs';
 import { PILOT } from './pilot.mjs';
@@ -59,9 +64,13 @@ await p.addInitScript(([seed, route]) => { let now = 0; const q = []; performanc
       const key = `${G.loop + 1}-${si + 1}` + (slot >= 0 && G.route ? ':' + G.route[slot] : kind === 'drive' ? ':approach' : kind === 'orbit' ? ':orbit' : '');
       if (kind === 'drive' && G.boss) { PL.tagShots(h, fr); continue; } // the Drive row is the approach
       const R = row(key); R.frames++;
+      // the scope of this frame (W6 tune-ts request): fight (a midboss or boss up), sig (inside a signature window), fly
+      // (the scroll moving), hold (scroll 0 outside a fight: an arena run-up). 'flown' = fly + sig, next to the whole stage
+      const ph = G.mini && !G.mini.dead ? 'fight' : G.boss ? 'fight' : PL.inSig(P.x + G.scroll, PL.sigs()) ? 'sig' : (G.scrollSpeed ?? 1) > 0 ? 'fly' : 'hold';
+      const RP = ((R.ph ||= {})[ph] ||= { n: 0, fh: {}, sq: 0, fm: 0 }); RP.n++;
       PL.bulFrame(h, key);
       const wx = P.x + G.scroll, o = PL.openAt(wx), fh = Math.round(o.h / 254 * 100);
-      R.fh[fh] = (R.fh[fh] || 0) + 1; if (fh <= (kind === 'orbit' ? 60 : 55)) R.sq++;
+      R.fh[fh] = (R.fh[fh] || 0) + 1; RP.fh[fh] = (RP.fh[fh] || 0) + 1; if (fh <= (kind === 'orbit' ? 60 : 55)) { R.sq++; RP.sq++; }
       if (kind === 'orbit' && r0 && wx - r0.x0 >= 3700) R.fh37[fh] = (R.fh37[fh] || 0) + 1;
       const ws = PL.sigs();
       if (fr % 4 === 0) for (let x = 0; x <= 480; x += 8) { const u = G.scroll + x, f = PL.fitAt(u), w = PL.inSig(u, ws);
@@ -70,10 +79,11 @@ await p.addInitScript(([seed, route]) => { let now = 0; const q = []; performanc
       const ss = G.scrollSpeed ?? 1;
       { let touch = false;
         if (ss > 0) for (let t = 3; t <= 90 && !touch; t += 3) for (const [ox, oy] of [[12, 0], [-9, -4], [-9, 4], [0, -4], [0, 4]]) { const u = wx + ox + ss * t, yy = P.y + oy;
-          if (yy >= Wm.floorAt(u) || yy <= Wm.ceilAt(u) || PL.solids(u).some(([a, b]) => yy >= a && yy <= b)) { touch = true; break; } }
+          const [c, f] = PL.wallAt(u, t); // W6 tune-tp: walls and solids where they will be at frame t (pistons on their cycle, DYN windows)
+          if (yy >= f || yy <= c || PL.solidsAt(u, t).some(([a, b]) => yy >= a && yy <= b)) { touch = true; break; } }
         // an episode starts when the condition turns true, at least 60 f after the last one started (qa-lead review:
         // a long squeeze is one episode, not one a second)
-        if (touch && !R.fmOn && fr - R.lastFm >= 60) { R.fm++; R.lastFm = fr; } R.fmOn = touch; }
+        if (touch && !R.fmOn && fr - R.lastFm >= 60) { R.fm++; RP.fm++; R.lastFm = fr; (R.fml ||= []).push([Math.round(wx - (r0 ? r0.x0 : 0)), Math.round(P.y), ph]); } R.fmOn = touch; }
       // body cover on the column at ship x + 60
       const cx = P.x + 60, iv = [];
       for (const e of h.enemies) { if (e.dead) continue; const rr = (e.r || 6) + 4; if (Math.abs(e.x - cx) < rr) { const hw = Math.sqrt(rr * rr - (e.x - cx) ** 2); iv.push([Math.max(0, e.y - hw), Math.min(254, e.y + hw)]); } }
@@ -84,7 +94,7 @@ await p.addInitScript(([seed, route]) => { let now = 0; const q = []; performanc
         const d = Math.hypot(e.x - P.x, e.y - P.y); if (d < 48) R.bodies48++; if (R.bodyMin == null || d < R.bodyMin) R.bodyMin = Math.round(d);
         if (!PL.entrant(e)) continue;
         if (e.group) { if (seenG.has(e.group)) continue; seenG.add(e.group); }
-        const edge = PL.entryEdge(e, G); R.entries[edge] = (R.entries[edge] || 0) + 1; }
+        const edge = PL.entryEdge(e, G); if (PL.swarmSeen(e, fr, edge)) continue; R.entries[edge] = (R.entries[edge] || 0) + 1; }
       for (const t of PL.tagShots(h, fr) || []) { if (t.sd < 64) R.shot64++; if (R.shotMin == null || t.sd < R.shotMin) R.shotMin = Math.round(t.sd); }
     } };
 }, [+SEED, ROUTE]);
@@ -94,7 +104,7 @@ await useLayout(p, 'space-probe', { quiet: true });
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
-const MODS = await p.evaluate(async () => { const m = await window.__PL.load(); window.__W = window.__PL.mods.W; window.__BU = window.__PL.mods.BU; window.__DN = window.__PL.mods.DN; window.__fr = 0; return m; });
+const MODS = await p.evaluate(async () => { const m = await window.__PL.load(); window.__W = window.__PL.mods.W; window.__BU = window.__PL.mods.BU; window.__DN = window.__PL.mods.DN; await window.__pilotLoad(); window.__fr = 0; return m; });
 let lastFork = false, endState = '';
 for (let it = 0; it < MIN * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
@@ -112,6 +122,10 @@ const stages = Object.fromEntries(Object.entries(raw.st).map(([k, R]) => { const
     squeeze_s: +(R.sq / 60).toFixed(1), fit: { out: R.fitOut != null ? Math.round(R.fitOut) : null, in: raw.sigs == null ? 'n/a' : R.fitIn != null ? Math.round(R.fitIn) : null, inWin: R.fitInWin },
     fm: R.fm, fmPerMin: mins ? +(R.fm / mins).toFixed(1) : null, cover: { p50: hq(R.cover, .5), p90: hq(R.cover, .9) }, coverSig: raw.sigs == null ? 'n/a' : Object.keys(R.coverSig).length ? hq(R.coverSig, .9) : null,
     entries: R.entries, near: { bodies48: R.bodies48, bodyMin: R.bodyMin, shot64: R.shot64, shotMin: R.shotMin },
-    bullets: { p50: hq(all, .5), p90: hq(all, .9), max: hmax(all), scrollP50: bl ? hq(bl.ns, .5) : null, scrollP90: bl ? hq(bl.ns, .9) : null, scrollGt5: bl ? +hshare(bl.ns, 5).toFixed(3) : null, scrollOverCap: bl ? bl.over : null, cap: CAPS.scroll[tierN] }, hist: { fh: R.fh, fh37: R.fh37, cover: R.cover } }]; }));
+    bullets: { p50: hq(all, .5), p90: hq(all, .9), max: hmax(all), scrollP50: bl ? hq(bl.ns, .5) : null, scrollP90: bl ? hq(bl.ns, .9) : null, scrollGt5: bl ? +hshare(bl.ns, 5).toFixed(3) : null, scrollOverCap: bl ? bl.over : null, cap: CAPS.scroll[tierN] },
+    scope: Object.fromEntries(Object.entries(R.ph || {}).map(([k, v]) => [k, { s: +(v.n / 60).toFixed(1), p50: hq(v.fh, .5), p10: hq(v.fh, .1), squeeze_s: +(v.sq / 60).toFixed(1), fm: v.fm }])),
+    flown: (() => { const h = {}; let n = 0, sq = 0, fm = 0; for (const k of ['fly', 'sig']) { const v = R.ph && R.ph[k]; if (!v) continue; n += v.n; sq += v.sq; fm += v.fm; for (const [a, b] of Object.entries(v.fh)) h[a] = (h[a] || 0) + b; }
+      return n ? { s: +(n / 60).toFixed(1), fh: { p50: hq(h, .5), p10: hq(h, .1) }, squeeze_s: +(sq / 60).toFixed(1), fm, fmPerMin: +(fm / (n / 3600)).toFixed(1) } : null; })(),
+    fmAt: R.fml || [], hist: { fh: R.fh, fh37: R.fh37, cover: R.cover } }]; }));
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, route: raw.route, asked: ROUTE, tier: raw.tier, brutal: raw.brutal, mods: MODS, sigs: raw.sigs == null ? 'n/a' : raw.sigs.length, solids: raw.solids ? 'yes' : 'n/a', contractErr: raw.cerr, stages, endState, errors: errs.slice(0, 3) }));
 await b.close();

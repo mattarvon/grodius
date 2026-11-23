@@ -7,7 +7,9 @@
 //           never moves from it for --frames (default 900: past the entrance, two or more attack cycles). A spot that takes
 //           no hit is a safe park. Run once at full HP (phase 1) and once with --ph2 (HP set under half on arrival)
 //   pilot   mortal: tools/pilot.mjs's dodging autopilot (with window.__DN, the denial moves' threats), shooting, lives
-//           refilled so the fight always finishes. Deaths, would-be hits per minute and where it died (the midboss's state)
+//           refilled so the fight always finishes. Deaths, would-be hits per minute and where it died (the midboss's state);
+//           pilotBy: the touches on the ship's flown path by source, as park counts them (K2's denial share for a ship
+//           that moves, W6 tune-tf request; i-frames excluded)
 // Would-be hits are counted by geometry, as keepsake-probe does: each enemy shot once (r + 2.6), each body contact once per
 // touch (e.r + 4), each denial hit (src/enemies/mid/_deny.ts denyHit: lane, pool, hook) once per touch, plus the
 // Apprentice's cleaver sweep from its own sector test. Works on a tree without _deny.ts (the before numbers): it then
@@ -37,7 +39,7 @@ await p.addInitScript((s0) => { let s = s0 | 0; window.__reseed = (n) => { s = n
 await p.addInitScript(PILOT);
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
 await useLayout(p, 'mid-deny-probe', { quiet: true });
-await p.evaluate(async () => { window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); try { window.__DN = await import('/src/enemies/mid/_deny.ts'); } catch (e) { window.__DN = null; } });
+await p.evaluate(async () => { window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); try { window.__DN = await import('/src/enemies/mid/_deny.ts'); } catch (e) { window.__DN = null; } if (window.__pilotLoad) await window.__pilotLoad(); });
 
 /** stage one fight (midboss-probe's prep) and leave a stepper on window.__mb */
 const prep = (k, biome, spot, seed) => p.evaluate(async ([pw, gm, pkk, k, biome, LEAVE, MODE, PH2, spot, seed]) => {
@@ -65,10 +67,10 @@ const prep = (k, biome, spot, seed) => p.evaluate(async ([pw, gm, pkk, k, biome,
   $.G.lives = 9;
   SP.midboss(k, BI.MID_NAMES[k], undefined, MODE === 'grid' ? 99999 : LEAVE);
   if (MODE === 'grid') { IN.K.KeyZ = false; $.P.shield = 0; }
-  const m = { $, ST, C, W, f: 0, t0: -1, hits: 0, by: {}, deaths: 0, dctx: [], ep: {}, HS: new WeakSet(), att: {}, lastSt: '', ph2: false, alive: true, lastH: 0 };
+  const m = { $, ST, C, W, f: 0, t0: -1, hits: 0, by: {}, deaths: 0, dctx: [], pby: {}, ep: {}, HS: new WeakSet(), att: {}, lastSt: '', ph2: false, alive: true, lastH: 0 };
   window.__mb = m;
   const mortal = MODE === 'pilot', inv = !mortal;
-  const add = (k) => { m.hits++; m.by[k] = (m.by[k] || 0) + 1; };
+  const add = (k) => { if (mortal) { m.pby[k] = (m.pby[k] || 0) + 1; return; } m.hits++; m.by[k] = (m.by[k] || 0) + 1; };
   // the Apprentice's cleaver sweep (prentice.ts 'cut'): its own sector, 14-84 px, swept angle to 3.99
   const cleave = (g, P) => { if (g.k !== 'prentice' || g.st !== 'cut' || g.wt > 12) return false; const sx = g.x - 8, sy = g.y - 6, d = Math.hypot(P.x - sx, P.y - sy);
     let pa = Math.atan2(P.y - sy, P.x - sx), cur = g.ba; if (pa < 0) pa += Math.PI * 2; if (cur < 0) cur += Math.PI * 2; return d > 14 && d < 84 && pa <= 3.99 && pa >= cur; };
@@ -88,7 +90,7 @@ const prep = (k, biome, spot, seed) => p.evaluate(async ([pw, gm, pkk, k, biome,
       if (!g2 || g2.dead) continue;
       if (g2.st !== m.lastSt && g2.st !== 'idle') m.att[g2.st] = (m.att[g2.st] || 0) + 1;
       m.lastSt = g2.st;
-      if (inv && m.t0 >= 0) {
+      if (m.t0 >= 0 && P.alive && !(mortal && P.inv > 0)) { // pilot mode: the same touches on the flown path, by source (pby: K2 with the moving pilot, W6 tune-tf request)
         for (const s of m.W.eshots) if (!m.HS.has(s) && Math.hypot(s.x - P.x, s.y - P.y) < (s.r || 2) + 2.6) { m.HS.add(s); add('shot:' + s.k); }
         const c = { body: m.W.enemies.some((e) => !e.dead && !(e.ghost > 0) && e.r && Math.hypot(e.x - P.x, e.y - P.y) < e.r + 4), cleave: cleave(g2, P) };
         const dk = window.__DN ? window.__DN.denyHit(g2, m.$.G.scroll, P.x, P.y) : '';
@@ -102,7 +104,7 @@ const prep = (k, biome, spot, seed) => p.evaluate(async ([pw, gm, pkk, k, biome,
   return { rank: +$.G.rank.toFixed(2), floor: Math.round(W.floorAt($.G.scroll + 200)), ceil: Math.round(W.ceilAt($.G.scroll + 200)) };
 }, [...L[KIT].slice(1), k, biome, LEAVE, MODE, PH2, spot, seed]);
 const runFight = async (cap) => { let r = null; for (let i = 0; i < cap && !r; i++) r = await p.evaluate(() => window.__mbStep(60)); return r; };
-const read = () => p.evaluate(() => { const m = window.__mb; return { secs: +((m.f - Math.max(0, m.t0)) / 60).toFixed(1), hits: m.hits, by: m.by, deaths: m.deaths, att: m.att, dctx: m.dctx }; });
+const read = () => p.evaluate(() => { const m = window.__mb; return { secs: +((m.f - Math.max(0, m.t0)) / 60).toFixed(1), hits: m.hits, by: m.by, ...(Object.keys(m.pby).length ? { pilotBy: m.pby } : {}), deaths: m.deaths, att: m.att, dctx: m.dctx }; });
 
 for (const [k, biome] of KINDS) {
   const seedOf = (j) => (SEED * 1000003 + j * 7919 + k.length * 31) | 0;
