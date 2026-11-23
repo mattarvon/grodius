@@ -27,48 +27,24 @@ import { sfx } from '../audio';
 import { startBoss } from '../boss/update';
 import { ceilAt, floorAt } from '../world';
 import { ufoWarn } from './mid/ufo';
-import * as SP from './spawn';
-// W3a's space engine (W3A-API.md: spawnPiston, spawnPistonPair, pistonCycle) fills W0's src/solids.ts stub; read through
-// the namespace, so until it merges the STROKE beats fire and build nothing
-import * as SO from '../solids';
-import { banner, behindWave, corpse, crawler, eyeT, flayer, formation, hatch, logLine, maw, mutant, sentry, womb } from './spawn';
+import { SOLID, spawnPiston, spawnPistonPair } from '../solids'; // W3a's space engine (W3A-API.md): THE STROKE
+import { banner, behindWave, corpse, crawler, edgeWave, eyeT, flayer, formation, hatch, knot, logLine, maw, mutant, sentry, womb } from './spawn';
 
 const crew = (...ys) => ys.forEach(y => corpse(y));
 
-// ---------------- stream adapters (DIFFICULTY-SPEC §6: one spot each, so the rebases are deletions) ----------------
-// W1 (g3-w1-bullets) lands the new entries and kinds in spawn.ts: edgeWave(pat, n, o) (a drop / rise wave behind a
-// 60 f edge chevron at laneX = clamp(P.x + 110, 200, W - 40)), knot(y) (CREW KNOTS, its lane kept 48 px off the ship),
-// hatch(n, 'top' | 'bottom') (a wall birth), formation's 'loop' and its `open` option (an authored carrier: the last
-// kill always drops, no keep roll, no rank extras). They are read through the module namespace, so this file builds
-// before W1 merges; until then each stands in with today's kinds on the same beat (a measurement aid, flown with no
-// chevron: the stand-in never ships). W1 is present when edgeWave is exported.
-const w1 = () => typeof SP.edgeWave === 'function';
-/** a drop (from the top edge) or rise (from the bottom) wave of n. o: formation options (pod, open, v) */
-function edge(pat, n, o = {}) {
-  if (w1()) return SP.edgeWave(pat, n, o);
-  sfx.tele(); // stand-in: the 60 f tell is the sound only, then divers come in off the edge at laneX
-  $.G.pend.push({ t: 60, f: () => {
-    const top = pat === 'drop', lx = Math.max(200, Math.min(W - 40, ($.P ? $.P.x : 120) + 110)), g = { n, killed: 0 };
-    if (o.pod) g.pod = 1;
-    for (let i = 0; i < n; i++) SP.mk('drone', lx + i * 18, top ? -16 - i * 18 : PH + 16 + i * 18, { group: g, pat: 'dive', i, y0: PH / 2, turn: 1, vy: (top ? 1 : -1) * (o.v || 1.6), open: o.open });
-  } });
-}
-/** a right-edge formation; 'loop' is W1's (stand-in: a sine) */
-const form = (pat, y, n, o) => formation(pat === 'loop' && !w1() ? 'sine' : pat, y, n, o);
+// ---------------- W1's entries (spawn.ts; the stream adapters that stood in for them before the W6 merge are gone) ----------------
+/** a drop (from the top edge) or rise (from the bottom) wave of n behind its 60 f edge chevron (spawn.ts edgeWave). o:
+ *  formation options (pod, open, v) */
+const edge = (pat, n, o = {}) => edgeWave(pat, n, o);
 /** an authored opening carrier (§2.2 faucet, ECO §2.2): exactly n, its last kill always drops (pod), tagged for
  *  pod-probe's `fixed:open` (open). Any edge */
 function carrier(pat, y, n, x = {}) {
   const o = { fixed: 1, pod: 1, open: 1, ...x };
   if (pat === 'drop' || pat === 'rise') edge(pat, n, o);
-  else form(pat, y, n, o);
+  else formation(pat, y, n, o);
 }
-/** a CREW KNOT at lane y (W1's kind; stand-in: five crew frozen in a 24 px cluster) */
-function knot(y) {
-  if (typeof SP.knot === 'function') return SP.knot(y);
-  for (let i = 0; i < 5; i++) corpse(y + [0, -14, 14, -7, 7][i], { x: W + 30 + [0, 6, 6, -10, 16][i], drift: .35 });
-}
-/** hatchlings born out of the ceiling (W1's wall birth; stand-in: a swarm head-on) */
-const birth = (n) => (w1() ? hatch(n, 'top') : hatch(n, false));
+/** hatchlings born out of the ceiling (W1's wall birth) */
+const birth = (n) => hatch(n, 'top');
 /** the filler drones' entry-edge weights by stage kind, drawn from the beat's spare uniform (the build stream rs, never
  *  R(): §2.3). Not the target table itself (W1's notice.ts ENTRY.mix, §2.3 / LVL §4): these are fitted so the WHOLE
  *  stage, cells and fixed beats included, lands on it. The Orbit's cells already sit near it, so its filler flies the
@@ -422,7 +398,7 @@ function fillDrones(kind, u, y, n, quiet) {
   const e = entryOf(kind, frac(u * 13.37)), q = frac(u * 29.71);
   if (e === 'behind') behindWave(y, n);
   else if ((e === 'top' || e === 'bottom') && !quiet) edge(e === 'top' ? 'drop' : 'rise', n);
-  else form(q < LOOP_SHARE ? 'loop' : DRONE_PAT[Math.floor((q - LOOP_SHARE) / (1 - LOOP_SHARE) * 4) % 4], y, n);
+  else formation(q < LOOP_SHARE ? 'loop' : DRONE_PAT[Math.floor((q - LOOP_SHARE) / (1 - LOOP_SHARE) * 4) % 4], y, n);
 }
 /** one generator filler beat (cellpick.ts genFiller) as a spawn; u places it. Orbit drones come 3 to a wave, the Drive's
  *  4 (the drone budget at the top of this file). r: its row; x: its stage-relative x */
@@ -556,22 +532,21 @@ function walls(a, b, d = 4) {
  *  fixed here (`ext`: depth, plus the engine's root pad, over v, eased, with a frame of slack; the engine never strokes
  *  faster than that), so its period (rest + 2 ext + hold, W3A pistonPeriod) is known before it exists and the phase can
  *  put it mid-hold as it reaches the ship (layout.ts pistonPhase, from the ship's x now). A refused spawn (S5, a pair is
- *  atomic) just leaves that column open. W0's solids stub has no spawnPiston: nothing is built */
+ *  atomic) just leaves that column open */
 function strokePiston(r, v, i) {
-  if (typeof SO.spawnPiston !== 'function') return;
-  const S = DRIVE_SIG.stroke, K = (SO.SOLID && SO.SOLID.piston) || {}, pad = K.rootPad || 0, ease = Math.max(1, K.ease || 1);
+  const S = DRIVE_SIG.stroke, K = SOLID.piston, pad = K.rootPad, ease = Math.max(1, K.ease);
   const s = $.G.scroll, px = $.P ? $.P.x : S.shipX, x = r.x0 + v.x[i], [ce, fl] = walls(x - 12, x + S.w + 12);
   // the stroke time from the walls over the engine's own span (x .. x + w, every 3 px: solids.ts pistonGeom), so it is
   // never shorter than the engine's and the period the phase assumes is the one it runs
   const [ce0, fl0] = walls(x, x + S.w, 3), extOf = (tip, side) => Math.ceil((side < 0 ? tip - ce0 + pad : fl0 + pad - tip) / S.v * ease) + 1, base = { x, w: S.w, tell: S.tell, hold: S.hold, rest: S.rest, v: S.v, sig: 'stroke' };
   if (v.pair) {
     const centre = pairCentre(v.pair[i], v.gap, ce, fl), ext = Math.max(extOf(centre - v.gap / 2, -1), extOf(centre + v.gap / 2, 1));
-    SO.spawnPistonPair({ ...base, centre, gap: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
+    spawnPistonPair({ ...base, centre, gap: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
   } else {
     const side = v.side[i], reach = pistonReach(side, v.gap, ce, fl);
     if (reach == null) return;
     const ext = extOf(reach, side);
-    SO.spawnPiston({ ...base, side, reach, fit: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
+    spawnPiston({ ...base, side, reach, fit: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
   }
 }
 /** the long Drive approach's fixed beats: its two authored carriers, then THE STROKE v1-v3 (pistons 1150-2370) with v3's wall
