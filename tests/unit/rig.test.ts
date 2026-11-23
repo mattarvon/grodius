@@ -14,6 +14,8 @@ vi.mock('../../src/enemies/update', () => ({ hurt: () => {} }));
 vi.mock('../../src/boss/update', () => ({ bossHitByShot: () => {} }));
 vi.mock('../../src/save', () => ({ SET: {} }));
 vi.mock('../../src/player', () => ({ WARD_MAX: 3, wardCap: () => 3 }));
+const RS = vi.hoisted(() => ({ blob: null as string | null, stored: [] as string[], ok: true }));
+vi.mock('../../src/runsave', () => ({ lastRun: () => RS.blob, decodeRun: (t: string) => (RS.ok ? JSON.parse(t) : null), storeRun: (t: string) => { RS.stored.push(t); return true; } }));
 vi.mock('../../src/render/util', () => ({ drawChain: () => {}, drawHookTip: () => {}, light: () => {} }));
 
 const C = await import('../../src/contraptions');
@@ -157,6 +159,23 @@ describe('perk scar, seal cap and LAST GASP (Decision 2A, spec §2.1-2.2)', () =
     $.G.tier = 3;
     $.G.stage = 2;
     expect(PK.lastGasp()).toBe(false);
+  });
+
+  it('patches a spent LAST GASP into the stored checkpoint, never a blob that would not read back', () => {
+    PK.perksReset();
+    $.G.pk.gasp = 1;
+    $.G.tier = 1;
+    $.G.loop = 1;
+    RS.blob = JSON.stringify({ v: 2, g: { loop: 1, gaspD: -1, lives: 2 }, p: { speed: 1 } });
+    RS.stored.length = 0;
+    expect(PK.lastGasp()).toBe(true);
+    expect(JSON.parse(RS.stored[0])).toEqual({ v: 2, g: { loop: 1, gaspD: 1, lives: 2 }, p: { speed: 1 } }); // only gaspD moved
+    RS.ok = false;
+    expect(PK.cpPatch({ gaspD: 1 })).toBe(false);
+    expect(RS.stored.length).toBe(1);
+    RS.ok = true;
+    RS.blob = null;
+    expect(PK.cpPatch({ gaspD: 1 })).toBe(false); // no checkpoint: nothing to patch
   });
 
   it('describes SCAB WEAVE at 3% a level and LAST GASP per descent on long4 Normal', () => {

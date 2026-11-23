@@ -360,17 +360,32 @@ export function respawn() {
  *  that died. BLACK BOX (C16) makes R1's main-gun pod FULL, except on Very Hard. Off long4: nothing */
 function queueRecovery(P0) {
   if (!hardOn()) return;
-  const G = $.G, t = deathTier(G), bb = !!lv('salvage') && t.blackBox, r = row(G.stage);
-  G.recovery = newRecovery(P0, bb, { gradual: t.strip === 'gradual', untilWarn: r ? (r.warnX ?? r.bossX) - G.scroll : null });
+  const G = $.G, bb = !!lv('salvage') && deathTier(G).blackBox, r = row(G.stage);
+  // the spec's C17 shape on every tier (systems-designer): Easy's "send back the slot it lost" (death.ts gradual) is a
+  // game-designer proposal waiting on the spec, so it is not passed
+  G.recovery = newRecovery(P0, bb, { untilWarn: r ? (r.warnX ?? r.bossX) - G.scroll : null });
   // ux: its own banner, after the death's (feedAfter), still up before R1 lands at 3 s
-  feedAfter({ s: 'RECOVERY', d: bb ? 'catch your parts: pods in 3 s, gun pod FULL (BLACK BOX)' : 'catch your parts: pods in 3 s', t: 200, ml: 200 });
+  feedAfter({ s: 'RECOVERY', d: bb ? 'catch your parts: pods incoming, gun pod FULL (BLACK BOX)' : 'catch your parts: pods incoming', t: 200, ml: 200 });
 }
-/** show feed f once the banner up now has had its time, at most `wait` frames (G.pend: cleared by a restore, so a
- *  restart's own call-outs are queued after it). ux-designer: a later banner never overwrites one unread */
+/** frames a queued banner holds the feed before the next queued one may replace it */
+const FEED_HOLD = 90;
+/** show feed f once the banner up now has had its time (at most `wait` frames) and after every banner already queued
+ *  here (each gets FEED_HOLD), through G.pend (a restore clears it, so a restart's own call-outs queue after it). If a
+ *  newer banner (a graft, a mutation) took the feed meanwhile, f waits once more behind it. ux-designer: a banner
+ *  never overwrites one still unread */
 export function feedAfter(f, wait = 150) {
   const G = $.G, cur = G.feed;
-  if (!cur || !(cur.t > 0)) { G.feed = f; return; }
-  G.pend.push({ t: Math.min(cur.t, wait), f: () => { $.G.feed = f; } });
+  if (!hardOn()) { G.feed = f; return; } // short keeps today's direct banner (G.pend also holds checkpoints back: systems-designer)
+  let at = cur && cur.t > 0 ? Math.min(cur.t, wait) : 0, prev = cur;
+  for (const p of G.pend || []) if (p.feed && p.t + FEED_HOLD > at) { at = p.t + FEED_HOLD; prev = p.feed; }
+  if (at <= 0) { G.feed = f; return; }
+  let again = 1;
+  const show = () => {
+    const now = $.G.feed;
+    if (again && now && now !== prev && now !== f && now.t > 0) { again = 0; $.G.pend.push({ t: Math.min(now.t, FEED_HOLD), f: show, feed: f }); return; }
+    $.G.feed = f;
+  };
+  G.pend.push({ t: at, f: show, feed: f });
 }
 /** the boss-fight lifeline's FULL pods (bossRecoveryNote), by the ship */
 function recoverPods(ty) {

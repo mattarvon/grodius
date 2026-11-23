@@ -104,7 +104,8 @@ function diffRow() {
   const L = lab(), t = tierPick('long4');
   return {
     l: 'DIFFICULTY',
-    r: t != null && t !== L.tier ? TIER_NAME[t] + ' (URL)' : TIER_NAME[L.tier], // ux: what the run will fly, marked when a URL chose it
+    // ux: what the run will fly; under a URL override the LAB value a press changes is shown too, so a press is never dead
+    r: t != null && t !== L.tier ? TIER_NAME[t] + ' (URL) / ' + TIER_NAME[L.tier] : TIER_NAME[L.tier],
     a: () => setLab({ tier: ((L.tier + 1) % 4) as 0 | 1 | 2 | 3 })
   };
 }
@@ -373,6 +374,7 @@ export function rigAct(r) {
     sample('splat_m', { vol: .6 });
     // game-designer: the Descent 1 rule, said where a contraption is bought (long4)
     msg(free ? r.name + ' GRAFTED. THE SHIP ASKS NOTHING. YET.' : r.name + ' GRAFTED' + (hardOn() ? ' // DESCENT 1: FIRST ONLY, LV 1, FROM STAGE 3' : ''), '#ffd0a0');
+    if (m.rig.length < sockets()) bolt(r.id);
   } else if (rigBolted(r.id)) {
     m.rig = m.rig.filter(x => x !== r.id);
     sfx.menu();

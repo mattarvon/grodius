@@ -13,7 +13,7 @@ import { econId, stageXP as econXP } from './economy';
 import { midMul } from './enemies/mid/roster';
 import { POWER } from './power';
 import { SURV, deathTier, gaspSlot, hardOn, perkCapOf, perkScarPick } from './death';
-import { lastRun, storeRun } from './runsave';
+import { decodeRun, lastRun, storeRun } from './runsave';
 
 /** perk table. d(l): what level l does. c: the price (trade-off perks). req: biome that unlocks it. */
 export const PERKS = [
@@ -274,7 +274,12 @@ export function lastGasp() {
 export function cpPatch(fields) {
   const s = lastRun();
   if (!s) return false;
-  try { const o = JSON.parse(s); Object.assign(o.g, fields); return storeRun(JSON.stringify(o)); } catch (e) { return false; }
+  try {
+    const o = JSON.parse(s);
+    Object.assign(o.g, fields);
+    const t = JSON.stringify(o);
+    return !!decodeRun(t) && storeRun(t); // a patch that would not read back never replaces a good save
+  } catch (e) { return false; }
 }
 /** the perk scar (Decision 2A, DIFFICULTY-SPEC §2.1 "Death penalty"): a long4 death eats one level of the held perk
  *  with the highest POWER.perk weight above .3, ties to the most recent pick. It stays in the pool (avail reads the

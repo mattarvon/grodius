@@ -156,6 +156,34 @@ describe('the death cost on the run (Decision 2A, 4A)', () => {
   });
 });
 
+describe('feedAfter (ux-designer: no banner overwrites an unread one)', () => {
+  const run = () => { for (let k = 0; k < 400; k++) for (let i = $.G.pend.length - 1; i >= 0; i--) { const p = $.G.pend[i]; if (--p.t <= 0) { $.G.pend.splice(i, 1); p.f(); } } };
+  it('chains two queued banners instead of firing them on one frame', () => {
+    $.G = { pend: [], feed: { s: 'DEATH', t: 60 } } as any;
+    const shown: string[] = [];
+    const a = { s: 'SALVAGE', t: 170 }, b = { s: 'RECOVERY', t: 200 };
+    F.feedAfter(a);
+    F.feedAfter(b);
+    expect($.G.pend.map((p: any) => p.t)).toEqual([60, 150]);
+    for (let k = 0; k < 200; k++) { for (let i = $.G.pend.length - 1; i >= 0; i--) { const p = $.G.pend[i]; if (--p.t <= 0) { $.G.pend.splice(i, 1); p.f(); } } if (shown.at(-1) !== $.G.feed.s) shown.push($.G.feed.s); }
+    expect(shown).toEqual(['DEATH', 'SALVAGE', 'RECOVERY']);
+  });
+  it('waits behind a newer banner that took the feed meanwhile', () => {
+    $.G = { pend: [], feed: { s: 'DEATH', t: 60 } } as any;
+    F.feedAfter({ s: 'RECOVERY', t: 200 });
+    $.G.feed = { s: 'GRAFT GROWN', t: 150 };
+    for (let k = 0; k < 60; k++) for (let i = $.G.pend.length - 1; i >= 0; i--) { const p = $.G.pend[i]; if (--p.t <= 0) { $.G.pend.splice(i, 1); p.f(); } }
+    expect($.G.feed.s).toBe('GRAFT GROWN');
+    run();
+    expect($.G.feed.s).toBe('RECOVERY');
+  });
+  it('shows at once when nothing is up', () => {
+    $.G = { pend: [], feed: null } as any;
+    F.feedAfter({ s: 'RECOVERY', t: 200 });
+    expect($.G.feed.s).toBe('RECOVERY');
+  });
+});
+
 describe('graft pods on screen (economy-designer: D2 in place)', () => {
   it('a death purges a graft pod still flying, so it cannot hand the lost level back', () => {
     died(0);
