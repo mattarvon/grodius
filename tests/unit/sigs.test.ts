@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FURNACE, GRILL, GULLET, HAZ, ICICLE, SIG, SOLID_KILLS, INSET, INSET_MID, MORGUE, PH, SPACE, SWALLOW, TIDE, envelope, grillCols, grillLen,
-  hazRankMul, insetOf, morgueLane, planSig, setSigWindows, sigAt, sigCheckpoints, sigWindows, throatInset, tideLen, tideLevel,
+  hazRankMul, insetOf, laneLoss, morgueLane, SPUR, WEAVE, weaveAt, weaveHold, weaveLoss, planSig, setSigWindows, sigAt, sigCheckpoints, sigWindows, throatInset, tideLen, tideLevel,
 } from '../../src/sigs';
 import { MID_DROP, midsWanted, pickBiomeMids } from '../../src/midpick';
 
@@ -58,10 +58,32 @@ describe('space rules on the tuning table', () => {
 });
 
 describe('the insets and the gullet', () => {
-  it('per biome, per slot: the spec values (levels.md §5.0)', () => {
-    expect(INSET).toEqual({ ice: [20, 32], acid: [24, 36], fire: [18, 30], snot: [0, 8] });
-    expect(insetOf('ice', 0)).toBe(20); expect(insetOf('acid', 1)).toBe(36); expect(insetOf('nope', 1)).toBe(0);
-    expect(INSET_MID.k).toBe(.5);
+  it('per biome, per slot: the W6 fitted values (levels.md §5.0 + the measured flown free height)', () => {
+    expect(INSET).toEqual({ ice: [34, 46], acid: [36, 50], fire: [32, 44], snot: [12, 22] });
+    expect(insetOf('ice', 0)).toBe(34); expect(insetOf('acid', 1)).toBe(50); expect(insetOf('nope', 1)).toBe(0);
+    // a held midboss screen keeps about the inset it was fitted at (LVL's .5 x the old values: A <= 12, B <= 18; snot gains
+    // 3.6 / 6.6 px there, qa-lead review)
+    expect(INSET_MID.k).toBe(.3);
+    for (const b of Object.keys(INSET)) { expect(INSET[b][0] * INSET_MID.k).toBeLessThanOrEqual(12); expect(INSET[b][1] * INSET_MID.k).toBeLessThanOrEqual(15); }
+  });
+  it('the lane weave: S3 slope <= .75 with room for the walls, a sweep loss the fit guard covers, and a pure profile', () => {
+    for (const s of [0, 1]) {
+      const V = WEAVE.slot[s];
+      expect(1.5 * 2 * V.amp / V.ramp).toBeLessThanOrEqual([.55, .56][s]); // A .55, B .554 (S3 .75 with the walls' noise and the fade)
+      let m = 0; for (let x = 0; x < 2000; x++) m = Math.max(m, Math.abs(weaveAt(x + 1, 3.7, s) - weaveAt(x, 3.7, s)));
+      expect(m).toBeLessThanOrEqual(1.5 * 2 * V.amp / V.ramp + 1e-6);
+      for (let x = 0; x < 2000; x += 37) { expect(Math.abs(weaveAt(x, 3.7, s))).toBeLessThanOrEqual(V.amp + 1e-9); expect(weaveAt(x, 3.7, s)).toBe(weaveAt(x, 3.7, s)); }
+      expect(weaveLoss(s)).toBeCloseTo(laneLoss(V), 9);
+    }
+  });
+  it('the staggered spurs leave at least the 108 px column gap, sit on the weave holds, and leave a sweep between two', () => {
+    SPUR.slot.forEach((S, s) => {
+      expect(S.gap).toBeGreaterThanOrEqual(108);
+      const H = weaveHold(3.7, s);
+      expect(S.w).toBeLessThan(H.P / 2 - SPACE.fitBox);
+      expect(weaveAt(H.x, 3.7, s)).toBe(WEAVE.slot[s].amp); // a +amp hold centre (a ceiling spur's)
+      expect(weaveAt(H.x + H.P / 2, 3.7, s)).toBe(-WEAVE.slot[s].amp); // a -amp hold centre (a floor spur's)
+    });
   });
   it('slot B narrow: 600 px, gap 108-118, never below 108', () => {
     expect(GULLET.len).toBe(600); expect(GULLET.gap[0]).toBeGreaterThanOrEqual(108); expect(GULLET.gap[1]).toBe(118);

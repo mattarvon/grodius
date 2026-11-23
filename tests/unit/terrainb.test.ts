@@ -54,6 +54,35 @@ function fly(seg: number, b: string, from: number, mv: number, loop = 0) {
 }
 const gapOver = (a: number, z: number) => { let m = 1e9, M = 0; for (let i = Math.ceil(a / TS); i <= Math.floor(z / TS); i++) { const g = world.FLOOR[i] - world.CEIL[i]; m = Math.min(m, g); M = Math.max(M, g); } return [m, M]; };
 const cases = KEYS.flatMap((b) => [0, 1].flatMap((mv) => [0, 1].flatMap((seg) => [0, 1, 3].map((loop) => ({ b, mv, seg, loop })))));
+/** the swept 21 px fit gap at world x (route-probe's S1 footprint [x - 9, x + 12]), the floor clamped to the screen */
+const swept = (x: number) => { let f = 1e9, c = -1e9; for (let u = x - 9; u <= x + 12; u++) { const i = Math.floor(u / TS), t = u / TS - i; f = Math.min(f, 254, world.FLOOR[i] + (world.FLOOR[i + 1] - world.FLOOR[i]) * t); c = Math.max(c, 0, world.CEIL[i] + (world.CEIL[i + 1] - world.CEIL[i]) * t); } return f - c; };
+
+describe('the W6 lane weave and staggered spurs (sigs.ts WEAVE / SPUR, L3)', () => {
+  beforeAll(() => L.setLayout('long4'));
+  afterAll(() => L.setLayout('short'));
+  // B0 only (every Descent 1 visit; route-probe L5 flies it). A remix's movement B1 (Descent 2+) has S1 holes that predate
+  // W6 (86-99 px at ice B1 slot A 9228 / 9108, ice B1 slot B 14390, fire B1 slot B 14794, snot B1 slot B 14906 with the
+  // weave and spurs off): a terrainb.ts gimmick item, reported, not in this test
+  it.each(KEYS.flatMap((b) => [0, 1].flatMap((seg) => [0].flatMap((mv) => [0, 3].flatMap((loop) => [0, 1].map((late) => ({ b, seg, mv, loop, late })))))))('$b slot $seg B$mv descent $loop gate $late: swept fit >= 100 outside the windows, spurs off both walls', ({ b, seg, mv, loop, late }) => {
+    const r = L.slotRow(seg), from = late ? r.gateLate! : r.x0, P = fly(seg, b, from, mv, loop), ws = (($.G as { sigW?: Record<string, { x0: number; x1: number }[]> }).sigW || {})['b' + seg] || [];
+    let low = 1e9, at = 0;
+    for (let x = from + 320; x < P.runup!; x += 4) if (!ws.some((w) => x >= w.x0 - 12 && x < w.x1 + 9)) { const f = swept(x); if (f < low) { low = f; at = x; } }
+    expect(low, 'min at ' + at).toBeGreaterThanOrEqual(100);
+    // the spurs exist on both walls (qa-lead review): some column's ceiling sits >= 12 px below the ceiling 64 px either
+    // side of it (a spur tip), and the same for the floor
+    let top = 0, bot = 0;
+    for (let x = from + 400; x < P.runup! - 400; x += 4) { const i = Math.floor(x / TS), c = world.CEIL[i], f = world.FLOOR[i], c2 = Math.max(world.CEIL[i - 16], world.CEIL[i + 16]), f2 = Math.min(world.FLOOR[i - 16], world.FLOOR[i + 16]);
+      if (c - c2 >= 12) top++; if (f2 - f >= 12) bot++; }
+    expect(top, 'ceiling spurs').toBeGreaterThan(0); expect(bot, 'floor spurs').toBeGreaterThan(0);
+  });
+  it('rebuilds the woven, spurred walls identically (a resume)', () => {
+    for (const b of KEYS) for (const seg of [0, 1]) {
+      const r = L.slotRow(seg);
+      fly(seg, b, r.gateLate!, 0); const a = Array.from(world.FLOOR), c = Array.from(world.CEIL);
+      fly(seg, b, r.gateLate!, 0); expect(Array.from(world.FLOOR)).toEqual(a); expect(Array.from(world.CEIL)).toEqual(c);
+    }
+  });
+});
 
 describe('movement B on long4', () => {
   beforeAll(() => L.setLayout('long4'));
@@ -99,7 +128,7 @@ describe('movement B on long4', () => {
       const P = L.beatPlan(L.slotRow(seg), from, false), M = P.moveB!;
       expect(M.a).toBe(P.breaths[0].z); // spec §3.3: movement A runs "intro to CP1", and CP1 is written at breath 1's end
       expect(M.z).toBeLessThan(P.breaths[1].z - 20); // the scroll holds ~20 px before the breath's end
-      expect(M.z - M.a - 2 * M.blend).toBeGreaterThan(seg ? 940 : 1000); // the full gimmick, ~18 s at 1 px/f under the D31 stretch (D31 amended: about 18 s); slot B's 1450 stretch (W3b, gate L6) leaves 995 from its x0 gate and 950 (~16 s) from its late gate (W6 merge)
+      expect(M.z - M.a - 2 * M.blend).toBeGreaterThanOrEqual(1000); // the full gimmick, ~17 s at 1 px/f (D31 amended: about 18 s); slot B (1450 stretch) leaves 1000 from its late gate once the blend is 175 (W6 tune; it was 950 at 200)
     }
   });
 

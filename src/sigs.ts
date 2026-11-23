@@ -60,17 +60,21 @@ export const SOLID_KILLS = true;
 /** px per side each wall moves in, by biome, [slot A, slot B]. biomes.ts rewriteTerrain applies it after movement B and
  *  caps it column by column so the swept fit gap stays >= 108 (levels.md §5.0 put it inside shape() before the clamp;
  *  done literally, the fit fell to 87 beside fire's spires, under S1).
- *  Sized from the audit's measured median free height to the slot targets (A <= 65%, B <= 56%: space-probe L1) */
+ *  Sized from the audit's measured median free height to the slot targets (A <= 65%, B <= 56%: space-probe L1).
+ *  [FIT] W6 tune: LVL's values (ice 20/32, acid 24/36, fire 18/30, snot 0/8) measured the flown terrain (scroll moving,
+ *  outside the boss fight) at A 66-70% / p10 53-63% and B 56-63% / 43-51% (space-probe seed 1, 4 routes): the cap and
+ *  the midboss halving eat ~a third of each inset. +12-14 a side */
 export const INSET: Readonly<Record<string, readonly [number, number]>> = {
-  ice: [20, 32], //  measured 80-82% -> ~65% / ~56%
-  acid: [24, 36], // 82-87%
-  fire: [18, 30], // 79-81%
-  snot: [0, 8], //   60-61%: already tight, slot B only a touch
+  ice: [34, 46], //  measured 80-82% -> ~65% / ~56% (LVL); flown 67% / 63% at 20 / 32
+  acid: [36, 50], // 82-87%; flown 70% / 62% at 24 / 36
+  fire: [32, 44], // 79-81%; flown 66% / 61% at 18 / 30
+  snot: [12, 22], // 60-61%; flown 61% / 56% at 0 / 8
 };
-/** the inset is k x INSET near a midboss fight: k .5 within `pad` px of a breath that holds a midboss (its held
- *  screen runs W px past the breath's end), so the midboss fits and every kind's `bandFit` stay valid. `ramp`: px the
- *  k eases over. Movement C (the boss arena) takes no inset at all: REST and ARENA_GAP are unchanged */
-export const INSET_MID = { k: .5, pad: 200, ramp: 100 };
+/** the inset is k x INSET near a midboss fight: k within `pad` px of a breath that holds a midboss (its held screen
+ *  runs W px past the breath's end), so the midboss fits and every kind's `bandFit` stay valid. `ramp`: px the k eases
+ *  over. Movement C (the boss arena) takes no inset at all: REST and ARENA_GAP are unchanged.
+ *  [FIT] k .5 -> .3 with the W6 insets: the held screens keep the inset they were fitted at (~10-12 px a side) */
+export const INSET_MID = { k: .3, pad: 200, ramp: 100 };
 /** the inset at slot s of biome b; 0 for a biome this table does not list */
 export const insetOf = (b: string, s: number) => (INSET[b] ? INSET[b][s ? 1 : 0] : 0);
 
@@ -78,6 +82,65 @@ export const insetOf = (b: string, s: number) => (INSET[b] ? INSET[b][s ? 1 : 0]
  *  amplitude 24 and period 600 (max slope 2pi x 24 / 600 = .25, S3 holds). `p`: where it starts in the spawn span
  *  (scroll x), `lead`: world x past that scroll x, so the ship (screen x ~150) meets it at p. ~10 s at FH 43-46% */
 export const GULLET = { p: .70, len: 600, gap: [108, 118] as const, amp: 24, period: 600, blend: 100, lead: 150 };
+
+/** the LANE WEAVE (W6 tune, L3): the biome corridor's centre steps between two lanes, both walls together (the gap,
+ *  so free height and L1, is untouched). Measured before it: 1.2-4.2 forced moves/min (L3 A >= 8, B >= 12): the walls
+ *  only breathed (shape()'s noise, the inset), so a ship holding a mid lane was never made to move. The profile, period
+ *  2 (hold + ramp): `hold` px on one lane, then a smoothstep shift of 2 amp over `ramp` px to the other; its steepest
+ *  slope is 1.5 x 2 amp / ramp (A .55, B .55: S3 .75 with the walls' own noise on top). The shift sits in the ship's
+ *  90 f look-ahead for ~ramp px, so a ship within ~2 amp of the wall coming toward it has to move. Phase from the
+ *  stage's terrain offset (no RNG: a resume rebuilds it). biomes.ts weave() fades it out (`fade` px) over every
+ *  signature window (their fit floors are fitted to the un-woven walls), the GULLET (its own weave), a held midboss's
+ *  screen (bandFit) and the arena run-up (movement C), and scales it down wherever the un-woven swept fit has no room
+ *  for its sweep loss (route-probe S1 >= 100). space-probe L3, route-probe L5 */
+export const WEAVE = {
+  /** [slot A, slot B]: amp px (half the lane shift), ramp px, hold px. Slot B steps further and more often (L3 12/min) */
+  slot: [{ amp: 22, ramp: 120, hold: 80 }, { amp: 24, ramp: 130, hold: 50 }] as const,
+  /** px the weave fades over at a window, the gullet, a midboss screen or the run-up */
+  fade: 100,
+  /** the swept fit the weave keeps (the inset's own guard is 108): the weave scales to (fit - keep) / its sweep loss,
+   *  and that scale moves at most `ease` a px (lowered only), so a fade adds no cliff */
+  keep: 106, ease: 1 / 160,
+};
+/** the STAGGERED SPURS (W6 tune, L3 / L1 / L2): every `pitch` px of the flown corridor (the weave's mask: never in a
+ *  signature window, the gullet, a held midboss's screen or the run-up) a spur grows off one wall, the next off the
+ *  other. Its tip stops `gap` px short of the opposite wall (swept over its width + 12 px: S1 >= 100 by construction)
+ *  and at most `depth` px out, eased across `w` px (sin^pow). The weave alone measured A 1.0-2.8 / B 1.3-4.2 forced
+ *  moves/min: a weave S3 allows shifts a lane ~50 px inside the 90 f look-ahead, under half a 150-165 px corridor, so a
+ *  ship near the middle never had to move. A spur closes the wall-side ~50 px of the corridor for its width, and the
+ *  weave carries the open middle band across the held lanes. They are obstacles seen ~300 px ahead (the hull blocks'
+ *  S3 standing), and the lane through a pair needs no climb: each spur leaves the middle open. biomes.ts biome art
+ *  draws them as wall (the biome's own fill). space-probe L3, route-probe L5 */
+export const SPUR = {
+  /** [slot A, slot B]: w px, gap px to the far wall, depth px at most, pow (the flank). The pitch is half the weave's
+   *  period (A 200, B 180 px): each spur sits on a weave hold (weaveHold) */
+  slot: [{ w: 56, gap: 108, depth: 80, pow: .7 }, { w: 52, gap: 108, depth: 84, pow: .7 }] as const,
+  /** px after the gate's blend over which a spur grows from half to full depth (the opener is gentler) */
+  ramp: 900,
+};
+/** the weave's lane offset (px, + down) at world x for slot s, terrain offset o, before any fade (pure) */
+export const weaveAt = (x: number, o: number, s: number) => laneWeave(x, hash01(o), WEAVE.slot[s ? 1 : 0]);
+/** a lane-weave profile at world x (phase 0..1 of its period; V: amp, ramp, hold as in WEAVE.slot), px, + down. The
+ *  biome stages read it through weaveAt, world.ts's Orbit breach and Drive bands (layout terrain.weave) directly */
+export function laneWeave(x: number, phase: number, V: { amp: number; ramp: number; hold: number }) {
+  const P = 2 * (V.hold + V.ramp);
+  let t = (x + phase * P) % P; if (t < 0) t += P;
+  if (t < V.hold) return V.amp;
+  t -= V.hold;
+  if (t < V.ramp) return V.amp * (1 - 2 * sstep(0, V.ramp, t));
+  t -= V.ramp;
+  if (t < V.hold) return -V.amp;
+  return -V.amp * (1 - 2 * sstep(0, V.ramp, t - V.hold));
+}
+/** where the weave's +amp holds sit for slot s, terrain offset o: the first one's centre (world x, mod P) and the period
+ *  P; the -amp hold's centre is half a period on (the spurs lock to them) */
+export const weaveHold = (o: number, s: number) => { const V = WEAVE.slot[s ? 1 : 0], P = 2 * (V.hold + V.ramp); return { x: ((V.hold / 2 - hash01(o) * P) % P + P) % P, P }; };
+/** the most the weave moves across the swept fit's 21 px footprint, slot s (its steepest slope x fitBox) */
+export const weaveLoss = (s: number) => laneLoss(WEAVE.slot[s ? 1 : 0]);
+/** a lane-weave profile's sweep loss (px): its steepest slope (1.5 x 2 amp / ramp) across the fit's 21 px footprint */
+export const laneLoss = (V: { amp: number; ramp: number }) => 2 * V.amp * 1.5 * SPACE.fitBox / V.ramp;
+/** a 0..1 hash of a number (core.ts hash's arithmetic shape; sigs.ts stays a leaf) */
+const hash01 = (n: number) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
 // ---------------- the signatures (levels.md §5.1-5.4; no bullets added) ----------------
 /** nominal screen x of the ship when a plan places world windows (the dodging pilot and Matt sit at ~120-180) */

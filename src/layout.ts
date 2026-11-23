@@ -141,7 +141,16 @@ export interface LayoutEntry {
     fT: number[]; cT: number[]; kT: number[]; zT: number[]; blocks: [number, number];
     hT?: number[]; oT?: number[]; lift?: number; flap?: number; oClamp?: number; kD?: [number, number];
     /** long4's hull run: over [x0, x1] every 360 px cell (not every other) carries a floor block `h` px tall */
-    hRun?: { x0: number; x1: number; h: number };
+    hRun?: { x0: number; x1: number; h: number; every?: number };
+    /** long4's lane weaves (W6 tune, L3; world.ts weaveBands, sigs.ts laneWeave), each over world bands [rise0, rise1, fall0,
+     *  fall1] where both walls step between two lanes, amp / ramp / hold as sigs.ts WEAVE, the swept fit it keeps and its ease */
+    weave?: { bands: number[][]; amp: number; ramp: number; hold: number; keep: number; ease: number }[];
+    /** long4's hull girders (W6 tune, L3; world.ts pylon): world x of each one's left edge, its width, the gap its tip
+     *  leaves above the lowest floor within `reach` px, and how much higher its tip is cut at the edges */
+    pylons?: { x: number[]; w: number; gap: number; reach: number; taper: number };
+    /** world.ts reads the wall noise at x - d from world x on (W6: the Drive approach keeps the corridor THE STROKE was
+     *  fitted on when an earlier stretch moves it) */
+    nShift?: { x: number; d: number };
   };
   /** hell-flash weights, keyed to stage kinds: `corr` spans the last biome slot and the Drive approach, `core` the
    *  Drive chamber. In `short` they are exactly the AMT corr/core bands they replaced (neutral re-key) */
@@ -204,7 +213,10 @@ const STRETCH = {
    *  rev 3 keeps +2400: the mortal pilot tallied the Orbit at 122-128 s on the W1 stack and 127-140 s on the full W0+W1+W3a+W3c stack (L6 band 125-140, at its low edge), and +150 here
    *  shifts every later anchor and the biome lane's blend tests (terrainb.test.ts) with it. The held slot B (LS2-orbit's
    *  tug, ~10 s) is what this stretch was sized for */
-  orbit: 2400,
+  // [FIT] W6 tune 2400 -> 2700: the mortal pilot tallied the Orbit at a median 121 s (119-125, seeds 1-5; L6 band 125-140)
+  // on the full W6 stack. +300 px is ~+5 s; the flap's full drop grows by the same 300 (terrain.oT), so the extra length
+  // is climax under the breach, not open hull
+  orbit: 2700,
   /** biome slot A (stage 1-2): gate to bossX 3550 -> 5500 px (~92 s of scroll; DIFFICULTY-SPEC §2.4 "Stage lengths",
    *  LVL §8). D31's single +2550 measured 151 s median for slot A (gates-before L6, band <= 145): -600 px, ~-10 s.
    *  Beat fractions scale with the span, so no beat moves relative to its stage. pod-probe tally_s, gate L6 */
@@ -347,7 +359,10 @@ const LONG4: LayoutEntry = {
     // "intro to CP1"), so midboss A's held screen shows it coming; it ends 200 px into breath 2, before the left edge
     // of midboss B's held screen, so that fight is on movement A. Unchanged from ls2-mv: it grows with the span to
     // ~1220 px of full gimmick (~20 s, D31 amended "about 18 s") at the late gate. movement-shots, route-probe
-    moveB: { between: [0, 1], lead: [0, 200], blend: 200 },
+    // [FIT] blend 200 -> 175 (W6 tune): slot B's 1450 stretch left 950 px of full gimmick from its late gate (~16 s, the
+    // terrainb.test floor had dropped to 940); 25 px less blend a side gives it 1000 (slot A ~1270). The band's ends do
+    // not move (CP1 and midboss B's screen keep their margins); each blend is a lerp of two >= 108 gaps, so fit holds
+    moveB: { between: [0, 1], lead: [0, 200], blend: 175 },
   },
   // the same shapes as short, re-anchored on the long rows: the hull closes in at the Orbit's end, the corridor rises
   // where slot 0's boss is and squeezes from slot 1's start, and everything opens into the chamber over the 400 px
@@ -375,20 +390,44 @@ const LONG4: LayoutEntry = {
     // [FIT] the hull run's blocks: one every 360 px and 48 px tall (rev 2's every 720 px, 34 tall measured 0.4-1.3
     // forced moves/min, band >= 4: L3). Never under the flap (world.ts skips oT > 0), so in practice the 3960, 4320 and
     // 4680 cells: the run ends where the flap starts coming down (level-designer delta review). L3 / M3
-    hRun: { x0: 3950, x1: 4900, h: 48 },
+    // [FIT] W6 tune: every 180 px (3960 ... 4860, six blocks): at 360 the run measured 3 forced moves an Orbit (L3 >= 4/min);
+    // the dodging pilot rides the hull low (y ~130-170, the floor turrets), so the floor blocks are what move it
+    hRun: { x0: 3950, x1: 4900, h: 48, every: 180 },
     // the breach (LVL §3.1): a ceiling flap comes down over 4900-5250 and goes back up over 5950-6420, `flap` px below
     // the base ceiling (mean ~52), over the lifted floor: FH median ~54% (136 px) for ~10 s at full, the column gap
     // clamped to 108 inside it (104 elsewhere), no hull block under it (world.ts). The ramps are 350 px, not LVL's 250,
     // so the flap's visible edge slopes <= .6 (S3; orbitdrive.test.ts). space-probe L1 / L2, route-probe minGap
     // [FIT] full drop 5250-5950 (LVL ~10 s): the 600 px span measured an Orbit FH p10 of 61-63% (band <= 55)
     // [FIT] flap 28 -> 32: at 28 the Orbit FH p10 read 54-58% (band <= 55, space-probe seeds 1/3/5); 34 broke S3
-    oT: [4900, 5250, 5950, 6420], flap: 32, oClamp: 108,
+    // [FIT] W6: full drop to 6250 (was 5950) with the +300 Orbit stretch, so the Maw banner still follows the flap's rise
+    oT: [4900, 5250, 6250, 6720], flap: 32, oClamp: 108,
     // the Drive approach deepened (LVL §6.1): the squeeze terms 24 / 28 -> 38 / 42, mean gap ~148 -> ~130 (~51%), the
     // 104 clamp kept. [FIT] LVL's 34 / 38 measured a terrain-only median of 54% (orbitdrive.test.ts), over L1's 52 even
     // before THE STROKE's pistons (which count in the probe's FH): +4 a side. space-probe L1 (approach median <= 52%,
     // p10 <= 43%), route-probe minGap
     // [FIT] 38 / 42 -> 42 / 46: with THE STROKE live the approach read FH 53-56% / p10 41-46% (seeds 1/3/5)
     kD: [42, 46],
+    // [FIT] W6 tune (L3 forced moves/min, Orbit >= 4, Drive >= 10; measured 1.4 / 3.0): the Orbit hull is floor-only, so
+    // a ship riding high was never made to move, and the breach and the Drive squeeze narrow but hold one lane. The
+    // weave steps both walls (the gap kept, so L1 is untouched) 40 px under the breach flap's full drop and 80 px over the
+    // Drive's rush (after the pressure breath, to the quiet), clear of THE STROKE (its window floor 80 is fitted to the
+    // un-woven corridor) and of the flap's ramps (S3 .6 there already). Steepest slope 1.5 x 40 / 140 = .43 (orbitdrive.test S3 .6 over 60 px with the flap's noise)
+    // The Drive's corridor is ~120 px, so its weave is longer and deeper: 1.5 x 80 / 240 = .5. It rises after the CP1
+    // breath (2420-2750, a restore lands on still walls: level-designer review) and is gone before the quiet (4100-)
+    weave: [
+      { bands: [[5200, 5320, 6180, 6300]], amp: 20, ramp: 140, hold: 50, keep: 106, ease: 1 / 160 },
+      { bands: [[11750 + S2 + 2700, 11750 + S2 + 2850, 11750 + S2 + 3900, 11750 + S2 + 4050]], amp: 40, ramp: 240, hold: 60, keep: 106, ease: 1 / 160 },
+    ],
+    // [FIT] the hull girders (W6 tune, L3): one over the hull's arrival and one between each pair of floor blocks (3960,
+    // 4140, ... 4860), 40 px wide, tip 108 px above the floor (S1 100 + margin), so a ship riding high has to come down
+    // Under the breach flap they are its torn plating hanging lower (5360-5840, between the flap's turrets at 5210 /
+    // 5300 / 5450 / 5600): the pilot rides the breach high (y ~30-70), where only a ceiling element moves it. gap 108: the
+    // breach's own column clamp (oClamp)
+    pylons: { x: [3800, 4052, 4412, 4772, 5360, 5520, 5700, 5840, 6000, 6160], w: 40, gap: 108, reach: 30, taper: 8 },
+    // the W6 Orbit stretch (+300) moved the Drive approach 300 px along the wall noise, onto a stretch pinched at the 104
+    // clamp where THE STROKE v1 skipped 2 of its 3 singles (orbitdrive.test). The approach reads the noise it was fitted on;
+    // the seam is at its x0, under slot B's terrain (tEnd: the biome covers the approach to x0 + 480)
+    nShift: { x: 11750 + S2, d: STRETCH.orbit - 2400 },
   },
   // PROVISIONAL (creative-director condition, LS1-A review): per-kind hell values are authored after art round 2, never
   // copied from the AMT bands. Until then they are keyed to the stage rows, not to AMT: `corr` rises over slot 1's
@@ -540,6 +579,8 @@ export const rowSigWindows = (L: LayoutEntry = active) => L.stages.flatMap((r) =
 export interface KnotVar {
   x: number; lanes: number[]; dx: number[]; sentry?: { dt: number; y: number; tx: number };
   then: { dt: number; k: 'drop' | 'rise' | 'behind'; n: number; teach?: boolean; carrier?: boolean };
+  /** the knot drip (W6 tune, L7): one more knot at each trigger offset dt[i], on lane share lanes[i] */
+  drip?: { dt: number[]; lanes: number[] };
 }
 /** a terrain turret: its world x (stage-relative: where it sits, not when it is called), kind and wall */
 export interface Turret { wx: number; k: 'eye' | 'crawler' | 'womb'; side: 1 | -1 }
@@ -547,11 +588,16 @@ export const ORBIT_SIG = {
   /** CREW KNOTS (LVL §3.2): three escalating variations over 2150-3300 (36-55 s), no bullets added. v1 teaches (one
    *  knot, then a slow drop wave: Orbit's 4th authored carrier, at ~38 s), v2 splits the lane (knots 102 px apart, a
    *  46 px band between them and 48 above and below), v3 staggers three with a sentry behind and a rear wave. L7 body
-   *  cover p90 40-55%, L4 statue body hits >= 4/min in the window */
+   *  cover p90 40-55%, L4 statue body hits >= 4/min in the window.
+   *  [FIT] W6 tune (L7 measured 0-13%: the bots cut an 8 hp knot in ~1 s, so a lone or staggered knot never reached the
+   *  ship's column with company): v2 moves up to 2450 and drips four more knots, one every 60 px (the last at 2690: ~1.8 s clear before v3's wall, game-designer review); v3 (2800) comes in as
+   *  one wall of three, un-staggered, then drips one every 30 px for 270 px (~.5 s apart: faster than one gun cuts 8 hp knots). A knot triggered at scroll s meets the column the
+   *  probe reads (ship x + 60) at ship world x ~s + 370, so every knot from 2150 to ~3080 lands inside the 2400-3450
+   *  window. Knot HP is the enemies stream's (notice.ts KNOT); the drip keeps the ship's gun busier than one lane */
   knots: [
     { x: 2150, lanes: [.5], dx: [0], then: { dt: 120, k: 'drop', n: 3, teach: true, carrier: true } },
-    { x: 2550, lanes: [.3, .7], dx: [0, 0], then: { dt: 150, k: 'rise', n: 3 } },
-    { x: 2950, lanes: [.25, .55, .8], dx: [0, 60, 120], sentry: { dt: 80, y: .4, tx: .8 }, then: { dt: 200, k: 'behind', n: 3 } },
+    { x: 2450, lanes: [.3, .7], dx: [0, 0], then: { dt: 150, k: 'rise', n: 3 }, drip: { dt: [60, 120, 180, 240], lanes: [.5, .15, .85, .4] } },
+    { x: 2800, lanes: [.2, .5, .8], dx: [0, 0, 0], sentry: { dt: 80, y: .4, tx: .8 }, then: { dt: 200, k: 'behind', n: 3 }, drip: { dt: [30, 60, 90, 120, 150, 180, 210, 240, 270], lanes: [.35, .65, .15, .85, .5, .25, .75, .4, .6] } },
   ] as KnotVar[],
   /** the hull run (3950-4950) and the breach (5200-5800) turrets, 10 in all (LVL §3.3 "8-10 terrain turrets"; rev 2
    *  had 0). Floor eyes and crawlers on the plating, a ceiling eye 40 px before the flap's full drop (a squeeze lip,
@@ -560,7 +606,7 @@ export const ORBIT_SIG = {
    *  (qa-lead review; orbitdrive.test.ts). N1 (shooters that fire), L4 */
   turrets: [
     { wx: 4200, k: 'crawler', side: 1 }, { wx: 4300, k: 'eye', side: 1 }, { wx: 4450, k: 'crawler', side: 1 },
-    { wx: 4640, k: 'eye', side: 1 }, { wx: 4780, k: 'crawler', side: 1 }, { wx: 4900, k: 'eye', side: 1 },
+    { wx: 4640, k: 'eye', side: 1 }, { wx: 4780, k: 'crawler', side: 1 }, { wx: 4820, k: 'eye', side: 1 },
     { wx: 5210, k: 'eye', side: -1 }, { wx: 5300, k: 'womb', side: -1 }, { wx: 5450, k: 'eye', side: -1 }, { wx: 5600, k: 'womb', side: -1 },
   ] as Turret[],
   /** the breach's wall birth: hatchlings out of the flap (LVL §3.3 hatch(4, 'top')), trigger x */

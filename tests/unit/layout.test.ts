@@ -231,16 +231,16 @@ describe('long4 entry', () => {
     expect(LAYOUTS.short!.beats.tempo.every((t) => t.third === undefined || t.third === true)).toBe(true);
   });
 
-  it('has the rev 3 rows: Orbit 6780, a 4800 px Drive approach, LEVEL 23050', () => {
+  it('has the rev 3 rows: Orbit 7080 (W6 +300), a 4800 px Drive approach, LEVEL 23350', () => {
     const [o, , , d] = L.stages;
     // D31 part 2: LS1's 4380 Orbit (D22) + 2400 (D37). rev 3 (DIFFICULTY-SPEC §2.4): the Drive approach 2700 + 2100, the
     // D31 fallback's last 300 px filler window cut so the 60 s fight cap (C23) holds the Drive at <= 140 s
-    expect(o.x1 - o.x0).toBe(6780);
-    expect(o.bossX).toBe(6600);
-    expect(o.warnX).toBe(6480);
+    expect(o.x1 - o.x0).toBe(7080);
+    expect(o.bossX).toBe(6900);
+    expect(o.warnX).toBe(6780);
     expect(d.bossX - d.x0).toBe(4800);
     expect(d.warnX).toBe(d.bossX - 240);
-    expect(L.level).toBe(23050); // 15150 + 2400 + 1950 + 1450 + 2100
+    expect(L.level).toBe(23350); // 15150 + 2700 + 1950 + 1450 + 2100
   });
 
   it('shifts every anchor after the Orbit by the same amount as the Orbit row (one stretch constant)', () => {
