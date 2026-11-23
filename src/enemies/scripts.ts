@@ -21,14 +21,68 @@
 import { $ } from '../state';
 import { PH, W } from '../core';
 import { rsInt } from '../rng';
-import { row, ufoDrift, ufoRow } from '../layout';
+import { DRIVE_SIG, ORBIT_SIG, layout, pairCentre, pistonPhase, pistonReach, row, ufoDrift, ufoRow } from '../layout';
 import { INTERIOR_MIX, ORBIT_MIX, genFiller, noteCells, pickCells } from '../cellpick';
 import { sfx } from '../audio';
 import { startBoss } from '../boss/update';
+import { ceilAt, floorAt } from '../world';
 import { ufoWarn } from './mid/ufo';
+import * as SP from './spawn';
+// W3a's space engine (W3A-API.md: spawnPiston, spawnPistonPair, pistonCycle) fills W0's src/solids.ts stub; read through
+// the namespace, so until it merges the STROKE beats fire and build nothing
+import * as SO from '../solids';
 import { banner, behindWave, corpse, crawler, eyeT, flayer, formation, hatch, logLine, maw, mutant, sentry, womb } from './spawn';
 
 const crew = (...ys) => ys.forEach(y => corpse(y));
+
+// ---------------- stream adapters (DIFFICULTY-SPEC §6: one spot each, so the rebases are deletions) ----------------
+// W1 (g3-w1-bullets) lands the new entries and kinds in spawn.ts: edgeWave(pat, n, o) (a drop / rise wave behind a
+// 60 f edge chevron at laneX = clamp(P.x + 110, 200, W - 40)), knot(y) (CREW KNOTS, its lane kept 48 px off the ship),
+// hatch(n, 'top' | 'bottom') (a wall birth), formation's 'loop' and its `open` option (an authored carrier: the last
+// kill always drops, no keep roll, no rank extras). They are read through the module namespace, so this file builds
+// before W1 merges; until then each stands in with today's kinds on the same beat (a measurement aid, flown with no
+// chevron: the stand-in never ships). W1 is present when edgeWave is exported.
+const w1 = () => typeof SP.edgeWave === 'function';
+/** a drop (from the top edge) or rise (from the bottom) wave of n. o: formation options (pod, open, v) */
+function edge(pat, n, o = {}) {
+  if (w1()) return SP.edgeWave(pat, n, o);
+  sfx.tele(); // stand-in: the 60 f tell is the sound only, then divers come in off the edge at laneX
+  $.G.pend.push({ t: 60, f: () => {
+    const top = pat === 'drop', lx = Math.max(200, Math.min(W - 40, ($.P ? $.P.x : 120) + 110)), g = { n, killed: 0 };
+    if (o.pod) g.pod = 1;
+    for (let i = 0; i < n; i++) SP.mk('drone', lx + i * 18, top ? -16 - i * 18 : PH + 16 + i * 18, { group: g, pat: 'dive', i, y0: PH / 2, turn: 1, vy: (top ? 1 : -1) * (o.v || 1.6), open: o.open });
+  } });
+}
+/** a right-edge formation; 'loop' is W1's (stand-in: a sine) */
+const form = (pat, y, n, o) => formation(pat === 'loop' && !w1() ? 'sine' : pat, y, n, o);
+/** an authored opening carrier (§2.2 faucet, ECO §2.2): exactly n, its last kill always drops (pod), tagged for
+ *  pod-probe's `fixed:open` (open). Any edge */
+function carrier(pat, y, n, x = {}) {
+  const o = { fixed: 1, pod: 1, open: 1, ...x };
+  if (pat === 'drop' || pat === 'rise') edge(pat, n, o);
+  else form(pat, y, n, o);
+}
+/** a CREW KNOT at lane y (W1's kind; stand-in: five crew frozen in a 24 px cluster) */
+function knot(y) {
+  if (typeof SP.knot === 'function') return SP.knot(y);
+  for (let i = 0; i < 5; i++) corpse(y + [0, -14, 14, -7, 7][i], { x: W + 30 + [0, 6, 6, -10, 16][i], drift: .35 });
+}
+/** hatchlings born out of the ceiling (W1's wall birth; stand-in: a swarm head-on) */
+const birth = (n) => (w1() ? hatch(n, 'top') : hatch(n, false));
+/** the filler drones' entry-edge weights by stage kind, drawn from the beat's spare uniform (the build stream rs, never
+ *  R(): §2.3). Not the target table itself (W1's notice.ts ENTRY.mix, §2.3 / LVL §4): these are fitted so the WHOLE
+ *  stage, cells and fixed beats included, lands on it. The Orbit's cells already sit near it, so its filler flies the
+ *  target; the Drive's cells lean rear (their swarms from behind, THE STROKE's rear wave) and its stroke filler flies
+ *  no top / bottom (LVL §4 rule 4), so its filler leans to the edges. N4 (orbitdrive.test.ts tallies 40 seeds; the
+ *  probe's space-probe entries is the gate) */
+const FILL_EDGE = { orbit: [['right', .55], ['behind', .2], ['top', .12], ['bottom', .13]], drive: [['right', .4], ['behind', .1], ['top', .25], ['bottom', .25]] };
+function entryOf(kind, u) {
+  let acc = 0;
+  for (const [k, w] of FILL_EDGE[kind] || FILL_EDGE.orbit) { acc += w; if (u < acc) return k; }
+  return 'right';
+}
+/** a teaching beat's slow drop / rise (LVL §2.4: 1.2 px/f, not 1.6) */
+const TEACH = { v: 1.2 };
 
 /** pick a section's variant: 0 (the classic) in Descent 1, else an unlocked remix this run hasn't played yet, and
  *  never last descent's. Draws from the stage's build stream rs (src/rng.ts), never the sim R(). A section already
@@ -237,10 +291,12 @@ const C = (id, tag, min, f) => Object.assign(f, { id, tags: [tag], min });
 /** Open Orbit: 3 teaching cells (the Descent 1 opener, back as ordinary intro cells from Descent 3), 3 intro, 6 build,
  *  5 peak (17: the D31 stretch's 3 build and 2 peak slots, each pool twice its slots). Open space: no terrain kinds */
 export const ORBIT_CELLS = [
-  // the teaching opener, ~15 s: ORBIT_A's classic, one idea per wave, spread over three cells
-  C('o.drones', 'intro', 2, (at) => { at(0, () => formation('sine', 80)); at(140, () => formation('sine', 175, 4)); at(250, () => crew(60, 200)); }),
-  C('o.sentry', 'intro', 2, (at) => { at(20, () => sentry(PH * .32)); at(130, () => crew(70, 190)); at(240, () => flayer(PH * .5)); }),
-  C('o.swarm', 'intro', 2, (at) => { at(0, () => hatch(5, false)); at(120, () => formation('dive', 50, 4)); at(240, () => sentry(PH * .7, W * .7)); }),
+  // the teaching opener, ~15 s: ORBIT_A's classic, one idea per wave, spread over three cells. rev 3 (§2.2 faucet): each
+  // cell ends on an authored carrier, so the Descent 1 opener pays 3 pods in its first 18 s (Gradius's capsule-rich
+  // departure), and o.swarm teaches the drop entry at the slow 1.2 px/f (LVL §3.4)
+  C('o.drones', 'intro', 2, (at) => { at(0, () => formation('sine', 80)); at(140, () => carrier('sine', 175, 4)); at(250, () => crew(60, 200)); }),
+  C('o.sentry', 'intro', 2, (at) => { at(20, () => sentry(PH * .32)); at(100, () => flayer(PH * .5)); at(160, () => crew(70, 190)); at(240, () => carrier('loop', PH * .62, 4)); }),
+  C('o.swarm', 'intro', 2, (at) => { at(0, () => hatch(5, false)); at(110, () => sentry(PH * .7, W * .7)); at(200, () => carrier('drop', 0, 3, TEACH)); }),
   // intro remixes: ORBIT_A's debris field, ambush and sentry picket, first halves
   C('o.debris', 'intro', 1, (at) => {
     at(0, () => corpse(55)); at(25, () => corpse(205)); at(50, () => corpse(130));
@@ -253,11 +309,12 @@ export const ORBIT_CELLS = [
     at(130, () => formation('zig', PH / 2, 3)); at(270, () => crew(50, 135, 220));
   }),
   // build: ORBIT_A's second halves, ORBIT_D's run-up and ORBIT_C's brood swarm
-  C('o.alley', 'build', 0, (at) => { at(0, () => flayer(PH * .6)); at(90, () => hatch(6, false)); at(160, () => crew(70, 190)); at(240, () => formation('dive', PH - 60, 3)); }),
-  C('o.watch', 'build', 0, (at) => { at(0, () => sentry(PH * .66)); at(80, () => flayer(PH * .35)); at(180, () => { sentry(PH * .25, W * .8); corpse(PH * .8); }); at(260, () => formation('sine', 70, 3)); }),
+  // rev 3 (§2.3 entry mix): the low divers rise from the bottom edge, the high sine drops from the top
+  C('o.alley', 'build', 0, (at) => { at(0, () => flayer(PH * .6)); at(90, () => hatch(6, false)); at(160, () => crew(70, 190)); at(240, () => edge('rise', 3)); }),
+  C('o.watch', 'build', 0, (at) => { at(0, () => sentry(PH * .66)); at(80, () => flayer(PH * .35)); at(180, () => { sentry(PH * .25, W * .8); corpse(PH * .8); }); at(260, () => edge('drop', 3)); }),
   // the run-up: ORBIT_D's sentry over a zig and its flayer + corpse, then a big swarm (a fourth build cell: long Orbit
   // has two build slots, and "never last descent's" needs twice that many)
-  C('o.runup', 'build', 0, (at) => { at(0, () => { sentry(PH * .5, W * .75); formation('zig', PH * .8, 3); }); at(90, () => { flayer(PH * .4); corpse(PH * .8); }); at(170, () => hatch(8, false)); at(250, () => flayer(PH * .6)); }),
+  C('o.runup', 'build', 0, (at) => { at(0, () => { sentry(PH * .5, W * .75); edge('rise', 3); }); at(90, () => { flayer(PH * .4); corpse(PH * .8); }); at(170, () => hatch(8, false)); at(250, () => flayer(PH * .6)); }),
   C('o.brood', 'build', 0, (at) => { at(0, () => hatch(6, false)); at(120, () => { sentry(PH * .25, W * .78); sentry(PH * .72, W * .64); }); at(200, () => hatch(6, true)); }),
   // peak: ORBIT_C's classic, flayer alley and hull breach (still Descent 3+)
   C('o.wall', 'peak', 0, (at) => { at(0, () => formation('wall', PH / 2)); at(60, () => { sentry(PH * .22, W * .8); sentry(PH * .74, W * .66); }); at(120, () => hatch(6, true)); at(240, () => { crew(60); corpse(150); }); }),
@@ -266,17 +323,17 @@ export const ORBIT_CELLS = [
     at(0, () => logLine('HULL BREACH. THE CREW IS COMING OUT.'));
     [10, 40, 70, 100, 130, 160].forEach((x, i) => at(x, () => corpse(i % 2 ? PH * .7 + i * 4 : PH * .28 - i * 4, { drift: .7 })));
     at(80, () => sentry(PH * .2, W * .82));
-    at(220, () => { formation('dive', 40, 3); formation('dive', PH - 40, 3); });
+    at(220, () => { edge('drop', 3); edge('rise', 3); });
   }),
   // D31 stretch (SUMMARY #18): +2 build, +2 peak, all Descent 1, appended so every earlier pick draws as before. The
   // long Orbit now has 3 build and 2 peak slots, and each pool holds twice its slots
   // the derelict's wake: a diagonal of drifting dead, a rear wave threading it, a flayer, divers from above
   C('o.wake', 'build', 0, (at) => {
     at(0, () => corpse(PH * .3, { drift: .7 })); at(30, () => corpse(PH * .5, { drift: .7 })); at(60, () => corpse(PH * .7, { drift: .7 }));
-    at(130, () => behindWave(PH * .4, 3)); at(210, () => flayer(PH * .7)); at(270, () => formation('dive', 50, 3));
+    at(130, () => behindWave(PH * .4, 3)); at(210, () => flayer(PH * .7)); at(270, () => edge('drop', 3));
   }),
-  // crossfire: a high zig and a low sine at once, a sentry parks between the lanes, a swarm from behind
-  C('o.cross', 'build', 0, (at) => { at(0, () => formation('zig', PH * .25, 3)); at(40, () => formation('sine', PH * .75, 3)); at(140, () => sentry(PH * .5, W * .72)); at(220, () => hatch(5, true)); at(260, () => corpse(PH * .2)); }),
+  // crossfire: a wave from above and one from below at once, a sentry parks between the lanes, a swarm from behind
+  C('o.cross', 'build', 0, (at) => { at(0, () => edge('drop', 3)); at(40, () => edge('rise', 3)); at(140, () => sentry(PH * .5, W * .72)); at(220, () => hatch(5, true)); at(260, () => corpse(PH * .2)); }),
   // the clamp: a rear wave and a head-on wall together, then a flayer pair, a swarm and a sentry pair to close it
   C('o.clamp', 'peak', 0, (at) => {
     at(0, () => behindWave(PH * .3, 3)); at(20, () => formation('wall', PH * .65, 3));
@@ -287,17 +344,19 @@ export const ORBIT_CELLS = [
   C('o.graves', 'peak', 0, (at) => {
     at(0, () => crew(45, 135, 225)); at(40, () => { sentry(PH * .4, W * .8); corpse(PH * .75); });
     at(110, () => hatch(6, true)); at(170, () => hatch(5, false));
-    at(250, () => { formation('dive', 40, 3); formation('dive', PH - 40, 3); });
+    at(250, () => { edge('drop', 3); edge('rise', 3); });
   }),
 ];
 /** the Descent 1 Open Orbit opener: identical on every seed (spec §3.4) */
 export const ORBIT_OPENER = ['o.drones', 'o.sentry', 'o.swarm'];
 
-/** the Gravity Drive approach: 3 floor cells (the mutant ones: only the first slot has a floor), 2 intro, 6 build,
- *  6 peak (D31 stretch: 3 build and 3 peak slots). No cell twice in a descent and none from last descent */
+/** the Gravity Drive approach: 3 floor cells (the ones that open on a mutant: the first slot's pool; the long4 corridor
+ *  has a floor until its chamber, so the tag is a pool, not the only stretch with one), 2 intro, 6 build, 6 peak. rev 3
+ *  flies floor, intro and 3 peak slots (THE STROKE replaced the build slots, layout.ts LONG4_DRIVE_PLAN); the build
+ *  cells stay in the pool for a later slot. No cell twice in a descent and none from last descent */
 export const DRIVE_CELLS = [
   // floor: DRIVE_E's classic, the hulk and crew drift
-  C('d.mutant', 'floor', 0, (at) => { at(0, () => mutant()); at(80, () => formation('sine', PH * .25, 4)); at(140, () => crew(70, PH - 70)); at(210, () => hatch(5, true)); }),
+  C('d.mutant', 'floor', 0, (at) => { at(0, () => mutant()); at(80, () => edge('drop', 4)); at(140, () => crew(70, PH - 70)); at(210, () => hatch(5, false)); }),
   C('d.hulk', 'floor', 0, (at) => {
     at(0, () => { mutant(); crawler(-1); }); at(25, () => { crawler(-1); formation('sine', PH * .45, 4); });
     at(120, () => crew(80, 150)); at(190, () => sentry(PH * .3, W * .74)); at(260, () => hatch(6, false));
@@ -305,11 +364,11 @@ export const DRIVE_CELLS = [
   C('d.drift', 'floor', 0, (at) => {
     at(0, () => mutant()); at(20, () => womb());
     [10, 30, 50, 70].forEach((x, i) => at(x, () => corpse([45, 125, 80, 150][i], { drift: .8 })));
-    at(110, () => formation('zig', PH * .42, 4)); at(180, () => flayer(PH * .55)); at(250, () => hatch(5, false));
+    at(110, () => edge('rise', 4)); at(180, () => flayer(PH * .55)); at(250, () => hatch(5, false));
   }),
   // intro: DRIVE_E's lockdown (Descent 1 now: the Drive needs two intro cells from the start), and the sentinel
-  C('d.lockdown', 'intro', 0, (at) => { at(0, () => { sentry(PH * .25, W * .8); sentry(PH * .65, W * .66); }); at(90, () => formation('wall', PH * .45, 4)); at(170, () => hatch(6, true)); at(240, () => crew(60, 130, 200)); }),
-  C('d.sentinel', 'intro', 0, (at) => { at(0, () => sentry(PH * .5, W * .8)); at(90, () => crew(60, 200)); at(180, () => formation('sine', PH * .7, 4)); at(260, () => hatch(5, false)); }),
+  C('d.lockdown', 'intro', 0, (at) => { at(0, () => { sentry(PH * .25, W * .8); sentry(PH * .65, W * .66); }); at(90, () => formation('wall', PH * .45, 4)); at(170, () => edge('rise', 4)); at(240, () => crew(60, 130, 200)); }),
+  C('d.sentinel', 'intro', 0, (at) => { at(0, () => sentry(PH * .5, W * .8)); at(90, () => crew(60, 200)); at(180, () => edge('rise', 4)); at(260, () => hatch(5, false)); }),
   // build: DRIVE_F's classic, meat in the wind and gauntlet, and the press
   C('d.pressure', 'build', 0, (at) => { at(0, () => sentry(PH * .45, W * .72)); at(30, () => behindWave(PH / 2)); at(90, () => { flayer(PH * .75); corpse(PH * .3); }); at(160, () => hatch(6, false)); at(230, () => { flayer(PH * .25); flayer(PH * .7); }); }),
   C('d.wind', 'build', 0, (at) => { at(0, () => behindWave(PH / 2, 4)); at(80, () => { hatch(6, false); crew(50, 210); }); at(150, () => { sentry(PH * .3, W * .78); sentry(PH * .7, W * .64); }); at(220, () => { flayer(PH * .25); flayer(PH * .7); }); }),
@@ -323,18 +382,18 @@ export const DRIVE_CELLS = [
   // the cascade: a swarm from behind, a drone wall, a flayer pair, then a sentry pair seals it
   C('d.cascade', 'peak', 0, (at) => { at(0, () => hatch(7, true)); at(60, () => formation('wall', PH * .45, 4)); at(140, () => { flayer(PH * .3); flayer(PH * .7); }); at(220, () => { sentry(PH * .22, W * .8); sentry(PH * .76, W * .66); }); }),
   // the bulkhead: pods high and low, a zig through them, a rear wave, then the dead dragged aft
-  C('d.bulkhead', 'peak', 0, (at) => { at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .7); }); at(80, () => formation('zig', PH / 2, 4)); at(170, () => behindWave(PH * .7, 4)); at(250, () => crew(40, 120, 210)); }),
+  C('d.bulkhead', 'peak', 0, (at) => { at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .7); }); at(80, () => edge('drop', 4)); at(170, () => behindWave(PH * .7, 4)); at(250, () => crew(40, 120, 210)); }),
   // the flood (Descent 2+): hatchlings from both ends, divers top and bottom, a flayer in the middle
-  C('d.flood', 'peak', 1, (at) => { at(0, () => hatch(6, false)); at(60, () => hatch(6, true)); at(150, () => { formation('dive', 40, 4); formation('dive', PH - 40, 4); }); at(250, () => flayer(PH * .5)); }),
+  C('d.flood', 'peak', 1, (at) => { at(0, () => hatch(6, false)); at(60, () => hatch(6, true)); at(150, () => { edge('drop', 4); edge('rise', 4); }); at(250, () => flayer(PH * .5)); }),
   // D31 stretch (SUMMARY #18): +2 build, +2 peak, all Descent 1, appended so every earlier pick draws as before. The
-  // long approach now has 3 build and 3 peak slots, past the floor, so no corridor-floor kinds here
+  // approach had 3 build and 3 peak slots then; the corridor-floor kinds stay in the floor pool (cellpick.test.ts)
   // the dragnet: the dead dragged aft high and low, a sine down the middle, a sentry, a flayer
   C('d.dragnet', 'build', 0, (at) => {
     at(0, () => corpse(PH * .2, { drift: .8 })); at(20, () => corpse(PH * .8, { drift: .8 }));
     at(60, () => formation('sine', PH / 2, 4)); at(150, () => sentry(PH * .7, W * .74)); at(230, () => flayer(PH * .3));
   }),
   // the relay: divers from the top, a sentry over a corpse, a swarm from behind, a low zig
-  C('d.relay', 'build', 0, (at) => { at(0, () => formation('dive', 40, 4)); at(100, () => { sentry(PH * .35, W * .78); corpse(PH * .75); }); at(180, () => hatch(6, true)); at(260, () => formation('zig', PH * .6, 4)); }),
+  C('d.relay', 'build', 0, (at) => { at(0, () => edge('drop', 4)); at(100, () => { sentry(PH * .35, W * .78); corpse(PH * .75); }); at(180, () => hatch(6, true)); at(260, () => formation('zig', PH * .6, 4)); }),
   // the crush: three pods stacked across the corridor, a wall, a rear wave, a flayer pair
   C('d.crush', 'peak', 0, (at) => {
     at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .82); }); at(40, () => sentry(PH * .5, W * .7));
@@ -343,21 +402,33 @@ export const DRIVE_CELLS = [
   }),
   // the undertow: crew in the pull, a high zig, a big swarm head-on, a low sine through drifting dead, a last sentry
   C('d.undertow', 'peak', 0, (at) => {
-    at(0, () => crew(50, 210)); at(50, () => formation('zig', PH * .3, 4)); at(120, () => hatch(7, false));
-    at(190, () => { formation('sine', PH * .75, 4); corpse(PH * .4, { drift: .8 }); }); at(270, () => sentry(PH * .5, W * .76));
+    at(0, () => crew(50, 210)); at(50, () => edge('drop', 4)); at(120, () => hatch(7, false));
+    at(190, () => { edge('rise', 4); corpse(PH * .4, { drift: .8 }); }); at(270, () => sentry(PH * .5, W * .76));
   }),
 ];
 
 const frac = (x) => x - Math.floor(x);
 const DRONE_PAT = ['sine', 'zig', 'dive', 'wall'];
+/** a drop / rise wave's lane in world x is about its trigger scroll x + this (laneX = ship x ~120 + 110): the windows
+ *  are in that frame (the ship's world x), so the `quiet` test compares like with like (qa-lead review) */
+const EDGE_DX = 230;
+/** a right entry's share that loops back (ENC §3: 'loop', about 1-2 a stage in Orbit and the Drive) */
+const LOOP_SHARE = .12;
+/** one filler drone wave on its entry edge (rev 3, §2.3 entry mix; rev 2's filler was front formations only, and its
+ *  from-behind branch never fired). The edge and the right pattern come from u, the beat's spare uniform, through two
+ *  independent hashes of it (y uses a third): no extra build-stream draw, so the pick memory is untouched. `quiet`:
+ *  inside a signature window, so no top / bottom entry crosses the set piece's narrowest columns (LVL §4 rule 4) */
+function fillDrones(kind, u, y, n, quiet) {
+  const e = entryOf(kind, frac(u * 13.37)), q = frac(u * 29.71);
+  if (e === 'behind') behindWave(y, n);
+  else if ((e === 'top' || e === 'bottom') && !quiet) edge(e === 'top' ? 'drop' : 'rise', n);
+  else form(q < LOOP_SHARE ? 'loop' : DRONE_PAT[Math.floor((q - LOOP_SHARE) / (1 - LOOP_SHARE) * 4) % 4], y, n);
+}
 /** one generator filler beat (cellpick.ts genFiller) as a spawn; u places it. Orbit drones come 3 to a wave, the Drive's
- *  4 (the drone budget at the top of this file) */
-function fillSpawn(k, u, nDrone) {
-  const y = PH * (.18 + .64 * frac(u * 7.31));
-  // a from-behind branch (`pat === 'zig' && u < .15`) was removed here (LS1 audit): u < .15 always picks DRONE_PAT[0],
-  // 'sine', so it never fired. Filler drones are front formations only; a from-behind filler beat is a design call
-  // that would move long4 (backlog)
-  if (k === 'drones') formation(DRONE_PAT[Math.floor(u * 4) % 4], y, nDrone);
+ *  4 (the drone budget at the top of this file). r: its row; x: its stage-relative x */
+function fillSpawn(k, u, nDrone, r, x) {
+  const y = PH * (.18 + .64 * frac(u * 7.31)), lane = x + EDGE_DX;
+  if (k === 'drones') fillDrones(r.kind, u, y, nDrone, !!(r.sigs && r.sigs.some((w) => lane >= w.a && lane < w.b)));
   else if (k === 'sentry') sentry(y, W * (.62 + .2 * frac(u * 3.7)));
   else if (k === 'corpse') u < .5 ? corpse(y) : crew(y, PH - y);
   else if (k === 'flayer') flayer(PH * (.25 + .5 * u));
@@ -390,7 +461,7 @@ export function placePlanned(r, cells, pick, at) {
     if (c) c((x, f) => at(id)(x0 + x, f));
   });
   const nDrone = r.kind === 'orbit' ? 3 : 4;
-  for (const b of pick.fill) at('fill:' + b.k)(b.x, () => fillSpawn(b.k, b.u, nDrone));
+  for (const b of pick.fill) at('fill:' + b.k)(b.x, () => fillSpawn(b.k, b.u, nDrone, r, b.x));
 }
 /** the cell pool and the fixed Descent 1 opener of a planned row's stage kind */
 const CELLS = { orbit: [ORBIT_CELLS, ORBIT_OPENER], drive: [DRIVE_CELLS, []] };
@@ -415,6 +486,7 @@ export function stageScript(i, rs) {
     if (planned) {
       placePlanned(r, planned[0], pick, at);
       if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // the Saucer: only generator filler sits in its window
+      if (r.sigs) orbitSets(at); // rev 3: CREW KNOTS, the hull turrets, the breach
     } else {
       play('oA', ORBIT_A);
       if (ufoRow() === r) at('ufo')(ufoDrift().at, ufoWarn); // SQUID SAUCER 2000, the Open Orbit midboss (enemies/mid/ufo.ts): eats the filler while it's up
@@ -436,6 +508,7 @@ export function stageScript(i, rs) {
       at('log')(230, gravLog);
       at('eyes')(430, () => { eyeT(1); eyeT(-1); });
       placePlanned(r, planned[0], pick, at);
+      if (r.sigs) driveSets(r, at); // rev 3: the authored carriers and THE STROKE
     } else {
       at('log')(130, gravLog); // short: unchanged (its Drive starts 61 px before this)
       play('dE', DRIVE_E);
@@ -447,4 +520,69 @@ export function stageScript(i, rs) {
     at('boss')(r.bossX - r.x0, () => startBoss());
   }
   return S;
+}
+
+// ---------------- rev 3 set pieces (DIFFICULTY-SPEC §2.4; LVL §3.2-3.4, §6.3). Numbers: layout.ts ORBIT_SIG / DRIVE_SIG ----
+/** where a turret's spawn call goes: it spawns at the right edge (eyeT / crawler W + 14, womb W + 16), so the trigger is
+ *  its world x less that */
+const turretAt = (t) => t.wx - W - (t.k === 'womb' ? 16 : 14);
+/** the long Orbit's fixed beats: CREW KNOTS v1-v3 (2150-3300), 10 turrets on the hull and the breach, the flap's wall
+ *  birth, and their log lines. No bullet is added by any of them (LVL rule): the knots are bodies, the turrets are the
+ *  ship's own kinds, and the cap holds the rest */
+function orbitSets(at) {
+  const O = ORBIT_SIG;
+  O.knots.forEach((v, i) => {
+    // the cue waits for the first knot to drift on screen (+110): >= 3.6 s after the Saucer's latest forced exit (2040),
+    // so its death groan (ufo.ts) never stacks on this one (audio-director review)
+    if (i === 0) at('knots')(v.x + 110, () => { logLine('THE DEAD ARE HOLDING HANDS.'); sfx.groan(); });
+    v.lanes.forEach((q, j) => at('knot')(v.x + v.dx[j], () => knot(PH * q)));
+    if (v.sentry) at('knot:sentry')(v.x + v.sentry.dt, () => sentry(PH * v.sentry.y, W * v.sentry.tx));
+    const t = v.then, o = t.teach ? TEACH : {};
+    at('knot:' + t.k)(v.x + t.dt, () => (t.k === 'behind' ? behindWave(PH / 2, t.n) : t.carrier ? carrier(t.k, 0, t.n, o) : edge(t.k, t.n, o)));
+  });
+  for (const t of O.turrets) at('turret:' + t.k)(turretAt(t), () => (t.k === 'eye' ? eyeT(t.side) : t.k === 'crawler' ? crawler(t.side) : womb()));
+  at('breach')(layout().terrain.oT[0] - W, () => { logLine('THE HULL IS PEELED BACK. I GO IN UNDER IT.'); sfx.groan(); sfx.chain(); }); // the flap comes on screen: a groan bed under the chain rattle
+  at('breach:birth')(O.breachHatch.x, () => birth(O.breachHatch.n));
+}
+
+/** the tightest walls over world x [a, b]: the lowest ceiling edge is the largest CEIL, the highest floor the least */
+function walls(a, b, d = 4) {
+  let ce = -1e9, fl = 1e9;
+  for (let x = a; x <= b; x += d) { ce = Math.max(ce, ceilAt(x)); fl = Math.min(fl, floorAt(x)); }
+  return [ce, fl];
+}
+/** STROKE variation v's piston i (W3A-API v1 spawnPiston / spawnPistonPair), built just off screen from the terrain
+ *  under it: a single leaves `gap` to the far wall, a pair centres its `gap` in the corridor share. Its stroke time is
+ *  fixed here (`ext`: depth, plus the engine's root pad, over v, eased, with a frame of slack; the engine never strokes
+ *  faster than that), so its period (rest + 2 ext + hold, W3A pistonPeriod) is known before it exists and the phase can
+ *  put it mid-hold as it reaches the ship (layout.ts pistonPhase, from the ship's x now). A refused spawn (S5, a pair is
+ *  atomic) just leaves that column open. W0's solids stub has no spawnPiston: nothing is built */
+function strokePiston(r, v, i) {
+  if (typeof SO.spawnPiston !== 'function') return;
+  const S = DRIVE_SIG.stroke, K = (SO.SOLID && SO.SOLID.piston) || {}, pad = K.rootPad || 0, ease = Math.max(1, K.ease || 1);
+  const s = $.G.scroll, px = $.P ? $.P.x : S.shipX, x = r.x0 + v.x[i], [ce, fl] = walls(x - 12, x + S.w + 12);
+  // the stroke time from the walls over the engine's own span (x .. x + w, every 3 px: solids.ts pistonGeom), so it is
+  // never shorter than the engine's and the period the phase assumes is the one it runs
+  const [ce0, fl0] = walls(x, x + S.w, 3), extOf = (tip, side) => Math.ceil((side < 0 ? tip - ce0 + pad : fl0 + pad - tip) / S.v * ease) + 1, base = { x, w: S.w, tell: S.tell, hold: S.hold, rest: S.rest, v: S.v, sig: 'stroke' };
+  if (v.pair) {
+    const centre = pairCentre(v.pair[i], v.gap, ce, fl), ext = Math.max(extOf(centre - v.gap / 2, -1), extOf(centre + v.gap / 2, 1));
+    SO.spawnPistonPair({ ...base, centre, gap: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
+  } else {
+    const side = v.side[i], reach = pistonReach(side, v.gap, ce, fl);
+    if (reach == null) return;
+    const ext = extOf(reach, side);
+    SO.spawnPiston({ ...base, side, reach, fit: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
+  }
+}
+/** the long Drive approach's fixed beats: its two authored carriers, then THE STROKE v1-v3 (pistons 1150-2370) with v3's wall
+ *  eyes and rear wave, and the log line as the first piston comes on screen */
+function driveSets(r, at) {
+  const D = DRIVE_SIG, S = D.stroke;
+  for (const c of D.carriers) at('carrier')(c.x, () => carrier(c.pat, PH * c.y, c.n));
+  at('stroke')(S.vars[0].x[0] - W + 60, () => logLine('THE DRIVE IS STILL PUMPING.'));
+  for (const v of S.vars) {
+    v.x.forEach((x, i) => at('stroke:' + v.id)(x - W - S.lead, () => strokePiston(r, v, i)));
+    if (v.eyes != null) at('stroke:eyes')(v.eyes - W - 14, () => { eyeT(1); eyeT(-1); });
+    if (v.behind != null) at('stroke:behind')(v.behind, () => behindWave(PH / 2, 4));
+  }
 }

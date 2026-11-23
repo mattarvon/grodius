@@ -231,41 +231,48 @@ describe('long4 entry', () => {
     expect(LAYOUTS.short!.beats.tempo.every((t) => t.third === undefined || t.third === true)).toBe(true);
   });
 
-  it('has the D31-stretched rows: Orbit 6780, a 5100 px Drive approach, LEVEL 25050', () => {
+  it('has the rev 3 rows: Orbit 6780, a 4800 px Drive approach, LEVEL 23050', () => {
     const [o, , , d] = L.stages;
-    // D31 part 2: LS1's 4380 Orbit (D22) + 2400 (D37), the Drive approach 2700 + 2400 (2100 + the plan's +300 fallback)
+    // D31 part 2: LS1's 4380 Orbit (D22) + 2400 (D37). rev 3 (DIFFICULTY-SPEC §2.4): the Drive approach 2700 + 2100, the
+    // D31 fallback's last 300 px filler window cut so the 60 s fight cap (C23) holds the Drive at <= 140 s
     expect(o.x1 - o.x0).toBe(6780);
     expect(o.bossX).toBe(6600);
     expect(o.warnX).toBe(6480);
-    expect(d.bossX - d.x0).toBe(5100);
+    expect(d.bossX - d.x0).toBe(4800);
     expect(d.warnX).toBe(d.bossX - 240);
-    expect(L.level).toBe(25050);
+    expect(L.level).toBe(23050); // 15150 + 2400 + 1950 + 1450 + 2100
   });
 
   it('shifts every anchor after the Orbit by the same amount as the Orbit row (one stretch constant)', () => {
     const [o, s0, s1, d] = L.stages, sh = o.x1 - 4380; // the Orbit's stretch over its LS1 row
     expect(s0.x0).toBe(o.x1);
     expect(s0.gateLate! - sh).toBe(4750);
-    expect(L.bands.hull.map((x) => x - sh)).toEqual([4280, 4780]);
-    expect(L.terrain.fT.slice(0, 2).map((x) => x - sh)).toEqual([4330, 4780]);
+    // rev 3: the Orbit's hull is placed in the Orbit, not shifted with it (LVL §3.1, D-3: the floor at 3500)
+    expect(L.bands.hull).toEqual([3300, 3950]);
+    expect(L.terrain.fT.slice(0, 2)).toEqual([3300, 3950]);
     expect(L.terrain.cT.slice(0, 2).map((x) => x - sh)).toEqual([5580, 6030]);
-    expect(L.terrain.blocks[0] - sh).toBe(4880);
+    expect(L.terrain.blocks[0]).toBe(3950);
     expect(L.hudMarks[0] - sh).toBe(4480);
     // and the rest by the cumulative stretch before them: the rows stay contiguous to LEVEL
     expect([s1.x0, d.x0, d.x1]).toEqual([s0.x1, s1.x1, L.level]);
   });
 
-  it('carries geometry rev 2 and the long rows\' CP1 overrides, which short leaves unset', () => {
+  it('carries geometry rev 3 and the long rows\' CP1 overrides, which short leaves unset', () => {
     const S = LAYOUTS.short!;
     expect(layoutRev(S)).toBe(1);
-    expect(layoutRev(L)).toBe(2);
-    expect(L.stages.map((r) => r.cp1)).toEqual([3850, undefined, undefined, 2600]);
-    expect(S.stages.every((r) => r.cp1 == null && r.held == null)).toBe(true);
-    // CP1 lands on an empty screen: past the Orbit's mid breath (3300-3700), inside the Drive's pressure breath
+    expect(layoutRev(L)).toBe(3);
+    expect(L.stages.map((r) => r.cp1)).toEqual([3550, undefined, undefined, 2460]);
+    expect(S.stages.every((r) => r.cp1 == null && r.held == null && r.cps == null && r.sigs == null)).toBe(true);
+    // CP1 lands on an empty screen: in the Orbit's mid breath (3300-3700) past CREW KNOTS, inside the Drive's pressure
+    // breath; each is one of its row's checkpoints (cps, the rev 3 list: tests/unit/orbitdrive.test.ts)
     const [o, , , d] = L.stages, inPlan = (r: typeof o, x: number) => r.plan!.slots.some((s) => x >= s.x && x < s.x + 280) || r.plan!.fill.some((f) => x >= f.a && x < f.b);
-    expect(o.cp1!).toBeGreaterThan(3700);
+    expect(o.cps).toContain(o.cp1);
+    expect(d.cps).toContain(d.cp1);
+    expect(o.cp1!).toBeGreaterThan(3300);
+    expect(o.cp1!).toBeLessThan(3700);
+    expect(inPlan(o, o.cp1!)).toBe(false);
     expect(o.cp1!).toBeLessThan(o.warnX! - o.x0);
-    expect(d.cp1!).toBeGreaterThanOrEqual(2400);
+    expect(d.cp1!).toBeGreaterThanOrEqual(2420); // past THE STROKE's filler, inside the pressure breath
     expect(d.cp1!).toBeLessThan(2750);
     expect(inPlan(d, d.cp1!)).toBe(false);
   });
@@ -294,11 +301,11 @@ describe('long4 entry', () => {
     expect(warn - lastCell).toBeGreaterThanOrEqual(300);
   });
 
-  it('times each biome stage at ~6100 px from its gate scroll (~102 s of scroll) and sets gateLate past that gate', () => {
+  it('times biome slot A at 5500 px and slot B at 5000 px from the gate scroll (rev 3) and sets gateLate past that gate', () => {
     // gate scroll: the fork holds the scroll ~50 px past the Orbit Maw's bossX and ~200 px past a biome boss's
     const gateScroll = [L.stages[0].bossX + 50, biomeRows[0].bossX + 200];
     biomeRows.forEach((r, s) => {
-      expect(r.bossX - gateScroll[s]).toBe(3550 + 2550); // LS1's ~60 s + the D31 stretch, fitted (~102 s of scroll)
+      expect(r.bossX - gateScroll[s]).toBe(3550 + [1950, 1450][s]); // LS1's ~60 s + the rev 3 per-slot stretch (DIFFICULTY-SPEC §2.4)
       expect(r.gateLate).toBeGreaterThanOrEqual(gateScroll[s] + 480 + 10); // choose(): from = scroll + W + 10
       expect(r.breathAfterMid).toBeUndefined(); // short's legacy hack stays short's
     });
