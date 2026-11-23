@@ -248,8 +248,8 @@ describe('long4 entry', () => {
     expect(s0.x0).toBe(o.x1);
     expect(s0.gateLate! - sh).toBe(4750);
     // rev 3: the Orbit's hull is placed in the Orbit, not shifted with it (LVL §3.1, D-3: the floor at 3500)
-    expect(L.bands.hull).toEqual([3500, 3950]);
-    expect(L.terrain.fT.slice(0, 2)).toEqual([3500, 3950]);
+    expect(L.bands.hull).toEqual([3300, 3950]);
+    expect(L.terrain.fT.slice(0, 2)).toEqual([3300, 3950]);
     expect(L.terrain.cT.slice(0, 2).map((x) => x - sh)).toEqual([5580, 6030]);
     expect(L.terrain.blocks[0]).toBe(3950);
     expect(L.hudMarks[0] - sh).toBe(4480);

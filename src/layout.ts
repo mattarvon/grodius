@@ -140,6 +140,8 @@ export interface LayoutEntry {
   terrain: {
     fT: number[]; cT: number[]; kT: number[]; zT: number[]; blocks: [number, number];
     hT?: number[]; oT?: number[]; lift?: number; flap?: number; oClamp?: number; kD?: [number, number];
+    /** long4's hull run: over [x0, x1] every 360 px cell (not every other) carries a floor block `h` px tall */
+    hRun?: { x0: number; x1: number; h: number };
   };
   /** hell-flash weights, keyed to stage kinds: `corr` spans the last biome slot and the Drive approach, `core` the
    *  Drive chamber. In `short` they are exactly the AMT corr/core bands they replaced (neutral re-key) */
@@ -348,7 +350,7 @@ const LONG4: LayoutEntry = {
   // before the Drive's bossX
   bands: {
     // the hull band (render/terrain.ts hull decor, fx/update.ts's hull low-pass) arrives with the hull floor at 3500
-    hull: [3500, 3950],
+    hull: [3300, 3950],
     corr: [7850 + S1, 8350 + S1, 14050 + S3, 14450 + S3],
     core: [14050 + S3, 14500 + S3],
     space: [7650 + S1, 8250 + S1],
@@ -358,17 +360,23 @@ const LONG4: LayoutEntry = {
     // rev 3, Orbit (LVL §3.1, D-3 "hull from 3500"): the floor comes in over 3500-3950 (rev 2: 6730-7180) and the
     // hull blocks start at 3950 (rev 2: 7280). The ceiling's own band (cT) still starts in biome A, where the biome
     // rewrite covers it; the Orbit's only ceiling is the breach flap (oT)
-    fT: [3500, 3950, 14000 + S3, 14350 + S3], cT: [5580 + S0, 6030 + S0, 14000 + S3, 14350 + S3],
+    fT: [3300, 3950, 14000 + S3, 14350 + S3], cT: [5580 + S0, 6030 + S0, 14000 + S3, 14350 + S3],
     kT: [7900 + S1, 8350 + S1, 13900 + S3, 14250 + S3], zT: [14050 + S3, 14450 + S3], blocks: [3950, 7850 + S1],
     // the hull lift: the plating floor sits 36 px higher (mean floor y ~188, FH ~74%) from the hull's arrival. It falls
     // inside biome A's stretch (the slot-A rewrite owns that terrain from its gate), so neither the biomes nor the Drive
     // see it. D-5: kept under the Maw (fade over 6300-6550 only if the Maw's fit fails). space-probe L1
-    hT: [3500, 3950, 7850 + S1, 8350 + S1], lift: 36,
+    // [FIT] lift 36 -> 46: LVL's 36 measured an x >= 3700 median FH of 77-79% (space-probe seeds 1/3/5, band <= 72)
+    // the rise starts at 3300 (LVL 3500): over 650 px the 46 px lift keeps the climbing floor's slope <= .6 (S3)
+    hT: [3300, 3950, 7850 + S1, 8350 + S1], lift: 46,
+    // [FIT] the hull run's blocks: one every 360 px and 48 px tall (rev 2's every 720 px, 34 tall measured 0.4-1.3
+    // forced moves/min, band >= 4: L3). Never under the flap (world.ts), and off before the Maw's arena (D-5). L3 / M3
+    hRun: { x0: 3950, x1: 6450, h: 48 },
     // the breach (LVL §3.1): a ceiling flap comes down over 4900-5250 and goes back up over 5850-6200, `flap` px below
     // the base ceiling (mean ~52), over the lifted floor: FH median ~54% (136 px) for ~10 s at full, the column gap
     // clamped to 108 inside it (104 elsewhere), no hull block under it (world.ts). The ramps are 350 px, not LVL's 250,
     // so the flap's visible edge slopes <= .6 (S3; orbitdrive.test.ts). space-probe L1 / L2, route-probe minGap
-    oT: [4900, 5250, 5850, 6200], flap: 28, oClamp: 108,
+    // [FIT] full drop 5250-5950 (LVL ~10 s): the 600 px span measured an Orbit FH p10 of 61-63% (band <= 55)
+    oT: [4900, 5250, 5950, 6350], flap: 28, oClamp: 108,
     // the Drive approach deepened (LVL §6.1): the squeeze terms 24 / 28 -> 38 / 42, mean gap ~148 -> ~130 (~51%), the
     // 104 clamp kept. [FIT] LVL's 34 / 38 measured a terrain-only median of 54% (orbitdrive.test.ts), over L1's 52 even
     // before THE STROKE's pistons (which count in the probe's FH): +4 a side. space-probe L1 (approach median <= 52%,

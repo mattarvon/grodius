@@ -73,20 +73,21 @@ describe('terrain: short is untouched, long4 gets the hull, the breach and the d
     beforeEach(() => { setLayout('long4'); W.buildTerrain(Lp); });
     const xs = (a: number, b: number, d = 4) => Array.from({ length: Math.floor((b - a) / d) }, (_, i) => a + i * d);
 
-    it('leaves the opener, the Saucer and CREW KNOTS open (no terrain before 3500)', () => {
-      for (const x of xs(0, 3500)) expect(fh(x), `x ${x}`).toBe(1);
+    it('leaves the opener, the Saucer and CREW KNOTS open (no terrain before 3300)', () => {
+      for (const x of xs(0, 3300)) expect(fh(x), `x ${x}`).toBe(1);
     });
-    it('lifts the hull floor to ~188 (FH ~74%) from 3950, floor only until the breach', () => {
-      const fl = xs(3950, 4950).map((x) => W.floorAt(x)), f = xs(3950, 4950).map(fh);
-      expect(Math.abs(q(fl, .5) - 188)).toBeLessThan(12);
-      expect(q(f, .5)).toBeLessThan(.8);
+    it('lifts the hull floor to ~178 (FH ~70%) from 3950, floor only until the breach, with a 48 px block every 360 px', () => {
+      const fl = xs(3950, 4900).map((x) => W.floorAt(x)), f = xs(3950, 4900).map(fh);
+      expect(Math.abs(q(fl, .5) - 178)).toBeLessThan(12);
+      expect(q(f, .5)).toBeLessThan(.74);
+      for (const c of [4320, 4680]) expect(W.floorAt(c + 20), `block ${c}`).toBeLessThan(W.floorAt(c + 100) - 30);
       for (const x of xs(3950, 4950)) expect(W.ceilAt(x)).toBeLessThan(0);
     });
     it('drops the breach flap to a median FH near 54% over its full span, every column >= 108 px', () => {
-      const f = xs(5250, 5850).map(fh);
-      expect(q(f, .5)).toBeGreaterThan(.46);
+      const f = xs(5250, 5950).map(fh);
+      expect(q(f, .5)).toBeGreaterThan(.42);
       expect(q(f, .5)).toBeLessThan(.62);
-      for (const x of xs(4900, 6200)) if (W.ceilAt(x) > -60) expect(W.floorAt(x) - W.ceilAt(x), `x ${x}`).toBeGreaterThanOrEqual(107.999);
+      for (const x of xs(4900, 6350)) if (W.ceilAt(x) > -60) expect(W.floorAt(x) - W.ceilAt(x), `x ${x}`).toBeGreaterThanOrEqual(107.999);
     });
     it('keeps the Orbit swept fit gap >= 100 everywhere (it has no exception window: LVL §3.1, S1)', () => {
       for (const x of xs(3400, 7000, 8)) expect(fit(x), `x ${x}`).toBeGreaterThanOrEqual(100);
@@ -95,7 +96,7 @@ describe('terrain: short is untouched, long4 gets the hull, the breach and the d
     // weave, so their columns are left out. Edges are read where they are on screen (0..254)
     it('keeps every forced lane change gentle: the on-screen floor and flap slope <= .6 over any 60 px (S3)', () => {
       // a block column (world.ts: odd 360 px cells, the first 44 px), with one 4 px sample of slack for the lerp
-      const blockAt = (x: number) => Math.floor(x / 360) % 2 === 1 && x % 360 < 48;
+      const blockAt = (x: number) => x % 360 < 48 && (Math.floor(x / 360) % 2 === 1 || (x > 3940 && x < 6460));
       for (const x of xs(3400, 6400, 8)) {
         if (blockAt(x) || blockAt(x + 60)) continue;
         const f0 = Math.min(PH, W.floorAt(x)), f1 = Math.min(PH, W.floorAt(x + 60));

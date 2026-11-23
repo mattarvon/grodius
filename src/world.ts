@@ -86,7 +86,9 @@ export function buildTerrain(L) {
       bx = x % 360;
     // no hull block under the breach flap (oT > 0): a 34 px step on top of the flap's squeeze would cut the swept fit
     // gap under S1's 100 (short has no oT: unchanged)
-    if (blk % 2 === 1 && bx < 44 && x > T.blocks[0] && x < T.blocks[1] && oT < .01) {
+    const hr = T.hRun && x > T.hRun.x0 && x < T.hRun.x1 && oT < .01 && fT > .99; // long4's dense hull run (layout hRun)
+    if (hr && bx < 44) fl -= T.hRun.h;
+    else if (blk % 2 === 1 && bx < 44 && x > T.blocks[0] && x < T.blocks[1] && oT < .01) {
       // long4's Orbit hull run has no ceiling (cT = oT = 0), where a ceiling block would vanish under the -70 lerp: every
       // block there sits on the floor, so the run keeps one every 720 px (art-director review). short: unchanged
       if (hash(blk + L) < .5 || (T.hT && Math.max(cT, oT) < .01)) fl -= 34;else ce += 34;
