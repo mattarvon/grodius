@@ -638,7 +638,23 @@ export function spawnHazardAt(k, x, o: { up?: boolean; aim?: boolean; shootable?
   return h;
 }
 
+/** a boss's own hazard drop (W4b's request: THE BLOAT's icicle curtain, boss/bossfights.ts crux3): an icicle at screen x
+ *  under the ceiling, marked as an aimed one (h.aim: the hatched column band over its 50 f hang). Shootable (h.shoot:
+ *  encounters.md's curtain is "shootable", and W4b measured it so), unlike long4's random icicles. No R() */
+export function dropHazard(k, x) {
+  if (k !== 'icicle' || !$.G) return;
+  const c = Math.max(0, ceilAt(x + $.G.scroll)); // an open sky drops it from the top edge
+  haz.push({ k, x, y: c + 2, t: 0, vy: 0, len: 14, aim: 1, shoot: 1 });
+}
+// W4b's src/boss/bossrules.ts HAZ_HOOK, registered without a hard import so this branch builds before W4b lands (an eager
+// glob of a missing file is {}). Wired on the first stepBiome, after every module has evaluated (no import-order cycle)
+const BOSS_RULES = import.meta.glob('./boss/bossrules.ts', { eager: true }) as Record<string, { HAZ_HOOK?: { drop?: unknown } }>;
+let hazHooked = false;
+/** hand dropHazard to W4b's HAZ_HOOK (idempotent; stepBiome calls it once, tests may call it) */
+export function hookHazards() { hazHooked = true; for (const m of Object.values(BOSS_RULES)) if (m && m.HAZ_HOOK) m.HAZ_HOOK.drop = dropHazard; }
+
 export function stepBiome() {
+  if (!hazHooked) hookHazards();
   const G = $.G;
   if (!G || !G.route) return;
   const sc = G.scroll, [b, k] = biomeK(sc + W / 2);

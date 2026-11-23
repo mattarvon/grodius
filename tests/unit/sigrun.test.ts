@@ -135,3 +135,15 @@ describe('the runs', () => {
     finally { L.setLayout('long4'); }
   });
 });
+
+describe('W4b hook', () => {
+  it('dropHazard hangs a marked, shootable icicle under the ceiling at screen x; other kinds are ignored', () => {
+    flat(); freshG();
+    const H = (globalThis as any).__biome().haz, n = H.length;
+    BI.dropHazard('icicle', 200);
+    BI.dropHazard('jet', 200);
+    expect(H.length).toBe(n + 1);
+    expect(H[n]).toMatchObject({ k: 'icicle', x: 200, y: 32, aim: 1, shoot: 1 });
+    expect(() => BI.hookHazards()).not.toThrow(); // no bossrules.ts on this base: a no-op
+  });
+});
