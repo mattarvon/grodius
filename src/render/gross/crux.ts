@@ -10,10 +10,10 @@ import { srr, srnd } from '../../srnd';
 import { glowC, fxs, spray, stepParts, drawParts, strand, snd, emit, rnd, rn, GROSS } from './midbosses';
 import { bakedBuilt, bakedDrop, bakedFallback, bakedWarm, bf, pour, trackDeath, twitch } from './baked';
 
-import { bru } from '../../tier'; // the retired BRUTAL dial's neutral shim (W4 deletes the call)
+import { BLOAT } from '../../boss/bossrules';
 const K = 'crux';
 // the sim's attack timers (enemies/spawn.ts every()): the same period, read here so each tell leads its volley honestly
-const per = (n) => Math.max(18, Math.round(n * (1 - .4 * Math.min(2.0, ($.G && $.G.pow) || 0)) * bru('cool'))); // D63: the BRUTAL dial, as every()
+const per = (n) => Math.max(18, Math.round(n * (1 - .4 * Math.min(2.0, ($.G && $.G.pow) || 0)))); // short's every() (the BRUTAL dial's cool is gone: x1)
 const until = (e, n) => { const N = per(n); return (N - (e.t % N)) % N; }; // 0 on the frame it fires
 const since = (e, n) => e.t % per(n);
 const armed = (e) => e.t > 140 && !e.gone && $.P && $.P.alive;
@@ -80,8 +80,19 @@ export function drawCrux(c, e) {
     snd('gicecrack', .8, .4);
   }
   // ---- which frame: the sim has no attack states, so the tells read its timers ----
-  tells.fan = tells.ring = tells.glob = tells.fanR = tells.ringR = 0;
-  if (armed(e)) {
+  tells.fan = tells.ring = tells.glob = tells.fanR = tells.ringR = tells.comb = 0;
+  if (armed(e) && e.tc != null) { // long4 (boss/bossfights.ts crux3): the sim's own countdowns lead each tell
+    const C = BLOAT.comb;
+    if (e.shielded) {
+      if (e.cs) tells.comb = 1; else if (e.tc > 0 && e.tc <= C.tell) tells.comb = 1 - (e.tc - 1) / C.tell;
+      if (e.ta > 0 && e.ta <= 24) tells.fan = 1 - (e.ta - 1) / 24;
+      if (e.fa != null && e.t - e.fa < 8) tells.fanR = 1;
+    } else {
+      if (e.tr > 0 && e.tr <= 30) tells.ring = 1 - (e.tr - 1) / 30;
+      if (e.fr != null && e.t - e.fr < 10) tells.ringR = 1;
+      if (w === 2 && e.tg > 0 && e.tg <= 24) tells.glob = 1 - (e.tg - 1) / 24;
+    }
+  } else if (armed(e)) {
     const uf = until(e, 85), ur = until(e, 160);
     if (uf > 0 && uf <= 24) tells.fan = 1 - (uf - 1) / 24;
     if (since(e, 85) < 8) tells.fanR = 1;
@@ -92,8 +103,8 @@ export function drawCrux(c, e) {
   if (!bf(c, K, 'stake')) { bakedFallback(c, e.r); return; }
   let ok;
   if (e.flash && !e.shielded) ok = bf(c, K, 'hurt' + w, e.flash > 1 ? 0 : 1);
-  else if (tells.fanR) ok = bf(c, K, 'fanr' + w, since(e, 85) < 3 ? 0 : 1);
-  else if (tells.ringR) ok = bf(c, K, 'ringr' + w, since(e, 160) < 4 ? 0 : 1);
+  else if (tells.fanR) ok = bf(c, K, 'fanr' + w, (e.fa != null ? e.t - e.fa : since(e, 85)) < 3 ? 0 : 1);
+  else if (tells.ringR) ok = bf(c, K, 'ringr' + w, (e.fr != null ? e.t - e.fr : since(e, 160)) < 4 ? 0 : 1);
   else if (tells.fan) ok = bf(c, K, 'fan' + w, Math.min(2, tells.fan * 3 | 0));
   else if (tells.ring) ok = bf(c, K, 'ring' + w, Math.min(2, tells.ring * 3 | 0));
   else if (tells.glob) ok = bf(c, K, 'glob2', twitch(t, 2, 4, 9));
@@ -105,9 +116,9 @@ export function drawCrux(c, e) {
   for (let i = 0; i < HEM.length; i++) { const h = HEM[i]; strand(c, s, e, 80 + i, h[0], h[1], h[2], 1, 'rgba(48,6,12,.92)', h[3], '#5a0a12', .8); }
   for (let i = 0; i < w * 2 + (w > 1 ? 1 : 0) && i < CAV.length; i++) { const h = CAV[i]; strand(c, s, e, 90 + i, h[0], h[1], h[2] * (w > 1 ? 1.4 : 1), 1.2, 'rgba(110,8,16,.95)', h[3] * (w > 1 ? .7 : 1), '#8a0c14', .5); }
   if (e.flash > 1 && rnd() < .6 * GROSS) emit(s, e.x + rn(-10, 8), e.y + rn(-14, 16), rn(-1.8, .6), rn(-1.8, .2), rnd() < .6 ? '#7a0a12' : '#2a0408', rn(.8, 1.6), 0, 70);
-  if (tells.fanR && since(e, 85) === 0) spray(s, e.x + FAN[0], e.y + FAN[1], 9, '#8a1018', 2, 1.1, .2);
-  if (tells.ringR && since(e, 160) === 0) { spray(s, e.x + RL[0], e.y + RL[1], 8, '#7a0a12', 1.6, 1.1, .3); spray(s, e.x + RR[0], e.y + RR[1], 8, '#7a0a12', 1.6, 1.1, .3); }
-  if (w === 2 && e.t % 8 === 0 && armed(e) && rnd() < .5) emit(s, e.x + HEART[0] + rn(-3, 3), e.y + HEART[1] + rn(-2, 2), rn(-1, 1), rn(-1.2, .2), '#a8141c', rn(.7, 1.1), 0, 40);
+  if (tells.fanR && (e.fa != null ? e.t === e.fa : since(e, 85) === 0)) spray(s, e.x + FAN[0], e.y + FAN[1], 9, '#8a1018', 2, 1.1, .2);
+  if (tells.ringR && (e.fr != null ? e.t === e.fr : since(e, 160) === 0)) { spray(s, e.x + RL[0], e.y + RL[1], 8, '#7a0a12', 1.6, 1.1, .3); spray(s, e.x + RR[0], e.y + RR[1], 8, '#7a0a12', 1.6, 1.1, .3); }
+  if (w === 2 && e.t % 8 === 0 && armed(e) && e.tc == null && rnd() < .5) emit(s, e.x + HEART[0] + rn(-3, 3), e.y + HEART[1] + rn(-2, 2), rn(-1, 1), rn(-1.2, .2), '#a8141c', rn(.7, 1.1), 0, 40);
   if (tells.glob > .5 && rnd() < .4) emit(s, e.x + NECK[0] + rn(-2, 2), e.y + NECK[1], rn(-.6, .6), rn(-1.6, -.6), '#6a0a12', rn(.7, 1.2), 0, 40);
   drawParts(c, s, e);
   // ---- light: the crop glowing through the skin, the heart once bared, and every tell at its source ----
@@ -117,7 +128,11 @@ export function drawCrux(c, e) {
   if (tells.fan) glowC(c, FAN[0], FAN[1], 5 + tells.fan * 11, '255,46,30', .12 + .5 * tells.fan + fl);
   if (tells.ring) { const a = .1 + .45 * tells.ring + fl; glowC(c, RL[0], RL[1], 4 + tells.ring * 10, '255,46,30', a); glowC(c, RR[0], RR[1], 4 + tells.ring * 9, '255,46,30', a); }
   if (tells.glob) glowC(c, NECK[0], NECK[1], 4 + tells.glob * 9, '255,60,40', .1 + .45 * tells.glob + fl);
-  if (w === 2 && e.t % 8 < 3 && armed(e)) glowC(c, HEART[0], HEART[1], 9, '255,90,70', .25);
+  if (tells.comb) { // the nail comb: frost-white heat at each lane's emitter, the outer nail tips, for its 30 f tell and the stream
+    const C = BLOAT.comb, a = .12 + .55 * tells.comb + fl, r = 3 + tells.comb * 8;
+    for (const dy of e.cs && e.cl ? e.cl : e.cln || C.lanes) glowC(c, C.x, dy, r, '200,230,255', a);
+  }
+  if (w === 2 && e.t % 8 < 3 && armed(e) && e.tc == null) glowC(c, HEART[0], HEART[1], 9, '255,90,70', .25);
   c.globalCompositeOperation = 'source-over';
 }
 

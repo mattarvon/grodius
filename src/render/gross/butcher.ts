@@ -1,6 +1,9 @@
 // @ts-nocheck
 // Render-only: own RNG and particles (./midbosses.ts), no gameplay state touched. Sim: enemies/update.ts 'butcher', spawn.ts butcher().
 import { TAU, hash } from '../../core';
+import { $ } from '../../state';
+import { ceilAt, floorAt } from '../../world';
+import { BUTCHER } from '../../boss/bossrules';
 import { glowC, fxs, spray, stepParts, drawParts, strand, snd, emit, rnd, rn, GROSS } from './midbosses';
 import { bakedBuilt, bakedDrop, bakedFallback, bakedWarm, bf, pour, trackDeath, woundStage } from './baked';
 
@@ -86,6 +89,27 @@ export function drawButcher(c, e) {
   if (e.st === 'spit') glowC(c, -6, -36, 7 + (e.wt < 34 ? 6 : 0), '255,120,40', e.wt < 34 ? .5 : .15);
   if (e.st === 'htel') glowC(c, 10, -8, 5 + 6 * e.wt / 40, '255,40,30', .2 + .4 * e.wt / 40 * (((t >> 2) & 1) ? 1 : .6));
   c.globalCompositeOperation = 'source-over';
+  if (e.mc != null && e.mc >= 0 && e.mc < BUTCHER.meat.tell) meatTell(c, e);
+}
+/** the meat hooks' 50 f tell (long4, boss/bossfights.ts meat3): at each of the three columns a stub of chain rattles at
+ *  the ceiling and a dashed line drops to where the hook will hang, solid for its last 16 f. Boss-local coordinates */
+const DASH = [4, 4], NODASH = [];
+function meatTell(c, e) {
+  const M = BUTCHER.meat, u = e.mc / M.tell, sc = ($.G && $.G.scroll) || 0;
+  for (let i = 0; i < M.xs.length; i++) {
+    const x = M.xs[i], wx = x + sc, top = Math.max(-10, ceilAt(wx)), len = Math.min(M.lenMax, Math.max(30, (floorAt(wx) - top) * M.lenK[i]));
+    const jx = (hash(e.t * 1.3 + i * 7) - .5) * 3, lx = x - e.x + jx, ty = top - e.y;
+    c.strokeStyle = 'rgba(150,140,130,.9)'; // the chain stub, shaking in its eye-bolt
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(x - e.x, ty); c.lineTo(lx, ty + 6 + 8 * u); c.stroke();
+    const solid = e.mc > M.tell - M.lock;
+    c.strokeStyle = solid ? `rgba(255,190,150,${.35 + .35 * ((e.t >> 1) & 1)})` : `rgba(255,90,40,${.15 + .3 * u})`;
+    c.lineWidth = 1;
+    c.setLineDash(solid ? NODASH : DASH);
+    c.beginPath(); c.moveTo(x - e.x, ty + 6); c.lineTo(x - e.x, ty + len); c.stroke();
+    c.beginPath(); c.arc(x - e.x, ty, len, Math.PI / 2 - .55 * M.sw, Math.PI / 2 + .55 * M.sw); c.stroke(); // the swing it will sweep
+    c.setLineDash(NODASH);
+  }
 }
 
 /** start the atlas download for the per-route warm-up (render/warmup.ts); false: nothing left to build */
