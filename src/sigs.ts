@@ -57,7 +57,9 @@ export const SPACE = {
 export const SOLID_KILLS = true;
 
 // ---------------- the resting walls (levels.md §5.0) ----------------
-/** px per side shape() moves each wall in, by biome, [slot A, slot B], applied before shape()'s 108 px clamp.
+/** px per side each wall moves in, by biome, [slot A, slot B]. biomes.ts rewriteTerrain applies it after movement B and
+ *  caps it column by column so the swept fit gap stays >= 108 (levels.md §5.0 put it inside shape() before the clamp;
+ *  done literally, the fit fell to 87 beside fire's spires, under S1).
  *  Sized from the audit's measured median free height to the slot targets (A <= 65%, B <= 56%: space-probe L1) */
 export const INSET: Readonly<Record<string, readonly [number, number]>> = {
   ice: [20, 32], //  measured 80-82% -> ~65% / ~56%
@@ -148,8 +150,6 @@ export const tideLen = (v: number) => { const V = TIDE.vars[v]; return TIDE.tell
  *  a grill column burns until it has passed the ship (live = lead - warm + after) */
 export const GRILL = {
   warm: 60, lead: 170, after: 40, reach: .55,
-  /** a column whose warm-up would start within this of the ship's x is skipped (spawnHazard's own rule) */
-  skipNear: 46,
   /** world px between two variations' combs */
   gap: 60,
   /** pat: alt = ceiling / floor alternating; pair = two ceiling, two floor. cross: a second jet from the opposite wall

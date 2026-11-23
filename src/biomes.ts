@@ -232,14 +232,20 @@ function rewriteTerrain(seg, b, from, mv = null, mids = null) {
   const n = i1 - i0 + 1, C0 = new Float32Array(n), F0 = new Float32Array(n), fit = new Float32Array(n), R = INSET_FIT.reach / TS | 0;
   for (let i = i0; i <= i1; i++) { const [ce, fl] = edges(i); C0[i - i0] = ce; F0[i - i0] = fl; }
   for (let j = 0; j < n; j++) { let c = -1e9, f = 1e9; for (let q = Math.max(0, j - 3); q <= Math.min(n - 1, j + 3); q++) { c = Math.max(c, C0[q]); f = Math.min(f, F0[q]); } fit[j] = f - c; } // the swept span [-9, +12] px, a column either side
+  const ins = new Float32Array(n); // the capped inset per column
   for (let j = 0; j < n; j++) {
     let m = 1e9; for (let q = Math.max(0, j - R); q <= Math.min(n - 1, j + R); q++) m = Math.min(m, fit[q]);
-    const x = (i0 + j) * TS, want = near ? ins0 * (1 - (1 - INSET_MID.k) * near(x)) : ins0, ins = Math.max(0, Math.min(want, (m - INSET_FIT.keep) / 2));
-    write(i0 + j, C0[j] + ins, F0[j] - ins);
+    const x = (i0 + j) * TS, want = near ? ins0 * (1 - (1 - INSET_MID.k) * near(x)) : ins0;
+    ins[j] = Math.max(0, Math.min(want, (m - INSET_FIT.keep) / 2));
   }
+  // the cap changes fast where a needle enters the window: limit it to INSET_FIT.slope px a column both ways, only ever
+  // lowering it (a smaller inset never narrows the fit), so it adds no tile-to-tile cliff (terrainb.test.ts)
+  for (let j = 1; j < n; j++) ins[j] = Math.min(ins[j], ins[j - 1] + INSET_FIT.slope);
+  for (let j = n - 2; j >= 0; j--) ins[j] = Math.min(ins[j], ins[j + 1] + INSET_FIT.slope);
+  for (let j = 0; j < n; j++) write(i0 + j, C0[j] + ins[j], F0[j] - ins[j]);
 }
 /** the inset's swept-fit guard (route-probe S1 is 100): keep >= `keep` px, reading the un-inset fit within `reach` px */
-const INSET_FIT = { keep: 108, reach: 24 };
+const INSET_FIT = { keep: 108, reach: 24, slope: 1 };
 /** the last biome stage (slot `slot`) cleared: the biome's look and hazards hand back to the ship (the Gravity Drive
  *  approach) from just off-screen. G.bx[slot + 1] is where that biome ends */
 export function biomeExit(slot) {
@@ -494,7 +500,7 @@ export function stageMids(i, b, seg = null) {
   const G = midState();
   if (!G.mb[i]) {
     // THE KEEPSAKE's Descent 1 stage flies midboss A only (midpick.ts midsWanted, DIFFICULTY-SPEC C24)
-    const n = seg != null ? midsWanted(bossFor(seg, G.loop || 0, !!layout().picker), G.loop || 0) : 2;
+    const n = seg != null && isL4() ? midsWanted(bossFor(seg, G.loop || 0, !!layout().picker), G.loop || 0) : 2;
     const picks = pickBiomeMids(G, b, G.loop, midStream(i), $.meta && $.meta.mb, false, midsWip(), n).picks, f = midForce();
     G.mb[i] = f ? forceSlotA(picks, f) : picks; // ?mid=<wip kind>: the test path (lab.ts forcedMid); the draw is made either way
   }
@@ -685,7 +691,7 @@ export function stepBiome() {
     if (h.k === 'icicle') {
       if (h.t > 50) { h.vy += .22; h.y += h.vy; }
       const wx = h.x + sc;
-      if (h.y + h.len > floorAt(wx)) { dead = true; for (let q = 0; q < 10; q++) spark(h.x, floorAt(wx) - 2, rr(-2, 2), -rr(.5, 2.5), ri(10, 20), q % 2 ? '#e8f6ff' : '#9fd8ff'); sfx.tink(); }
+      if (h.y + h.len > floorAt(wx)) { dead = true; if (L4) { for (let q = 0; q < 10; q++) spark(h.x, floorAt(wx) - 2, srr(-2, 2), -srr(.5, 2.5), 10 + (q * 7) % 11, q % 2 ? '#e8f6ff' : '#9fd8ff'); } else for (let q = 0; q < 10; q++) spark(h.x, floorAt(wx) - 2, rr(-2, 2), -rr(.5, 2.5), ri(10, 20), q % 2 ? '#e8f6ff' : '#9fd8ff'); sfx.tink(); } // long4: a landing icicle's sparks draw srr (they land far more often now: no sim R() for fx)
       if (P && P.alive && Math.abs(P.x - h.x) < 5 && P.y > h.y && P.y < h.y + h.len + 4) { G.hazHit = 1; dead = true; }
     } else if (h.k === 'geyser' || h.k === 'jet') {
       const warm = h.k === 'geyser' ? 70 : 60, live = h.live || (h.k === 'geyser' ? 45 : 70); // h.live: a grill column burns until it has passed the ship
@@ -822,7 +828,7 @@ function stepBlocks() {
   for (let i = ENG.blocks.length - 1; i >= 0; i--) {
     const k = ENG.blocks[i];
     k.t++;
-    if (k.st === 'tell') { if (k.t >= k.tell) { k.st = 'fly'; sample('gicecrack', { vol: .35, rate: 1.3 }); } continue; }
+    if (k.st === 'tell') { if (k.t >= k.tell) { k.st = 'fly'; crack({ vol: .35, rate: 1.3 }); } continue; }
     if (k.st === 'fly') {
       k.x -= M.vx;
       if (k.x <= k.xStop) { k.st = 'turn'; const cx = k.x + M.w / 2 + sc; k.dir = k.y - ceilAt(cx) < floorAt(cx) - k.y ? -1 : 1; }
@@ -850,14 +856,17 @@ function lodge(k, yc) {
   const i0 = Math.max(0, Math.floor(wx / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil((wx + M.w) / TS));
   for (let i = i0; i <= i1; i++) { if (up) CEIL[i] = Math.max(CEIL[i], e); else FLOOR[i] = Math.min(FLOOR[i], e); }
   ENG.lodged.push({ sig: k.sig, wx, y: yc });
-  sample('gicecrack', { vol: .6, rate: .9 }) || sfx.tink();
+  crack({ vol: .6, rate: .9 }) || sfx.tink();
   for (let q = 0; q < 8; q++) spark(k.x + srr(0, M.w), e, srr(-1.5, 1.5), up ? srr(.2, 1.5) : -srr(.2, 1.5), 14, q % 2 ? '#e8f6ff' : '#9fd8ff');
 }
+/** the ice crack sample, at most once every 12 frames (a v3 rush releases a block every 45 f, each cracking 2-3 times) */
+let crackT = -99;
+function crack(o) { const t = $.G ? $.G.t : 0; if (t - crackT < 12) return true; crackT = t; return sample('gicecrack', o); }
 function shatter(k) {
   const M = MORGUE, cx = k.x + M.w / 2;
   for (let q = 0; q < 12; q++) spark(cx + srr(-8, 8), k.y + srr(-5, 5), srr(-2.5, 2.5), srr(-2.5, 1.5), 16, q % 3 ? '#e8f6ff' : '#9fd8ff');
   gore(cx, k.y, .4); // the crewman inside comes apart too
-  sample('gicecrack', { vol: .8, rate: 1.1 }) || sfx.tink();
+  crack({ vol: .8, rate: 1.1 }) || sfx.tink();
 }
 /** the plugs: grow in from both walls over `tell` f, take the ship's fire a cell a shot, regrow a cut cell `regrow` f
  *  later (never within SPACE.regrowMin of the ship), and are written into the terrain every frame */
@@ -867,10 +876,11 @@ function stepPlugs() {
     const x = p.wx - G.scroll;
     p.t++;
     const reach = Math.ceil(p.n / 2 * Math.min(1, p.t / p.tell));
-    for (let j = 0; j < p.n; j++) { const c = p.cells[j]; if (!c.g && Math.min(j, p.n - 1 - j) < reach) { c.g = true; c.on = true; } }
+    const far = (j) => !P || (P.x - x - p.cell / 2) ** 2 + (P.y - p.yTop - (j + .5) * p.cell) ** 2 >= SPACE.regrowMin ** 2; // S5: a cell never forms on the ship (it waits)
+    for (let j = 0; j < p.n; j++) { const c = p.cells[j]; if (!c.g && Math.min(j, p.n - 1 - j) < reach && far(j)) { c.g = true; c.on = true; } }
     for (let j = 0; j < p.n; j++) {
       const c = p.cells[j];
-      if (c.g && !c.on && p.t - c.cut >= p.regrow && (!P || (P.x - x - p.cell / 2) ** 2 + (P.y - p.yTop - (j + .5) * p.cell) ** 2 >= SPACE.regrowMin ** 2)) c.on = true;
+      if (c.g && !c.on && p.t - c.cut >= p.regrow && far(j)) c.on = true;
     }
     for (let k = shots.length - 1; k >= 0; k--) { // 1 hp a cell: a ship-sized hole is 3 bolts (S6)
       const s = shots[k], tip = s.k === 'laser' ? s.x + (s.len || 0) : s.x;
@@ -914,13 +924,13 @@ const rhoNow = () => { const G = $.G; return G && G.tier != null && Number.isFin
 /** a signature variation is running that pauses the random hazard timer (HIGH TIDE v3 keeps its geysers) */
 const sigPause = () => SG.runs.some((r) => r.on && !r.done && !(r.k === 'high_tide' && 'geysers' in TIDE.vars[r.v]));
 /** biome slot seg's signature plan, or null: long4, movement B0 (a first visit in Descent 1), inside its band. It runs
- *  from the band's start (midboss A's breath end) to the next midboss WARNING - 40, or 150 px into breath 2 when that
+ *  from the band's start (midboss A's breath end) to the next midboss WARNING - 40, or to breath 2's end when that
  *  breath holds no midboss (THE KEEPSAKE stage) */
 function sigPlanOf(seg, b, from, v, mv, mids) {
   if (!isL4() || mv !== 0 || !layout().beats.moveB) return null;
   const BP = beatPlan(slotRow(seg), from, !!v), M = BP.moveB;
   if (!M || BP.breaths.length < 2) return null;
-  const lim = mids && mids.length > 1 && BP.warns[1] != null ? BP.warns[1] - 40 : BP.breaths[1].a + 150;
+  const lim = mids && mids.length > 1 && BP.warns[1] != null ? BP.warns[1] - 40 : BP.breaths[1].z; // no midboss B: the signature may run through breath 2 (level-design review: the grill was cut ~40%)
   return planSig(b, seg, M.a, lim);
 }
 /** the two B0 narrows inside a swallow window (where v3's plugs grow), world x of each narrowest column */
@@ -980,7 +990,7 @@ const SIGSTEP = {
       const x = c.wx - G.scroll;
       if (!P || x - P.x > GRILL.lead || x > W - 6) continue;
       c.on = true; lit++;
-      if (Math.abs(x - P.x) < GRILL.skipNear) continue; // the ship is on it: this column sits the comb out (spawnHazard's rule)
+      if (Math.abs(x - P.x) < SPACE.noSpawn) continue; // the ship is on it: this column sits the comb out (spawnHazard's rule)
       const h = spawnHazardAt('jet', x, { up: c.up, live: GRILL.lead - GRILL.warm + GRILL.after });
       if (h) { h.grill = 1; h.run = r; }
     }
@@ -998,6 +1008,8 @@ const SIGSTEP = {
       if ('plug' in V) { womb(); r.plugs = plugNarrows(X).map((nx) => ({ nx, on: false })); }
     }
     const u = r.t - SWALLOW.tell, Q = SWALLOW.plug;
+    // S5: a plug grows only while its narrow is still >= SPACE.noSpawn ahead of the ship; one the ship reaches first is retired
+    if (r.plugs) for (const p of r.plugs) if (!p.on && $.P && p.nx - G.scroll - $.P.x < SPACE.noSpawn) p.on = true;
     if (r.plugs) for (const p of r.plugs) if (!p.on && p.nx - G.scroll < W - 20 && u > 0 && (u + Q.grow) % V.T === V.T / 2) {
       p.on = true;
       ENG.spawnPlug({ wx: p.nx, tell: Q.grow, fit: X.floor, hp: Q.hp, cell: Q.cell, regrow: Q.regrow, sig: r.sig });
@@ -1052,18 +1064,22 @@ function drawSigs() {
 }
 /** a frozen crewman in a block of ice, left edge x, centre y (screen) */
 function drawBlock(x, y) {
+  // art-director review: it must read as solid ice in front of the vault's background coffins (S7), so it gets a dark
+  // contact shadow, a solid rim and a pale, skin-toned body (the background figures' tone), not a dark smear
   const M = MORGUE, t = y - M.h / 2;
-  ctx.fillStyle = '#3a0c14'; ctx.fillRect(x + 4, y - 2, 11, 4); // the body, laid in the ice, mid-scream
+  ctx.fillStyle = 'rgba(0,6,16,.55)'; ctx.fillRect(x + 2, t + 2, M.w, M.h); // contact shadow
+  ctx.fillStyle = '#5d8fb8'; ctx.fillRect(x, t, M.w, M.h); // the ice, opaque
+  ctx.fillStyle = '#d9a99a'; ctx.fillRect(x + 4, y - 2, 11, 4); // the body, laid in the ice, mid-scream
   ctx.beginPath(); ctx.arc(x + 17, y - .5, 2.7, 0, TAU); ctx.fill();
   ctx.fillRect(x + 1.5, y - 3.5, 3, 1.4); ctx.fillRect(x + 1.5, y + 2, 3, 1.4); // feet
   ctx.fillRect(x + 9, y - 5, 1.4, 3); ctx.fillRect(x + 12, y + 2, 1.4, 3); // arms pressed to the ice
-  ctx.fillStyle = '#7a1222'; ctx.fillRect(x + 8, y - 1, 4, 2); ctx.fillRect(x + 18, y - 1, 1, 1); // a wound, the open mouth
-  ctx.fillStyle = 'rgba(160,215,255,.42)'; ctx.fillRect(x, t, M.w, M.h);
-  ctx.fillStyle = 'rgba(235,250,255,.75)'; ctx.fillRect(x + 2, t + 1.5, 7, 1); ctx.fillRect(x + M.w - 4, t + 3, 1, 5);
-  ctx.strokeStyle = 'rgba(230,248,255,.9)'; ctx.lineWidth = 1; ctx.strokeRect(x + .5, t + .5, M.w - 1, M.h - 1);
+  ctx.fillStyle = '#7a1222'; ctx.fillRect(x + 8, y - 1, 4, 2); ctx.fillStyle = '#2a0408'; ctx.fillRect(x + 18, y - 1, 1.5, 1.5); // a wound, the open mouth
+  ctx.fillStyle = 'rgba(170,220,255,.35)'; ctx.fillRect(x, t, M.w, M.h); // frost over it
+  ctx.fillStyle = 'rgba(240,252,255,.9)'; ctx.fillRect(x + 2, t + 1.5, 7, 1); ctx.fillRect(x + M.w - 4, t + 3, 1, 5);
+  ctx.strokeStyle = '#eef9ff'; ctx.lineWidth = 1.5; ctx.strokeRect(x + .75, t + .75, M.w - 1.5, M.h - 1.5);
 }
 /** test hook (tests/unit/sigs.test.ts, tools): the live signature runs and the adapter's engine state */
-export const sigRuns = () => ({ runs: SG.runs, eng: ENG });
+export const sigRuns = () => ({ runs: SG.runs, eng: ENG, pause: sigPause });
 
 // ---------------- drawing (art lives in render/biomeart.ts) ----------------
 export function drawBiomeFX() { drawFX(haz, amb, gatePos); if (isL4()) drawSigs(); }
