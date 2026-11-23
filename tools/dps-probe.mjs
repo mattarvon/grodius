@@ -42,27 +42,30 @@ const L = [
   ['MAX ARC+PYRE2', { laser: 1, pyre: 2, options: 3, speed: 4 }, { cal: 3, serr: 2, rapid: 2 }],
 ];
 const res = await p.evaluate(async ([L, FR]) => {
+  // W6: the ONE lane is the middle of the open corridor over x 100-260 (long4 rev 3's terrain at this x rises past y 127 at the
+  // ship, which ate every bolt at the muzzle and read ONE 0)
+  const yOne = (sc) => { let c = -1e9, f = 1e9; for (let x = 100; x <= 260; x += 4) { c = Math.max(c, W.ceilAt(x + sc)); f = Math.min(f, W.floorAt(x + sc)); } return Math.round((Math.max(c, 0) + Math.min(f, 254)) / 2); };
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const $ = S.$;
   const IN = await import('/src/input.ts'); $.gate = false; IN.K.KeyZ = true;
   const out = [];
   for (const [name, pw, gm] of L) {
     F.newGame(0); $.state = 'play';
-    for (let i = 0; i < 30; i++) ST.step();
+    for (let i = 0; i < 30; i++) ST.step(); $.G.script = []; $.G.si = 0; $.G.pend = []; // W6: an empty stage (the long4 jump x now lands in a scripted Maw that ate the ONE lane)
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw);
     $.G.gm = { ...(gm || {}) };
     const sc = __LY.slotRow(0).x0 + 700, fl = (x) => W.floorAt(x + sc);
     const r = {};
     for (const set of ['WALL', 'ONE']) {
       W.shots.length = 0; W.enemies.length = 0; $.P.hist.length = 0;
-      const pos = set === 'ONE' ? [[250, 127]] : [[190, 40], [230, 95], [210, 160], [270, 60], [300, 130], [280, 190], [350, 30], [370, 100], [340, 165], [420, 70], [440, 140], [410, 200], [250, fl(250) - 9], [390, fl(390) - 9]];
+      const pos = set === 'ONE' ? [[250, yOne(sc)]] : [[190, 40], [230, 95], [210, 160], [270, 60], [300, 130], [280, 190], [350, 30], [370, 100], [340, 165], [420, 70], [440, 140], [410, 200], [250, fl(250) - 9], [390, fl(390) - 9]];
       const D = pos.map(([x, y]) => ({ k: 'drone', x, y, vx: 0, vy: 0, t: 0, flash: 0, rot: 0, dead: false, hp: 1e6, max: 1e6, r: set === 'ONE' ? 16 : 8, big: set === 'ONE' ? 1 : 0, gsz: 1, score: 0, bio: 0, dum: 1 }));
       let dmg = 0;
       for (let f = 0; f < FR; f++) {
-        const py = set === 'ONE' ? 127 : 127 - 70 * Math.sin(f / 240 * Math.PI * 2);
+        const py = set === 'ONE' ? yOne(sc) : 127 - 70 * Math.sin(f / 240 * Math.PI * 2);
         $.P.hist.unshift({ x: 100, y: py }); if ($.P.hist.length > 80) $.P.hist.pop();
         Object.assign($.P, { x: 100, y: py, alive: true, inv: 30 });
-        $.G.scroll = sc; $.G.scrollSpeed = 0; $.G.hitstop = 0; $.G.pick = null; $.G.pickQ = 0; $.G.boss = null;
+        $.G.scroll = sc; $.G.scrollSpeed = 0; $.G.hitstop = 0; $.G.pick = null; $.G.pickQ = 0; $.G.boss = null; $.G.mini = null;
         W.enemies.length = 0; W.eshots.length = 0; W.caps.length = 0;
         D.forEach((d, i) => { Object.assign(d, { x: pos[i][0], y: pos[i][1], hp: 1e6, dead: false, t: 0, vx: 0, vy: 0 }); W.enemies.push(d); });
         ST.step();
@@ -109,22 +112,23 @@ const TTK = [ // [kind, stage ordinal, kit, main-branch HP (systems audit §2)]
   ...KITS.filter((k) => k[0] !== 'bare' && k[0] !== 'END D1').map((k) => ['drone', 3, k[0], 1.4]),
 ];
 const kr = await p.evaluate(async ([KITS, TTK, FR]) => {
+  const yOne = (sc) => { let c = -1e9, f = 1e9; for (let x = 100; x <= 260; x += 4) { c = Math.max(c, W.ceilAt(x + sc)); f = Math.min(f, W.floorAt(x + sc)); } return Math.round((Math.max(c, 0) + Math.min(f, 254)) / 2); }; // W6, as above
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const POW = await import('/src/power.ts'), MU = await import('/src/mutations.ts'), SP = await import('/src/enemies/spawn.ts'), IN = await import('/src/input.ts');
   let RK = null; try { RK = await import('/src/rank.ts'); } catch (e) {}
   const $ = S.$; $.gate = false; IN.K.KeyZ = true;
-  const fit = (pw, gm, pk) => { F.newGame(0); $.state = 'play'; for (let i = 0; i < 30; i++) ST.step();
+  const fit = (pw, gm, pk) => { F.newGame(0); $.state = 'play'; for (let i = 0; i < 30; i++) ST.step(); $.G.script = []; $.G.si = 0; $.G.pend = []; // W6: an empty stage (the long4 jump x now lands in a scripted Maw that ate the ONE lane)
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw); $.G.gm = { ...gm }; $.G.pk = { ...pk }; };
   const dps = (set) => { const sc = __LY.slotRow(0).x0 + 700, fl = (x) => W.floorAt(x + sc);
     W.shots.length = 0; W.enemies.length = 0; $.P.hist.length = 0;
-    const pos = set === 'ONE' ? [[250, 127]] : [[190, 40], [230, 95], [210, 160], [270, 60], [300, 130], [280, 190], [350, 30], [370, 100], [340, 165], [420, 70], [440, 140], [410, 200], [250, fl(250) - 9], [390, fl(390) - 9]];
+    const pos = set === 'ONE' ? [[250, yOne(sc)]] : [[190, 40], [230, 95], [210, 160], [270, 60], [300, 130], [280, 190], [350, 30], [370, 100], [340, 165], [420, 70], [440, 140], [410, 200], [250, fl(250) - 9], [390, fl(390) - 9]];
     const D = pos.map(([x, y]) => ({ k: 'drone', x, y, vx: 0, vy: 0, t: 0, flash: 0, rot: 0, dead: false, hp: 1e6, max: 1e6, r: set === 'ONE' ? 16 : 8, big: set === 'ONE' ? 1 : 0, gsz: 1, score: 0, bio: 0, dum: 1 }));
     let dmg = 0;
     for (let f = 0; f < FR; f++) {
-      const py = set === 'ONE' ? 127 : 127 - 70 * Math.sin(f / 240 * Math.PI * 2);
+      const py = set === 'ONE' ? yOne(sc) : 127 - 70 * Math.sin(f / 240 * Math.PI * 2);
       $.P.hist.unshift({ x: 100, y: py }); if ($.P.hist.length > 80) $.P.hist.pop();
       Object.assign($.P, { x: 100, y: py, alive: true, inv: 30 });
-      $.G.scroll = sc; $.G.scrollSpeed = 0; $.G.hitstop = 0; $.G.pick = null; $.G.pickQ = 0; $.G.boss = null;
+      $.G.scroll = sc; $.G.scrollSpeed = 0; $.G.hitstop = 0; $.G.pick = null; $.G.pickQ = 0; $.G.boss = null; $.G.mini = null;
       W.enemies.length = 0; W.eshots.length = 0; W.caps.length = 0;
       D.forEach((d, i) => { Object.assign(d, { x: pos[i][0], y: pos[i][1], hp: 1e6, dead: false, t: 0, vx: 0, vy: 0 }); W.enemies.push(d); });
       ST.step();
