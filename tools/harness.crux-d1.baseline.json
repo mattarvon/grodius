@@ -1,21 +1,21 @@
 {
   "frames": 1200,
-  "commit": "68d2835",
+  "commit": "d25117d",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "crux-d1",
   "q": "stage=ice&x=5340&loop=0&kit=mid&rank=.5&seed=7",
   "st": {
     "state": "play",
-    "score": 520,
+    "score": 415,
     "scroll": 12347,
     "lives": 0,
     "px": 50,
-    "py": 129.913,
-    "en": 6,
-    "gibs": 77,
-    "drops": 371,
-    "caps": 5,
+    "py": 146.613,
+    "en": 7,
+    "gibs": 70,
+    "drops": 283,
+    "caps": 4,
     "jump": true,
     "stage": 1,
     "pair": "choir+cyst",
@@ -23,14 +23,14 @@
     "pow": 0.5,
     "rank": 0.5,
     "lvl": 6,
-    "kills": 5,
+    "kills": 4,
     "t": 1170,
     "seen": "mini:crux",
-    "sig": "cd6fd32a42"
+    "sig": "99d700fe04"
   },
   "hashes": [
-    "85a71909e7",
-    "eb41ea0f4c"
+    "60d19edb70",
+    "98cef0976c"
   ],
   "errs": []
 }
