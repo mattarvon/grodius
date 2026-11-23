@@ -546,9 +546,9 @@ function orbitSets(at) {
 }
 
 /** the tightest walls over world x [a, b]: the lowest ceiling edge is the largest CEIL, the highest floor the least */
-function walls(a, b) {
+function walls(a, b, d = 4) {
   let ce = -1e9, fl = 1e9;
-  for (let x = a; x <= b; x += 4) { ce = Math.max(ce, ceilAt(x)); fl = Math.min(fl, floorAt(x)); }
+  for (let x = a; x <= b; x += d) { ce = Math.max(ce, ceilAt(x)); fl = Math.min(fl, floorAt(x)); }
   return [ce, fl];
 }
 /** STROKE variation v's piston i (W3A-API v1 spawnPiston / spawnPistonPair), built just off screen from the terrain
@@ -561,14 +561,16 @@ function strokePiston(r, v, i) {
   if (typeof SO.spawnPiston !== 'function') return;
   const S = DRIVE_SIG.stroke, K = (SO.SOLID && SO.SOLID.piston) || {}, pad = K.rootPad || 0, ease = Math.max(1, K.ease || 1);
   const s = $.G.scroll, px = $.P ? $.P.x : S.shipX, x = r.x0 + v.x[i], [ce, fl] = walls(x - 12, x + S.w + 12);
-  const extOf = (depth) => Math.ceil((depth + pad) / S.v * ease) + 1, base = { x, w: S.w, tell: S.tell, hold: S.hold, rest: S.rest, v: S.v, sig: 'stroke' };
+  // the stroke time from the walls over the engine's own span (x .. x + w, every 3 px: solids.ts pistonGeom), so it is
+  // never shorter than the engine's and the period the phase assumes is the one it runs
+  const [ce0, fl0] = walls(x, x + S.w, 3), extOf = (tip, side) => Math.ceil((side < 0 ? tip - ce0 + pad : fl0 + pad - tip) / S.v * ease) + 1, base = { x, w: S.w, tell: S.tell, hold: S.hold, rest: S.rest, v: S.v, sig: 'stroke' };
   if (v.pair) {
-    const centre = pairCentre(v.pair[i], v.gap, ce, fl), ext = extOf(Math.max(centre - v.gap / 2 - ce, fl - centre - v.gap / 2));
+    const centre = pairCentre(v.pair[i], v.gap, ce, fl), ext = Math.max(extOf(centre - v.gap / 2, -1), extOf(centre + v.gap / 2, 1));
     SO.spawnPistonPair({ ...base, centre, gap: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
   } else {
     const side = v.side[i], reach = pistonReach(side, v.gap, ce, fl);
     if (reach == null) return;
-    const ext = extOf(side < 0 ? reach - ce : fl - reach);
+    const ext = extOf(reach, side);
     SO.spawnPiston({ ...base, side, reach, fit: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
   }
 }

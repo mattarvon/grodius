@@ -205,13 +205,14 @@ const STRETCH = {
    *  shifts every later anchor and the biome lane's blend tests (terrainb.test.ts) with it. The held slot B (LS2-orbit's
    *  tug, ~10 s) is what this stretch was sized for */
   orbit: 2400,
-  /** biome slot A (stage 1-2): gate to bossX 3550 + this. D31's single +2550 (~102 s of scroll) is split per slot so the
-   *  biome lane can set each. DIFFICULTY-SPEC §2.4 / LVL §8 ask 1950 (slot A measured 151 s median, L6 band <= 145) and
-   *  1450 for slot B (165 s, band <= 150; it drops midboss B, C24). Both held at 2550 in W3b: at 1450 slot B's movement-B
-   *  band blends in with a 19 px cliff (terrainb.test.ts, limit 14), which is the biome lane's geometry (W3c / W3a) to
-   *  fix first. Flipping them moves only S1 / S2, the biome rows and every anchor after them. pod-probe tally_s, gate L6 */
-  biomeA: 2550,
-  biomeB: 2550,
+  /** biome slot A (stage 1-2): gate to bossX 3550 -> 5500 px (~92 s of scroll; DIFFICULTY-SPEC §2.4 "Stage lengths",
+   *  LVL §8). D31's single +2550 measured 151 s median for slot A (gates-before L6, band <= 145): -600 px, ~-10 s.
+   *  Beat fractions scale with the span, so no beat moves relative to its stage. pod-probe tally_s, gate L6 */
+  biomeA: 1950,
+  /** biome slot B (stage 1-3): gate to bossX 3550 -> 5000 px (~83 s). Measured 165 s median at +2550 (L6 band <= 150):
+   *  -1100 px, and slot B flies no midboss B in Descent 1 (C24, W3c), which gives THE KEEPSAKE its ~46 s. W3c's
+   *  terrainb.test.ts reads movement B's fire-slot-B blend against shape()'s own spire steps under this span */
+  biomeB: 1450,
   /** the Drive approach: 2700 -> 4800 px (~77.5 s from the stage start at ~x0 + 148; DIFFICULTY-SPEC §2.4, LVL §8).
    *  D31 had +2400 (its last 300 px a filler window to DRIVE_WARN - 80); C23 caps the fight at 60 s (collapse 45 s,
    *  self-destruct 60 s, W4b), so 77.5 + 60 = ~138 s holds the Drive at <= 140 (L6 <= 145). The 300 px came out of

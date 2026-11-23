@@ -282,7 +282,11 @@ describe('the stage scripts (§2.2 authored carriers, §2.3 entry mix)', () => {
       expect(o.tell).toBeGreaterThanOrEqual(44); expect(o.v).toBeLessThanOrEqual(.5);
       expect(o.x - DRIVE.x0).toBeGreaterThanOrEqual(1100);
     }
-    for (const o of one) { expect(o.fit).toBe(96); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil((Math.abs(o.reach - (o.side < 0 ? W.ceilAt(o.x) : W.floorAt(o.x))) + 4) / .5 * 1.25) - 8); }
+    // the engine's own stroke time (solids.ts pistonGeom / extFor: walls over x .. x + w every 3 px, root 4 px into the
+    // wall, eased 1.25): ours must be at least that, or the engine runs a longer period than the phase assumed
+    const span = (o: any) => { let c = -1e9, f = 1e9; for (let u = o.x; u <= o.x + o.w; u += 3) { c = Math.max(c, W.ceilAt(u)); f = Math.min(f, W.floorAt(u)); } return [c, f]; };
+    for (const o of one) { const [c, f] = span(o); expect(o.fit).toBe(96); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil((o.side < 0 ? o.reach - c + 4 : f + 4 - o.reach) / .5 * 1.25)); }
+    for (const o of two) { const [c, f] = span(o); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil(Math.max(o.centre - o.gap / 2 - c + 4, f + 4 - o.centre - o.gap / 2) / .5 * 1.25)); }
     expect(two.map((o) => o.gap)).toEqual([84, 84, 84, 80, 80, 80, 80]);
   });
 
