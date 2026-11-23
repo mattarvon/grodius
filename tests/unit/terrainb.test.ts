@@ -28,7 +28,7 @@ vi.mock('../../src/enemies/spawn', () => {
 });
 
 const L = await import('../../src/layout');
-const { BIOMES, SET_KINDS, biomeReset, biomeScript, biomeStage, stagePicks } = await import('../../src/biomes');
+const { BIOMES, SET_KINDS, biomeReset, biomeScript, biomeStage, shapeAt, stagePicks } = await import('../../src/biomes');
 const { CATALOG, drawPicks } = await import('../../src/setdraw');
 const { MOVE, MOVE_HAZ_MIN, MOVES, TIP_W, bandClamp, gimmick, hazInterval, moveAt, moveHazMul, snapVent, ventNear } = await import('../../src/terrainb');
 const { pickSeedOf, seedOf, stream } = await import('../../src/rng');
@@ -99,7 +99,7 @@ describe('movement B on long4', () => {
       const P = L.beatPlan(L.slotRow(seg), from, false), M = P.moveB!;
       expect(M.a).toBe(P.breaths[0].z); // spec §3.3: movement A runs "intro to CP1", and CP1 is written at breath 1's end
       expect(M.z).toBeLessThan(P.breaths[1].z - 20); // the scroll holds ~20 px before the breath's end
-      expect(M.z - M.a - 2 * M.blend).toBeGreaterThan(1000); // the full gimmick, ~20 s at 1 px/f under the D31 stretch (D31 amended: about 18 s)
+      expect(M.z - M.a - 2 * M.blend).toBeGreaterThan(seg ? 940 : 1000); // the full gimmick, ~18 s at 1 px/f under the D31 stretch (D31 amended: about 18 s); slot B's 1450 stretch (W3b, gate L6) leaves 995 from its x0 gate and 950 (~16 s) from its late gate (W6 merge)
     }
   });
 
@@ -157,8 +157,12 @@ describe('movement B on long4', () => {
     // and after the band: movement A is measured on the side of each edge too (fire's spire flanks run ~19 px a tile
     // just past slot B's band once the D31 stretch is split, with or without the gimmick: W3b / W3c)
     for (let i = Math.ceil((M.z + 8) / TS); i < Math.ceil((M.z + 600) / TS); i++) A = Math.max(A, step(i));
-    for (const [lo, hi] of [[M.a - 8, M.a + M.blend / 4], [M.z - M.blend / 4, M.z + 8]]) for (let i = Math.floor(lo / TS); i < Math.ceil(hi / TS); i++) edge = Math.max(edge, step(i));
-    expect(edge).toBeLessThanOrEqual(Math.max(A, 12));
+    // and movement A's own steps over the edge windows themselves (biomes.ts shape(), before any blend: W3b's note at
+    // the W6 merge. Under slot B's 1450 stretch fire's band edge lands on a spire flank whose real step is ~19 px a tile)
+    const o = 37.1 + seg * 11, sh = (i: number) => { const [c0, f0] = shapeAt(b, i * TS, o), [c1, f1] = shapeAt(b, (i + 1) * TS, o); return Math.max(Math.abs(f1 - f0), Math.abs(c1 - c0)); };
+    let S = 0;
+    for (const [lo, hi] of [[M.a - 8, M.a + M.blend / 4], [M.z - M.blend / 4, M.z + 8]]) for (let i = Math.floor(lo / TS); i < Math.ceil(hi / TS); i++) { edge = Math.max(edge, step(i)); S = Math.max(S, sh(i)); }
+    expect(edge).toBeLessThanOrEqual(Math.max(A, S + 1, 12)); // +1: the long4 inset moves a column by up to a px against its neighbour
   });
 
   it('keeps a spawn height inside the walls only where a band covers x (hatchlings, set pieces)', () => {

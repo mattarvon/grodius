@@ -155,6 +155,8 @@ function shape(b, x, o) {
   if (fl - ce < 108) { const m = (fl + ce) / 2; fl = m + 54; ce = m - 54; }
   return [ce, fl];
 }
+/** test hook (terrainb.test.ts): movement A's own walls at world x, terrain offset o */
+export const shapeAt = (b, x, o) => shape(b, x, o);
 // movement C, the boss arena (spec §3.3): today's shape at half its swing around the biome's resting edges, with the
 // gap opened to ARENA_GAP so the boss patterns have room. Rest = shape()'s constant terms per biome
 const REST = { ice: [18, PH - 30], acid: [16, PH - 18], fire: [26, PH - 24], snot: [34, PH - 34] };
