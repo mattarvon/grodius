@@ -416,7 +416,7 @@ function pincer(b, L) {
     const q = T[t.side < 0 ? 0 : 1], B = tentBase(b.x, b.y, t.side);
     t.rs = 1; t.rf = 0; t.tx = q[0]; t.ty = q[1];
     t.ra = Math.atan2(q[1] - B.y, q[0] - B.x);
-    t.rl = Math.min(DRIVE.reach.len, Math.hypot(q[0] - B.x, q[1] - B.y));
+    t.rl = Math.min(DRIVE.pincer.len, Math.hypot(q[0] - B.x, q[1] - B.y));
   }
   sfx.tele();
   sfx.squish();
@@ -430,7 +430,7 @@ function stepReach(b, t) {
     if (t.rf <= Rc.tell - Rc.lock) {
       const B = tentBase(b.x, b.y, t.side), x = t.tx ?? $.P.x, y = t.ty ?? $.P.y;
       t.ra = Math.atan2(y - B.y, x - B.x);
-      if (t.tx != null) t.rl = Math.min(DRIVE.reach.len, Math.hypot(x - B.x, y - B.y));
+      if (t.tx != null) t.rl = Math.min(DRIVE.pincer.len, Math.hypot(x - B.x, y - B.y));
     }
     if (t.rf >= Rc.tell) { t.rs = 2; t.rf = 0; sfx.lash(); }
   } else if (t.rs === 2) {

@@ -2,7 +2,7 @@
 // =====================================================================
 //  The stage bosses on the Gradius III model, long4 only (DIFFICULTY-SPEC §2.3 Fights; stream W4b). The sim half of
 //  boss/bossrules.ts: THE MAW's bite, THE BLOAT's nail comb and icicle curtain, THE BURNING BUTCHER's meat hooks and
-//  sweeping reel, the biome bosses' 1200 f half clock, and the one adapter onto the rank API (W0 src/rank.ts).
+//  sweeping reel, the biome bosses' 1200 f half clock, and the one spot that reads the rank API (W0 src/rank.ts).
 //  enemies/update.ts's crux / butcher / maw arms call in here behind g3(); `short` keeps today's fights byte for byte.
 //  Sim rules (.claude/rules/sim-determinism.md): frame counters only; R() only where today's arms already drew it;
 //  no allocation per frame (lanes and columns are table refs or built once per volley).
@@ -142,7 +142,7 @@ export function maw3(e) {
   } }
   // the half-led orb from one of its eyes, in turn (no pick() draw)
   if (e.oc == null) e.oc = MAW.orbFirst;
-  if (e.x < W - 20 && due(e, 'oc', 1, iv(MAW.orbEvery))) {
+  if (e.x < W - 20 && !e.bs && due(e, 'oc', 1, iv(MAW.orbEvery))) { // no orb through a bite: the lane is the read
     const ep = e.eyesP[(e.on = ((e.on || 0) + 1) % e.eyesP.length)], ex = e.x + Math.cos(ep.a + Math.PI) * ep.r, ey = e.y + Math.sin(ep.a) * ep.r;
     eshoot(ex, ey, leadA(ex, ey, MAW.orbV), MAW.orbV);
   }

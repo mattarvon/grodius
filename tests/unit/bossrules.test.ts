@@ -112,7 +112,7 @@ describe('THE GRAVITY DRIVE', () => {
     for (let i = 0; i < 4000; i++) {
       const bx = 340 + r() * 60, by = 70 + r() * 114, cx = 20 + r() * 300, cy = 12 + r() * (PH - 24), am = Math.atan2(cy - by, cx - bx);
       const T = pincerTargets(bx, by, cx, cy, am), tips = [tentBase(bx, by, -1), tentBase(bx, by, 1)].map((b, k) => {
-        const d = Math.hypot(T[k][0] - b.x, T[k][1] - b.y), l = Math.min(DRIVE.reach.len, d);
+        const d = Math.hypot(T[k][0] - b.x, T[k][1] - b.y), l = Math.min(DRIVE.pincer.len, d);
         return [b.x + (T[k][0] - b.x) / d * l, b.y + (T[k][1] - b.y) / d * l];
       });
       expect(Math.hypot(tips[0][0] - tips[1][0], tips[0][1] - tips[1][1])).toBeGreaterThanOrEqual(DRIVE.pincer.gap);

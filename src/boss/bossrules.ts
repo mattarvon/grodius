@@ -8,8 +8,8 @@
 //  K2 (denial share), K3 (boss-probe TTK), K4 (boss-probe --timeout).
 // =====================================================================
 
-/** boss volleys: the bullet cap they reserve against (spec §2.1 Bullet caps; the Normal stage-boss cap, used until
- *  src/rank.ts bulletCap lands) and the volley-atomic retry [§2.1 "retries after min(remaining, 20 f)"] */
+/** boss volleys: the Normal stage-boss cap (the live cap is rank.ts bulletCap by tier and context) and the volley-atomic
+ *  retry [§2.1 "retries after min(remaining, 20 f)"] */
 export const VOLLEY = {
   cap: 24, //    stage boss / Drive, Normal [C4]; Easy 18, Hard/VH 30 come from rank.ts bulletCap
   retry: 20, //  a volley that does not fit waits this long (or its own interval, if shorter) and tries again
@@ -35,7 +35,7 @@ export const MAW = {
   fanV: 1.6, //         + .1 per step out from the centre, as today
   orbEvery: 90, //      55 -> 90, half-led (spec §2.3 table: "led orb every 90")
   orbV: 2,
-  orbFirst: 20, //      the first orb 20 f after it is in (an Orbit Maw at the END D1 kit lasts ~7 s: K1 wants 2 per spot per half)
+  orbFirst: 8, //       the first orb 8 f after it is in (an Orbit Maw at the END D1 kit lasts ~4 s on W0: K1 wants 2 per spot per half)
   biteEvery: [3, 2] as const, // a bite every 3rd jaw cycle, every 2nd below half HP
   tell: 46, //          the bite's tell (>= 44, D59): the eyes flare, a lane line runs along its y
   lock: 16, //          ... and the lane locks for the last 16 f. Before that it steers toward the ship's height (<= 1.5 px/f), the
@@ -101,7 +101,7 @@ export const BUTCHER = {
     lenK: [.42, .6, .42] as readonly number[], // chain length as a share of the room under the ceiling there: the middle hangs lowest
     lenMax: 120,
     ph: [0, 2.1, 4.2] as readonly number[], //   swing phases (no R(): fixed offsets)
-    sw: 1, //       the hook kind's swing (enemies/update.ts 'hook': amplitude .55 sw rad)
+    sw: 1.5, //     the hook kind's swing (enemies/update.ts 'hook': amplitude .55 sw rad, so +-.83 rad) [FIT K2: 1 swung +-.55]
     tell: 50, //    the chains rattle at the ceiling for 50 f first (>= 44)
     lock: 16, //    ...the drop line goes solid for its last 16 f (render)
     drop: 20, //    then the hooks pay out over 20 f
@@ -116,7 +116,8 @@ export const BUTCHER = {
 
 // ---------------- THE GRAVITY DRIVE [ENC 4.10, C22, C23] ----------------
 export const DRIVE = {
-  hp: 740, //       core HP [FIT: boss-probe --kind drive, END D1 kit 30-40 s]: start 700 ([DER] ENC 560 x 1.24 at R .8, C22) measured 28.7 s, so 700 x 34 / 28.7
+  hp: 880, //       core HP [FIT: boss-probe --kind drive, END D1 kit 30-40 s]: start 700 ([DER] ENC 560 x 1.24 at R .8, C22);
+  //                740 gave 30.8 s pre-W0 and 28.5 s on w0-foundation (powHP 0, rank-based fire), so 740 x 34 / 28.5
   plateHp: 90, //   each of the 3 plates [FIT with hp, K1]: 48 and 64 left phase 0 (THE REACH) 2-4 s at the END D1 kit
   ring0: { every: 100, n: 5, arc: 1.6, v: 1.5 }, //     phase 0: a 5-pellet forward ring (was 8 around, every 80)
   fan0: { every: 120, n: 3, spread: .18, v: 1.5, first: 12 }, // [FIT K1: 170 left a spot at 1 hit] // phase 0: an aimed 3-orb fan (was 5 globs, which fall short of a
@@ -147,7 +148,8 @@ export const DRIVE = {
     off: 70, //    the twin beam's second line: 70 px to the side with room, at the ship's distance
     gap: 50, //    the guaranteed free lane between the twin beams, at the ship's distance and beyond [unit test]
   },
-  pincer: { gap: 60, start: 64 }, // after the twin beam both limbs close on its lane, tips >= 60 px apart [unit test]
+  pincer: { gap: 60, start: 64, len: 300 }, // after the twin beam both limbs close on its lane, tips >= 60 px apart [unit test];
+  //   ENC sets no pincer length: 300 px reaches the lane across most of the field (K2: 190 left the far lanes to bullets)
   collapse: 45 * 60, // 45 s of fight: THE WELL COLLAPSES, plates fall, the core is bared [C23]
   destruct: 60 * 60, // 60 s: it self-destructs: no 30000 bonus, stage grade capped at C, the descent still ends [C23]
   grade: 'C',
@@ -159,7 +161,7 @@ export const tentBase = (bx: number, by: number, side: number) => ({ x: bx - 12,
 /** the reach's length and its blend toward the aim (0 the idle sway, 1 the straight reach) at state st, frame f.
  *  st 1 the tell (coil), 2 out, 3 back. Pure: tentPts, the probes and the render read it */
 export function reachPose(st: number, f: number, sway: number, max: number = DRIVE.reach.len): { len: number; k: number } {
-  const R = DRIVE.reach, L = Math.max(R.coil, Math.min(R.len, max));
+  const R = DRIVE.reach, L = Math.max(R.coil, max);
   if (st === 1) { const u = Math.min(1, f / R.tell); return { len: sway + (R.coil - sway) * u, k: u }; }
   if (st === 2) { const u = Math.min(1, f / R.ext); return { len: R.coil + (L - R.coil) * u, k: 1 }; }
   if (st === 3) { const u = Math.min(1, f / R.back); return { len: L + (sway - L) * u, k: 1 - u }; }
@@ -193,12 +195,12 @@ export function twinAngle(ex: number, ey: number, px: number, py: number, PH: nu
 }
 
 /** the pincer's two tip targets around the lane's centre (cx, cy) on a lane at angle am: the upper limb (side -1) above,
- *  the lower below, spread until the two tips, each at most DRIVE.reach.len from its base, end >= DRIVE.pincer.gap apart.
+ *  the lower below, spread until the two tips, each at most DRIVE.pincer.len from its base, end >= DRIVE.pincer.gap apart.
  *  Returns [[x, y] upper, [x, y] lower] */
 export function pincerTargets(bx: number, by: number, cx: number, cy: number, am: number): [number, number][] {
   let nx = -Math.sin(am), ny = Math.cos(am);
   if (ny < 0) { nx = -nx; ny = -ny; } // n points down: the upper limb takes -n
-  const up = tentBase(bx, by, -1), dn = tentBase(bx, by, 1), L = DRIVE.reach.len;
+  const up = tentBase(bx, by, -1), dn = tentBase(bx, by, 1), L = DRIVE.pincer.len;
   const tip = (b: { x: number; y: number }, tx: number, ty: number) => { const d = Math.hypot(tx - b.x, ty - b.y) || 1, l = Math.min(L, d); return [b.x + (tx - b.x) / d * l, b.y + (ty - b.y) / d * l]; };
   let g = DRIVE.pincer.start;
   for (let i = 0; i < 40; i++, g += 6) {

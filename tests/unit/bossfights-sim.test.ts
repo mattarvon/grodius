@@ -50,7 +50,7 @@ const reset = (P = { x: 60, y: 60 }) => {
   $.P = { x: P.x, y: P.y, alive: true, hist: [] };
 };
 
-describe('the adapter (until W0 src/rank.ts lands)', () => {
+describe('the rank API and the cap (W0 src/rank.ts)', () => {
   beforeEach(() => reset());
   it('is the long4 gate', () => {
     expect(F.g3()).toBe(true);
@@ -67,6 +67,7 @@ describe('the adapter (until W0 src/rank.ts lands)', () => {
     expect(F.variant()).toBe(true);
   });
   it('holds a volley that does not fit under the boss cap, and retries in 20 f', () => {
+    $.G.mini = { k: 'crux', mini: 1 }; // a stage boss: the 24 cap (rank.ts capCtx 'boss')
     for (let i = 0; i < 22; i++) W.eshots.push({ k: 'orb' });
     W.eshots.push({ k: 'fork', haz: 1 }); // a planted hazard never counts
     expect(F.room(2)).toBe(true);
@@ -117,17 +118,19 @@ describe('THE MAW: the bite', () => {
   });
   it('fires a 5-glob fan, never during a bite, and one orb per 90 f x the rank rule', () => {
     const e = mkMaw();
-    let fans = 0, orbs = 0, fanInBite = 0;
+    let fans = 0, orbs = 0, fanInBite = 0, free = 0;
     for (let f = 0; f < 1200; f++) {
       updEnemy(e);
       const g = W.eshots.filter((s) => s.k === 'glob').length, o = W.eshots.filter((s) => s.k === 'orb').length;
       if (g) { fans++; expect(g).toBe(MAW.fanN); if (e.bs) fanInBite++; }
+      if (o) expect(e.bs || 0).toBe(0); // no orb through a bite
+      if (!e.bs) free++;
       orbs += o;
       W.eshots.length = 0;
     }
     expect(fans).toBeGreaterThanOrEqual(3);
     expect(fanInBite).toBe(0);
-    expect(orbs).toBeGreaterThanOrEqual(Math.floor(1200 / F.iv(MAW.orbEvery)) - 1);
+    expect(orbs).toBeGreaterThanOrEqual(Math.floor(free / F.iv(MAW.orbEvery)) - 1);
     expect(orbs).toBeLessThanOrEqual(Math.ceil(1200 / F.iv(MAW.orbEvery)) + 1);
   });
   it('does not start a bite near its leave clock, and still leaves at 1700 f', () => {
