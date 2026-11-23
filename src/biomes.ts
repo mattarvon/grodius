@@ -224,7 +224,7 @@ function rewriteTerrain(seg, b, from, mv = null, mids = null) {
     FLOOR[i] = lerp(FLOOR[i], fl, w);
     CEIL[i] = lerp(CEIL[i], ce, w);
   };
-  if (!ins0) { for (let i = i0; i <= i1; i++) { const [ce, fl] = edges(i); write(i, ce, fl); } return; } // short: the arithmetic it was
+  if (!ins0 || i1 < i0) { for (let i = i0; i <= i1; i++) { const [ce, fl] = edges(i); write(i, ce, fl); } return; } // short: the arithmetic it was
   // long4 inset, in two passes. A wall coming in next to a needle (a fire spire, an ice tooth) narrows the swept 21 px
   // fit gap there, not just its own column, so each column's inset is capped by the narrowest un-inset swept fit within
   // INSET_FIT.reach px: fit after >= fit before - 2 x inset >= INSET_FIT.keep wherever the walls left room (route-probe
