@@ -10,6 +10,10 @@
 // window.__started and BEFORE the tool's first newGame() or Enter (setLayout's contract), and it refuses otherwise.
 // It prints the layout the tool runs on, and the tool's own "not measured" note when that layout isn't `short`.
 // ranOn(tool) prints the closing "ran on <id>" line.
+// It also refuses (exit 2) a page whose game modules carry Vite HMR timestamps (/src/x.ts?t=...): a dev server that has
+// seen an edit since it started serves the game a stamped copy while the probe's own import('/src/x.ts') gets a
+// second, empty instance, and every number would read nothing. Use tools/with-vite.mjs (a fresh server per run), or
+// restart the server. PROBE_ALLOW_HMR=1 skips the check.
 //
 // Usage (in a tool):  import { useLayout, ranOn } from './layout-arg.mjs';
 //                     await p.goto(url); await p.waitForFunction(() => window.__started);
@@ -44,12 +48,18 @@ export async function useLayout(p, tool, { limits, quiet } = {}) {
       const L = await import('/src/layout.ts');
       const g = window.__G && window.__G();
       if (g && g.state !== 'title') return { err: `setLayout must run before newGame() (state is ${g.state})` };
+      // HMR split: the probe's own import of world.ts must be the game's instance (__G() hands out the game's arrays);
+      // the ?t= resource scan backs it up (the resource buffer can drop entries, so it is the second signal, not the first)
+      const Wp = await import('/src/world.ts'), split = !!(g && g.enemies && g.enemies !== Wp.enemies);
+      const stamped = performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /\/src\/[^?]*\.ts\?(.*&)?t=\d/.test(n));
+      const hmr = split || stamped.length ? `the dev server has hot-reloaded since it started (${split ? "the probe's world.ts is not the game's instance" : ''}${split && stamped.length ? '; ' : ''}${stamped.length ? `${stamped.length} game modules carry ?t=, e.g. ${stamped[0].replace(/^.*\/src\//, 'src/')}` : ''}): a probe would read a second, empty copy. Run it through tools/with-vite.mjs or restart the server` : '';
       L.setLayout(id);
       window.__LY = L; // for a tool's synchronous in-page code (slotOf, row, lastStage ...)
-      return { id: L.layout().id, kinds: L.layout().stages.map((r) => r.kind) };
+      return { id: L.layout().id, kinds: L.layout().stages.map((r) => r.kind), hmr };
     } catch (e) { return { err: String((e && e.message) || e) }; }
   }, LAYOUT);
   if (r.err) { console.error(`${tool}: ${r.err} (--layout ${LAYOUT})`); process.exit(2); }
+  if (r.hmr) { if (process.env.PROBE_ALLOW_HMR !== '1') { console.error(`${tool}: ${r.hmr} (--layout ${LAYOUT})`); process.exit(2); } console.error(`${tool}: WARNING (PROBE_ALLOW_HMR=1): ${r.hmr}`); }
   if (quiet || told.has(tool)) return r; // printed once per tool (some open a page per case); quiet: stdout is data
   told.add(tool);
   console.log(`${tool}: layout ${r.id} (${r.kinds.join(', ')})`);

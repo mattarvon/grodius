@@ -153,5 +153,68 @@ describe('page kit on a stub window', () => {
     expect(PL.bucket('other')).toBe('other');
     expect(PL.bucket('~shot:orb')).toBe('bullet');
     expect(PL.bucket('lash')).toBe('body');
+    expect(PL.bucket('keep:planted')).toBe('hazard'); // W4c: THE KEEPSAKE's planted / hanging forks are terrain-like
+    expect(PL.bucket('keep:mobile')).toBe('hazard');
+    expect(PL.bucket('keep:boom')).toBe('body');
+  });
+  it('a signature window is x0-inclusive and x1-exclusive', () => {
+    const ws = [{ x0: 100, x1: 200, floor: 72, id: 'knots' }];
+    expect(PL.inSig(100, ws)).toBeTruthy(); expect(PL.inSig(199.9, ws)).toBeTruthy(); expect(PL.inSig(200, ws)).toBeNull();
+  });
+  it('the cap reads rank.ts bulletCap when the build has it (the flown tier), else the spec table', () => {
+    const $ = { G: { tier: 2 } };
+    PL.mods.S = { $ }; PL.mods.RK = { bulletCap: (_: any, c: string) => ({ scroll: 10, setp: 20, boss: 30 } as any)[c] };
+    expect(PL.cap($.G, 'setp')).toBe(20);
+    PL.mods.RK = null;
+    expect(PL.cap($.G, 'setp')).toBe(20); // the spec table at tier 2
+    expect(PL.cap({}, 'setp')).toBe(16);
+  });
+  it('B1 grace: shots in flight when the cap drops are carried, not counted against the lower cap', () => {
+    const mini = { k: 'cyst', mid: 1 };
+    PL.mods.W.eshots = Array.from({ length: 12 }, (_, i) => ({ x: 200 + i, y: 100, vx: -1, vy: 0, t: 1 }));
+    PL.bulFrame(g({ mini }), '1-2'); // setp, cap 16: 12 counted
+    expect(PL.bul.setp.n[12]).toBe(1);
+    PL.bulFrame(g({}), '1-2'); // the midboss is gone: scroll, cap 8; the 12 are carried
+    expect(PL.bul.scroll.over).toBe(0); expect(PL.bul.scroll.n[0]).toBe(1); expect(PL.bul.scroll.carried).toBe(1);
+    PL.mods.W.eshots.push(...Array.from({ length: 9 }, (_, i) => ({ x: 300 + i, y: 50, vx: -1, vy: 0, t: 1 }))); // 9 new scroll shots
+    PL.bulFrame(g({}), '1-2');
+    expect(PL.bul.scroll.over).toBe(1); expect(PL.bul.scroll.overMax).toBe(9);
+  });
+  it('designated drones: e.sh 1, or e.sh 2 at rank >= 14; no e.sh field reads undesignated (null)', () => {
+    expect(PL.designated({ k: 'drone', sh: 1 }, 2)).toBe(true);
+    expect(PL.designated({ k: 'drone', sh: 2 }, 13)).toBe(false);
+    expect(PL.designated({ k: 'drone', sh: 2 }, 14)).toBe(true);
+    expect(PL.designated({ k: 'drone', sh: 0 }, 16)).toBe(false);
+    expect(PL.designated({ k: 'drone' }, 16)).toBeNull();
+    expect(PL.designated({ k: 'eye' }, 0)).toBe(true);
+  });
+  it('pinRank fits the ship to a rank.ts target without overshooting, null without rank.ts', () => {
+    const $: any = { G: { stage: 0, gm: {} }, P: {} };
+    expect(PL.pinRank($, 10)).toBeNull();
+    // stand-in for rank.ts: base 2 + P_term (WARD 4, ARC 3, SPLIT 2, MISSILE 1 a level, WRAITH 1 an option, CAL 1)
+    const rk = (s: any) => 2 + ((s.P.wardLv || 0) >= 1 ? 4 : 0) + (s.P.laser ? 3 : 0) + (s.P.double ? 2 : 0) + (s.P.missile || 0) + (s.P.pyre || 0) + (s.P.options || 0) + Math.min(3, (s.G.gm.cal || 0) + (s.G.gm.serr || 0));
+    PL.mods.S = { $ }; PL.mods.RK = { rank: rk };
+    expect(PL.pinRank($, 14)).toBe(14);
+    expect(rk($)).toBe(14);
+    expect(PL.pinRank($, 1)).toBe(2); // the base already exceeds it: naked
+  });
+  it('a reaching tentacle is hit between its sample points (segment distance)', () => {
+    PL.mods.BU = { tentPts: () => Array.from({ length: 17 }, (_, i) => ({ x: i * 20, y: 100 })) }; // 20 px apart, hit r 5
+    const G = { scroll: 0, boss: { x: 400, y: 200, tent: [{}] } };
+    expect(PL.contact(g(G), 210, 102).other).toContain('tentacle'); // midway between points 10 and 11
+    expect(PL.contact(g(G), 210, 120).other).not.toContain('tentacle');
+  });
+  it('a flying MORGUE RUSH block (W3c eng.blocks) is a haz:block contact; one in its tell is not', () => {
+    (globalThis as any).__biome = () => ({ haz: [], sig: { eng: { blocks: [{ st: 'fly', x: 200, y: 100 }, { st: 'tell', x: 300, y: 100 }] } } });
+    expect(PL.blockAt(211, 100)).toBe(true); // centre x 211 (left edge 200, w 22)
+    expect(PL.blockAt(311, 100)).toBe(false);
+    expect(PL.contact(g({}), 211, 108).other).toContain('haz:block');
+    expect(PL.bucket('haz:block')).toBe('hazard');
+    delete (globalThis as any).__biome;
+  });
+  it('the twin beam: laser.ang2 is a second arm', () => {
+    const G = { scroll: 0, boss: { x: 400, y: 127, laser: { tel: 0, beam: 10, ang: Math.PI, ang2: Math.PI / 2 } } };
+    expect(PL.contact(g(G), 400, 200).other).toContain('beam'); // straight down the second arm
+    expect(PL.contact(g(G), 300, 127).other).toContain('beam');
   });
 });
