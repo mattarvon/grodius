@@ -1,20 +1,20 @@
 {
   "frames": 1200,
-  "commit": "128cbac",
+  "commit": "ca3f7bf",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "butcher-d3",
   "q": "stage=fire&x=5340&loop=2&kit=full&rank=1&seed=7",
   "st": {
     "state": "play",
-    "score": 820,
+    "score": 810,
     "scroll": 12647,
     "lives": 2,
     "px": 50,
-    "py": 109.151,
+    "py": 94.121,
     "en": 2,
-    "gibs": 42,
-    "drops": 26,
+    "gibs": 39,
+    "drops": 27,
     "caps": 4,
     "jump": true,
     "stage": 1,
@@ -26,11 +26,11 @@
     "kills": 4,
     "t": 1170,
     "seen": "mini:butcher",
-    "sig": "ca43bdf268"
+    "sig": "6170ebc63d"
   },
   "hashes": [
-    "9eec3af695",
-    "bb14bf1fe5"
+    "f3ffabfcbf",
+    "4c34458c96"
   ],
   "errs": []
 }

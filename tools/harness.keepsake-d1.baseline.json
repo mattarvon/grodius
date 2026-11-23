@@ -1,21 +1,21 @@
 {
   "frames": 1200,
-  "commit": "128cbac",
+  "commit": "ca3f7bf",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "keepsake-d1",
   "q": "stage=fire&slot=1&x=4970&loop=0&kit=mid&rank=.5&seed=7",
   "st": {
     "state": "play",
-    "score": 200,
+    "score": 315,
     "scroll": 17847,
     "lives": 1,
     "px": 50,
     "py": 67.866,
     "en": 1,
-    "gibs": 24,
-    "drops": 60,
-    "caps": 2,
+    "gibs": 37,
+    "drops": 62,
+    "caps": 3,
     "jump": true,
     "stage": 2,
     "pair": "prentice",
@@ -23,14 +23,14 @@
     "pow": 0.5,
     "rank": 0.5,
     "lvl": 6,
-    "kills": 2,
+    "kills": 3,
     "t": 1190,
     "seen": "mini:keepsake",
-    "sig": "3226e366f2"
+    "sig": "93a7869445"
   },
   "hashes": [
     "84b39e4169",
-    "d108bf8cef"
+    "a56f7c9a41"
   ],
   "errs": []
 }

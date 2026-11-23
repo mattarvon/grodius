@@ -1012,7 +1012,7 @@ export function podType() {
     if (slotMaxed(i)) continue;
     let w = POD[i].w;
     if (i === 0 && $.P.speed >= 3) w *= .4;
-    if (i === 6 && g3()) w = SURV.wardPodW; // G3 (§2.1 survival, C19): WARD weighs .45 at every tier (W2 death.ts SURV.wardPodW)
+    if (i === 6 && g3()) w = SURV.wardPodW; // G3 (§2.1 survival, C19): WARD weighs SURV.wardPodW (.25 since tune-tc) at every tier (W2 death.ts)
     if (i === 2 && $.P.laser || i === 3 && $.P.double || i === 1 && $.P.pyre || i === 4 && $.P.missile) w *= .5;
     ok.push([i, w]);
     tot += w;

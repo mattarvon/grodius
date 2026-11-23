@@ -1,21 +1,21 @@
 {
   "frames": 1200,
-  "commit": "128cbac",
+  "commit": "ca3f7bf",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "butcher-d1",
   "q": "stage=fire&x=5340&loop=0&kit=mid&rank=.5&seed=7",
   "st": {
     "state": "play",
-    "score": 520,
+    "score": 305,
     "scroll": 12647,
     "lives": 0,
     "px": 50,
-    "py": 62.352,
-    "en": 2,
-    "gibs": 47,
-    "drops": 75,
-    "caps": 5,
+    "py": 134.162,
+    "en": 4,
+    "gibs": 57,
+    "drops": 34,
+    "caps": 3,
     "jump": true,
     "stage": 1,
     "pair": "prentice+choir",
@@ -23,14 +23,14 @@
     "pow": 0.5,
     "rank": 0.5,
     "lvl": 6,
-    "kills": 5,
+    "kills": 3,
     "t": 1170,
     "seen": "mini:butcher",
-    "sig": "ff1ced8f4d"
+    "sig": "76240a1578"
   },
   "hashes": [
-    "17ab18a2b8",
-    "4bcc63f792"
+    "88243690cc",
+    "d9898761d8"
   ],
   "errs": []
 }

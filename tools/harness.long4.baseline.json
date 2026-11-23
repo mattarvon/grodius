@@ -1,27 +1,27 @@
 {
   "frames": 3600,
-  "commit": "13c7ed6",
+  "commit": "ca3f7bf",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "st": {
-    "state": "play",
-    "score": 11314,
-    "scroll": 3130,
-    "lives": 1,
+    "state": "over",
+    "score": 4841,
+    "scroll": 2421,
+    "lives": 0,
     "px": 50,
-    "py": 117,
-    "en": 4,
-    "gibs": 11,
-    "drops": 141,
+    "py": 124.5,
+    "en": 1,
+    "gibs": 0,
+    "drops": 0,
     "caps": 0
   },
   "hashes": [
-    "27f8f97fea",
-    "710071ec2c",
-    "fee1cbb226",
-    "35260df0d1",
-    "3cb8a4cbc2",
-    "a8de56a3e4"
+    "37b7b817d1",
+    "b1584874c8",
+    "1a01e1f564",
+    "bc9cf9678e",
+    "f4cafe2fef",
+    "a16444b31b"
   ],
   "errs": []
 }
