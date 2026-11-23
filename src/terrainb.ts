@@ -142,3 +142,183 @@ export function hazInterval(t: number, wx: number) {
   const m = moveAt(wx);
   return m ? Math.max(MOVE_HAZ_MIN, t * moveHazMul(m.b, m.mv)) : t;
 }
+
+// ---------------- DYN: slowly moving terrain (DIFFICULTY-SPEC §2.4 "Shared code", levels.md §2.2) ----------------
+// A world-x window over the CEIL / FLOOR arrays. It saves the window's base copy when armed and, every frame, rewrites
+// the window as base + a pure offset of (x, t): FLOOR = base - dF, CEIL = base + dC. Collision, render, hazards, eyeT
+// and every floorAt / ceilAt reader then agree with no special case. Pure apart from DYNS (the live windows): it takes
+// the arrays as arguments, so it keeps terrainb.ts's core-only import rule. solids.ts stepSolids drives it (one step.ts
+// hook) with world.ts's arrays and G.t. Users: Acid HIGH TIDE, Snot THE SWALLOW (W3c arms them from the signature beats).
+
+/** DYN tuning (every value: its rule and the gate that measures it) */
+export const DYN = {
+  /** S2: no terrain edge moves faster than this, px/f. route-probe `slam` trips at 1.5 (gate L5); dynOff never exceeds it
+   *  by construction (speed-capped ramp; cosine inset with S pi / T checked at arm). tests/unit/dyn.test.ts samples it */
+  vMax: .5,
+  /** S3 weave rule: a window end tapers over at least this run per px of offset, so the taper's slope (smoothstep peak
+   *  1.5 x d / edge) stays <= .6 (levels.md S3 sustained slope); never shorter than minEdge */
+  edgePerPx: 2.5,
+  minEdge: 60,
+  /** S4: no set piece moves with less tell than this (D59); arm clamps a shorter one up */
+  minTell: 44,
+  /** S1: a window's fit floor is never below this (levels.md S1); arm clamps up */
+  minFit: 72,
+  /** the share of a ramp spent easing in (and out) when the S2 cap leaves room: a trapezoid velocity profile */
+  ease: 1 / 3,
+  /** split swallow (v2): the cross-fade between the two out-of-phase halves, px (a seam would be a cliff) */
+  splitBlend: 80,
+};
+
+/** one moving-terrain window. Tide: the floor (side 1) or ceiling (side -1) moves in by d over rise f, holds, moves back
+ *  over drain f. Swallow: both walls inset by S (1 - cos(2 pi t / T)) / 2 for dur f (rounded up to whole periods).
+ *  tell: frames of tell before anything moves (>= DYN.minTell). fit: the window's column-gap floor. edge: taper px */
+export type DynSpec = {
+  id: string; kind: 'tide' | 'swallow'; x0: number; x1: number; tell: number; fit: number; edge?: number;
+  side?: 1 | -1; d?: number; rise?: number; hold?: number; drain?: number;
+  S?: number; T?: number; dur?: number; split?: boolean;
+};
+/** a live window: its spec (as normDyn clamped it), the column range, the saved base and the arm frame t0 */
+export type DynWin = { spec: DynSpec; i0: number; i1: number; bc: Float32Array; bf: Float32Array; t0: number; arr: Float32Array; TS: number };
+/** the live windows (solids.ts steps and resets them; render/moveprops.ts reads them through dynAt) */
+export const DYNS: DynWin[] = [];
+
+/** distance along a speed-capped ramp: d px in T f with peak speed <= v, eased in and out (trapezoid velocity) where the
+ *  cap leaves room. Needs |d| / T <= v (normDyn stretches T so it holds) */
+export function ramp(d: number, T: number, v: number, t: number) {
+  if (t <= 0 || d === 0) return 0;
+  if (t >= T) return d;
+  const ta = Math.max(0, Math.min(T * DYN.ease, T - Math.abs(d) / v)), vc = d / (T - ta);
+  if (ta <= 0) return vc * t;
+  if (t < ta) return vc * t * t / (2 * ta);
+  if (t <= T - ta) return vc * (t - ta / 2);
+  return d - vc * (T - t) * (T - t) / (2 * ta);
+}
+const sst = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+
+/** the spec as the engine flies it: tell, fit and taper clamped to the space rules, every ramp stretched so no edge beats
+ *  DYN.vMax (S2). Pure; armDynWin stores this, so what a probe reads back is what moves */
+export function normDyn(s: DynSpec): DynSpec {
+  const o: DynSpec = { ...s, tell: Math.max(DYN.minTell, s.tell | 0), fit: Math.max(DYN.minFit, s.fit || 0) };
+  const v = DYN.vMax;
+  if (o.kind === 'tide') {
+    const d = Math.abs(o.d || 0);
+    o.side = o.side === -1 ? -1 : 1;
+    o.rise = Math.max(o.rise || 0, Math.ceil(d / v));
+    o.drain = Math.max(o.drain || 0, Math.ceil(d / v));
+    o.hold = Math.max(0, o.hold || 0);
+    o.edge = Math.max(o.edge || 0, DYN.minEdge, Math.ceil(d * DYN.edgePerPx));
+  } else {
+    const S = Math.abs(o.S || 0);
+    o.T = Math.max(o.T || 0, Math.ceil(S * Math.PI / v)); // peak inset speed S pi / T <= vMax
+    o.dur = Math.ceil(Math.max(o.dur || 0, o.T * (o.split ? 2 : 1)) / o.T) * o.T; // whole periods: it ends relaxed (split: the
+    // far half runs half a period late and stops half early, so it needs two to move at all)
+    o.edge = Math.max(o.edge || 0, DYN.minEdge, Math.ceil(S * DYN.edgePerPx));
+  }
+  return o;
+}
+/** every frame the window lives, tell included */
+export const dynLen = (s: DynSpec) => s.tell + (s.kind === 'tide' ? (s.rise || 0) + (s.hold || 0) + (s.drain || 0) : s.dur || 0);
+/** 0..1 across the window: 0 at its ends, 1 past the taper */
+const taper = (s: DynSpec, x: number) => sst(Math.min(x - s.x0, s.x1 - x) / (s.edge || DYN.minEdge));
+/** the cosine inset fraction 0..1 at motion time u, period T */
+const pulse = (u: number, T: number) => (1 - Math.cos(2 * Math.PI * u / T)) / 2;
+
+/** the window's pure offset at world x, t frames after arm: [dC, dF]; dC moves the ceiling down, dF the floor up (both
+ *  >= 0, into the gap). 0 outside (x0, x1), during the tell and after the end. s: a normDyn'd spec */
+export function dynOff(s: DynSpec, x: number, t: number): [number, number] {
+  const o: [number, number] = [0, 0];
+  offInto(s, x, t, o);
+  return o;
+}
+/** dynOff into o (no allocation: writeWin calls it per column per frame, render/terrain.ts per edge segment) */
+export function offInto(s: DynSpec, x: number, t: number, o: number[]) {
+  o[0] = o[1] = 0;
+  if (x <= s.x0 || x >= s.x1) return;
+  const u = t - s.tell;
+  if (u <= 0 || u >= dynLen(s) - s.tell) return;
+  const w = taper(s, x);
+  if (w <= 0) return;
+  if (s.kind === 'tide') {
+    const d = s.d || 0, r = s.rise || 1, h = s.hold || 0, q = s.drain || 1;
+    const p = u < r ? ramp(d, r, DYN.vMax, u) : u < r + h ? d : d - ramp(d, q, DYN.vMax, u - r - h);
+    if (s.side === -1) o[0] = p * w; else o[1] = p * w;
+    return;
+  }
+  const T = s.T || 1, S = s.S || 0;
+  let f = pulse(u, T);
+  if (s.split) { // two halves out of phase, cross-faded over splitBlend px about the window's middle. The far half runs
+    // half a period late and stops half a period early, so it too starts and ends relaxed (no jump at either end)
+    const m = (s.x0 + s.x1) / 2, b = sst((x - m) / DYN.splitBlend + .5), dur = s.dur || 0;
+    f = f * (1 - b) + (u >= T / 2 && u <= dur - T / 2 ? pulse(u - T / 2, T) : 0) * b;
+  }
+  o[0] = o[1] = S * f * w;
+}
+const OFF = [0, 0];
+
+/** arm a window on the arrays at frame t. Refuses (null) one that overlaps a live window (two bases over one column
+ *  would restore wrong) or covers no column */
+export function armDynWin(spec: DynSpec, t: number, CEIL: Float32Array, FLOOR: Float32Array, TS: number): DynWin | null {
+  const s = normDyn(spec);
+  const i0 = Math.max(0, Math.floor(s.x0 / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil(s.x1 / TS));
+  if (i1 <= i0) return null;
+  for (const w of DYNS) if (w.arr === FLOOR && i0 <= w.i1 && i1 >= w.i0) return null;
+  const win: DynWin = { spec: s, i0, i1, bc: CEIL.slice(i0, i1 + 1), bf: FLOOR.slice(i0, i1 + 1), t0: t, arr: FLOOR, TS };
+  DYNS.push(win);
+  return win;
+}
+/** rewrite one window's columns for frame t. The column gap never drops under the window's fit: it opens about its
+ *  middle, shape()'s centre rule (each edge then moves at half the offset's speed, still <= vMax) */
+function writeWin(w: DynWin, t: number, CEIL: Float32Array, FLOOR: Float32Array) {
+  const s = w.spec, lt = t - w.t0;
+  for (let i = w.i0; i <= w.i1; i++) {
+    const j = i - w.i0, bc = w.bc[j], bf = w.bf[j];
+    offInto(s, i * w.TS, lt, OFF);
+    let c = bc + OFF[0], f = bf - OFF[1];
+    if (f - c < s.fit) {
+      if (bf - bc < s.fit) { c = bc; f = bf; } // the base itself is under the fit: the window leaves that column alone
+      else if (s.kind === 'tide') { if (s.side === -1) c = f - s.fit; else f = c + s.fit; } // a tide stops short: only its own
+      // side moves, so the far wall (and the eyes and wombs on it) never shifts
+      else { const m = (c + f) / 2; c = m - s.fit / 2; f = m + s.fit / 2; } // both walls clench: open about the middle
+    }
+    CEIL[i] = c; FLOOR[i] = f;
+  }
+}
+/** step every live window to frame t; a finished one writes its base back and is dropped. A window armed on another
+ *  FLOOR array (the terrain was rebuilt) is dropped without writing */
+export function stepDynWins(t: number, CEIL: Float32Array, FLOOR: Float32Array) {
+  for (let k = DYNS.length - 1; k >= 0; k--) {
+    const w = DYNS[k];
+    if (w.arr !== FLOOR) { DYNS.splice(k, 1); continue; }
+    if (t - w.t0 >= dynLen(w.spec)) {
+      CEIL.set(w.bc, w.i0); FLOOR.set(w.bf, w.i0);
+      DYNS.splice(k, 1);
+      continue;
+    }
+    writeWin(w, t, CEIL, FLOOR);
+  }
+}
+/** drop every window; given the arrays, write each one's base back first (a reset inside a window) */
+export function resetDynWins(CEIL?: Float32Array, FLOOR?: Float32Array) {
+  if (CEIL && FLOOR) for (const w of DYNS) if (w.arr === FLOOR) { CEIL.set(w.bc, w.i0); FLOOR.set(w.bf, w.i0); }
+  DYNS.length = 0;
+}
+/** the live window over world x, or null */
+export function dynWinAt(wx: number): DynWin | null {
+  for (let k = 0; k < DYNS.length; k++) { const w = DYNS[k]; if (wx >= w.spec.x0 && wx <= w.spec.x1) return w; }
+  return null;
+}
+/** the relaxed (base) [ceiling, floor] under a live window at world x (linear between saved columns), else null */
+export function dynBase(wx: number): [number, number] | null {
+  const w = dynWinAt(wx);
+  if (!w) return null;
+  const f = wx / w.TS - w.i0, j = Math.max(0, Math.min(w.bc.length - 2, Math.floor(f))), u = Math.max(0, Math.min(1, f - j));
+  return [w.bc[j] + (w.bc[j + 1] - w.bc[j]) * u, w.bf[j] + (w.bf[j + 1] - w.bf[j]) * u];
+}
+/** what the window over world x is doing at frame t (render and probes): tell 0..1 ramps up over the tell, k 0..1 is the
+ *  offset's share of its peak there (tide d, swallow S). null outside every window */
+export function dynAt(wx: number, t: number): { w: DynWin; t: number; tell: number; k: number } | null {
+  const w = dynWinAt(wx);
+  if (!w) return null;
+  const s = w.spec, lt = t - w.t0, o = dynOff(s, wx, lt), pk = s.kind === 'tide' ? Math.abs(s.d || 0) : Math.abs(s.S || 0);
+  return { w, t: lt, tell: lt >= 0 && lt < s.tell ? lt / s.tell : 0, k: pk > 0 ? Math.max(o[0], o[1]) / pk : 0 };
+}

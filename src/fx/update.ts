@@ -2,12 +2,14 @@
 import { $ } from '../state';
 import { pk } from '../perks';
 import { bankBio } from '../economy';
-import { FIRE, H, W, dist2, swapRm } from '../core';
+import { C, FIRE, H, W, dist2, swapRm } from '../core';
 import { srnd, srr, sri, spick } from '../srnd';
 import { SET } from '../save';
-import { AU, BANK, sample, sfx } from '../audio';
+import { AU, BANK, sample, sfx, thr } from '../audio';
+import { duckMusic } from '../music';
 import { AMT, ceilAt, decals, drops, flashes, floorAt, geysers, gibs, grav, mists, orbs, sparks, splats, texts } from '../world';
-import { addDecal, drop, spark, splat } from '../fx/spawn';
+import { addDecal, drop, gib, mist, spark, splat } from '../fx/spawn';
+import { SC, SOLID_FX, solidAt, solids } from '../solids';
 import { stepBooms } from './fxsprites';
 import { hellCore, hellCorr } from '../layout';
 
@@ -29,6 +31,10 @@ export function updateFX() {
     const wx = d.x + sc,
       f = floorAt(wx),
       c = ceilAt(wx);
+    if (solids.length && solidAt(wx, d.y, SC.ALL)) { // a SOLID: it splashes there, no decal (the block may shatter or regrow)
+      swapRm(drops, i);
+      continue;
+    }
     if (d.y >= f) {
       addDecal(wx, f, d.s, 1);
       swapRm(drops, i);
@@ -61,7 +67,12 @@ export function updateFX() {
         f = floorAt(wx),
         c = ceilAt(wx),
         rad = q.s * .5;
-      if (q.y + rad >= f) {
+      if (solids.length && solidAt(wx, q.y + (q.vy > 0 ? rad : -rad), SC.ALL)) { // a SOLID: a dead bounce, never a stick (it may go)
+        q.y -= q.vy;
+        q.vy *= -.3;
+        q.vx *= .5;
+        q.vr *= .5;
+      } else if (q.y + rad >= f) {
         q.y = f - rad;
         addDecal(wx, f, q.s * .7, 1);
         if (Math.abs(q.vy) > .5) sfx.squish();
@@ -136,6 +147,7 @@ export function updateFX() {
     if (q.l <= 0 || q.x < -40 || q.x > W + 40 || q.y > H + 40) swapRm(gibs, i);
   }
   stepBooms();
+  if (SOLID_FX.length) drainSolidFx();
   for (let i = mists.length - 1; i >= 0; i--) {
     const m = mists[i];
     m.l--;
@@ -332,3 +344,54 @@ export function decayFX() {
 }
 
 // ---------------- main step ----------------
+
+// ---------------- SOLIDS impacts (src/solids.ts SOLID_FX; render and audio only) ----------------
+/** the sounds and debris of the solids' events: reused samples and synth only (audio-director: no new asset). Each cue
+ *  plays at most once a frame (a plug column cut by a spread is one squelch, not twelve). srnd/srr only, never R() */
+const SFX_GATE: Record<string, number> = {};
+/** levels.md §10: every signature tell ducks the music ~10 f, as THE KEEPSAKE's beam tell does */
+const TELL_DUCK = .17;
+const once = (k: string) => (SFX_GATE[k] === $.T ? false : (SFX_GATE[k] = $.T, true));
+const ICE = ['#e6f6ff', '#9fd8ff', '#cfe6ff'];
+function drainSolidFx() {
+  for (let n = 0; n < SOLID_FX.length; n++) {
+    const e = SOLID_FX[n], x = e.x, y = e.y;
+    if (e.k === 'icetell') { // MORGUE RUSH's tell (levels.md §5.1: the tink sfx), with frost cracking off the rack. The
+      // only warning a block is coming down the lane, so the crack layer is a priority cue (a tell is >= 45 f apart)
+      if (once('icetell')) { sfx.tink(); sample('gicecrack', { vol: .3, rate: 1.35, prio: true }); duckMusic(TELL_DUCK); }
+    } else if (e.k === 'tink') { // a shot off an unshootable solid (a piston): the shot's own sparks are shots.ts's
+      if (once('tink')) sfx.tink();
+    } else if (e.k === 'chip') {
+      for (let k = 0; k < 5; k++) spark(x, y, srr(-2, .5), srr(-1.5, 1.5), sri(6, 12), e.s === 'ice' ? ICE[k % 3] : '#efe08a');
+      if (once('chip')) (e.s === 'ice' ? sample('gicecrack', { vol: .35, rate: 1.2 }) : false) || sfx.tink();
+    } else if (e.k === 'shatter') { // a frozen body coming apart: ice shards, then what was inside it
+      for (let k = 0; k < 14; k++) spark(x + srr(-8, 8), y + srr(-5, 5), srr(-2.5, 2.5), srr(-2.5, 1.5), sri(10, 22), ICE[k % 3]);
+      for (let k = 0; k < 6; k++) drop(x + srr(-6, 6), y + srr(-4, 4), srr(-1.6, 1.6), srr(-2, .5), srr(1, 1.8), 0, 90);
+      for (let k = 0; k < 2; k++) gib(x + srr(-5, 5), y, srr(-1.5, 1.5), srr(-2.2, -.4), 'chunk', srr(2.2, 3.2));
+      mist(x, y, srr(6, 10), sri(20, 34));
+      if (once('shatter')) { sample('gicecrack', { vol: .8 }) || sfx.tink(); sample('bone', { vol: .4, rate: 1.1 }); }
+      if ($.G) $.G.shake = Math.min(16, $.G.shake + 1.2);
+    } else if (e.k === 'lodge') { // it hits the wall and freezes there: a dull thud and a puff of rime
+      for (let k = 0; k < 6; k++) spark(x + srr(-10, 10), y, srr(-1, 1), y > 127 ? -srr(.3, 1.4) : srr(.3, 1.4), sri(8, 16), ICE[k % 3]);
+      if (once('lodge')) sample('thud', { vol: .45, rate: 1.3 }) || sfx.tink();
+      if ($.G) $.G.shake = Math.min(16, $.G.shake + 1);
+    } else if (e.k === 'cut') { // a plug cell blown open: snot sprays both ways
+      for (let k = 0; k < 4; k++) drop(x, y, srr(-1.6, 1.6), srr(-1.4, 1.4), srr(1, 1.6), 4, 60);
+      if (once('cut')) sample('snot', { vol: .5, rate: 1.25 }) || sfx.squish();
+    } else if (e.k === 'grow') { // the throat seals: one wet slosh per column
+      if (once('grow')) sample('gross_slosh', { vol: .45 }) || sfx.glob();
+    } else if (e.k === 'regrow') {
+      if (once('regrow') && !thr('sregrow', 120)) sample('gross_pop', { vol: .25, rate: .8 }) || sfx.squish(); // a column regrows cell by cell: a pop at most every 120 ms
+    } else if (e.k === 'hiss') { // a piston's tell: steam venting off the root seal
+      for (let k = 0; k < 4; k++) mist(x + srr(-10, 10), y + (y < 127 ? 6 : -6), srr(3, 6), sri(18, 30));
+      if (once('hiss')) { sample('gsizzle', { vol: .35, rate: .75 }) || sfx.tele(); duckMusic(TELL_DUCK); } // tele: §10's steam tell, throttled
+    } else if (e.k === 'clunk') { // full stroke: the ram bottoms out on what it is crushing
+      for (let k = 0; k < 6; k++) spark(x + srr(-14, 14), y, srr(-1.5, 1.5), srr(-1, 1), sri(6, 12), k % 2 ? '#8fa3b8' : C.blood);
+      if (once('clunk')) { sample('thud', { vol: .7, rate: .7 }) || sfx.squish(); sample('bone', { vol: .3, rate: .8 }); }
+      if ($.G) $.G.shake = Math.min(16, $.G.shake + 1.5);
+    } else if (e.k === 'dyntell') { // a moving-terrain window wakes: HIGH TIDE's glug (levels.md §5.2 reuses glob), the throat's slosh
+      if (once('dyntell')) { (e.s === 'tide' ? sample('gross_gush', { vol: .5, rate: .8, prio: true }) : sample('gross_slosh', { vol: .45, rate: .7, prio: true })) || sfx.glob(); duckMusic(TELL_DUCK); }
+    }
+  }
+  SOLID_FX.length = 0;
+}

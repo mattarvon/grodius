@@ -2,12 +2,14 @@
 import { $ } from '../state';
 import { biomeEdge, biomeK, biomeTerrainFill, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark } from '../biomes';
 import { C, H, PH, TAU, TS, W, ctx, hash, lc, lctx, sstep } from '../core';
-import { AMT, LIGHTS, ceilAt, floorAt, splats } from '../world';
+import { AMT, FLOOR, LIGHTS, ceilAt, floorAt, splats } from '../world';
 import { DERE, GROSS, PIC, STARS, fleshPat, metalPat, ready, texPat } from '../textures';
 import { drawChain, drawHookTip, drawSkull, glow, glowSpr, hangSpine, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
 import { innerBand } from '../layout';
 import { SET } from '../save';
+import { drawSolids } from './solids';
+import { DYNS, offInto } from '../terrainb';
 
 // --- terrain & backgrounds ---
 export function drawTerrain() {
@@ -154,7 +156,33 @@ export function drawTerrain() {
       ctx.stroke();
     }
   }
+  drawDynEdge(sc);
+  drawSolids(); // the SOLIDS (render/solids.ts): over the terrain they wedge into, under the decals and gibs
 }
+/** a moving-terrain window's edge (solids.ts DYN: HIGH TIDE, THE SWALLOW): a lit line along any edge the window has
+ *  displaced, so a wall that came in reads as alive, unlike the base terrain. Pulses during the tell (the warning, S4),
+ *  then glows with the displacement (a held tide stays lit: it is still not where the wall was). Nothing outside a
+ *  window. Draw-only, no allocation */
+function drawDynEdge(sc) {
+  if (!DYNS.length) return;
+  for (const w of DYNS) {
+    if (w.arr !== FLOOR) continue; // armed on a terrain since rebuilt: the next step drops it
+    const s = w.spec, lt = $.G.t - w.t0, tell = lt >= 0 && lt < s.tell ? lt / s.tell : 0, pk = s.kind === 'tide' ? Math.abs(s.d || 0) : Math.abs(s.S || 0);
+    if (s.x1 < sc || s.x0 > sc + W || pk <= 0) continue;
+    ctx.fillStyle = s.kind === 'tide' ? '#c8ffe8' : '#f4e49a';
+    for (let x = Math.max(0, Math.floor((s.x0 - sc) / 8) * 8); x <= Math.min(W, s.x1 - sc); x += 8) {
+      const wx = x + sc;
+      offInto(s, wx, lt, DOFF);
+      const k = Math.max(tell * (.6 + .4 * Math.sin($.T * .5)), Math.max(DOFF[0], DOFF[1]) / pk * .7);
+      if (k <= .02) continue;
+      ctx.globalAlpha = k;
+      if (s.kind === 'swallow' || s.side === -1) ctx.fillRect(x, ceilAt(wx) - 1, 8, 2);
+      if (s.kind === 'swallow' || s.side !== -1) ctx.fillRect(x, floorAt(wx) - 1, 8, 2);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+const DOFF = [0, 0];
 export function drawDecor() {
   const sc = $.G.scroll,
     nob = 1 - biomeK(sc + W / 2)[1],

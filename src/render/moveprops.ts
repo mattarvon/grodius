@@ -7,9 +7,10 @@
 // else, so a prop standing out in the gap would read as a wall that isn't there.
 import { $ } from '../state';
 import { PH, TAU, W, ctx, hash } from '../core';
-import { ceilAt, floorAt } from '../world';
+import { FLOOR, ceilAt, floorAt } from '../world';
 import { HUD_TOP, glow } from './util';
-import { MOVE, MOVES, moveK, narrowNear, ventNear } from '../terrainb';
+import { SET } from '../save';
+import { MOVE, MOVES, dynWinAt, moveK, narrowNear, offInto, ventNear } from '../terrainb';
 
 /** the props' own sizes (draw only; the terrain's are terrainb.ts MOVE) */
 const PROP_K = {
@@ -27,6 +28,18 @@ const PROP_K = {
    *  LS2 wave 1 S2-3: at most 6 px into the gap). Drawn only: a lip reads the wall nearer than it is, never farther */
   lip: 4,
 };
+/** a live DYN window (solids.ts: HIGH TIDE, THE SWALLOW) over world x: its tell 0..1 and its motion share 0..1 there,
+ *  into DYN_K (no allocation). false outside every window */
+const DYN_K = { tell: 0, k: 0 }, DOFF = [0, 0];
+function dynK(wx) {
+  const w = $.G && dynWinAt(wx);
+  if (!w || w.arr !== FLOOR) return false;
+  const s = w.spec, lt = $.G.t - w.t0, pk = s.kind === 'tide' ? Math.abs(s.d || 0) : Math.abs(s.S || 0);
+  offInto(s, wx, lt, DOFF);
+  DYN_K.tell = lt >= 0 && lt < s.tell ? lt / s.tell : 0;
+  DYN_K.k = pk > 0 ? Math.max(DOFF[0], DOFF[1]) / pk : 0;
+  return s.kind;
+}
 const lit = () => { ctx.globalCompositeOperation = 'lighter'; };
 const flat = () => { ctx.globalCompositeOperation = 'source-over'; };
 /** the n range of cells `every` px wide that are both on screen and inside band m */
@@ -67,10 +80,13 @@ function tank(m, sc, t, a) {
   for (let n = n0(m, sc, e); inView(m, sc, n, e); n++) {
     const wx = n * e + 20, k = moveK(m, wx), f = floorAt(wx), x = wx - sc;
     if (k <= 0) continue;
-    const bob = Math.sin(t * .05 + n * 2.1) * 1.2;
+    const tide = dynK(wx) === 'tide', boil = tide ? DYN_K.tell : 0; // HIGH TIDE's tell (levels.md §5.2): the lake boils hard, the rungs flash
+    const bob = Math.sin(t * .05 + n * 2.1) * (1.2 + 2.5 * boil);
     ctx.globalAlpha = a * k * .85;
     ctx.fillStyle = '#6a3a22'; ctx.fillRect(x, f + 4 + bob, 2, PH - f); ctx.fillRect(x + 10, f + 4 + bob, 2, PH - f);
-    ctx.fillStyle = '#a8603a'; for (let q = 0; q < 4; q++) ctx.fillRect(x, f + r + q * r + bob, 12, 1);
+    ctx.fillStyle = boil > 0 && (!SET.flashes || ((t / 10) | 0) % 2) ? '#ffe28a' : '#a8603a'; // 3 Hz, steady lit with HELL FLASHES off
+    for (let q = 0; q < 4; q++) ctx.fillRect(x, f + r + q * r + bob, 12, 1);
+    if (boil > 0) { ctx.fillStyle = 'rgba(200,255,232,.85)'; for (let q = 0; q < 3; q++) { const ph = ((t * 1.7 + q * 13 + n * 7) % 20) / 20; ctx.fillRect(x - 6 + q * 9, f - 1 - ph * 4 * boil, 2, 2); } } // the bubbles
     ctx.fillStyle = 'rgba(190,255,235,.8)'; ctx.fillRect(x - 3, f + Math.max(0, bob), 18, 1); // the waterline: never above the floor
   }
 }
@@ -137,8 +153,12 @@ function throat(m, sc, t, a) {
   for (let wx = narrowNear(Math.max(sc, m.a)) - e; wx < Math.min(sc + W + e, m.z); wx += e) {
     const k = moveK(m, wx);
     if (k <= 0) continue;
-    const x = wx - sc, c = ceilAt(wx), f = floorAt(wx), n = Math.round(wx / e), s = Math.max(0, Math.sin(t * B.speed + n * 1.3)), pulse = .35 + .65 * s;
-    const L = Math.round(PROP_K.lip * s * k); // the squeeze: the band swells L px (0-4) into the gap with its pulse
+    const x = wx - sc, c = ceilAt(wx), f = floorAt(wx), n = Math.round(wx / e), sw = dynK(wx) === 'swallow';
+    // inside THE SWALLOW the walls really clench (solids.ts DYN), so the band's glow follows the real inset and the lip
+    // stays flat (the terrain edge is the squeeze; a drawn lip would read the wall nearer than it is). Elsewhere the old
+    // render-only march, its lip within 4 px (art-director S2-3)
+    const s = sw ? Math.max(DYN_K.k, DYN_K.tell * .6) : Math.max(0, Math.sin(t * B.speed + n * 1.3)), pulse = .35 + .65 * s;
+    const L = sw ? 0 : Math.round(PROP_K.lip * s * k); // the squeeze: the band swells L px (0-4) into the gap with its pulse
     ctx.globalAlpha = a * k;
     ctx.fillStyle = '#2a1208'; ctx.fillRect(x - B.half, c - B.deep, B.half * 2, B.deep + L); ctx.fillRect(x - B.half, f - L, B.half * 2, B.deep + L);
     ctx.globalAlpha = a * k * pulse;
