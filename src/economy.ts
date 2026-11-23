@@ -170,8 +170,12 @@ const LATE_LONG4: LateSet = {
 
 /** D63 (Matt, 2026-11-21): long4's Pass 2 curve. Fitted on pod-probe --mortal --park (the gate) and --mortal --pilot */
 const HARD_LONG4: HardSet = {
-  wardTop: 1, // +1 hit, not a refill (difficulty package section 3 Pass 2: "the biggest single leak")
-  recover: 2, // the main gun plus one pod (D61 Pass 2's BLACK BOX rule, Matt), for the lifeline and BLACK BOX alike
+  // W2 (DIFFICULTY-SPEC §2.1 Survival): a WARD pod at its cap adds 1 hit, and player.ts wardCap() caps it at the WARD
+  // level (1/2/3). Gates H1 / H2
+  wardTop: 1,
+  // W2 (C15): the boss-fight lifeline's FULL pods, kept on Easy only (death.ts DEATH_TIER lifeline). BLACK BOX no longer
+  // reads it on long4 (C16: R1's main-gun pod comes FULL instead, flow.ts queueRecovery). Gate E1
+  recover: 2,
   // DIFFICULTY-SPEC C30 / GR rule 5: 0. Popcorn dies in one main-gun hit at every power level; HP scaling made
   // enemies last, not threaten [SYS §3]. Was 1.5 (D63). Gate R2 (dps-probe TTK rig: drone 1 bolt at every kit)
   powHP: 0,

@@ -13,6 +13,7 @@ vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, gore: ()
 vi.mock('../../src/fx/gunfx', () => ({ gunTier: () => 0, smoke: () => {} }));
 vi.mock('../../src/flow', () => ({ killPlayer: () => {}, respawn: () => {} }));
 vi.mock('../../src/enemies/update', () => ({ POD: {}, hurt: () => {} }));
+vi.mock('../../src/enemies/spawn', () => ({}));
 
 const { gunDm, sporeBurst } = await import('../../src/mutations');
 const P = await import('../../src/player');

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
-import { SET, UPG, exportSave, importSave, lv, save } from './save';
+import { HULL2_REFUND, SET, UPG, exportSave, importSave, lv, save } from './save';
 import { auInit, sample, setMute, sfx, voiceLive, voiceStopAll, bankWant } from './audio';
 import { I, PR } from './input';
 import { jumpRun, newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
@@ -13,6 +13,7 @@ import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, midForce, set
 import { TIER_NAME } from './tier';
 import { ARM_T, backStep, descendTap, exitLive } from './backstep';
 import { NATIVE } from './platform';
+import { SHIPS, hardOn } from './death';
 
 // ---------------- menus ----------------
 let titleSub = null, saveMsg = '';
@@ -81,7 +82,7 @@ export function titleItems() {
     confirm: cf,
     ...warn(ri ? 2 : 1, 'DESCENT 2'),
     a: () => startRun(1)
-  }] : []), {
+  }] : []), ...(activeLayout().id === 'long4' ? [diffRow()] : []), {
     l: 'INFIRMARY',
     r: fmtBio($.meta.bio),
     a: () => openShop('title')
@@ -95,6 +96,18 @@ export function titleItems() {
     r: layoutTag() + (midForce() ? ' ' + midLabel(midForce()) : ''),
     a: sub('lab')
   }];
+}
+/** the title's DIFFICULTY row (DIFFICULTY-SPEC §2.1 Tiers, decision 6A; it replaced D63's BRUTAL): the tier the next long
+ *  run flies, the same LAB setting as the LAB's own row, cycled EASY > NORMAL > HARD > VERY HARD. A ?tier= / ?brutal=
+ *  over it is shown, as the LAB row shows it. After DESCEND, so DESCEND stays row 0 for the harness and the probes */
+function diffRow() {
+  const L = lab(), t = tierPick('long4');
+  return {
+    l: 'DIFFICULTY',
+    // ux: what the run will fly; under a URL override the LAB value a press changes is shown too, so a press is never dead
+    r: t != null && t !== L.tier ? TIER_NAME[t] + ' (URL) / ' + TIER_NAME[L.tier] : TIER_NAME[L.tier],
+    a: () => setLab({ tier: ((L.tier + 1) % 4) as 0 | 1 | 2 | 3 })
+  };
 }
 /** a render-side hook run as DESCEND starts a run, before newGame (render/titledoll.ts armTitleOut sets it: menus.ts stays
  *  free of the DOM, so the unit tests can import it) */
@@ -154,8 +167,9 @@ function labItems() {
     a: () => setLab({ mids: L.mids === 'wip' ? '' : 'wip' })
   }, {
     l: 'CHECKPOINT',
-    r: L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
-    a: () => setLab({ cp: L.cp === 'b' ? 'a' : 'b' })
+    // long4: the tier decides (decision 1A: a death restarts at the checkpoint on NORMAL and up, EASY respawns in place)
+    r: c.id === 'long4' ? 'BY DIFFICULTY' : L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
+    a: () => { if (c.id !== 'long4') setLab({ cp: L.cp === 'b' ? 'a' : 'b' }); } // long4: the tier decides, nothing to toggle
   }, {
     // the difficulty tier (src/tier.ts, DIFFICULTY-SPEC §2.1; it replaced D63's BRUTAL row) for the next long run:
     // EASY / NORMAL / HARD / VERY HARD; a ?tier= (or ?brutal=, read as NORMAL) over it is shown, as ?layout= is
@@ -308,6 +322,15 @@ export function shopItems() {
 }
 export const shopSec = k => (k === 'rig' ? 0 : k === 'sock' ? 1 : k === 'upg' ? 2 : 3);
 const msg = (s, col = '#ffb0b0') => ($.shopMsg = { s, col, t: 150 });
+/** save v4 (Decision 3A): the first Infirmary visit after the migration says where a HULL level 2 went, once */
+function hullNote() {
+  if (($.meta.hullRef === 1 || $.meta.hullRef === 3) && !$.shopMsg) {
+    const paid = $.meta.hullRef === 1;
+    $.meta.hullRef = 2;
+    $.shopMsg = { s: 'HULL REFIT: ITS SHIP JOINS AT DESCENT 2' + (paid ? `, +${HULL2_REFUND} BIOMASS BACK` : ''), col: '#ffd0a0', t: 300 };
+    save();
+  }
+}
 export const rigOwned = id => ($.meta.own || []).includes(id);
 export const rigBolted = id => rigged().some(q => q.id === id);
 /** the first contraption is on the house: nobody should leave their first Infirmary visit empty-handed */
@@ -349,7 +372,8 @@ export function rigAct(r) {
     m.cl[r.id] = 1;
     sfx.power();
     sample('splat_m', { vol: .6 });
-    msg(free ? r.name + ' GRAFTED. THE SHIP ASKS NOTHING. YET.' : r.name + ' GRAFTED', '#ffd0a0');
+    // game-designer: the Descent 1 rule, said where a contraption is bought (long4)
+    msg(free ? r.name + ' GRAFTED. THE SHIP ASKS NOTHING. YET.' : r.name + ' GRAFTED' + (hardOn() ? ' // DESCENT 1: FIRST ONLY, LV 1, FROM STAGE 3' : ''), '#ffd0a0');
     if (m.rig.length < sockets()) bolt(r.id);
   } else if (rigBolted(r.id)) {
     m.rig = m.rig.filter(x => x !== r.id);
@@ -398,7 +422,9 @@ export function buy(u) {
   const c = u.cost[l];
   if (!spend(c)) return;
   $.meta.lv[u.id] = l + 1;
-  if (u.id === 'hull' && $.G && shopNext === 'loop') $.G.lives++;
+  // the loop shop: the ship is aboard for the next descent. On long4 the Descent 2 gate's startLoop adds HULL itself
+  // (Decision 3A), so the shop between Descent 1 and 2 adds nothing here, or that ship would count twice
+  if (u.id === 'hull' && $.G && shopNext === 'loop' && !(hardOn() && ($.G.loop | 0) + 1 === SHIPS.hullAt)) $.G.lives++;
   save();
   sfx.power();
 }
@@ -419,6 +445,7 @@ export function leaveShop() {
 }
 export function stepShop() {
   if ($.shopMsg && --$.shopMsg.t <= 0) $.shopMsg = null;
+  hullNote();
   const px = $.shopPX || 0;
   $.shopPX = I.x;
   // shopLock (40 frames after opening) gates the pointer and OK so a tap in flight can't buy. Back is honoured during it

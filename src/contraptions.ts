@@ -19,7 +19,8 @@ import { drop, flash, gib, gore, mist, pop, spark } from './fx/spawn';
 import { sample, sfx } from './audio';
 import { I } from './input';
 import { SET } from './save';
-import { WARD_MAX } from './player';
+import { wardCap } from './player';
+import { hardOn, rigDown, rigLiveOf } from './death';
 import { drawChain, drawHookTip, light } from './render/util';
 
 /** id, name, Infirmary blurb, buy cost, level-up costs (lvl 2, 3). Logic/visual owners key off `id`.
@@ -74,7 +75,12 @@ export function rigInit() {
 export const sockets = () => 1 + (($.meta.lv && $.meta.lv.socket) || 0);
 /** contraptions bolted on this run: [{id, lvl}] */
 export const rigged = () => ($.meta.rig || []).filter((id) => RIG_BY[id]).slice(0, sockets()).map((id) => ({ id, lvl: ($.meta.cl && $.meta.cl[id]) || 1 }));
-export const rigLv = (id) => { const r = rigged().find((q) => q.id === id); return r ? r.lvl : 0; };
+/** the rigs that RUN now (Decision 4A, DIFFICULTY-SPEC §2.2): on long4 in Descent 1 only the first bolted rig, at
+ *  level 1, from the stage-2 clear, and offline from a death to the next clear (death.ts rigLiveOf); everywhere else
+ *  rigged(). Behaviour (stepContraptions, onKillContraptions) and rank power (power.ts rigPower) read this; the hull
+ *  art and the Infirmary read rigged() (what is bolted) */
+export const rigLive = (G = $.G) => rigLiveOf(rigged(), G, hardOn());
+export const rigLv = (id) => { const r = rigLive().find((q) => q.id === id); return r ? r.lvl : 0; };
 
 /** fresh per-life live state (render/ship.ts reads this) */
 export const rigFresh = () => ({
@@ -96,6 +102,7 @@ let SRC = null;
 export const rigFX = () => ({ slugs: slugs.length, spines: spines.length, shards: shards.length, slag: slag.length, rings: rings.length });
 export function resetContraptions() {
   slugs.length = spines.length = shards.length = slag.length = rings.length = 0;
+  liveN = -1; // the RIG ONLINE call starts over with the run, a descent or a checkpoint restore
 }
 function hit(e, d, src, x = e.x, y = e.y, dir = 1) {
   if (e.dead) return;
@@ -129,8 +136,11 @@ export function stepContraptions() {
   const P = $.P;
   if (!P || !$.G) return;
   const R = rigState(), L = {};
-  for (const r of rigged()) L[r.id] = r.lvl;
+  if ($.G.rigOff && !rigDown($.G)) $.G.rigOff = 0; // a clear since the death: the rig wakes (and the next save says so)
+  const live = rigLive();
+  for (const r of live) L[r.id] = r.lvl;
   const alive = P.alive && $.state === 'play';
+  rigWake(live, P, alive);
   if (alive) {
     if (L.furnace) furnace(P, R.furnace, L.furnace);
     if (L.saw) saw(P, R.saw, L.saw);
@@ -150,6 +160,21 @@ export function stepContraptions() {
   updShards();
   updSlag();
   for (let i = rings.length - 1; i >= 0; i--) if (++rings[i].t >= rings[i].ml) swapRm(rings, i);
+}
+
+/** the live rig count last step: a rise (the stage-2 clear, or the clear after a death) says so on screen. -1 = not
+ *  yet seen this run, so a run that starts with rigs live (Descent 2, short) says nothing */
+let liveN = -1;
+function rigWake(live, P, alive) {
+  const n = live.length;
+  if (liveN >= 0 && n > liveN && alive && hardOn()) {
+    if ($.G.pick || $.G.tally) return; // ux: held until the pick or the tally card is gone, or nobody reads it
+    const nm = RIG_BY[live[0].id].name;
+    pop(P.x, P.y - 22, nm + ' ONLINE', '#ffd0a0', 8, 70);
+    $.G.feed = { s: nm + ' ONLINE', d: 'level 1 until your next death', t: 170, ml: 170 };
+    sfx.power && sfx.power();
+  }
+  liveN = n;
 }
 
 // BONE SAW: prow contact grinds anything small; a front-on ram never hurts you
@@ -259,8 +284,8 @@ function leech(P, S, lv) {
     P.wardLv = 1;
     P.shield = 1;
     pop(P.x, P.y - 16, 'MEMBRANE GROWN', '#ff8aa0', 8, 50);
-  } else if (P.shield < WARD_MAX) {
-    P.shield = Math.min(WARD_MAX, Math.floor(P.shield) + 1);
+  } else if (P.shield < wardCap()) {
+    P.shield = Math.min(wardCap(), Math.floor(P.shield) + 1); // long4: never past the WARD level (W2)
     pop(P.x, P.y - 16, '+1 WARD', '#ff8aa0', 8, 40);
   } else if (lv >= 3 && P.aegis < 12) {
     P.aegis = Math.min(12, (P.aegis || 0) + 4);

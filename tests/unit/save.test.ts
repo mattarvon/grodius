@@ -101,7 +101,7 @@ describe('save v3', () => {
 
   it('loads a real v2 save with Orbit and Drive best grades under kind keys and the biome-slot keys dropped', async () => {
     const { $ } = await load({ 'grodius.v1': V2_BLOB });
-    expect($.meta.v).toBe(3);
+    expect($.meta.v).toBe(4); // on through v4 (HULL 1 is untouched)
     expect($.meta.best).toEqual({ '1-orbit': 'A', '1-drive': 'C', '2-orbit': 'B', '2-drive': 'A' });
     // nothing else in the save moves
     expect($.meta.bio).toBe(2310);
@@ -121,7 +121,7 @@ describe('save v3', () => {
     a.$.meta.mb = { cyst: 2, brood: 1 };
     a.save();
     const written = a.ls.map.get('grodius.v1')!;
-    expect(JSON.parse(written).meta.v).toBe(3);
+    expect(JSON.parse(written).meta.v).toBe(4);
     const b = await load({ 'grodius.v1': written });
     expect(b.$.meta.best).toEqual({ '1-orbit': 'A', '1-drive': 'C', '2-orbit': 'B', '2-drive': 'A', '1-ice': 'S' });
     expect(b.$.meta.mb).toEqual({ cyst: 2, brood: 1 });
@@ -131,14 +131,14 @@ describe('save v3', () => {
   it('migrates a v1 save through the v2 refund and on to v3', async () => {
     const v1 = JSON.stringify({ meta: { bio: 0, lv: { nerve: 1 }, best: { '1-1': 'S', '1-3': 'A' } }, hi: 5 });
     const { $ } = await load({ 'grodius.v1': v1 });
-    expect($.meta.v).toBe(3);
+    expect($.meta.v).toBe(4);
     expect($.meta.bio).toBe(90); // the v2 refund still runs
     expect($.meta.best).toEqual({ '1-orbit': 'S' });
   });
 
-  it('starts a fresh save at v3 with empty best grades and meta.mb', async () => {
+  it('starts a fresh save at v4 with empty best grades and meta.mb', async () => {
     const { $ } = await load({});
-    expect($.meta.v).toBe(3);
+    expect($.meta.v).toBe(4);
     expect($.meta.best).toEqual({});
     expect($.meta.mb).toEqual({});
     expect($.meta.mbK).toEqual({});
@@ -221,5 +221,56 @@ describe('gradeKey and migrateBest', () => {
     const { slotGrades } = await import('../../src/gradekey');
     expect(slotGrades({ '1-1': 'A', '1-2': 'B', '2-3': 'C' }, { '1-2': 'S', '1-orbit': 'A', junk: 'S' })).toEqual({ '1-2': 'S', '2-3': 'C' });
     expect(slotGrades(null, null)).toEqual({});
+  });
+});
+
+// Decision 3A (DIFFICULTY-SPEC §2.2, §5.4): REINFORCED HULL is one level; a level-2 profile keeps 1 and gets 500 back
+describe('save v4 (HULL refit)', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+  const v3 = (hull: number, bio = 100, extra: object = {}) => JSON.stringify({ meta: { bio, lv: { hull, gland: 1 }, v: 3, ...extra }, hi: 0, asked: true });
+
+  it('turns HULL 2 into HULL 1 plus 500 biomass, once, and marks the note for the Infirmary', async () => {
+    const a = await load({ 'grodius.v1': v3(2) });
+    expect(a.$.meta.v).toBe(4);
+    expect(a.$.meta.lv).toEqual({ hull: 1, gland: 1 });
+    expect(a.$.meta.bio).toBe(100 + a.HULL2_REFUND);
+    expect(a.HULL2_REFUND).toBe(500);
+    expect(a.$.meta.refund).toBe(500);
+    expect(a.$.meta.hullRef).toBe(1);
+    a.save();
+    const b = await load({ 'grodius.v1': a.ls.map.get('grodius.v1')! });
+    expect(b.$.meta.bio).toBe(600); // a v4 save is not refunded a second time
+    expect(b.$.meta.lv.hull).toBe(1);
+    expect(b.$.meta.hullRef).toBe(1); // the note not yet shown survives the reload
+  });
+
+  it('leaves HULL 0 and 1 alone with no refund; a HULL 1 owner still gets the note (its ship moved)', async () => {
+    for (const h of [0, 1]) {
+      const { $ } = await load({ 'grodius.v1': v3(h) });
+      expect($.meta.lv.hull ?? 0).toBe(h);
+      expect($.meta.bio).toBe(100);
+      expect($.meta.hullRef).toBe(h ? 3 : undefined);
+      expect($.meta.refund).toBeUndefined();
+    }
+  });
+
+  it('runs a v1 save through the v2 refund and then the v4 refit, paying both', async () => {
+    const v1 = JSON.stringify({ meta: { bio: 0, lv: { hull: 3 } }, hi: 0 });
+    const { $ } = await load({ 'grodius.v1': v1 });
+    expect($.meta.v).toBe(4);
+    expect($.meta.lv.hull).toBe(1);
+    expect($.meta.bio).toBe(800 + 500); // v2 refunds the third level (800), v4 the second (500)
+  });
+
+  it('clamps an imported v4 code that claims HULL 2 without paying anything', async () => {
+    const { $ } = await load({ 'grodius.v1': JSON.stringify({ meta: { bio: 7, lv: { hull: 2 }, v: 4 }, hi: 0 }) });
+    expect($.meta.lv.hull).toBe(1);
+    expect($.meta.bio).toBe(7);
+  });
+
+  it('sells HULL as one level at 400', async () => {
+    const { UPG } = await load({});
+    const h = UPG.find((u: any) => u.id === 'hull');
+    expect([h.max, h.cost]).toEqual([1, [400]]);
   });
 });

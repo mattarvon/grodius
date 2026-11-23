@@ -20,8 +20,12 @@ $.meta = {
   cl: {},
   mbK: {}, // midboss kinds killed: {kind: 1} (spec §6.4 first-kill pay, once per profile); written by item G on long layouts
   mb: {}, // midbosses met: {kind: timesMet} (spec §6.3 weighting, §6.4 first-kill pay); written by item F
-  v: 3
+  v: 4
 };
+/** v4 (DIFFICULTY-SPEC §2.2, Matt's Decision 3A, 2026-11-22): REINFORCED HULL is one level now, its ship arriving at
+ *  the Descent 2 gate. A profile that owned level 2 keeps level 1 and gets this much biomass back (death.ts
+ *  the profile's own migration constant) */
+export const HULL2_REFUND = 500; // DIFFICULTY-SPEC §2.2 / Decision 3A: the one source of this value
 const KEY = 'grodius.v1', BAK = 'grodius.v1.bak', BAD = 'grodius.v1.corrupt';
 // a save that exists but won't parse is kept aside (BAD) before anything is written over it
 let unreadable = null;
@@ -58,18 +62,18 @@ try {
       if ($.meta.lv.socket) $.meta.lv.socket = Math.max(0, Math.min(2, $.meta.lv.socket | 0));
     }
     $.meta.v = d.meta && d.meta.v || 1;
+    // the migrations' biomass refunds (v2, v4), paid in one place below; null = no refunding migration ran
+    let refund = null;
     if ($.meta.v < 2) {
       // v2 removed raw-power upgrades; give the biomass back
       const OLD = { nerve: [90, 260], hollow: [100, 240, 480, 900], skin: [420], wraith: [380, 950], hull: [150, 380, 800] };
-      let refund = 0;
+      refund = 0;
       for (const [id, cost] of Object.entries(OLD)) {
         const keep = id === 'hull' ? Math.min(2, $.meta.lv[id] || 0) : 0;
         for (let i = keep; i < ($.meta.lv[id] || 0); i++) refund += cost[i];
         if (id === 'hull') $.meta.lv.hull = keep; else delete $.meta.lv[id];
       }
       if (($.meta.lv.salvage || 0) > 0) refund += 300; // Black Box got cheaper (800 -> 500)
-      $.meta.bio += refund;
-      $.meta.refund = refund;
       $.meta.v = 2;
     }
     // v3 (D19 LS1): best grades keyed by stage kind (gradekey.ts) and meta.mb. The grade cleaning runs on EVERY load,
@@ -81,6 +85,21 @@ try {
       if (Object.keys(bestV2).length) $.meta.bestV2 = bestV2;
       if ($.meta.v < 3) $.meta.v = 3;
     }
+    if ($.meta.v < 4) {
+      // v4: HULL level 2 -> level 1 plus HULL2_REFUND (any level above 1, which no shop ever sold, is clamped the same way)
+      if (($.meta.lv.hull || 0) > 1) {
+        $.meta.lv.hull = 1;
+        refund = (refund || 0) + HULL2_REFUND;
+        $.meta.hullRef = 1; // menus.ts says so once, at the next Infirmary visit (then 2): with the refund
+      } else if (($.meta.lv.hull || 0) === 1) $.meta.hullRef = 3; // a HULL 1 owner is told too: its ship moved (ux-designer)
+      $.meta.v = 4;
+    }
+    if (refund != null) {
+      $.meta.bio += refund;
+      $.meta.refund = refund;
+    }
+    if (($.meta.lv.hull || 0) > 1) $.meta.lv.hull = 1; // an imported v4 code can't carry a level the shop never sells
+    if (d.meta && (d.meta.hullRef === 1 || d.meta.hullRef === 3) && !$.meta.hullRef) $.meta.hullRef = d.meta.hullRef; // a note not yet shown survives a reload
     {
       // numbers only: `+n` on an imported object runs its valueOf/toString, which can throw mid-load
       const mb = d.meta && d.meta.mb, ok = mb && typeof mb === 'object' && !Array.isArray(mb) ? mb : {};
@@ -146,9 +165,9 @@ export const lv = id => $.meta.lv[id] || 0;
 export const UPG = [{
   id: 'hull',
   name: 'REINFORCED HULL',
-  desc: 'One more ship per run.',
-  max: 2,
-  cost: [400, 1100] // D63 (Matt): was 150 / 500; an extra ship was the cheapest survival in the shop
+  desc: 'One more ship. Long runs: it joins at Descent 2.',
+  max: 1, // Decision 3A (2026-11-22): one level; Descent 1 is 3 ships for every profile (save v4 refunds level 2)
+  cost: [400] // D63 (Matt): was 150; an extra ship was the cheapest survival in the shop
 }, {
   id: 'gland',
   name: 'HARVEST GLAND',
