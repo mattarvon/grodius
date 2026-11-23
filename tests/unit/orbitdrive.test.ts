@@ -185,12 +185,19 @@ describe('THE STROKE pistons (LVL §6.3)', () => {
       for (let i = 1; i < lane.length; i++) expect(Math.abs(lane[i] - lane[i - 1]) / (v.x[i] - v.x[i - 1]), `${v.id} ${i}`).toBeLessThanOrEqual(.75);
     }
   });
-  it('phases each piston from its world x to be mid-hold as it reaches the ship\'s reference x (no R())', () => {
-    const cyc = 300, ext = 40, s = 1000;
-    for (const x of [1150, 1280, 1650, 2390]) {
-      const p = pistonPhase(x, s, cyc, ext), d = x - S.shipX - s;
+  it('phases each piston to be mid-hold as it reaches the ship, from the ship\'s x at its spawn beat (no R())', () => {
+    const cyc = 300, ext = 40;
+    for (const x of [1150, 1280, 1650, 2340]) for (const px of [10, 120, 280, 464]) {
+      const s = x - 480 - S.lead, p = pistonPhase(x, s, cyc, ext, px), d = x - px - s;
       expect(p).toBeGreaterThanOrEqual(0); expect(p).toBeLessThan(cyc);
       expect((p + d) % cyc).toBeCloseTo(S.rest + ext + S.hold / 2, 6);
+    }
+  });
+  it('leaves no parked x where a STROKE piston stays open: a ship parked anywhere meets every piston in its hold (S8)', () => {
+    const ext = 60, cyc = S.rest + 2 * ext + S.hold, holdA = S.rest + ext, holdB = holdA + S.hold;
+    for (let px = 10; px <= 464; px += 6) for (const v of S.vars) for (const x of v.x) {
+      const s = x - 480 - S.lead, t = (pistonPhase(x, s, cyc, ext, px) + (x - px - s)) % cyc;
+      expect(t >= holdA && t < holdB, `parked ${px} piston ${x}`).toBe(true);
     }
   });
   it('spawns every variation off screen (S5: never near the ship) and keeps the wall eyes 60 px from piston centres', () => {

@@ -551,25 +551,23 @@ function walls(a, b) {
   for (let x = a; x <= b; x += 4) { ce = Math.max(ce, ceilAt(x)); fl = Math.min(fl, floorAt(x)); }
   return [ce, fl];
 }
-/** one STROKE variation's pistons (W3A-API spawnPiston / spawnPistonPair), built off screen from the terrain under each:
- *  singles leave `gap` to the far wall, pairs centre their `gap` in the corridor share. Each is phased from its world x
- *  (layout.ts pistonPhase), so the open lane alternates as the scroll brings them to the ship. No solids.ts yet: none */
-function strokeVar(r, v) {
+/** STROKE variation v's piston i (W3A-API spawnPiston / spawnPistonPair), built just off screen from the terrain under
+ *  it: a single leaves `gap` to the far wall, a pair centres its `gap` in the corridor share. Phased from the ship's x now
+ *  (layout.ts pistonPhase), so it is mid-hold when it reaches the ship. No solids.ts yet: none */
+function strokePiston(r, v, i) {
   if (!SO || typeof SO.spawnPiston !== 'function') return;
-  const S = DRIVE_SIG.stroke, s = $.G.scroll;
-  v.x.forEach((rx, i) => {
-    const x = r.x0 + rx, [ce, fl] = walls(x - 12, x + S.w + 12), base = { x, w: S.w, tell: S.tell, hold: S.hold, rest: S.rest, v: S.v, sig: 'stroke' };
-    if (v.pair) {
-      const centre = pairCentre(v.pair[i], v.gap, ce, fl), depth = Math.max(centre - v.gap / 2 - ce, fl - centre - v.gap / 2);
-      const o = { ...base, centre, gap: v.gap }, ext = Math.ceil(depth / S.v), cyc = SO.pistonCycle ? SO.pistonCycle({ ...o, side: 1, reach: fl - depth }) : S.rest + 2 * ext + S.hold;
-      SO.spawnPistonPair({ ...o, phase: pistonPhase(x, s, cyc, ext) });
-    } else {
-      const side = v.side[i], reach = pistonReach(side, v.gap, ce, fl);
-      if (reach == null) return;
-      const o = { ...base, side, reach }, ext = Math.ceil((side < 0 ? reach - ce : fl - reach) / S.v), cyc = SO.pistonCycle ? SO.pistonCycle(o) : S.rest + 2 * ext + S.hold;
-      SO.spawnPiston({ ...o, phase: pistonPhase(x, s, cyc, ext) });
-    }
-  });
+  const S = DRIVE_SIG.stroke, s = $.G.scroll, px = $.P ? $.P.x : S.shipX, rx = v.x[i];
+  const x = r.x0 + rx, [ce, fl] = walls(x - 12, x + S.w + 12), base = { x, w: S.w, tell: S.tell, hold: S.hold, rest: S.rest, v: S.v, sig: 'stroke' };
+  if (v.pair) {
+    const centre = pairCentre(v.pair[i], v.gap, ce, fl), depth = Math.max(centre - v.gap / 2 - ce, fl - centre - v.gap / 2);
+    const o = { ...base, centre, gap: v.gap }, ext = Math.ceil(depth / S.v), cyc = SO.pistonCycle ? SO.pistonCycle({ ...o, side: 1, reach: fl - depth }) : S.rest + 2 * ext + S.hold;
+    SO.spawnPistonPair({ ...o, phase: pistonPhase(x, s, cyc, ext, px) });
+  } else {
+    const side = v.side[i], reach = pistonReach(side, v.gap, ce, fl);
+    if (reach == null) return;
+    const o = { ...base, side, reach }, ext = Math.ceil((side < 0 ? reach - ce : fl - reach) / S.v), cyc = SO.pistonCycle ? SO.pistonCycle(o) : S.rest + 2 * ext + S.hold;
+    SO.spawnPiston({ ...o, phase: pistonPhase(x, s, cyc, ext, px) });
+  }
 }
 /** the long Drive approach's fixed beats: its two authored carriers, then THE STROKE v1-v3 (pistons 1150-2370) with v3's wall
  *  eyes and rear wave, and the log line as the first piston comes on screen */
@@ -578,7 +576,7 @@ function driveSets(r, at) {
   for (const c of D.carriers) at('carrier')(c.x, () => carrier(c.pat, PH * c.y, c.n));
   at('stroke')(S.vars[0].x[0] - W + 60, () => logLine('THE DRIVE IS STILL PUMPING.'));
   for (const v of S.vars) {
-    at('stroke:' + v.id)(v.x[0] - W - S.lead, () => strokeVar(r, v));
+    v.x.forEach((x, i) => at('stroke:' + v.id)(x - W - S.lead, () => strokePiston(r, v, i)));
     if (v.eyes != null) at('stroke:eyes')(v.eyes - W - 14, () => { eyeT(1); eyeT(-1); });
     if (v.behind != null) at('stroke:behind')(v.behind, () => behindWave(PH / 2, 4));
   }

@@ -293,7 +293,7 @@ const LONG4: LayoutEntry = {
     // (~3490), heldRange. Checkpoints (C21, <= 30 s apart): the start, before the Saucer, after it and before CREW KNOTS,
     // after the knots, at the breach, and the Maw banner - 10 s. cp1 (rev 2's single CP1) is the post-knots one
     { kind: 'orbit', x0: 0, x1: 4380 + S0, bossX: 4200 + S0, warnX: ORBIT_WARN, drift: [{ k: 'ufo', at: 1080, gapEnd: 2100, exitLead: 60 }], plan: LONG4_ORBIT_PLAN, cp1: 3550,
-      cps: [0, 1000, 2110, 3550, 4900, ORBIT_WARN - CP_RULE.warnLead], sigs: [{ id: 'crew_knots', a: 2400, b: 3450, floor: 100 }] },
+      cps: [0, 1000, 2110, 3550, 4590, ORBIT_WARN - CP_RULE.warnLead], sigs: [{ id: 'crew_knots', a: 2400, b: 3450, floor: 100 }] },
     // gate scroll ~bossX + 50 of the Maw, so the gate x (scroll + W + 10) is ~that + 490; gateLate rounds up
     { kind: 'biome', slot: 0, fork: true, x0: 4380 + S0, x1: 8000 + S1, end: 7900 + S1, bossX: 7800 + S1, gateLate: 4750 + S0 },
     // gate scroll ~the slot-0 row's x1 (the biome boss lands 150 f after its WARNING, then the scroll coasts ~50 px)
@@ -559,21 +559,23 @@ export interface StrokeVar { id: string; x: number[]; side?: (1 | -1)[]; pair?: 
 export const DRIVE_SIG = {
   /** the approach's authored carriers (§2.2 faucet: 2 in the Drive's first 45 s, "2 pods by 18 s"), trigger x.
    *  E2 fixed:open */
-  carriers: [{ x: 830, pat: 'sine', y: .4, n: 4 }, { x: 1000, pat: 'loop', y: .6, n: 4 }],
+  carriers: [{ x: 830, pat: 'sine', y: .4, n: 4 }, { x: 900, pat: 'loop', y: .6, n: 4 }], // 900: done looping before v1 (level-designer)
   stroke: {
     /** piston width px (LVL §6.3) */
     w: 30,
     /** the engine cycle (W3A-API spawnPiston): tell 50 f (S4 >= 44), hold 90, rest 60; v .5 px/f is S2's edge-speed cap,
      *  so LVL's draft 1.2 extend / .8 retract run at .5 */
     tell: 50, hold: 90, rest: 60, v: .5,
-    /** the ship's reference screen x: each piston is phased (from its world x) to sit mid-hold as the scroll brings it
-     *  to this x, so the open lane alternates piston to piston (the weave the S3 numbers assume). A ship further right
-     *  meets it earlier, in its rest. Deterministic: frame-counter math, no R() (§5.2) */
+    /** the ship's screen x when it has none (no ship). Each piston is spawned on its own beat and phased from the ship's
+     *  x at that beat, so it is mid-hold as the scroll brings it to the ship, wherever the ship flies: the open lane
+     *  alternates piston to piston (the weave the S3 numbers assume) and no parked x is a sanctuary (S8; a fixed
+     *  reference x left a band at screen x ~260-300 where every piston was at rest: level-designer BLOCK). A ship that
+     *  moves after the beat dodges it, as it should. Deterministic: sim state and frame-counter math, no R() (§5.2) */
     shipX: 120,
-    /** the spawn beat fires this far before a variation's first piston reaches the right edge. 0: built just off screen
-     *  (x = scroll + W), and as late as that allows, so the checkpoint before THE STROKE (660) still replays v1's beat
-     *  (670) on a restore (stagebuild.ts rebuildAt keeps only entries past the checkpoint) and the one after it (2460)
-     *  stays within 1800 px (C21). orbitdrive.test.ts */
+    /** a piston's spawn beat fires this far before it reaches the right edge. 0: built just off screen (x = scroll + W),
+     *  and as late as that allows, so the checkpoint before THE STROKE (660) still replays v1's first beat (670) on a
+     *  restore (stagebuild.ts rebuildAt keeps only entries past the checkpoint) and the one after it (2460) stays within
+     *  1800 px (C21). orbitdrive.test.ts */
     lead: 0,
     /** a piston that would intrude less than this (px) is skipped: the corridor is already that tight there */
     minDepth: 8,
@@ -604,9 +606,9 @@ export function pairCentre(q: number, gap: number, ce: number, fl: number): numb
   return lo > hi ? (ce + fl) / 2 : Math.max(lo, Math.min(hi, c));
 }
 /** frames into its cycle a piston starts at (W3A-API spawnPiston `phase`, the cycle rest -> extend -> hold -> retract)
- *  so it is mid-hold when the scroll brings its world x to the ship's reference screen x. Spawned at scroll s for world x
- *  x, it gets there in x - shipX - s frames (1 px/f: the approach holds no screen). ext: its extend frames (depth / v) */
-export function pistonPhase(x: number, s: number, cycle: number, ext: number, S = DRIVE_SIG.stroke): number {
-  const mid = S.rest + ext + S.hold / 2, d = x - S.shipX - s;
+ *  so it is mid-hold when the scroll brings its world x to screen x px (the ship's x at the spawn beat). Spawned at scroll
+ *  s for world x x, it gets there in x - px - s frames (1 px/f: the approach holds no screen). ext: its extend frames */
+export function pistonPhase(x: number, s: number, cycle: number, ext: number, px = DRIVE_SIG.stroke.shipX, S = DRIVE_SIG.stroke): number {
+  const mid = S.rest + ext + S.hold / 2, d = x - px - s;
   return (((mid - d) % cycle) + cycle) % cycle;
 }
