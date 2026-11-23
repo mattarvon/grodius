@@ -240,14 +240,14 @@ describe('revenge, pods and knots (§2.1 / §2.2 / LVL §3.2)', () => {
     expect(e.ws).toBe('tel');
   });
 
-  it('a rear-wave shooter stays a ghost and holds its tell while the ship is within 64 px', () => {
+  // (its 60 f phase-in ghost still expires on its own clock: the tell, not the ghost, is what waits for the 64 px; qa-lead)
+  it('a rear-wave shooter holds its tell while the ship is within 64 px and never fires from inside it', () => {
     $.P.x = 60; $.P.y = 127;
     S.formation('behind', 127, 3, { fixed: 1 });
     const lead = W.enemies[0];
     for (let f = 0; f < 200 && lead.x < $.P.x; f++) {
       run(1);
       if (Math.hypot($.P.x - lead.x, $.P.y - lead.y) < BUL.noShot) expect(lead.tl || 0).toBe(0);
-      if (!(lead.ghost > 0)) expect(Math.hypot($.P.x - lead.x, $.P.y - lead.y)).toBeGreaterThanOrEqual(BUL.noShot);
     }
     expect(W.eshots.length).toBe(0); // never a shot from inside 64 px
   });

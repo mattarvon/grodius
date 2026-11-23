@@ -32,7 +32,7 @@ await p.addInitScript(([g0, g1, OPT]) => {
   window.__nr = 1;
   { const P = CanvasRenderingContext2D.prototype; for (const m of ['fillRect', 'strokeRect', 'drawImage', 'fill', 'stroke', 'fillText', 'strokeText', 'putImageData', 'clearRect', 'getImageData']) { const o = P[m]; P[m] = function (...a) { if (window.__nr) return m === 'getImageData' ? { data: new Uint8ClampedArray(a[2] * a[3] * 4), width: a[2], height: a[3] } : undefined; return o.apply(this, a); }; } }
   let prevVis = null, lastFork = null, lastStage = -1, lastLoop = -1, lastMini = null, forkIdx = 0, mortal = 0, hz = new Set(), lastTally = null, lastSeal = 0;
-  const st = (window.__st = { minGap: 999, minGapAt: 0, slam: 0, slamMax: 0, slamAt: [], hazSpawn: 0, hazKinds: {}, hazBad: [], hazHits: 0, mixes: {}, frames: 0, deaths: 0 });
+  const st = (window.__st = { minGap: 999, minGapAt: 0, slam: 0, slamMax: 0, slamAt: [], hazSpawn: 0, hazKinds: {}, hazBad: [], hazKid: [], hazRaw: [], hazHits: 0, mixes: {}, frames: 0, deaths: 0 });
   window.__tick = (n) => {
     for (let i = 0; i < n; i++) {
       now += 5000 / 60;
@@ -74,7 +74,13 @@ await p.addInitScript(([g0, g1, OPT]) => {
         // the probe samples every few frames, so a body first seen t frames old is moved back along its velocity to where it
         // spawned, and counts only if it was inside 48 px even granting the ship's own move since (v_ship x t)
         const vS = h.P ? (1.25 + .42 * (h.P.speed || 0)) : 3;
-        for (const e of h.enemies) { if (seenE.has(e)) continue; seenE.add(e); if (e.dead || e.split || !PL.regular(e) || !h.P.alive) continue;
+        // measure-only, beside hazBad (W6 round-2 qa-lead): hazKid = a split child first seen within 48 px (te's kidPad rule:
+        // expect none on long4; L5 itself skips split children), hazRaw = a regular body first seen within 48 px as it is,
+        // with no back-projection or ship-move allowance (scroll riders carry no vx, so the allowance can pass ~12 px)
+        for (const e of h.enemies) { if (seenE.has(e)) continue; seenE.add(e); if (e.dead || !h.P.alive) continue;
+          if (e.split) { if (Math.hypot(e.x - h.P.x, e.y - h.P.y) < 48) st.hazKid.push(e.k); continue; }
+          if (!PL.regular(e)) continue;
+          if (Math.hypot(e.x - h.P.x, e.y - h.P.y) < 48) st.hazRaw.push(e.k);
           const age = Math.max(0, (e.t || 0) - 1), x0 = e.x - (e.vx || 0) * age, y0 = e.y - (e.vy || 0) * age;
           if (Math.hypot(x0 - h.P.x, y0 - h.P.y) + vS * age < 48) st.hazBad.push('body-on-ship:' + e.k); }
         const SO = PL.mods.SO, sl = SO && Array.isArray(SO.solids) ? SO.solids : null;
@@ -165,6 +171,7 @@ console.log('music:\n  ' + mx);
 { const fo = r.st.fitOut, fi = r.st.fitIn, sigs = await p.evaluate(() => window.__PL.sigs());
   const fitOk = (!fo || fo.f >= 100) && (!fi || fi.f >= fi.lim);
   console.log(`fit (swept 21 px): outside windows min ${fo ? fo.f + ' @' + fo.at + ' (stage ' + fo.st + ')' : '-'} (>= 100); inside ${sigs == null ? 'n/a (no sigs.ts)' : fi ? fi.f + ' @' + fi.at + ' in ' + (fi.id || 'window') + ' (>= ' + fi.lim + ')' : 'none flown'}`);
+  console.log(`hazKid ${r.st.hazKid.length} [${r.st.hazKid.slice(0, 8).join(',')}]  hazRaw ${r.st.hazRaw.length} [${r.st.hazRaw.slice(0, 8).join(',')}] (measure-only, not in L5)`);
   console.log(`L5 ${fitOk && r.st.slam === 0 && !r.st.hazBad.length && !errs.length ? 'PASS' : 'FAIL'}: fit ${fitOk ? 'ok' : 'LOW'}, slams ${r.st.slam}, hazBad [${r.st.hazBad.slice(0, 8).join(',')}${r.st.hazBad.length > 8 ? ',...' : ''}], page errors ${errs.length}`); }
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none');
 ranOn('route-probe');

@@ -293,7 +293,7 @@ export function pageLib() {
     return 'inside';
   };
   /** spec §2.3 / C6: may this enemy shoot at all? A drone only as its formation's designated shooter (W1 marks it at
-   *  spawn: e.sh 1 = the last scripted member, e.sh 2 = member 0, live at rank >= 14). rk: the rank when it was seen.
+   *  spawn: e.sh 1 = the leader, member 0, since tune-te; e.sh 2 = the last member, live at rank >= 14). rk: the rank when it was seen.
    *  Every other kind: yes. A build with no e.sh field on its drones (pre-W1) answers null: undesignated */
   PL.designated = (e, rk) => (e.k !== 'drone' ? true : !('sh' in e) ? null : e.sh === 1 || (e.sh === 2 && rk != null && rk >= 14));
   /** a regular enemy (not a midboss, boss, part or child) */

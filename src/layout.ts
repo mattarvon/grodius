@@ -591,7 +591,7 @@ export const ORBIT_SIG = {
    *  cover p90 40-55%, L4 statue body hits >= 4/min in the window.
    *  [FIT] W6 tune (L7 measured 0-13%: the bots cut an 8 hp knot in ~1 s, so a lone or staggered knot never reached the
    *  ship's column with company): v2 moves up to 2450 and drips four more knots, one every 60 px (the last at 2690: ~1.8 s clear before v3's wall, game-designer review); v3 (2800) comes in as
-   *  one wall of three, un-staggered, then drips one every 30 px for 270 px (~.5 s apart: faster than one gun cuts 8 hp knots). A knot triggered at scroll s meets the column the
+   *  one wall of three, un-staggered, then drips one every 30 px for 270 px (~.5 s apart; sized against 8 hp knots: tune-te's KNOT hp 20 lands with it in W6 round 2, re-measured there). A knot triggered at scroll s meets the column the
    *  probe reads (ship x + 60) at ship world x ~s + 370, so every knot from 2150 to ~3080 lands inside the 2400-3450
    *  window. Knot HP is the enemies stream's (notice.ts KNOT); the drip keeps the ship's gun busier than one lane */
   knots: [

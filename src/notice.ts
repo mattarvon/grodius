@@ -104,7 +104,7 @@ export const BUL = {
   tellPad: 2, //       a right entrant's tell ends this far past the 40 px edge, so rounding in its speed estimate never refuses the shot
   // a right entrant tells 12 f before it is 40 px in, at its own last-frame speed (enemies/update.ts droneFire; W6 tune:
   // W * .95 ended the wall pattern's tell at 441, refused, re-told; game-designer: W * .78 broke N3's <= 30 f; spec amendment)
-  droneBackX: 20, //   a rear-wave shooter from x >= 20 (its tell ends past the 40 px edge, behind the ship: N2). It tells, and drops its phase-in ghost, only once the ship is >= 64 px off, so the body that fires is solid and never turns solid on the ship
+  droneBackX: 20, //   a rear-wave shooter from x >= 20 (its tell ends past the 40 px edge, behind the ship: N2). It tells (and its tell drops the phase-in ghost) only once the ship is >= 64 px off, so the body that fires is solid; the 60 f ghost still expires on its own clock
   droneEdgeY: 22, //   a drop / rise shooter once 22 px in from its edge, so the 12 f tell at 1.6 px/f ends just past 40 px (41.2) (W6 tune: 20 ended it at 39, refused, re-told: N3 drone 44 f)
   rank2: 14, //        at rank >= 14 the last member shoots too (C3), so a formation fires 2 bullets at most
   // W6 tune (N1, N3): the designated shooter is the LEADER (member 0), not the last member: the last one entered
