@@ -64,6 +64,10 @@ describe('WARD hits = WARD level (long4)', () => {
     $.P = ship({ wardLv: 2, shield: 0 }) as any;
     P.applyPower(6, true);
     expect([$.P.wardLv, $.P.shield]).toEqual([3, 1]);
+    $.P = ship({ wardLv: 1, shield: .66 }) as any; // a grazed hit keeps its part and gains the whole new one (no floor)
+    P.applyPower(6, true);
+    expect($.P.wardLv).toBe(2);
+    expect($.P.shield).toBeCloseTo(1.66, 9);
     $.P = ship({ wardLv: 0, shield: 0 }) as any; // the first level still arrives with its hit
     P.applyPower(6, true);
     expect([$.P.wardLv, $.P.shield]).toEqual([1, 1]);

@@ -163,7 +163,8 @@ export function applyPower(i, full) {
     $.P.wardLv = Math.min(3, ($.P.wardLv || 0) + 1);
     // long4 (Matt, decision 18, gate H2): a level-up raises the capacity and adds the new level's hit, but does NOT refill
     // the hits already lost (WARD 1 with 0 left -> WARD 2 with 1). Elsewhere (short) a refill to WARD_MAX, as before
-    $.P.shield = hardOn() ? Math.min(wardCap(), Math.floor($.P.shield || 0) + Math.max(0, wardCap() - c0)) : wardCap();
+    // (no floor: a graze-drained shield, shots.ts .34, keeps its part and gains the whole new hit; economy-designer)
+    $.P.shield = hardOn() ? Math.min(wardCap(), ($.P.shield || 0) + Math.max(0, wardCap() - c0)) : wardCap();
     if ($.P.wardLv >= 3) $.P.aegis = 12;
   }
   $.G.slotF = $.G.slotF || [];
@@ -215,7 +216,9 @@ export function powerText(i) {
     case 4: return P.pyre > 1 ? ['PYRE II // EYE STORM', 'every gunner lobs, 50% faster', 'PYRE II: EYE STORM'] : ['PYRE // FLAMING EYES', 'lobbed eyes burst and set meat burning', 'PYRE: FIRE EYES'];
     case 5: return ['WRAITH ' + P.options + ' // +1 GUNNER', `${P.options + 1} guns firing, +${50 * P.options}% damage`, `WRAITH: ${P.options + 1} GUNS`];
     default: {
-      const n = ['', 'MEMBRANE', 'MIRROR', 'BONE AEGIS'][P.wardLv], h = wardCap(), hs = h === 1 ? '1 hit' : h + ' hits';
+      const n = ['', 'MEMBRANE', 'MIRROR', 'BONE AEGIS'][P.wardLv], h = wardCap(), k = Math.ceil(P.shield || 0);
+      // long4 (decision 18): a level-up no longer refills, so say what it holds when it is not full (game/economy-designer)
+      const hs = (h === 1 ? '1 hit' : h + ' hits') + (hardOn() && k < h ? ` (${k} held)` : '');
       return ['WARD // ' + n, ['', `soaks ${hs}`, `soaks ${hs}, reflects bullets`, `soaks ${hs}, reflects, bone shield ahead`][P.wardLv], n];
     }
   }
