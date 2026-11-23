@@ -1091,7 +1091,7 @@ export function drawEnemy(e) {
   // G3 aimed-shot tells (§2.1: >= 12 f on every aimed shot): the designated drone's 12 f flash (e.tl, enemies/update.ts
   // droneFire), and a cross's muzzle glint over the last 12 f of its cooldown. A hot red-white point that swells (a tell, about 2x an
   // orb's core: it is not a shot, so the 1.6x shot rule does not bind it)
-  if (e.k === 'drone' && e.tl > 0 && e.tl <= BUL.tell) tellGlint(e.x - 5, e.y, 1 - e.tl / BUL.tell);
+  if (e.k === 'drone' && e.tl > 0 && e.tl <= BUL.tell) tellGlint(e.x + (e.pat === 'behind' ? 5 : -5), e.y, 1 - e.tl / BUL.tell); // a rear wave flies mirrored: its muzzle is the right side (W6, art-director)
   else if (e.k === 'cross' && g3() && e.cool > 0 && e.cool <= BUL.tell && e.x < W - 6) tellGlint(e.x, e.y + 14, 1 - e.cool / BUL.tell);
   if ((e.cap || (e.group && e.group.open)) && e.k !== 'corpse') { // an authored carrier formation glows red as a whole (§2.2: "red means capsule")
     ctx.globalCompositeOperation = 'lighter';

@@ -51,20 +51,27 @@ function uTurn(e) {
   } else e.x += NOTICE.uVx;
 }
 
-/** G3 (C6, ENC roster "drone"): a formation's designated shooter. Once it is in (a right entrant at x <= W * .78, a
- *  rear wave at x >= 100, a drop / rise once it levels off) it flashes for 12 f (e.tl, drawn by render/enemies.ts),
+/** G3 (C6, ENC roster "drone"): a formation's designated shooter. Once it is in (a right entrant 12 f, at its own speed, before it is 40 px in; a
+ *  rear wave at x >= 20, a drop / rise 24 px in from its edge) it flashes for 12 f (e.tl, drawn by render/enemies.ts),
  *  then fires ONE led orb at 1.4 if the ship is >= 64 px away and it is more than 40 px inside the edge it entered by
- *  (notice.ts mayFire), against the scroll cap. A refused shot re-tells after min(remaining, 20 f). Member 0 (e.sh 2)
- *  shoots only at rank >= 14. No R() */
+ *  (notice.ts mayFire), against the scroll cap. A refused shot re-tells after min(remaining, 20 f). The leader is
+ *  e.sh 1; the last member (e.sh 2) shoots only at rank >= 14. A rear wave's shooter does not wait out its phase-in
+ *  ghost: it turns solid as its tell starts (W6 tune, N2: it waited 60-96 f and was past the ship before it could
+ *  fire, so a rear wave never shot from behind). No R() */
 function droneFire(e) {
-  if (!e.sh || e.shot || e.ghost > 0 || !$.P.alive || (e.sh === 2 && rankOf() < BUL.rank2)) return;
+  if (!e.sh || e.shot || (e.ghost > 0 && e.ent !== 'left') || !$.P.alive || (e.sh === 2 && rankOf() < BUL.rank2)) return;
   if (!e.tl) {
-    const inn = e.ent === 'left' ? e.x >= BUL.droneBackX : e.ent === 'top' ? e.y >= BUL.droneEdgeY : e.ent === 'bottom' ? e.y <= PH - BUL.droneEdgeY : e.x <= W * BUL.droneX;
-    if (inn && onScreen(e)) e.tl = BUL.tell;
+    const inn = e.ent === 'left' ? e.x >= BUL.droneBackX : e.ent === 'top' ? e.y >= BUL.droneEdgeY : e.ent === 'bottom' ? e.y <= PH - BUL.droneEdgeY : e.x - BUL.tell * Math.max(0, (e.lx ?? e.x) - e.x) <= W - BUL.edge - BUL.tellPad;
+    e.lx = e.x;
+    // a rear shooter tells (and turns solid) only once the ship is >= 64 px off: it rides the ship's lane, and a body that
+    // turned solid nearer would hit it unseen from behind (systems-designer / qa-lead BLOCK)
+    const rear = e.ent === 'left';
+    if (inn && onScreen(e) && (!rear || Math.hypot($.P.x - e.x, $.P.y - e.y) >= BUL.noShot)) { e.tl = BUL.tell; if (rear) { e.ghost = 0; sfx.tele(); } } // a shot from behind gets a cue (audio-director): audio only, no R()
     return;
   }
   if (--e.tl > 0) return;
-  if (mayFire(e.x, e.y, e.ent, $.P.x, $.P.y, W, PH) && aimShot(e.x - 5, e.y, BUL.v.drone)) { e.shot = 1; flash(e.x - 5, e.y, 8, 4, '255,60,60'); return; }
+  const mx = e.x + (e.ent === 'left' ? 5 : -5); // the muzzle: a rear wave flies mirrored
+  if (mayFire(e.x, e.y, e.ent, $.P.x, $.P.y, W, PH) && aimShot(mx, e.y, BUL.v.drone)) { e.shot = 1; flash(mx, e.y, 8, 4, '255,60,60'); return; }
   e.tl = retryIn(BUL.retry); // 20 f: dark for 8, then the whole 12 f flash again (render shows tl <= 12)
   if (!onScreen(e)) e.shot = 1; // gone off screen: it never fires from out of sight
 }
@@ -314,7 +321,7 @@ export function updEnemy(e) {
         // D61 "flayers hunt": while it waits it re-parks 90 px ahead of the ship (src/notice.ts flayerTx), so the 155 px
         // strike follows; during the 34 f tell and the lash its spot holds, so the tell stays honest
         if (e.hunt && e.ws === 'idle' && $.P.alive) e.tx = flayerTx($.P.x, W); // D62: only the hunters (spawn.ts flayer)
-        if (e.t < 520) e.x = lerp(e.x, e.tx, .03);else e.x -= 1.3;
+        if (e.t < 520) e.x = lerp(e.x, e.tx, g3() ? BUL.flayIn : .03);else e.x -= 1.3;
         const wx = e.x + $.G.scroll,
           lo = ceilAt(wx) + 18,
           hi = floorAt(wx) - 18;
@@ -327,7 +334,7 @@ export function updEnemy(e) {
               e.ws = 'tel';
               e.wt = 0;
               sfx.chain();
-            } else e.cool = 20;
+            } else e.cool = g3() ? BUL.flayRetry : 20;
           }
         } else if (e.ws === 'tel') {
           e.wt++;
@@ -950,11 +957,16 @@ function knotSplit(e) {
   const knot = e.k === 'knot', spr = knot ? KNOT.clumpA : KNOT.corpseA, v = knot ? KNOT.clumpV : KNOT.corpseV, P = $.P;
   for (const s of [-1, 1]) {
     const a = kidAngle(Math.PI, s, spr, e.x, e.y, P ? P.x : -1e3, P ? P.y : -1e3), x = e.x + Math.cos(a) * e.r * .4, y = e.y + Math.sin(a) * e.r * .4;
+    // G3 S5 (gate L5 hazBad, N4): a child that would be born within 48 px (+ kidPad, a reaction margin) of the ship is not (wallBirth's rule): the
+    // knot tears apart on the ship's nose into gore only. Its draws are unchanged (a child draws no R())
+    if (g3() && P && P.alive && Math.hypot(P.x - x, P.y - y) < BUL.noBody + BUL.kidPad) continue;
     if (knot) mk('clump', x, y, { split: 1, kvx: Math.cos(a) * v, kvy: Math.sin(a) * v, rot: e.rot + s, nb: s < 0 ? 3 : 2 });
     else mk('corpse', x, y, { vr: s * .02, drift: KNOT.drift, ph: (e.rot * 3 + s + 7) % TAU, noLeg: s > 0, noArm: s < 0, hpm: KNOT.corpseHp / ET.corpse.hp, pop: 1, kvx: Math.cos(a) * v, kvy: Math.sin(a) * v, kt: KNOT.corpseF, score: 150, bio: 1, split: 1 });
   }
-  sample('splat_m', { vol: knot ? .7 : .5, rate: knot ? .85 : 1 }) || sfx.squish();
+  // audio-director: a 13-knot Orbit drip tears several at once; one splat per 6 f (audio only, no R())
+  if ((($.G.t || 0) - SPLAT.t) >= 6 || ($.G.t || 0) < SPLAT.t) { SPLAT.t = $.G.t || 0; sample('splat_m', { vol: knot ? .7 : .5, rate: knot ? .85 : 1 }) || sfx.squish(); }
 }
+const SPLAT = { t: -1e9 };
 // a recovery wave's WRAITH pod becomes WARD when WRAITH is already capped as the wave flies (W2: R2's swap at launch).
 // Set here because spawn.ts cannot import player.ts (slotMaxed) without dragging the DOM into its unit tests
 REC_TY.swap = (ty) => (ty === 5 && $.P && slotMaxed(5) ? 6 : ty);
@@ -1074,8 +1086,9 @@ function updNew(e, ss) {
       e.y = surf - e.o * 6;
       if (e.st === 'ooze') {
         e.cool--;
-        // G3: it lobs at either side once |dx| >= 24 (was: only at a ship ahead), from 40 px inside the edges
-        if (e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 24 && e.x > 40 && (g3() ? Math.abs(P.x - e.x) >= BUL.slimeGap : P.x < e.x - 24)) { e.st = 'tel'; e.wt = 0; sample('snot', { vol: .45, rate: 1.3 }) || sfx.squish(); }
+        // G3: it lobs at either side once |dx| >= 24 (was: only at a ship ahead). Its 32 f rear-up may start once it is fully
+        // on screen (W6 tune, N1 / N3: from W - 24 it was 31 f in before it could tell): it spits 40+ px inside the edge
+        if (e.cool <= 0 && P.alive && onScreen(e) && e.x < W - (g3() ? 8 : 24) && e.x > 40 && (g3() ? Math.abs(P.x - e.x) >= BUL.slimeGap : P.x < e.x - 24)) { e.st = 'tel'; e.wt = 0; sample('snot', { vol: .45, rate: 1.3 }) || sfx.squish(); }
         else if (P.alive && e.t > 40 && Math.abs(P.x - e.x) < 30 && (e.o > 0 ? P.y < e.y : P.y > e.y) && Math.abs(P.y - e.y) < 120 && R() < .04) {
           e.air = 1; e.vy = -e.o * rr(2.6, 3.3); e.vx = (P.x - e.x) * .02; sfx.squish();
           for (let k = 0; k < 8; k++) drop(e.x, e.y + e.o * 5, rr(-1, 1), -e.o * rr(.2, 1.5), 1.3, R() < .5 ? 4 : 0, 70);
@@ -1085,9 +1098,9 @@ function updNew(e, ss) {
         if (e.wt >= 32) {
           e.st = 'spit'; e.wt = 0;
           const sx = e.x - 3, sy = e.y - e.o * 9;
-          // G3: the lob (and Descent 2's second) is one atomic volley against the scroll cap; refused, it settles back and
-          // tells again in 20 f
-          if (g3() && P.alive && !volley($.G.loop > 0 ? 2 : 1, sx, sy, 'scroll')) { e.st = 'ooze'; e.wt = 0; e.cool = retryIn(BUL.retry); }
+          // G3: the lob (and Descent 2's second) is one atomic volley against the scroll cap; refused (or still within 40 px
+          // of the edge: a held scroll, qa-lead), it settles back and tells again in 20 f
+          if (g3() && P.alive && (sx >= W - BUL.edge || !volley($.G.loop > 0 ? 2 : 1, sx, sy, 'scroll'))) { e.st = 'ooze'; e.wt = 0; e.cool = retryIn(BUL.retry); }
           else {
             if (P.alive) {
               if (e.o > 0) lobAt(sx, sy, P.x, P.y); else lob(sx, sy, P.x, P.y, .2); // a ceiling slime drips it down onto you
@@ -1129,8 +1142,9 @@ function updNew(e, ss) {
       e.x -= ss + e.spd;
       if (g3()) {
         // G3 (ENC roster): it turns to face the ship every time (D61's one-off bk turn becomes the rule), from 30 px
-        // inside the right edge and 50 px inside the left, with the ship >= 64 px away
-        if (--e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 30 && e.x > 50 && Math.hypot(P.x - e.x, P.y - e.y) >= BUL.noShot) { e.bk = P.x > e.x ? 1 : 0; e.st = 'tel'; e.wt = 0; sfx.groan(); }
+        // inside the right edge and 50 px inside the left, with the ship >= 64 px away. W6 tune (N1): its 44 f groan may start
+        // 12 px in (was 30); the hurl lands 50 f later, ~60 px further in
+        if (--e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 12 && e.x > 50 && Math.hypot(P.x - e.x, P.y - e.y) >= BUL.noShot) { e.bk = P.x > e.x ? 1 : 0; e.st = 'tel'; e.wt = 0; sfx.groan(); }
       } else if (--e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 30 && e.x > 50 && P.x < e.x - 30) { e.st = 'tel'; e.wt = 0; sfx.groan(); }
       // D61: a mutant the ship has passed turns round once and hurls back (bk: render flips it; same 44 f tell)
       else if (!e.back && P.alive && onScreen(e) && e.x < W - 30 && e.x > NOTICE.backMinX + 10 && P.x > e.x + NOTICE.mutantGap) { e.back = 1; e.bk = 1; e.st = 'tel'; e.wt = 0; sfx.groan(); }
@@ -1141,7 +1155,8 @@ function updNew(e, ss) {
     } else {
       e.x -= ss + (e.wt < 10 ? dir : 0); // lunges a step into the throw
       // G3: the chunks are one atomic volley against the scroll cap; refused, it walks on and groans again in 20 f
-      if (e.wt === 6 && P.alive && g3() && !volley($.G.loop > 0 ? 5 : 3, hx, hy, 'scroll')) { e.st = 'walk'; e.wt = 0; e.bk = 0; e.cool = retryIn(BUL.retry); }
+      if (e.wt === 6 && P.alive && g3() && (hx >= W - BUL.edge || !volley($.G.loop > 0 ? 5 : 3, hx, hy, 'scroll'))) { // (the 40 px edge at the throw: a held scroll, qa-lead)
+         e.st = 'walk'; e.wt = 0; e.bk = 0; e.cool = retryIn(BUL.retry); }
       else if (e.wt === 6 && P.alive) {
         const n = $.G.loop > 0 ? 5 : 3;
         for (let i = 0; i < n; i++) lobAt(hx, hy, P.x + (i - (n - 1) / 2) * 26, P.y, 1.2, 2.8);
@@ -1156,7 +1171,7 @@ function updNew(e, ss) {
     if (e.fy > PH + 30) e.dead = true;
   } else {
     // sentry: parks at tx and bobs, spinning. Telegraph 52f: stops spinning, eye on you, an aim line that tracks for 34f
-    // and then LOCKS for 18f (step out of it), then a 3-round burst down that line (4 from Descent 2). Two bursts, then it moves on
+    // and then LOCKS for 18f (step out of it), then a 3-round burst down that line (4 from Descent 2). Two bursts (G3: one, BUL.sentryBursts), then it moves on
     const wx = e.x + sc, lo = Math.max(14, ceilAt(wx) + 14), hi = Math.min(PH - 14, floorAt(wx) - 14), on = g3();
     e.wt++;
     if (e.st === 'drop') { // G3: dropping in from the top or bottom edge at tx (spawn.ts sentry), 2 px/f, onto its lane
@@ -1164,23 +1179,30 @@ function updNew(e, ss) {
       const dy = e.y0 - e.y;
       e.cool--; // its first-attack clock runs during the drop (game-designer: N3 counts from visible)
       if (Math.abs(dy) <= BUL.sentryDrop) { e.y = e.y0; e.st = 'hover'; e.wt = 0; } else e.y += Math.sign(dy) * BUL.sentryDrop;
+      // W6 tune (N1): within sentryNear of its lane (and 40 px in) it may start its 44 f tell on the way down (it waited for
+      // the landing, 47-54 f in, and the ones ahead of the ship died first); the tell's .08 lerp settles it onto its lane
+      // by the 18 f lock (< 3 px left), so the locked line holds still (art-director)
+      if (e.st === 'drop' && e.cool <= 0 && P.alive && Math.abs(e.y0 - e.y) <= BUL.sentryNear && mayFire(e.x, e.y, e.ent, P.x, P.y, W, PH)) { e.bk = P.x > e.x ? 1 : 0; e.st = 'tel'; e.wt = 0; e.tt = BUL.sentryTel; e.ha = aimLead(e.x + (e.bk ? 5 : -5), e.y, BUL.v.sentry); sfx.tele(); }
       return;
     }
-    if (e.st !== 'leave' && !e.lv) e.x = lerp(e.x, e.tx, .04); // lv: a leaving sentry turned round to fire back holds still
+    const held = on && e.st === 'tel' && e.wt >= (e.tt || BUL.sentryTel) - BUL.sentryLock; // G3: the body holds still through the 18 f lock, so the locked line does (W6 review)
+    if (e.st !== 'leave' && !e.lv && !held) e.x = lerp(e.x, e.tx, .04); // lv: a leaving sentry turned round to fire back holds still
     // D61: a sentry the ship has passed turns once and fires ONE burst back down the same 52 f aim line (bk). G3 fires
     // either side on every tell (below), so this one-off turn is short's only
     if (!on && !e.back && (e.st === 'hover' || e.st === 'leave') && P.alive && P.x > e.x + NOTICE.sentryGap && e.x > NOTICE.backMinX && e.x < W - 24) {
       e.back = 1; e.bk = 1; e.lv = e.st === 'leave' ? 1 : 0; e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x + 5, e.y); sfx.tele();
     }
-    e.y = lerp(e.y, clamp(e.y0 + Math.sin(e.t * .03 + e.ph) * 14, lo, Math.max(lo, hi)), .08);
+    if (!held) e.y = lerp(e.y, clamp(e.y0 + Math.sin(e.t * .03 + e.ph) * 14, lo, Math.max(lo, hi)), .08);
     // the tell: short 52 f (34 track + 18 lock); G3 44 f (26 track + 18 lock, C11), locked on the led point
     const tt = on ? BUL.sentryTel : 52, trk = tt - BUL.sentryLock;
     if (e.st === 'hover') {
       e.cool--;
-      if (e.t > 700 || e.shots >= 2) e.st = 'leave';
+      if (e.t > 700 || e.shots >= (on ? BUL.sentryBursts : 2)) e.st = 'leave'; // G3: one burst (W6 tune, B2 Hard)
       else if (on) {
-        // G3 (ENC roster): either side, wherever the ship is, >= 64 px off and from 40 px inside the edge it came by
-        if (e.cool <= 0 && P.alive && mayFire(e.x, e.y, e.ent, P.x, P.y, W, PH)) { e.bk = P.x > e.x ? 1 : 0; e.st = 'tel'; e.wt = 0; e.tt = tt; e.ha = aimLead(e.x + (e.bk ? 5 : -5), e.y, BUL.v.sentry); sfx.tele(); }
+        // G3 (ENC roster): either side, wherever the ship is, >= 64 px off and from 40 px inside the edge it came by. A right
+        // entrant may start its 44 f tell while it glides in (W6 tune, N1 / N3: it fired at 70-80 f, after the statue had
+        // killed half of them): the edge test reads its parking x, which the .04 lerp has nearly reached when the tell ends
+        if (e.cool <= 0 && P.alive && onScreen(e) && mayFire(e.ent ? e.x : Math.min(e.x, e.tx), e.y, e.ent, P.x, P.y, W, PH)) { e.bk = P.x > e.x ? 1 : 0; e.st = 'tel'; e.wt = 0; e.tt = tt; e.ha = aimLead(e.x + (e.bk ? 5 : -5), e.y, BUL.v.sentry); sfx.tele(); }
       } else if (e.cool <= 0 && P.alive && e.x < W - 24 && P.x < e.x - 20) { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 5, e.y); sfx.tele(); }
     } else if (e.st === 'tel') {
       if (e.wt < trk) e.ha += wrapA((on ? aimLead(e.x + (e.bk ? 5 : -5), e.y, BUL.v.sentry) : aimA(e.x + (e.bk ? 5 : -5), e.y)) - e.ha) * .2;
