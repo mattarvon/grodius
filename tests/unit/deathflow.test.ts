@@ -94,7 +94,7 @@ describe('BLACK BOX, the lifeline and the recovery queue (C15-C17)', () => {
     F.killPlayer();
     expect(H.caps.length).toBe(0); // no burst
     F.respawn();
-    expect(waves($.G.recovery).map((q: any) => [q.t, q.pods])).toEqual([[D.RECOVERY.r1, [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }]], [D.RECOVERY.r1 + D.RECOVERY.r2, [{ ty: 5 }, { ty: 5 }]]]); // tune-tc: R2's WARD pod is built, off (RECOVERY.r2Ward)
+    expect(waves($.G.recovery).map((q: any) => [q.t, q.pods])).toEqual([[D.RECOVERY.r1, [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }]], [D.RECOVERY.r1 + D.RECOVERY.r2, [{ ty: 5 }, { ty: 5 }, { ty: 6 }]]]); // R2 carries its WARD pod (RECOVERY.r2Ward on, W6 round 2)
     expect($.G.feed.d).toContain('BLACK BOX'); // ux: the parts' arrival (no death feed was up)
     expect(H.caps.length).toBe(0); // nothing flies until R1's time
   });

@@ -93,10 +93,10 @@ export const RECOVERY = {
    *  pilot missed: R1's MISSILE and R2's WARD went uncollected (W6 gates 2.1 recovery pods a respawn, R1 wants 3; it2
    *  death kits 2010000 / 2110010), so no restart got back to K0 */
   file: 20,
-  /** tune-tc, gate E6 "back to K0 in <= 30 s" (K0 holds WARD 1): true adds a WARD pod to R2. BUILT, OFF: spec §2.1 sends
-   *  R2 as 2 pods and its worked example ends at "K0 minus WARD", and with it on, gate H2 (shield hits / death <= 1.5)
-   *  measured 2.05 (it5, 21 deaths) against E6's K0 median 19.5 s. Matt's call (report) */
-  r2Ward: false,
+  /** tune-tc, gate E6 "back to K0 in <= 30 s" (K0 holds WARD 1): true adds a WARD pod to R2 (the Survival table's
+   *  value). W6 round 2 sets it back ON: tc's it5/it6 data showed OFF cost E6 (14/27 deaths back to K0 became 2/26)
+   *  and barely moved H2 (2.22 -> 2.15): H2 is driven by K1's WARD 2, not by this pod. SURV.wardPodW stays .25 */
+  r2Ward: true,
 } as const;
 
 /** Decision 3A: ships in Descent 1 for every profile. REINFORCED HULL's ship arrives at the Descent 2 gate */

@@ -147,19 +147,21 @@ describe('recovery waves (C16, C17)', () => {
     expect(D.r1Pods({}, true)).toEqual({ ty: [0, 2, 1], full: [1] }); // a naked death still gets a gun
   });
   it('R2 is two WRAITH (two WARD once WRAITH is capped) and a WARD; R1 lands 3 s in, R2 12 s after', () => {
-    expect(D.RECOVERY.r2Ward).toBe(false); // tune-tc: built, off (spec §2.1; H2)
-    expect(D.r2Pods(false)).toEqual([5, 5]);
-    expect(D.r2Pods(true)).toEqual([6, 6]);
+    expect(D.RECOVERY.r2Ward).toBe(true); // the Survival table's value (W6 round 2: off cost E6, barely moved H2)
+    expect(D.r2Pods(false)).toEqual([5, 5, 6]);
+    expect(D.r2Pods(true)).toEqual([6, 6, 6]);
+    expect(D.r2Pods(false, false)).toEqual([5, 5]); // the switch off: spec §2.1's two pods
+    expect(D.r2Pods(true, false)).toEqual([6, 6]);
     expect(D.r2Pods(false, true)).toEqual([5, 5, 6]); // gate E6: K0 holds WARD 1, so r2Ward brings it
     expect([D.RECOVERY.r1, D.RECOVERY.r2]).toEqual([180, 720]);
     // W0's queue (state.ts RecoveryQ): step.ts counts each t down and flies the pods through recoveryWave
     expect(waves(D.newRecovery({ laser: 1 }, true))).toEqual([
       { t: 180, pods: [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }] }, // no y: the ship's height when each launches
-      { t: 900, pods: [{ ty: 5 }, { ty: 5 }] },
+      { t: 900, pods: [{ ty: 5 }, { ty: 5 }, { ty: 6 }] }, // R2's WARD (RECOVERY.r2Ward on)
     ]);
   });
   it('flies every carrier in single file, RECOVERY.file apart (tune-tc, E1 / E6)', () => {
-    expect(D.newRecovery({}, false).map((e: any) => [e.t, e.pods.length])).toEqual([[180, 1], [200, 1], [220, 1], [900, 1], [920, 1]]);
+    expect(D.newRecovery({}, false).map((e: any) => [e.t, e.pods.length])).toEqual([[180, 1], [200, 1], [220, 1], [900, 1], [920, 1], [940, 1]]);
   });
   it('pulls R2 ahead of a boss WARNING, never closer than 4 s after R1 (a restore at WARNING - 10 s)', () => {
     expect(waves(D.newRecovery({}, false, { untilWarn: 720 }))[1].t).toBe(720 - 60 - 2 * D.RECOVERY.file); // R2's last carrier (of up to 3) lands 60 f before the banner
