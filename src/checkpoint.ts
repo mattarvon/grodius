@@ -20,7 +20,7 @@
 // checkpoint is written inside a signature window or while a recovery wave is still queued.
 import { $ } from './state';
 import { encodeRun, storeRun } from './runsave';
-import { beatPlan, driftsOf, layout, layoutRev, row } from './layout';
+import { beatPlan, cpsOf, driftsOf, layout, layoutRev, row } from './layout';
 import { sealFor } from './stages';
 import { hardOn } from './death';
 
@@ -112,8 +112,11 @@ export function cpPlan(i, G = $.G, hard = hardOn(), spans = sigSpans()) {
     if (r.cp1 != null) a.push({ x: r.x0 + r.cp1, rel: null });
     if (r.kind === 'drive') a.push({ x: Math.round((r.x0 + (r.warnX ?? r.bossX)) / 2), rel: null });
   }
-  if (Array.isArray(r.cps)) for (const c of r.cps) a.push({ x: start + c, rel: null });
-  for (const w of spans) if (w.x0 > start && w.x0 < end) a.push({ x: w.x0 - CP.shipX - 1, rel: null });
+  // W3b's checkpoint data (layout.ts cpsOf: the row's `cps` in world x; Orbit and Drive rows, null elsewhere)
+  for (const x of cpsOf(i) || []) a.push({ x, rel: null });
+  // every signature start: the window's own cp where W3c placed one (sigs.ts sigCheckpoints: each biome variation's
+  // arming x - 60), else just before the window (the fixed-row windows carry none)
+  for (const w of spans) if (w.x0 > start && w.x0 < end) a.push({ x: w.cp != null ? w.cp : w.x0 - CP.shipX - 1, rel: null });
   // anchors in order, inside the stage, out of the windows, merged when closer than minSep (the earlier one stays)
   const pts = [];
   for (const p of a.filter((q) => q.x > start && q.x < end).sort((p, q) => p.x - q.x)) {

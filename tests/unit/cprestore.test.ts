@@ -31,7 +31,7 @@ vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: noop }));
 
 const { BIOME_KEYS, biomeStage } = await import('../../src/biomes');
 const { buildStage, rebuildAt } = await import('../../src/stagebuild');
-const { layout, setLayout } = await import('../../src/layout');
+const { cpsOf, layout, setLayout } = await import('../../src/layout');
 const { CP, cpInSig, cpPlan, stageStartX } = await import('../../src/checkpoint');
 const { applyRun, decodeRun, serializeRun } = await import('../../src/runsave');
 
@@ -92,6 +92,14 @@ describe('the long4 checkpoint list (C21)', () => {
     // that can be filled outside the window filled
     const wide = { x0: r.x0 + 300, x1: r.x0 + 3000 }, p2 = cpPlan(0, run(0, 0, ['ice', 'fire']), true, [wide]);
     for (const q of p2) expect(cpInSig(q.x, [wide])).toBe(false);
+  });
+
+  it('uses a window cp (W3c sigCheckpoints) and the row cps list (W3b cpsOf) as anchors', () => {
+    setLayout('long4');
+    const r = layout().stages[0], w = { x0: r.x0 + 1500, x1: r.x0 + 2400, cp: r.x0 + 1380 }, plan = cpPlan(0, run(0, 0, ['ice', 'fire']), true, [w]);
+    expect(plan.some((q: any) => q.x === w.cp)).toBe(true);
+    const xs = cpPlan(0, run(0, 0, ['ice', 'fire']), true, []).map((q: any) => q.x);
+    for (const x of cpsOf(0)!.filter((x) => x > r.x0)) expect(xs.some((q: number) => Math.abs(q - x) < CP.minSep)).toBe(true);
   });
 });
 
