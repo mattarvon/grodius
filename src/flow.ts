@@ -212,7 +212,7 @@ export function startLoop(L) {
 /** a checkpoint restore's i-frames: CP.inv, or on long4 the lead-in alone (C20, 120 f) */
 const cpInv = () => (hardOn() ? SURV.cpInv : CP.inv);
 export function resetPlayer(keepGuns) {
-  const old = $.P,
+  const old = keepGuns && $.P ? deadShip() : $.P,
     // long4 (spec §2.1 "Death penalty", tier table): Normal keeps THRUST 1, Hard and Very Hard nothing, Easy everything
     // but its top power-up (death.ts keptLoadout). Elsewhere: half your THRUST (rounded down); everything else is gone
     hard = keepGuns && old && hardOn(),
@@ -328,7 +328,17 @@ export function killPlayer() {
   deathCost($.G);
   splat(rr(120, 360), rr(60, 180), 3);
   sfx.die();
+  if (hardOn()) {
+    // gate D1 (rank 1 f after a death <= T_base + stage + 3): the power goes the moment the ship does, not at the
+    // respawn 150 f later. What died is kept (G.deadP) for the respawn's strip and the recovery wave
+    const P = $.P;
+    $.G.deadP = { speed: P.speed, missile: P.missile, double: P.double, laser: P.laser, pyre: P.pyre, options: P.options, wardLv: P.wardLv || 0 };
+    P.missile = P.double = P.laser = P.pyre = P.options = P.wardLv = P.shield = P.aegis = 0;
+    P.speed = 0;
+  }
 }
+/** the ship that died: its loadout as killPlayer found it (long4 strips the live ship at once, G.deadP), else $.P */
+const deadShip = () => ($.G.deadP ? { ...$.P, ...$.G.deadP } : $.P);
 /** does a death restart at the last checkpoint? long4: the tier decides (Decision 1A: Normal, Hard and Very Hard;
  *  Easy respawns in place). Elsewhere the LAB's CHECKPOINT row (option b) */
 const cpOnDeath = () => (hardOn() ? deathTier($.G).checkpoint : cpTrigger() === 'b');
@@ -339,8 +349,9 @@ export function respawn() {
   }
   if (cpOnDeath() && !$.G.jump && deathRestart()) return; // a jump run has no checkpoint: the slot is the player's
   $.G.lives--;
-  const P0 = $.P;
-  resetPlayer(true);
+  const P0 = deadShip();
+  resetPlayer(true); // reads the dead ship's loadout (deadShip), then it is spent
+  $.G.deadP = null;
   const wx = $.P.x + $.G.scroll;
   $.P.y = clamp((floorAt(wx) + ceilAt(wx)) / 2, 30, PH - 30);
   for (let i = eshots.length - 1; i >= 0; i--) {
@@ -398,7 +409,7 @@ function recoverPods(ty) {
  *  checkpoint is re-written with the life and the cost taken, so an app kill can't give them back. False when there is
  *  no checkpoint, or no life on its count to take (respawn in place, as option a) */
 function deathRestart() {
-  const G0 = $.G, P0 = $.P, recover = G0.recover, deaths = G0.st ? G0.st.deaths : 0, hits = G0.st ? G0.st.hits || 0 : 0, corpseVo = !!(G0.st && G0.st.corpseVo), d = lastCp(),
+  const G0 = $.G, P0 = deadShip(), recover = G0.recover, deaths = G0.st ? G0.st.deaths : 0, hits = G0.st ? G0.st.hits || 0 : 0, corpseVo = !!(G0.st && G0.st.corpseVo), d = lastCp(),
     keep = { gaspD: G0.gaspD, gasp: G0.gasp, rigOff: G0.rigOff, rigOffC: G0.rigOffC, pkOrder: G0.pkOrder }; // long4 death state a replay must not give back
   if (!d || d.g.loop !== G0.loop || d.g.stage !== G0.stage) return false; // only this stage's checkpoint
   // one life off the CHECKPOINT's count, not the live one: a life gained since (SPARE MEAT at a level-up) is earned again

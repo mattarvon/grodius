@@ -184,6 +184,25 @@ describe('feedAfter (ux-designer: no banner overwrites an unread one)', () => {
   });
 });
 
+describe('gate D1: the power goes with the ship', () => {
+  it('strips the dying ship at once on long4 (rank reads it during the 150 f before the respawn), and the respawn and R1 still see what died', () => {
+    died(0);
+    $.P.alive = true;
+    F.killPlayer();
+    expect([$.P.speed, $.P.laser, $.P.missile, $.P.options, $.P.wardLv, $.P.shield]).toEqual([0, 0, 0, 0, 0, 0]);
+    F.respawn(); // Easy: in place, the gradual strip from the ship that died
+    expect([$.P.speed, $.P.laser, $.P.missile, $.P.options]).toEqual([3, 1, 1, 0]);
+    expect($.G.deadP).toBeNull();
+  });
+  it("leaves the dying ship as it was on short", () => {
+    setLayout('short');
+    died(1);
+    $.P.alive = true;
+    F.killPlayer();
+    expect($.P.laser).toBe(1);
+  });
+});
+
 describe('graft pods on screen (economy-designer: D2 in place)', () => {
   it('a death purges a graft pod still flying, so it cannot hand the lost level back', () => {
     died(0);
