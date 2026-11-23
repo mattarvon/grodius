@@ -154,6 +154,9 @@ describe('movement B on long4', () => {
     const step = (i: number) => Math.max(Math.abs(world.FLOOR[i + 1] - world.FLOOR[i]), Math.abs(world.CEIL[i + 1] - world.CEIL[i]));
     let A = 0, edge = 0;
     for (let i = Math.floor((M.a - 600) / TS); i < Math.floor((M.a - 8) / TS); i++) A = Math.max(A, step(i));
+    // and after the band: movement A is measured on the side of each edge too (fire's spire flanks run ~19 px a tile
+    // just past slot B's band once the D31 stretch is split, with or without the gimmick: W3b / W3c)
+    for (let i = Math.ceil((M.z + 8) / TS); i < Math.ceil((M.z + 600) / TS); i++) A = Math.max(A, step(i));
     for (const [lo, hi] of [[M.a - 8, M.a + M.blend / 4], [M.z - M.blend / 4, M.z + 8]]) for (let i = Math.floor(lo / TS); i < Math.ceil(hi / TS); i++) edge = Math.max(edge, step(i));
     expect(edge).toBeLessThanOrEqual(Math.max(A, 12));
   });

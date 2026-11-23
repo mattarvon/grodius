@@ -982,7 +982,7 @@ const SIGSTEP = {
   /** FIRE: each column warms when it is GRILL.lead px ahead of the ship and burns until it has passed it */
   grill(r) {
     const G = $.G, P = $.P, V = GRILL.vars[r.v];
-    if (!r.cols) { r.cols = grillCols(r.v, r.V.n).map(([dx, up]) => ({ wx: r.V.x0 + 20 + dx, up, on: false })); r.hk = 0; }
+    if (!r.cols) { r.cols = grillCols(r.v, r.V.n).map(([dx, up]) => ({ wx: r.V.x0 + 20 + dx, up, on: false })); r.hk = 0; sample('gsizzle', { vol: .6, rate: .7 }) || sfx.fireball(); } // the comb's own cue, once (audio review): the burners catch
     let left = 0, lit = 0;
     for (const c of r.cols) {
       if (c.on) { lit++; continue; }
