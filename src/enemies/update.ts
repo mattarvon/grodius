@@ -811,7 +811,7 @@ export function killEnemy(e, dir = 1) {
   $.G.kills++;
   if ($.G.combo > $.G.maxCombo) $.G.maxCombo = $.G.combo;
   if ($.G.st) {
-    if (!e.mini && !e.par && !e.kid && !e.rec && !e.split) $.G.st.kills++; // rec: a recovery carrier is out of the grade (spawn.ts mk)
+    if (!e.mini && !e.par && !e.kid && !(e.rec || (e.group && e.group.rec)) && !e.split) $.G.st.kills++; // rec: a recovery carrier is out of the grade (spawn.ts mk)
     $.G.st.chain = Math.max($.G.st.chain, $.G.combo);
   }
   if (e.cap) dropCap(e.x, e.y, e);
@@ -915,7 +915,7 @@ export function killEnemy(e, dir = 1) {
 function revenge(e) {
   if ($.G.boss && $.G.boss.dying) return;
   const x = e.x, y = e.y;
-  if ((e.k === 'drone' || e.k === 'hatch') && !e.rec) {
+  if ((e.k === 'drone' || e.k === 'hatch') && !(e.rec || (e.group && e.group.rec))) {
     const c = revChanceT(tierOf(), $.G.loop || 0); // rank.ts revChance: no R() when 0
     if (c > 0 && R() < c) $.G.pend.push({ t: BUL.revDelay, f: () => revShot(x, y, BUL.v.drone) });
   } else if (e.big && !e.mini && !e.par && tierOf() >= 2 && ($.G.loop || 0) >= 1) $.G.pend.push({ t: BUL.revDelay, f: () => revRing(x, y, BUL.v.drone) });

@@ -105,12 +105,12 @@ describe('bullet caps (§2.1, C4/C5; gate B1)', () => {
     expect(Math.hypot(r.vx, r.vy)).toBeCloseTo(.8 * 1.4 * S.BS());
   });
 
-  it('short is untouched: no cap, no 64 px rule, no rev field', () => {
+  it('short is untouched: no cap, no 64 px rule (rev 0 on every shot: the W0 contract)', () => {
     fresh('short');
     fill(30);
     const s = S.eshoot(61, 127, 0, 1);
     expect(s).toBeTruthy();
-    expect('rev' in s).toBe(false);
+    expect(s.rev).toBe(0);
     expect(S.volley(50, 60, 127)).toBe(true);
   });
 

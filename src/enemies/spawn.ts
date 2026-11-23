@@ -371,10 +371,10 @@ export function formation(pat, y, n = 5, o: FormOpts = {}) {
     if (edge) { e.yt = yt; e.dv = (pat === 'drop' ? 1 : -1) * (v || ENTRY.v); }
     if (on) {
       e.ent = pat === 'behind' ? 'left' : pat === 'drop' ? 'top' : pat === 'rise' ? 'bottom' : 'right';
-      if (rec) e.rec = 1;
+      // (rec stays on the group, W0 contract: a recovery carrier is e.rec || e.group.rec everywhere it is read)
       // C6: the designated shooter is the last scripted member (never a rank extra), marked by index, no R(); member 0
       // shoots too at rank >= 14 (e.sh 2). A dive drone and a recovery carrier never shoot (ENC roster)
-      else if (pat !== 'dive') { if (i === n0 - 1) e.sh = 1; else if (i === 0) e.sh = 2; }
+      if (!rec && pat !== 'dive') { if (i === n0 - 1) e.sh = 1; else if (i === 0) e.sh = 2; }
     }
   }
   return g;

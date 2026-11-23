@@ -59,8 +59,9 @@ describe('formation pod drop (D31 grpPod)', () => {
     expect(clear('long4', [.1799], undefined, 0)).toEqual({ pods: 1, n: 1 + DROP_DRAWS_G3 });
     expect(clear('long4', [.18], undefined, 0)).toEqual({ pods: 0, n: 1 });
     expect(clear('long4', [.1199], undefined, 1)).toEqual({ pods: 1, n: 1 + DROP_DRAWS_G3 });
-    expect(clear('long4', [.0959], undefined, 3)).toEqual({ pods: 1, n: 1 + DROP_DRAWS_G3 });
-    expect(clear('long4', [.096], undefined, 3)).toEqual({ pods: 0, n: 1 });
+    // Very Hard also draws its Descent 1 revenge roll (BUL.rev .5; G3), so one more R() than the pod roll
+    expect(clear('long4', [.0959], undefined, 3)).toEqual({ pods: 1, n: 2 + DROP_DRAWS_G3 });
+    expect(clear('long4', [.096], undefined, 3)).toEqual({ pods: 0, n: 2 });
   });
 
   // G1: a one-drone formation cannot tell "roll at the last kill" from "roll at every kill"; three drones can

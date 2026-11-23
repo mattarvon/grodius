@@ -103,15 +103,16 @@ describe('D58 #2 stage-boss HP by stage order (depthHP)', () => {
 
 describe('D62 Drive-only fire bump (cadence.ts coolFor)', () => {
   it('shortens regular-enemy cooldowns in the Drive stage on long4 only', async () => {
-    const { coolFor } = await import('../../src/enemies/cadence');
+    const { coolFor, rankCool } = await import('../../src/enemies/cadence');
     const m = ECON.long4.late!.driveCool;
     expect(m).toBeLessThan(1);
     setLayout('long4');
-    at(2); const slotB = coolFor('eye', 20);
-    at(3); const drive = coolFor('eye', 20);
+    // G3 (W1 turns RANK_CAD on): long4 cooldowns also take the rank cadence x(1.25 - .6 rho), read at each stage
+    at(2); const slotB = coolFor('eye', 20), rk2 = rankCool();
+    at(3); const drive = coolFor('eye', 20), rk3 = rankCool();
     const cdm3 = 1 / (1 + DEPTH.fire * .35), cdm2 = 1 / (1 + DEPTH.fire * .35 * 2 / 3);
-    expect(slotB).toBe(Math.round(140 * cdm2));
-    expect(drive).toBe(Math.round(140 * cdm3 * m));
+    expect(slotB).toBe(Math.round(140 * cdm2 * rk2));
+    expect(drive).toBe(Math.round(140 * cdm3 * m * rk3));
     setLayout('short');
     at(3); expect(coolFor('eye', 20)).toBe(140);
   });
