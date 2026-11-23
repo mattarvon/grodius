@@ -8,6 +8,7 @@ import { $ } from './state';
 import { LAYOUTS, lastStage, layout, layoutRev, nSlots, row, setLayout, slotRow, stageOfSlot } from './layout';
 import { HOME, MIDS } from './midpick';
 import { SETS_PER_STAGE, isSetId } from './setdraw';
+import { TIER_DEFAULT } from './tier';
 
 export const RUN_KEY = 'grodius.run';
 /** bump when the allowlist changes meaning; a blob with any other version is discarded, never migrated */
@@ -80,6 +81,8 @@ export const LOOP_MAX = 99;
 export const SCREEN_W = 480;
 /** stages.ts SEAL_TXT has 4 entries: seal tiers 0..3 */
 export const SEAL_MAX = 3;
+/** the most checkpoints a stage may number (cpN): a guard far above C21's <= 30 s spacing over a 150 s stage */
+export const CP_MAX = 31;
 const upTo = (n) => (v) => isNat(v) && v <= n;
 const isPicks = (v) => isObj(v) && !Object.hasOwn(v, '__proto__') && Object.entries(v).every(([k, p]) => /^\d+$/.test(k) && isStagePick(p));
 
@@ -91,7 +94,9 @@ const G_FIELDS = {
   loop: (v) => isNat(v) && v <= LOOP_MAX,
   stage: isNat, // upper bound: the blob's own layout's last stage (decodeRun, under decodeRunAs's layout switch)
   cpX: isNum, // bounded to the stage in decodeRun (rowFits). checkpoint scroll x: the resume skips script entries up to it (src/checkpoint.ts)
-  cpN: (v) => v === 0 || v === 1, // which checkpoint of the stage: CP0 (stage start) or CP1 (after midboss A)
+  // which checkpoint of the stage: CP0 (stage start), CP1 (after midboss A), and from W2 (DIFFICULTY-SPEC §2.1, C21)
+  // the rest of the stage's list read from layout data; CP_MAX is a hang guard, not a design cap
+  cpN: (v) => isNat(v) && v <= CP_MAX,
   stT: isNum, // frames into the stage at the checkpoint (G.t - st.t0): the resume rebases st.t0 on its own G.t
   layout: isStr, // layout id; a blob from another layout is discarded by H (spec §4, D2)
   // the layout's geometry revision when it was written (layout.ts layoutRev; D31): absent reads as 1, so a short save
@@ -111,7 +116,15 @@ const G_FIELDS = {
   seal: (v) => isNat(v) && v <= SEAL_MAX, cleared: isNat,
   // rewards still pending at the checkpoint (H entry criterion 1): queued level-up picks, the biome boost offer
   pickQ: isNat, boostReq: isStrOrNull,
-  brutal: (v) => isInt(v) && v >= 0 && v <= 3, // D63: the BRUTAL dial the run started on (absent = 0)
+  // the difficulty tier the run started on (src/tier.ts; absent: Normal, tier.ts tierG). A save from D63's build carries
+  // `brutal` instead: still accepted so the run resumes, and decodeRun turns it into Normal (its levers are gone)
+  tier: (v) => isInt(v) && v >= 0 && v <= 3,
+  brutal: (v) => isInt(v) && v >= 0 && v <= 3,
+  // DIFFICULTY-SPEC §5.4 new fields (state.ts GDiff; written by W1 / W2): red pods picked up (the blue counter), the
+  // contraption knocked offline by a death, the descent whose LAST GASP is spent (-1 unspent)
+  redN: isNat,
+  rigOff: (v) => v === 0 || v === 1,
+  gaspD: (v) => isInt(v) && v >= -1 && v <= LOOP_MAX,
   // route and freshness
   route: (v) => Array.isArray(v) && v.length === nSlots() && v.every((b) => b === null || isBiome(b)), // one per biome slot (layout.ts)
   bvis: isNumMap,
@@ -181,6 +194,16 @@ const gatesFit = (g) => {
   return true;
 };
 
+/** a D63 save's `brutal` dial resumes as Normal (DIFFICULTY-SPEC §5.4): the levers it named are gone. So does a long4
+ *  save from before the tier (no `brutal`, no `tier`: dial 0 was never written), so every resumed long4 run carries a
+ *  tier, as a new one does. A copy of g without `brutal`; a short blob, or one that already has a tier and no
+ *  `brutal`, is returned as is */
+const tierUp = (g) => {
+  if (g.brutal === undefined && (g.tier !== undefined || g.layout !== 'long4')) return g;
+  const { brutal, ...o } = g;
+  if (o.tier === undefined && (brutal !== undefined || o.layout === 'long4')) o.tier = TIER_DEFAULT;
+  return o;
+};
 /** a parsed blob if it is a well-formed run save of this version, else null. Never throws. */
 export function decodeRun(s) {
   try {
@@ -195,7 +218,7 @@ export function decodeRun(s) {
     // a level-up queues one pick (perks.ts gainXP: lvl++ and pickQ++ together, from lvl 1), so pickQ < lvl
     if (d.g.xp !== undefined && !(d.g.xp >= 0 && d.g.xp < xpNeedRun(d.g.lvl ?? 1))) return null;
     if (d.g.pickQ !== undefined && d.g.pickQ >= (d.g.lvl ?? 1)) return null;
-    return { v: d.v, g: d.g, p: d.p || {} };
+    return { v: d.v, g: tierUp(d.g), p: d.p || {} };
   } catch (e) {
     return null;
   }

@@ -19,7 +19,6 @@ import { $ } from './state';
 import { midRow } from './enemies/mid/roster';
 import { kindOf, slotOf } from './layout';
 import { ECON, bossOrdMul, descDepth, econId, lateStage } from './economy';
-import { bru } from './brutal';
 
 /** a midboss kind not named in DEPTH.w takes its tag's share (spec §6.4: WINDOW and ANGLE .6, RACE .5; the rest 1),
  *  so a pool lane's new kind needs no line here */
@@ -34,10 +33,11 @@ export const DEPTH = {
   // the Womb (cyst), the Brood Mother and the Crucifer (crux) have guarded windows that make extra HP count more.
   // Elites (enemies/elite.ts, HP x1.8) are rolled after mk(), so they stack on top of all of this
   w: { maw0: .5, maw: .45, butcher: .15, crux: .6, cyst: .6, brood: .6, keepsake: .6 }, // keepsake: the stage boss (D55), the Crux's share: its windows are guarded too
-  // the Gravity Drive (driveMul): 560 HP x (1 + driveL * loop) x (1 + driveRank * rank) x (1 + driveO * over, from Descent 2).
-  // The documented exception to D1. Without driveRank/driveO the fight collapses: boss-probe STRONG D1 9.8 s (14.3 with
-  // them), depth-probe Descent 2 10.6 s / Descent 3 7.0 s (18.2 / 14.3 with them), against the 24-39 s documented for
-  // Descent 2-3 (CHANGELOG 2026-10-30). The Drive is one big HP pool, no escape clock: it has nothing else to hold a fight
+  // the Gravity Drive (driveMul): base HP (boss/update.ts) x (1 + driveL * loop) x (1 + driveRank * G.rank) x (1 + driveO
+  // * over, from Descent 2). driveRank is short's (the D1 exception, kept so short stays byte-identical); a long entry
+  // with a HardSet reads its own (economy.ts HardSet.driveRank: 0 on long4, DIFFICULTY-SPEC C22 / GR rule 6: rank never
+  // changes HP; W4 re-fits the base HP, start 700, gate K3). The D63 BRUTAL driveHp lever is gone. driveO (Descent 2+
+  // power past the cap) is untouched: a Descent 2 question, measured by depth-probe
   driveL: .4, driveRank: .6, driveO: .2,
   fire: .45, //   enemy fire: cooldowns / (1 + fire * loop), random fire chance x(1 + fire * loop)
 };
@@ -58,13 +58,11 @@ export const midLateMul = (k = '') => { const L = late(); return L && kindOf($.G
 /** HP multiplier for a fresh enemy of kind k, stats b (its ET row); o = mk()'s options */
 export function depthHP(k, b, o) {
   if (o.par && o.par.dm) return o.par.dm; // a boss's parts (the Crucifer's nailbars, the Choir's) are as tough as it is
-  // D63 (Matt): regular enemies' toughness follows the one power budget, capped (economy.ts HardSet powHP; long4 only).
-  // G.pow is the measure because it already weighs every power source (guns, grafts, perks, rigs) and is what fire
-  // and density read; it is read once, at spawn
+  // D63's power-scaled fodder HP (HardSet powHP) is 0 on long4 now: DIFFICULTY-SPEC C30 / GR rule 5, popcorn dies in
+  // one hit and HP never scales with power. The term stays so the HardSet row reads as the record; the D63 BRUTAL hp /
+  // bossHp levers are deleted (spec §2.1 tiers: no tier multiplies HP)
   const H = ECON[econId()].hard;
-  const m = loopHP(k, b, o) * (H && !b.mini ? 1 + H.powHP * Math.min(H.powCap, Math.max(0, $.G.pow || 0)) : 1)
-    // D63 BRUTAL dial (src/brutal.ts): fodder x hp; midbosses and stage bosses x bossHp (THE KEEPSAKE half the extra)
-    * (!b.mini ? bru('hp') : k === 'keepsake' ? 1 + (bru('bossHp') - 1) / 2 : bru('bossHp'));
+  const m = loopHP(k, b, o) * (H && H.powHP && !b.mini ? 1 + H.powHP * Math.min(H.powCap, Math.max(0, $.G.pow || 0)) : 1);
   // D58 #2: a stage boss also grows with the stage's order in the descent (economy.ts bossOrd; 1 on short). Here, in the
   // shared path, so every biome stage boss gets it uniformly; midbosses, the Orbit Maw and the Drive (driveMul) do not
   return b.mini && !isMid(k, b, o) ? m * bossOrdMul(econId(), $.G.stage || 0, k) : m;
@@ -84,12 +82,13 @@ function loopHP(k, b, o) {
   const mid = isMid(k, b, o), m = mid ? f(DEPTH.mid, L) : f(DEPTH.boss, L);
   return 1 + (DEPTH.w[k === 'maw' && mid ? 'maw0' : k] ?? TAG_W[midRow(k)?.tag ?? ''] ?? 1) * (m - 1);
 }
-/** the Gravity Drive's HP multiplier (x560 HP, x48 per plate): loop and, as the one D1 exception, rank and over() */
-export const driveMul = () => { const L = $.G.loop || 0; return bru('driveHp') * (1 + DEPTH.driveL * L) * (1 + DEPTH.driveRank * ($.G.rank || 0)) * (L > 0 ? 1 + DEPTH.driveO * over() : 1); };
+/** the Gravity Drive's HP multiplier (x its base HP, x48 per plate): loop, rank (short only: long4's HardSet.driveRank
+ *  is 0) and from Descent 2 over() */
+export const driveMul = () => { const L = $.G.loop || 0, H = ECON[econId()].hard; return (1 + DEPTH.driveL * L) * (1 + (H ? H.driveRank : DEPTH.driveRank) * ($.G.rank || 0)) * (L > 0 ? 1 + DEPTH.driveO * over() : 1); };
 /** enemy cooldown multiplier (<= 1): shorter waits between telegraphed attacks with depth (dep(): from Descent 2 on, and
  *  within a long descent). Its callers are regular enemies, midbosses and the Saucer; stage bosses do not read it */
-export const cdm = () => bru('cool') / (1 + DEPTH.fire * dep()); // D63: x the BRUTAL dial's cool
+export const cdm = () => 1 / (1 + DEPTH.fire * dep()); // the D63 BRUTAL cool lever is deleted: rank.ts cadMul is the rebuild's cadence (W1/W4 wire it)
 /** enemy fire-chance multiplier (>= 1), on dep() like cdm() */
-export const firem = () => (1 + DEPTH.fire * dep()) * bru('fire'); // D63: x the BRUTAL dial's fire
+export const firem = () => 1 + DEPTH.fire * dep(); // the D63 BRUTAL fire lever is deleted (C6: the drone's random fire goes, W1)
 /** one more bullet in a burst from Descent 3 on */
 export const xtra = () => (($.G.loop || 0) >= 2 ? 1 : 0);

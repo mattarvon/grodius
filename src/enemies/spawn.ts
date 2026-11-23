@@ -10,7 +10,7 @@ import './mid';
 import { MID_ET, MID_SIM } from './mid/roster';
 import { depthHP, midLateMul } from '../depth';
 import { flayHunts } from '../notice';
-import { bru } from '../brutal';
+import { bru, capRate } from '../tier'; // bru: the retired BRUTAL dial's neutral shim (W1 deletes its calls here)
 import { firstShot } from './cadence'; // D62: the Drive's first-shot range
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
 import { bandClamp } from '../terrainb';
@@ -173,7 +173,7 @@ export function mk(k, x, y, o = {}) {
   e.hp *= e.dm;
   e.max = e.hp;
   if (!b.mini && !o.par && !o.kid && $.G.st) $.G.st.spawned++; // kid: born from a midboss, not scripted
-  if (e.cap && !e.mini && !capKept(econId(), R(), bru('pod'))) e.cap = false; // D31: the entry's keep (economy.ts capKeep; short .35)
+  if (e.cap && !e.mini && !capKept(econId(), R(), capRate())) e.cap = false; // D31: the entry's keep (economy.ts capKeep; short .35) x the tier's faucet (tier.ts capRate; 1 on short and Normal)
   enemies.push(e);
   return e;
 }
@@ -187,7 +187,8 @@ export function eshoot(x, y, a, sp, k = 'orb') {
     vy: Math.sin(a) * sp * BS(),
     r: k === 'glob' ? 3 : k === 'spike' ? 4 : 2,
     k,
-    t: 0
+    t: 0,
+    rev: 0 // DIFFICULTY-SPEC D3 probe signal: 1 on a revenge shot (W1's killEnemy), 0 on every other. Every eshots entry carries it
   });
   k === 'glob' ? sfx.glob() : sfx.eshot();
 }
@@ -198,6 +199,11 @@ export function shootB(x, y, a, sp, k = 'orb') {
 }
 export const aimA = (x, y) => Math.atan2($.P.y - y, $.P.x - x),
   wrapA = a => Math.atan2(Math.sin(a), Math.cos(a));
+/** DIFFICULTY-SPEC §2.1 aim lead (C8): the angle from (x, y) to where the ship will be, for a bullet of speed v px/f:
+ *  atan2(Py + L vy t - y, Px + L vx t - x), t = min(60, dist / v), L = rank.ts leadL($), the aim point clamped to y
+ *  6-248, P.vx / P.vy the ship's last-frame displacement (state.ts PDiff). Single aimed shots and a spread's centre
+ *  only. W0 STUB: exact aim (aimA), so nothing moves until W1 fills it. Pure: no R() */
+export const aimLead = (x, y, v) => aimA(x, y);
 export const onScreen = e => e.x > -10 && e.x < W - 6;
 /** a rear wave's lane: the ship's height when it is called (D61 Pass 1, "it notices you"; src/notice.ts). It used to
  *  flip the wave 60 px clear of the ship, which made the back half of the screen a sanctuary. The scripted y is the
@@ -229,10 +235,23 @@ export function behindWave(y, n = 5, o = {}, fit = (v) => v) {
  *  economy.ts form. short: round(3 * min(2, pow)), 0..6. long4 (D58 #3, Matt: break the snowball): round(2 * min(1, pow)),
  *  0..2, and those drones pay half XP and no pod or biomass (enemies/update.ts killEnemy, e.extra) */
 export const formationExtra = () => formExtra(econId(), $.G.pow || 0);
-/** a drone wave of n (+ formationExtra()). o.fixed: a scripted set piece whose layout must hold (the acid biome's
- *  double wall would merge into one at +6 drones), so it spawns exactly n; other o fields go to every drone's mk() */
-export function formation(pat, y, n = 5, o = {}) {
-  const { fixed, pod, ...mo } = o; // pod: the group always drops its pod (the biome breath's release, D31)
+/** formation() options (DIFFICULTY-SPEC §5.6 contract; W1 / W2 / W3 code against it). Documentation: this file is
+ *  @ts-nocheck, so tsc does not enforce it. Any other field goes to every drone's mk() (hpm, ghost, ...).
+ *  - fixed: spawn exactly n (no formationExtra): a scripted set piece whose layout must hold. It does
+ *    NOT mean "an opening carrier": that is `open`
+ *  - pod: the group always drops its pod with no keep roll (the biome breath's release, D31)
+ *  - open: an authored opening carrier (spec §2.2): the last kill always drops, no keep roll, red sac art. Stored as
+ *    group.open = 1 (pod-probe tags its pods `fixed:open`; gate E2 counts them). W0: recorded only; W1 wires the drop
+ *  - rec: a recovery wave (C17): 1 HP, unarmed, harmless to touch, out of hits/min, the cap and the grade's spawned.
+ *    Stored as group.rec = 1 (pod-probe tags `rec`). W0: recorded only; W1's recoveryWave sets it
+ *  - pat: overrides the pattern argument (W1's 'drop' / 'rise' / 'loop' entries go through either)
+ *  - shooter: designated shooters (C6): 1 = the last member, 2 = also member 0 (rank >= 14). Stored as
+ *    group.shooter. W0: recorded only; W1 marks the members and gives them their 12 f tell */
+export interface FormOpts { fixed?: boolean | 1; pod?: boolean | 1; open?: boolean | 1; rec?: boolean | 1; pat?: string; shooter?: 0 | 1 | 2; [k: string]: unknown }
+/** a drone wave of n (+ formationExtra()); o: FormOpts above */
+export function formation(pat, y, n = 5, o: FormOpts = {}) {
+  const { fixed, pod, open, rec, shooter, pat: pat2, ...mo } = o; // pod: the group always drops its pod (the biome breath's release, D31)
+  if (pat2) pat = pat2;
   const n0 = n, tag = ECON[econId()].form.extra; // D58 #3: mark the rank drones (long4); short marks none
   if (!fixed) n += formationExtra() + bru('dens'); // D63: the BRUTAL dial's extra drones // denser waves as you power up (short: uncapped past rank 1 so Infirmary buys still add bodies)
   const g = {
@@ -240,6 +259,9 @@ export function formation(pat, y, n = 5, o = {}) {
     killed: 0
   };
   if (pod) g.pod = 1;
+  if (open) g.open = 1; // W0 contract fields: recorded on the group, read by nothing yet (W1 wires them)
+  if (rec) g.rec = 1;
+  if (shooter) g.shooter = shooter;
   for (let i = 0; i < n; i++) {
     const e = mk('drone', pat === 'behind' ? -16 - i * 16 : W + 16 + i * 16, y, {
       group: g,
@@ -256,6 +278,23 @@ export function formation(pat, y, n = 5, o = {}) {
       e.y0 = e.y;
     }
   }
+}
+/** DIFFICULTY-SPEC §2.1 recovery wave (C17): carriers that fly in from the right at lane y (default the ship's
+ *  height +-40 px) and drop `pods` in kill order (state.ts RecPod: a SLOTS index, full for BLACK BOX). step.ts calls
+ *  it when a G.recovery entry's clock runs out. W0 STUB: spawns nothing. W1 fills it (formation(..., { rec: 1 }),
+ *  typed drops, no R() for the type); W2 queues the waves */
+export function recoveryWave(pods, y) {}
+/** count down the queued recovery waves (G.recovery, state.ts RecoveryQ; W2 queues them on a respawn or a checkpoint
+ *  restart) once a play step and launch each whose clock reaches 0, oldest first (queue order: pinned, since W1's
+ *  carriers will draw R()). An entry queued with t <= 1 launches on the next step. Empty until W2: nothing runs */
+export function stepRecovery() {
+  const q = $.G.recovery;
+  if (!q || !q.length) return;
+  const n = q.length; // recoveryWave must not queue a wave itself (it would be compacted away): W2 queues, W1 launches
+  for (let i = 0; i < n; i++) q[i].t--;
+  let j = 0;
+  for (let i = 0; i < n; i++) { const w = q[i]; if (w.t > 0) q[j++] = w; else recoveryWave(w.pods, w.y); } // no allocation
+  q.length = j;
 }
 export function corpse(y, o = {}) {
   mk('corpse', W + 20, y, {

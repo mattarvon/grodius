@@ -50,17 +50,21 @@ export type NoticeRates = Pick<typeof NOTICE, 'hazEvery' | 'hazEveryD3' | 'flayE
  *  and the enemies are predictable and die instantly"): Pass 2's curve on a long entry. null = none (short: today's
  *  game). Gate: a parked mortal bot (tools/pod-probe.mjs --mortal --park) game-overs in Descent 1. decision-log D63 */
 export interface HardSet {
-  /** shield hits a WARD pod adds once WARD is at its cap (player.ts applyPower), up to WARD_MAX. Was a full refill */
+  /** shield hits a WARD pod adds once WARD is at its cap (player.ts applyPower), up to WARD_MAX. Was a full refill.
+   *  DIFFICULTY-SPEC §2.1 replaces it (shield capped at wardLv): HANDED TO W2, which may edit or retire this field and
+   *  its long4 value (the one exception to W0 owning economy.ts); W6 deletes what is left */
   wardTop: number;
   /** most FULL pods a death gives back, main gun first: the boss-fight lifeline (flow.ts bossRecoveryNote) and BLACK
-   *  BOX (flow.ts blackBox). Was up to 3 and everything */
+   *  BOX (flow.ts blackBox). Was up to 3 and everything. DIFFICULTY-SPEC §2.1 replaces both (tier.ts TIER.lifeline /
+   *  TIER.blackBox, R1's FULL main-gun pod): HANDED TO W2 like wardTop */
   recover: number;
   /** regular enemies' HP x (1 + powHP * min(powCap, G.pow)) at spawn (depth.ts depthHP): toughness follows the one
    *  power budget (src/power.ts), so a grown build no longer deletes fodder on contact. Revises D1's power rule */
   powHP: number;
   powCap: number;
-  /** G.rank = clamp(G.pow, 0, rankCap) (step.ts). Was 1 */
-  rankCap: number;
+  /** the Gravity Drive's HP x(1 + driveRank * G.rank) (depth.ts driveMul) on this entry, in place of DEPTH.driveRank
+   *  (short keeps DEPTH's .6). DIFFICULTY-SPEC C22 / GR rule 6: 0 on long4, rank never changes HP */
+  driveRank: number;
   /** CALIBER / SERRATION graft damage per level (mutations.ts gunDm). Was 1.22 / 1.25 */
   cal: number;
   serr: number;
@@ -166,9 +170,13 @@ const LATE_LONG4: LateSet = {
 const HARD_LONG4: HardSet = {
   wardTop: 1, // +1 hit, not a refill (difficulty package section 3 Pass 2: "the biggest single leak")
   recover: 2, // the main gun plus one pod (D61 Pass 2's BLACK BOX rule, Matt), for the lifeline and BLACK BOX alike
-  powHP: 1.5, // x(1 + 1.5 pow): end of Descent 1 (pow ~.8-.9) fodder takes ~2.3x the hits it did (1 left the pilot 3 of 5 clears, 2 deathless)
-  powCap: 2, //  the cap every()/BS()/formation() already put on pow
-  rankCap: 1.25, // package Pass 2: pressure keeps climbing past 1 (midboss cooldowns, litters, the Drive's HP)
+  // DIFFICULTY-SPEC C30 / GR rule 5: 0. Popcorn dies in one main-gun hit at every power level; HP scaling made
+  // enemies last, not threaten [SYS §3]. Was 1.5 (D63). Gate R2 (dps-probe TTK rig: drone 1 bolt at every kit)
+  powHP: 0,
+  powCap: 2, //  the cap every()/BS()/formation() already put on pow (read only while powHP > 0)
+  driveRank: 0, // C22: was DEPTH.driveRank .6. W4 re-fits the Drive's base HP (start 700, gate K3) and C23's clock holds the fight
+  // D63's rankCap 1.25 is deleted (spec §2.1): G.rank is the legacy min(1, pow) on every layout again, and the
+  // rebuild's integer rank lives in src/rank.ts
   cal: 1.18, serr: 1.2, // package Pass 2: graft damage softened (was 1.22 / 1.25)
   notice: { hazEvery: 3, hazEveryD3: 2, flayEvery: 1, flayCool: 1, hazInFight: true }, // D61 as merged
 };
@@ -226,9 +234,12 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // .17 / .5 projections the stretched build gave 48 D1 pod pickups, the same as main's 48 (spawns rose x1.8, not
     // x1.45). Fixed pods (midboss/Maw 11, Saucer 2, choice 3, release 2) are 18 of them, so -35% (31) needs the variable
     // 30 cut to ~13: f = (.65 x 48 - 18) / 30 = .44 on both knobs. pod-probe stages[].src, seeds 1/3/5/7/11
-    capKeep: .075,
-    // One R() per cleared non-release formation, long4 only (short: grpPod 1, no draw). .5 x f (.44), fit 1 as above
-    grpPod: .22,
+    // DIFFICULTY-SPEC §2.2 random faucet: .075 -> .05 [FIT to the 32-35 Descent 1 total, gate E2] now that each
+    // stage's authored opening carriers (group.open, W3) and the typed recovery waves carry the guaranteed pods
+    capKeep: .05,
+    // One R() per cleared non-release formation, long4 only (short: grpPod 1, no draw). D31 fit 1 gave .22; spec §2.2
+    // cuts it to .12 [FIT, gate E2] for the same reason. The tier's faucet multiplier applies here (tier.ts capRate)
+    grpPod: .12,
     // D31 §2.3: measured (fit 1, 2026-11-08): the stretched build ended D1 with 6-7 graft levels against main's 5, on
     // x1.8 the kills (674 vs 375 median). graftMul = the kill ratio, so grafts keep today's per-stage timing
     // (pod-probe grades[3].kit.gm, kills)
@@ -241,8 +252,9 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // for exactly this if D58 #2 ships), and boss-probe gives it 34.6 s at the STAGE 1 kit, 28.5 at BIOME B
     bossOrd: .9,
     bossOrdW: { crux: .667, butcher: 2, maw: 3.333, keepsake: 0 },
-    // D58 #3 (Matt): break the snowball. +2 rank drones at most (was +6), and they pay half XP and no pod/biomass
-    form: { k: 2, cap: 1, xp: .5, extra: true },
+    // D58 #3 (Matt): break the snowball (+2 rank drones at most, half XP, no pod/biomass). DIFFICULTY-SPEC §2.1: k 0,
+    // rank never changes formation size (GR rule 6); `extra` and `xp` stay as the record and price nothing at k 0
+    form: { k: 0, cap: 1, xp: .5, extra: true },
     late: LATE_LONG4,
     hard: HARD_LONG4,
     // GLUTTONY counts Maw + midboss kills: per long4 descent the Saucer + 2 + 2 biome midbosses, the Open Orbit Maw and
@@ -346,12 +358,12 @@ export const killBio = (id: EntryId, v: number): number => v * E(id).killBio;
 
 /** D31: does a carrier spawn keep its pod, given the keep roll r (one R() draw). Drops at r < 1 - capKeep, the old
  *  `r < .65` exactly on short (1 - .35 === .65 in doubles), so the same draw keeps the same pods */
-export const capKept = (id: EntryId, r: number, m = 1): boolean => !(r < 1 - E(id).capKeep * m); // m: D63's BRUTAL pod share
+export const capKept = (id: EntryId, r: number, m = 1): boolean => !(r < 1 - E(id).capKeep * m); // m: the tier's faucet (tier.ts capRate; 1 on short)
 
 /** D31: does a cleared formation drop its pod. `pod`: the biome breath's release formation, always. `rnd` is drawn
  *  only when the entry's grpPod is below 1 and the formation is not exempt (short draws nothing) */
 export const grpDrops = (id: EntryId, pod: unknown, rnd: () => number, m = 1): boolean => {
-  const p = E(id).grpPod * m; // m: D63's BRUTAL pod share (1 on short, which still draws nothing)
+  const p = E(id).grpPod * m; // m: the tier's faucet (tier.ts capRate; 1 on short, which still draws nothing)
   return !!pod || p >= 1 || rnd() < p;
 };
 

@@ -99,13 +99,13 @@ describe('the LAB rows', () => {
   it('with the row off: FORCE MID = OFF, no JUMP TO MID, the title LAB row unchanged', () => {
     expect(rows().at(-1)).toBe('LAB = LONG');
     tap('LAB');
-    expect(rows()).toEqual(['LAYOUT = LONG', 'MIDBOSSES = OFF', 'CHECKPOINT = QUIT ONLY', 'BRUTAL = 2', 'FORCE MID = OFF', 'JUMP TO BOSS = KEEPSAKE', 'BACK']);
+    expect(rows()).toEqual(['LAYOUT = LONG', 'MIDBOSSES = OFF', 'CHECKPOINT = QUIT ONLY', 'DIFFICULTY = NORMAL', 'FORCE MID = OFF', 'JUMP TO BOSS = KEEPSAKE', 'BACK']);
   });
   it('a tap forces the first wip kind, persists it, and offers the jump; cycling comes back to OFF', () => {
     tap('LAB');
     tap('FORCE MID');
     expect(L.lab().mid).toBe('testwip');
-    expect(rows()).toEqual(['LAYOUT = LONG', 'MIDBOSSES = OFF', 'CHECKPOINT = QUIT ONLY', 'BRUTAL = 2', 'FORCE MID = TESTWIP', 'JUMP TO MID = TESTWIP', 'JUMP TO BOSS = KEEPSAKE', 'BACK']);
+    expect(rows()).toEqual(['LAYOUT = LONG', 'MIDBOSSES = OFF', 'CHECKPOINT = QUIT ONLY', 'DIFFICULTY = NORMAL', 'FORCE MID = TESTWIP', 'JUMP TO MID = TESTWIP', 'JUMP TO BOSS = KEEPSAKE', 'BACK']);
     M.doBack('closeSub');
     expect(rows().at(-1)).toBe('LAB = LONG TESTWIP');
     tap('LAB');

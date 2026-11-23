@@ -11,6 +11,8 @@
 import { $ } from '../state';
 import { cdm, late, xtra } from '../depth';
 import { kindOf } from '../layout';
+import { ECON, econId } from '../economy';
+import { cadMul } from '../rank';
 
 /** per kind: Descent 1 base cooldown (frames, before the caller's ri() jitter), frames shaved per descent, floor */
 export const COOL = {
@@ -23,8 +25,19 @@ export const COOL = {
 };
 /** kind k's authored curve at the current descent, before the global depth step */
 export const curve = (k) => { const c = COOL[k]; return Math.max(c.floor, c.base - c.step * ($.G.loop || 0)); };
-/** cooldown for kind k after an attack; roll = the ri() jitter the caller drew */
-export const coolFor = (k, roll) => Math.round((curve(k) + roll) * cdm() * driveCool());
+/** DIFFICULTY-SPEC C2 for regular shooters: their cooldowns x rank.ts cadMul (1.25 - .6 rho; x1.17 at rank 2, x.65 at
+ *  16), floor 18 f, on a long entry with a HardSet (long4) only, so short keeps today's numbers (spec §5.3).
+ *  W0 lands it OFF (inert hook): W1 turns it on with its bullet changes and gates B2 / N1 */
+export const RANK_CAD = false;
+/** the rank cadence factor coolFor applies: cadMul on long4 once RANK_CAD is on, else 1. Pure, no R() */
+export const rankCool = () => (RANK_CAD && ECON[econId()].hard ? cadMul($) : 1);
+/** cooldown for kind k after an attack; roll = the ri() jitter the caller drew. The long4 test is taken once; rank is
+ *  live (rank.ts), never G.rk. cadence.ts passes to W1 after W0 (it flips RANK_CAD) */
+export const coolFor = (k, roll) => {
+  const on = RANK_CAD && !!ECON[econId()].hard;
+  const c = Math.round((curve(k) + roll) * cdm() * driveCool() * (on ? cadMul($) : 1));
+  return on ? Math.max(18, c) : c; // C2's 18 f floor, with the rank factor only
+};
 /** D62: a regular shooter's first-shot range: its own [lo, hi], or the Drive stage's LateSet.driveFirst on a long entry.
  *  The caller draws one ri() over it either way, so the R() count is unchanged */
 export const firstShot = (lo, hi) => { const L = late(); return L && L.driveFirst && kindOf($.G.stage || 0) === 'drive' ? L.driveFirst : [lo, hi]; };

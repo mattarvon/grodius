@@ -222,20 +222,23 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(ECON.long4.targets!.bio[0]).toEqual([1300, 1500]);
   });
 
-  it('pins the D31 cut: kill XP .30, kill biomass .40, carrier keep .075, formation pods .22, grafts x1.8 (fit 1)', () => {
-    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .4, .075, .22, 1.8]);
+  it("pins the D31 cut with DIFFICULTY-SPEC §2.2's random faucet: kill XP .30, kill biomass .40, carrier keep .05, formation pods .12, grafts x1.8", () => {
+    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .4, .05, .12, 1.8]);
   });
 
-  it('keeps a carrier pod only at a roll of .925 or more', () => {
-    expect(capKept('long4', .9249)).toBe(false);
-    expect(capKept('long4', .925)).toBe(true);
+  it('keeps a carrier pod only at a roll of .95 or more, x the tier faucet m', () => {
+    expect(capKept('long4', .9499)).toBe(false);
+    expect(capKept('long4', .95)).toBe(true);
+    expect(capKept('long4', .925, 1.5)).toBe(true); // Easy x1.5: keep .075
+    expect(capKept('long4', .9599, .8)).toBe(false); // Very Hard x.8: keep .04
+    expect(capKept('long4', .96, .8)).toBe(true);
   });
 
   it('rolls once per cleared formation, and never for the release formation', () => {
     let n = 0;
     const r = (v: number) => () => { n++; return v; };
-    expect(grpDrops('long4', undefined, r(.2199))).toBe(true);
-    expect(grpDrops('long4', undefined, r(.22))).toBe(false);
+    expect(grpDrops('long4', undefined, r(.1199))).toBe(true);
+    expect(grpDrops('long4', undefined, r(.12))).toBe(false);
     expect(n).toBe(2);
     expect(grpDrops('long4', 1, r(.99))).toBe(true);
     expect(n).toBe(2);

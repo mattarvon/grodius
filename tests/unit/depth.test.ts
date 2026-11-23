@@ -82,6 +82,18 @@ describe('driveMul(): the Gravity Drive, the one HP exception to the power rule'
     fresh(2, 1.5);
     expect(driveMul()).toBeCloseTo(1.8 * 1.6 * 1.1);
   });
+
+  it("drops the rank term on long4 (HardSet.driveRank 0, DIFFICULTY-SPEC C22) and keeps short's", async () => {
+    const { setLayout } = await import('../../src/layout');
+    setLayout('long4');
+    try {
+      expect(ECON.long4.hard!.driveRank).toBe(0);
+      fresh(0, 1);
+      expect(driveMul()).toBe(1); // Descent 1 at full rank: the base HP alone
+      fresh(2, 1.5);
+      expect(driveMul()).toBeCloseTo(1.8 * 1 * 1.1);
+    } finally { setLayout('short'); }
+  });
 });
 
 // Pinned tuning (M2 studio review): the loop HP weights absorbed the old over() term for a typical build. A retune

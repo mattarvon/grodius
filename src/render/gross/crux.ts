@@ -10,7 +10,7 @@ import { srr, srnd } from '../../srnd';
 import { glowC, fxs, spray, stepParts, drawParts, strand, snd, emit, rnd, rn, GROSS } from './midbosses';
 import { bakedBuilt, bakedDrop, bakedFallback, bakedWarm, bf, pour, trackDeath, twitch } from './baked';
 
-import { bru } from '../../brutal';
+import { bru } from '../../tier'; // the retired BRUTAL dial's neutral shim (W4 deletes the call)
 const K = 'crux';
 // the sim's attack timers (enemies/spawn.ts every()): the same period, read here so each tell leads its volley honestly
 const per = (n) => Math.max(18, Math.round(n * (1 - .4 * Math.min(2.0, ($.G && $.G.pow) || 0)) * bru('cool'))); // D63: the BRUTAL dial, as every()

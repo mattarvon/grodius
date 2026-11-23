@@ -19,9 +19,9 @@ const L = await import('../../src/layout');
 
 /** one carrier drone (cap set) spawned on layout id with the keep roll at r; returns whether it kept its pod and the
  *  R() draws its spawn made */
-const carrier = (id: 'short' | 'long4', r: number) => {
+const carrier = (id: 'short' | 'long4', r: number, tier?: number) => {
   L.setLayout(id);
-  $.G = { loop: 0, pow: 0, st: { spawned: 0 } };
+  $.G = { ...(tier != null ? { tier } : {}), loop: 0, pow: 0, st: { spawned: 0 } };
   enemies.length = 0;
   rq.v = r; rq.n = 0;
   formation('sine', 100, 1, { cap: 1 });
@@ -36,9 +36,18 @@ describe('carrier keep roll (D31 capKeep)', () => {
     for (const r of [0, .3, .35, .6499, .65, .66, .83, .99]) expect(carrier('short', r).kept, String(r)).toBe(!(r < .65));
   });
 
-  it('keeps a long4 carrier pod only at R() >= .925 (capKeep .075, fit 1)', () => {
-    for (const r of [.65, .83, .9249]) expect(carrier('long4', r).kept, String(r)).toBe(false);
-    for (const r of [.925, .95, .99]) expect(carrier('long4', r).kept, String(r)).toBe(true);
+  it('keeps a long4 carrier pod only at R() >= .95 (capKeep .05, DIFFICULTY-SPEC §2.2; D31 fit 1 had .075)', () => {
+    for (const r of [.65, .83, .925, .9499]) expect(carrier('long4', r).kept, String(r)).toBe(false);
+    for (const r of [.95, .97, .99]) expect(carrier('long4', r).kept, String(r)).toBe(true);
+  });
+
+  it('scales the keep by the tier faucet (tier.ts capRate): Easy x1.5 keeps at .925, Very Hard x.8 only at .96, one roll each', () => {
+    expect(carrier('long4', .9249, 0).kept).toBe(false);
+    expect(carrier('long4', .925, 0).kept).toBe(true);
+    expect(carrier('long4', .9599, 3).kept).toBe(false);
+    expect(carrier('long4', .96, 3).kept).toBe(true);
+    expect(carrier('long4', .95, 1).kept).toBe(true);
+    for (const t of [0, 1, 2, 3]) expect(carrier('long4', .9, t).n).toBe(carrier('short', .9).n);
   });
 
   it('draws the same number of R() on both entries: only the threshold moved', () => {

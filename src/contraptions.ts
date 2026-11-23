@@ -12,6 +12,7 @@
 import { $ } from './state';
 import { FIRE, PH, R, TAU, W, clamp, ctx, dist2, pick, ri, rr, swapRm } from './core';
 import { caps, ceilAt, enemies, eshots, floorAt, orbs } from './world';
+import { solidAt } from './solids';
 import { hurt } from './enemies/update';
 import { bossHitByShot } from './boss/update';
 import { drop, flash, gib, gore, mist, pop, spark } from './fx/spawn';
@@ -110,7 +111,7 @@ function bossHit(x, y, r, d) {
   if (!$.G.boss) return false;
   return bossHitByShot({ k: 'rig', x, y, r, dmg: d });
 }
-const solid = (x, y) => { const wx = x + $.G.scroll; return y >= floorAt(wx) || y <= ceilAt(wx); };
+const solid = (x, y) => { const wx = x + $.G.scroll; return y >= floorAt(wx) || y <= ceilAt(wx) || solidAt(wx, y); }; // + moving solids (src/solids.ts; stub until W3)
 
 /** call from killEnemy */
 export function onKillContraptions(e) {

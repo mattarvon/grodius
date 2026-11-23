@@ -1,5 +1,5 @@
 // D31 (audit d31-economy.md §2.2): a cleared formation drops its pod on the entry's grpPod chance (killEnemy in
-// enemies/update.ts). Short (grpPod 1) draws no extra R(); long4 (.22, fit 1) draws one per cleared formation; the biome
+// enemies/update.ts). Short (grpPod 1) draws no extra R(); long4 (.12, DIFFICULTY-SPEC §2.2; D31 fit 1 had .22) draws one per cleared formation, x the tier's faucet (tier.ts capRate); the biome
 // breath's release formation (group.pod, biomes.ts biomeScript) always drops and draws nothing
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
@@ -27,9 +27,9 @@ const { killEnemy } = await import('../../src/enemies/update');
 const L = await import('../../src/layout');
 
 /** kill the last drone of a one-drone formation on layout id, R() answering q first; returns pods dropped and draws */
-const clear = (id: 'short' | 'long4', q: number[], pod?: number) => {
+const clear = (id: 'short' | 'long4', q: number[], pod?: number, tier?: number) => {
   L.setLayout(id);
-  $.G = { loop: 0, stage: 1, score: 0, bio: 0, combo: 0, comboT: 0, kills: 0, maxCombo: 0, st: { kills: 0, chain: 0 }, hitstop: 0 };
+  $.G = { ...(tier != null ? { tier } : {}), loop: 0, stage: 1, score: 0, bio: 0, combo: 0, comboT: 0, kills: 0, maxCombo: 0, st: { kills: 0, chain: 0 }, hitstop: 0 };
   $.P = { x: 90, y: 135 };
   $.meta = { bio: 0 };
   caps.length = 0;
@@ -47,10 +47,18 @@ describe('formation pod drop (D31 grpPod)', () => {
     expect(clear('short', [])).toEqual({ pods: 1, n: DROP_DRAWS });
   });
 
-  it('drops on long4 when its one roll is under .22 (fit 1), and not otherwise', () => {
-    expect(clear('long4', [.2199])).toEqual({ pods: 1, n: 1 + DROP_DRAWS });
-    expect(clear('long4', [.22])).toEqual({ pods: 0, n: 1 });
+  it('drops on long4 when its one roll is under .12, and not otherwise', () => {
+    expect(clear('long4', [.1199])).toEqual({ pods: 1, n: 1 + DROP_DRAWS });
+    expect(clear('long4', [.12])).toEqual({ pods: 0, n: 1 });
     expect(clear('long4', [.99])).toEqual({ pods: 0, n: 1 });
+  });
+
+  it('scales the chance by the tier faucet: Easy x1.5 (.18), Normal x1, Very Hard x.8 (.096); one roll on every tier', () => {
+    expect(clear('long4', [.1799], undefined, 0)).toEqual({ pods: 1, n: 1 + DROP_DRAWS });
+    expect(clear('long4', [.18], undefined, 0)).toEqual({ pods: 0, n: 1 });
+    expect(clear('long4', [.1199], undefined, 1)).toEqual({ pods: 1, n: 1 + DROP_DRAWS });
+    expect(clear('long4', [.0959], undefined, 3)).toEqual({ pods: 1, n: 1 + DROP_DRAWS });
+    expect(clear('long4', [.096], undefined, 3)).toEqual({ pods: 0, n: 1 });
   });
 
   // G1: a one-drone formation cannot tell "roll at the last kill" from "roll at every kill"; three drones can
@@ -68,7 +76,7 @@ describe('formation pod drop (D31 grpPod)', () => {
   };
 
   it('draws its one roll only when the last drone of a 3-drone formation dies on long4', () => {
-    expect(clearN('long4', 3, [.2199])).toEqual({ pods: 1, after: [0, 0, 1 + DROP_DRAWS] });
+    expect(clearN('long4', 3, [.1199])).toEqual({ pods: 1, after: [0, 0, 1 + DROP_DRAWS] });
   });
 
   it('draws nothing for a 3-drone formation on short beyond the pod itself', () => {

@@ -42,12 +42,9 @@ describe('D58 tables (economy.ts)', () => {
     for (const k of Object.keys(W)) expect(bossOrdMul('long4', 2, k)).toBeCloseTo(1 + b * W[k] * 2 / 3, 12);
   });
 
-  it('caps long4 rank drones at +2: round(2 * min(1, pow))', () => {
-    expect(formExtra('long4', 0)).toBe(0);
-    expect(formExtra('long4', .2)).toBe(0);
-    expect(formExtra('long4', .3)).toBe(1);
-    expect(formExtra('long4', .8)).toBe(2);
-    expect(formExtra('long4', 3)).toBe(2);
+  it('gives long4 no rank drones (DIFFICULTY-SPEC §2.1: rank never changes formation size; D58 #3 had +2)', () => {
+    for (const p of [0, .2, .3, .8, 3]) expect(formExtra('long4', p)).toBe(0);
+    expect(ECON.long4.form.k).toBe(0);
     expect(ECON.long4.form).toMatchObject({ xp: .5, extra: true });
   });
 });

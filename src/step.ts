@@ -12,7 +12,7 @@ import { setMute } from './audio';
 import { I, PR, pollInput } from './input';
 import { arcs, decals } from './world';
 import { endLoop, openPause } from './flow';
-import { runScript } from './enemies/spawn';
+import { runScript, stepRecovery } from './enemies/spawn';
 import { updateBoss } from './boss/update';
 import { updatePlayer } from './player';
 import { updateCaps, updateEShots, updateEnemies, updateShots } from './shots';
@@ -21,7 +21,9 @@ import { stepContraptions } from './contraptions';
 import { keyBack, menuNav, overItems, pauseItems, startLine, stepArm, stepShop, titleItems } from './menus';
 import { cpStep } from './checkpoint';
 import { backPressed } from './backstep';
-import { ECON, econId } from './economy';
+import { rank } from './rank';
+import { sigAt, sigWindows } from './sigs';
+import { stepSolids } from './solids';
 /** the title has played its greeting this launch (see the title branch below) */
 let titleGreeted = false;
 
@@ -32,13 +34,21 @@ export function stepWorld() {
   // fire and density (D1); uncapped here, every()/BS()/formation() cap it at 2
   // G.powPin: the jump switch's fixed rank (src/jump.ts; harness boss scenarios). Unset on every real run
   $.G.pow = $.G.powPin ?? powerBudget();
-  $.G.rank = clamp($.G.pow, 0, ECON[econId()].hard?.rankCap ?? 1); // D63: long4 caps rank at 1.25 (economy.ts HARD_LONG4)
+  // the legacy power rank min(1, pow): the W4 fight files and the harness still read it until they move to rank.ts
+  // (DIFFICULTY-SPEC C1: D63's long4 rankCap 1.25 is deleted, so long4 clamps at 1 again, as short always has)
+  $.G.rank = clamp($.G.pow, 0, 1);
+  // the integer Gradius III rank (src/rank.ts; spec §2.1), cached once a step for sim readers. Pure: draws no R()
+  $.G.rk = rank($);
+  // the 'setp' cap context: the ship inside a signature window (src/sigs.ts; none until W3 places them)
+  $.G.setp = $.P && sigAt($.P.x + $.G.scroll, sigWindows($)) ? 1 : 0;
   if ($.G.mini && $.G.mini.dead) $.G.mini = null;
   const tgt = $.G.bossStarted || ($.G.mini && !$.G.mini.drift) || $.G.forkHold ? 0 : 1; // drift: the Open Orbit midboss doesn't hold the scroll
   $.G.scrollSpeed += (tgt - $.G.scrollSpeed) * .02;
   if (tgt === 0 && $.G.scrollSpeed < .02) $.G.scrollSpeed = 0;
   $.G.scroll += $.G.scrollSpeed;
+  stepSolids(); // moving slabs (src/solids.ts), before the ship tests them; a stub until W3
   if ($.state === 'play') {
+    stepRecovery();
     runScript();
     updatePlayer();
     stepContraptions();

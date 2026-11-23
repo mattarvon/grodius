@@ -11,7 +11,7 @@ import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
 import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, shootB, wrapA } from '../enemies/spawn';
-import { bru } from '../brutal';
+import { bru, capRate } from '../tier'; // bru: the retired BRUTAL dial's neutral shim (W1 deletes its calls here)
 import { countKill } from '../mutations';
 import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP, noticeOf } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
@@ -718,7 +718,7 @@ export function killEnemy(e, dir = 1) {
   if (e.group) {
     e.group.killed++;
     // D31: a cleared formation drops on the entry's grpPod chance (short 1: no draw); the breath's release always does
-    if (e.group.killed === e.group.n && grpDrops(econId(), e.group.pod, R, bru('pod'))) dropCap(e.x, e.y);
+    if (e.group.killed === e.group.n && grpDrops(econId(), e.group.pod, R, capRate())) dropCap(e.x, e.y);
   }
   if (e.k === 'crux' || e.k === 'butcher') {
     for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);

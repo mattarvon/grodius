@@ -6,6 +6,7 @@ import { sri } from './srnd';
 import { SET, lv } from './save';
 import { sfx } from './audio';
 import { caps, ceilAt, enemies, eshots, floorAt, shots } from './world';
+import { solidAt, solidShot } from './solids';
 import { addDecal, drop, flash, gib, gore, mist, pop, spark, splat } from './fx/spawn';
 import { banner, wrapA } from './enemies/spawn';
 import { METER_CAP, hurt, killEnemy, podType, updEnemy } from './enemies/update';
@@ -157,7 +158,9 @@ export function updateShots() {
     if (!dead && !(s.k === 'missile' && s.g)) {
       const tx = s.k === 'laser' ? s.x + s.len : s.x,
         wx = tx + $.G.scroll;
-      if (s.y >= floorAt(wx) || s.y <= ceilAt(wx)) {
+      // a moving solid (src/solids.ts) stops a player shot like terrain, and takes its damage if it is cuttable (S6).
+      // A stub until W3: never true
+      if (s.y >= floorAt(wx) || s.y <= ceilAt(wx) || solidShot(wx, s.y, s.dmg)) {
         for (let k = 0; k < 4; k++) spark(tx, s.y, rr(-2, 0), rr(-1.5, 1.5), ri(5, 10), '#cfe6ff');
         if (s.k === 'missile') boom(s.x, s.y, s.dmg * .8, s.lv > 1 ? 30 : 24);
         if (s.k === 'pyre') pyreBoom(s.x, s.y, s.dmg, s.lv);
@@ -265,7 +268,7 @@ export function updateEShots() {
     const wx = s.x + $.G.scroll,
       f = floorAt(wx),
       c = ceilAt(wx);
-    if (s.y >= f || s.y <= c) {
+    if (s.y >= f || s.y <= c || solidAt(wx, s.y)) { // a solid stops an enemy shot like terrain (src/solids.ts; stub until W3)
       if (s.land) s.land(s); // the shooter's own strike sound (THE KEEPSAKE's fork tink): audio only, no R()
       if (s.fk) for (let k = 0; k < 3; k++) spark(s.x, s.y, rr(-1.2, 1.2), s.y >= f ? -rr(.4, 1.4) : rr(.4, 1.4), ri(5, 9), '#dce4ec'); // a KEEPSAKE fork strikes steel, no splat
       else if (s.k === 'glob') {

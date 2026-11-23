@@ -56,7 +56,7 @@ describe('labOf', () => {
   it('fills defaults and drops unknown values', () => {
     expect(labOf(null)).toEqual(LAB_DEFAULT);
     expect(labOf({ layout: 'sideways', mids: 1, cp: 'z', extra: 5 })).toEqual(LAB_DEFAULT);
-    expect(labOf({ layout: 'long', mids: 'wip', cp: 'b' })).toEqual({ layout: 'long', mids: 'wip', cp: 'b', mid: '', brutal: 2 });
+    expect(labOf({ layout: 'long', mids: 'wip', cp: 'b' })).toEqual({ layout: 'long', mids: 'wip', cp: 'b', mid: '', tier: 1 });
   });
 });
 
@@ -74,7 +74,7 @@ describe('LAB storage', () => {
   it('persists a toggle under grodius.lab, outside the meta and run saves, and reads it back after a reload', async () => {
     const first = await load({ 'grodius.v1': '{"meta":{"v":3}}' });
     first.setLab({ layout: 'long', cp: 'b' });
-    expect(JSON.parse(first.ls.map.get('grodius.lab')!)).toEqual({ layout: 'long', mids: '', cp: 'b', mid: '', brutal: 2 });
+    expect(JSON.parse(first.ls.map.get('grodius.lab')!)).toEqual({ layout: 'long', mids: '', cp: 'b', mid: '', tier: 1 });
     expect(first.ls.map.get('grodius.v1')).toBe('{"meta":{"v":3}}');
     const again = await load(Object.fromEntries(first.ls.map));
     expect(again.activeLayout()).toEqual({ id: 'long4', src: 'lab' });
@@ -148,14 +148,32 @@ describe('applyRunLayout', () => {
   });
 });
 
-describe('the BRUTAL dial choice (D63)', () => {
-  it('is 0 off long4, ?brutal= over the LAB over the default 2 on long4, and ignores junk', async () => {
-    const { brutalChoice, labOf } = await import('../../src/lab');
-    expect(brutalChoice('?brutal=3', null, 'short')).toBe(0);
-    expect(brutalChoice('', null, 'long4')).toBe(2);
-    expect(brutalChoice('', labOf({ brutal: 1 }), 'long4')).toBe(1);
-    expect(brutalChoice('?brutal=0', labOf({ brutal: 3 }), 'long4')).toBe(0);
-    expect(brutalChoice('?brutal=9', labOf({ brutal: 3 }), 'long4')).toBe(3);
-    expect(labOf({ brutal: 'x' }).brutal).toBe(2);
+describe("the difficulty tier choice (DIFFICULTY-SPEC §2.1, replaces D63's BRUTAL dial)", () => {
+  it('is null off long4: short never carries a tier', async () => {
+    const { tierChoice, labOf } = await import('../../src/lab');
+    expect(tierChoice('?tier=3', null, 'short')).toBe(null);
+    expect(tierChoice('?brutal=3', labOf({ tier: 2 }), 'short')).toBe(null);
+    expect(tierChoice('', null, 'long5')).toBe(null);
+  });
+  it('on long4: ?tier= over ?brutal= (read as Normal) over the LAB over Normal', async () => {
+    const { tierChoice, labOf } = await import('../../src/lab');
+    expect(tierChoice('', null, 'long4')).toBe(1);
+    expect(tierChoice('', labOf({ tier: 3 }), 'long4')).toBe(3);
+    expect(tierChoice('?tier=0', labOf({ tier: 3 }), 'long4')).toBe(0);
+    expect(tierChoice('?tier=2&brutal=0', labOf({ tier: 3 }), 'long4')).toBe(2); // ?tier wins
+    expect(tierChoice('?brutal=0&tier=2', null, 'long4')).toBe(2);
+    for (const b of ['0', '1', '2', '3', 'x', '']) expect(tierChoice('?brutal=' + b, labOf({ tier: 3 }), 'long4'), b).toBe(1); // any ?brutal is Normal
+    expect(tierChoice('?tier=9', labOf({ tier: 3 }), 'long4')).toBe(3); // junk ?tier is ignored ...
+    expect(tierChoice('?tier=9&brutal=2', labOf({ tier: 3 }), 'long4')).toBe(1); // ... and ?brutal then applies
+    expect(tierChoice('?tier=1.5', null, 'long4')).toBe(1);
+    expect(tierChoice('?tier=-1', labOf({ tier: 0 }), 'long4')).toBe(0);
+  });
+  it("drops a stored LAB's old brutal dial (Normal) and junk tiers", async () => {
+    const { labOf } = await import('../../src/lab');
+    expect(labOf({ brutal: 3 }).tier).toBe(1);
+    expect('brutal' in labOf({ brutal: 3 })).toBe(false);
+    expect(labOf({ tier: 'x' }).tier).toBe(1);
+    expect(labOf({ tier: '2' }).tier).toBe(2);
+    expect(labOf({ tier: 4 }).tier).toBe(1);
   });
 });

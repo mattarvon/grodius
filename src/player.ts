@@ -8,6 +8,7 @@ import { sfx } from './audio';
 import { buzz } from './platform';
 import { I, touch } from './input';
 import { ceilAt, floorAt, shots } from './world';
+import { solidAt } from './solids';
 import { flash, pop, spark } from './fx/spawn';
 import { killPlayer, respawn } from './flow';
 import { POD, hurt } from './enemies/update';
@@ -339,8 +340,13 @@ export function updatePlayer() {
     my += clamp(touch.dy, -9, 9);
     touch.dx = touch.dy = 0;
   }
+  const px0 = $.P.x, py0 = $.P.y;
   $.P.x = clamp($.P.x + mx, 10, W - 16);
   $.P.y = clamp($.P.y + my, 6, PH - 6);
+  // DIFFICULTY-SPEC §2.1: the ship's displacement this frame, after the clamp, for W1's aimLead (state.ts PDiff). Read
+  // from position only, never R(); not saved
+  $.P.vx = $.P.x - px0;
+  $.P.vy = $.P.y - py0;
   $.P.bank = lerp($.P.bank, clamp(my, -2, 2), .25);
   if (mx || my) {
     $.P.hist.unshift({
@@ -371,7 +377,8 @@ export function updatePlayer() {
   if ($.P.inv <= 0) for (const [ox, oy] of [[12, 0], [-9, -4], [-9, 4], [0, -4], [0, 4]]) {
     const wx = $.P.x + ox + $.G.scroll,
       y = $.P.y + oy;
-    if (y >= floorAt(wx) || y <= ceilAt(wx)) {
+    // a moving solid (src/solids.ts) is terrain: it kills through WARD (decision 5A). A stub until W3: never true
+    if (y >= floorAt(wx) || y <= ceilAt(wx) || solidAt(wx, y)) {
       if (lastGasp()) return;
       killPlayer();
       return;
