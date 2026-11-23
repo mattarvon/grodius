@@ -474,10 +474,11 @@ export const BANDS = {
   corr: (s: number) => bandAt(active.bands.corr, s),
   core: (s: number) => bandAt(active.bands.core, s),
   space: (s: number) => 1 - bandAt(active.bands.space, s),
-  /** the Orbit breach flap's weight (long4 terrain.oT), 0 where a layout has none: the render lane keys the flap's
-   *  torn lip and the S7 deck dim on it with `hull` (LVL S7) */
-  breach: (s: number) => (active.terrain.oT ? bandAt(active.terrain.oT, s) : 0),
 };
+/** the Orbit breach flap's weight at world x s (long4 terrain.oT), 0 where a layout has none: the render lane keys the
+ *  flap's torn lip and the S7 deck dim on it, with BANDS.hull (LVL S7). Kept out of BANDS so the AMT snapshot
+ *  layout-parity takes is unchanged (T1) */
+export const breachBand = (s: number) => (active.terrain.oT ? bandAt(active.terrain.oT, s) : 0);
 /** the corridor interior backdrop's fade (render/terrain.ts drawInterior) */
 export const innerBand = (s: number) => bandAt(active.bands.inner, s);
 /** hell-flash weights at world x s (fx/update.ts updateAmbient) */
