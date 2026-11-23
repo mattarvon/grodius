@@ -32,6 +32,7 @@ import { hazAimed, hazLeadX } from './notice';
 import { ECON, econId, noticeOf } from './economy';
 import { FURNACE, GRILL, GULLET, ICICLE, INSET_MID, MORGUE, SPACE, SWALLOW, TIDE, envelope, grillCols, hazRankMul, insetOf, morgueLane, planSig, setSigWindows, throatInset, tideLen, tideLevel } from './sigs';
 import { srr } from './srnd';
+import { rho } from './rank';
 export { biomePat, biomeTerrainFill, biomeEdge, drawBiomeBG, drawBiomeDecor, splatCols, biomeDark, biomeMist } from './render/biomeart';
 
 // the biome slots (world x0, bossX) are stage rows of the layout (src/layout.ts slotRow); short: stage 1 = slot 0,
@@ -948,8 +949,8 @@ function sigClear(seg) {
   SG.runs = seg == null ? [] : SG.runs.filter((r) => r.seg !== seg);
   ENG.reset(seg == null ? 'b' : `b${seg}:`);
 }
-/** ADAPTER: rank.ts rho($) once W0 lands. Until then G.rank is the old power clamp (0-1.25), not a rank: null, no change */
-const rhoNow = () => { const G = $.G; return G && G.tier != null && Number.isFinite(G.rank) ? Math.min(Math.max(G.rank, 0), 16) / 16 : null; };
+/** rho for the hazard timer: rank.ts (W0), computed from $ at once (W0 contract: never the legacy G.rank) */
+const rhoNow = () => rho($);
 /** a signature variation is running that pauses the random hazard timer (HIGH TIDE v3 keeps its geysers) */
 const sigPause = () => SG.runs.some((r) => r.on && !r.done && !(r.k === 'high_tide' && 'geysers' in TIDE.vars[r.v]));
 /** biome slot seg's signature plan, or null: long4, movement B0 (a first visit in Descent 1), inside its band. It runs

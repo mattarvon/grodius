@@ -2,7 +2,7 @@
 // every number, the plan that fits three escalating variations into the D31 band, and the window registry the probes read.
 import { describe, expect, it } from 'vitest';
 import {
-  FURNACE, GRILL, GULLET, HAZ, ICICLE, INSET, INSET_MID, MORGUE, PH, SPACE, SWALLOW, TIDE, envelope, grillCols, grillLen,
+  FURNACE, GRILL, GULLET, HAZ, ICICLE, SIG, SOLID_KILLS, INSET, INSET_MID, MORGUE, PH, SPACE, SWALLOW, TIDE, envelope, grillCols, grillLen,
   hazRankMul, insetOf, morgueLane, planSig, setSigWindows, sigAt, sigCheckpoints, sigWindows, throatInset, tideLen, tideLevel,
 } from '../../src/sigs';
 import { MID_DROP, midsWanted, pickBiomeMids } from '../../src/midpick';
@@ -189,5 +189,20 @@ describe('midboss drop on THE KEEPSAKE stage (C24)', () => {
     const out = pickBiomeMids(st, 'ice', 0, rng, undefined, false, false, 1);
     expect(out.picks.length).toBe(1);
     expect(st.mbUsed).toEqual(out.picks);
+  });
+});
+
+describe('W0 skeleton contract (kept)', () => {
+  it('no G: the same frozen empty list; sigAt finds the window holding x, x1 exclusive', () => {
+    const a = sigWindows(null), b = sigWindows(null);
+    expect(a).toEqual([]); expect(a).toBe(b); expect(Object.isFrozen(a)).toBe(true);
+    const ws = [{ x0: 0, x1: 100, floor: 88, id: 'tide' }];
+    expect(sigAt(50, ws)).toMatchObject({ id: 'tide' }); expect(sigAt(0, ws)).toMatchObject({ id: 'tide' }); expect(sigAt(100, ws)).toBe(null);
+  });
+  it('pins the space rules and decision 5A', () => {
+    expect([SPACE.fitGap, SPACE.fitMin, SPACE.fitBox, SPACE.noSpawn, SPACE.noSpawnKid, SPACE.tell, SPACE.sigLead, SPACE.cutBolts]).toEqual([100, 72, 21, 48, 30, 44, 120, 8]);
+    expect([SPACE.edgeV, SPACE.weave, SPACE.deckDim, SPACE.sanctuary]).toEqual([.5, .75, .4, 600]);
+    expect(SOLID_KILLS).toBe(true);
+    expect(Object.keys(SIG)).toEqual(['morgue_rush', 'high_tide', 'grill', 'swallow']);
   });
 });

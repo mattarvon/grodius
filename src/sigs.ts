@@ -299,6 +299,10 @@ function shrinkCounts(ns: number[], ok: (n: number[]) => boolean) {
 }
 
 // ---------------- the registered windows (spec §2.4; route-probe / space-probe exception list, G.setp) ----------------
+/** W0 contract: one signature window in world x, x1 exclusive (SigWin below is it plus its kind and checkpoint) */
+export interface SigWindow { readonly x0: number; readonly x1: number; readonly floor: number; readonly id: string }
+/** W0 contract: the per-stage signature tuning, by signature (the tables above) */
+export const SIG: Readonly<Record<string, unknown>> = { morgue_rush: MORGUE, high_tide: TIDE, grill: GRILL, swallow: SWALLOW };
 /** a registered signature window, world x, x1 exclusive (W0 contract SigWindow, plus its kind and checkpoint) */
 export interface SigWin { x0: number; x1: number; floor: number; id: string; k?: string; cp?: number }
 type GSig = { sigW?: Record<string, SigWin[]>; sigV?: number } | null | undefined;
