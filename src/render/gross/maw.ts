@@ -16,6 +16,7 @@ import { srr, srnd } from '../../srnd';
 import { gib, mist } from '../../fx/spawn';
 import { glowC, fxs, emit, spray, stepParts, drawParts, bubble, snd, rnd, rn } from './midbosses';
 import { bakedBuilt, bakedDrop, bakedFallback, bakedWarm, bf, breath, dieAge, pour } from './baked';
+import { MAW } from '../../boss/bossrules';
 
 /** kept for render/enemies.ts: 0 falls back to the original vector Maw there */
 export const GROSS = 1;
@@ -114,7 +115,8 @@ export function drawGrossMaw(c, e) {
   }
   live.add(e);
   stepParts(s);
-  const w = stage(e), cyc = t % 130, tel = cyc >= 78 && cyc < 100 ? (cyc - 78) / 22 : 0;
+  // long4 runs its own jaw counter (boss/bossfights.ts maw3: e.jcy, the cycle frame on 130's scale, -1 through a bite)
+  const w = stage(e), cyc = e.jcy ?? t % 130, tel = cyc >= 78 && cyc < 100 ? (cyc - 78) / 22 : 0;
   const spew = cyc >= 100 && cyc < 114 && e.x < W - 20;
   // the retch: a shudder that grows to the heave (render-only: the hitbox does not move)
   const sh = tel * tel * 1.2;
@@ -146,8 +148,9 @@ export function drawGrossMaw(c, e) {
     c.globalCompositeOperation = 'source-over';
     if (tel > .3 && rnd() < tel * .4 * s.dt) emit(s, e.x - 14 + rn(-3, 3), e.y + rn(-4, 4), rn(-.9, -.2), rn(-.6, .4), '#5a0610', rn(.7, 1.3), 0, 40);
   }
-  if (spew && s.sc.sp !== Math.floor(t / 130)) { // the heave: blood and bile thrown along the shot (the globs are the bullets)
-    s.sc.sp = Math.floor(t / 130);
+  const sk = e.jn ?? Math.floor(t / 130);
+  if (spew && s.sc.sp !== sk) { // the heave: blood and bile thrown along the shot (the globs are the bullets)
+    s.sc.sp = sk;
     const a = Math.atan2($.P.y - e.y, $.P.x - (e.x - 14));
     for (let i = 0; i < 18; i++) { const aa = a + rn(-.5, .5), sp = rn(.9, 2.6); emit(s, e.x - 18, e.y + rn(-3, 3), Math.cos(aa) * sp, Math.sin(aa) * sp, i % 3 ? '#4a0408' : v === 'snot' ? '#9a8c62' : '#7a1010', rn(.8, 1.8), 0, 50, .05); }
     snd('splat_m', .35, .2);
@@ -161,6 +164,32 @@ export function drawGrossMaw(c, e) {
   }
   drawParts(c, s, e);
   c.restore();
+  if (e.bs) biteTell(c, e);
+}
+/** THE BITE (long4, boss/bossfights.ts): through the 46 f tell a dashed lane line runs from the mouth to the lunge's end
+ *  along e.ly, the eyes burn, and the line goes solid and blinks once it locks; the rank variant's way home shows as a
+ *  second line through the hold. Boss-local: the caller has translated to (e.x, e.y) */
+const DASH = [6, 5], NODASH = [], EDGES = [-24, 24]; // hoisted: no per-frame arrays
+function biteTell(c, e) {
+  const ly = e.ly - e.y, x1 = W * MAW.lungeX - 24 - e.x;
+  if (e.bs === 1) {
+    const u = Math.min(1, e.bt / MAW.tell), locked = e.bt > MAW.tell - MAW.lock;
+    c.strokeStyle = locked ? `rgba(255,228,214,${.45 + .4 * (($.T >> 1) & 1)})` : `rgba(255,60,40,${.2 + .35 * u})`;
+    c.lineWidth = locked ? 2 : 1;
+    c.setLineDash(locked ? NODASH : DASH);
+    for (const o of EDGES) { c.beginPath(); c.moveTo(-26, ly + o); c.lineTo(x1, ly + o); c.stroke(); } // the body's width: r 24
+    c.setLineDash(NODASH);
+    c.globalCompositeOperation = 'lighter';
+    for (const ep of e.eyesP) glowC(c, -Math.cos(ep.a) * ep.r, Math.sin(ep.a) * ep.r, 3 + 4 * u, '255,70,40', .2 + .5 * u);
+    c.globalCompositeOperation = 'source-over';
+  } else if (e.bs === 3 && e.bv) {
+    const locked = e.bt > MAW.var.hold - MAW.var.lock;
+    c.strokeStyle = locked ? `rgba(255,228,214,${.45 + .4 * (($.T >> 1) & 1)})` : 'rgba(255,60,40,.4)';
+    c.lineWidth = locked ? 2 : 1;
+    c.setLineDash(locked ? NODASH : DASH); // the same grammar: dashed while it tracks, solid once locked
+    c.beginPath(); c.moveTo(-26, 0); c.lineTo(W - 82 - e.x, e.ly2 - e.y); c.stroke();
+    c.setLineDash(NODASH);
+  }
 }
 
 // ---------------- the death: ticked once per render from hud.ts (after the enemies) ----------------

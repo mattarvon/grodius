@@ -17,6 +17,8 @@ import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP, noticeO
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { KH, hookBehind, hookHits } from './butcherhook';
+import { BUTCHER } from '../boss/bossrules';
+import { clock3, crux3, g3, iv, maw3, meat3, reelSweep, room, variant } from '../boss/bossfights'; // long4 boss fights (W4b)
 // the midboss kinds load through here and through spawn.ts: the kinds import this module back, as the Saucer always did
 import './mid';
 import { MID_SIM, midHitSnd, midMul, midRow } from './mid/roster';
@@ -282,7 +284,7 @@ export function updEnemy(e) {
       }
     case 'crux':
       {
-        if (phaseClock(e)) break;
+        if (g3() ? clock3(e) : phaseClock(e)) break; // long4: 1200 f halves (boss/bossfights.ts)
         if (e.t < 220) e.x = lerp(e.x, e.tx, .03);
         const ph2 = e.hp < e.max * .5;
         e.y = PH / 2 + Math.sin(e.t * .012) * (PH * .22) * (ph2 ? 1.25 : 1);
@@ -296,7 +298,8 @@ export function updEnemy(e) {
             metal: 4
           });
         }
-        if (e.t > 140 && $.P.alive) {
+        if (e.t > 140 && $.P.alive && g3()) crux3(e); // long4: the nail comb, then the icicle curtain (no spiral)
+        else if (e.t > 140 && $.P.alive) {
           if (every(e, 85)) fan(e.x - 26, e.y - 4, aimA(e.x - 26, e.y - 4), 5, .17, 1.7, 'spike');
           if (every(e, 160)) {
             ring(e.x - 26, e.y + 28, 9, e.t * .05, 1.15);
@@ -312,7 +315,8 @@ export function updEnemy(e) {
       }
     case 'butcher':
       {
-        if (phaseClock(e)) break;
+        const G3 = g3(); // long4 (W4b, DIFFICULTY-SPEC §2.3): cooldowns x the rank rule, one spit, meat hooks for the ring
+        if (G3 ? clock3(e) : phaseClock(e)) break;
         if (e.t < 240) e.x = lerp(e.x, e.tx, .025);
         const ph2 = e.hp < e.max * .5;
         if (ph2 && !e.cut) {
@@ -334,7 +338,8 @@ export function updEnemy(e) {
           if (--e.cool <= 0 && e.t > 160 && $.P.alive) {
             e.att++;
             const near = Math.abs($.P.x - sx) < 120 && Math.abs($.P.y - sy) < 100;
-            e.st = near && e.att % 3 !== 0 ? 'ctel' : e.att % 2 ? 'htel' : 'spit';
+            const far = G3 && !ph2 && Math.hypot($.P.x - e.x - 10, $.P.y - e.y + 8) > BUTCHER.spitFar; // long4: a far ship is spat at (K1)
+            e.st = near && e.att % 3 !== 0 ? 'ctel' : far ? 'spit' : e.att % 2 ? 'htel' : 'spit';
             e.wt = 0;
             if (e.st === 'ctel') sfx.tele();
             if (e.st === 'htel') {
@@ -367,7 +372,7 @@ export function updEnemy(e) {
           }
           if (e.wt >= 30) {
             e.st = 'idle';
-            e.cool = ph2 ? 50 : 80;
+            e.cool = G3 ? iv(BUTCHER.cutCool[ph2 ? 1 : 0]) : ph2 ? 50 : 80;
           }
         } else if (e.st === 'htel') {
           if (!ph2 || e.wt < KH.tell2 - KH.lock) e.ha = lerp(e.ha, aimA(e.x + 10, e.y - 8), .05);
@@ -420,8 +425,11 @@ export function updEnemy(e) {
               } else if (h.d > KH.reach2) h.out = 0;
             } else if (h.pl) {
               h.tx = h.wx - $.G.scroll;
-              if (++h.pt === KH.plant - KH.warn) sfx.chain();
+              if (h.sv == null) h.sv = G3 && variant() ? 1 : 0; // rank >= 14 (long4): the reel sweeps, its shudder doubles
+              if (++h.pt === KH.plant - (h.sv ? BUTCHER.reelVar.warn : KH.warn)) sfx.chain();
               if (h.pt >= KH.plant || h.tx < -30) h.pl = 0;
+            } else if (h.sv && reelSweep(h, ax, ay)) {
+              // the sweep: the tip swings round the anchor toward the middle as the chain hauls in (bossfights.ts)
             } else {
               const dx = ax - h.tx,
                 dy = ay - h.ty,
@@ -435,7 +443,7 @@ export function updEnemy(e) {
             if (!h.out && !h.pl && Math.hypot(ax - h.tx, ay - h.ty) <= 12) {
               e.hk = null;
               e.st = 'idle';
-              e.cool = 45;
+              e.cool = G3 ? iv(BUTCHER.hookCool[1]) : 45;
             }
           } else {
             h.d += h.out ? KH.out1 : -KH.back1;
@@ -452,27 +460,31 @@ export function updEnemy(e) {
             if (!h.out && h.d <= 12) {
               e.hk = null;
               e.st = 'idle';
-              e.cool = ph2 ? 45 : 70;
+              e.cool = G3 ? iv(BUTCHER.hookCool[ph2 ? 1 : 0]) : ph2 ? 45 : 70;
             }
           }
         } else if (e.st === 'spit') {
-          if (e.wt === 10 || e.wt === 26) {
+          const sn = BUTCHER.spitN[ph2 ? 1 : 0]; // long4: once (was twice), from wt 18; a full field holds it a frame at a time
+          if (G3 ? e.wt >= BUTCHER.spitAt && e.spat !== e.att && room(sn) : e.wt === 10 || e.wt === 26) {
             const hx = e.x - 6,
               hy = e.y - 34;
-            fan(hx, hy, aimA(hx, hy), ph2 ? 7 : 5, .2, 1.8, 'glob');
+            if (G3) { e.spat = e.att; for (let k = 0; k < sn; k++) lob(hx, hy, $.P.x, $.P.y + (k - (sn - 1) / 2) * 22, BUTCHER.spitVy); } // lobbed through the ship's height
+            else fan(hx, hy, aimA(hx, hy), ph2 ? 7 : 5, .2, 1.8, 'glob');
             for (let k = 0; k < 16; k++) drop(hx, hy, rr(-3, -.5), rr(-1, 1), 1.5, R() < .5 ? 0 : 1, 80);
           }
           if (e.wt >= 40) {
             e.st = 'idle';
-            e.cool = ph2 ? 50 : 80;
+            e.cool = G3 ? iv(BUTCHER.spitCool[ph2 ? 1 : 0]) : ph2 ? 50 : 80;
           }
         }
-        if (ph2 && every(e, 110)) ring(e.x, e.y + 6, 12, e.t * .07, 1.1);
+        if (G3) { if (ph2 && !e.gone) meat3(e); } // long4: the meat-hook pendulums replace the ring
+        else if (ph2 && every(e, 110)) ring(e.x, e.y + 6, 12, e.t * .07, 1.1);
         if (R() < .35) drop(e.x + rr(-14, 14), e.y + rr(0, 24), rr(-.3, .3), rr(.2, .8), 1.4, R() < .5 ? 0 : 1, 90);
         break;
       }
     case 'maw':
       {
+        if (g3()) { maw3(e); break; } // long4: THE BITE (boss/bossfights.ts); short keeps today's Maw below
         const tx = W - 82;
         if (e.t < e.leave) {
           e.x = lerp(e.x, tx, .025);

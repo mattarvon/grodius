@@ -17,6 +17,7 @@ import { SET } from '../../save';
 import { sample } from '../../audio';
 import { glow, light } from '../util';
 import { tentPts } from '../../boss/update';
+import { DRIVE, tentBase } from '../../boss/bossrules';
 import { bakedBuilt, bakedN, bakedReady, bakedWarm, bf, breath, pour } from './baked';
 
 export const GROSS = 1;
@@ -337,7 +338,26 @@ function drawTent(b, bx, by) {
     bf(ctx, K, 'stump', ai(Math.atan2(p1.y - p0.y, p1.x - p0.x), 32), Math.round(p0.x + dx), Math.round(p0.y + dy));
     const q = pts[15], e = pts[16];
     bf(ctx, K, 'fray', ai(Math.atan2(e.y - q.y, e.x - q.x), 32), Math.round(e.x + dx), Math.round(e.y + dy));
+    if (t.rs === 1) reachTell(b, t, e, dx, dy);
   }
+}
+/** THE REACH's tell (long4, boss/update.ts stepReach): the frayed tip glows hotter through the 46 f coil, and a dashed
+ *  line runs from the limb's root along its aim to the reach's end; it goes solid and blinks once the aim locks */
+const DASH = [5, 5], NODASH = [];
+function reachTell(b, t, tip, dx, dy) {
+  const R = DRIVE.reach, u = Math.min(1, t.rf / R.tell), locked = t.rf > R.tell - R.lock;
+  const B = tentBase(b.x, b.y, t.side), L = t.rl || R.len, ca = Math.cos(t.ra), sa = Math.sin(t.ra);
+  ctx.globalCompositeOperation = 'lighter';
+  glow(tip.x + dx, tip.y + dy, 8 + 10 * u, '255,60,40', .25 + .45 * u);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.strokeStyle = locked ? `rgba(255,225,215,${.4 + .4 * (($.T >> 1) & 1)})` : `rgba(255,50,40,${.18 + .3 * u})`;
+  ctx.lineWidth = locked ? 2 : 1;
+  ctx.setLineDash(locked ? NODASH : DASH);
+  ctx.beginPath();
+  ctx.moveTo(B.x + dx, B.y + dy);
+  ctx.lineTo(B.x + ca * L + dx, B.y + sa * L + dy);
+  ctx.stroke();
+  ctx.setLineDash(NODASH);
 }
 // hanging threads of blood off the open wounds: they grow, swell and let go as real drops
 function drawDrips(b, bx, by) {
