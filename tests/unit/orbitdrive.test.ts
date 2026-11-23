@@ -27,7 +27,7 @@ vi.mock('../../src/enemies/spawn', () => Object.fromEntries(
 const W = await import('../../src/world');
 const { stageScript } = await import('../../src/enemies/scripts');
 const { stream, seedOf } = await import('../../src/rng');
-const { CP_RULE, DRIVE_SIG, LAYOUTS, ORBIT_SIG, cpsOf, pairCentre, pistonPhase, pistonReach, rowSigWindows, setLayout } = await import('../../src/layout');
+const { CP_RULE, DRIVE_SIG, LAYOUTS, ORBIT_SIG, cpsOf, pairCentre, pistonPhase, pistonPxMax, pistonReach, rowSigWindows, setLayout } = await import('../../src/layout');
 
 const L4 = LAYOUTS.long4!, ORBIT = L4.stages[0], DRIVE = L4.stages[3];
 const PH = 254;
@@ -187,15 +187,23 @@ describe('THE STROKE pistons (LVL §6.3)', () => {
   });
   it('phases each piston to be mid-hold as it reaches the ship, from the ship\'s x at its spawn beat (no R())', () => {
     const cyc = 300, ext = 40;
-    for (const x of [1150, 1280, 1650, 2340]) for (const px of [10, 120, 280, 464]) {
+    for (const x of [1150, 1280, 1650, 2340]) for (const px of [10, 120, 280, pistonPxMax(ext)]) {
       const s = x - 480 - S.lead, p = pistonPhase(x, s, cyc, ext, px), d = x - px - s;
       expect(p).toBeGreaterThanOrEqual(0); expect(p).toBeLessThan(cyc);
       expect((p + d) % cyc).toBeCloseTo(S.rest + ext + S.hold / 2, 6);
     }
   });
+  it('a ship parked near the right edge still sees every tell on screen: the piston starts its tell after it spawns', () => {
+    const ext = 60, cyc = S.rest + 2 * ext + S.hold;
+    for (const px of [300, 400, 464]) for (const x of S.vars[0].x) {
+      const s = x - 480 - S.lead, p = pistonPhase(x, s, cyc, ext, px), tellAt = (S.rest - S.tell - p + cyc) % cyc; // frames to its tell
+      expect(tellAt, `px ${px} piston ${x}`).toBeGreaterThanOrEqual(0);
+      expect(tellAt + S.tell + ext + S.hold / 2, `px ${px}`).toBeLessThanOrEqual(480 - Math.min(px, pistonPxMax(ext)) + 1e-9);
+    }
+  });
   it('leaves no parked x where a STROKE piston stays open: a ship parked anywhere meets every piston in its hold (S8)', () => {
     const ext = 60, cyc = S.rest + 2 * ext + S.hold, holdA = S.rest + ext, holdB = holdA + S.hold;
-    for (let px = 10; px <= 464; px += 6) for (const v of S.vars) for (const x of v.x) {
+    for (let px = 10; px <= pistonPxMax(ext); px += 6) for (const v of S.vars) for (const x of v.x) {
       const s = x - 480 - S.lead, t = (pistonPhase(x, s, cyc, ext, px) + (x - px - s)) % cyc;
       expect(t >= holdA && t < holdB, `parked ${px} piston ${x}`).toBe(true);
     }

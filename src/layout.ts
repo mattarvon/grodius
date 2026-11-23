@@ -605,10 +605,16 @@ export function pairCentre(q: number, gap: number, ce: number, fl: number): numb
   const c = ce + (fl - ce) * q, lo = ce + gap / 2, hi = fl - gap / 2;
   return lo > hi ? (ce + fl) / 2 : Math.max(lo, Math.min(hi, c));
 }
+/** the rightmost ship x a piston (spawned at the right edge, W = 480) can be phased for with its whole tell on screen:
+ *  it needs tell + ext + hold / 2 frames between spawning and reaching the ship */
+export const pistonPxMax = (ext: number, S = DRIVE_SIG.stroke) => 480 - (S.tell + ext + S.hold / 2);
 /** frames into its cycle a piston starts at (W3A-API spawnPiston `phase`, the cycle rest -> extend -> hold -> retract)
  *  so it is mid-hold when the scroll brings its world x to screen x px (the ship's x at the spawn beat). Spawned at scroll
  *  s for world x x, it gets there in x - px - s frames (1 px/f: the approach holds no screen). ext: its extend frames */
 export function pistonPhase(x: number, s: number, cycle: number, ext: number, px = DRIVE_SIG.stroke.shipX, S = DRIVE_SIG.stroke): number {
+  // a ship near the right edge: phase for the rightmost x whose tell still starts on screen (S4), so a piston never
+  // arrives already closed with its tell played off screen (level-designer re-review); that ship meets it extending
+  px = Math.min(px, pistonPxMax(ext, S));
   const mid = S.rest + ext + S.hold / 2, d = x - px - s;
   return (((mid - d) % cycle) + cycle) % cycle;
 }
