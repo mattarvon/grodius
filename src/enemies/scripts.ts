@@ -28,6 +28,9 @@ import { startBoss } from '../boss/update';
 import { ceilAt, floorAt } from '../world';
 import { ufoWarn } from './mid/ufo';
 import * as SP from './spawn';
+// W3a's space engine (W3A-API.md: spawnPiston, spawnPistonPair, pistonCycle) fills W0's src/solids.ts stub; read through
+// the namespace, so until it merges the STROKE beats fire and build nothing
+import * as SO from '../solids';
 import { banner, behindWave, corpse, crawler, eyeT, flayer, formation, hatch, logLine, maw, mutant, sentry, womb } from './spawn';
 
 const crew = (...ys) => ys.forEach(y => corpse(y));
@@ -78,9 +81,6 @@ function entryOf(kind, u) {
   for (const [k, w] of FILL_EDGE[kind] || FILL_EDGE.orbit) { acc += w; if (u < acc) return k; }
   return 'right';
 }
-// W3a (g3-w3a-engine, scratchpad spec W3A-API.md v1) lands src/solids.ts: spawnPiston, spawnPistonPair, pistonCycle.
-// Read through an eager glob, so this file builds before solids.ts exists (no file: no pistons; the beats still fire)
-const SO = Object.values(import.meta.glob('../solids.ts', { eager: true }))[0] || null;
 /** a teaching beat's slow drop / rise (LVL §2.4: 1.2 px/f, not 1.6) */
 const TEACH = { v: 1.2 };
 
@@ -551,22 +551,25 @@ function walls(a, b) {
   for (let x = a; x <= b; x += 4) { ce = Math.max(ce, ceilAt(x)); fl = Math.min(fl, floorAt(x)); }
   return [ce, fl];
 }
-/** STROKE variation v's piston i (W3A-API spawnPiston / spawnPistonPair), built just off screen from the terrain under
- *  it: a single leaves `gap` to the far wall, a pair centres its `gap` in the corridor share. Phased from the ship's x now
- *  (layout.ts pistonPhase), so it is mid-hold when it reaches the ship. No solids.ts yet: none */
+/** STROKE variation v's piston i (W3A-API v1 spawnPiston / spawnPistonPair), built just off screen from the terrain
+ *  under it: a single leaves `gap` to the far wall, a pair centres its `gap` in the corridor share. Its stroke time is
+ *  fixed here (`ext`: depth, plus the engine's root pad, over v, eased, with a frame of slack; the engine never strokes
+ *  faster than that), so its period (rest + 2 ext + hold, W3A pistonPeriod) is known before it exists and the phase can
+ *  put it mid-hold as it reaches the ship (layout.ts pistonPhase, from the ship's x now). A refused spawn (S5, a pair is
+ *  atomic) just leaves that column open. W0's solids stub has no spawnPiston: nothing is built */
 function strokePiston(r, v, i) {
-  if (!SO || typeof SO.spawnPiston !== 'function') return;
-  const S = DRIVE_SIG.stroke, s = $.G.scroll, px = $.P ? $.P.x : S.shipX, rx = v.x[i];
-  const x = r.x0 + rx, [ce, fl] = walls(x - 12, x + S.w + 12), base = { x, w: S.w, tell: S.tell, hold: S.hold, rest: S.rest, v: S.v, sig: 'stroke' };
+  if (typeof SO.spawnPiston !== 'function') return;
+  const S = DRIVE_SIG.stroke, K = (SO.SOLID && SO.SOLID.piston) || {}, pad = K.rootPad || 0, ease = Math.max(1, K.ease || 1);
+  const s = $.G.scroll, px = $.P ? $.P.x : S.shipX, x = r.x0 + v.x[i], [ce, fl] = walls(x - 12, x + S.w + 12);
+  const extOf = (depth) => Math.ceil((depth + pad) / S.v * ease) + 1, base = { x, w: S.w, tell: S.tell, hold: S.hold, rest: S.rest, v: S.v, sig: 'stroke' };
   if (v.pair) {
-    const centre = pairCentre(v.pair[i], v.gap, ce, fl), depth = Math.max(centre - v.gap / 2 - ce, fl - centre - v.gap / 2);
-    const o = { ...base, centre, gap: v.gap }, ext = Math.ceil(depth / S.v), cyc = SO.pistonCycle ? SO.pistonCycle({ ...o, side: 1, reach: fl - depth }) : S.rest + 2 * ext + S.hold;
-    SO.spawnPistonPair({ ...o, phase: pistonPhase(x, s, cyc, ext, px) });
+    const centre = pairCentre(v.pair[i], v.gap, ce, fl), ext = extOf(Math.max(centre - v.gap / 2 - ce, fl - centre - v.gap / 2));
+    SO.spawnPistonPair({ ...base, centre, gap: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
   } else {
     const side = v.side[i], reach = pistonReach(side, v.gap, ce, fl);
     if (reach == null) return;
-    const o = { ...base, side, reach }, ext = Math.ceil((side < 0 ? reach - ce : fl - reach) / S.v), cyc = SO.pistonCycle ? SO.pistonCycle(o) : S.rest + 2 * ext + S.hold;
-    SO.spawnPiston({ ...o, phase: pistonPhase(x, s, cyc, ext, px) });
+    const ext = extOf(side < 0 ? reach - ce : fl - reach);
+    SO.spawnPiston({ ...base, side, reach, fit: v.gap, ext, phase: pistonPhase(x, s, S.rest + 2 * ext + S.hold, ext, px) });
   }
 }
 /** the long Drive approach's fixed beats: its two authored carriers, then THE STROKE v1-v3 (pistons 1150-2370) with v3's wall

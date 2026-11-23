@@ -20,6 +20,8 @@ const rec = (k: string) => (...a: unknown[]) => { calls.push({ k, a }); };
 vi.mock('../../src/audio', () => ({ sfx: { dread: () => {}, siren: () => {}, tele: () => {}, groan: () => {}, chain: () => {} } }));
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
 vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: () => {} }));
+// W3a's engine (W3A-API v1) as a recorder: the stroke's spawn calls, with its piston tuning
+vi.mock('../../src/solids', () => ({ SOLID: { piston: { rootPad: 4, ease: 1.25 } }, spawnPiston: rec('spawnPiston'), spawnPistonPair: rec('spawnPistonPair') }));
 vi.mock('../../src/enemies/spawn', () => Object.fromEntries(
   ['banner', 'behindWave', 'corpse', 'crawler', 'edgeWave', 'eyeT', 'flayer', 'formation', 'hatch', 'knot', 'logLine', 'maw', 'mk', 'mutant', 'sentry', 'womb'].map((k) => [k, rec(k)]),
 ));
@@ -266,6 +268,22 @@ describe('the stage scripts (§2.2 authored carriers, §2.3 entry mix)', () => {
       expect(open.length, `stage ${i}`).toBe(n);
       expect(S.filter((e: { k: string }) => /carrier|knot:drop/.test(e.k) || e.k === 'o.drones' || e.k === 'o.sentry' || e.k === 'o.swarm').every((e: { x: number }) => e.x <= xMax)).toBe(true);
     }
+  });
+
+  it('builds THE STROKE through the engine: 3 singles + 7 pairs, each phased into its own period, gaps kept, ext at least the engine stroke time', () => {
+    W.buildTerrain(0);
+    fly(3, 5);
+    const one = calls.filter((c) => c.k === 'spawnPiston').map((c) => c.a[0] as any), two = calls.filter((c) => c.k === 'spawnPistonPair').map((c) => c.a[0] as any);
+    expect(one.length).toBeGreaterThanOrEqual(2); // a single is skipped where the corridor is already within minDepth of its gap
+    expect(two.length).toBe(7);
+    for (const o of [...one, ...two]) {
+      const per = o.rest + 2 * o.ext + o.hold;
+      expect(o.phase).toBeGreaterThanOrEqual(0); expect(o.phase).toBeLessThan(per);
+      expect(o.tell).toBeGreaterThanOrEqual(44); expect(o.v).toBeLessThanOrEqual(.5);
+      expect(o.x - DRIVE.x0).toBeGreaterThanOrEqual(1100);
+    }
+    for (const o of one) { expect(o.fit).toBe(96); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil((Math.abs(o.reach - (o.side < 0 ? W.ceilAt(o.x) : W.floorAt(o.x))) + 4) / .5 * 1.25) - 8); }
+    expect(two.map((o) => o.gap)).toEqual([84, 84, 84, 80, 80, 80, 80]);
   });
 
   it('places CREW KNOTS (6 knots), 10 turrets, the breach birth, and the log lines on the long Orbit', () => {
