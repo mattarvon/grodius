@@ -70,7 +70,13 @@ await p.addInitScript(([g0, g1, OPT]) => {
           if (w) { const lim = Math.max(72, w.floor || 72); if (st.fitIn == null || f - lim < st.fitIn.f - st.fitIn.lim) st.fitIn = { f: Math.round(f), lim, at: Math.round(u), id: w.id }; }
           else if (st.fitOut == null || f < st.fitOut.f) st.fitOut = { f: Math.round(f), at: Math.round(u), st: G.stage }; }
         const seenE = (window.__seenE ||= new WeakSet());
-        for (const e of h.enemies) { if (seenE.has(e)) continue; seenE.add(e); if (!e.dead && PL.regular(e) && h.P.alive && Math.hypot(e.x - h.P.x, e.y - h.P.y) < 48) st.hazBad.push('body-on-ship:' + e.k); }
+        // S5 body spawns (W6 tune-ts request): a split child (e.split, born from a kill where the ship shot it) is not a spawn;
+        // the probe samples every few frames, so a body first seen t frames old is moved back along its velocity to where it
+        // spawned, and counts only if it was inside 48 px even granting the ship's own move since (v_ship x t)
+        const vS = h.P ? (1.25 + .42 * (h.P.speed || 0)) : 3;
+        for (const e of h.enemies) { if (seenE.has(e)) continue; seenE.add(e); if (e.dead || e.split || !PL.regular(e) || !h.P.alive) continue;
+          const age = Math.max(0, (e.t || 0) - 1), x0 = e.x - (e.vx || 0) * age, y0 = e.y - (e.vy || 0) * age;
+          if (Math.hypot(x0 - h.P.x, y0 - h.P.y) + vS * age < 48) st.hazBad.push('body-on-ship:' + e.k); }
         const SO = PL.mods.SO, sl = SO && Array.isArray(SO.solids) ? SO.solids : null;
         // S5 to the NEAREST POINT of the box (W3A-API: the engine's own spawn rule), not its centre
         if (sl) { const seenS = (window.__seenS ||= new WeakSet()); for (const q of sl) { if (seenS.has(q)) continue; seenS.add(q); const bx = q.x - G.scroll, nx = Math.max(bx, Math.min(h.P.x, bx + (q.w || 0))), ny = Math.max(q.y, Math.min(h.P.y, q.y + (q.h || 0))); if (h.P.alive && Math.hypot(nx - h.P.x, ny - h.P.y) < 48) st.hazBad.push('solid-on-ship:' + (q.k || '?')); } }

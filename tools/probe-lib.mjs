@@ -55,7 +55,7 @@ export function spotSummary(rows) {
 export function pageLib() {
   const W = 480, PH = 254;
   const PL = (window.__PL = { mods: {}, tag: new WeakMap(), fired: new WeakSet(), seen: new WeakMap(), contractErr: {} });
-  const OPT = [['S', '/src/state.ts'], ['W', '/src/world.ts'], ['BR', '/src/brutal.ts'], ['TI', '/src/tier.ts'], ['RK', '/src/rank.ts'], ['SG', '/src/sigs.ts'], ['SO', '/src/solids.ts'], ['DN', '/src/enemies/mid/_deny.ts'], ['KS', '/src/enemies/boss/_keepsake.ts'], ['BU', '/src/boss/update.ts'], ['EU', '/src/enemies/update.ts']];
+  const OPT = [['S', '/src/state.ts'], ['W', '/src/world.ts'], ['BR', '/src/brutal.ts'], ['TI', '/src/tier.ts'], ['RK', '/src/rank.ts'], ['SG', '/src/sigs.ts'], ['SO', '/src/solids.ts'], ['DN', '/src/enemies/mid/_deny.ts'], ['KS', '/src/enemies/boss/_keepsake.ts'], ['BU', '/src/boss/update.ts'], ['EU', '/src/enemies/update.ts'], ['TB', '/src/terrainb.ts']];
   /** import the live modules; a missing one (an older build) stays null and its metrics read 'n/a' */
   PL.modErr = {};
   PL.load = async () => { for (const [k, path] of OPT) { try { PL.mods[k] = await import(path); } catch (e) { PL.mods[k] = null; PL.modErr[k] = String((e && e.message) || e).slice(0, 160); } }
@@ -110,6 +110,36 @@ export function pageLib() {
     try { const r = (mask != null ? SO.solidsCol(wx, mask) : SO.solidsCol(wx)) || []; const out = r.filter((q) => Array.isArray(q) && Number.isFinite(q[0]) && Number.isFinite(q[1])); if (out.length !== r.length) PL.contractErr.solidsCol = 'solidsCol(wx) returned a non-[y0,y1] entry'; return out; } catch (e) { PL.contractErr.solidsCol = String(e && e.message || e).slice(0, 120); return []; }
   };
   PL.hasSolids = () => !!(PL.mods.SO && typeof PL.mods.SO.solidsCol === 'function');
+  /** W6 tune-tp (fm): the blocked y intervals at world x t frames from now, on the solids' own timeline: a piston at its
+   *  cycle's tip then (solids.ts stepPiston: cycle frame ++age + phase; pistonTipAt with terrainb.ts ramp; a skipped
+   *  cycle known now stays skipped), a growing or cut plug cell once it sets, every other terrain-class solid where it
+   *  stands (slabs drift at their vy). t 0 is PL.solids(wx). [] before W3 */
+  PL.solidsAt = (wx, t, mask) => {
+    const SO = PL.mods.SO; if (!SO || !Array.isArray(SO.solids) || !SO.SC) return PL.solids(wx, mask);
+    if (!t) return PL.solids(wx, mask);
+    const TB = PL.mods.TB, m = mask != null ? mask : SO.SC.TERRAIN, out = [];
+    for (const s of SO.solids) {
+      if (!s || s.st === 'dead' || wx < s.x || wx > s.x + s.w) continue;
+      if (s.k === 'piston') { if (!(s.cls & m)) continue; const C = s.rest + 2 * s.ext + s.hold; if (!(C > 0)) continue;
+        const a = s.age + s.phase + t, n = Math.floor(a / C), u = a - n * C, d = s.reach - s.root, rp = (x, e) => (TB && TB.ramp ? TB.ramp(d, e, s.v, x) : d * Math.min(1, x / e));
+        const tip = s.skipN === n || u < s.rest ? s.root : u < s.rest + s.ext ? s.root + rp(u - s.rest, s.ext) : u < s.rest + s.ext + s.hold ? s.reach : s.reach - rp(u - s.rest - s.ext - s.hold, s.ext);
+        out.push(s.side > 0 ? [tip, PH + 99] : [-99, tip]); continue; }
+      if (s.k === 'plug' && (s.st === 'grow' || s.st === 'cut')) { if (!(m & SO.SC.PLUG)) continue; const tSet = s.st === 'grow' ? (s.tell || 44) - s.t : (s.regrow || 150) - s.t + (s.tell || 44); if (t >= tSet) out.push([s.y, s.y + s.h]); continue; }
+      if (!(s.cls & m)) continue;
+      const vy = s.k === 'slab' ? s.vy || 0 : 0; out.push([s.y + vy * t, s.y + s.h + vy * t]);
+    }
+    return out;
+  };
+  /** the [ceiling, floor] at world x t frames from now: the arrays, moved by a live DYN window's offset change
+   *  (terrainb.ts dynOff, clocked by G.t from the window's arm; with writeWin's fit clamp) */
+  PL.wallAt = (wx, t) => {
+    const Wm = PL.mods.W, TB = PL.mods.TB, S = PL.mods.S; let f = Wm.floorAt(wx), c = Wm.ceilAt(wx);
+    if (t > 0 && TB && TB.DYNS && TB.DYNS.length && TB.dynWinAt && S && S.$ && S.$.G) { const w = TB.dynWinAt(wx);
+      if (w) { const lt = S.$.G.t - w.t0, o0 = TB.dynOff(w.spec, wx, lt), o1 = TB.dynOff(w.spec, wx, lt + t); f -= o1[1] - o0[1]; c += o1[0] - o0[0];
+        const sp = w.spec, fit = sp.fit || 0; // terrainb.ts writeWin's fit clamp: a tide stops short on its own side, a swallow opens about the middle
+        if (f - c < fit) { if (sp.kind === 'tide') { if (sp.side === -1) c = f - fit; else f = c + fit; } else { const m = (c + f) / 2; c = m - fit / 2; f = m + fit / 2; } } } }
+    return [c, f];
+  };
   /** the W3a fit mask (SC.FIT = HARD | LODGE: a mucus plug is an S6 barrier you cut, not a 0 px gap), or undefined */
   PL.fitMask = () => (PL.mods.SO && PL.mods.SO.SC && Number.isFinite(PL.mods.SO.SC.FIT) ? PL.mods.SO.SC.FIT : undefined);
   /** the largest open y interval at world x: terrain minus solids (levels.md §7 FH) */
@@ -145,15 +175,23 @@ export function pageLib() {
   /** call once per frame after the step: tags new eshots with { f, x0, y0 (spawn point), sd (distance to the ship at
    *  spawn), px (the ship's x at spawn), by (the shooter's kind), e (the shooter) }; marks the shooter as having fired.
    *  The tag lives in a WeakMap, not on the shot, so the sim object is untouched */
+  PL.shotWas = new WeakMap();
   PL.tagShots = (g, fr) => {
     const Wm = PL.mods.W; if (!Wm || !g || !g.P) return;
-    const P = g.P, out = [];
+    const P = g.P, out = [], flip = [];
+    // W6 tune-tp (N1): the owner, not the nearest body. A drone fires once and its e.shot flag turns on the frame it does
+    // (enemies/update.ts: aimShot(e.x - 5, e.y, ..) then e.shot = 1), so a new shot from that drone's muzzle on that
+    // frame is its own, even with a formation mate nearer the spawn point (the nearest-within-40-px rule gave the
+    // undesignated neighbour the credit, and N1 read low). Every other shot keeps the nearest rule
+    for (const e of g.enemies) if (e.k === 'drone') { const was = PL.shotWas.get(e); if (e.shot && !was && PL.shotWas.has(e) && !e.dead) flip.push(e); PL.shotWas.set(e, !!e.shot); } // shotWas.has: seen before with its flag off (a drone first seen already spent never claims a shot)
     for (const q of Wm.eshots) {
       if (PL.tag.has(q)) continue;
       const age = Math.max(1, q.t || 1), x0 = q.x - (q.vx || 0) * age, y0 = q.y - (q.vy || 0) * age;
-      let by = null, bd = 1e9;
-      for (const e of g.enemies) { if (e.dead) continue; const d = Math.hypot(e.x - x0, e.y - y0) - (e.r || 8); if (d < bd) { bd = d; by = e; } }
-      if (g.G.boss) { const B = g.G.boss, d = Math.hypot(B.x - x0, B.y - y0) - 70; if (d < bd) { bd = d; by = B; } }
+      let by = null, bd = 1e9, own = null;
+      if (age <= 1) for (const e of flip) { const d = Math.hypot(e.x - 5 - x0, e.y - y0); if (d < 12 && (!own || d < own[1])) own = [e, d]; }
+      if (own) { by = own[0]; bd = -1; }
+      else for (const e of g.enemies) { if (e.dead) continue; const d = Math.hypot(e.x - x0, e.y - y0) - (e.r || 8); if (d < bd) { bd = d; by = e; } }
+      if (!own && g.G.boss) { const B = g.G.boss, d = Math.hypot(B.x - x0, B.y - y0) - 70; if (d < bd) { bd = d; by = B; } }
       const shooter = bd < 40 ? by : null;
       const t = { f: fr - age + 1, x0, y0, sd: Math.hypot(x0 - P.x, y0 - P.y), px: P.x, by: shooter ? (shooter === g.G.boss ? 'drive' : shooter.k) : '?', e: shooter, rev: !!q.rev };
       PL.tag.set(q, t); if (shooter) PL.fired.add(shooter); out.push(t);
@@ -189,7 +227,10 @@ export function pageLib() {
         let a = Math.atan2(y - qy, x - qx); if (a < 0) a += Math.PI * 2;
         if (r > (big ? 18 : 14) && r < (big ? 100 : 84) && a > 2.30 && a < 3.99) out.other.push('cleaver');
       }
-      if (e.k === 'butcher' && e.st === 'hook' && e.hk) { const ax = e.x + 10, ay = e.y - 8, h = e.hk; if (seg(ax, ay, Math.atan2(h.ty - ay, h.tx - ax), Math.hypot(h.tx - ax, h.ty - ay), 6)) out.other.push('hook'); }
+      // the Butcher's hook: the second half's chain (h.v2: tx, ty), the first half's tip only while it flies out (e.ha, h.d;
+      // butcherhook.ts hookHits at KH.tipR 8, the ship's core not added there). W6 tune-tf request
+      if (e.k === 'butcher' && e.st === 'hook' && e.hk) { const ax = e.x + 10, ay = e.y - 8, h = e.hk;
+        if (h.v2 ? h.tx != null && seg(ax, ay, Math.atan2(h.ty - ay, h.tx - ax), Math.hypot(h.tx - ax, h.ty - ay), 6) : h.out && Math.hypot(ax + Math.cos(e.ha) * (h.d || 0) - x, ay + Math.sin(e.ha) * (h.d || 0) - y) < 8) out.other.push('hook'); }
     }
     const Bo = G.boss;
     if (Bo && !Bo.dying) {
@@ -234,6 +275,11 @@ export function pageLib() {
     if (Wm) for (const [ox, oy] of [[12, 0], [-9, -4], [-9, 4], [0, -4], [0, 4]]) { const wx = P.x + ox + G.scroll, y = P.y + oy;
       if (y + v + 1 >= Wm.floorAt(wx) || y - v - 1 <= Wm.ceilAt(wx)) return { c: 'terrain', shot: null };
       if (PL.solids(wx).some(([a, b]) => y + v + 1 >= a && y - v - 1 <= b)) return { c: 'solid', shot: null }; }
+    // THE KEEPSAKE's own attacks (_keepsake.ts keepTouch), padded like a shot by one frame of their motion (the boomerang
+    // at boomSp, a fork home at its own step) and the ship's: a fast boomerang death read 'other' (W6 tune-tf request)
+    const KS = PL.mods.KS, m = G.mini;
+    if (KS && typeof KS.keepTouch === 'function' && m && m.k === 'keepsake' && !m.dead) { try { let mv = KS.KB ? KS.KB.boomSp : 3.4; for (let j = 0; j < (m.fh || 0); j++) mv = Math.max(mv, Math.hypot(m.hVX[j], m.hVY[j]));
+      const k = KS.keepTouch(m, G.scroll, P.x, P.y, 2.6 + v + 1 + mv); if (k) return { c: 'keep:' + k, shot: null }; } catch (e) {} }
     const o = PL.contact(g, P.x, P.y).other.filter((k) => k !== 'terrain' && k !== 'solid');
     return { c: o[0] || '', shot: null };
   };
@@ -254,6 +300,16 @@ export function pageLib() {
   PL.regular = (e) => !(e.mini || e.par || e.kid || e.big);
   /** what the entry mix counts: formations (one per group), drones and hatchlings, anything flown on a pattern */
   PL.entrant = (e) => PL.regular(e) && !!(e.group || e.pat || e.k === 'drone' || e.k === 'hatch');
+  /** W6 tune-tp (N4): a hatchling swarm is one entry. Hatchlings carry no group (spawn.ts hatch(n) and wallBirth spawn n
+   *  in one call), so the first one seen on frame fr at an edge counts and the rest of that frame's at that edge do not.
+   *  true = already counted (skip it). Anything but an ungrouped hatchling: false */
+  PL.swarm = { fr: -1, edges: new Set() };
+  PL.swarmSeen = (e, fr, edge) => {
+    if (e.k !== 'hatch' || e.group) return false;
+    if (PL.swarm.fr !== fr) { PL.swarm.fr = fr; PL.swarm.edges.clear(); }
+    if (PL.swarm.edges.has(edge)) return true;
+    PL.swarm.edges.add(edge); return false;
+  };
   /** MORGUE RUSH ice blocks in flight (bodies outside haz): W3c's adapter list __biome().sig.eng.blocks (screen x of
    *  the left edge, centre y, the game's own touch box |dx| < w/2 + 8, |dy| < h/2 + 4; w 22, h 14 unless the block
    *  carries them), and the W3a engine's BODY-class solids (world-x boxes). A block still in its tell is not solid.
@@ -274,11 +330,21 @@ export function pageLib() {
   PL.spotNew = () => ({ ph: {}, shotSeen: new WeakSet(), prev: new Set() });
   /** count this frame's would-be hits on a ship at (x, y) into acc.ph[phase]: each enemy shot once, every other
    *  contact (a body by kind, a lash, the denial, terrain) once per touch, as keepsake-probe's spot mode */
+  // W6 tune-tf requests (K2): a shot that carries s.dn is its fight's denial (deny:<dn>, the Bloat's comb); a denial's
+  // own body counts as the denial only while it is the denial (the Maw in its bite, bs 2-4: deny:bite; the Choir's loose
+  // bar while it sweeps the lane: deny:lane, one touch with _deny.ts laneHit's), else as a body; and nothing counts once
+  // the midboss is withdrawing (midLeave: e.gone / e.t >= e.leave), so a phase reached only after the clock is not a phase
+  PL.bodyKey = (e) => {
+    if (e.k === 'maw' && e.bs >= 2 && e.bs <= 4) return 'deny:bite';
+    if (e.k === 'nailbar' && e.par && e.par.k === 'choir' && (e.par.lb === e || e.par.lb2 === e) && (() => { const LP = PL.mods.DN && PL.mods.DN.LP; return e.par.lp === (LP ? LP.out : 2) || e.par.lp === (LP ? LP.back : 3); })()) return 'deny:lane';
+    return 'body:' + e.k;
+  };
   PL.spotFrame = (acc, g, x, y, ph) => {
+    { const m = g.G && g.G.mini; if (m && !m.dead && (m.mid || (m.k === 'maw' && !m.stageBoss)) && (m.gone || (m.leave != null && m.t >= m.leave))) { acc.withdrawSkipped = (acc.withdrawSkipped || 0) + 1; return; } } // frames skipped, kept visible
     const c = PL.contact(g, x, y), P = (acc.ph[ph] ||= { f: 0, hits: 0, by: {} }); P.f++;
     const add = (k) => { P.hits++; P.by[k] = (P.by[k] || 0) + 1; };
-    for (const s of c.shots) if (!acc.shotSeen.has(s)) { acc.shotSeen.add(s); add('shot:' + (s.k || 'orb')); }
-    const now = new Set([...c.bodies.map((e) => 'body:' + e.k), ...c.other]);
+    for (const s of c.shots) if (!acc.shotSeen.has(s)) { acc.shotSeen.add(s); add(s.dn ? 'deny:' + s.dn : 'shot:' + (s.k || 'orb')); }
+    const now = new Set([...c.bodies.map(PL.bodyKey), ...c.other]);
     for (const k of now) if (!acc.prev.has(k)) add(k);
     acc.prev = now;
   };
@@ -288,7 +354,7 @@ export function pageLib() {
   PL.spotY = (x, y, sc) => { const Wm = PL.mods.W; if (!Wm) return y; const o = PL.openAt(x + sc); return Math.max(o.lo + 10, Math.min(o.hi - 10, y)); };
 
   // ---- bullets on screen by context (B1, B2, S1): fed every frame ----
-  PL.bul = {};
+  PL.bul = {}; PL.lobMax = 0;
   const H = (k) => (PL.bul[k] ||= { n: {}, ns: {}, frames: 0, over: 0, overMax: 0, ratio: {}, vmax: 0, vOver: 0, shots: 0 });
   // B1 grace: when the cap context drops to a lower cap (a midboss leaves: setp/boss -> scroll), the shots already in
   // flight belong to the old context. They are carried (PL.carry) and not counted against the new cap until they die.
@@ -302,7 +368,10 @@ export function pageLib() {
     if (PL.lastCap != null && cap < PL.lastCap) for (const q of Wm.eshots) PL.carry.add(q);
     PL.lastCap = cap;
     let n = 0, ns = 0, nc = 0; const sp = [];
-    for (const q of Wm.eshots) if (PL.counted(q)) { if (PL.carry.has(q)) nc++; else n++; if (PL.onS(q)) { ns++; sp.push([Math.hypot(q.vx || 0, q.vy || 0), q.k || 'orb']); } }
+    for (const q of Wm.eshots) if (PL.counted(q)) { if (PL.carry.has(q)) nc++; else n++; if (PL.onS(q)) { ns++; const sv = Math.hypot(q.vx || 0, q.vy || 0); if (q.fk === 1 && q.k === 'glob') { if (sv > PL.lobMax) PL.lobMax = sv; } else sp.push([sv, q.k || 'orb']); } }
+    // S1 (W6 tune-tf request, FLAGGED for a design reviewer): THE KEEPSAKE's gravity lobs (fk 1 on a lob() path: the
+    // fountain and the mobile's drops, k glob; shots.ts skips the falling-glob clamp for fk) are left out of the speeds and
+    // reported apart as PL.lobMax; its beam rain (fk 1, a straight spike) stays in
     for (const k of [c, stage + '|' + c]) {
       const b = H(k); b.frames++; b.n[n] = (b.n[n] || 0) + 1; b.ns[ns] = (b.ns[ns] || 0) + 1; if (nc) b.carried = (b.carried || 0) + 1;
       if (n > cap) { b.over++; b.overMax = Math.max(b.overMax, n); }

@@ -34,7 +34,10 @@ import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Nod
 const [url, THR = '4', SC = 'all', PROF = ''] = process.argv.slice(2);
 const HELD = ROSTER.filter((r) => BIOME_POOLS.includes(r.pool)), REST = ROSTER.filter((r) => !BIOME_POOLS.includes(r.pool)); // the registry, WIP kinds too
 const KINDS = HELD.map((r) => r.k), HOSTS = BIOME_POOLS;
-const SCENES = ['orbit', 'maw', ...REST.map((r) => r.k), ...KINDS, 'crux', 'butcher', 'keepsake', 'gravity']; // keepsake: the registered stage boss (D55), at slot 1 where bossFor places it
+// knots / breach (W6 tune-ts request): Open Orbit at the CREW KNOTS (stage x 2850) and the breach (5300) set pieces,
+// flown in from 150 px before each so the script places them as a run does (ORBIT_AT: their start x)
+const ORBIT_AT = { orbit: 600, knots: 2850 - 150, breach: 5300 - 150 };
+const SCENES = ['orbit', 'knots', 'breach', 'maw', ...REST.map((r) => r.k), ...KINDS, 'crux', 'butcher', 'keepsake', 'gravity']; // keepsake: the registered stage boss (D55), at slot 1 where bossFor places it
 const cells = (pre) => KINDS.flatMap((k) => HOSTS.map((h) => `${pre}:${k}@${h}`));
 const GROUPS = { engine: ['engine:ice', 'engine:snot', 'engine:acid', 'engine:fire'], mid8: cells('mid8'), cold: cells('cold'), peak: HOSTS.map((h) => `peak:${h}`), floor: HOSTS.map((h) => `floor:${h}`), route: ['route:ice+acid', 'route:fire+snot'] };
 const want = SC === 'all' ? SCENES : SC.split(',').flatMap((s) => GROUPS[s] || [s]);
@@ -67,12 +70,13 @@ async function reloadCold() {
 if (PROF) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 200 }); }
 
 const STRONG = [{ speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }];
-const BIOME = { ...Object.fromEntries(HELD.map((r) => [r.k, r.pool])), crux: 'ice', butcher: 'fire', keepsake: null, maw: null, ufo: null, orbit: null, gravity: null };
+const BIOME = { ...Object.fromEntries(HELD.map((r) => [r.k, r.pool])), crux: 'ice', butcher: 'fire', keepsake: null, maw: null, ufo: null, orbit: null, knots: null, breach: null, gravity: null };
 const XHOST = process.env.XHOST || '';
 if (XHOST) for (const k of KINDS) BIOME[k] = XHOST;
 
 async function scene(k, { biome = BIOME[k], elite = +(process.env.ELITE || 0), xhost = XHOST, wantTot = false } = {}) {
-  return p.evaluate(async ([k, biome, kit, elite, xhost, wantTot]) => {
+  return p.evaluate(async ([k, biome, kit, elite, xhost, wantTot, OAT]) => {
+    const orb = OAT[k] != null; // an Open Orbit scene: no fight, the scripted stage flown from OAT[k]
     const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
     const SP = await import('/src/enemies/spawn.ts'), BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), IN = await import('/src/input.ts');
     const BU = await import('/src/boss/update.ts'), SCR = await import('/src/render/screens.ts'), LY = await import('/src/layout.ts');
@@ -89,7 +93,7 @@ async function scene(k, { biome = BIOME[k], elite = +(process.env.ELITE || 0), x
       for (let i = 0; i < 60; i++) { $.P.inv = 30; ST.step(); }
     }
     arm();
-    if (k === 'orbit') { const o = LY.row(0).x0 + 600; $.G.scroll = o; $.G.si = 0; while ($.G.si < $.G.script.length && $.G.script[$.G.si].at < o) $.G.si++; }
+    if (orb) { const o = LY.row(0).x0 + OAT[k]; $.G.scroll = o; $.G.si = 0; while ($.G.si < $.G.script.length && $.G.script[$.G.si].at < o) $.G.si++; }
     else {
       $.G.si = $.G.script.length; W.enemies.length = 0; W.eshots.length = 0; W.shots.length = 0;
       if (k === 'gravity') { $.G.scroll = LY.bossAt(); BU.startBoss(); }
@@ -111,15 +115,15 @@ async function scene(k, { biome = BIOME[k], elite = +(process.env.ELITE || 0), x
     (await import('/src/render/warmup.ts')).warmNow(k === 'crux' || k === 'butcher' || k === 'keepsake' ? [k] : k === 'maw' ? [] : [k, 'crux', 'butcher', 'maw:acid', 'maw:snot']);
     const st = [], rt = [];
     let deadAt = -1, f = 0;
-    const MAX = k === 'orbit' ? 900 : 2400;
+    const MAX = orb ? 900 : 2400;
     for (; f < MAX; f++) {
       if (EL && f % 40 === 0 && W.enemies.filter((e) => (e.elite || e.crowd) && !e.dead).length < 8) { const n0 = W.enemies.length; [() => SP.corpse(C.rr(40, 200)), () => SP.flayer(C.rr(50, 200)), () => SP.crawler(1), () => SP.hatch(3, false)][(f / 40) % 4](); for (const e of W.enemies.slice(n0)) if (elite === 1) EL.eliteify(e); else e.crowd = 1; }
       const m = $.G.mini, B = $.G.boss;
-      const tgt = k === 'gravity' ? (B ? B.y : $.P.y) : k === 'orbit' ? 135 + Math.sin(f * .02) * 70 : (m ? m.y + (k === 'keepsake' ? m.wy || 0 : 0) : $.P.y);
+      const tgt = k === 'gravity' ? (B ? B.y : $.P.y) : orb ? 135 + Math.sin(f * .02) * 70 : (m ? m.y + (k === 'keepsake' ? m.wy || 0 : 0) : $.P.y);
       const y = C.clamp(tgt + Math.sin(f * .05) * 6, 8, C.PH - 8);
       $.P.hist.unshift({ x: 90, y }); if ($.P.hist.length > 80) $.P.hist.pop();
       Object.assign($.P, { x: 90, y, alive: true, inv: 30 }); $.G.pick = null; $.G.pickQ = 0;
-      const gone = k === 'orbit' ? false : k === 'gravity' ? !B || B.dying : !m || m.dead;
+      const gone = orb ? false : k === 'gravity' ? !B || B.dying : !m || m.dead;
       if (gone && deadAt < 0) deadAt = f;
       if (deadAt >= 0 && f - deadAt > 300) break; // death + aftermath captured
       const t0 = performance.now(); ST.step(); const t1 = performance.now(); SCR.render(); const t2 = performance.now();
@@ -131,7 +135,7 @@ async function scene(k, { biome = BIOME[k], elite = +(process.env.ELITE || 0), x
     const dSl = deadAt >= 0 ? rt.slice(deadAt) : [];
     return { frames: f, deadAt, step: [avg(st), q(st, .95), Math.max(...st)], render: [avg(rt), q(rt, .95), Math.max(...rt)],
       over: tot.filter((v) => v > 1000 / 60).length / tot.length, death: dSl.length ? [avg(dSl), q(dSl, .95)] : null, tot: wantTot ? tot : null };
-  }, [k, biome, STRONG, elite, xhost, wantTot]);
+  }, [k, biome, STRONG, elite, xhost, wantTot, ORBIT_AT]);
 }
 
 // the LS1 row K scenes share a set-up: a live run at gate `b` of slot `seg`, through the real openFork and choose()

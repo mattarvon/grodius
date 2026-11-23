@@ -155,7 +155,7 @@ async function runOne(biome, slot, loop, mv, seed, mode) {
   const kit = loop === 0 ? 'mid' : 'full';
   await p.goto(`${url}${url.includes('?') ? '&' : '?'}layout=${LAYOUT}&stage=${s0}&x=${x}&loop=${loop}&kit=${kit}&seed=${seed}`);
   await p.waitForFunction(() => window.__started && window.__G && window.__G().G && window.__G().state === 'play', null, { timeout: 30000 });
-  await p.evaluate(async () => { window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); window.__T = await import('/src/terrainb.ts'); window.__C = await import('/src/core.ts'); });
+  await p.evaluate(async () => { window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); window.__T = await import('/src/terrainb.ts'); window.__C = await import('/src/core.ts'); if (window.__pilotLoad) await window.__pilotLoad(); });
   if (FIRE) await p.evaluate(() => dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyZ', key: 'KeyZ' })));
   const enter = async () => { await p.evaluate(() => dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter', key: 'Enter' }))); await p.evaluate('__tick(2)'); await p.evaluate(() => dispatchEvent(new KeyboardEvent('keyup', { code: 'Enter', key: 'Enter' }))); };
   let setup = 'ok';

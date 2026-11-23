@@ -27,7 +27,7 @@ for (const seed of SEEDS.split(',').map(Number)) {
   const r = await p.evaluate(async ([L]) => {
     const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
     const SP = await import('/src/enemies/spawn.ts'), C = await import('/src/core.ts'), LY = await import('/src/layout.ts'), IN = await import('/src/input.ts'), BU = await import('/src/boss/update.ts');
-    window.__W = W; window.__BU = BU; const $ = S.$; $.gate = false; IN.K.KeyZ = true;
+    window.__W = W; window.__BU = BU; await window.__pilotLoad(); const $ = S.$; $.gate = false; IN.K.KeyZ = true;
     F.newGame(0); $.state = 'play'; for (let i = 0; i < 30; i++) ST.step();
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, L[0]);
     if ($.P.wardLv) $.P.shield = 3;

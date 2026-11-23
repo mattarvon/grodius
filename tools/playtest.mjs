@@ -114,11 +114,12 @@ await p.addInitScript((seed) => {
       if (G.picks && G.picks[G.stage]) (L.picks ||= {})[st] = { ...G.picks[G.stage], b: G.route[__LY.row(G.stage).slot] }; // LS2-mv: the stage's set pieces and movement B
       // enemy lifetimes: from first on screen to removal; killed if removed while still on screen
       const alive = new Set();
+      // (entries: a hatchling swarm is one entry, probe-lib PL.swarmSeen, W6 tune-tp)
       for (const e of h.enemies) { alive.add(e);
         if (!L.seen.has(e)) { L.seen.set(e, { k: e.k, f0: null, st, big: !!(e.big || e.mini || e.mid), rk: window.__PL ? window.__PL.rank() : null });
           const PL = window.__PL; if (PL && PL.mods.W && PL.regular(e)) { const nr = ((L.near ||= {})[st] ||= { bodies48: 0, bodyMin: null, shot64: 0, shotMin: null }), d = Math.hypot(e.x - P.x, e.y - P.y);
             if (d < 48) nr.bodies48++; if (nr.bodyMin == null || d < nr.bodyMin) nr.bodyMin = Math.round(d);
-            if (PL.entrant(e) && (!e.group || !(L.gSeen ||= new WeakSet()).has(e.group))) { if (e.group) L.gSeen.add(e.group); const ed = PL.entryEdge(e, G), en = ((L.entries ||= {})[st] ||= {}); en[ed] = (en[ed] || 0) + 1; } } L.spawns.push({ f: L.fr, k: e.k, st, el: !!e.elite, sx: Math.round(G.scroll - (window.__x0 ? window.__x0(G.stage || 0) : 0)) }); }
+            if (PL.entrant(e) && (!e.group || !(L.gSeen ||= new WeakSet()).has(e.group))) { if (e.group) L.gSeen.add(e.group); const ed = PL.entryEdge(e, G), en = ((L.entries ||= {})[st] ||= {}); if (!PL.swarmSeen(e, L.fr, ed)) en[ed] = (en[ed] || 0) + 1; } } L.spawns.push({ f: L.fr, k: e.k, st, el: !!e.elite, sx: Math.round(G.scroll - (window.__x0 ? window.__x0(G.stage || 0) : 0)) }); }
         const r = L.seen.get(e); if (r.f0 == null && e.x < 480 && e.x > 0) r.f0 = L.fr; r.x = e.x; }
       if (window.__PL && window.__PL.mods.W) for (const t of window.__PL.tagShots(h, L.fr) || []) { const nr = ((L.near ||= {})[st] ||= { bodies48: 0, bodyMin: null, shot64: 0, shotMin: null }); if (t.sd < 64) nr.shot64++; if (nr.shotMin == null || t.sd < nr.shotMin) nr.shotMin = Math.round(t.sd); }
       for (const [e, r] of L.seen) if (!alive.has(e)) { L.seen.delete(e);
