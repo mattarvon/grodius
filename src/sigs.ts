@@ -126,6 +126,9 @@ export const TIDE = {
     { d: 40, rise: 90, hold: 180, drain: 90, w: 400, floor: [110, 100] },
     { d: 60, rise: 120, hold: 240, drain: 120, w: 450, floor: [104, 92], eye: true },
     // v3 adds geysers from the risen surface at the normal hazard interval (D61 aims every 3rd): the timer runs
+    // W3a's engine tapers a tide over max(60, 2.5 d) px a side, so a 70 px tide is full only 175 px inside each end and
+    // asks ~600 px for v3. The D31 band leaves 406-450 (planSig shrinks to fit): v3 reaches full rise over ~60-100 px
+    // of its middle under that engine (this adapter's ramp is TIDE.ramp, 100). Shortfall recorded (W3a request c)
     { d: 70, rise: 140, hold: 240, drain: 140, w: 450, floor: [100, 88], womb: true, geysers: true },
   ] as const,
 };

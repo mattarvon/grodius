@@ -740,6 +740,7 @@ export function stepBiome() {
       if (h.t > warm + live) dead = true;
     } else if (h.k === 'strand') {
       const wx = h.x + sc, c = ceilAt(wx), f = floorAt(wx);
+      if (L4 && ENG.plugs.some((q) => q.vis && Math.abs(q.wx + q.cell / 2 - wx) < q.cell && q.cells.some((c2) => c2.on))) { dead = true; sfx.squish(); } // levels.md §5.4: a strand that touches a plug is absorbed
       if (P && P.alive && Math.abs(P.x - h.x) < 5 && P.y > c && P.y < f) {
         P.slow = 55;
         dead = true;
@@ -1038,8 +1039,8 @@ const SIGSTEP = {
       if ('plug' in V) { womb(); r.plugs = plugNarrows(X).map((nx) => ({ nx, on: false })); }
     }
     const u = r.t - SWALLOW.tell, Q = SWALLOW.plug;
-    // S5: a plug grows only while its narrow is still >= SPACE.noSpawn ahead of the ship; one the ship reaches first is retired
-    if (r.plugs) for (const p of r.plugs) if (!p.on && $.P && p.nx - G.scroll - $.P.x < SPACE.noSpawn) p.on = true;
+    // S5 / S4: a plug starts only while its narrow is still >= SPACE.sigLead ahead of the ship; one the ship nears first is retired
+    if (r.plugs) for (const p of r.plugs) if (!p.on && $.P && p.nx - G.scroll - $.P.x < SPACE.sigLead) p.on = true; // S4 too (W3a request): it starts growing >= 120 px (120 f) ahead
     if (r.plugs) for (const p of r.plugs) if (!p.on && p.nx - G.scroll < W - 20 && u > 0 && (u + Q.grow) % V.T === V.T / 2) {
       p.on = true;
       ENG.spawnPlug({ wx: p.nx, tell: Q.grow, fit: X.floor, hp: Q.hp, cell: Q.cell, regrow: Q.regrow, sig: r.sig });
