@@ -262,6 +262,9 @@ export function decodeRunAs(s, keep = false) {
 /** the run state as the JSON writeRun would store, or null when it would not read back (JSON turns NaN/Infinity
  *  into null) */
 export function encodeRun(G = $.G, P = $.P) {
+  // DIFFICULTY-SPEC §5.4: G.recovery is never saved; saves happen at stage start and checkpoints, where the queue is
+  // empty. A non-empty queue here means a save point W2 placed inside a recovery window: report it, the save goes on
+  if (G && G.recovery && G.recovery.length) console.error('run save with recovery waves queued (not saved)', G.recovery.length);
   try {
     const s = JSON.stringify(serializeRun(G, P)), d = decodeRun(s);
     return d ? s : null;

@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "517c324",
+  "commit": "77641b4",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "saucer",
@@ -13,8 +13,8 @@
     "px": 50,
     "py": 60.12,
     "en": 3,
-    "gibs": 3,
-    "drops": 35,
+    "gibs": 4,
+    "drops": 34,
     "caps": 0,
     "jump": true,
     "stage": 0,
@@ -26,11 +26,11 @@
     "kills": 5,
     "t": 1200,
     "seen": "mini:ufo",
-    "sig": "3f445bd2ac"
+    "sig": "992880eebf"
   },
   "hashes": [
     "5f7de4a9ab",
-    "c23f20765e"
+    "eecb74a022"
   ],
   "errs": []
 }

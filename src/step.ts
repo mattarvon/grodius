@@ -46,7 +46,9 @@ export function stepWorld() {
   $.G.scrollSpeed += (tgt - $.G.scrollSpeed) * .02;
   if (tgt === 0 && $.G.scrollSpeed < .02) $.G.scrollSpeed = 0;
   $.G.scroll += $.G.scrollSpeed;
-  stepSolids(); // moving slabs (src/solids.ts), before the ship tests them; a stub until W3
+  // moving slabs (src/solids.ts), before the ship tests them; a stub until W3. true = a slab body-hit the ship this step:
+  // one playerHit() (i-frames and WARD apply, like a hazard). Wall-crush deaths are player.ts's solidAt terrain test
+  if (stepSolids() && $.P) playerHit();
   if ($.state === 'play') {
     stepRecovery();
     runScript();

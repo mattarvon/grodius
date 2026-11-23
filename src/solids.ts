@@ -36,7 +36,11 @@ export function solidsCol(_wx: number): readonly Span[] {
 export function solidShot(_wx: number, _y: number, _dmg: number): boolean {
   return false;
 }
-/** advance every slab one world step (step.ts). W0: nothing to move */
-export function stepSolids(): void {}
+/** advance every slab one world step (step.ts). Returns true when a moving slab struck the ship this step (a flying
+ *  ice block): step.ts then calls player.ts playerHit() once, which honours i-frames and WARD. A slab the ship is
+ *  INSIDE kills through WARD on the terrain test instead (solidAt, decision 5A). W0: nothing moves, never true */
+export function stepSolids(): boolean {
+  return false;
+}
 /** drop every slab (stage build, restore) */
 export function resetSolids(): void {}

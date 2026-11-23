@@ -7,6 +7,9 @@ import { SET, lv } from './save';
 import { sfx } from './audio';
 import { caps, ceilAt, enemies, eshots, floorAt, shots } from './world';
 import { solidAt, solidShot } from './solids';
+import { ECON, econId } from './economy';
+import { VCAP } from './rank';
+import { tier } from './tier';
 import { addDecal, drop, flash, gib, gore, mist, pop, spark, splat } from './fx/spawn';
 import { banner, wrapA } from './enemies/spawn';
 import { METER_CAP, hurt, killEnemy, podType, updEnemy } from './enemies/update';
@@ -246,7 +249,8 @@ export function eshotTouches(ox, oy, x, y, lx, ly, px, py, r) {
 export function updateEShots() {
   const P = $.P,
     lx = P && (P.ex ?? P.x), // where the ship was at the last test (the end of the last updateEShots)
-    ly = P && (P.ey ?? P.y);
+    ly = P && (P.ey ?? P.y),
+    gcap = ECON[econId()].hard ? VCAP(tier()) : 0; // the long4 falling-glob cap (below), looked up once a frame; 0 = off (short)
   for (let i = eshots.length - 1; i >= 0; i--) {
     const s = eshots[i],
       ox = s.x,
@@ -255,6 +259,10 @@ export function updateEShots() {
     let dead = false;
     if (s.k === 'glob') {
       s.vy += .025;
+      // DIFFICULTY-SPEC §2.1 / gate S1: gravity never takes a FALLING glob (vy > 0) past V_CAP on long4 (pod-probe measured
+      // globs at 3.5-3.7 px/f against 2.6-2.9). A glob still rising keeps its launch speed (a lob's arc), so a lob launched
+      // above V_CAP is W4's to refit. THE KEEPSAKE's forks (fk, W4's fight) and short are untouched. No R()
+      if (gcap && !s.fk && s.vy > 0) { const v = Math.hypot(s.vx, s.vy); if (v > gcap) { s.vx *= gcap / v; s.vy *= gcap / v; } }
       if (s.t % 3 === 0 && !s.fk) drop(s.x, s.y, rr(-.2, .2), rr(-.2, .2), 1, 1, 40); // a fork (THE KEEPSAKE) falls like a glob but doesn't drip
     }
     s.x += s.vx - (s.k === 'glob' ? 0 : 0);
@@ -345,7 +353,8 @@ export function updateEnemies() {
       if (R() < .3) spark(e.x + rr(-e.r, e.r), e.y + rr(-e.r, e.r), 0, -.3, 10, '#cfe8ff');
     }
     if (!e.dead && !(e.chill > 0 && !e.mini && $.T % 2)) updEnemy(e);
-    if (!e.dead && !(e.ghost > 0) && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) < (e.r + 4 - 1.3 * pk('tiny')) ** 2) {
+    // a recovery carrier (e.rec or its group's rec, C17) is harmless to touch, so a recovery object never causes the next death
+    if (!e.dead && !(e.ghost > 0) && !e.rec && !(e.group && e.group.rec) && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) < (e.r + 4 - 1.3 * pk('tiny')) ** 2) {
       if ($.P.shield > 0 && !e.big) {
         hurt(e, 8, e.x, e.y, 1);
         playerHit();
@@ -360,7 +369,8 @@ export function updateCaps() {
     if (c.purged) continue;
     c.t++;
     if (c.choice) c.x += $.G.scrollSpeed * .55;
-    if (!c.blue && !c.graft && !c.choice && c.ty >= 0 && $.G.t % 60 === 0 && $.P && slotMaxed(c.ty)) {
+    // a typed recovery pod (c.rec, C17) keeps its type: no podType() re-roll, so it draws no R()
+    if (!c.blue && !c.graft && !c.choice && !c.rec && c.ty >= 0 && $.G.t % 60 === 0 && $.P && slotMaxed(c.ty)) {
       const n = podType();
       if (n >= 0) c.ty = n;
     }

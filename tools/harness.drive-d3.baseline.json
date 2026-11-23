@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "517c324",
+  "commit": "77641b4",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "drive-d3",
@@ -14,7 +14,7 @@
     "py": 108.19,
     "en": 2,
     "gibs": 0,
-    "drops": 97,
+    "drops": 87,
     "caps": 0,
     "jump": true,
     "stage": 3,
@@ -26,11 +26,11 @@
     "kills": 0,
     "t": 1190,
     "seen": "boss:drive",
-    "sig": "803de3e679"
+    "sig": "d35f496ae9"
   },
   "hashes": [
     "40b17d9e75",
-    "27c82ba6df"
+    "bdbd0850b2"
   ],
   "errs": []
 }

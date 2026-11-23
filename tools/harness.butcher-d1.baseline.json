@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "9948f85",
+  "commit": "77641b4",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "butcher-d1",
@@ -13,8 +13,8 @@
     "px": 50,
     "py": 119.972,
     "en": 1,
-    "gibs": 15,
-    "drops": 79,
+    "gibs": 14,
+    "drops": 83,
     "caps": 0,
     "jump": true,
     "stage": 1,
@@ -26,11 +26,11 @@
     "kills": 0,
     "t": 1190,
     "seen": "mini:butcher",
-    "sig": "90b00b1330"
+    "sig": "d21c7b14ba"
   },
   "hashes": [
     "023e41800e",
-    "f973de1a71"
+    "092e4a937d"
   ],
   "errs": []
 }

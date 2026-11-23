@@ -5,7 +5,7 @@ import { resetSolids, solidAt, solidShot, solidsCol, stepSolids } from '../../sr
 
 describe('solids.ts (W0 stub)', () => {
   it('has no solid anywhere, and returns one frozen empty column', () => {
-    stepSolids();
+    expect(stepSolids()).toBe(false); // no slab strikes the ship
     resetSolids();
     expect(solidAt(0, 135)).toBe(false);
     expect(solidShot(500, 100, 3)).toBe(false);
