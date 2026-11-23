@@ -145,7 +145,12 @@ describe('recovery waves (C16, C17)', () => {
     expect(D.r2Pods(false)).toEqual([5, 5]);
     expect(D.r2Pods(true)).toEqual([6, 6]);
     expect([D.RECOVERY.r1, D.RECOVERY.r2]).toEqual([180, 720]);
-    expect(D.newRecovery({}, true)).toMatchObject({ t: 180, w: 1 });
+    // W0's queue (state.ts RecoveryQ): step.ts counts each t down and flies the pods through recoveryWave
+    expect(D.newRecovery({ laser: 1 }, true, 120)).toEqual([
+      { t: 180, y: 120, pods: [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }] },
+      { t: 900, y: 120, pods: [{ ty: 5 }, { ty: 5 }] },
+    ]);
+    expect(D.newRecovery({}, false, 80, true)[1].pods).toEqual([{ ty: 6 }, { ty: 6 }]);
   });
 });
 

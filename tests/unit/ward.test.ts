@@ -1,6 +1,6 @@
 // W2 (DIFFICULTY-SPEC §2.1 "Survival"): player.ts on long4. WARD holds hits = its level (1/2/3) and every refill and
 // top-up caps there; a broken WARD hit gives 40 f of i-frames (C20); REGROWTH is half as fast and capped at
-// max(1, wardLv); the recovery queue flies R1 then R2 (C17) with no sim RNG. Short keeps today's numbers. Mocks as
+// max(1, wardLv); Short keeps today's numbers. Mocks as
 // damage.test.ts.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
@@ -16,7 +16,7 @@ vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, gore: ()
 vi.mock('../../src/fx/gunfx', () => ({ gunTier: () => 0, smoke: () => {} }));
 vi.mock('../../src/flow', () => ({ killPlayer: () => {}, respawn: () => {} }));
 vi.mock('../../src/enemies/update', () => ({ POD: Array.from({ length: 7 }, () => ({ h: '#fff', c: '255,255,255' })), hurt: () => {} }));
-vi.mock('../../src/enemies/spawn', () => ({ get recoveryWave() { return H.wave; } }));
+vi.mock('../../src/enemies/spawn', () => ({}));
 
 const P = await import('../../src/player');
 const D = await import('../../src/death');
@@ -95,34 +95,5 @@ describe('REGROWTH (halved, capped at max(1, wardLv))', () => {
     expect($.P.shield).toBe(0);
     tick(2400);
     expect($.P.shield).toBe(1); // no WARD at all still regrows one membrane hit
-  });
-});
-
-describe('the recovery waves fly from the queue (C17)', () => {
-  it('flies R1 after 180 f and R2 720 f later, typed and in from the right, then empties the queue', () => {
-    $.G.recovery = D.newRecovery({ laser: 1 }, true);
-    for (let i = 0; i < D.RECOVERY.r1 - 1; i++) P.stepRecovery();
-    expect(H.caps.length).toBe(0);
-    P.stepRecovery();
-    expect(H.caps.map((c) => [c.ty, c.full, c.rec])).toEqual([[0, 0, 1], [3, 1, 1], [1, 0, 1]]);
-    expect(H.caps.every((c) => c.x > 480)).toBe(true);
-    for (let i = 0; i < D.RECOVERY.r2; i++) P.stepRecovery();
-    expect(H.caps.slice(3).map((c) => c.ty)).toEqual([5, 5]);
-    expect($.G.recovery).toBeNull();
-    expect(H.R).not.toHaveBeenCalled();
-  });
-  it('hands the pods to W1\'s recoveryWave once it exists', () => {
-    const got: any[] = [];
-    H.wave = (ty: number[], o: any) => got.push([ty, o.full]);
-    $.G.recovery = { ...D.newRecovery({}, false), t: 1 };
-    P.stepRecovery();
-    expect(got).toEqual([[[0, 2, 1], []]]);
-    expect(H.caps.length).toBe(0);
-  });
-  it('waits while the game is not in play', () => {
-    $.G.recovery = { ...D.newRecovery({}, false), t: 1 };
-    $.state = 'pause';
-    P.stepRecovery();
-    expect($.G.recovery.w).toBe(1);
   });
 });

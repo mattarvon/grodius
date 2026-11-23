@@ -12,14 +12,15 @@
 //  falls back to Normal, which is the long4 default (spec §2.1 "Plumbing"). This is the one spot to switch.
 // =====================================================================
 import { ECON, econId } from './economy';
+import { TIER, tierG } from './tier';
 
 /** are the long4 rules on? (the D63 HardSet is non-null on long4 alone; short and the parity layouts read false) */
 export const hardOn = (): boolean => !!ECON[econId()].hard;
 
 /** tier ids (spec §2.1 Tiers; G.tier 0-3) */
 export const EASY = 0, NORMAL = 1, HARD = 2, VERY_HARD = 3;
-/** the run's tier: W0's G.tier (src/tier.ts; the names are its TIER_NAME), else Normal, the long4 default. Pure */
-export const runTier = (G: any): number => (G && Number.isInteger(G.tier) && G.tier >= 0 && G.tier <= 3 ? G.tier : NORMAL);
+/** the run's tier: G.tier (src/tier.ts tierG; the names are its TIER_NAME), else Normal, the long4 default. Pure */
+export const runTier = (G: any): number => tierG(G);
 
 export type Strip = 'gradual' | 'full';
 export type GaspRule = 'stage' | 'descent' | 'off';
@@ -38,12 +39,16 @@ export interface DeathTier {
   /** C16: BLACK BOX makes wave R1's main-gun pod FULL; off on Very Hard */
   blackBox: boolean;
 }
-export const DEATH_TIER: readonly DeathTier[] = [
-  { strip: 'gradual', thrustKeep: 5, checkpoint: false, lifeline: true, gasp: 'stage', blackBox: true }, //    Easy [GR §4 Beginner]
-  { strip: 'full', thrustKeep: 1, checkpoint: true, lifeline: false, gasp: 'descent', blackBox: true }, //    Normal (default)
-  { strip: 'full', thrustKeep: 0, checkpoint: true, lifeline: false, gasp: 'descent', blackBox: true }, //    Hard
-  { strip: 'full', thrustKeep: 0, checkpoint: true, lifeline: false, gasp: 'off', blackBox: false }, //      Very Hard
-];
+/** read off W0's tier table (src/tier.ts TIER: strip 'gradual' / 'full1' / 'full', checkpoint, lifeline, gasp, blackBox),
+ *  one row per tier [Easy, Normal, Hard, Very Hard], so the table lives in one place */
+export const DEATH_TIER: readonly DeathTier[] = [0, 1, 2, 3].map((t) => ({
+  strip: TIER.strip[t] === 'gradual' ? 'gradual' : 'full',
+  thrustKeep: TIER.strip[t] === 'full1' ? 1 : TIER.strip[t] === 'gradual' ? 5 : 0, // C18; Easy keeps it unless it is the top power-up
+  checkpoint: TIER.checkpoint[t],
+  lifeline: TIER.lifeline[t],
+  gasp: TIER.gasp[t],
+  blackBox: TIER.blackBox[t],
+}));
 export const deathTier = (G: any): DeathTier => DEATH_TIER[runTier(G)];
 
 /** survival values (spec §2.1 "Survival"; gates H1 slack 6-10 and H2 shield hits / deaths <= 1.5 measure them) */
@@ -198,5 +203,13 @@ export function r1Pods(P0: any, blackBox: boolean): { ty: number[]; full: number
 /** wave R2's pods: WRAITH and WRAITH, or WARD once WRAITH is at its cap (read when R2 flies) */
 export const r2Pods = (wraithCapped: boolean): number[] => (wraithCapped ? [WARD, WARD] : [WRAITH, WRAITH]);
 
-/** the recovery queue (G.recovery): R1 in `t` frames, then R2. Never saved: saves wait until it is empty */
-export const newRecovery = (P0: any, blackBox: boolean) => ({ t: RECOVERY.r1, w: 1, r1: r1Pods(P0, blackBox) });
+/** the recovery queue entries (W0 state.ts RecoveryQ: step.ts counts each `t` down and flies its pods through
+ *  enemies/spawn.ts recoveryWave at 0): R1 at RECOVERY.r1, R2 RECOVERY.r2 after it, at the ship's height `y`. R2's
+ *  WARD swap is read now, on the stripped ship. Never saved: saves wait until the queue is empty */
+export function newRecovery(P0: any, blackBox: boolean, y: number, wraithCapped = false) {
+  const r1 = r1Pods(P0, blackBox);
+  return [
+    { t: RECOVERY.r1, y, pods: r1.ty.map((ty, k) => (r1.full.includes(k) ? { ty, full: true } : { ty })) },
+    { t: RECOVERY.r1 + RECOVERY.r2, y, pods: r2Pods(wraithCapped).map((ty) => ({ ty })) },
+  ];
+}

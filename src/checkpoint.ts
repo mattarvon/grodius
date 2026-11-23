@@ -24,9 +24,9 @@ import { beatPlan, driftsOf, layout, layoutRev, row } from './layout';
 import { sealFor } from './stages';
 import { hardOn } from './death';
 
-/** W0/W3 ADAPTER: the signature windows as world-x spans [{x0, x1}] (src/sigs.ts sigWindows, DIFFICULTY-SPEC §2.4).
- *  Empty until sigs.ts lands; the one line to switch on the rebase */
-export const sigSpans = (): { x0: number; x1: number }[] => [];
+
+/** the signature windows as world-x spans [{x0, x1}] (src/sigs.ts sigWindows, DIFFICULTY-SPEC §2.4; empty until W3) */
+export const sigSpans = (): readonly { x0: number; x1: number }[] => [];
 
 /** checkpoint tuning (spec §4 "When it saves", "How it restores") */
 export const CP = {
@@ -163,7 +163,7 @@ export function cpSafe(G = $.G, P = $.P) {
   if (!($.state === 'play' && !!P && P.alive && !G.mini && !G.bossStarted && !G.boss && !G.fork && !G.forkHold && !G.tally && !G.pick && !G.clearT)) return false;
   // long4: never inside a signature window (a restore there would resume in a closing throat), and never while a
   // recovery wave is queued (G.recovery is not saved, spec §5.4: a save mid-queue would lose it)
-  return !hardOn() || (!G.recovery && !cpInSig(G.scroll));
+  return !hardOn() || (!(G.recovery && G.recovery.length) && !cpInSig(G.scroll));
 }
 
 /** the run state a checkpoint stores: G as it stands, with the seal as earned by the clears so far (a seal still

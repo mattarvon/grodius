@@ -7,15 +7,14 @@ import { SET, lv } from './save';
 import { sfx } from './audio';
 import { buzz } from './platform';
 import { I, touch } from './input';
-import { caps, ceilAt, floorAt, shots } from './world';
+import { ceilAt, floorAt, shots } from './world';
 import { solidAt } from './solids';
 import { flash, pop, spark } from './fx/spawn';
 import { killPlayer, respawn } from './flow';
 import { POD, hurt } from './enemies/update';
 import { dmMul, gmL, gunDm, sporeBurst } from './mutations';
 import { gunTier, smoke } from './fx/gunfx';
-import { RECOVERY, SURV, hardOn, r2Pods, wardCapOf } from './death';
-import * as SPAWN from './enemies/spawn';
+import { SURV, hardOn, wardCapOf } from './death';
 
 // ---------------- player ----------------
 export const SLOTS = ['THRUST', 'MISSILE', 'SPLIT', 'ARC', 'PYRE', 'WRAITH', 'WARD'];
@@ -320,36 +319,12 @@ export function fire() {
     sfx.fireball($.P.pyre);
   }
 }
-/** W0/W1 ADAPTER: fly a recovery wave of typed pods (enemies/spawn.ts recoveryWave: harmless 1 HP carriers from the
- *  right at the ship's height, rec: 1). Until that lands, the pods drift in from the right edge themselves */
-function flyRecovery(ty, full) {
-  let rw = null;
-  try { rw = SPAWN.recoveryWave; } catch (e) {} // a test's spawn mock has no such export
-  if (typeof rw === 'function') return rw(ty, { full, y: $.P.y });
-  ty.forEach((t, k) => caps.push({ x: 492 + k * 26, y: clamp($.P.y + (k - (ty.length - 1) / 2) * RECOVERY.spread, 24, PH - 24), t: k * 8, blue: false, ty: t, full: full.includes(k) ? 1 : 0, rec: 1 }));
-}
-/** once per step while the ship lives (player.ts updatePlayer): count the queue down and fly R1, then R2. Draws no RNG */
-export function stepRecovery() {
-  const q = $.G.recovery;
-  if (!q || $.state !== 'play' || --q.t > 0) return;
-  if (q.w === 1) {
-    flyRecovery(q.r1.ty, q.r1.full);
-    if (q.r1.full.length) pop($.P.x, $.P.y - 16, 'BLACK BOX', '#ffd0a0', 8, 60);
-    $.G.feed = { s: 'RECOVERY', d: q.r1.full.length ? 'your parts come back: the gun pod is FULL' : 'your parts come back: fly through the pods', t: 170, ml: 170 };
-    q.w = 2;
-    q.t = RECOVERY.r2;
-  } else {
-    flyRecovery(r2Pods(slotMaxed(5)), []);
-    $.G.recovery = null;
-  }
-}
 export function updatePlayer() {
   if (!$.P.alive) {
     $.G.deadT--;
     if ($.G.deadT <= 0) respawn();
     return;
   }
-  stepRecovery(); // the recovery waves R1 / R2 after a respawn or restart (flow.ts queues them; long4 only)
   if ($.P.slow > 0) $.P.slow--;
   if (pk('glass') && $.P.shield > 1) $.P.shield = 1;
   perkTick(hurt);

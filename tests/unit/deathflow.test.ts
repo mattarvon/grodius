@@ -92,7 +92,8 @@ describe('BLACK BOX, the lifeline and the recovery queue (C15-C17)', () => {
     F.killPlayer();
     expect(H.caps.length).toBe(0); // no burst
     F.respawn();
-    expect($.G.recovery).toEqual({ t: D.RECOVERY.r1, w: 1, r1: { ty: [0, 3, 1], full: [1] } });
+    expect($.G.recovery.map((q: any) => [q.t, q.pods])).toEqual([[D.RECOVERY.r1, [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }]], [D.RECOVERY.r1 + D.RECOVERY.r2, [{ ty: 5 }, { ty: 5 }]]]);
+    expect($.G.feed.d).toContain('BLACK BOX'); // ux: the death's price, then the parts' arrival
     expect(H.caps.length).toBe(0); // nothing flies until R1's time
   });
 
@@ -100,11 +101,12 @@ describe('BLACK BOX, the lifeline and the recovery queue (C15-C17)', () => {
     H.salvage = 1;
     died(3);
     F.respawn();
-    expect($.G.recovery.r1.full).toEqual([]);
+    const full = () => $.G.recovery[0].pods.filter((p: any) => p.full).length;
+    expect(full()).toBe(0);
     H.salvage = 0;
     died(2);
     F.respawn();
-    expect($.G.recovery.r1.full).toEqual([]);
+    expect(full()).toBe(0);
   });
 
   it('keeps the fight lifeline on Easy only', () => {

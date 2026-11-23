@@ -82,7 +82,7 @@ export function titleItems() {
     confirm: cf,
     ...warn(ri ? 2 : 1, 'DESCENT 2'),
     a: () => startRun(1)
-  }] : []), {
+  }] : []), ...(activeLayout().id === 'long4' ? [diffRow()] : []), {
     l: 'INFIRMARY',
     r: fmtBio($.meta.bio),
     a: () => openShop('title')
@@ -96,6 +96,17 @@ export function titleItems() {
     r: layoutTag() + (midForce() ? ' ' + midLabel(midForce()) : ''),
     a: sub('lab')
   }];
+}
+/** the title's DIFFICULTY row (DIFFICULTY-SPEC §2.1 Tiers, decision 6A; it replaced D63's BRUTAL): the tier the next long
+ *  run flies, the same LAB setting as the LAB's own row, cycled EASY > NORMAL > HARD > VERY HARD. A ?tier= / ?brutal=
+ *  over it is shown, as the LAB row shows it. After DESCEND, so DESCEND stays row 0 for the harness and the probes */
+function diffRow() {
+  const L = lab(), t = tierPick('long4');
+  return {
+    l: 'DIFFICULTY',
+    r: TIER_NAME[L.tier] + (t != null && t !== L.tier ? ' > URL ' + TIER_NAME[t] : ''),
+    a: () => setLab({ tier: ((L.tier + 1) % 4) as 0 | 1 | 2 | 3 })
+  };
 }
 /** a render-side hook run as DESCEND starts a run, before newGame (render/titledoll.ts armTitleOut sets it: menus.ts stays
  *  free of the DOM, so the unit tests can import it) */
@@ -155,7 +166,8 @@ function labItems() {
     a: () => setLab({ mids: L.mids === 'wip' ? '' : 'wip' })
   }, {
     l: 'CHECKPOINT',
-    r: L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
+    // long4: the tier decides (decision 1A: a death restarts at the checkpoint on NORMAL and up, EASY respawns in place)
+    r: c.id === 'long4' ? 'BY DIFFICULTY' : L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
     a: () => setLab({ cp: L.cp === 'b' ? 'a' : 'b' })
   }, {
     // the difficulty tier (src/tier.ts, DIFFICULTY-SPEC §2.1; it replaced D63's BRUTAL row) for the next long run:

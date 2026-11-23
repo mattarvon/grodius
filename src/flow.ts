@@ -354,7 +354,12 @@ export function respawn() {
  *  that died. BLACK BOX (C16) makes R1's main-gun pod FULL, except on Very Hard. Off long4: nothing */
 function queueRecovery(P0) {
   if (!hardOn()) return;
-  $.G.recovery = newRecovery(P0, !!lv('salvage') && deathTier($.G).blackBox);
+  const bb = !!lv('salvage') && deathTier($.G).blackBox;
+  $.G.recovery = newRecovery(P0, bb, $.P.y);
+  // ux: say the parts are coming, after what the death took if that is still up (a restart sets both in one step)
+  const say = bb ? 'your parts fly back in 3 s: the gun pod comes FULL (BLACK BOX)' : 'your parts fly back in 3 s: catch the pods';
+  const f = $.G.feed;
+  $.G.feed = f && f.t > 0 && f.s !== 'RECOVERY' ? { ...f, d: f.d + ' // ' + say, t: Math.max(f.t, 210), ml: Math.max(f.ml, 210) } : { s: 'RECOVERY', d: say, t: 200, ml: 200 };
 }
 /** the boss-fight lifeline's FULL pods (bossRecoveryNote), by the ship */
 function recoverPods(ty) {
