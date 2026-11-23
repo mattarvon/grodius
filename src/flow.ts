@@ -86,7 +86,7 @@ export let resumedFrom = null;
 function lastCp() {
   const s = lastRun();
   const d = s && decodeRunAs(s, true);
-  return d && typeof d.g.seed === 'number' && typeof d.g.cpX === 'number' && typeof d.g.layout === 'string' && (d.g.cpN === 0 || d.g.cpN === 1) ? d : null;
+  return d && typeof d.g.seed === 'number' && typeof d.g.cpX === 'number' && typeof d.g.layout === 'string' && Number.isInteger(d.g.cpN) && d.g.cpN >= 0 ? d : null; // runsave bounds cpN (CP_MAX); W2 writes 0 (stage start) or 1 (any later)
 }
 /** RESUME on the title: rebuild the run at its last checkpoint. False (and the slot dropped) if it isn't resumable */
 export function resumeLast() {
