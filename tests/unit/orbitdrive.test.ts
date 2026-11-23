@@ -35,8 +35,7 @@ const PH = 254;
 // ---------------- terrain ----------------
 /** short's buildTerrain before rev 3, verbatim (world.ts at 517c324), for the parity check */
 function oldShort(Lp: number) {
-  const { hash, lerp, sstep, vnoise } = { hash: (n: number) => { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Math.floor(n); }, lerp: (a: number, b: number, t: number) => a + (b - a) * t, sstep: (a: number, b: number, x: number) => { x = Math.min(1, Math.max(0, (x - a) / (b - a))); return x * x * (3 - 2 * x); }, vnoise: (x: number) => 0 };
-  void vnoise;
+  const { hash, lerp, sstep } = { hash: (n: number) => { n = Math.sin(n * 127.1 + 311.7) * 43758.5453; return n - Math.floor(n); }, lerp: (a: number, b: number, t: number) => a + (b - a) * t, sstep: (a: number, b: number, x: number) => { x = Math.min(1, Math.max(0, (x - a) / (b - a))); return x * x * (3 - 2 * x); } };
   const vn = (x: number) => { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); return lerp(hash(i), hash(i + 1), u); };
   const T = LAYOUTS.short!.terrain, n = Math.ceil((LAYOUTS.short!.level + 480 * 2) / 4) + 2, F = new Float32Array(n), C = new Float32Array(n), o = Lp * 91.7;
   for (let i = 0; i < n; i++) {
@@ -211,8 +210,9 @@ describe('CREW KNOTS and the hull turrets (LVL §3.2-3.3)', () => {
     for (const v of K) { expect(v.x).toBeGreaterThanOrEqual(2150); expect(v.x + Math.max(...v.dx, v.then.dt)).toBeLessThanOrEqual(3300); }
     expect(K[0].then.teach && K[0].then.carrier).toBe(true);
   });
-  it('places 8-10 terrain turrets, floor ones on the hull, ceiling ones under the flap at full drop', () => {
+  it('places 8-10 terrain turrets, floor ones on the hull, ceiling ones under the flap at full drop, none called in the held breath', () => {
     const T = ORBIT_SIG.turrets;
+    for (const t of T) expect(t.wx - 480 - (t.k === 'womb' ? 16 : 14), `${t.k} ${t.wx}`).toBeGreaterThanOrEqual(3700);
     expect(T.length).toBeGreaterThanOrEqual(8); expect(T.length).toBeLessThanOrEqual(10);
     const oT = L4.terrain.oT!;
     for (const t of T) {

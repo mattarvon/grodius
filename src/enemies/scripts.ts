@@ -409,6 +409,9 @@ export const DRIVE_CELLS = [
 
 const frac = (x) => x - Math.floor(x);
 const DRONE_PAT = ['sine', 'zig', 'dive', 'wall'];
+/** a drop / rise wave's lane in world x is about its trigger scroll x + this (laneX = ship x ~120 + 110): the windows
+ *  are in that frame (the ship's world x), so the `quiet` test compares like with like (qa-lead review) */
+const EDGE_DX = 230;
 /** a right entry's share that loops back (ENC §3: 'loop', about 1-2 a stage in Orbit and the Drive) */
 const LOOP_SHARE = .12;
 /** one filler drone wave on its entry edge (rev 3, §2.3 entry mix; rev 2's filler was front formations only, and its
@@ -424,8 +427,8 @@ function fillDrones(kind, u, y, n, quiet) {
 /** one generator filler beat (cellpick.ts genFiller) as a spawn; u places it. Orbit drones come 3 to a wave, the Drive's
  *  4 (the drone budget at the top of this file). r: its row; x: its stage-relative x */
 function fillSpawn(k, u, nDrone, r, x) {
-  const y = PH * (.18 + .64 * frac(u * 7.31));
-  if (k === 'drones') fillDrones(r.kind, u, y, nDrone, !!(r.sigs && r.sigs.some((w) => x >= w.a && x < w.b)));
+  const y = PH * (.18 + .64 * frac(u * 7.31)), lane = x + EDGE_DX;
+  if (k === 'drones') fillDrones(r.kind, u, y, nDrone, !!(r.sigs && r.sigs.some((w) => lane >= w.a && lane < w.b)));
   else if (k === 'sentry') sentry(y, W * (.62 + .2 * frac(u * 3.7)));
   else if (k === 'corpse') u < .5 ? corpse(y) : crew(y, PH - y);
   else if (k === 'flayer') flayer(PH * (.25 + .5 * u));
@@ -529,14 +532,16 @@ const turretAt = (t) => t.wx - W - (t.k === 'womb' ? 16 : 14);
 function orbitSets(at) {
   const O = ORBIT_SIG;
   O.knots.forEach((v, i) => {
-    if (i === 0) at('knots')(v.x, () => { logLine('THE DEAD ARE HOLDING HANDS.'); sfx.groan(); });
+    // the cue waits for the first knot to drift on screen (+110): >= 3.6 s after the Saucer's latest forced exit (2040),
+    // so its death groan (ufo.ts) never stacks on this one (audio-director review)
+    if (i === 0) at('knots')(v.x + 110, () => { logLine('THE DEAD ARE HOLDING HANDS.'); sfx.groan(); });
     v.lanes.forEach((q, j) => at('knot')(v.x + v.dx[j], () => knot(PH * q)));
     if (v.sentry) at('knot:sentry')(v.x + v.sentry.dt, () => sentry(PH * v.sentry.y, W * v.sentry.tx));
     const t = v.then, o = t.teach ? TEACH : {};
     at('knot:' + t.k)(v.x + t.dt, () => (t.k === 'behind' ? behindWave(PH / 2, t.n) : t.carrier ? carrier(t.k, 0, t.n, o) : edge(t.k, t.n, o)));
   });
   for (const t of O.turrets) at('turret:' + t.k)(turretAt(t), () => (t.k === 'eye' ? eyeT(t.side) : t.k === 'crawler' ? crawler(t.side) : womb()));
-  at('breach')(layout().terrain.oT[0] - W, () => { logLine('THE HULL IS OPEN. WE GO IN UNDER IT.'); sfx.chain(); }); // the flap comes on screen
+  at('breach')(layout().terrain.oT[0] - W, () => { logLine('THE HULL IS PEELED BACK. I GO IN UNDER IT.'); sfx.groan(); sfx.chain(); }); // the flap comes on screen: a groan bed under the chain rattle
   at('breach:birth')(O.breachHatch.x, () => birth(O.breachHatch.n));
 }
 

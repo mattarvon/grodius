@@ -54,8 +54,10 @@ export interface StageRow {
   held?: { at: number };
   /** long4 Orbit / Drive rows (DIFFICULTY-SPEC §2.1 "Checkpoints", C21): the checkpoint list, stage-relative scroll x
    *  in order. 0 is the stage start (CP0). The rules (tests/unit/orbitdrive.test.ts): <= CP_RULE.maxGap px of scroll
-   *  between any two, one at the end encounter's WARNING - CP_RULE.warnLead, none inside a `sigs` window, each on a
-   *  screen with no fight up. checkpoint.ts (W2) reads it through cpsOf(); absent (short, biome rows): its own rule */
+   *  between any two, one at the end encounter's WARNING - CP_RULE.warnLead, none inside a `sigs` window or the Saucer's
+   *  drift. Ordinary cells and filler may be live there: checkpoint.ts cpSafe already waits out any midboss or boss, and
+   *  a restore replays the script past the checkpoint. checkpoint.ts (W2) reads it through cpsOf(); absent (short, biome
+   *  rows): its own rule */
   cps?: number[];
   /** long4 Orbit / Drive rows: the signature windows (LVL §2.3 SIG_WINDOWS), stage-relative [a, b) with the window's
    *  swept-fit floor. sigs.ts sigWindows() (W3) and the probes read them in world x through rowSigWindows() */
@@ -459,6 +461,9 @@ export const BANDS = {
   corr: (s: number) => bandAt(active.bands.corr, s),
   core: (s: number) => bandAt(active.bands.core, s),
   space: (s: number) => 1 - bandAt(active.bands.space, s),
+  /** the Orbit breach flap's weight (long4 terrain.oT), 0 where a layout has none: the render lane keys the flap's
+   *  torn lip and the S7 deck dim on it with `hull` (LVL S7) */
+  breach: (s: number) => (active.terrain.oT ? bandAt(active.terrain.oT, s) : 0),
 };
 /** the corridor interior backdrop's fade (render/terrain.ts drawInterior) */
 export const innerBand = (s: number) => bandAt(active.bands.inner, s);
@@ -535,9 +540,10 @@ export const ORBIT_SIG = {
   /** the hull run (3950-4950) and the breach (5200-5800) turrets, 10 in all (LVL §3.3 "8-10 terrain turrets"; rev 2
    *  had 0). Floor eyes and crawlers on the plating, a ceiling eye 40 px before the flap's full drop (a squeeze lip,
    *  LVL §4 rule 1), wombs and an eye on the flap. The ship passes every one, so D61's turn-and-fire-once covers the
-   *  back half. N1 (shooters that fire), L4 */
+   *  back half. Every one is called (wx - W - 14/16) after 3700, so the breath reserved for the held slot B stays empty
+   *  (qa-lead review; orbitdrive.test.ts). N1 (shooters that fire), L4 */
   turrets: [
-    { wx: 4150, k: 'crawler', side: 1 }, { wx: 4250, k: 'eye', side: 1 }, { wx: 4450, k: 'crawler', side: 1 },
+    { wx: 4200, k: 'crawler', side: 1 }, { wx: 4300, k: 'eye', side: 1 }, { wx: 4450, k: 'crawler', side: 1 },
     { wx: 4640, k: 'eye', side: 1 }, { wx: 4780, k: 'crawler', side: 1 }, { wx: 4900, k: 'eye', side: 1 },
     { wx: 5210, k: 'eye', side: -1 }, { wx: 5300, k: 'womb', side: -1 }, { wx: 5450, k: 'eye', side: -1 }, { wx: 5600, k: 'womb', side: -1 },
   ] as Turret[],

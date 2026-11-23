@@ -57,6 +57,8 @@ export function buildTerrain(L) {
   CEIL = new Float32Array(n);
   FLOOR = new Float32Array(n);
   const o = L * 91.7;
+  // the squeeze depths: short's 24 / 28; long4's deepened Drive corridor (layout kD, LVL §6.1)
+  const kF = T.kD ? T.kD[0] : 24, kC = T.kD ? T.kD[1] : 28;
   for (let i = 0; i < n; i++) {
     const x = i * TS;
     // floor and ceiling close in over the hull, the corridor squeezes, the chamber opens (bands: layout().terrain)
@@ -70,8 +72,6 @@ export function buildTerrain(L) {
     const a2 = vnoise(x / 190 + o + 40) * 2 - 1,
       b2 = vnoise(x / 57 + o + 45) * 2 - 1,
       c2 = vnoise(x / 23 + o + 49) * 2 - 1;
-    // the squeeze depths: short's 24 / 28; long4's deepened Drive corridor (layout kD, LVL §6.1)
-    const kF = T.kD ? T.kD[0] : 24, kC = T.kD ? T.kD[1] : 28;
     let fl = PH - 30 - a * 24 - b * 8 - c * 2 - kT * (kF + a * 12);
     let ce = 24 + a2 * 20 + b2 * 8 + c2 * 2 + kT * (kC + a2 * 10);
     // long4's Orbit hull and breach (layout hT / oT, LVL §3.1). Absent on short, whose arithmetic stays as it was
@@ -87,7 +87,9 @@ export function buildTerrain(L) {
     // no hull block under the breach flap (oT > 0): a 34 px step on top of the flap's squeeze would cut the swept fit
     // gap under S1's 100 (short has no oT: unchanged)
     if (blk % 2 === 1 && bx < 44 && x > T.blocks[0] && x < T.blocks[1] && oT < .01) {
-      if (hash(blk + L) < .5) fl -= 34;else ce += 34;
+      // long4's Orbit hull run has no ceiling (cT = oT = 0), where a ceiling block would vanish under the -70 lerp: every
+      // block there sits on the floor, so the run keeps one every 720 px (art-director review). short: unchanged
+      if (hash(blk + L) < .5 || (T.hT && Math.max(cT, oT) < .01)) fl -= 34;else ce += 34;
     }
     fl = lerp(PH + 70, fl, fT);
     ce = lerp(-70, ce, T.hT ? Math.max(cT, oT) : cT); // the breach flap is the Orbit's only ceiling
