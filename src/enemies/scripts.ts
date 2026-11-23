@@ -512,6 +512,7 @@ function orbitSets(at) {
     // so its death groan (ufo.ts) never stacks on this one (audio-director review)
     if (i === 0) at('knots')(v.x + 110, () => { logLine('THE DEAD ARE HOLDING HANDS.'); sfx.groan(); });
     v.lanes.forEach((q, j) => at('knot')(v.x + v.dx[j], () => knot(PH * q)));
+    if (v.drip) v.drip.dt.forEach((dt, j) => at('knot:drip')(v.x + dt, () => knot(PH * v.drip.lanes[j]))); // W6 tune, L7
     if (v.sentry) at('knot:sentry')(v.x + v.sentry.dt, () => sentry(PH * v.sentry.y, W * v.sentry.tx));
     const t = v.then, o = t.teach ? TEACH : {};
     at('knot:' + t.k)(v.x + t.dt, () => (t.k === 'behind' ? behindWave(PH / 2, t.n) : t.carrier ? carrier(t.k, 0, t.n, o) : edge(t.k, t.n, o)));
@@ -519,6 +520,7 @@ function orbitSets(at) {
   for (const t of O.turrets) at('turret:' + t.k)(turretAt(t), () => (t.k === 'eye' ? eyeT(t.side) : t.k === 'crawler' ? crawler(t.side) : womb()));
   at('breach')(layout().terrain.oT[0] - W, () => { logLine('THE HULL IS PEELED BACK. I GO IN UNDER IT.'); sfx.groan(); sfx.chain(); }); // the flap comes on screen: a groan bed under the chain rattle
   at('breach:birth')(O.breachHatch.x, () => birth(O.breachHatch.n));
+  at('breach:lift')(layout().terrain.oT[2] - W, () => { sfx.groan(); sfx.chain(); }); // W6: the flap audibly lifts before the Maw's sting (audio-director review)
 }
 
 /** the tightest walls over world x [a, b]: the lowest ceiling edge is the largest CEIL, the highest floor the least */

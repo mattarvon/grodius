@@ -6,7 +6,8 @@ import { AMT, FLOOR, LIGHTS, ceilAt, floorAt, splats } from '../world';
 import { DERE, GROSS, PIC, STARS, fleshPat, metalPat, ready, texPat } from '../textures';
 import { drawChain, drawHookTip, drawSkull, glow, glowSpr, hangSpine, light, poly } from '../render/util';
 import { eye } from '../render/eyes';
-import { innerBand } from '../layout';
+import { breachBand, innerBand, layout } from '../layout';
+import { SPACE } from '../sigs';
 import { SET } from '../save';
 import { drawSolids } from './solids';
 import { DYNS, offInto } from '../terrainb';
@@ -231,6 +232,48 @@ export function drawDecor() {
       }
     }
   }
+  // the breach flap's torn lip (LVL §3.1, S7): where the hull was peeled back its edge is ragged plate, scorched dark
+  // behind, with a cold rim light along the cut. All of it sits at or above the collidable edge (inside the flap), so
+  // nothing drawn here reads as more wall than there is. hash() of the world x only: the same lip every run, no R()
+  // Batched (performance-analyst review): the band's weight is bucketed in quarters and each bucket draws as 5 paths
+  // (scorch, two plate tones, rim, rivets), so a full-strength screen is 5 fills, not ~800 calls
+  if (breachBand(sc) > 0 || breachBand(sc + W) > 0) for (let q = 1; q <= 4; q++) {
+    const P = [new Path2D(), new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+    let any = false;
+    for (let wx = Math.floor(sc / 6) * 6; wx < sc + W + 6; wx += 6) {
+      const k = breachBand(wx) * nob, c = ceilAt(wx), x = wx - sc;
+      if (k < .05 || c < 2 || Math.min(4, Math.ceil(k * 4)) !== q) continue;
+      const h = hash(wx * .71 + 5), tear = 3 + h * 8, pl = P[h < .5 ? 1 : 2];
+      any = true;
+      P[0].rect(x, c - 12, 6, 12);
+      pl.moveTo(x, c); pl.lineTo(x + 6, c); pl.lineTo(x + 2 + h * 3, c - tear); pl.closePath();
+      P[3].rect(x, c - 1, 6, 1);
+      if (h > .82) P[4].rect(x + 2, c - tear - 2, 2, 2); // a rusted rivet
+    }
+    if (!any) continue;
+    const k = q / 4;
+    ctx.globalAlpha = k * .85; ctx.fillStyle = '#0d0b0a'; ctx.fill(P[0]);
+    ctx.globalAlpha = k; ctx.fillStyle = '#5d6670'; ctx.fill(P[1]); ctx.fillStyle = '#454c55'; ctx.fill(P[2]);
+    ctx.globalAlpha = k * .6; ctx.fillStyle = '#b9c2cc'; ctx.fill(P[3]);
+    ctx.globalAlpha = k * .8; ctx.fillStyle = '#7a2a1c'; ctx.fill(P[4]);
+  }
+  // the hull girders (layout terrain.pylons, W6): the same cold rim light along each girder's tip and down its two
+  // faces, so the only ceiling element over the hull run reads as hull, not as skyline (level-designer review)
+  const PY = layout().terrain.pylons;
+  if (PY && nob > 0) {
+    const rim = new Path2D(); let any = false;
+    for (const px of PY.x) {
+      const x = px - sc;
+      if (x > W + 4 || x + PY.w < -4) continue;
+      const c = ceilAt(px + PY.w / 2);
+      if (c < 2) continue;
+      any = true;
+      rim.rect(x, -2, 1, ceilAt(px + 2) + 2); rim.rect(x + PY.w - 1, -2, 1, ceilAt(px + PY.w - 2) + 2);
+      for (let u = 0; u < PY.w; u += 4) rim.rect(x + u, ceilAt(px + u + 2) - 1, 4, 1);
+    }
+    if (any) { ctx.globalAlpha = .55 * nob; ctx.fillStyle = '#b9c2cc'; ctx.fill(rim); }
+  }
+  ctx.globalAlpha = 1;
   if (hull > 0) for (let wx = Math.floor(sc / 120) * 120; wx < sc + W + 120; wx += 120) {
     if (hash(wx * .31) > .45) continue;
     const x = wx - sc + hash(wx) * 40,
@@ -768,7 +811,10 @@ export function drawBG() {
   if ($.G) {
     drawNeptune(sp, sc);
     drawTriton(sp, sc);
-    drawDerelict(sp * (1 - AMT.corr(sc)), sc);
+    // S7: once the collidable hull floor arrives (long4's hT, with BANDS.hull) the skyline behind it dims to SPACE.deckDim,
+    // so the deck never reads as the floor the ship can hit. short has no hT: unchanged
+    const dim = layout().terrain.hT ? 1 - (1 - SPACE.deckDim) * AMT.hull(sc + W) : 1; // read at the right edge: dimmed before the first girder (3800) is on screen (art-director review)
+    drawDerelict(sp * (1 - AMT.corr(sc)) * dim, sc);
     drawInterior(AMT.corr(sc) > 0 ? innerBand(sc) : 0, sc);
     drawCoreBG(AMT.core(sc));
     drawBiomeBG(sc);

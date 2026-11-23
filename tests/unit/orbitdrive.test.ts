@@ -82,14 +82,17 @@ describe('terrain: short is untouched, long4 gets the hull, the breach and the d
       const fl = xs(3950, 4900).map((x) => W.floorAt(x)), f = xs(3950, 4900).map(fh);
       expect(Math.abs(q(fl, .5) - 178)).toBeLessThan(12);
       expect(q(f, .5)).toBeLessThan(.74);
-      for (const c of [4320, 4680]) expect(W.floorAt(c + 20), `block ${c}`).toBeLessThan(W.floorAt(c + 100) - 30);
-      for (const x of xs(3950, 4950)) expect(W.ceilAt(x)).toBeLessThan(0);
+      for (const c of [4140, 4320, 4500, 4680]) expect(W.floorAt(c + 20), `block ${c}`).toBeLessThan(W.floorAt(c + 90) - 30); // W6: a block every 180 px (layout hRun.every)
+      // no ceiling but the hull girders (W6 tune, L3: layout terrain.pylons), each one's tip >= its gap above the floor
+      const Y = L4.terrain.pylons!, inPylon = (x: number) => Y.x.some((p) => x >= p - 4 && x <= p + Y.w + 4);
+      for (const x of xs(3950, 4950)) if (!inPylon(x)) expect(W.ceilAt(x), `x ${x}`).toBeLessThan(0);
+      for (const p of Y.x) { expect(W.ceilAt(p + Y.w / 2), `girder ${p}`).toBeGreaterThan(30); expect(Math.min(PH, W.floorAt(p + Y.w / 2)) - W.ceilAt(p + Y.w / 2)).toBeGreaterThanOrEqual(Y.gap - .001); }
     });
     it('drops the breach flap to a median FH near 54% over its full span, every column >= 108 px', () => {
-      const f = xs(5250, 5950).map(fh);
+      const f = xs(5250, 6250).map(fh);
       expect(q(f, .5)).toBeGreaterThan(.42);
       expect(q(f, .5)).toBeLessThan(.62);
-      for (const x of xs(4900, 6420)) if (W.ceilAt(x) > -60) expect(W.floorAt(x) - W.ceilAt(x), `x ${x}`).toBeGreaterThanOrEqual(107.999);
+      for (const x of xs(4900, 6720)) if (W.ceilAt(x) > -60) expect(W.floorAt(x) - W.ceilAt(x), `x ${x}`).toBeGreaterThanOrEqual(107.999);
     });
     it('keeps the Orbit swept fit gap >= 100 everywhere (it has no exception window: LVL §3.1, S1)', () => {
       for (const x of xs(3400, 7000, 8)) expect(fit(x), `x ${x}`).toBeGreaterThanOrEqual(100);
@@ -98,8 +101,8 @@ describe('terrain: short is untouched, long4 gets the hull, the breach and the d
     // weave, so their columns are left out. Edges are read where they are on screen (0..254)
     it('keeps every forced lane change gentle: the on-screen floor and flap slope <= .6 over any 60 px (S3)', () => {
       // a block column (world.ts: odd 360 px cells, the first 44 px), with one 4 px sample of slack for the lerp
-      const blockAt = (x: number) => x % 360 < 48 && (Math.floor(x / 360) % 2 === 1 || (x > 3940 && x < 4910));
-      for (const x of xs(3400, 6480, 8)) { // to the Maw banner: the flap's fall ends in the run-up
+      const blockAt = (x: number) => (x % 360 < 48 && Math.floor(x / 360) % 2 === 1) || (x % (L4.terrain.hRun!.every || 360) < 48 && x > 3940 && x < 4910) || L4.terrain.pylons!.x.some((p) => x >= p - 4 && x <= p + L4.terrain.pylons!.w + 4); // and the hull girders (W6): obstacles too
+      for (const x of xs(3400, 6780, 8)) { // to the Maw banner: the flap's fall ends in the run-up
         if (blockAt(x) || blockAt(x + 60)) continue;
         const f0 = Math.min(PH, W.floorAt(x)), f1 = Math.min(PH, W.floorAt(x + 60));
         expect(Math.abs(f1 - f0) / 60, `floor x ${x}`).toBeLessThanOrEqual(.6);
@@ -290,9 +293,9 @@ describe('the stage scripts (§2.2 authored carriers, §2.3 entry mix)', () => {
     expect(two.map((o) => o.gap)).toEqual([84, 84, 84, 82, 82, 82, 82]);
   });
 
-  it('places CREW KNOTS (6 knots), 10 turrets, the breach birth, and the log lines on the long Orbit', () => {
+  it('places CREW KNOTS (6 knots and the W6 drip of 13), 10 turrets, the breach birth, and the log lines on the long Orbit', () => {
     fly(0, 3);
-    expect(calls.filter((c) => c.k === 'knot').length).toBe(6);
+    expect(calls.filter((c) => c.k === 'knot').length).toBe(6 + 13);
     expect(calls.filter((c) => c.k === 'eyeT' || c.k === 'crawler' || c.k === 'womb').length).toBe(10);
     expect(calls.some((c) => c.k === 'hatch' && c.a[1] === 'top')).toBe(true);
     const logs = calls.filter((c) => c.k === 'logLine').map((c) => c.a[0]);

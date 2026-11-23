@@ -1,36 +1,36 @@
 {
   "frames": 1200,
-  "commit": "68d2835",
+  "commit": "128cbac",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "breath2",
   "q": "stage=ice&x=3336&kit=mid&seed=7",
   "st": {
     "state": "play",
-    "score": 305,
-    "scroll": 10343,
+    "score": 520,
+    "scroll": 10643,
     "lives": 0,
     "px": 50,
-    "py": 100.918,
-    "en": 3,
-    "gibs": 54,
-    "drops": 26,
-    "caps": 3,
+    "py": 70.772,
+    "en": 2,
+    "gibs": 49,
+    "drops": 271,
+    "caps": 5,
     "jump": true,
     "stage": 1,
     "pair": "choir+cyst",
     "loop": 0,
-    "pow": 0,
-    "rank": 0,
+    "pow": 0.032,
+    "rank": 0.032,
     "lvl": 6,
-    "kills": 3,
-    "t": 1170,
+    "kills": 5,
+    "t": 1180,
     "seen": "mini:cyst",
-    "sig": "0f30dcfc97"
+    "sig": "f1e0a9a660"
   },
   "hashes": [
-    "8283d30c8f",
-    "f3204f6bfe"
+    "0f8cfd9c7a",
+    "6f9b99dc45"
   ],
   "errs": []
 }

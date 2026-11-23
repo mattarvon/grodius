@@ -30,7 +30,7 @@ import { MOVE, MOVES, bandClamp, gimmick, hazInterval, moveAt, narrowNear, snapV
 import { BOSS_SIM, bossFor } from './enemies/boss/registry';
 import { hazAimed, hazLeadX } from './notice';
 import { ECON, econId, noticeOf } from './economy';
-import { FURNACE, GRILL, GULLET, ICICLE, INSET_MID, MORGUE, SPACE, SWALLOW, TIDE, envelope, grillCols, hazRankMul, insetOf, morgueLane, planSig, setSigWindows, tideLen } from './sigs';
+import { FURNACE, GRILL, GULLET, ICICLE, INSET_MID, MORGUE, SPACE, SWALLOW, TIDE, SPUR, WEAVE, envelope, grillCols, hazRankMul, insetOf, morgueLane, planSig, setSigWindows, tideLen, weaveAt, weaveHold, weaveLoss } from './sigs';
 import { srr } from './srnd';
 import { rho } from './rank';
 import { HAZ_HOOK } from './boss/bossrules'; // the boss hazard drop (W4b)
@@ -208,7 +208,7 @@ function gullet(g, x, b, ce, fl) {
  *  beat (long4) blends movement A (shape) into movement C (arena) over arenaBlend px from the run-up's scroll x, so
  *  the whole screen is arena by the time the run-up starts; a lerp of a >=108 and a >=150 gap stays >=108. Variant mv
  *  (a layout with moveB) blends movement B (src/terrainb.ts) in and out over its band, by the same argument */
-function rewriteTerrain(seg, b, from, mv = null, mids = null) {
+function rewriteTerrain(seg, b, from, mv = null, mids = null, sp = null) {
   const o = ($.G.loop + 1) * 37.1 + seg * 11, LY = layout(), [T_END0, T_END1] = LY.tEnd;
   const xC = LY.beats.runup != null ? beatPlan(slotRow(seg), from, false).runup : null, xC1 = xC != null ? xC + LY.beats.arenaBlend : 0;
   const M = mv != null ? beatPlan(slotRow(seg), from, false).moveB : null, SB = slotBoss(seg); // SB: a registered boss owns its arena (movement C)
@@ -231,14 +231,17 @@ function rewriteTerrain(seg, b, from, mv = null, mids = null) {
     FLOOR[i] = lerp(FLOOR[i], fl, w);
     CEIL[i] = lerp(CEIL[i], ce, w);
   };
-  if (!ins0 || i1 < i0) { for (let i = i0; i <= i1; i++) { const [ce, fl] = edges(i); write(i, ce, fl); } return; } // short: the arithmetic it was
+  if (!L4 || i1 < i0) { for (let i = i0; i <= i1; i++) { const [ce, fl] = edges(i); write(i, ce, fl); } return; } // short: the arithmetic it was
   // long4 inset, in two passes. A wall coming in next to a needle (a fire spire, an ice tooth) narrows the swept 21 px
   // fit gap there, not just its own column, so each column's inset is capped by the narrowest un-inset swept fit within
   // INSET_FIT.reach px: fit after >= fit before - 2 x inset >= INSET_FIT.keep wherever the walls left room (route-probe
   // S1 holds by construction), and nothing moves where they did not. The arena (movement C) is built from the un-inset walls
   const n = i1 - i0 + 1, C0 = new Float32Array(n), F0 = new Float32Array(n), fit = new Float32Array(n), R = INSET_FIT.reach / TS | 0;
   for (let i = i0; i <= i1; i++) { const [ce, fl] = edges(i); C0[i - i0] = ce; F0[i - i0] = fl; }
-  for (let j = 0; j < n; j++) { let c = -1e9, f = 1e9; for (let q = Math.max(0, j - 3); q <= Math.min(n - 1, j + 3); q++) { c = Math.max(c, C0[q]); f = Math.min(f, F0[q]); } fit[j] = f - c; } // the swept span [-9, +12] px, a column either side
+  const sweep = () => { for (let j = 0; j < n; j++) { let c = -1e9, f = 1e9; for (let q = Math.max(0, j - 3); q <= Math.min(n - 1, j + 3); q++) { c = Math.max(c, C0[q]); f = Math.min(f, F0[q]); } fit[j] = f - c; } }; // the swept span [-9, +12] px, a column either side
+  sweep();
+  const mask = flowMask(seg, from, mids, sp, gul, xC, i0, n, mv ? M : null); // where the weave and the spurs may run (sigs.ts WEAVE, SPUR)
+  if (weave(seg, o, i0, n, C0, F0, fit, R, mask)) sweep(); // the lane weave, before the inset reads the fit
   const ins = new Float32Array(n); // the capped inset per column
   for (let j = 0; j < n; j++) {
     let m = 1e9; for (let q = Math.max(0, j - R); q <= Math.min(n - 1, j + R); q++) m = Math.min(m, fit[q]);
@@ -249,7 +252,78 @@ function rewriteTerrain(seg, b, from, mv = null, mids = null) {
   // lowering it (a smaller inset never narrows the fit), so it adds no tile-to-tile cliff (terrainb.test.ts)
   for (let j = 1; j < n; j++) ins[j] = Math.min(ins[j], ins[j - 1] + INSET_FIT.slope);
   for (let j = n - 2; j >= 0; j--) ins[j] = Math.min(ins[j], ins[j + 1] + INSET_FIT.slope);
-  for (let j = 0; j < n; j++) write(i0 + j, C0[j] + ins[j], F0[j] - ins[j]);
+  for (let j = 0; j < n; j++) { C0[j] += ins[j]; F0[j] -= ins[j]; }
+  spurs(seg, o, from, i0, n, C0, F0, mask); // the staggered spurs, on the inset walls (their tips are fitted to those)
+  for (let j = 0; j < n; j++) write(i0 + j, C0[j], F0[j]);
+}
+/** 0..1 per column i0..: where the flown corridor may weave and grow spurs (sigs.ts WEAVE, SPUR): faded out (WEAVE.fade
+ *  px) over the signature windows (sp), the gullet, a held midboss's screen and the run-up (xC, movement C) */
+function flowMask(seg, from, mids, sp, gul, xC, i0, n, mb = null) {
+  const near = midNear(seg, from, mids), fd = WEAVE.fade, ws = sp ? sp.vars : [], m = new Float32Array(n);
+  const band = (x, a, z) => sstep(a - fd, a, x) * (1 - sstep(z, z + fd, x));
+  for (let j = 0; j < n; j++) {
+    const x = (i0 + j) * TS;
+    let k = 1;
+    if (near) k *= 1 - near(x);
+    for (const V of ws) k *= 1 - band(x, V.x0, V.x1);
+    if (gul) k *= 1 - band(x, gul.x0, gul.x1);
+    if (mb) k *= 1 - band(x, mb.a, mb.z); // a remix movement B1 (Descent 2+): its own shapes, fitted un-woven
+    if (xC != null) k *= 1 - sstep(xC - fd, xC, x);
+    m[j] = k;
+  }
+  return m;
+}
+/** the LANE WEAVE (sigs.ts WEAVE, L3): shift both walls of columns i0.. (C0 / F0, un-inset) by the slot's weave, inside
+ *  the flow mask, scaled down where the un-woven swept fit (fit, read within R columns) has no room for the sweep loss.
+ *  The scale moves at most WEAVE.ease a px (lowered only), so a fade adds no cliff. Returns whether anything moved */
+function weave(seg, o, i0, n, C0, F0, fit, R, mask) {
+  const Wv = WEAVE, loss = weaveLoss(seg), m = new Float32Array(n);
+  for (let j = 0; j < n; j++) {
+    let f = 1e9; for (let q = Math.max(0, j - R); q <= Math.min(n - 1, j + R); q++) f = Math.min(f, fit[q]);
+    m[j] = mask[j] * Math.max(0, Math.min(1, (f - Wv.keep) / loss));
+  }
+  const e = Wv.ease * TS;
+  for (let j = 1; j < n; j++) m[j] = Math.min(m[j], m[j - 1] + e);
+  for (let j = n - 2; j >= 0; j--) m[j] = Math.min(m[j], m[j + 1] + e);
+  let any = false;
+  for (let j = 0; j < n; j++) { if (m[j] <= 0) continue; const d = m[j] * weaveAt((i0 + j) * TS, o, seg); C0[j] += d; F0[j] += d; any = true; }
+  return any;
+}
+/** the STAGGERED SPURS (sigs.ts SPUR, L3): every SPUR pitch px a spur off one wall, then the other, its tip stopping
+ *  `gap` px short of the lowest (highest) opposite wall within the spur's span + 12 px (the swept fit there is >= gap by
+ *  construction: S1), at most `depth` deep, its depth eased across its width and scaled by the flow mask at its centre.
+ *  On the final (inset, woven) walls C / F, before the arena blend and the gate blend */
+function spurs(seg, o, from, i0, n, C, F, mask) {
+  const S = SPUR.slot[seg ? 1 : 0], w = Math.round(S.w / TS), H = weaveHold(o, seg), half = H.P / 2, sw = 3, list = (SPURS[seg] = []);
+  const x0 = i0 * TS, x1 = (i0 + n - 1) * TS;
+  // phase-locked to the weave (level-designer review): spur c is centred on a weave hold, a ceiling spur on the +amp
+  // (corridor low) hold and a floor spur on the -amp one, so the open bands under two spurs in a row overlap by only
+  // ~216 - corridor - 4 amp px (A ~7, B ~14): a ship holding the middle is moved too
+  for (let c = Math.ceil((x0 - H.x) / half); H.x + c * half + S.w < x1; c++) {
+    const cx = H.x + c * half, a = Math.round((cx - S.w / 2) / TS) - i0, z = a + w, mid = (a + z) >> 1;
+    if (a - sw < 0 || z + sw >= n) continue;
+    // depth eases in over the stage's opening (game-designer review): half depth at the gate, full SPUR.ramp px on
+    const k = mask[mid] * (.5 + .5 * sstep(from + 320, from + 320 + SPUR.ramp, cx)); if (k <= .02) continue;
+    const top = (c & 1) === 0;
+    let opp = top ? 1e9 : -1e9, wall = top ? -1e9 : 1e9;
+    for (let q = a - sw; q <= z + sw; q++) { if (top) { opp = Math.min(opp, F[q]); wall = Math.max(wall, C[q]); } else { opp = Math.max(opp, C[q]); wall = Math.min(wall, F[q]); } }
+    const tip = top ? Math.min(wall + S.depth, opp - S.gap) : Math.max(wall - S.depth, opp + S.gap);
+    if (top ? tip <= wall : tip >= wall) continue;
+    for (let q = a; q <= z; q++) {
+      const u = (q - a) / w, e = k * Math.sin(Math.PI * u) ** S.pow;
+      if (top) C[q] = Math.max(C[q], lerp(C[q], tip, e)); else F[q] = Math.min(F[q], lerp(F[q], tip, e));
+    }
+    list.push((i0 + a) * TS, (i0 + z) * TS);
+  }
+}
+/** the spurs built this descent, by slot: flat [x0, x1, x0, x1, ...] in world x (spawnHazard keeps hazards off them) */
+const SPURS = [];
+/** screen x moved off any spur's span (+8 px), to its nearer side: a hazard born on a spur tip would start 50-80 px
+ *  nearer the lane than its tell reads (level-designer review). Pure of the sim RNG */
+function offSpur(x, sc) {
+  const wx = x + sc;
+  for (const L of SPURS) if (L) for (let j = 0; j < L.length; j += 2) if (wx > L[j] - 8 && wx < L[j + 1] + 8) return (wx - L[j] < L[j + 1] - wx ? L[j] - 8 : L[j + 1] + 8) - sc;
+  return x;
 }
 /** the inset's swept-fit guard (route-probe S1 is 100): keep >= `keep` px, reading the un-inset fit within `reach` px */
 const INSET_FIT = { keep: 108, reach: 24, slope: 1 };
@@ -503,7 +577,7 @@ export function biomeStage(seg, from) {
   // the picks come first now (the inset reads which midboss breaths are held): midStream(i) is independent of the
   // terrain and of stageStream(i), so the order doesn't move either
   const mids = layout().picker ? stageMids(i, b, seg) : null, sp = sigPlanOf(seg, b, from, v, pk && pk.mv, mids);
-  rewriteTerrain(seg, b, from, pk && pk.mv, mids);
+  rewriteTerrain(seg, b, from, pk && pk.mv, mids, sp);
   insertScript(biomeScript(seg, b, from, v, stageStream(i), mids, pk && pk.sp, !!sp));
   armSigs(seg, b, sp);
 }
@@ -598,7 +672,7 @@ function gateYs() {
 // ---------------- hazards + ambience ----------------
 const haz = [], amb = [];
 export function biomeReset() {
-  haz.length = amb.length = MOVES.length = 0;
+  haz.length = amb.length = MOVES.length = SPURS.length = 0;
   sigClear(null);
   applyPalette(null);
   if ($.G) { $.G.bx = Array(nSlots() + 1).fill(null); $.G.hazT = 90; $.G.hazHit = 0; $.G.hazN = 0; $.G.mb = {}; $.G.mbUsed = []; $.G.picks = {}; $.G.sigW = {}; } // a new descent forgets what it met (spec §6.3 step 2); G.mbLast and G.spUsed are kept
@@ -626,6 +700,7 @@ export function spawnHazard(b) {
   // the Chimney (movement B1): jets come down its vents. A vent past the right edge would burn its telegraph off-screen
   let vent = false;
   if (b === 'jet') ({ x, vent } = snapVent(x, G.scroll, W)); // src/terrainb.ts; never on short (no bands)
+  if (!vent && isL4()) x = offSpur(x, G.scroll); // W6: never on a spur (long4 only: short has none)
   if (!aim && P && Math.abs(x - P.x) < nearX) return;
   const wx = x + G.scroll, c = ceilAt(wx), f = floorAt(wx);
   let h = null;

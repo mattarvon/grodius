@@ -2,6 +2,7 @@
 import { $ } from './state';
 import { H, PH, TS, W, hash, lerp, sstep, vnoise } from './core';
 import { BANDS, layout } from './layout';
+import { laneLoss, laneWeave } from './sigs';
 
 // ---------------- world state ----------------
 $.state = 'title';
@@ -66,12 +67,14 @@ export function buildTerrain(L) {
       cT = sstep(T.cT[0], T.cT[1], x) * (1 - sstep(T.cT[2], T.cT[3], x));
     const kT = sstep(T.kT[0], T.kT[1], x) * (1 - sstep(T.kT[2], T.kT[3], x)),
       zT = sstep(T.zT[0], T.zT[1], x);
-    const a = vnoise(x / 210 + o) * 2 - 1,
-      b = vnoise(x / 61 + o + 5) * 2 - 1,
-      c = vnoise(x / 19 + o + 9) * 2 - 1;
-    const a2 = vnoise(x / 190 + o + 40) * 2 - 1,
-      b2 = vnoise(x / 57 + o + 45) * 2 - 1,
-      c2 = vnoise(x / 23 + o + 49) * 2 - 1;
+    // long4 nShift (W6): the Drive approach reads its wall noise where it read it before the Orbit stretch moved it (see layout)
+    const nx = T.nShift && x >= T.nShift.x ? x - T.nShift.d : x;
+    const a = vnoise(nx / 210 + o) * 2 - 1,
+      b = vnoise(nx / 61 + o + 5) * 2 - 1,
+      c = vnoise(nx / 19 + o + 9) * 2 - 1;
+    const a2 = vnoise(nx / 190 + o + 40) * 2 - 1,
+      b2 = vnoise(nx / 57 + o + 45) * 2 - 1,
+      c2 = vnoise(nx / 23 + o + 49) * 2 - 1;
     let fl = PH - 30 - a * 24 - b * 8 - c * 2 - kT * (kF + a * 12);
     let ce = 24 + a2 * 20 + b2 * 8 + c2 * 2 + kT * (kC + a2 * 10);
     // long4's Orbit hull and breach (layout hT / oT, LVL §3.1). Absent on short, whose arithmetic stays as it was
@@ -87,7 +90,7 @@ export function buildTerrain(L) {
     // no hull block under the breach flap (oT > 0): a block step (34 px, or hRun's 48) on the flap's squeeze would cut the swept fit
     // gap under S1's 100 (short has no oT: unchanged)
     const hr = T.hRun && x > T.hRun.x0 && x < T.hRun.x1 && oT < .01 && fT > .99; // long4's dense hull run (layout hRun)
-    if (hr && bx < 44) fl -= T.hRun.h;
+    if (hr && x % (T.hRun.every || 360) < 44) fl -= T.hRun.h; // every: the run's cell (360 when absent)
     else if (blk % 2 === 1 && bx < 44 && x > T.blocks[0] && x < T.blocks[1] && oT < .01) {
       // long4's Orbit hull run has no ceiling (cT = oT = 0), where a ceiling block would vanish under the -70 lerp: every
       // block there sits on the floor, so the run keeps its blocks (hRun's dense cells come first, above). short: unchanged
@@ -106,6 +109,43 @@ export function buildTerrain(L) {
     FLOOR[i] = fl;
     CEIL[i] = ce;
   }
+  // long4 only (short has neither field: its arrays are the arithmetic above, T1)
+  if (T.weave) for (const V of T.weave) weaveBands(V, o);
+  if (T.pylons) for (const px of T.pylons.x) pylon(px, T.pylons);
+}
+/** the swept fit at column i (sigs.ts S1's 21 px footprint: a column and 3 either side), floor clamped to the screen */
+const fitCol = (i) => {
+  let c = -1e9, f = 1e9;
+  for (let q = Math.max(0, i - 3); q <= Math.min(FLOOR.length - 1, i + 3); q++) { c = Math.max(c, CEIL[q]); f = Math.min(f, FLOOR[q], PH); }
+  return f - Math.max(c, 0);
+};
+/** long4's lane weave over world bands (layout terrain.weave, sigs.ts laneWeave; W6 tune, L3): both walls shift together
+ *  (the gap is kept), scaled to 0 where the swept fit has no room for the sweep loss (S1 >= 100), that scale eased at
+ *  `ease` a px so a fade adds no cliff. Phase from the terrain offset (no RNG) */
+function weaveBands(V, o) {
+  const n = FLOOR.length, m = new Float32Array(n), loss = laneLoss(V), R = 6, fit = new Float32Array(n);
+  for (let i = 0; i < n; i++) fit[i] = fitCol(i);
+  for (let i = 0; i < n; i++) {
+    const x = i * TS;
+    let k = 0; for (const b of V.bands) k = Math.max(k, band(b, x));
+    if (k <= 0) continue;
+    let f = 1e9; for (let q = Math.max(0, i - R); q <= Math.min(n - 1, i + R); q++) f = Math.min(f, fit[q]);
+    m[i] = k * Math.max(0, Math.min(1, (f - V.keep) / loss));
+  }
+  const e = V.ease * TS;
+  for (let i = 1; i < n; i++) m[i] = Math.min(m[i], m[i - 1] + e);
+  for (let i = n - 2; i >= 0; i--) m[i] = Math.min(m[i], m[i + 1] + e);
+  const ph = hash(o * .37 + 3);
+  for (let i = 0; i < n; i++) if (m[i] > 0) { const d = m[i] * laneWeave(i * TS, ph, V); FLOOR[i] += d; CEIL[i] += d; }
+}
+/** a hull girder hanging from above (layout terrain.pylons; W6 tune, L3): the Orbit hull run's only ceiling element, so a
+ *  ship riding high has to come down as one passes. Its tip stops `gap` px above the lowest floor within `reach` px
+ *  (floor clamped to the screen, so S1's swept fit keeps >= gap); the tip is cut `taper` px higher at its two edges */
+function pylon(px, Y) {
+  const i0 = Math.floor(px / TS), i1 = Math.ceil((px + Y.w) / TS), r = Math.ceil(Y.reach / TS);
+  let f = 1e9; for (let q = Math.max(0, i0 - r); q <= Math.min(FLOOR.length - 1, i1 + r); q++) f = Math.min(f, FLOOR[q], PH);
+  const tip = f - Y.gap;
+  for (let i = i0; i <= i1 && i < CEIL.length; i++) { const u = (i - i0) / Math.max(1, i1 - i0); CEIL[i] = Math.max(CEIL[i], tip - Y.taper * Math.abs(2 * u - 1)); }
 }
 
 // ---------------- textures ----------------
