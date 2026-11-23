@@ -201,7 +201,7 @@ const STRETCH = {
   /** Open Orbit: +2400 (D37, Matt). Sized for LS2-orbit's held slot B (the derelict tug, ~10 s of hold); until the tug
    *  ships out of ?mids=wip the Orbit runs short (~116-120 s, under the 120 s floor). Extra length lands in the climax
    *  filler (it ends ORBIT_RUNUP before the Maw's banner). Measured by pod-probe tally_s (~126-130 s with the tug).
-   *  rev 3 keeps +2400: the mortal pilot tallied the Orbit at 122-128 s (median 123; L6 band 125-140), but +150 here
+   *  rev 3 keeps +2400: the mortal pilot tallied the Orbit at 122-128 s on the W1 stack and 127-140 s on the full W0+W1+W3a+W3c stack (L6 band 125-140, at its low edge), and +150 here
    *  shifts every later anchor and the biome lane's blend tests (terrainb.test.ts) with it. The held slot B (LS2-orbit's
    *  tug, ~10 s) is what this stretch was sized for */
   orbit: 2400,
@@ -366,15 +366,16 @@ const LONG4: LayoutEntry = {
     // rewrite covers it; the Orbit's only ceiling is the breach flap (oT)
     fT: [3300, 3950, 14000 + S3, 14350 + S3], cT: [5580 + S0, 6030 + S0, 14000 + S3, 14350 + S3],
     kT: [7900 + S1, 8350 + S1, 13900 + S3, 14250 + S3], zT: [14050 + S3, 14450 + S3], blocks: [3950, 7850 + S1],
-    // the hull lift: the plating floor sits 36 px higher (mean floor y ~188, FH ~74%) from the hull's arrival. It falls
+    // the hull lift: the plating floor sits 36 px higher (mean floor y ~178 at lift 46, FH ~70%) from the hull's arrival. It falls
     // inside biome A's stretch (the slot-A rewrite owns that terrain from its gate), so neither the biomes nor the Drive
     // see it. D-5: kept under the Maw (fade over 6300-6550 only if the Maw's fit fails). space-probe L1
     // [FIT] lift 36 -> 46: LVL's 36 measured an x >= 3700 median FH of 77-79% (space-probe seeds 1/3/5, band <= 72)
     // the rise starts at 3300 (LVL 3500): over 650 px the 46 px lift keeps the climbing floor's slope <= .6 (S3)
     hT: [3300, 3950, 7850 + S1, 8350 + S1], lift: 46,
     // [FIT] the hull run's blocks: one every 360 px and 48 px tall (rev 2's every 720 px, 34 tall measured 0.4-1.3
-    // forced moves/min, band >= 4: L3). Never under the flap (world.ts), and off before the Maw's arena (D-5). L3 / M3
-    hRun: { x0: 3950, x1: 6450, h: 48 },
+    // forced moves/min, band >= 4: L3). Never under the flap (world.ts skips oT > 0), so in practice the 3960, 4320 and
+    // 4680 cells: the run ends where the flap starts coming down (level-designer delta review). L3 / M3
+    hRun: { x0: 3950, x1: 4900, h: 48 },
     // the breach (LVL §3.1): a ceiling flap comes down over 4900-5250 and goes back up over 5950-6420, `flap` px below
     // the base ceiling (mean ~52), over the lifted floor: FH median ~54% (136 px) for ~10 s at full, the column gap
     // clamped to 108 inside it (104 elsewhere), no hull block under it (world.ts). The ramps are 350 px, not LVL's 250,

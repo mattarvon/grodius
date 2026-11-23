@@ -98,8 +98,8 @@ describe('terrain: short is untouched, long4 gets the hull, the breach and the d
     // weave, so their columns are left out. Edges are read where they are on screen (0..254)
     it('keeps every forced lane change gentle: the on-screen floor and flap slope <= .6 over any 60 px (S3)', () => {
       // a block column (world.ts: odd 360 px cells, the first 44 px), with one 4 px sample of slack for the lerp
-      const blockAt = (x: number) => x % 360 < 48 && (Math.floor(x / 360) % 2 === 1 || (x > 3940 && x < 6460));
-      for (const x of xs(3400, 6400, 8)) {
+      const blockAt = (x: number) => x % 360 < 48 && (Math.floor(x / 360) % 2 === 1 || (x > 3940 && x < 4910));
+      for (const x of xs(3400, 6480, 8)) { // to the Maw banner: the flap's fall ends in the run-up
         if (blockAt(x) || blockAt(x + 60)) continue;
         const f0 = Math.min(PH, W.floorAt(x)), f1 = Math.min(PH, W.floorAt(x + 60));
         expect(Math.abs(f1 - f0) / 60, `floor x ${x}`).toBeLessThanOrEqual(.6);
