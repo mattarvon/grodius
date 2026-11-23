@@ -239,7 +239,7 @@ function rewriteTerrain(seg, b, from, mv = null, mids = null) {
   }
 }
 /** the inset's swept-fit guard (route-probe S1 is 100): keep >= `keep` px, reading the un-inset fit within `reach` px */
-const INSET_FIT = { keep: 104, reach: 24 };
+const INSET_FIT = { keep: 108, reach: 24 };
 /** the last biome stage (slot `slot`) cleared: the biome's look and hazards hand back to the ship (the Gravity Drive
  *  approach) from just off-screen. G.bx[slot + 1] is where that biome ends */
 export function biomeExit(slot) {

@@ -113,9 +113,12 @@ describe('movement B on long4', () => {
     const P = fly(0, 'ice', L.slotRow(0).gateLate!, 1), M = P.moveB!, E = MOVE.stair.every;
     expect(E).toBe(120); // spec §3.3
     expect(MOVE.stair.rise).toBeLessThanOrEqual(24); // a face a naked ship clears in under 20 f
+    // the gimmick's own floor (long4 also insets the walls, capped column by column by the swept fit, DIFFICULTY-SPEC
+    // §2.4, so the flown floor is the stair minus a varying inset): o is slot 0's terrain offset in Descent 1
+    const fl = (x: number) => gimmick('ice', 1, x, 37.1, 20, 236)[1];
     for (let x = Math.ceil((M.a + M.blend) / E) * E; x + E < M.z - M.blend; x += E) {
-      expect(world.FLOOR[(x + 8) / TS], `tread at ${x}`).toBeCloseTo(world.FLOOR[(x + E - 8) / TS], 3);
-      expect(Math.abs(world.FLOOR[(x + E + 8) / TS] - world.FLOOR[(x + 8) / TS])).toBeCloseTo(MOVE.stair.rise, 3);
+      expect(fl(x + 8), `tread at ${x}`).toBeCloseTo(fl(x + E - 8), 3);
+      expect(Math.abs(fl(x + E + 8) - fl(x + 8))).toBeCloseTo(MOVE.stair.rise, 3);
     }
   });
 
