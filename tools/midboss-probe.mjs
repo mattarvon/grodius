@@ -20,7 +20,8 @@
 //  TTK = seconds from the midboss being on screen to dead; "esc" = it left (escape timer) first
 // W5 (DIFFICULTY-SPEC §3.1, measure-only):
 //  Every TTK run also reports each fight's enemy bullets on screen (counted shots, probe-lib's predicate), max and p90
-//  over every loadout's fight, against the spec's set-piece / midboss cap (16 on Normal; B3: max <= cap, p90 <= .6 cap).
+//  over every loadout's fight, against the set-piece / midboss cap at the flown tier (rank.ts bulletCap; ?tier=2 in the
+//  URL flies Hard: 20. 16 on Normal; B3: max <= cap, p90 <= .6 cap).
 //  --kind <k>[,<k>...] flies only those kinds (maw, ufo, a roster key).
 //  --spots: the 8-spot park grid (probe-lib SPOTS; keepsake-probe's spot:X,Y generalised). Per kind and spot the ship
 //    never moves (clamped 10 px into the open band) and holds fire with --spot-kit (default STAGE 1 kit); would-be hits
@@ -96,7 +97,7 @@ const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && 
   if (k === 'maw') SP.maw(false); else if (k === 'ufo') { $.G.eat = LY.ufoGapEnd(); UF.spawnUfo(undefined, LEAVE); } else SP.midboss(k, BI.MID_NAMES[k], host, LEAVE); // its own name, wherever it fights
   // W5: window.__mbSpot = [x, y] parks the ship there (--spots) and counts would-be hits into m.spot; bh is the
   // fight's bullets-on-screen histogram (B3)
-  window.__mb = { $, ST, C, W, f: 0, t0: -1, bh: {}, spot: window.__PL.spotNew() };
+  window.__mb = { $, ST, C, W, f: 0, t0: -1, bh: {}, spot: window.__PL.spotNew(), cap: window.__PL.cap($.G, 'setp') }; // the flown tier's cap (rank.ts bulletCap)
   window.__mbStep = (n) => {
     const m = window.__mb, PL = window.__PL, sp = window.__mbSpot;
     for (let i = 0; i < n; i++) {
@@ -116,7 +117,7 @@ const prep = async (pw, gm, pkk, k, biome, host, at = 1000) => (SEED != null && 
   return ir != null ? ir : typeof $.G.rank === 'number' ? +$.G.rank.toFixed(2) : 'n/a';
 }, [pw, gm, pkk, k, biome, host, at, LEAVE, ORD, CENTRE]));
 if (MATRIX) await matrix();
-const out = {}, rank = {}, bul = {};
+const out = {}, rank = {}, bul = {}, caps = new Set();
 for (const [name, pw, gm, pkk] of L) {
   out[name] = {};
   for (const [k, biome] of MIDS) {
@@ -125,7 +126,7 @@ for (const [name, pw, gm, pkk] of L) {
     let r = null;
     for (let i = 0; i < 80 && r == null; i++) r = await p.evaluate(() => window.__mbStep(60));
     out[name][k] = r ?? '--';
-    const bh = await p.evaluate(() => window.__mb.bh); bul[k] ||= {}; for (const [n, c] of Object.entries(bh)) bul[k][n] = (bul[k][n] || 0) + c;
+    const [bh, cp] = await p.evaluate(() => [window.__mb.bh, window.__mb.cap]); caps.add(cp); bul[k] ||= {}; for (const [n, c] of Object.entries(bh)) bul[k][n] = (bul[k][n] || 0) + c;
   }
 }
 const LABEL = (k) => (k === 'maw' ? 'MAW(mid)' : (ROSTER.find((r) => r.k === k) || {}).label || k);
@@ -133,8 +134,8 @@ console.log(`leave clock: ${LEAVE} f (${(LEAVE / 60).toFixed(1)} s)` + (SEED != 
 console.log('rank per loadout:', JSON.stringify(rank));
 console.log('loadout'.padEnd(16), ...MIDS.map(([k]) => LABEL(k).padStart(13))); // labels run to 12
 for (const [n, r] of Object.entries(out)) console.log(n.padEnd(16), ...MIDS.map(([k]) => String(r[k]).padStart(13)));
-{ const cap = CAPS.setp[1];
-  console.log(`bullets on screen per fight (all loadouts' fights pooled; cap ${cap} = Normal set piece / midboss; B3: max <= ${cap}, p90 <= ${(.6 * cap).toFixed(1)}):`);
+{ const cap = Math.max(...caps), tier = await p.evaluate(() => window.__PL.tier(window.__mb.$.G));
+  console.log(`bullets on screen per fight (all loadouts' fights pooled; cap ${cap} = the set-piece / midboss cap at tier ${tier ?? 'n/a (Normal table)'}; B3: max <= ${cap}, p90 <= ${(.6 * cap).toFixed(1)}):`);
   for (const [k] of MIDS) { const h = bul[k] || {}, mx = hmax(h), p9 = hq(h, .9); console.log(`  ${LABEL(k).padEnd(13)} max ${String(mx).padStart(3)}  p90 ${String(p9).padStart(3)}  ${mx != null && mx <= cap && p9 <= .6 * cap ? 'PASS' : 'FAIL'}`); }
   console.log('BULLETS ' + JSON.stringify(Object.fromEntries(MIDS.map(([k]) => [k, { max: hmax(bul[k] || {}), p90: hq(bul[k] || {}, .9), cap }])))); }
 if (SPOTM) { // K1 / K2: the 8-spot park grid

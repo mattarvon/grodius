@@ -6,8 +6,8 @@
 //   shots=<dir>: a fly<stage> shot is taken once the scroll is past the stage row's x0 + 1000 (biome), + 200 (Drive) or
 //   1200 (Open Orbit) in src/layout.ts; on short that is 3300 / 6150 / 8500 (stage 2 was 6400 before LS1-J).
 // W5 (DIFFICULTY-SPEC §3 L5, levels.md S1 / S5; measure-only):
-//   `fit`: the swept fit gap (min floor - max ceil over the ship's 21 px footprint, wx - 9 .. wx + 12, SOLIDS as
-//   terrain; probe-lib fitAt), the minimum over the visible screen every 8 px each tick. Outside the src/sigs.ts
+//   `fit`: the swept fit gap (min floor - max ceil over the ship's 21 px footprint, wx - 9 .. wx + 12, SOLIDS of the
+//   W3a fit class SC.FIT as terrain: a mucus plug is a barrier you cut, not a 0 px gap; probe-lib fitAt), the minimum over the visible screen every 8 px each tick. Outside the src/sigs.ts
 //   windows it must be >= 100; inside a window >= that window's floor and never below 72. On a build without sigs.ts
 //   every column counts as outside. `minGap` (the old single-column gap) is still printed.
 //   hazBad also lists `body-on-ship:<k>` (a regular enemy first seen within 48 px of the ship) and
@@ -72,7 +72,8 @@ await p.addInitScript(([g0, g1, OPT]) => {
         const seenE = (window.__seenE ||= new WeakSet());
         for (const e of h.enemies) { if (seenE.has(e)) continue; seenE.add(e); if (!e.dead && PL.regular(e) && h.P.alive && Math.hypot(e.x - h.P.x, e.y - h.P.y) < 48) st.hazBad.push('body-on-ship:' + e.k); }
         const SO = PL.mods.SO, sl = SO && Array.isArray(SO.solids) ? SO.solids : null;
-        if (sl) { const seenS = (window.__seenS ||= new WeakSet()); for (const q of sl) { if (seenS.has(q)) continue; seenS.add(q); const cx = q.x - G.scroll + (q.w || 0) / 2, cy = q.y + (q.h || 0) / 2; if (h.P.alive && Math.hypot(cx - h.P.x, cy - h.P.y) < 48) st.hazBad.push('solid-on-ship'); } }
+        // S5 to the NEAREST POINT of the box (W3A-API: the engine's own spawn rule), not its centre
+        if (sl) { const seenS = (window.__seenS ||= new WeakSet()); for (const q of sl) { if (seenS.has(q)) continue; seenS.add(q); const bx = q.x - G.scroll, nx = Math.max(bx, Math.min(h.P.x, bx + (q.w || 0))), ny = Math.max(q.y, Math.min(h.P.y, q.y + (q.h || 0))); if (h.P.alive && Math.hypot(nx - h.P.x, ny - h.P.y) < 48) st.hazBad.push('solid-on-ship:' + (q.k || '?')); } }
       }
       // hazards
       for (const z of B.haz) if (!hz.has(z)) {

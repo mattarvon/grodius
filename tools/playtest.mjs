@@ -23,6 +23,9 @@
 //   is back-projected along the shot's velocity, so a curving glob's is approximate). `fired`: per shooter kind (drone eye cross crawler sentry slime mutant), how
 //   many were on screen and how many fired at least once, a shot attributed to the enemy nearest its spawn point
 //   (within 40 px of its body; a tight formation can credit a neighbour) (N1).
+//   Drones count only as their formation's designated shooter (probe-lib PL.designated: e.sh 1, or e.sh 2 at rank >= 14);
+//   other drones are listed as drone(not a shooter), and on a build with no e.sh as drone(undesignated), both left out
+//   of the N1 total. --tier N flies ?tier=N.
 //   `entries`: regular spawns by entry edge, one per formation (N4), and `near` the spawns inside the fairness
 //   distances (bodies within 48 px of the ship, shots spawned within 64 px). The last line, PLAYTEST {...}, holds all
 //   of it as JSON for cross-seed sums. --no-shots skips the screenshots.
@@ -32,6 +35,8 @@ import fs from 'node:fs';
 import { ROSTER } from '../src/enemies/mid/roster.ts'; // the midboss kinds, from the registry
 import { pageLib } from './probe-lib.mjs';
 const nsi = process.argv.indexOf('--no-shots'), NOSHOTS = nsi >= 0; if (NOSHOTS) process.argv.splice(nsi, 1);
+const tri = process.argv.indexOf('--tier'), TIER = tri >= 0 ? process.argv.splice(tri, 2)[1] : null; // ?tier=N (spec §2.1): N1 / N2 on Hard
+if (TIER != null && !/^[0-3]$/.test(TIER)) { console.error('--tier needs 0-3'); process.exit(2); }
 if (process.argv[2] === '--compare') { compare(process.argv.slice(3)); process.exit(0); }
 /** the cross-seed signature report over sig.json files */
 function compare(dirs) {
@@ -110,14 +115,14 @@ await p.addInitScript((seed) => {
       // enemy lifetimes: from first on screen to removal; killed if removed while still on screen
       const alive = new Set();
       for (const e of h.enemies) { alive.add(e);
-        if (!L.seen.has(e)) { L.seen.set(e, { k: e.k, f0: null, st, big: !!(e.big || e.mini || e.mid) });
+        if (!L.seen.has(e)) { L.seen.set(e, { k: e.k, f0: null, st, big: !!(e.big || e.mini || e.mid), rk: window.__PL ? window.__PL.rank() : null });
           const PL = window.__PL; if (PL && PL.mods.W && PL.regular(e)) { const nr = ((L.near ||= {})[st] ||= { bodies48: 0, bodyMin: null, shot64: 0, shotMin: null }), d = Math.hypot(e.x - P.x, e.y - P.y);
             if (d < 48) nr.bodies48++; if (nr.bodyMin == null || d < nr.bodyMin) nr.bodyMin = Math.round(d);
             if (PL.entrant(e) && (!e.group || !(L.gSeen ||= new WeakSet()).has(e.group))) { if (e.group) L.gSeen.add(e.group); const ed = PL.entryEdge(e, G), en = ((L.entries ||= {})[st] ||= {}); en[ed] = (en[ed] || 0) + 1; } } L.spawns.push({ f: L.fr, k: e.k, st, el: !!e.elite, sx: Math.round(G.scroll - (window.__x0 ? window.__x0(G.stage || 0) : 0)) }); }
         const r = L.seen.get(e); if (r.f0 == null && e.x < 480 && e.x > 0) r.f0 = L.fr; r.x = e.x; }
       if (window.__PL && window.__PL.mods.W) for (const t of window.__PL.tagShots(h, L.fr) || []) { const nr = ((L.near ||= {})[st] ||= { bodies48: 0, bodyMin: null, shot64: 0, shotMin: null }); if (t.sd < 64) nr.shot64++; if (nr.shotMin == null || t.sd < nr.shotMin) nr.shotMin = Math.round(t.sd); }
       for (const [e, r] of L.seen) if (!alive.has(e)) { L.seen.delete(e);
-        if (r.f0 != null && window.__PL && /^(drone|eye|cross|crawler|sentry|slime|mutant)$/.test(r.k)) { const fk = ((L.fired ||= {})[r.k] ||= [0, 0]); fk[0]++; if (window.__PL.fired.has(e)) fk[1]++; }
+        if (r.f0 != null && window.__PL && /^(drone|eye|cross|crawler|sentry|slime|mutant)$/.test(r.k)) { const ds = window.__PL.designated(e, r.rk), fk = ((L.fired ||= {})[r.k === 'drone' && !ds ? (ds === null ? 'drone(undesignated)' : 'drone(not a shooter)') : r.k] ||= [0, 0]); fk[0]++; if (window.__PL.fired.has(e)) fk[1]++; }
         if (r.f0 != null && !r.big) L.life.push({ k: r.k, st: r.st, s: (L.fr - r.f0) / 60, killed: r.x > -8 && r.x < 490, right: r.x > 360 }); }
       // would-be hits (ship hitbox ~4 px), at most one per 30 frames like real i-frames
       { const hh = hullHit(h, P); L.hullRise = hh && !L.prevHull ? hh : ''; L.prevHull = hh; } // terrain counts once per touch (qa-lead review)
@@ -130,6 +135,10 @@ await p.addInitScript((seed) => {
         if (src) { L.hits++; L.hitsBy[st] = (L.hitsBy[st] || 0) + 1; L.hitCD = 30; const b = (L.srcBy[st] ||= {}); b[src] = (b[src] || 0) + 1;
           if (sh) (L.shotHitBy ||= {})[st] = (L.shotHitBy[st] || 0) + 1; // a bullet, not a body (D58 probe fix)
           if ((G.mini && !G.mini.dead) || G.boss) (L.fightHitBy ||= {})[st] = (L.fightHitBy[st] || 0) + 1; } } // with a midboss or boss up
+      // recovery pods (W1 recoveryWave: the pod field c.rec, W0-CONTRACT), per stage: the statue never dies,
+      // so these are only the waves a scripted test spawns; pod-probe's recovery[] is gate E1's count
+      { const cs = (L.capSeen ||= new WeakSet()); for (const c of h.caps) if (!cs.has(c)) { cs.add(c); if (c.rec) { (L.recPods ||= {})[st] = (L.recPods[st] || 0) + 1; } }
+      }
       // enemy bullets fired per stage (each shot counted once, the frame it is first seen; read-only, no R())
       if (h.eshots) { const sn = (L.shotSeen ||= new WeakSet()); for (const s of h.eshots) if (!sn.has(s)) { sn.add(s); (L.shotsBy ||= {})[st] = (L.shotsBy[st] || 0) + 1; } }
       // bosses
@@ -137,7 +146,7 @@ await p.addInitScript((seed) => {
       for (const bo of L.bosses) if (bo.f1 == null && (bo.m.dead || (bo.m !== G.mini && bo.m !== G.boss))) { bo.f1 = L.fr; bo.killed = !!bo.m.dead || (bo.m.hp != null && bo.m.hp <= 0); }
       if ((G.hypeCD || 0) > L.lastHype) L.hype++; L.lastHype = G.hypeCD || 0; } };
 }, +SEED);
-await p.goto(url); await p.waitForFunction(() => window.__started);
+await p.goto(TIER != null ? url + (url.includes('?') ? '&' : '?') + 'tier=' + TIER : url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'playtest');
 await p.evaluate(() => window.__PL.load());
 await p.evaluate(async () => { window.__ES = (await import('/src/world.ts')).eshots; }); // the enemy shots the would-be hits read
@@ -189,7 +198,7 @@ for (let it = 0; it < MAXM * 60 * 2; it++) {
     await p.evaluate(async () => (await import('/src/menus.ts')).leaveShop()); await p.evaluate('__tick(60)'); continue; }
   if (s.st !== 'play' || s.loop >= +DESC) { end = JSON.stringify(s); break; }
 }
-const L = await p.evaluate(() => { const L = __pt; return { fightHitBy: L.fightHitBy || {}, fightFrBy: L.fightFrBy || {}, shotsBy: L.shotsBy || {}, shotHitBy: L.shotHitBy || {}, picks: L.picks || {}, fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, srcBy: L.srcBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r), split: L.split || {}, behind: L.behind || {}, fired: L.fired || {}, entries: L.entries || {}, near: L.near || {} }; });
+const L = await p.evaluate(() => { const L = __pt; return { fightHitBy: L.fightHitBy || {}, fightFrBy: L.fightFrBy || {}, shotsBy: L.shotsBy || {}, shotHitBy: L.shotHitBy || {}, picks: L.picks || {}, fr: L.fr, life: L.life, spawns: L.spawns, hits: L.hits, hitsBy: L.hitsBy, srcBy: L.srcBy, frBy: L.frBy, hype: L.hype, bosses: L.bosses.map(({ m, ...r }) => r), split: L.split || {}, behind: L.behind || {}, fired: L.fired || {}, entries: L.entries || {}, near: L.near || {}, recPods: L.recPods || {} }; });
 const q = (a, f) => { const s = [...a].sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(f * s.length))].toFixed(2) : null; };
 const prev = {}, prevB = {}, drn = { biome: [0, 0] };
 for (let i = 0; i < stages.length; i++) {
@@ -230,7 +239,8 @@ console.log(`\nwould-be hits: ${L.hits} in ${(L.fr / 3600).toFixed(1)} min (${(L
   const share = (o) => { const t = Object.values(o || {}).reduce((x, n) => x + n, 0); return t ? 1 - (o.bullet || 0) / t : null; };
   for (const S of stages) { const sp = L.split[S.k] || {}, t = Object.values(sp).reduce((x, n) => x + n, 0), fb = L.frBy[S.k] || 0, bh = L.behind[S.k];
     console.log(`W5 ${S.k}${S.biome ? ' [' + S.biome + ']' : ''}: hits ${t} (${fb ? (t / (fb / 3600)).toFixed(2) : '-'}/min) split ${JSON.stringify(sp)} non-bullet ${t ? Math.round(100 * share(sp)) + '%' : '-'} | bullet hits from behind ${bh ? bh[1] + '/' + bh[0] : '-'} | entries ${JSON.stringify(L.entries[S.k] || {})} | near ${JSON.stringify(L.near[S.k] || {})}`); }
-  const fd = Object.values(L.fired).reduce((a, [n, f]) => [a[0] + n, a[1] + f], [0, 0]);
+  const fd = Object.entries(L.fired).filter(([k]) => !k.startsWith('drone(')).reduce((a, [, [n, f]]) => [a[0] + n, a[1] + f], [0, 0]); // N1 counts designated drones only
+  if (L.fired['drone(undesignated)'] && !L.fired.drone) console.log('W5 N1: no drone carries e.sh (pre-W1 build): drones are left out, so the share below is not the N1 gate');
   console.log(`W5 shooters that fired at least once: ${fd[1]}/${fd[0]} (${fd[0] ? Math.round(100 * fd[1] / fd[0]) : '-'}%) by kind ${Object.entries(L.fired).map(([k, [n, f]]) => `${k} ${f}/${n}`).join(', ')}`);
-  console.log('PLAYTEST ' + JSON.stringify({ seed: +SEED, frBy: L.frBy, split: L.split, behind: L.behind, fired: L.fired, entries: L.entries, near: L.near, hitsBy: L.hitsBy })); }
+  console.log('PLAYTEST ' + JSON.stringify({ seed: +SEED, frBy: L.frBy, split: L.split, behind: L.behind, fired: L.fired, entries: L.entries, near: L.near, recPods: L.recPods, hitsBy: L.hitsBy })); }
 ranOn('playtest'); await b.close();

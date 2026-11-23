@@ -1,6 +1,6 @@
 // Seeded pacing probe: progression.mjs bot + pick/fork/shop handling, seeded RNG,
 // per-frame pod-pickup timestamps, per-stage pods/min, bio per descent.
-// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout long4|short] [--mortal] [--pilot | --park] [--hull N] [--kit mid|full] [--brutal 0-3 | --tier 0-3] [--drift] [--rig full]
+// Usage: node tools/pod-probe.mjs <url> <seed> [minutes=12] [endLoop=1] [--layout long4|short] [--mortal] [--pilot | --park] [--hull N] [--kit mid|full|end] [--brutal 0-3 | --tier 0-3] [--drift] [--rig full]
 // --pilot: steer with the dodging autopilot (tools/pilot.mjs) instead of the plain target-seeker; use it with --mortal
 // (the plain bot game-overs in long4's first biome). Its frames with no safe move are reported as `pilot.trapped`.
 // --mortal: the bot is not kept invincible, so it takes real hits, loses ships and can game over (the run then ends
@@ -36,7 +36,8 @@
 // --rig full: the profile owns every contraption, has every socket, and bolts the three heaviest (POWER.rig) at level 3.
 // `bullets`: enemy bullets per frame by cap context (spec §2.1: scroll, setp = a midboss / the Orbit Maw / G.setp, boss
 //   = the Drive or a stage boss), overall and per stage|context: `cap` (the spec cap at the flown tier, Normal when the
-//   build has no tier), `overCap` frames whose counted shots (every eshot but haz ones) exceed it and the worst count,
+//   build has no tier), `overCap` frames whose counted shots (every eshot but haz ones) exceed it and the worst count
+//   (shots still in flight when the context drops to a lower cap are carried and not counted: `carriedFrames`),
 //   on-screen p50 / p90 / max and the share of frames above 5 (B2), the fastest shot and the frames' shots over V_CAP,
 //   and the shot speed / ship speed ratio p50 / p90 (S1). `bulletHist` keeps the raw histograms for cross-seed sums.
 //   `rankTrace`: [frame, stage, rank] every frame src/rank.ts rank($) changes (null on a build without rank.ts);
@@ -70,7 +71,10 @@ const [url, SEED = '1', MIN = '12', END = '1'] = process.argv.slice(2);
 // --kit bare|mid|full: the first life starts with src/jump.ts KITS[kit].p fitted (guns only; lives and level are the
 // run's own). A death strips it as usual. With --park it asks Matt's question: once powered, can you just sit and fire?
 // restated from src/jump.ts KITS (its extensionless imports don't load in Node); keep in step
-const KITS = { bare: { p: {} }, mid: { p: { speed: 2, double: 1, missile: 1, options: 1 } }, full: { p: { speed: 4, laser: 1, missile: 2, pyre: 1, options: 3, wardLv: 2, shield: 3 } } };
+// end: the END D1 kit of boss-probe / dps-probe (spec R1), grafts and perks included: gm.cal 1 is what lifts its rank to
+// 16 on Drive entry (a SPLIT kit without it reads 15, W0-CONTRACT)
+const KITS = { bare: { p: {} }, mid: { p: { speed: 2, double: 1, missile: 1, options: 1 } }, full: { p: { speed: 4, laser: 1, missile: 2, pyre: 1, options: 3, wardLv: 2, shield: 3 } },
+  end: { p: { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2, shield: 3 }, gm: { cal: 1, rapid: 1 }, pk: { dmg: 2, rof: 1, crit: 2 } } };
 const KITP = KIT ? KITS[KIT] : null; if (KIT && !KITP) { console.error(`unknown kit ${KIT}`); process.exit(2); }
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
@@ -93,12 +97,13 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
     if (W_) { for (const q of W_.eshots) { const d = (q.x - P.x) ** 2 + (q.y - P.y) ** 2; if (d < 26 * 26) put('shot:' + (q.k || 'orb'), d, q); }
       const wx = P.x + G.scroll; if (P.y + 6 >= W_.floorAt(wx) || P.y - 6 <= W_.ceilAt(wx)) put('terrain', 0);
       else if (PL && PL.solids(wx).some(([a, b]) => P.y + 6 >= a && P.y - 6 <= b)) put('solid', 0); }
+    if (PL && PL.blocks().some((b) => Math.abs(P.x - b.cx) < b.hw + 14 && Math.abs(P.y - b.cy) < b.hh + 10)) put('haz:block', 1); // a flying ice block (proximity fallback)
     for (const e of g.enemies) if (!e.dead) { const d = (e.x - P.x) ** 2 + (e.y - P.y) ** 2, r = (e.r || 8) + 14; if (d < r * r) put('body:' + e.k, d + 1); }
     const bi = globalThis.__biome && globalThis.__biome(); if (bi && bi.haz) for (const h of bi.haz) if (Math.abs(h.x - P.x) < 12) put('haz:' + h.k + (h.aim ? '(aimed)' : ''), 2);
     const ctx = G.boss && !G.boss.dying ? 'drive' : G.mini && !G.mini.dead ? (G.mini.mid ? 'mid:' : 'boss:') + G.mini.k : '';
     return { c: best ? (PL && PL.mods.W ? '~' : '') + best : 'other', ctx, shot }; };
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const g = window.__G && window.__G(); let before = null, beforeE = null;
-      if (g && g.P && g.state === 'play') { if (window.__lives0 == null) { if (hull) g.G.lives = Math.max(g.G.lives, 2 + hull); if (kit) Object.assign(g.P, kit.p); window.__lives0 = g.G.lives; } if (!mortal) { g.P.inv = 30; g.P.alive = true; } const G = g.G; let tx, ty;
+      if (g && g.P && g.state === 'play') { if (window.__lives0 == null) { if (kit) { Object.assign(g.P, kit.p); if (kit.gm) g.G.gm = { ...(g.G.gm || {}), ...kit.gm }; if (kit.pk) g.G.pk = { ...(g.G.pk || {}), ...kit.pk }; } window.__lives0 = g.G.lives; } if (!mortal) { g.P.inv = 30; g.P.alive = true; } const G = g.G; let tx, ty;
         if (G.fork && G.fork.t > 45) { tx = 480 * .74; ty = (window.__gi ?? 0) % 2 ? 254 * .72 : 254 * .28; }
         else { const c = g.caps.filter((c) => c.x > 0 && c.x < 470).sort((a, b) => a.x - b.x)[0];
           const t = c || g.enemies.filter((e) => !e.dead && e.x > g.P.x + 20 && e.x < 480 && (e.hp || 1) > 0).sort((a, b) => (a.k === 'heart' || a.k === 'nailbar' ? -1 : 0) || Math.abs(a.y - g.P.y) - Math.abs(b.y - g.P.y))[0];
@@ -132,7 +137,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
           { const r = PL.rank(); if (r !== X.lastRank) { X.rank.push([window.__fr, st, r]); X.lastRank = r; } if (st !== X.lastStage) { X.rankAt[st] = r; X.lastStage = st; }
             if (h.G.boss && !X.bossSeen) { X.bossSeen = true; X.rankDrive = r; } if (!h.G.boss) X.bossSeen = false; } }
         if (P) { // respawns and restarts after a death: a new P object (resetPlayer); a restart also rewinds the scroll
-          if (X.lastP && P !== X.lastP && P.alive && window.__deaths.some((d) => d.rsp == null)) { const restart = h.G.scroll < X.lastSc - 4; X.rsp.push({ f: window.__fr, st, restart, n: 0, rec: 0, got: 0, caps: new WeakSet(h.caps) }); X.invEnd = null; // caps already out are not recovery pods (qa-lead review)
+          if (X.lastP && P !== X.lastP && P.alive && window.__deaths.some((d) => d.rsp == null)) { const restart = h.G.scroll < X.lastSc - 4; X.rsp.push({ f: window.__fr, st, restart, n: 0, rec: 0, got: 0, caps: new WeakSet(h.caps), recSeen: new WeakSet(h.caps) }); X.invEnd = null; // caps already out are not recovery pods (qa-lead review)
             if (window.__W) for (const q of window.__W.eshots) X.rspShots.add(q);
             for (const d of window.__deaths) if (d.rsp == null) { d.rsp = X.rsp.length - 1; d.restart = restart; } }
           if (X.invEnd == null && X.rsp.length && P.alive && P.inv <= 0) X.invEnd = window.__fr;
@@ -142,7 +147,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
             if (d.rebuild_s.k0 == null && isK0(sl)) d.rebuild_s.k0 = +((window.__fr - r0) / 60).toFixed(1);
             if (d.rebuild_s.kit == null && has(sl, d.kit)) d.rebuild_s.kit = +((window.__fr - r0) / 60).toFixed(1); }
           const r = X.rsp[X.rsp.length - 1];
-          if (r && window.__fr - r.f <= 600) for (const c of h.caps) if (!r.caps.has(c)) { r.caps.add(c); r.n++; if (c.rec) r.rec++; } } }
+          if (r && window.__fr - r.f <= 600) for (const c of h.caps) if (!r.caps.has(c)) { r.caps.add(c); r.n++; } } }
       if (before && h && h.P) { const seen = new Set(h.caps); let chosen = false;
         // where each new cap came from, read off what died this frame (measure-only; see the header's `src`)
         const had = new Set(before), nowE = new Set(h.enemies), gone = beforeE.filter((e) => e.dead || !nowE.has(e));
@@ -151,6 +156,8 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
           : gone.some(rec) ? 'rec' : gone.some(open) ? 'fixed:open'
           : gone.some((e) => e.mid || e.k === 'maw') ? 'fixed:mid' : gone.some((e) => e.group && e.group.pod) ? 'fixed:release' : gone.some((e) => e.cap) ? 'carrier'
           : gone.some((e) => e.group) ? 'formation' : h.G.mini && h.G.mini.k === 'ufo' && !h.G.mini.dead ? 'fixed:saucer' : 'unknown');
+        // E1: a recovery pod (spawn.ts recoveryWave: c.rec on the pod, or dropped by a rec carrier) inside a respawn's 10 s
+        { const r = X.rsp[X.rsp.length - 1]; if (r && window.__fr - r.f <= 600) for (const c of h.caps) if (window.__capSrc.get(c) === 'rec' && !r.recSeen.has(c)) { r.recSeen.add(c); r.rec++; } }
         for (const c of before) if (!seen.has(c) && c.x >= -12 && (c.x - h.P.x) ** 2 + (c.y - h.P.y) ** 2 < 20 * 20) {
           const kind = c.graft ? 'graft' : c.blue ? 'blue' : c.choice ? 'choice' : c.salv ? 'salv' : 'pod';
           if (kind === 'choice') { if (chosen) continue; chosen = true; }
@@ -159,7 +166,10 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
 const qs = [TIER != null ? 'tier=' + TIER : '', BRU != null ? 'brutal=' + BRU : ''].filter(Boolean).join('&');
 await p.goto(qs ? url + (url.includes('?') ? '&' : '?') + qs : url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'pod-probe', { quiet: true }); // stdout stays one JSON object; it carries the layout
-if (HULL) await p.evaluate(async (h) => { (await import('/src/state.ts')).$.meta.lv.hull = h; }, HULL); // --hull N: REINFORCED HULL bought N times (a played profile's extra ships)
+// --hull N: REINFORCED HULL bought N times on the profile. The ships are the game's own: the probe used to force
+// lives to 2 + N, but W2 gives every profile 3 ships in Descent 1 (HULL's ship arrives at the Descent 2 gate), so
+// `lives0` is read from the run, never set
+if (HULL) await p.evaluate(async (h) => { (await import('/src/state.ts')).$.meta.lv.hull = h; }, HULL);
 const RIGS = RIG ? await p.evaluate(async () => { // --rig full: own everything, every socket, the three heaviest bolted at level 3
   const S = await import('/src/state.ts'), C = await import('/src/contraptions.ts'), POW = await import('/src/power.ts'), m = S.$.meta;
   const ids = C.RIG.map((r) => r.id), w = (POW.POWER && POW.POWER.rig) || {};
@@ -189,7 +199,7 @@ for (let it = 0; it < MIN * 60 * 2; it++) {
   if (s.st !== 'play' || s.loop >= +END) { endState = JSON.stringify(s); break; }
 }
 const fin = await p.evaluate(() => { const g = __G(), G = g.G, X = window.__x; return { deaths: window.__deaths, hitLog: window.__hits, lives0: window.__lives0, fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf, fk: Object.keys(window.__S.meta.mbK || {}),
-  tier: Number.isInteger(G.tier) ? G.tier : 'n/a', brutal: G.brutal != null ? G.brutal : window.__PL.mods.BR ? 0 : 'n/a', bul: window.__PL.bul, rank: X.rank, rankAt: X.rankAt, rsp: X.rsp.map(({ caps, ...r }) => r), rev: X.revTag ? X.rev : 'n/a', rankDrive: X.rankDrive ?? null, contractErr: window.__PL.contractErr, k0: X.k0, k1: X.k1, score: Math.round(G.score || 0) }; });
+  tier: Number.isInteger(G.tier) ? G.tier : 'n/a', brutal: G.brutal != null ? G.brutal : window.__PL.mods.BR ? 0 : 'n/a', bul: window.__PL.bul, rank: X.rank, rankAt: X.rankAt, rsp: X.rsp.map(({ caps, recSeen, ...r }) => r), rev: X.revTag ? X.rev : 'n/a', rankDrive: X.rankDrive ?? null, contractErr: window.__PL.contractErr, k0: X.k0, k1: X.k1, score: Math.round(G.score || 0) }; });
 seg.push({ k: 'END', f0: fin.fr });
 const podsOnly = fin.pods.filter((x) => x.kind === 'pod' || x.kind === 'choice');
 const first = podsOnly[0];
@@ -199,7 +209,7 @@ const stages = seg.slice(0, -1).map((sg, i) => { const f1 = seg[i + 1].f0; const
   return { stage: sg.k, dur: +dur.toFixed(1), pods: n, kinds, src, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
 const tierN = Number.isInteger(fin.tier) ? fin.tier : 1;
 const bullets = Object.fromEntries(Object.entries(fin.bul).map(([k, v]) => { const c = k.split('|').pop(), rq = (q) => hq(v.ratio, q);
-  return [k, { frames: v.frames, cap: CAPS[c][tierN], overCap: v.over, overMax: v.overMax, p50: hq(v.ns, .5), p90: hq(v.ns, .9), max: hmax(v.ns), maxAll: hmax(v.n), gt5: v.frames ? +hshare(v.ns, 5).toFixed(3) : null, vmax: +v.vmax.toFixed(2), vmaxKind: v.vk || null, vcap: VCAP[tierN], vOver: v.vOver, ratioP50: rq(.5), ratioP90: rq(.9) }]; }));
+  return [k, { frames: v.frames, cap: CAPS[c][tierN], overCap: v.over, overMax: v.overMax, p50: hq(v.ns, .5), p90: hq(v.ns, .9), max: hmax(v.ns), maxAll: hmax(v.n), gt5: v.frames ? +hshare(v.ns, 5).toFixed(3) : null, carriedFrames: v.carried || 0, vmax: +v.vmax.toFixed(2), vmaxKind: v.vk || null, vcap: VCAP[tierN], vOver: v.vOver, ratioP50: rq(.5), ratioP90: rq(.9) }]; }));
 const shieldHits = Object.values(fin.hitLog).reduce((a, n) => a + n, 0);
 const deathSrc = fin.deaths.reduce((a, d) => ((a[d.src || 'other'] = (a[d.src || 'other'] || 0) + 1), a), {});
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,

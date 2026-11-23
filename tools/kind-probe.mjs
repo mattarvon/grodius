@@ -9,18 +9,24 @@
 //   the enemy nearest its spawn point, probe-lib tagShots) and to its first act (the first change of its attack state,
 //   e.st or e.ws: a tell counts, but so can a movement state, so it is context only). Per kind: on screen, fired, and
 //   first shot / first act p50 / p90 / max. N3 is read on the first shot; an enemy that never fires is listed by the
-//   fired / on-screen count, not dropped silently. Prints one ATTACK {...} JSON line after the table.
+//   fired / on-screen count, not dropped silently. Drones are split into designated shooters (e.sh, probe-lib
+//   PL.designated) and the rest ("drone(not a shooter)"; "drone(undesignated)" on a build with no e.sh). Prints one ATTACK {...} JSON line after the table.
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { pageLib, aq } from './probe-lib.mjs';
 if (process.argv.includes('--attack')) { process.argv.splice(process.argv.indexOf('--attack'), 1); await attack(); process.exit(0); }
+// --rank N: pin src/rank.ts rank($) to N by fitting the ship (probe-lib PL.pinRank; the positional rank only sets the
+// legacy G.rank, which nothing on long4 reads once W0 landed). Prints the rank reached
+const rki = process.argv.indexOf('--rank'), RANKN = rki >= 0 ? +process.argv.splice(rki, 2)[1] : null;
 const [url, N = '40', RANK = '.9'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage();
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+await p.addInitScript(pageLib);
 await p.addInitScript(() => { window.requestAnimationFrame = () => 1; window.speechSynthesis = undefined; window.setTimeout = () => 0; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
 await useLayout(p, 'kind-probe');
-const res = await p.evaluate(async ([N, RANK]) => {
+await p.evaluate(() => window.__PL.load());
+const res = await p.evaluate(async ([N, RANK, RANKN]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const BI = await import('/src/biomes.ts'), C = await import('/src/core.ts'), LY = await import('/src/layout.ts');
   const $ = S.$; $.gate = false; const out = {};
@@ -35,7 +41,7 @@ const res = await p.evaluate(async ([N, RANK]) => {
       $.G.si = $.G.script.length; $.G.route = Array(LY.nSlots()).fill(null); for (let i = 0; i < seg; i++) $.G.route[i] = Object.keys(BI.BIOMES).find((k) => k !== b);
       $.G.scroll = LY.slotRow(seg).x0 - 500; BI.openFork(seg); $.G.fork.opts = [b, b]; $.G.fork.t = 50;
       Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 });
-      ST.step();
+      ST.step(); if (RANKN != null) window.__rk = window.__PL.pinRank($, RANKN); // after the fork: the rank reads the biome stage
       const sc = $.G.script.slice($.G.si).filter((e) => e.x < LY.slotRow(seg).bossX);
       for (const e of sc) {
         const s = e.f.toString(); if (/miniWarn|logLine/.test(s)) continue;
@@ -53,7 +59,8 @@ const res = await p.evaluate(async ([N, RANK]) => {
     out[k] = { tot: tot / N, drone: (cnt.drone || 0) / Math.max(1, tot), el: el / N, cnt: Object.fromEntries(Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, +(v / N).toFixed(1)])), sig: Object.keys(sig).length };
   }
   return out;
-}, [+N, +RANK]);
+}, [+N, +RANK, RANKN]);
+if (RANKN != null) console.log(`rank pinned: asked ${RANKN}, reached ${await p.evaluate(() => window.__rk)} (src/rank.ts; null = no rank.ts)`);
 await b.close();
 for (const [k, r] of Object.entries(res)) console.log(k.padEnd(16), `tot ${r.tot.toFixed(1).padStart(5)}  drone ${(r.drone * 100).toFixed(0).padStart(3)}%  elites ${r.el.toFixed(1).padStart(4)}  sigs ${String(r.sig).padStart(3)}  ${JSON.stringify(r.cnt)}`);
 console.log('errors', errs.length ? errs.slice(0, 5) : 'none');
@@ -84,7 +91,7 @@ async function attack() {
         for (const t of PL.tagShots(h, A.fr) || []) { const r = t.e && A.seen.get(t.e); if (r && r.shot == null && r.vis != null) r.shot = A.fr - r.vis; }
         const alive = new Set();
         for (const e of h.enemies) { if (e.dead || !PL.regular(e)) continue; alive.add(e);
-          let r = A.seen.get(e); if (!r) A.seen.set(e, (r = { k: e.k, vis: null, shot: null, act: null, s0: e.st ?? e.ws }));
+          let r = A.seen.get(e); if (!r) { const ds = PL.designated(e, PL.rank()); A.seen.set(e, (r = { k: e.k === 'drone' && !ds ? (ds === null ? 'drone(undesignated)' : 'drone(not a shooter)') : e.k, vis: null, shot: null, act: null, s0: e.st ?? e.ws })); }
           if (r.vis == null && e.x > 0 && e.x < 480 && e.y > 0 && e.y < 254) r.vis = A.fr;
           if (r.vis != null && r.act == null && (e.st ?? e.ws) !== r.s0) r.act = A.fr - r.vis; }
         for (const [e, r] of A.seen) if (!alive.has(e)) { A.seen.delete(e); if (r.vis != null) A.done.push([r.k, r.shot, r.act]); } } };

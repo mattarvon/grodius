@@ -17,6 +17,7 @@
 //   in the per-frame hook, instead of moving P toward (tx, ty):  window.__pilotStep(g, tx, ty);
 // `window.__pilotLog` reports `frames` piloted, `trapped` (frames where every candidate move was unsafe) and `deaths`
 // (for each life lost: the stage, scroll, position, the midboss or Drive up, and the two nearest threats just before).
+// It also sees MORGUE RUSH's flying ice blocks (W3c, __biome().sig.eng.blocks) as moving bodies.
 // Attacks with no projectile that it models from their telegraphs: the Saucer's lash, the flayer's whip, the Drive's beam, the
 // Apprentice's and the Butcher's cleaver sectors, and the Butcher's hook; with window.__DN loaded (src/enemies/mid/_deny.ts),
 // the midbosses' denial moves (the lane bar, the acid pools, the Apprentice's hook); the Drive's tentacles are predicted from
@@ -51,6 +52,14 @@ export const PILOT = `(() => {
     for (const e of g.enemies) { if (e.dead || e.ghost > 0) continue; const [vx, vy] = vel(e); th.push({ x: e.x, y: e.y, vx, vy, r: (e.r || 6) + 4, k: e.k });
       if (e.hb) for (const h of e.hb) th.push({ x: e.x + h[0], y: e.y + h[1], vx, vy, r: h[2] + 4 }); }
     if (G.boss && !G.boss.dying) { const b = G.boss, [vx, vy] = vel(b); th.push({ x: b.x, y: b.y, vx, vy, r: 62, k: 'drive' }); }
+    // MORGUE RUSH ice blocks in flight (W3c's __biome().sig.eng.blocks: screen x of the left edge, centre y; not in
+    // enemies or haz): circles over the block's box, moving at the block's measured velocity. A block in its tell is
+    // not solid yet.
+    // (window.__PL.blocks when probe-lib is loaded: W3c's adapter and W3a's BODY solids; else the adapter list alone)
+    { const Bb = globalThis.__biome ? globalThis.__biome() : null, eng = Bb && Bb.sig && Bb.sig.eng;
+      const bl = window.__PL && window.__PL.blocks ? window.__PL.blocks() : eng && Array.isArray(eng.blocks) ? eng.blocks.filter((k) => k && k.st !== 'tell').map((k) => ({ k, cx: k.x + (k.w || 22) / 2, cy: k.y, hw: (k.w || 22) / 2, hh: (k.h || 14) / 2 })) : [];
+      for (const b of bl) { const [vx, vy] = vel(b.k), r = Math.hypot(b.hw / 3 + 8, b.hh + 4); // three circles whose union covers the +8 / +4 touch box, corners too
+        for (const f of [-2 / 3, 0, 2 / 3]) th.push({ x: b.cx + f * b.hw, y: b.cy, vx, vy, r, k: 'haz:block' }); } }
     // the midbosses' area denial (D61, src/enemies/mid/_deny.ts denyPts: the Choir's loose bar, the Womb's pools, the
     // Apprentice's hook and chain), when the tool has loaded it as window.__DN
     if (window.__DN && G.mini && G.mini.mid) window.__DN.denyPts(G.mini, sc, th);
@@ -142,5 +151,6 @@ export const PILOT = `(() => {
         near, en: g.enemies.filter((e) => !e.dead && Math.hypot(e.x - P.x, e.y - P.y) < 90).map((e) => e.k + ':' + (e.st || '')).slice(0, 4), safe, inv: P.inv, shield: P.shield }; }
     P.x = Math.min(W - 16, Math.max(10, P.x + best[0])); P.y = Math.min(PH - 6, Math.max(6, P.y + best[1]));
     for (const e of g.enemies) prev.set(e, [e.x, e.y]); if (G.boss) prev.set(G.boss, [G.boss.x, G.boss.y]);
+    { const Bb = globalThis.__biome ? globalThis.__biome() : null, eng = Bb && Bb.sig && Bb.sig.eng; if (eng && Array.isArray(eng.blocks)) for (const k of eng.blocks) if (k) prev.set(k, [k.x, k.y]); }
   };
 })();`;

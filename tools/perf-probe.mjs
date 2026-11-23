@@ -20,6 +20,12 @@
 //                        pump on a 4 Hz beat, the drop at each stage start. Reports frames inside WARNINGs and each slice.
 //   floor:<biome>        the same biome with nothing in it: no enemies, no fire. What every frame pays before anything is in it.
 //   bootlog              the boot slices, timed at the throttle (the skyline bake among them).
+//   engine:<biome>       T3 (DIFFICULTY-SPEC §3): the W3a space engine (src/solids.ts, W3A-API v3) loaded in a biome
+//                        stage with nothing else in it, the ship flying and firing, 900 frames: engine:ice MORGUE RUSH ice
+//                        blocks (one every 60 f), engine:snot plug columns (every 120 f) inside a SWALLOW DYN window,
+//                        engine:acid a HIGH TIDE DYN window, engine:fire STROKE piston pairs (every 90 f). Group `engine`
+//                        runs all four. p95 / avg / max of step+render and the solids made; 'n/a' on a build without
+//                        the engine's spawners. Compare with floor:<biome> (the same stage, empty).
 //   warngate             the hard rule, in page: a WARNING fires with route art still unbuilt; no slice may run until it ends.
 // Needs the VITE DEV server (imports live modules). Restart vite after edits before trusting numbers.
 import { chromium } from 'playwright';
@@ -30,7 +36,7 @@ const HELD = ROSTER.filter((r) => BIOME_POOLS.includes(r.pool)), REST = ROSTER.f
 const KINDS = HELD.map((r) => r.k), HOSTS = BIOME_POOLS;
 const SCENES = ['orbit', 'maw', ...REST.map((r) => r.k), ...KINDS, 'crux', 'butcher', 'keepsake', 'gravity']; // keepsake: the registered stage boss (D55), at slot 1 where bossFor places it
 const cells = (pre) => KINDS.flatMap((k) => HOSTS.map((h) => `${pre}:${k}@${h}`));
-const GROUPS = { mid8: cells('mid8'), cold: cells('cold'), peak: HOSTS.map((h) => `peak:${h}`), floor: HOSTS.map((h) => `floor:${h}`), route: ['route:ice+acid', 'route:fire+snot'] };
+const GROUPS = { engine: ['engine:ice', 'engine:snot', 'engine:acid', 'engine:fire'], mid8: cells('mid8'), cold: cells('cold'), peak: HOSTS.map((h) => `peak:${h}`), floor: HOSTS.map((h) => `floor:${h}`), route: ['route:ice+acid', 'route:fire+snot'] };
 const want = SC === 'all' ? SCENES : SC.split(',').flatMap((s) => GROUPS[s] || [s]);
 // d3d11 falls back to SwiftShader on Linux (software raster, ~11x off: LS1-P0's report). ANGLE=gl there is the integrated GPU,
 // ANGLE=vulkan the discrete one; the renderer in use is printed with the table, so numbers from different hosts can't be mixed up
@@ -183,6 +189,28 @@ const floorScene = (b) => run(`
   return { avg: ms.reduce((u, v) => u + v, 0) / ms.length, p95: q(ms, .95), max: Math.max(...ms) };
 `, b);
 
+/** T3: the W3a engine's set-piece objects in an otherwise empty biome stage (see the header's engine:<biome>). Spawns
+ *  through the engine's own API, so every S5 / tell / fit rule of the engine holds; a refused spawn (null) is counted */
+const engineScene = (b) => run(`
+  const b = arg; start(); gate(0, b); IN.K.KeyZ = true; while (WU.warmPump());
+  const SO = await import('/src/solids.ts'), has = ['spawnIce', 'spawnPlug', 'spawnPistonPair', 'armTide', 'armSwallow'].filter((n) => typeof SO[n] === 'function');
+  if (!has.length) return { na: true };
+  $.G.scroll = LY.slotRow(0).x0 + 1000; $.G.si = $.G.script.length; W.enemies.length = 0;
+  const made = { solids: 0, dyn: 0, refused: 0 }, ms = []; let peak = 0;
+  const ok = (r, n = 1) => { if (r && (!Array.isArray(r) || r.length)) made.solids += Array.isArray(r) ? r.length : n; else made.refused++; };
+  for (let f = 0; f < 900; f++) {
+    const sc = $.G.scroll;
+    try {
+      if (b === 'ice' && f % 60 === 0 && SO.spawnIce) ok(SO.spawnIce({}));
+      if (b === 'snot') { if (f === 0 && SO.armSwallow) { if (SO.armSwallow({ x0: sc + 520, x1: sc + 1400, S: 30, T: 240, dur: 720, fit: 72 })) made.dyn++; else made.refused++; } if (f % 120 === 0 && SO.spawnPlug) ok(SO.spawnPlug({ wx: sc + 540 })); }
+      if (b === 'acid' && f === 0 && SO.armTide) { if (SO.armTide({ x0: sc + 520, x1: sc + 1400, d: 50, rise: 120, hold: 300, drain: 120, fit: 100 })) made.dyn++; else made.refused++; }
+      if (b === 'fire' && f % 90 === 0 && SO.spawnPistonPair) ok(SO.spawnPistonPair({ x: sc + 520, centre: 127, gap: 90 }), 2);
+    } catch (e) { made.err = String((e && e.message) || e).slice(0, 120); }
+    $.P.inv = 30; fly(f, 135); ms.push(frame()); if (SO.solids) peak = Math.max(peak, SO.solids.length);
+  }
+  return { avg: ms.reduce((u, v) => u + v, 0) / ms.length, p95: q(ms, .95), max: Math.max(...ms), made, peak, has };
+`, b);
+
 /** a real flight from gate a through both biome stages to the Drive; the pump runs every 15 frames, the 4 Hz beat */
 const routeScene = (a, b) => run(`
   const [a, b] = arg, MAX = +(arg[2] || 26000), R = { fights: [], ms: [], warn: [], stages: [] };
@@ -258,6 +286,7 @@ for (const k of want) {
     console.log(k.padEnd(22), `spawn ${ms1(r.spawn)}  first ${ms1(r.first)}  max ${ms1(r.max)} @f${String(r.at).padEnd(2)}  steady ${ms1(r.tail)}  slices ${r.slices} ${r.max + r.spawn < 100 ? 'ok' : 'OVER 100'}  [${r.log.join(', ')}]`);
     continue;
   }
+  if (pre === 'engine') { const r = await engineScene(arg); console.log(k.padEnd(22), r.na ? 'n/a (no W3a engine spawners on this build)' : `p95 ${ms1(r.p95)}  avg ${ms1(r.avg)}  max ${ms1(r.max)}  ${r.made.refused > r.made.solids + r.made.dyn ? 'NOT MEASURED (most spawns refused)' : r.p95 <= 1000 / 60 ? 'ok' : 'MISS'}  made ${r.made.solids} solids / ${r.made.dyn} DYN, refused ${r.made.refused}${r.made.err ? ', error ' + r.made.err : ''}, peak live ${r.peak}`); continue; }
   if (pre === 'floor') { const r = await floorScene(arg); console.log(k.padEnd(22), `p95 ${ms1(r.p95)}  avg ${ms1(r.avg)}  max ${ms1(r.max)}`); continue; }
   if (pre === 'peak') {
     const r = await peakScene(arg);

@@ -46,7 +46,8 @@ import { PILOT } from './pilot.mjs';
 const mi = process.argv.indexOf('--mortal'), MORTAL = mi >= 0; if (MORTAL) process.argv.splice(mi, 1);
 const pli = process.argv.indexOf('--pilot'), PIL = pli >= 0; if (PIL) process.argv.splice(pli, 1);
 const pki = process.argv.indexOf('--park'), PARK = pki >= 0; if (PARK) process.argv.splice(pki, 1);
-const bri = process.argv.indexOf('--brutal'), BRU = bri >= 0 ? process.argv.splice(bri, 2)[1] : null; // D63: ?brutal=N (default: the game's, 2 on long4)
+const bri = process.argv.indexOf('--brutal'), BRU = bri >= 0 ? process.argv.splice(bri, 2)[1] : null; // D63: ?brutal=N (read as Normal since W0)
+const tri = process.argv.indexOf('--tier'), TIER = tri >= 0 ? process.argv.splice(tri, 2)[1] : null; // spec §2.1: ?tier=N
 const kti = process.argv.indexOf('--kit'), KIT = kti >= 0 ? process.argv.splice(kti, 2)[1] : null;
 const hui = process.argv.indexOf('--hull'), HULL = hui >= 0 ? +process.argv.splice(hui, 2)[1] : 0;
 const [url, SEED = '1', MIN = '12', END = '1'] = process.argv.slice(2);
@@ -112,7 +113,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit]) => { let now = 0; c
           const kind = c.graft ? 'graft' : c.blue ? 'blue' : c.choice ? 'choice' : c.salv ? 'salv' : 'pod';
           if (kind === 'choice') { if (chosen) continue; chosen = true; }
           window.__pods.push({ f: window.__fr, kind, src: window.__capSrc.get(c) || 'unknown', st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, [+SEED, MORTAL, PIL, PARK, HULL, KITP]);
-await p.goto(BRU != null ? url + (url.includes('?') ? '&' : '?') + 'brutal=' + BRU : url); await p.waitForFunction(() => window.__started);
+{ const qs = [TIER != null ? 'tier=' + TIER : '', BRU != null ? 'brutal=' + BRU : ''].filter(Boolean).join('&'); await p.goto(qs ? url + (url.includes('?') ? '&' : '?') + qs : url); } await p.waitForFunction(() => window.__started);
 const JUMPED = url.includes('stage='); if (!JUMPED) await useLayout(p, 'pod-probe', { quiet: true }); // stdout stays one JSON object; it carries the layout
 if (HULL) await p.evaluate(async (h) => { (await import('/src/state.ts')).$.meta.lv.hull = h; }, HULL); // --hull N: REINFORCED HULL bought N times (a played profile's extra ships)
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);

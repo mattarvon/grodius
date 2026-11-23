@@ -12,7 +12,9 @@
 //  LASER = per Gravity Drive beam: hits that land on a ship sitting in the beam with a full WARD, and whether it dies
 // W5 (DIFFICULTY-SPEC §3.1, measure-only):
 //  Every TTK fight also reports the enemy bullets on screen (counted shots), max and p90 over every loadout's fight,
-//  against the stage-boss cap (24 on Normal; B3: max <= cap, p90 <= .6 cap).
+//  against that fight's cap at the flown tier (rank.ts bulletCap; 24 on Normal; B3: max <= cap, p90 <= .6 cap).
+//  Biome bosses (crux ice, butcher fire, maw acid) now fight in their own biome, entered through a real fork, so
+//  G.route is set and the biome's hazards step; the Drive fights at its own stage ordinal (rank stageIdx 3).
 //  --kind <k>[,<k>...] flies only those bosses (maw, crux, butcher, gravity or drive, keepsake).
 //  --spots: the 8-spot park grid (probe-lib SPOTS), the ship parked (clamped into the open band), fire held with
 //    --spot-kit (default END DESCENT 1); would-be hits by phase (the Drive's b.phase, THE KEEPSAKE's m.ph, else the
@@ -65,9 +67,24 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD, SPOTM, TIMEOUT, S
   };
   const hasKeep = !!LY.layout().picker;
   const out = {};
-  const setup = (pw, gm, pkk, scroll) => {
+  /** a biome boss fights in its own biome: slot 0 entered through a real fork (midboss-probe's staging), so G.route is
+   *  set and the biome steps its hazards (icicles, jets, geysers) during the fight. The Drive fights at its own stage
+   *  ordinal (G.stage = the drive row), so rank.ts reads stageIdx 3 (the END D1 kit then reads 16, not 13) */
+  const BIOME_OF = { crux: 'ice', butcher: 'fire', maw: 'acid' };
+  const enterBiome = (bio) => {
+    $.G.scroll = LY.slotRow(0).x0; $.G.si = $.G.script.length; W.enemies.length = 0;
+    BI.openFork(0); $.G.fork.opts = [bio, bio]; $.G.fork.t = 50; $.G.tally = null;
+    Object.assign($.P, { x: C.W * .74, y: $.G.fork.gy[0], alive: true, inv: 30 });
+    ST.step();
+    $.G.scroll = LY.slotRow(0).x0 + 700;
+    for (let i = 0; i < 60; i++) { $.P.inv = 30; ST.step(); }
+    $.G.si = $.G.script.length; $.G.pick = null; $.G.pickQ = 0; $.G.tally = null; if ($.G.pend) $.G.pend.length = 0;
+  };
+  const driveStage = () => LY.layout().stages.findIndex((r) => r.kind === 'drive');
+  const setup = (pw, gm, pkk, scroll, bio) => {
     F.newGame(0); $.state = 'play';
     for (let i = 0; i < 30; i++) ST.step();
+    if (bio) enterBiome(bio);
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw);
     if ($.P.wardLv) $.P.shield = 3;
     $.G.gm = { ...gm }; $.G.pk = { ...pkk }; $.G.lvl = 10;
@@ -81,10 +98,12 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD, SPOTM, TIMEOUT, S
   const rankNow = () => { const r = PL.rank(); return r != null ? r : typeof $.G.rank === 'number' ? +$.G.rank.toFixed(2) : 'n/a'; };
   /** one fight: spot = [x, y] parks the ship there and counts would-be hits; noFire holds fire off (the time-out) */
   const fight = (k, pw, gm, pkk, name, spot, noFire) => {
-    setup(pw, gm, pkk, k === 'gravity' ? LY.bossAt() : LY.slotRow(0).x0 + 700);
+    setup(pw, gm, pkk, k === 'gravity' ? LY.bossAt() : LY.slotRow(0).x0 + 700, BIOME_OF[k]);
+    if (k === 'gravity') $.G.stage = driveStage();
     if (k === 'keepsake') { const sx = keepStage(); $.G.scroll = sx; $.G.si = $.G.script.length; W.enemies.length = 0; REG.BOSS_SIM.keepsake.spawn('fire'); const m = $.G.mini; m.hp *= HPX; m.max = m.hp; }
     else if (k === 'gravity') BU.startBoss();
     else { if (ORD != null) $.G.stage = ORD; if (k === 'maw') SP.maw(true); else SP[k](); }
+    const cap = PL.cap($.G, PL.ctx($.G)); // the game's own context after the spawn (an Orbit-stage Maw is a midboss: setp)
     IN.K.KeyZ = !noFire;
     const bh = {}, acc = PL.spotNew();
     let f = 0, t0 = -1, r = '--', hpLeft = null;
@@ -112,16 +131,16 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD, SPOTM, TIMEOUT, S
     }
     if (t0 >= 0 && f - t0 > CAP * 60) r = '--';
     IN.K.KeyZ = true;
-    return { r, bh, ph: acc.ph, s: +((f - Math.max(0, t0)) / 60).toFixed(1), hpLeft, state: $.state };
+    return { r, bh, ph: acc.ph, s: +((f - Math.max(0, t0)) / 60).toFixed(1), hpLeft, state: $.state, cap, rk: rankNow() };
   };
-  const bul = {};
+  const bul = {}, capOf = {};
   for (const [name, pw, gm, pkk] of L) {
     const row = {};
     for (const k of BOSSES) {
       if (k === 'keepsake' && !hasKeep) { row[k] = 'n/a'; continue; }
       const o = fight(k, pw, gm, pkk, name);
-      row[k] = o.r; bul[k] ||= {}; for (const [n, c] of Object.entries(o.bh)) bul[k][n] = (bul[k][n] || 0) + c;
-      (out.rank ||= {})[name] = rankNow();
+      row[k] = o.r; bul[k] ||= {}; for (const [n, c] of Object.entries(o.bh)) bul[k][n] = (bul[k][n] || 0) + c; capOf[k] = o.cap;
+      ((out.rank ||= {})[name] ||= {})[k] = o.rk;
     }
     out[name] = row;
   }
@@ -150,7 +169,7 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD, SPOTM, TIMEOUT, S
   }
   // laser lethality: full WARD (3), parked dead in the beam's path for the whole sweep
   const lz = [];
-  setup({ wardLv: 2 }, {}, {}, LY.bossAt()); BU.startBoss();
+  setup({ wardLv: 2 }, {}, {}, LY.bossAt()); $.G.stage = driveStage(); BU.startBoss();
   const B = $.G.boss; for (const q of B.plates) q.hp = 0; // skip to phase 1 (eye open)
   let sweeps = 0, hits0 = 0, inBeam = false, died = false;
   for (let f = 0; f < 60 * 40 && sweeps < 4; f++) {
@@ -165,20 +184,19 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD, SPOTM, TIMEOUT, S
     ST.step();
   }
   const rank = out.rank; delete out.rank; delete out.kp;
-  return { out, lz, rank, crier, bul, spots, tmo };
+  return { out, lz, rank, crier, bul, spots, tmo, capOf, tier: PL.tier($.G) };
 }, [L, BOSSES, +CAP, HPX, ORD, SPOTM, TIMEOUT, SPOTS, SPOTKIT]);
 const NAME = { maw: 'MAW', crux: 'CRUCIFER', butcher: 'BUTCHER', gravity: 'GRAV DRIVE', keepsake: 'KEEPSAKE' };
 if (ORD != null) console.log(`biome bosses at stage ordinal ${ORD} (THE KEEPSAKE fights in its own placed stage)`);
-console.log('rank per loadout:', JSON.stringify(res.rank));
+console.log('rank per loadout and boss (src/rank.ts once W0 landed):', JSON.stringify(res.rank));
 console.log('loadout'.padEnd(16), ...BOSSES.map((k) => NAME[k].padStart(11)));
 for (const [n, r] of Object.entries(res.out)) console.log(n.padEnd(16), ...BOSSES.map((k) => String(r[k]).padStart(11)));
 if (res.out['STRONG D1'] && res.out['STRONG D1'].keepsake != null && res.out['STRONG D1'].keepsake !== 'n/a') { const v = parseFloat(res.out['STRONG D1'].keepsake); console.log(`KEEPSAKE FLOOR (STRONG D1 >= 15 s): ${isNaN(v) ? res.out['STRONG D1'].keepsake : v >= 15 ? 'PASS ' + v : 'FAIL ' + v}${HPX !== 1 ? ` (HP x${HPX})` : ''}`); }
 if (res.crier.length) console.log(`KEEPSAKE CRIER (STAGE 1 kit, bot level with it): broken in ${res.crier[0]} s with part priority (want < 3: ${parseFloat(res.crier[0]) < 3 ? 'PASS' : 'FAIL'}); ${res.crier[1]} s without it (the old hit order)`);
 console.log('LASER sweeps vs full WARD (3):', res.lz.map((s) => `${s.hits} hits${s.died ? ' DEAD' : ''}`).join(', ') || 'none observed');
-{ const cap = CAPS.boss[1];
-  console.log(`bullets on screen per fight (all loadouts' fights pooled; cap ${cap} = Normal stage boss; B3: max <= ${cap}, p90 <= ${(.6 * cap).toFixed(1)}):`);
-  for (const k of BOSSES) { const h = res.bul[k]; if (!h) continue; const mx = hmax(h), p9 = hq(h, .9); console.log(`  ${NAME[k].padEnd(11)} max ${String(mx).padStart(3)}  p90 ${String(p9).padStart(3)}  ${mx != null && mx <= cap && p9 <= .6 * cap ? 'PASS' : 'FAIL'}`); }
-  console.log('BULLETS ' + JSON.stringify(Object.fromEntries(BOSSES.filter((k) => res.bul[k]).map((k) => [k, { max: hmax(res.bul[k]), p90: hq(res.bul[k], .9), cap }])))); }
+{ console.log(`bullets on screen per fight (all loadouts' fights pooled; each fight's cap at tier ${res.tier ?? 'n/a (Normal table)'}, rank.ts bulletCap; B3: max <= cap, p90 <= .6 cap):`);
+  for (const k of BOSSES) { const h = res.bul[k]; if (!h) continue; const cap = res.capOf[k] ?? CAPS.boss[1], mx = hmax(h), p9 = hq(h, .9); console.log(`  cap ${cap}` + `  ${NAME[k].padEnd(11)} max ${String(mx).padStart(3)}  p90 ${String(p9).padStart(3)}  ${mx != null && mx <= cap && p9 <= .6 * cap ? 'PASS' : 'FAIL'}`); }
+  console.log('BULLETS ' + JSON.stringify(Object.fromEntries(BOSSES.filter((k) => res.bul[k]).map((k) => [k, { max: hmax(res.bul[k]), p90: hq(res.bul[k], .9), cap: res.capOf[k] ?? CAPS.boss[1] }])))); }
 if (SPOTM) {
   console.log(`SPOT GRID (${SPOTKIT}, ship parked, fire held; hits per phase p0/p1/p2; K1 wants >= 2 in every reached phase):`);
   for (const [k, rows] of Object.entries(res.spots)) { const s = spotSummary(rows);
