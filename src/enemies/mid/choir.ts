@@ -8,7 +8,7 @@ import { sfx } from '../../audio';
 import { drop, flash, spark } from '../../fx/spawn';
 import { cdm } from '../../depth';
 import { playerHit } from '../../player';
-import { aimA, eshoot, every, fan, mk, ring, wrapA } from '../spawn';
+import { aimA, endVolley, eshoot, every, fan, mk, ring, volley, wrapA } from '../spawn';
 import { bandFit, midLeave } from '../update';
 import { HOST_SPARK, isCross, midPh2 } from '../midhost';
 import { DN, LP, laneHit, lanePair, laneY } from './_deny';
@@ -45,7 +45,7 @@ function lane(e, ph2) {
         e.wt = 0; sfx.lash(); flash(x0, e.ly, 14, 5, '200,235,255');
         if (b) e.lp = LP.out;
         else { // no bar left: the eye spits its nails down the lane, a column the bar's height
-          for (let i = 0; i < DN.lSpikes; i++) eshoot(x0, e.ly + (i - (DN.lSpikes - 1) / 2) * DN.lSpikeDy, Math.PI, DN.lSpikeSp, 'spike');
+          if (volley(DN.lSpikes, x0, e.ly)) { for (let i = 0; i < DN.lSpikes; i++) eshoot(x0, e.ly + (i - (DN.lSpikes - 1) / 2) * DN.lSpikeDy, Math.PI, DN.lSpikeSp, 'spike'); endVolley(); } // atomic on long4 (spawn.ts volley: all or none; short: always true)
           e.lp = 0; e.st = 'idle'; e.cool = cool(ph2);
         }
       }

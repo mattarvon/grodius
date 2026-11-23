@@ -11,9 +11,12 @@ import { glowC, fxs, spray, stepParts, drawParts, strand, snd, emit, rnd, rn, GR
 import { bakedBuilt, bakedDrop, bakedFallback, bakedWarm, bf, pour, trackDeath, twitch } from './baked';
 
 import { BLOAT } from '../../boss/bossrules';
+import { cadMul } from '../../rank';
+import { ECON, econId } from '../../economy';
+const hard = () => !!ECON[econId()].hard; // enemies/g3.ts g3(), without its spawn.ts import chain
 const K = 'crux';
 // the sim's attack timers (enemies/spawn.ts every()): the same period, read here so each tell leads its volley honestly
-const per = (n) => Math.max(18, Math.round(n * (1 - .4 * Math.min(2.0, ($.G && $.G.pow) || 0)))); // short's every() (the BRUTAL dial's cool is gone: x1)
+const per = (n) => Math.max(18, Math.round(n * (hard() ? cadMul($) : 1 - .4 * Math.min(2.0, ($.G && $.G.pow) || 0)))); // every() exactly: long4 rank.ts cadMul, short the pow curve (W6)
 const until = (e, n) => { const N = per(n); return (N - (e.t % N)) % N; }; // 0 on the frame it fires
 const since = (e, n) => e.t % per(n);
 const armed = (e) => e.t > 140 && !e.gone && $.P && $.P.alive;

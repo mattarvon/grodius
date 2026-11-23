@@ -62,7 +62,7 @@ export interface HardSet {
    *  power budget (src/power.ts), so a grown build no longer deletes fodder on contact. Revises D1's power rule */
   powHP: number;
   powCap: number;
-  /** the Gravity Drive's HP x(1 + driveRank * G.rank) (depth.ts driveMul) on this entry, in place of DEPTH.driveRank
+  /** the Gravity Drive's HP x(1 + driveRank) (depth.ts driveMul) on this entry: a flat term, no legacy G.rank read (W6), in place of DEPTH.driveRank x G.rank
    *  (short keeps DEPTH's .6). DIFFICULTY-SPEC C22 / GR rule 6: 0 on long4, rank never changes HP */
   driveRank: number;
   /** CALIBER / SERRATION graft damage per level (mutations.ts gunDm). Was 1.22 / 1.25 */

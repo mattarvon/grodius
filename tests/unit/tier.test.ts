@@ -1,7 +1,7 @@
 // DIFFICULTY-SPEC §2.1 tiers (src/tier.ts), the neutral BRUTAL shim and the run-save tier field. All pure: no mocks.
 import { describe, expect, it } from 'vitest';
 import { $ } from '../../src/state';
-import { TIER, TIER_DEFAULT, TIER_NAME, bru, capRate, tier, tierG, tierOf } from '../../src/tier';
+import { TIER, TIER_DEFAULT, TIER_NAME, capRate, tier, tierG, tierOf } from '../../src/tier';
 import { decodeRun, serializeRun } from '../../src/runsave';
 import { LAYOUTS, setLayout } from '../../src/layout';
 
@@ -50,18 +50,6 @@ describe('the tier table (spec §2.1)', () => {
   });
 });
 
-describe('the BRUTAL shim (spec §5.1)', () => {
-  it('returns every retired lever at its neutral value: 1 for a multiplier, 0 for an addend', () => {
-    for (const k of ['hp', 'bossHp', 'driveHp', 'cool', 'fire', 'bs', 'pod', 'ward'] as const) expect(bru(k)).toBe(1);
-    for (const k of ['fan', 'aimAll', 'dens'] as const) expect(bru(k)).toBe(0);
-  });
-  it('ignores any dial left on G', () => {
-    $.G = { brutal: 3, tier: 3 };
-    expect(bru('cool')).toBe(1);
-    expect(bru('fan')).toBe(0);
-  });
-});
-
 describe('the run-save tier field (spec §5.4)', () => {
   /** a minimal well-formed long4 checkpoint at stage 0 CP0 */
   const blob = (g: Record<string, unknown>) => {
@@ -98,6 +86,10 @@ describe('the run-save tier field (spec §5.4)', () => {
     expect(decodeRun(JSON.stringify(blob({ redN: 11, rigOff: 1, gaspD: 0 })))).not.toBeNull();
     expect(decodeRun(JSON.stringify(blob({ gaspD: -1, rigOff: 0, redN: 0 })))).not.toBeNull();
     expect(decodeRun(JSON.stringify(blob({ cpN: 5 })))!.g.cpN).toBe(5);
+    // W6: W2's perk pick order and Easy's per-stage LAST GASP key survive a save
+    const d = decodeRun(JSON.stringify(blob({ pkOrder: ['scab', 'fang'], gasp: 12 })))!;
+    expect(d.g.pkOrder).toEqual(['scab', 'fang']); expect(d.g.gasp).toBe(12);
+    for (const bad of [{ pkOrder: ['a', 'a'] }, { pkOrder: [3] }, { pkOrder: 'scab' }, { gasp: -2 }, { gasp: 1.5 }]) expect(decodeRun(JSON.stringify(blob(bad))), JSON.stringify(bad)).toBeNull();
     for (const bad of [{ redN: -1 }, { redN: 1.5 }, { rigOff: 2 }, { gaspD: -2 }, { cpN: 32 }, { cpN: -1 }]) expect(decodeRun(JSON.stringify(blob(bad))), JSON.stringify(bad)).toBeNull();
     setLayout('short');
   });

@@ -84,7 +84,7 @@ function loopHP(k, b, o) {
 }
 /** the Gravity Drive's HP multiplier (x its base HP, x48 per plate): loop, rank (short only: long4's HardSet.driveRank
  *  is 0) and from Descent 2 over() */
-export const driveMul = () => { const L = $.G.loop || 0, H = ECON[econId()].hard; return (1 + DEPTH.driveL * L) * (1 + (H ? H.driveRank : DEPTH.driveRank) * ($.G.rank || 0)) * (L > 0 ? 1 + DEPTH.driveO * over() : 1); };
+export const driveMul = () => { const L = $.G.loop || 0, H = ECON[econId()].hard; return (1 + DEPTH.driveL * L) * (H ? 1 + H.driveRank : 1 + DEPTH.driveRank * ($.G.rank || 0)) * (L > 0 ? 1 + DEPTH.driveO * over() : 1); }; // long4 reads no legacy G.rank (W6): HardSet.driveRank is a flat term (0)
 /** enemy cooldown multiplier (<= 1): shorter waits between telegraphed attacks with depth (dep(): from Descent 2 on, and
  *  within a long descent). Its callers are regular enemies, midbosses and the Saucer; stage bosses do not read it */
 export const cdm = () => 1 / (1 + DEPTH.fire * dep()); // the D63 BRUTAL cool lever is deleted: rank.ts cadMul is the rebuild's cadence (W1/W4 wire it)

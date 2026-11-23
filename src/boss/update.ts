@@ -6,7 +6,7 @@ import { SET } from '../save';
 import { sfx } from '../audio';
 import { enemies, eshots } from '../world';
 import { drop, gore, pop, spark, splat } from '../fx/spawn';
-import { aimA, banner, eshoot, mk, wrapA } from '../enemies/spawn';
+import { aimA, banner, endVolley, eshoot, mk, volley, wrapA } from '../enemies/spawn';
 import { killEnemy } from '../enemies/update';
 import { playerHit } from '../player';
 import { hitShot } from '../shots';
@@ -164,7 +164,7 @@ export function updateBoss() {
     }
     if (b.t % 170 === 85) {
       const a = aimA(ex - 40, ey);
-      for (let k = -2; k <= 2; k++) eshoot(ex - 40, ey, a + k * .18, 1.5, 'glob');
+      if (volley(5, ex - 40, ey)) { for (let k = -2; k <= 2; k++) eshoot(ex - 40, ey, a + k * .18, 1.5, 'glob'); endVolley(); } // atomic on long4 (spawn.ts volley: all or none; short: always true)
     }
   } else {
     if (!b.laser && b.t % (b.phase === 2 ? 200 : 250) === 0) {
@@ -209,7 +209,7 @@ export function updateBoss() {
     }
     if (!b.laser && b.t % 50 === 0) {
       const a = aimA(ex, ey);
-      for (let k = -1; k <= 1; k++) eshoot(ex - 20, ey, a + k * .22, 1.9);
+      if (volley(3, ex - 20, ey)) { for (let k = -1; k <= 1; k++) eshoot(ex - 20, ey, a + k * .22, 1.9); endVolley(); } // atomic on long4 (spawn.ts volley: all or none; short: always true)
     }
     if (b.t % 250 === 125) {
       const c = mk('corpse', ex - 30, ey, {

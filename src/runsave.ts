@@ -125,6 +125,11 @@ const G_FIELDS = {
   redN: isNat,
   rigOff: (v) => v === 0 || v === 1,
   gaspD: (v) => isInt(v) && v >= -1 && v <= LOOP_MAX,
+  // W2's death state that a resume must keep (W6): the perks in pick order, oldest first (perks.ts G.pkOrder: perkScar's
+  // tie-break, so a resumed run scars the same perk), and the stage whose LAST GASP is spent (Easy's per-stage rule:
+  // G.gasp = stage + 10 loop, -1 unspent)
+  pkOrder: (v) => Array.isArray(v) && v.length <= 64 && v.every(isStr) && new Set(v).size === v.length,
+  gasp: (v) => isInt(v) && v >= -1 && v <= LOOP_MAX * 10 + 9,
   // route and freshness
   route: (v) => Array.isArray(v) && v.length === nSlots() && v.every((b) => b === null || isBiome(b)), // one per biome slot (layout.ts)
   bvis: isNumMap,

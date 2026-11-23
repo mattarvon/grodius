@@ -8,6 +8,7 @@ import { TAU, W, ctx, ri } from '../core';
 import { sfx } from '../audio';
 import { aimA, eshoot, fan, onScreen } from './spawn';
 import { xtra } from '../depth';
+import { g3 } from './g3'; // long4 only (DIFFICULTY-SPEC §5.3): short keeps both rules below byte-identical
 import { glow } from '../render/util';
 import { spark } from '../fx/spawn';
 
@@ -40,7 +41,8 @@ export function eliteRoll(list, p, R) {
 export function eliteify(e) {
   if (e.elite) return e;
   e.elite = 1;
-  e.hp *= ELITE.hp;
+  // long4 (W6, W1's note; spec §2.3 popcorn rule): an elite drone or hatchling stays one hit, it pays and glows only
+  if (!(g3() && (e.k === 'drone' || e.k === 'hatch'))) e.hp *= ELITE.hp;
   e.max = e.hp;
   e.score = Math.round(e.score * ELITE.pay);
   e.bio = Math.ceil(e.bio * ELITE.pay);
@@ -64,7 +66,7 @@ export function eliteTick(e) {
     return;
   }
   if (--e.pz > 0) return;
-  if (P && P.alive && !(e.ghost > 0) && onScreen(e) && e.x > 70 && e.x < W - 24 && P.x < e.x - 30) { e.pt = ELITE.tel; sfx.squish(); }
+  if (P && P.alive && !(e.ghost > 0) && onScreen(e) && e.x > 70 && e.x < W - 24 && (g3() || P.x < e.x - 30)) { e.pt = ELITE.tel; sfx.squish(); } // long4: no "ship ahead" gate (W6: a shot from behind, gate N2)
   e.pz = ri(ELITE.pz[0], ELITE.pz[1]);
 }
 /** killEnemy hook: it bursts violet */

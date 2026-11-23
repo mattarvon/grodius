@@ -71,11 +71,3 @@ export const tier = (): Tier => tierG($.G);
 /** the variable pod faucet's multiplier for the current run: TIER.capRate on a G that carries a tier (long4), else 1
  *  (short never sets G.tier, so its keep rolls and formation drops are unchanged). Pure lookup, no R() */
 export const capRate = (): number => ($.G && tierOf($.G.tier) != null ? TIER.capRate[$.G.tier as Tier] : 1);
-
-// ---- the D63 BRUTAL shim (spec §5.1 risk "Removing bru() from about 20 call sites"). Every BRUTAL lever is deleted;
-// bru() returns the lever's neutral value (dial 0, which was pass2 exactly: 1 for a multiplier, 0 for an addend), so
-// the call sites in files other streams own keep compiling and do nothing. Each stream deletes the calls in its own
-// files (W1 enemies/spawn.ts and enemies/update.ts, W4 render/gross/crux.ts) and W6 deletes this shim.
-const NEUTRAL = { hp: 1, bossHp: 1, driveHp: 1, cool: 1, fire: 1, bs: 1, fan: 0, aimAll: 0, dens: 0, pod: 1, ward: 1 } as const;
-/** a retired BRUTAL lever: always its neutral value (1 or 0). Do not add callers */
-export const bru = (k: keyof typeof NEUTRAL): number => NEUTRAL[k];

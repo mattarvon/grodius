@@ -10,7 +10,7 @@ import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world'
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
-import { BS, ET, aimA, aimLead, aimShot, banner, eshoot, every, fan, mk, onScreen, revRing, revShot, ring, shootB, volley, wrapA } from '../enemies/spawn';
+import { BS, ET, aimA, aimLead, aimShot, banner, endVolley, eshoot, every, fan, mk, onScreen, revRing, revShot, ring, shootB, volley, wrapA } from '../enemies/spawn';
 import { REC_TY, g3, rankOf, tierOf } from './g3';
 import { SURV } from '../death'; // WARD's pod weight (W2 SURV.wardPodW)
 import { BUL, ENTRY, KNOT, blueAt, kidAngle, mayFire, retryIn, revChanceOf } from '../notice';
@@ -398,7 +398,7 @@ export function updEnemy(e) {
           }
           if (ph2 && e.t % 8 === 0) eshoot(e.x, e.y - 6, e.t * .11, 1.25);
           if (ph2 && every(e, 120)) {
-            for (let k = 0; k < 5; k++) eshoot(e.x + rr(-10, 10), e.y - 50, -Math.PI / 2 + rr(-.9, .9), 1.6, 'glob');
+            if (volley(5, e.x, e.y - 50)) { for (let k = 0; k < 5; k++) eshoot(e.x + rr(-10, 10), e.y - 50, -Math.PI / 2 + rr(-.9, .9), 1.6, 'glob'); endVolley(); } // atomic on long4 (spawn.ts volley: all or none; short: always true)
           }
         }
         if (R() < .4) drop(e.x + rr(-6, 6), e.y + rr(-30, 30), rr(-.3, .3), rr(.2, .8), 1.4, R() < .5 ? 0 : 1, 90);
@@ -594,7 +594,7 @@ export function updEnemy(e) {
         e.jaw = cyc > 80 && cyc < 120 ? Math.min(1, (cyc - 80) / 14) : Math.max(0, e.jaw - .08);
         if (cyc === 100 && e.x < W - 20) {
           const a = aimA(e.x - 14, e.y);
-          for (let k = -3; k <= 3; k++) eshoot(e.x - 14, e.y, a + k * .16, 1.6 + Math.abs(k) * .1, 'glob');
+          if (volley(7, e.x - 14, e.y)) { for (let k = -3; k <= 3; k++) eshoot(e.x - 14, e.y, a + k * .16, 1.6 + Math.abs(k) * .1, 'glob'); endVolley(); } // atomic on long4 (spawn.ts volley: all or none; short: always true)
           for (let k = 0; k < 24; k++) drop(e.x - 14, e.y, rr(-3, -.5), rr(-1.5, 1.5), 1.6, R() < .4 ? 2 : 0, 80);
           $.G.shake += 2;
         }
