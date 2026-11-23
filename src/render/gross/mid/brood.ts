@@ -1,8 +1,10 @@
 // @ts-nocheck
 // Render-only: own RNG and particles (../midbosses.ts), no gameplay state touched. Sim: enemies/mid/brood.ts.
-import { hash } from '../../../core';
+import { PH, hash } from '../../../core';
 import { glowC, fxs, emit, spray, stepParts, drawParts, strand, snd, rnd, rn, GROSS } from '../midbosses';
 import { bakedBuilt, bakedDrop, bakedFallback, bakedWarm, bf, dieAge, pour, trackDeath, twitch, woundStage } from '../baked';
+import { DN } from '../../../enemies/mid/_deny';
+import { edgeChevron } from './_deny';
 
 // =====================================================================
 //  THE BROOD MOTHER - a loose knot of segmented tapeworm ribbon bursting from a ruptured gut, its hook crown reared at the player
@@ -73,9 +75,18 @@ function grossBrood(c, e) {
   }
 }
 
+/** under the body (DIFFICULTY-SPEC §2.3, long4): the phase-1 litter's edge chevron at its column for the heave's DN.bTel,
+ *  ruled solid for the last 16 f */
+function under(e) {
+  if (e.st !== 'birth' || !e.edge) return;
+  const wt = e.wt || 0;
+  edgeChevron(e.ex, e.edge, PH, Math.min(1, wt / DN.bTel), wt >= DN.bTel - 16, '230,110,60');
+}
+
 /** the kind's art for the registry (./index.ts): draw, and its atlas for the per-route warm-up (render/warmup.ts) */
 export default {
   draw: grossBrood,
+  under,
   warm() { bakedWarm(K); return false; }, // false: nothing left to build
   built: () => bakedBuilt(K),
   drop() { bakedDrop(K); },

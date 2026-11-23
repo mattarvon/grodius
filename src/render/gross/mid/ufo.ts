@@ -15,7 +15,9 @@ import { srr, srnd } from '../../../srnd';
 import { drop } from '../../../fx/spawn';
 import { drawParts, emit, fxs, glowC, GROSS, rn, rnd, snd, spray, stepParts, strand } from '../midbosses';
 import { bakedWarm, bf, breath, pour, trackDeath } from '../baked';
-import { HATCH_O, LASH_O, TUMOURS } from '../../../enemies/mid/ufo';
+import { HATCH_O, LASH_O, TUMOURS, lashTel } from '../../../enemies/mid/ufo';
+import { UFO_SW } from '../../../enemies/mid/_deny';
+import { wedge } from './_deny';
 
 const K = 'ufo';
 // the plate's three inks: blood is the only colour (AUDIT.md section 8)
@@ -105,7 +107,7 @@ function drawUfoGross(c, e) {
   trackDeath(e, DEATH);
   if (e.dead || e.hp <= 0) return; // the kill plays from drawBakedDeaths (hud.ts): the baked split and the pour
   const w = stage(e);
-  const tel = e.st === 'lash' ? Math.min(1, e.wt / (e.lash2 ? 28 : 42)) : 0;
+  const tel = e.st === 'lash' ? Math.min(1, e.wt / lashTel(e)) : 0;
   const sw = e.st === 'swell' && !f.cr0 ? Math.min(1, e.wt / 36) : 0;
   // ---- state edges: sounds, bursts, the litter ----
   if (s.ev === 'idle>swell') { snd('gross_slosh', .5, .35); f.cr0 = 0; }
@@ -125,7 +127,7 @@ function drawUfoGross(c, e) {
   if (e.st !== 'lash' && e.st !== 'whip') lash(c, e, t, 0, w);
   // the lash's line: dashed, red, firming up as it locks (unchanged: the honest telegraph)
   if (e.st === 'lash') {
-    const lock = e.wt >= (e.lash2 ? 12 : 26);
+    const lock = e.wt >= lashTel(e) - 16;
     c.save();
     c.setLineDash(lock ? [4, 2] : [2, 4]);
     c.lineDashOffset = -$.T;
@@ -136,6 +138,12 @@ function drawUfoGross(c, e) {
     c.lineTo(LASH_O[0] + Math.cos(e.la) * 238, LASH_O[1] + Math.sin(e.la) * 238);
     c.stroke();
     c.restore();
+  }
+  // DIFFICULTY-SPEC §2.3: a sweeping lash (phase 2, long4) marks its whole sector from the lock frame, a hatched wedge
+  // ruled solid once it whips, until the sweep is done
+  if (e.sw && ((e.st === 'lash' && e.wt >= lashTel(e) - 16) || (e.st === 'whip' && e.wt <= 20 + UFO_SW.f))) {
+    const whip = e.st === 'whip', a0 = whip && e.wt >= 16 && e.la0 != null ? e.la0 : e.la;
+    wedge(c, LASH_O[0], LASH_O[1], a0, UFO_SW.amp, UFO_SW.len, whip ? 1 : Math.min(1, (e.wt - 26) / 16), whip, '255,60,40');
   }
 
   // ---- the plate ----

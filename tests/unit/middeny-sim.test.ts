@@ -40,7 +40,7 @@ vi.mock('../../src/enemies/spawn', async () => {
 
 const { updEnemy } = await import('../../src/enemies/update');
 const { MID_SIM } = await import('../../src/enemies/mid/roster');
-const { DN, LP, poolStage } = await import('../../src/enemies/mid/_deny');
+const { DN, LP, TELL_MIN, poolStage } = await import('../../src/enemies/mid/_deny');
 const SP = await import('../../src/enemies/spawn');
 const L = await import('../../src/layout');
 
@@ -48,6 +48,7 @@ const L = await import('../../src/layout');
 function spawn(k: string) {
   const e: any = (SP as any).mk(k, 388, 127, { title: k, tx: 388, st: 'idle', wt: 0, cool: 0, att: 0, ba: -2.3, leave: 1e9 });
   MID_SIM[k].onSpawn?.(e);
+  e.cool = 0; e.att = 0; // settled and ready (long4's onSpawn sets the fight's opening cooldown and order)
   e.t = 200;
   $.G.mini = e;
   return e;
@@ -222,15 +223,55 @@ describe("THE APPRENTICE: the hook", () => {
 });
 
 describe('THE BROOD MOTHER: the litter from behind', () => {
-  it('births from her mouth in phase 1', () => {
+  it('births from her mouth in phase 1 on short', () => {
+    L.setLayout('short');
     const e = spawn('brood');
     step(e);
     expect(e.st).toBe('birth');
     expect(e.rear).toBe(0);
+    expect(e.edge).toBe(0);
     step(e, 44);
     const kids = W.enemies.filter((q) => q.k === 'hatch');
     expect(kids.length).toBeGreaterThan(0);
     for (const k of kids) { expect(k.fromLeft).toBeFalsy(); expect(k.x).toBeGreaterThan(300); }
+  });
+  it('on long4 drops her phase-1 litter in from the top, then the bottom edge, at the ship x + 60..90, after a DN.bTel chevron', () => {
+    $.P = { x: 120, y: 130, alive: true };
+    const e = spawn('brood');
+    step(e);
+    expect(e.st).toBe('birth');
+    expect(e.edge).toBe(1); // the top first
+    expect(e.ex - $.P.x).toBeGreaterThanOrEqual(60);
+    expect(e.ex - $.P.x).toBeLessThanOrEqual(90);
+    step(e, DN.bTel - 2);
+    expect(W.enemies.filter((q) => q.k === 'hatch').length).toBe(0); // nothing before the tell is out
+    step(e, 2);
+    const kids = W.enemies.filter((q) => q.k === 'hatch');
+    expect(kids.length).toBe(3); // rank 3 here: 3 + round(2 rho)
+    for (const k of kids) {
+      expect(Math.abs(k.x - e.ex)).toBeLessThanOrEqual(2.5); expect(k.y).toBeLessThan(0); expect(k.own).toBe(e); expect(k.ent).toBe(1); // steer pre-pays the arm's 2.5 left
+      expect(Math.hypot(k.x - $.P.x, k.y - $.P.y)).toBeGreaterThanOrEqual(48); // spec C9: no body within 48 px
+    }
+    e.st = 'idle'; e.wt = 0; e.cool = 0; e.att = 2; // the next litter comes from the bottom
+    step(e);
+    expect(e.st).toBe('birth');
+    expect(e.edge).toBe(-1);
+  });
+  it('brings an edge litter straight in off the edge, then dives it at the ship, then lets it go past', () => {
+    $.P = { x: 120, y: 130, alive: true };
+    const e = spawn('brood');
+    e.cool = 1e9;
+    const k: any = (SP as any).mk('hatch', 200, -12, { kid: 1, own: e, ent: 1, ey: 130, vy: 0, ph: 0 });
+    for (let i = 0; i < 4; i++) { updEnemy(e); updEnemy(k); }
+    expect(k.x).toBe(200); // straight down while it is off the edge
+    let d0 = Math.hypot(k.x - 120, k.y - 130);
+    for (let i = 0; i < 20; i++) { updEnemy(e); updEnemy(k); }
+    const d1 = Math.hypot(k.x - 120, k.y - 130);
+    expect(d0 - d1).toBeGreaterThan(20 * DN.eV * .6); // closing on the ship
+    for (let i = 0; i < 300 && k.ent; i++) { $.P.y = 30; updEnemy(e); updEnemy(k); } // dodged: it passes and is released
+    expect(k.ent).toBe(0);
+    const x = k.x; updEnemy(e); updEnemy(k);
+    expect(k.x).toBeLessThan(x); // an ordinary hatchling now
   });
   it('in phase 2 warns BEHIND at the ship height for its tell, then the litter comes in off the left edge', () => {
     const e = spawn('brood');
@@ -248,5 +289,233 @@ describe('THE BROOD MOTHER: the litter from behind', () => {
     const kids = W.enemies.filter((q) => q.k === 'hatch');
     expect(kids.length).toBeGreaterThan(0);
     for (const k of kids) { expect(k.fromLeft).toBe(1); expect(k.kid).toBe(1); expect(k.x).toBeLessThan(0); expect(Math.abs(k.y - 150)).toBeLessThanOrEqual(DN.bDy); }
+  });
+});
+
+// ---------------- DIFFICULTY-SPEC §2.3 (W4a): the long4 fight changes through the real updates ----------------
+/** the STAGE 1 kit plus a second MISSILE, WRAITH and CALIBER: rank 2 + 1 + 11 = 14 in biome slot A, the variants' threshold */
+const VARIANT_KIT = { missile: 2, double: 1, options: 2, wardLv: 1 };
+
+describe('SQUID SAUCER 2000 (long4): the phase-2 sweep and the core', () => {
+  const saucer = () => {
+    const e: any = (SP as any).mk('ufo', 384, 114, { st: 'idle', wt: 0, cool: 0, att: 0, la: Math.PI, ll: 0, lash2: 0, burst: 0, drift: 1, hb: [[-34, 2, 10], [32, 0, 9]], exitX: 1e9, tx: 384, swN: 0 });
+    e.leave = 1e9; e.t = 200; $.G.mini = e;
+    e.p2s = 1; // past its phase-2 entrance (that forces a swell; tested below)
+    return e;
+  };
+  it('sweeps its first phase-2 lash +-.5 rad at full reach, then returns to the locked line; the quick second lash never sweeps', () => {
+    const e = saucer();
+    e.hp = e.max * .4;
+    $.P = { x: 60, y: 30, alive: true };
+    step(e);
+    expect(e.st).toBe('lash');
+    expect(e.sw).not.toBe(0);
+    let n = 0;
+    while (e.st === 'lash' && n++ < 100) step(e);
+    expect(e.st).toBe('whip');
+    let lo = 9, hi = -9;
+    while (e.st === 'whip' && n++ < 200) { step(e); lo = Math.min(lo, e.la); hi = Math.max(hi, e.la); }
+    expect(hi - Math.PI).toBeCloseTo(.5, 1);
+    expect(Math.PI - lo).toBeCloseTo(.5, 1);
+    expect(e.st).toBe('lash'); // the phase-2 second lash
+    expect(e.lash2).toBe(1);
+    expect(e.sw).toBe(0);
+  });
+  it('does not sweep in phase 1', () => {
+    const e = saucer();
+    step(e);
+    expect(e.st).toBe('lash');
+    expect(e.sw).toBe(0);
+  });
+  it('takes full damage on the core and .3 on the wings', () => {
+    const e = saucer();
+    expect(MID_SIM.ufo.hurt!(e, 1, e.x, e.y, 1)).toBe(1);
+    expect(MID_SIM.ufo.hurt!(e, 1, e.x - 34, e.y + 2, 1)).toBeCloseTo(.3);
+    expect(MID_SIM.ufo.hurt!(e, 1, e.x + 32, e.y, 1)).toBeCloseTo(.3);
+    L.setLayout('short');
+    expect(MID_SIM.ufo.hurt!(e, 1, e.x - 34, e.y + 2, 1)).toBe(1);
+  });
+});
+
+describe('THE NAIL CHOIR (long4): twin lanes, the eye, the re-lock', () => {
+  it('sweeps both bars in phase 2, on two lanes with a free band of at least 40 px between', () => {
+    const e = spawn('choir');
+    e.hp = e.max * .4; e.p2s = 1; // past the phase-2 lurch
+    e.att = DN.lEvery - 1;
+    step(e);
+    expect(e.st).toBe('lane');
+    expect(e.tw).toBe(1);
+    expect(e.lb2).toBe(e.bars[1]);
+    expect(Math.abs(e.ly2 - e.ly0) - 2 * DN.lHH).toBeGreaterThanOrEqual(DN.lFree);
+    step(e, DN.lTel);
+    expect(e.lp).toBe(LP.out);
+    $.P = { x: e.lx - DN.lSp, y: e.ly2, alive: true }; // on the twin lane, where the bars are going
+    step(e);
+    expect(S.hits).toBe(1);
+    expect(e.bars[1].oy).toBeCloseTo(e.ly2 - e.y); // the twin bar rides its lane
+  });
+  it('sweeps one lane in phase 1', () => {
+    const e = spawn('choir');
+    e.att = DN.lEvery - 1;
+    step(e);
+    expect(e.tw).toBe(0);
+    expect(e.lb2).toBe(null);
+  });
+  it('carries on alone on the twin lane when the first bar is shot off it', () => {
+    const e = spawn('choir');
+    e.hp = e.max * .4; e.p2s = 1; // past the phase-2 lurch
+    e.att = DN.lEvery - 1;
+    step(e);
+    step(e, DN.lTel + 2);
+    const y2 = e.ly2;
+    e.bars[0].dead = true;
+    step(e);
+    expect(e.lb).toBe(e.bars[1]);
+    expect(e.tw).toBe(0);
+    expect(e.ly).toBe(y2);
+    expect(e.lp).toBe(LP.out);
+  });
+  it('takes .4 on the eye while a bar lives, full once both are gone', () => {
+    const e = spawn('choir');
+    expect(MID_SIM.choir.hurt!(e, 1, e.x, e.y, 1)).toBeCloseTo(.4);
+    e.bars[0].dead = true;
+    expect(MID_SIM.choir.hurt!(e, 1, e.x, e.y, 1)).toBeCloseTo(.4);
+    e.bars[1].dead = true;
+    expect(MID_SIM.choir.hurt!(e, 1, e.x, e.y, 1)).toBe(1);
+  });
+  it('at rank >= 14 re-locks the return sweep on the ship at the turn, over DN.lTurn, off screen', () => {
+    $.P = { x: 200, y: 100, alive: true, ...VARIANT_KIT };
+    $.G.gm = { cal: 1 };
+    const e = spawn('choir');
+    e.att = DN.lEvery - 1;
+    step(e);
+    step(e, DN.lTel);
+    let n = 0;
+    while (e.lp === LP.out && n++ < 200) step(e);
+    expect(e.lp).toBe(LP.turn);
+    expect(e.lx).toBe(DN.lEnd);
+    $.P.y = 180; // too late: it locked on the turn's first frame
+    step(e, DN.lTurn);
+    expect(e.lp).toBe(LP.back);
+    expect(e.ly).toBe(100);
+  });
+  it('waits for the turn re-lock to read the ship where it is then', () => {
+    $.P = { x: 200, y: 100, alive: true, ...VARIANT_KIT };
+    $.G.gm = { cal: 1 };
+    const e = spawn('choir');
+    e.att = DN.lEvery - 1;
+    step(e); step(e, DN.lTel);
+    let n = 0;
+    while (e.lx > DN.lEnd + DN.lSp && n++ < 200) step(e);
+    $.P.y = 180;
+    step(e);
+    expect(e.lp).toBe(LP.turn);
+    expect(e.lyB).toBe(180);
+    S.hits = 0;
+    step(e, DN.lTurn);
+    expect(S.hits).toBe(0); // the bar is off screen the whole turn: the ruled line is all there is
+    expect(e.ly).toBe(180);
+    expect(e.lp).toBe(LP.back);
+  });
+});
+
+describe('THE DISSOLVING WOMB (long4): floor, ceiling, and a smaller ring', () => {
+  it('alternates its spray floor, ceiling, floor', () => {
+    const e = spawn('cyst');
+    const sides: number[] = [];
+    for (let i = 0; i < 3; i++) { e.st = 'idle'; e.wt = 0; e.cool = 0; e.att = 3 * i; step(e); expect(e.st).toBe('tel'); sides.push(e.sd); }
+    expect(sides).toEqual([1, -1, 1]);
+  });
+  it('lobs 5 globs in phase 1 and 7 in phase 2 (spray + ring stays at 15)', () => {
+    for (const ph2 of [false, true]) {
+      W.eshots.length = 0;
+      const e = spawn('cyst');
+      if (ph2) e.hp = e.max * .4;
+      e.st = 'spray'; e.wt = 0;
+      step(e, 60);
+      expect(W.eshots.filter((s) => s.k === 'glob').length).toBe(ph2 ? 7 : 5);
+    }
+  });
+});
+
+describe('THE APPRENTICE (long4): the sagging bite and the second hook', () => {
+  it('holds its phase-2 bite 60 f with the wire sagging 30 px', () => {
+    const e = spawn('prentice');
+    e.hp = e.max * .4;
+    $.P = { x: 90, y: 40, alive: true };
+    e.att = 1;
+    step(e);
+    expect(e.st).toBe('htel');
+    let n = 0;
+    while (e.st !== 'bite' && n++ < 300) step(e);
+    step(e);
+    expect(e.sag).toBe(DN.hSag);
+    step(e, DN.hBite2 - 2);
+    expect(e.st).toBe('bite');
+    step(e);
+    expect(e.st).toBe('reel');
+  });
+  it('keeps a straight 44 f bite in phase 1', () => {
+    const e = spawn('prentice');
+    $.P = { x: 90, y: 40, alive: true };
+    e.att = 1;
+    step(e);
+    let n = 0;
+    while (e.st !== 'bite' && n++ < 300) step(e);
+    step(e);
+    expect(e.sag).toBe(0);
+    step(e, DN.hBite - 1);
+    expect(e.st).toBe('reel');
+  });
+  it('at rank >= 14 throws a second hook while the first wire is still taut, after a full tell', () => {
+    $.P = { x: 90, y: 40, alive: true, ...VARIANT_KIT };
+    $.G.gm = { cal: 1 };
+    const e = spawn('prentice');
+    e.att = 1;
+    step(e);
+    let n = 0;
+    while (e.st === 'htel' && n++ < 300) step(e);
+    expect(e.st).toBe('hook');
+    expect(e.st2).toBe('htel');
+    let tell = 0;
+    while (e.st2 === 'htel' && n++ < 400) { step(e); tell++; }
+    expect(e.st2).toBe('hook');
+    expect(tell).toBeGreaterThanOrEqual(TELL_MIN - 1);
+    expect(e.st).toBe('bite'); // the first wire is still taut
+    while ((e.st !== 'idle' || e.st2) && n++ < 800) step(e);
+    expect(e.st).toBe('idle');
+    expect(e.st2).toBe('');
+  });
+  it('sags both wires by the same amount while two are out, so the gap the second aim kept holds', () => {
+    $.P = { x: 90, y: 40, alive: true, ...VARIANT_KIT };
+    $.G.gm = { cal: 1 };
+    const e = spawn('prentice');
+    e.hp = e.max * .4; e.p2s = 1;
+    e.att = 1;
+    step(e);
+    let n = 0, both = 0;
+    while ((e.st !== 'idle' || e.st2) && n++ < 900) {
+      step(e);
+      if ((e.st === 'bite' || e.st === 'reel') && (e.st2 === 'bite' || e.st2 === 'reel')) { both++; expect(e.sag).toBe(e.sag2); }
+    }
+    expect(both).toBeGreaterThan(0);
+  });
+  it('spawns no edge hatchling within 64 px of a ship that moved under the column', () => {
+    $.P = { x: 120, y: 130, alive: true };
+    const e = spawn('brood');
+    step(e);
+    expect(e.edge).toBe(1);
+    $.P.x = e.ex; $.P.y = 8; // under the column, at the top
+    step(e, DN.bTel);
+    for (const k of W.enemies.filter((q) => q.k === 'hatch')) expect(Math.hypot(k.x - $.P.x, k.y - $.P.y)).toBeGreaterThanOrEqual(DN.eClear - 3);
+  });
+  it('throws one hook below rank 14', () => {
+    const e = spawn('prentice');
+    $.P = { x: 90, y: 40, alive: true };
+    e.att = 1;
+    step(e);
+    let n = 0;
+    while (e.st === 'htel' && n++ < 300) step(e);
+    expect(e.st2).toBe('');
   });
 });

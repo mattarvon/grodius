@@ -15,6 +15,7 @@
 import { $ } from './state';
 import { layout } from './layout';
 import { midRow } from './enemies/mid/roster';
+import { ECON, econId } from './economy';
 
 /** run f now if no midboss holds G.mini, else re-check every frame until none does (spec §3.2 rule 2) */
 export function whenNoMini(f: () => void): void {
@@ -50,8 +51,21 @@ export const MID_HP: Readonly<Record<string, number>> = {
   prentice: 180, // D61 Pass 1: 200 -> 180 (its hook turn replaced the 2nd lunge and pushed it to 11.7 s, over slot A 8-11). Was 150: 6.8 s, under the band. Measured 10.2 s at 200 (midboss-probe --layout long4 --leave 1080);
   // the +50 HP added 3.4 s, ~14.7 HP/s, matching spec §6.2's stage-1 DPS. Predict the next kind from that per-HP rate
 };
+/** DIFFICULTY-SPEC §2.3 (W4a): the Descent 1 midbosses' HP on long4's hard set, where the dial and powHP no longer touch
+ *  HP (C30, E10). A kind here overrides MID_HP and ET there; its TTK targets are the fight table's, measured by
+ *  tools/midboss-probe.mjs --layout long4 --leave 1080 at the STAGE 1 kit (slot A 8-11 s). [FIT] values: fitted on the
+ *  probe before merge. The Saucer (DRIFT, spawned by ufo.ts) reads its row here too */
+export const MID_HP_G3: Readonly<Record<string, number>> = {
+  ufo: 50, //      [FIT] 56 ran 11.8 s; spec §2.3 starts at 80 (64 if over 11 s); with the core rule (wings .3) the STAGE 1 kit ran out its forced exit at 80
+  choir: 46, //    [FIT] W0's rank: 52 ran 12.2 s. Before W0: 48 ran 10.0 s; 58 ran 12.6 s; ET 80: with the eye at .4 while a bar lives the STAGE 1 kit took 14.0 s at 80 (slot A 8-11)
+  cyst: 156, //    [FIT] ET 135 ran 8.9 s: inside the band, but its phase 1 was too short for its slow moves to reach every spot (K1)
+  brood: 120, //   [FIT] ET 105 ran 8.9 s: as the Womb (K1)
+  prentice: 180, // MID_HP's D61 value (9.8 s on this build)
+};
+/** the HP table midboss k reads on this layout: MID_HP_G3 on long4's hard set, else MID_HP (both picker-only) */
+export const midHpOf = (k: string): number | undefined => (ECON[econId()].hard && MID_HP_G3[k]) || MID_HP[k];
 /** midboss(): the HP multiplier for kind k (base = its ET base HP); 1 off picker layouts or for an unlisted kind */
-export const midHpMul = (k: string, base: number) => (layout().picker && MID_HP[k] ? MID_HP[k] / base : 1);
+export const midHpMul = (k: string, base: number) => { const h = layout().picker ? midHpOf(k) : undefined; return h ? h / base : 1; };
 
 /** a DRIFT midboss's spawner: exitX = the scroll x it is forced out at, leave = its slot clock (frames) */
 export type DriftSpawn = (exitX: number, leave: number) => void;
