@@ -25,6 +25,7 @@ const NOT_X: Record<string, number[]> = {
   'audio.ts': [800, 2300, 2400, 4200, 5200], // oscillator and filter Hz
   'audiomix.ts': [800], // the presence peak's Hz (EQ.presF)
   'music.ts': [2400], // filter Hz
+  'death.ts': [2400], // SURV.regrowPer: REGROWTH's frames per WARD hit (W2)
   'economy.ts': [2100, 2400], // BIO_LONG bio bands
   'enemies/spawn.ts': [800], // kill score
   'enemies/mid/roster.ts': [2000], // part of a name: SQUID SAUCER 2000 (Matt, 2026-11-09)

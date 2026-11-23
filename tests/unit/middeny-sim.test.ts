@@ -26,7 +26,7 @@ vi.mock('../../src/enemies/elite', () => ({ eliteKill: noop, eliteTick: noop }))
 vi.mock('../../src/enemies/spawn', async () => {
   const { MID_ET } = await import('../../src/enemies/mid/roster');
   return {
-    BS: () => 1, aimA: () => Math.PI, wrapA: (a: number) => a, fan: noop, ring: noop, every: () => false, onScreen: () => true,
+    BS: () => 1, volley: () => true, endVolley: noop, aimA: () => Math.PI, wrapA: (a: number) => a, fan: noop, ring: noop, every: () => false, onScreen: () => true,
     eshoot: (x: number, y: number, a: number, sp: number, k: string) => { W.eshots.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, a, k, r: 4 }); },
     banner: noop, miniWarn: noop,
     mk: (k: string, x: number, y: number, o: any = {}) => {

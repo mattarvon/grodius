@@ -19,10 +19,10 @@ vi.mock('../../src/audio', () => ({ sample: () => false, thr: () => false, bankW
 vi.mock('../../src/music', () => ({ duckMusic: () => {} }));
 vi.mock('../../src/world', () => ({ ...W, ceilAt: () => 0, floorAt: () => 224 }));
 vi.mock('../../src/fx/spawn', () => ({ drop: noop, flash: noop, gib: noop, gore: noop, mist: noop, pop: noop, spark: noop, splat: noop }));
-vi.mock('../../src/perks', () => ({ gainXP: noop, pk: (k: string) => (k === 'scab' ? W.scab : 0), spillSlick: noop }));
+vi.mock('../../src/perks', () => ({ gainXP: noop, pk: (k: string) => (k === 'scab' ? W.scab : 0), scabChance: () => .03, spillSlick: noop })); // scabChance: perks.ts's long4 SURV.scab
 vi.mock('../../src/stages', () => ({ clearStage: noop, deepPay: () => 1 }));
 vi.mock('../../src/mutations', () => ({ countKill: noop }));
-vi.mock('../../src/player', () => ({ WARD_MAX: 3, playerHit: noop, slotMaxed: (i: number) => W.maxed.includes(i) }));
+vi.mock('../../src/player', () => ({ WARD_MAX: 3, playerHit: noop, slotMaxed: (i: number) => W.maxed.includes(i), wardCap: () => Math.min(3, ($.P && $.P.wardLv) || 0) })); // wardCap: player.ts's long4 rule
 vi.mock('../../src/contraptions', () => ({ onKillContraptions: noop }));
 vi.mock('../../src/enemies/elite', () => ({ eliteKill: noop, eliteTick: noop }));
 vi.mock('../../src/boss/update', () => ({ startBoss: noop }));
