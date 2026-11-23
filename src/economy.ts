@@ -183,7 +183,11 @@ const HARD_LONG4: HardSet = {
   driveRank: 0, // C22: was DEPTH.driveRank .6. W4 re-fits the Drive's base HP (start 700, gate K3) and C23's clock holds the fight
   // D63's rankCap 1.25 is deleted (spec §2.1): G.rank is the legacy min(1, pow) on every layout again, and the
   // rebuild's integer rank lives in src/rank.ts
-  cal: 1.18, serr: 1.2, // package Pass 2: graft damage softened (was 1.22 / 1.25)
+  // package Pass 2: graft damage softened (was 1.22 / 1.25). tune-tc, gate E4 (strongest LEGAL MAX D1 <= 50 single
+  // target): SERRATION 1.2 -> 1.06 [FIT]. It is the one gun graft the LEGAL MAX kit holds and the END D1 kit does not,
+  // so the cut trims the ceiling without moving the fight kits' TTK (gates K3) or the death ratio (E5). CALIBER stays.
+  // With player.ts GUN_L4 (ARC 1.3, PYRE I .6): LEGAL MAX 41.7 / 46.5 / 42.7 / 47.4 (dps-probe 6000 f)
+  cal: 1.18, serr: 1.06,
   notice: { hazEvery: 3, hazEveryD3: 2, flayEvery: 1, flayCool: 1, hazInFight: true }, // D61 as merged
 };
 
@@ -235,17 +239,21 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // re-fit in step 5: killBio x (1400 - B_fixed) / (B_measured - B_fixed) (pod-probe finalBio, seeds 1-5)
     // Fit 1 (2026-11-08): .47 gave steady-state 1619 [1440-1723]; B_fixed = 4 S grades x 40 + 3 choices x 30 = 250,
     // so .47 x (1400 - 250) / (1619 - 250) = .395, rounded to .40. Final build: steady 1366 [1235-1536], in band (production/qa/evidence/ls2-d31.md)
-    killBio: .4,
+    // tune-tc: .40 -> .37 [FIT, gate E9 1300-1500]: W6 measured median 1505 (5 seeds 1464-1629), it5 1520 at .39 (more
+    // pods past K1 pay SURPLUS biomass); x .37/.39 aims at ~1440
+    killBio: .37,
     // D31 §2.2: carrier and formation pods are per spawn, the variable faucet. Fit 1 (2026-11-08, ls2-d31 report): at the
     // .17 / .5 projections the stretched build gave 48 D1 pod pickups, the same as main's 48 (spawns rose x1.8, not
     // x1.45). Fixed pods (midboss/Maw 11, Saucer 2, choice 3, release 2) are 18 of them, so -35% (31) needs the variable
     // 30 cut to ~13: f = (.65 x 48 - 18) / 30 = .44 on both knobs. pod-probe stages[].src, seeds 1/3/5/7/11
     // DIFFICULTY-SPEC §2.2 random faucet: .075 -> .05 [FIT to the 32-35 Descent 1 total, gate E2] now that each
     // stage's authored opening carriers (group.open, W3) and the typed recovery waves carry the guaranteed pods
-    capKeep: .05,
+    // tune-tc: .05 -> .08 with grpPod .12 -> .20 [FIT]: E2 measured 28 (W6), then 29-31 at .06 / .15 (it5, seeds
+    // 1/3/5/7/11) for 32-35; the random faucet is the spec's lever for the total (pod-probe stages[].src carrier / formation)
+    capKeep: .08,
     // One R() per cleared non-release formation, long4 only (short: grpPod 1, no draw). D31 fit 1 gave .22; spec §2.2
     // cuts it to .12 [FIT, gate E2] for the same reason. The tier's faucet multiplier applies here (tier.ts capRate)
-    grpPod: .12,
+    grpPod: .2,
     // D31 §2.3: measured (fit 1, 2026-11-08): the stretched build ended D1 with 6-7 graft levels against main's 5, on
     // x1.8 the kills (674 vs 375 median). graftMul = the kill ratio, so grafts keep today's per-stage timing
     // (pod-probe grades[3].kit.gm, kills)

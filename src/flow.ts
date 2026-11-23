@@ -279,7 +279,7 @@ export function deathCost(G, wiped = false, rigWas = false) {
     // a graft pod still on screen would hand the lost level straight back (economy-designer): every pending graft pod
     // goes, in place too, and its counter rewinds with the rest (death.ts graftRewind, wiped)
     for (const c of caps) if (c.graft) c.purged = 1;
-    const g = graftDeath(G, true), scar = perkScar(G), rig = rigWas || ((G.loop | 0) === 0 && rigLive(G).length > 0);
+    const g = graftDeath(G, true), scar = deathTier(G).scar ? perkScar(G) : null, rig = rigWas || ((G.loop | 0) === 0 && rigLive(G).length > 0);
     if ((G.loop | 0) === 0) { G.rigOff = 1; G.rigOffC = G.cleared | 0; } // Decision 4A: offline until the next clear
     G.rigHit = rig ? 1 : 0; // a restart's second deathCost still names the rig it took
     // ux / loc: short parts, one banner; the recovery call-out follows it (feedAfter), it is never appended
@@ -372,11 +372,12 @@ export function respawn() {
 function queueRecovery(P0) {
   if (!hardOn()) return;
   const G = $.G, bb = !!lv('salvage') && deathTier(G).blackBox, r = row(G.stage);
-  // the spec's C17 shape on every tier (systems-designer): Easy's "send back the slot it lost" (death.ts gradual) is a
-  // game-designer proposal waiting on the spec, so it is not passed
-  G.recovery = newRecovery(P0, bb, { untilWarn: r ? (r.warnX ?? r.bossX) - G.scroll : null });
+  // C17's shape on Normal and up; Easy's R1 returns the exact slot its gradual strip took (Matt's decision 10, death.ts r1Pods)
+  G.recovery = newRecovery(P0, bb, { gradual: deathTier(G).refund, untilWarn: r ? (r.warnX ?? r.bossX) - G.scroll : null });
   // ux: its own banner, after the death's (feedAfter), still up before R1 lands at 3 s
-  feedAfter({ s: 'RECOVERY', d: bb ? 'catch your parts: pods incoming, gun pod FULL (BLACK BOX)' : 'catch your parts: pods incoming', t: 200, ml: 200 });
+  // Easy's refund names what returns (ux-designer): its pods are all FULL, whatever BLACK BOX says
+  const rf = deathTier(G).refund && G.recovery[0] && G.recovery[0].pods[0].full ? ['THRUST', 'MISSILE', 'SPLIT', 'ARC', 'PYRE', 'WRAITH', 'WARD'][G.recovery[0].pods[0].ty] : null; // player.ts SLOTS (no import: player.ts imports this module)
+  feedAfter({ s: 'RECOVERY', d: rf ? `your ${rf} returns: FULL pods incoming` : bb ? 'catch your parts: pods incoming, gun pod FULL (BLACK BOX)' : 'catch your parts: pods incoming', t: 200, ml: 200 });
 }
 /** frames a queued banner holds the feed before the next queued one may replace it */
 const FEED_HOLD = 90;

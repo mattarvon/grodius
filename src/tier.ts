@@ -32,7 +32,7 @@ type Col<T> = readonly [T, T, T, T];
 export const TIER: {
   base: Col<number>; caps: Col<readonly [number, number, number]>; vcap: Col<number>; capRate: Col<number>;
   rev: Col<readonly [number, number, number]>; strip: Col<Strip>; checkpoint: Col<boolean>; lifeline: Col<boolean>;
-  gasp: Col<Gasp>; blackBox: Col<boolean>;
+  gasp: Col<Gasp>; blackBox: Col<boolean>; scar: Col<boolean>;
 } = {
   /** rank's T_base (src/rank.ts): the Gradius III DIP values [GR §2 S]. Gates R1 / D1 */
   base: [0, 2, 4, 6],
@@ -56,6 +56,9 @@ export const TIER: {
   gasp: ['stage', 'descent', 'descent', 'off'],
   /** BLACK BOX: recovery wave R1's main-gun pod arrives FULL (C16: off on Very Hard) */
   blackBox: [true, true, true, false],
+  /** the perk scar (decision 2A: a death eats one level of the strongest damage perk); Easy keeps its perks, Matt's
+   *  decision 11 (2026-11-23): an Easy death costs guns and grafts only */
+  scar: [false, true, true, true],
 };
 
 /** a tier 0-3 from anything (a URL value, a stored LAB or run-save field), or null */

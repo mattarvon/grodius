@@ -35,6 +35,8 @@ vi.mock('../../src/runsave', async () => {
 const F = await import('../../src/flow');
 const { writeCp } = await import('../../src/checkpoint');
 const { setLayout } = await import('../../src/layout');
+/** the queue grouped back into its waves (death.ts flies each carrier as its own entry, RECOVERY.file apart) */
+const waves = (q: any[]) => { const o: any[] = []; for (const e of q) { const w = o[o.length - 1]; if (w && e.t === w.t + w.pods.length * D.RECOVERY.file) w.pods.push(...e.pods); else o.push({ t: e.t, pods: [...e.pods] }); } return o; };
 const D = await import('../../src/death');
 
 const KIT = { speed: 3, missile: 1, laser: 1, double: 0, pyre: 0, options: 2, wardLv: 2, shield: 2 };
@@ -92,7 +94,7 @@ describe('BLACK BOX, the lifeline and the recovery queue (C15-C17)', () => {
     F.killPlayer();
     expect(H.caps.length).toBe(0); // no burst
     F.respawn();
-    expect($.G.recovery.map((q: any) => [q.t, q.pods])).toEqual([[D.RECOVERY.r1, [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }]], [D.RECOVERY.r1 + D.RECOVERY.r2, [{ ty: 5 }, { ty: 5 }]]]);
+    expect(waves($.G.recovery).map((q: any) => [q.t, q.pods])).toEqual([[D.RECOVERY.r1, [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }]], [D.RECOVERY.r1 + D.RECOVERY.r2, [{ ty: 5 }, { ty: 5 }]]]); // tune-tc: R2's WARD pod is built, off (RECOVERY.r2Ward)
     expect($.G.feed.d).toContain('BLACK BOX'); // ux: the parts' arrival (no death feed was up)
     expect(H.caps.length).toBe(0); // nothing flies until R1's time
   });
@@ -101,7 +103,7 @@ describe('BLACK BOX, the lifeline and the recovery queue (C15-C17)', () => {
     H.salvage = 1;
     died(3);
     F.respawn();
-    const full = () => $.G.recovery[0].pods.filter((p: any) => p.full).length;
+    const full = () => waves($.G.recovery)[0].pods.filter((p: any) => p.full).length;
     expect(full()).toBe(0);
     H.salvage = 0;
     died(2);
@@ -130,6 +132,34 @@ describe('BLACK BOX, the lifeline and the recovery queue (C15-C17)', () => {
 });
 
 describe('the death cost on the run (Decision 2A, 4A)', () => {
+  it('a death drops the seal-primed stored parts (resetPlayer clears P.frag; tune-tc)', () => {
+    for (const t of [0, 1]) {
+      died(t);
+      $.P.frag = [2, 2, 0, 0, 0, 3, 2];
+      $.P.alive = true;
+      F.killPlayer();
+      F.respawn();
+      expect($.P.frag).toEqual([]);
+    }
+  });
+  it('Easy keeps its perks (decision 11): no scar; Normal and up pay it', () => {
+    for (const t of [0, 1, 2, 3]) {
+      H.scar.mockClear();
+      died(t);
+      $.P.alive = true;
+      F.killPlayer();
+      expect(H.scar).toHaveBeenCalledTimes(t === 0 ? 0 : 1);
+    }
+  });
+  it('Easy R1 returns exactly the slot the gradual strip took (decision 10): one FULL pod a level', () => {
+    died(0);
+    $.P.alive = true;
+    F.killPlayer();
+    F.respawn();
+    expect(waves($.G.recovery)[0].pods).toEqual([{ ty: 5, full: true }, { ty: 5, full: true }]); // KIT's WRAITH 2
+    expect(waves($.G.recovery)[1].pods).toEqual([{ ty: 6 }, { ty: 6 }]);
+  });
+
   it('names what the death took, and takes the Descent 1 rig offline until the next clear', () => {
     H.scar.mockReturnValue('serrated marrow'); // the longest perk name: the line must still fit
     H.graft.mockReturnValue(true);
