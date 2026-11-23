@@ -28,7 +28,7 @@ export const curve = (k) => { const c = COOL[k]; return Math.max(c.floor, c.base
 /** DIFFICULTY-SPEC C2 for regular shooters: their cooldowns x rank.ts cadMul (1.25 - .6 rho; x1.17 at rank 2, x.65 at
  *  16), floor 18 f, on a long entry with a HardSet (long4) only, so short keeps today's numbers (spec §5.3).
  *  W0 lands it OFF (inert hook): W1 turns it on with its bullet changes and gates B2 / N1 */
-export const RANK_CAD = false;
+export const RANK_CAD = true; // W1 (G3): on, with the bullet changes (gates B2, N1)
 /** the rank cadence factor coolFor applies: cadMul on long4 once RANK_CAD is on, else 1. Pure, no R() */
 export const rankCool = () => (RANK_CAD && ECON[econId()].hard ? cadMul($) : 1);
 /** cooldown for kind k after an attack; roll = the ri() jitter the caller drew. The long4 test is taken once; rank is

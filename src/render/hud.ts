@@ -9,7 +9,7 @@ import { C, FONT_D, FONT_H, H, PH, TAU, W, clamp, ctx, lerp, pwBtn } from '../co
 import { srnd } from '../srnd';
 import { SET } from '../save';
 import { touch } from '../input';
-import { AMT, LIGHTS, arcs, caps, enemies, eshots, flashes, orbs, shots, sparks, texts } from '../world';
+import { AMT, LIGHTS, arcs, caps, ceilAt, enemies, eshots, flashes, floorAt, orbs, shots, sparks, texts } from '../world';
 import { METER_CAP, POD, mult } from '../enemies/update';
 import { GM, ROM, gmL, graftSwap } from '../mutations';
 import { SLOTS, needOf, optPos, slotLocked, slotMaxed } from '../player';
@@ -148,8 +148,20 @@ export function drawHUD() {
     ctx.globalAlpha = 1;
   }
   for (const w of $.G.warn) {
+    if (w.birth) { drawBulge(w); continue; } // G3 wall birth: the wall swells (no blink: it grows over its 44 f)
     if (($.T >> 3) % 2) continue;
     const a = Math.min(1, w.t / 20);
+    if (w.edge) { // G3 drop / rise (and a dropping sentry): two chevrons on the top or bottom edge at the lane, pointing in
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#ff2a2a';
+      const s = w.edge === 'top' ? 1 : -1, y0 = w.edge === 'top' ? 3 : PH - 3;
+      for (let k = 0; k < 2; k++) {
+        const y = y0 + s * k * 7;
+        poly(ctx, [[w.x - 6, y], [w.x, y + s * 6], [w.x + 6, y], [w.x, y + s * 2.5]]);
+      }
+      ctx.globalAlpha = 1;
+      continue;
+    }
     ctx.globalAlpha = a;
     ctx.fillStyle = '#ff2a2a';
     for (let k = 0; k < 2; k++) {
@@ -195,7 +207,7 @@ export function drawHUD() {
       }
     }
     if (m.bars) {
-      const n = m.bars.filter(b => !b.dead).length;
+      const n = m.bars.filter(b => !b.dead && b.k === 'nailbar').length; // nail bars only: the Butcher's meat hooks live in e.bars too (W4b)
       if (n) txtOutlined(n + ' NAIL BARRIERS', W / 2, y + 5, '#8fa3b8', 'center', 7);
     }
   }
@@ -245,6 +257,41 @@ export function drawHUD() {
     ctx.fillRect($.P.x - 8, $.P.y + 11, 16 * $.P.shield / WARD_MAX, 1);
   }
 }
+/** an enemy shot's glow radius as a multiple of its drawn core (spec §2.1: <= 1.6) */
+export const EGLOW = 1.6;
+/** G3 wall birth (enemies/spawn.ts wallBirth): the ceiling or floor swells into a blister at the lane over its 44 f, veins
+ *  darkening, then splits (the hatchlings). Rides the wall: drawn at its world x */
+function drawBulge(w) {
+  const x = w.wx - $.G.scroll, s = w.edge === 'top' ? 1 : -1, wy = s > 0 ? ceilAt(w.wx) : floorAt(w.wx), k = 1 - w.t / w.ml;
+  if (x < -20 || x > W + 20) return;
+  const r = 5 + 9 * k, th = ($.T >> 2) & 1 ? 1 : .8;
+  ctx.fillStyle = `rgba(110,18,22,${.55 + .35 * k})`;
+  ctx.beginPath();
+  ctx.ellipse(x, wy, r * 1.3, r * (.6 + .5 * k), 0, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = `rgba(200,60,60,${(.25 + .5 * k) * th})`;
+  ctx.beginPath();
+  ctx.ellipse(x, wy + s * r * .25, r * .8, r * .35 * (.6 + .5 * k), 0, 0, TAU);
+  ctx.fill();
+  // veins that darken and spread with k, and a pale stretched rim, so it reads against flesh walls too
+  ctx.strokeStyle = `rgba(40,0,6,${.4 + .5 * k})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let j = -1; j <= 1; j++) { ctx.moveTo(x + j * r * .3, wy); ctx.lineTo(x + j * r * (.6 + .5 * k), wy + s * r * (.3 + .4 * k)); }
+  ctx.stroke();
+  ctx.strokeStyle = `rgba(235,190,170,${(.2 + .45 * k) * th})`;
+  ctx.beginPath();
+  ctx.ellipse(x, wy, r * 1.3, r * (.6 + .5 * k), 0, s > 0 ? 0 : Math.PI, s > 0 ? Math.PI : TAU);
+  ctx.stroke();
+  if (k > .7) { // the split opening
+    ctx.strokeStyle = '#1a0204';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - r * .6, wy + s * r * .35);
+    ctx.lineTo(x + r * .6, wy + s * r * .35);
+    ctx.stroke();
+  }
+}
 export function drawEShots() {
   // enemy fire: its own colour family (toxic green), outlined, drawn above gore and darkness
   drawPerkFX();
@@ -262,7 +309,9 @@ export function drawEShots() {
   }
   ctx.lineCap = 'butt';
   ctx.globalCompositeOperation = 'lighter';
-  for (const s of eshots) glow(s.x, s.y, s.fs ? 7 + 6 * s.fs : s.k === 'spike' ? 14 : s.k === 'glob' ? 11 : 9, '150,255,40', .55 * pul); // fs: a fork drawn bigger (THE KEEPSAKE's mobile forks)
+  // G3 (§2.1 fairness, GR rule 10/11; art director): a shot's glow is at most 1.6x its drawn core, so what you see is
+  // what hits (it was ~2.6x: an orb read 18 px wide and hit at 4.6). Cores below: orb 3.4, glob 5.2, spike 6.5 px
+  for (const s of eshots) glow(s.x, s.y, s.fs ? 7 + 6 * s.fs : (s.k === 'spike' ? 6.5 : s.k === 'glob' ? 5.2 : 3.4) * EGLOW, '150,255,40', .7 * pul); // fs: a fork drawn bigger (THE KEEPSAKE's mobile forks)
   ctx.globalCompositeOperation = 'source-over';
   for (const s of eshots) {
     if (s.fk) { // THE KEEPSAKE's forks (a glob's arc or a spike's line, tines first): pale steel over the enemy-fire glow

@@ -19,6 +19,8 @@
 //  call this (long4, the default since D24), so the short layout (LAB or ?layout=short) never draws here.
 // =====================================================================
 
+import { entryPick, rightPat, type EntryEdge } from './notice';
+
 export type CellTag = 'intro' | 'build' | 'peak' | 'floor';
 
 export interface CellDef {
@@ -98,4 +100,16 @@ export function genFiller(a: number, b: number, gap: number, mix: Mix, rnd: () =
     out.push({ x: xx, k: mixPick(mix, rnd()), u: rnd() });
   }
   return out;
+}
+
+// ---------------- G3 entry mix (DIFFICULTY-SPEC §2.3, LVL §4; tables in src/notice.ts ENTRY) ----------------
+export { entryPick, rightPat };
+/** a filler drone beat's entry for stage kind ('orbit' | 'biome' | 'drive') and biome slot, from one uniform u of the
+ *  build stream rs (never the sim R(): §5.2). edge: right / behind / top / bottom / wall; pat: the formation pattern
+ *  (right: sine, zig, dive, wall or loop; top 'drop', bottom 'rise'; wall: 'drop' = a ceiling birth, 'rise' a floor
+ *  one). enemies/spawn.ts entryWave(ent, y, n) turns it into the spawn; enemies/scripts.ts fillSpawn (W3) calls both */
+export function droneEntry(kind: string, slot: number, u: number): { edge: EntryEdge; pat: string } {
+  const f = (v: number) => v - Math.floor(v), edge = entryPick(kind, slot, f(u * 13.37));
+  const pat = edge === 'right' ? rightPat(kind, f(u * 29.71)) : edge === 'top' ? 'drop' : edge === 'bottom' ? 'rise' : edge === 'wall' ? (f(u * 3.3) < .5 ? 'drop' : 'rise') : 'behind';
+  return { edge, pat };
 }

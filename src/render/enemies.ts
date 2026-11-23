@@ -1,7 +1,9 @@
 // @ts-nocheck
 import { $ } from '../state';
 import { C, TAU, W, ctx, hash } from '../core';
-import { NOTICE } from '../notice';
+import { BUL, NOTICE } from '../notice';
+import { SET } from '../save';
+import { g3 } from '../enemies/g3';
 import { srnd, srr } from '../srnd';
 import { ceilAt } from '../world';
 import { whipPts } from '../enemies/update';
@@ -36,11 +38,11 @@ export function drawDrone(c, e) {
   if (e.ut === 1) uTurnTell(c, e);
   // the wasp (Tiamalt, CC-BY 3.0): sick yellow-green, faint wingbeat; rear waves fly right so they're mirrored, and so
   // does a U-turned dive drone from the half of its tell on (D61)
-  const d = e.pat === 'behind' || e.ut === 2 || (e.ut === 1 && e.uw >= NOTICE.uTel / 2) ? -1 : 1, ph = (e.i || 0) * 7;
+  const d = e.pat === 'behind' || e.ut === 2 || (e.ut === 1 && e.uw >= NOTICE.uTel / 2) || e.lp === 2 || (e.lp === 1 && Math.abs(e.la - e.la0) > Math.PI / 2) ? -1 : 1, ph = (e.i || 0) * 7; // lp: a G3 'loop' drone flies back right from halfway round
   if (sprF(c, 'wasp', sprAtF(e.t + ph, 50), 0, -4.5, { sx: d })) {
     c.save();
     c.scale(d, 1);
-    if (e.cap) { // a swollen red egg sac on the abdomen, pulsing
+    if (e.cap || (e.group && e.group.open)) { // a swollen red egg sac on the abdomen, pulsing (an authored carrier formation: every member, §2.2)
       c.fillStyle = (($.T + ph) >> 3) % 2 ? '#e01a24' : '#a10d14';
       c.fillRect(1, 0, 4, 3);
       c.fillStyle = '#ffb0b0';
@@ -72,7 +74,7 @@ export function drawDrone(c, e) {
   c.beginPath();
   c.ellipse(.5, .5, 8.2, 6.2, 0, 0, TAU);
   c.fill();
-  c.fillStyle = e.cap ? '#c4313a' : C.flesh;
+  c.fillStyle = e.cap || (e.group && e.group.open) ? '#c4313a' : C.flesh;
   c.beginPath();
   c.ellipse(-.3, -.3, 7.3, 5.3, 0, 0, TAU);
   c.fill();
@@ -925,7 +927,37 @@ export function drawWhip(e) {
     ctx.globalCompositeOperation = 'source-over';
   }
 }
+// ---------------- CREW KNOTS (LVL §3.2): the MERIDIAN's dead frozen together, chained at the wrists ----------------
+// One composite draw from the existing corpse draw (nb bodies on a ring, heads out) and drawChain links
+// between neighbouring wrists: no new asset. The ring turns with e.rot (the sim's spin); body variants come from the
+// index, so the pose holds frame to frame (no srnd()). A clump is the same with 2-3 bodies on a tighter ring
+const KNOT_BODY = { k: 'corpse', ph: 0, twitch: 0, t: 0, noLeg: false, noArm: false, cap: false };
+export function drawKnot(c, e) {
+  const nb = e.nb || 5, r0 = e.k === 'knot' ? 11 : 6, step = TAU / nb, ang = e.rot || 0, rc = r0 * 1.15;
+  const B = KNOT_BODY;
+  for (let j = 0; j < nb; j++) {
+    const a = ang + j * step;
+    B.ph = ((j * 1.37 + nb * .61) % 1) * TAU; // the corpse sprite variant, by index
+    B.noLeg = j % 3 === 1; B.noArm = j % 4 === 2; B.t = (e.t || 0) + j * 23; B.twitch = e.flash ? 6 : 0;
+    c.save();
+    c.translate(Math.cos(a) * r0, Math.sin(a) * r0);
+    c.rotate(a + Math.PI / 2); // heads out, feet in: the faces show
+    drawCorpse(c, B);
+    c.restore();
+  }
+  c.fillStyle = 'rgba(200,225,245,.16)'; // frost where the bodies freeze together
+  c.beginPath();
+  c.arc(0, 0, r0 * .7, 0, TAU);
+  c.fill();
+  // the chains last, over the bodies (art director: under them the ring was hidden): wrist to wrist round the knot
+  for (let j = 0; j < nb; j++) {
+    const a0 = ang + (j + .5) * step, a1 = a0 + step;
+    drawChain(c, Math.cos(a0) * rc, Math.sin(a0) * rc, Math.cos(a1) * rc, Math.sin(a1) * rc, 1.2);
+  }
+}
 export const DRAW = {
+  knot: drawKnot,
+  clump: drawKnot,
   nailbar: drawNailbar,
   crux: drawCrux,
   butcher: drawButcher,
@@ -942,6 +974,15 @@ export const DRAW = {
   ...MID_DRAW, // the midbosses: one file per kind (render/gross/mid/)
   ...BOSS_DRAW // the registered stage bosses (render/gross/boss/)
 };
+/** an aimed shot's tell at (x, y), k 0 -> 1 over the tell: a blinking red-white point that swells to the shot it becomes */
+function tellGlint(x, y, k) {
+  const on = SET.flashes ? ($.T >> 1) & 1 : 1; // HELL FLASHES off: held steady, no flicker
+  ctx.globalCompositeOperation = 'lighter';
+  glow(x, y, 3 + 4 * k, '255,50,40', .45 + .45 * k * (on ? 1 : .55));
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = on ? '#fff2e8' : '#ff6a5a';
+  ctx.fillRect(x - .5 - k, y - .5 - k, 1 + 2 * k, 1 + 2 * k);
+}
 export function drawEnemy(e) {
   if (e.k === 'hook') {
     const fx = e.x - 12 * Math.sin(e.rot),
@@ -1047,7 +1088,12 @@ export function drawEnemy(e) {
   if (e.elite) drawElitePus(ctx, e); // ...and its pustules, under the hit-flash filter
   ctx.restore();
   ctx.globalAlpha = ga;
-  if (e.cap && e.k !== 'corpse') {
+  // G3 aimed-shot tells (§2.1: >= 12 f on every aimed shot): the designated drone's 12 f flash (e.tl, enemies/update.ts
+  // droneFire), and a cross's muzzle glint over the last 12 f of its cooldown. A hot red-white point that swells (a tell, about 2x an
+  // orb's core: it is not a shot, so the 1.6x shot rule does not bind it)
+  if (e.k === 'drone' && e.tl > 0 && e.tl <= BUL.tell) tellGlint(e.x - 5, e.y, 1 - e.tl / BUL.tell);
+  else if (e.k === 'cross' && g3() && e.cool > 0 && e.cool <= BUL.tell && e.x < W - 6) tellGlint(e.x, e.y + 14, 1 - e.cool / BUL.tell);
+  if ((e.cap || (e.group && e.group.open)) && e.k !== 'corpse') { // an authored carrier formation glows red as a whole (§2.2: "red means capsule")
     ctx.globalCompositeOperation = 'lighter';
     glow(e.x, e.y, e.r + 6, '255,30,40', .18 + .1 * Math.sin($.T * .2));
     ctx.globalCompositeOperation = 'source-over';
@@ -1187,7 +1233,7 @@ function drawMutant0(c, e) {
 export function drawSentry(c, e) {
   const aim = e.st === 'tel' || e.st === 'fire';
   if (e.st === 'tel') { // the aim line: a dashed track while it hunts you, solid and blinking once it locks (18f to get out)
-    const lock = e.wt >= 34, k = Math.min(1, e.wt / 34), ca = Math.cos(e.ha), sa = Math.sin(e.ha);
+    const lk = (e.tt || 52) - 18, lock = e.wt >= lk, k = Math.min(1, e.wt / lk), ca = Math.cos(e.ha), sa = Math.sin(e.ha); // tt: G3's 44 f tell, short's 52
     c.save();
     if (!lock) { c.setLineDash([3, 3]); c.lineDashOffset = -$.T * .5; }
     c.strokeStyle = `rgba(255,40,30,${lock ? (($.T >> 1) & 1 ? .85 : .45) : .15 + .35 * k})`;
@@ -1205,7 +1251,7 @@ export function drawSentry(c, e) {
     c.restore();
   }
   // the red eye: a faint ember on patrol, a hot glare while it aims and fires
-  const ex = aim ? Math.cos(e.ha) * 4 : -4, ey = aim ? Math.sin(e.ha) * 4 : 0, p = e.st === 'tel' ? e.wt / 52 : e.st === 'fire' ? 1 : .15;
+  const ex = aim ? Math.cos(e.ha) * 4 : -4, ey = aim ? Math.sin(e.ha) * 4 : 0, p = e.st === 'tel' ? e.wt / (e.tt || 52) : e.st === 'fire' ? 1 : .15;
   c.globalCompositeOperation = 'lighter';
   glow(ex, ey, 4 + 6 * p, '255,40,30', .35 + .55 * p);
   c.globalCompositeOperation = 'source-over';

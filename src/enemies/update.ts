@@ -10,8 +10,11 @@ import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world'
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
-import { BS, aimA, banner, eshoot, every, fan, mk, onScreen, ring, shootB, wrapA } from '../enemies/spawn';
-import { bru, capRate } from '../tier'; // bru: the retired BRUTAL dial's neutral shim (W1 deletes its calls here)
+import { BS, ET, aimA, aimLead, aimShot, banner, eshoot, every, fan, mk, onScreen, revRing, revShot, ring, shootB, volley, wrapA } from '../enemies/spawn';
+import { g3, rankOf, tierOf } from './g3';
+import { BUL, ENTRY, KNOT, blueAt, kidAngle, mayFire, retryIn, revChanceOf } from '../notice';
+import { capRate } from '../tier'; // the tier's faucet multiplier at the formation pod roll (W0)
+import { revChance as revChanceT } from '../rank';
 import { countKill } from '../mutations';
 import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP, noticeOf } from '../economy';
 import { WARD_MAX, playerHit, slotMaxed } from '../player';
@@ -44,6 +47,38 @@ function uTurn(e) {
   } else e.x += NOTICE.uVx;
 }
 
+/** G3 (C6, ENC roster "drone"): a formation's designated shooter. Once it is in (a right entrant at x <= W * .78, a
+ *  rear wave at x >= 100, a drop / rise once it levels off) it flashes for 12 f (e.tl, drawn by render/enemies.ts),
+ *  then fires ONE led orb at 1.4 if the ship is >= 64 px away and it is more than 40 px inside the edge it entered by
+ *  (notice.ts mayFire), against the scroll cap. A refused shot re-tells after min(remaining, 20 f). Member 0 (e.sh 2)
+ *  shoots only at rank >= 14. No R() */
+function droneFire(e) {
+  if (!e.sh || e.shot || e.ghost > 0 || !$.P.alive || (e.sh === 2 && rankOf() < BUL.rank2)) return;
+  if (!e.tl) {
+    const inn = e.ent === 'left' ? e.x >= BUL.droneBackX : e.ent === 'top' ? e.y >= BUL.droneEdgeY : e.ent === 'bottom' ? e.y <= PH - BUL.droneEdgeY : e.x <= W * BUL.droneX;
+    if (inn && onScreen(e)) e.tl = BUL.tell;
+    return;
+  }
+  if (--e.tl > 0) return;
+  if (mayFire(e.x, e.y, e.ent, $.P.x, $.P.y, W, PH) && aimShot(e.x - 5, e.y, BUL.v.drone)) { e.shot = 1; flash(e.x - 5, e.y, 8, 4, '255,60,60'); return; }
+  e.tl = retryIn(BUL.retry); // 20 f: dark for 8, then the whole 12 f flash again (render shows tl <= 12)
+  if (!onScreen(e)) e.shot = 1; // gone off screen: it never fires from out of sight
+}
+/** CREW KNOTS (LVL §3.2): a knot drifts with the world at .35 px/f, bobs +-10 px over 180 f and spins .01 rad/f; a
+ *  clump (or a corpse torn off one, see killEnemy) flies its launch, which decays to the world drift over 60 f.
+ *  Bodies only: nothing fires. No R() */
+function updKnot(e, ss) {
+  if (e.k === 'knot') {
+    e.x -= ss + KNOT.drift;
+    e.y = e.y0 + Math.sin(e.t * TAU / KNOT.bobF) * KNOT.bob;
+    e.rot += KNOT.spin;
+  } else {
+    const f = Math.max(0, 1 - e.t / KNOT.clumpF);
+    e.x += (e.kvx || 0) * f - (ss + KNOT.drift) * (1 - f);
+    e.y += (e.kvy || 0) * f;
+    e.rot += KNOT.spin * 1.6;
+  }
+}
 // --- enemy behaviour ---
 export function updEnemy(e) {
   e.t++;
@@ -68,6 +103,29 @@ export function updEnemy(e) {
         } else if (e.pat === 'behind') {
           e.x += 1.8;
           e.y = e.y0 + Math.sin(e.t * .06 + e.i) * 14 + (e.x > W * .5 ? (e.i - 2) * (e.x - W * .5) * .06 : 0);
+        } else if (e.pat === 'drop' || e.pat === 'rise') {
+          // G3 top / bottom entry (§2.3, LVL §2.4): straight down (or up) the lane at e.dv px/f, then level off at yt
+          // onto the sine, from 0 so it never snaps
+          if (!e.lv) {
+            e.y += e.dv;
+            if ((e.y - e.yt) * Math.sign(e.dv) >= 0) { e.lv = 1; e.y0 = e.y = e.yt; e.t0 = e.t; }
+          } else {
+            e.x -= 1.75;
+            e.y = e.y0 + Math.sin((e.t - e.t0) * .07) * 26;
+          }
+        } else if (e.pat === 'loop') {
+          // G3 'loop' (ENC §3, the Gradius fan): in from the right; at W * .45 a 60 px-radius half circle back toward
+          // the middle of the screen, then out right along the far lane: a second engagement
+          const L = ENTRY;
+          if (!e.lp) {
+            e.x -= L.loopV;
+            if (e.x <= W * L.loopX) { e.lp = 1; e.ls = e.y0 < PH / 2 ? 1 : -1; e.cx = e.x; e.cy = e.y + e.ls * L.loopR; e.la = -e.ls * Math.PI / 2; e.la0 = e.la; }
+          } else if (e.lp === 1) {
+            e.la -= e.ls * L.loopV / L.loopR;
+            e.x = e.cx + Math.cos(e.la) * L.loopR;
+            e.y = e.cy + Math.sin(e.la) * L.loopR;
+            if (Math.abs(e.la - e.la0) >= Math.PI) e.lp = 2;
+          } else e.x += L.loopV;
         } else if (e.ut) uTurn(e);
         else {
           if (!e.turn && e.x > W * .6) e.x -= 2.3;else {
@@ -75,17 +133,21 @@ export function updEnemy(e) {
             e.vy = lerp(e.vy, clamp(($.P.y - e.y) * .04, -1.9, 1.9), .06);
             e.x -= 2.7;
             e.y += e.vy;
-            // D61: from Descent 2 a dive that missed U-turns once, like Gradius (src/notice.ts; uTurn below)
-            if (($.G.loop || 0) >= NOTICE.uLoop && $.P.alive && !(e.ghost > 0) && e.x < $.P.x - NOTICE.uGap && e.x > NOTICE.uMinX) { e.ut = 1; e.uw = 0; e.uvx = -2.7; }
+            // D61: from Descent 2 a dive that missed U-turns once, like Gradius (src/notice.ts; uTurn below). G3: from
+            // Descent 1 (BUL.uLoop 0, the ENC roster's dive drone)
+            if (($.G.loop || 0) >= (g3() ? BUL.uLoop : NOTICE.uLoop) && $.P.alive && !(e.ghost > 0) && e.x < $.P.x - NOTICE.uGap && e.x > NOTICE.uMinX) { e.ut = 1; e.uw = 0; e.uvx = -2.7; }
           }
         }
-        if (onScreen(e) && !(e.ghost > 0) && R() < .0025 * firem() && (bru('aimAll') || e.x > $.P.x + 40)) shootB(e.x, e.y, aimA(e.x, e.y), 1.5); // D63: BRUTAL aims anywhere, fans
+        if (g3()) droneFire(e); // C6: the designated shooter, no random fire (and no R() per drone per frame)
+        else if (onScreen(e) && !(e.ghost > 0) && R() < .0025 * firem() && e.x > $.P.x + 40) shootB(e.x, e.y, aimA(e.x, e.y), 1.5);
         break;
       }
+    case 'knot': case 'clump': updKnot(e, ss); break; // CREW KNOTS (LVL §3.2), below
     case 'corpse':
       {
         e.x -= e.vx ? -e.vx : ss * .85 + e.drift;
         e.y += Math.sin(e.t * .02 + e.ph) * .25;
+        if (e.kt > 0) { const f = e.kt-- / KNOT.corpseF; e.x += e.kvx * f; e.y += e.kvy * f; } // torn off a knot: its launch decays over 60 f
         e.rot += e.vr;
         if (R() < .08) drop(e.x + rr(-3, 3), e.y + rr(-3, 3), rr(-.4, .4), rr(-.4, .4), 1, R() < .5 ? 0 : 1, 80);
         if (R() < .004) e.twitch = 12;
@@ -99,11 +161,28 @@ export function updEnemy(e) {
         e.y = e.o > 0 ? floorAt(wx) : ceilAt(wx);
         if (e.blink > 0) e.blink--;else if (R() < .006) e.blink = 10;
         e.cool--;
-        if (e.cool <= 0 && onScreen(e) && e.x > 20) {
+        if (g3() && e.x >= W - 8 && e.cool < BUL.tell) e.cool = BUL.tell; // qa-lead: its charge tell must play on screen (F1)
+        if (g3()) {
+          // G3: a half-led single orb at 1.5 (+ the unled +-.25 pair from Descent 2 / 3), one atomic volley against the
+          // scroll cap; refused (cap, 64 px) it retries in 20 f. Its charge tell is the last 20 f of the cooldown
+          // (render/enemies.ts drawEyeT: the socket flushes), so every shot has >= 12 f of tell. Fires once fully on
+          // screen (the 40 px edge rule is for free flyers; a turret rides in with the wall: ENC E2)
+          if (e.cool <= 0 && onScreen(e) && e.x < W - 8 && e.x > 20 && $.P.alive) {
+            const ex = e.x, ey = e.y - e.o * 8, n = 1 + ($.G.loop > 0 ? 1 : 0) + xtra();
+            if (volley(n, ex, ey, 'scroll')) {
+              e.cool = coolFor('eye', ri(0, 40));
+              const a = aimA(ex, ey);
+              eshoot(ex, ey, aimLead(ex, ey, BUL.v.eye), BUL.v.eye, 'orb', 'scroll');
+              if ($.G.loop > 0) eshoot(ex, ey, a + .25, BUL.v.eye, 'orb', 'scroll');
+              if (xtra()) eshoot(ex, ey, a - .25, BUL.v.eye, 'orb', 'scroll');
+              flash(ex, ey, 12, 5, '255,60,60');
+            } else e.cool = retryIn(BUL.retry);
+          }
+        } else if (e.cool <= 0 && onScreen(e) && e.x > 20) {
           e.cool = coolFor('eye', ri(0, 40)); // depth: src/enemies/cadence.ts -> src/depth.ts
           const ex = e.x,
             ey = e.y - e.o * 8;
-          shootB(ex, ey, aimA(ex, ey), 1.7); // D63: the BRUTAL fan
+          shootB(ex, ey, aimA(ex, ey), 1.7);
           if ($.G.loop > 0) eshoot(ex, ey, aimA(ex, ey) + .25, 1.7);
           if (xtra()) eshoot(ex, ey, aimA(ex, ey) - .25, 1.7);
           flash(ex, ey, 12, 5, '255,60,60');
@@ -123,7 +202,14 @@ export function updEnemy(e) {
             e.vx = ($.P.x - e.x) * .02;
           }
           e.cool--;
-          if (e.cool <= 0 && onScreen(e)) {
+          if (g3()) {
+            // G3: the glob against the scroll cap, from fully on screen; refused, it retries in 20 f (its 14 f gape tell,
+            // drawCrawler, plays again)
+            if (e.cool <= 0 && onScreen(e) && e.x < W - 8 && $.P.alive) {
+              if (eshoot(e.x, e.y - e.o * 4, aimA(e.x, e.y), 1.4, 'glob', 'scroll')) e.cool = Math.round(ri(110, 170) * cdm());
+              else e.cool = retryIn(BUL.retry);
+            }
+          } else if (e.cool <= 0 && onScreen(e)) {
             e.cool = Math.round(ri(110, 170) * cdm());
             eshoot(e.x, e.y - e.o * 4, aimA(e.x, e.y), 1.4, 'glob');
           }
@@ -183,13 +269,17 @@ export function updEnemy(e) {
         const sy = e.o > 0 ? floorAt(e.x + $.G.scroll) : ceilAt(e.x + $.G.scroll);
         e.y = sy - e.o * 22;
         e.cool--;
+        // G3: the 3-way (5 from Descent 2) is one atomic volley against the scroll cap, its centre led (C8; ENC
+        // roster); refused, it retries in 20 f. Its tell: the last 12 f of the cooldown (render/enemies.ts muzzle glint)
+        if (g3() && e.x >= W - 6 && e.cool < BUL.tell) e.cool = BUL.tell; // its 12 f glint must play on screen (F1)
+        if (g3() && e.cool <= 0 && onScreen(e) && e.x > 30 && !volley(($.G.loop > 0 ? 2 : 1) * 2 + 1, e.x, e.y + 14, 'scroll')) e.cool = retryIn(BUL.retry);
         if (e.cool <= 0 && onScreen(e) && e.x > 30) {
           e.cool = coolFor('cross', ri(0, 40));
           const hx = e.x,
             hy = e.y + 14,
             a = aimA(hx, hy),
             n = $.G.loop > 0 ? 2 : 1;
-          for (let k = -n; k <= n; k++) eshoot(hx, hy, a + k * .2, 1.5);
+          for (let k = -n; k <= n; k++) eshoot(hx, hy, k === 0 && g3() ? aimLead(hx, hy, 1.5) : a + k * .2, 1.5, 'orb', 'scroll'); // G3 (C8): the centre leads, the outer shots are unled
           for (let k = 0; k < 14; k++) drop(hx, hy, rr(-1.5, 1.5), rr(-1, 1.5), 1.3, R() < .4 ? 2 : 0, 70);
           flash(hx, hy, 12, 5, '255,40,40');
         }
@@ -265,7 +355,7 @@ export function updEnemy(e) {
           }
         }
         if (R() < .15) drop(e.x + rr(-5, 5), e.y + rr(-2, 8), rr(-.3, .3), rr(0, .5), 1, R() < .5 ? 0 : 1, 80);
-        if ($.G.loop > 0 && e.ws === 'idle' && R() < .004 * firem() && onScreen(e)) eshoot(e.x, e.y - 8, aimA(e.x, e.y), 1.4, 'glob');
+        if ($.G.loop > 0 && e.ws === 'idle' && R() < .004 * firem() && onScreen(e)) eshoot(e.x, e.y - 8, aimA(e.x, e.y), 1.4, 'glob', 'scroll');
         break;
       }
     case 'nailbar':
@@ -587,9 +677,19 @@ export function midLeave(e, k = .03) {
 }
 /** a lobbed glob (falls .025/f) that comes down through (tx, ty) */
 export function lob(x, y, tx, ty, vy) {
-  const bs = BS(), u = vy * bs, t = (u + Math.sqrt(Math.max(0, u * u + .05 * (ty - y)))) / .025, vx = (tx - x) / (bs * t);
+  const bs = BS(), solve = (v) => { const u = v * bs, t = (u + Math.sqrt(Math.max(0, u * u + .05 * (ty - y)))) / .025; return (tx - x) / (bs * t); };
+  let vx = solve(vy);
+  // G3: eshoot caps a launch at V_CAP, which would drop the glob short of where its tell said. Re-solve the arc with a
+  // flatter or higher rise until the launch fits (fixed steps: no R()); none fits, the slowest one flies
+  if (g3() && Math.hypot(vx, vy) * bs > BUL.vcap[tierOf()]) {
+    let bv = vy, bx = vx, bsp = Math.hypot(vx, vy);
+    for (const m of LOB_STEPS) { const v2 = vy * m, x2 = solve(v2), sp = Math.hypot(x2, v2); if (sp < bsp) { bsp = sp; bv = v2; bx = x2; } if (sp * bs <= BUL.vcap[tierOf()]) break; }
+    vy = bv; vx = bx;
+  }
   eshoot(x, y, Math.atan2(-vy, vx), Math.hypot(vx, vy), 'glob');
 }
+/** the rise multipliers lob() tries when an arc would launch over V_CAP */
+const LOB_STEPS = [.85, .7, .55, .4, 1.15, 1.3];
 // Timed halves for the biome bosses (Taisei-style attack timers, see docs/pacing.md 3.6). Each half of the fight,
 // split at 50% HP, gets PHASE_F frames once the boss has settled in. Run out the first half and it lurches into the
 // second (HP to 50%, Crucifer's barriers shatter); run out the second and it retreats like the Maw: grade C, no reward.
@@ -711,15 +811,17 @@ export function killEnemy(e, dir = 1) {
   $.G.kills++;
   if ($.G.combo > $.G.maxCombo) $.G.maxCombo = $.G.combo;
   if ($.G.st) {
-    if (!e.mini && !e.par && !e.kid) $.G.st.kills++;
+    if (!e.mini && !e.par && !e.kid && !e.rec && !e.split) $.G.st.kills++; // rec: a recovery carrier is out of the grade (spawn.ts mk)
     $.G.st.chain = Math.max($.G.st.chain, $.G.combo);
   }
-  if (e.cap) dropCap(e.x, e.y);
+  if (e.cap) dropCap(e.x, e.y, e);
   if (e.group) {
     e.group.killed++;
-    // D31: a cleared formation drops on the entry's grpPod chance (short 1: no draw); the breath's release always does
-    if (e.group.killed === e.group.n && grpDrops(econId(), e.group.pod, R, capRate())) dropCap(e.x, e.y);
+    // D31: a cleared formation drops on the entry's grpPod chance (short 1: no draw); the breath's release and an
+    // authored opening carrier (group.pod) always do. A recovery wave's pods are its members' own (no group pod, no draw)
+    if (e.group.killed === e.group.n && !e.group.rec && grpDrops(econId(), e.group.pod, R, capRate())) dropCap(e.x, e.y);
   }
+  if (e.k === 'knot' || e.k === 'clump') knotSplit(e); // CREW KNOTS: a knot tears into 2 clumps, a clump into 2 corpses
   if (e.k === 'crux' || e.k === 'butcher') {
     for (const b of e.bars || []) if (!b.dead) killEnemy(b, -1);
     miniReward(e);
@@ -801,9 +903,34 @@ export function killEnemy(e, dir = 1) {
     });
   }
   if (e.k === 'slime' || e.k === 'mutant' || e.k === 'sentry') killNew(e);
+  if (g3()) revenge(e);
   // Descent 2+: a dying enemy spits one last slow shot at you (Gradius's revenge bullets). From Descent 2 it's a pair
   // that brackets you (sit still and it misses), from Descent 3 a 3-fan with one dead on (depth: src/depth.ts)
-  if ($.G.loop > 0 && e.k !== 'hatch' && !($.G.boss && $.G.boss.dying) && e.x < W - 10 && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) > 70 * 70) fan(e.x, e.y, aimA(e.x, e.y), revengeN(), .22, 1.3);
+  else if ($.G.loop > 0 && e.k !== 'hatch' && !($.G.boss && $.G.boss.dying) && e.x < W - 10 && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) > 70 * 70) fan(e.x, e.y, aimA(e.x, e.y), revengeN(), .22, 1.3);
+}
+/** G3 revenge bullets (§2.1, the Gradius V table in notice.ts BUL.rev): popcorn only (a drone or hatchling, never a
+ *  recovery carrier), one unled orb 8 f after the kill at .8 x v_kind, skipped within 64 px or at the scroll cap. No R()
+ *  is drawn when the chance is 0, so Normal Descent 1 adds none (gate D3). A large enemy adds a 6-orb ring on Hard and
+ *  Very Hard from Descent 2 */
+function revenge(e) {
+  if ($.G.boss && $.G.boss.dying) return;
+  const x = e.x, y = e.y;
+  if ((e.k === 'drone' || e.k === 'hatch') && !e.rec) {
+    const c = revChanceT(tierOf(), $.G.loop || 0); // rank.ts revChance: no R() when 0
+    if (c > 0 && R() < c) $.G.pend.push({ t: BUL.revDelay, f: () => revShot(x, y, BUL.v.drone) });
+  } else if (e.big && !e.mini && !e.par && tierOf() >= 2 && ($.G.loop || 0) >= 1) $.G.pend.push({ t: BUL.revDelay, f: () => revRing(x, y, BUL.v.drone) });
+}
+/** CREW KNOTS (LVL §3.2): a dead knot throws 2 clumps +-40 deg off its travel at .9 px/f; a dead clump throws 2 corpses
+ *  +-50 deg at 1.1 px/f, 1 HP each (the popcorn rule). A child launched from within 30 px of the ship flies the other
+ *  way (notice.ts kidAngle). No R() for the angles */
+function knotSplit(e) {
+  const knot = e.k === 'knot', spr = knot ? KNOT.clumpA : KNOT.corpseA, v = knot ? KNOT.clumpV : KNOT.corpseV, P = $.P;
+  for (const s of [-1, 1]) {
+    const a = kidAngle(Math.PI, s, spr, e.x, e.y, P ? P.x : -1e3, P ? P.y : -1e3), x = e.x + Math.cos(a) * e.r * .4, y = e.y + Math.sin(a) * e.r * .4;
+    if (knot) mk('clump', x, y, { split: 1, kvx: Math.cos(a) * v, kvy: Math.sin(a) * v, rot: e.rot + s, nb: s < 0 ? 3 : 2 });
+    else mk('corpse', x, y, { vr: s * .02, drift: KNOT.drift, ph: (e.rot * 3 + s + 7) % TAU, noLeg: s > 0, noArm: s < 0, hpm: KNOT.corpseHp / ET.corpse.hp, pop: 1, kvx: Math.cos(a) * v, kvy: Math.sin(a) * v, kt: KNOT.corpseF, score: 150, bio: 1, split: 1 });
+  }
+  sample('splat_m', { vol: knot ? .7 : .5, rate: knot ? .85 : 1 }) || sfx.squish();
 }
 export const POD = [{
   c: '127,224,255',
@@ -844,7 +971,7 @@ export function podType() {
     if (slotMaxed(i)) continue;
     let w = POD[i].w;
     if (i === 0 && $.P.speed >= 3) w *= .4;
-    if (i === 6) w *= bru('ward'); // D63: the BRUTAL dial makes WARD rarer
+    if (i === 6 && g3()) w = BUL.wardW; // G3 (§2.1 survival, C19): WARD weighs .45 at every tier
     if (i === 2 && $.P.laser || i === 3 && $.P.double || i === 1 && $.P.pyre || i === 4 && $.P.missile) w *= .5;
     ok.push([i, w]);
     tot += w;
@@ -887,8 +1014,13 @@ function firstKill(e) {
   m.bio += pay;
   pop(e.x, e.y - 48, `FIRST KILL +${pay}`, '#9effa0', 9, 70); // y-48: clear of the graft pop and the death burst
 }
-export function dropCap(x, y) {
-  const blue = R() < .07;
+export function dropCap(x, y, e?) {
+  if (e && e.capTy != null) { // a recovery carrier's typed pod (spawn.ts recoveryWave): no roll, not a red in the blue count
+    caps.push({ x, y, t: 0, blue: false, ty: e.capTy, rec: 1, ...(e.capFull ? { full: 1 } : {}) });
+    return;
+  }
+  // G3: every 12th red capsule is blue, counted on G.redN (§2.2, Gradius II; replaces the 7% roll: one R() fewer per pod)
+  const blue = g3() ? blueAt($.G.redN = ($.G.redN || 0) + 1) : R() < .07;
   caps.push({
     x,
     y,
@@ -916,7 +1048,8 @@ function updNew(e, ss) {
       e.y = surf - e.o * 6;
       if (e.st === 'ooze') {
         e.cool--;
-        if (e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 24 && e.x > 40 && P.x < e.x - 24) { e.st = 'tel'; e.wt = 0; sample('snot', { vol: .45, rate: 1.3 }) || sfx.squish(); }
+        // G3: it lobs at either side once |dx| >= 24 (was: only at a ship ahead), from 40 px inside the edges
+        if (e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 24 && e.x > 40 && (g3() ? Math.abs(P.x - e.x) >= BUL.slimeGap : P.x < e.x - 24)) { e.st = 'tel'; e.wt = 0; sample('snot', { vol: .45, rate: 1.3 }) || sfx.squish(); }
         else if (P.alive && e.t > 40 && Math.abs(P.x - e.x) < 30 && (e.o > 0 ? P.y < e.y : P.y > e.y) && Math.abs(P.y - e.y) < 120 && R() < .04) {
           e.air = 1; e.vy = -e.o * rr(2.6, 3.3); e.vx = (P.x - e.x) * .02; sfx.squish();
           for (let k = 0; k < 8; k++) drop(e.x, e.y + e.o * 5, rr(-1, 1), -e.o * rr(.2, 1.5), 1.3, R() < .5 ? 4 : 0, 70);
@@ -926,12 +1059,17 @@ function updNew(e, ss) {
         if (e.wt >= 32) {
           e.st = 'spit'; e.wt = 0;
           const sx = e.x - 3, sy = e.y - e.o * 9;
-          if (P.alive) {
-            if (e.o > 0) lobAt(sx, sy, P.x, P.y); else lob(sx, sy, P.x, P.y, .2); // a ceiling slime drips it down onto you
-            if ($.G.loop > 0) { if (e.o > 0) lobAt(sx, sy, P.x + 28, P.y); else lob(sx, sy, P.x + 28, P.y, .2); }
+          // G3: the lob (and Descent 2's second) is one atomic volley against the scroll cap; refused, it settles back and
+          // tells again in 20 f
+          if (g3() && P.alive && !volley($.G.loop > 0 ? 2 : 1, sx, sy, 'scroll')) { e.st = 'ooze'; e.wt = 0; e.cool = retryIn(BUL.retry); }
+          else {
+            if (P.alive) {
+              if (e.o > 0) lobAt(sx, sy, P.x, P.y); else lob(sx, sy, P.x, P.y, .2); // a ceiling slime drips it down onto you
+              if ($.G.loop > 0) { if (e.o > 0) lobAt(sx, sy, P.x + 28, P.y); else lob(sx, sy, P.x + 28, P.y, .2); }
+            }
+            for (let k = 0; k < 12; k++) drop(sx, sy, rr(-2, .3), rr(-1.5, 1.5) - e.o * .6, rr(1, 1.6), R() < .5 ? 4 : 0, 70);
+            sample('snot', { vol: .6 }) || sfx.glob();
           }
-          for (let k = 0; k < 12; k++) drop(sx, sy, rr(-2, .3), rr(-1.5, 1.5) - e.o * .6, rr(1, 1.6), R() < .5 ? 4 : 0, 70);
-          sample('snot', { vol: .6 }) || sfx.glob();
         }
       } else if (e.wt >= 22) { e.st = 'ooze'; e.wt = 0; e.cool = coolFor('slime', ri(0, 50)); }
       if (e.o > 0 && surf > PH + 10 || e.o < 0 && surf < -10) { e.air = 1; e.vy = 0; e.vx = 0; }
@@ -963,7 +1101,11 @@ function updNew(e, ss) {
     const dir = e.bk ? -1 : 1, hx = e.x - 6 * dir, hy = e.y - 14; // dir -1: turned round (D61), the hand is behind it
     if (e.st === 'walk') {
       e.x -= ss + e.spd;
-      if (--e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 30 && e.x > 50 && P.x < e.x - 30) { e.st = 'tel'; e.wt = 0; sfx.groan(); }
+      if (g3()) {
+        // G3 (ENC roster): it turns to face the ship every time (D61's one-off bk turn becomes the rule), from 30 px
+        // inside the right edge and 50 px inside the left, with the ship >= 64 px away
+        if (--e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 30 && e.x > 50 && Math.hypot(P.x - e.x, P.y - e.y) >= BUL.noShot) { e.bk = P.x > e.x ? 1 : 0; e.st = 'tel'; e.wt = 0; sfx.groan(); }
+      } else if (--e.cool <= 0 && P.alive && onScreen(e) && e.x < W - 30 && e.x > 50 && P.x < e.x - 30) { e.st = 'tel'; e.wt = 0; sfx.groan(); }
       // D61: a mutant the ship has passed turns round once and hurls back (bk: render flips it; same 44 f tell)
       else if (!e.back && P.alive && onScreen(e) && e.x < W - 30 && e.x > NOTICE.backMinX + 10 && P.x > e.x + NOTICE.mutantGap) { e.back = 1; e.bk = 1; e.st = 'tel'; e.wt = 0; sfx.groan(); }
     } else if (e.st === 'tel') {
@@ -972,7 +1114,9 @@ function updNew(e, ss) {
       if (e.wt >= 44) { e.st = 'hurl'; e.wt = 0; sfx.lash(); }
     } else {
       e.x -= ss + (e.wt < 10 ? dir : 0); // lunges a step into the throw
-      if (e.wt === 6 && P.alive) {
+      // G3: the chunks are one atomic volley against the scroll cap; refused, it walks on and groans again in 20 f
+      if (e.wt === 6 && P.alive && g3() && !volley($.G.loop > 0 ? 5 : 3, hx, hy, 'scroll')) { e.st = 'walk'; e.wt = 0; e.bk = 0; e.cool = retryIn(BUL.retry); }
+      else if (e.wt === 6 && P.alive) {
         const n = $.G.loop > 0 ? 5 : 3;
         for (let i = 0; i < n; i++) lobAt(hx, hy, P.x + (i - (n - 1) / 2) * 26, P.y, 1.2, 2.8);
         gib(hx, hy, rr(-2, -.5) * dir, rr(-2, -.5), 'chunk', 3);
@@ -987,31 +1131,47 @@ function updNew(e, ss) {
   } else {
     // sentry: parks at tx and bobs, spinning. Telegraph 52f: stops spinning, eye on you, an aim line that tracks for 34f
     // and then LOCKS for 18f (step out of it), then a 3-round burst down that line (4 from Descent 2). Two bursts, then it moves on
-    const wx = e.x + sc, lo = Math.max(14, ceilAt(wx) + 14), hi = Math.min(PH - 14, floorAt(wx) - 14);
+    const wx = e.x + sc, lo = Math.max(14, ceilAt(wx) + 14), hi = Math.min(PH - 14, floorAt(wx) - 14), on = g3();
     e.wt++;
+    if (e.st === 'drop') { // G3: dropping in from the top or bottom edge at tx (spawn.ts sentry), 2 px/f, onto its lane
+      e.x = e.tx;
+      const dy = e.y0 - e.y;
+      e.cool--; // its first-attack clock runs during the drop (game-designer: N3 counts from visible)
+      if (Math.abs(dy) <= BUL.sentryDrop) { e.y = e.y0; e.st = 'hover'; e.wt = 0; } else e.y += Math.sign(dy) * BUL.sentryDrop;
+      return;
+    }
     if (e.st !== 'leave' && !e.lv) e.x = lerp(e.x, e.tx, .04); // lv: a leaving sentry turned round to fire back holds still
-    // D61: a sentry the ship has passed turns once and fires ONE burst back down the same 52 f aim line (bk)
-    if (!e.back && (e.st === 'hover' || e.st === 'leave') && P.alive && P.x > e.x + NOTICE.sentryGap && e.x > NOTICE.backMinX && e.x < W - 24) {
+    // D61: a sentry the ship has passed turns once and fires ONE burst back down the same 52 f aim line (bk). G3 fires
+    // either side on every tell (below), so this one-off turn is short's only
+    if (!on && !e.back && (e.st === 'hover' || e.st === 'leave') && P.alive && P.x > e.x + NOTICE.sentryGap && e.x > NOTICE.backMinX && e.x < W - 24) {
       e.back = 1; e.bk = 1; e.lv = e.st === 'leave' ? 1 : 0; e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x + 5, e.y); sfx.tele();
     }
     e.y = lerp(e.y, clamp(e.y0 + Math.sin(e.t * .03 + e.ph) * 14, lo, Math.max(lo, hi)), .08);
+    // the tell: short 52 f (34 track + 18 lock); G3 44 f (26 track + 18 lock, C11), locked on the led point
+    const tt = on ? BUL.sentryTel : 52, trk = tt - BUL.sentryLock;
     if (e.st === 'hover') {
       e.cool--;
       if (e.t > 700 || e.shots >= 2) e.st = 'leave';
-      else if (e.cool <= 0 && P.alive && e.x < W - 24 && (P.x < e.x - 20 || bru('aimAll') && !e.bk && e.x > NOTICE.backMinX)) { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 5, e.y); sfx.tele(); }
+      else if (on) {
+        // G3 (ENC roster): either side, wherever the ship is, >= 64 px off and from 40 px inside the edge it came by
+        if (e.cool <= 0 && P.alive && mayFire(e.x, e.y, e.ent, P.x, P.y, W, PH)) { e.bk = P.x > e.x ? 1 : 0; e.st = 'tel'; e.wt = 0; e.tt = tt; e.ha = aimLead(e.x + (e.bk ? 5 : -5), e.y, BUL.v.sentry); sfx.tele(); }
+      } else if (e.cool <= 0 && P.alive && e.x < W - 24 && P.x < e.x - 20) { e.st = 'tel'; e.wt = 0; e.ha = aimA(e.x - 5, e.y); sfx.tele(); }
     } else if (e.st === 'tel') {
-      if (e.wt < 34) e.ha += wrapA(aimA(e.x + (e.bk ? 5 : -5), e.y) - e.ha) * .2;
-      if (e.wt >= 52) { e.st = 'fire'; e.wt = 0; }
+      if (e.wt < trk) e.ha += wrapA((on ? aimLead(e.x + (e.bk ? 5 : -5), e.y, BUL.v.sentry) : aimA(e.x + (e.bk ? 5 : -5), e.y)) - e.ha) * .2;
+      if (e.wt >= tt) { e.st = 'fire'; e.wt = 0; }
     } else if (e.st === 'fire') {
       const n = ($.G.loop > 0 ? 4 : 3) + xtra();
       if (e.wt % 7 === 1 && e.wt < n * 7) {
         const d = e.bk ? -1 : 1;
-        shootB(e.x - 6 * d, e.y, e.ha, 1.9); // D63: the BRUTAL fan
+        // a stream: each round is its own volley of 1 (§2.1), refused rounds are skipped
+        if (on) eshoot(e.x - 6 * d, e.y, e.ha, BUL.v.sentry, 'orb', 'scroll');
+        else shootB(e.x - 6 * d, e.y, e.ha, 1.9);
         flash(e.x - 7 * d, e.y, 9, 4, '255,70,50');
         e.x += 1.5 * d;
       }
       if (e.wt >= n * 7 + 14) {
-        if (e.bk) { e.bk = 0; e.st = e.lv ? 'leave' : 'hover'; e.lv = 0; } // the back burst is its own: it doesn't spend a forward one
+        if (on) { e.bk = 0; e.shots++; e.st = 'hover'; } // G3: every burst, either side, is one of its two
+        else if (e.bk) { e.bk = 0; e.st = e.lv ? 'leave' : 'hover'; e.lv = 0; } // the back burst is its own: it doesn't spend a forward one
         else { e.shots++; e.st = 'hover'; }
         e.wt = 0; e.cool = coolFor('sentry', ri(0, 30));
       }
