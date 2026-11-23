@@ -200,7 +200,10 @@ const SHORT: LayoutEntry = {
 const STRETCH = {
   /** Open Orbit: +2400 (D37, Matt). Sized for LS2-orbit's held slot B (the derelict tug, ~10 s of hold); until the tug
    *  ships out of ?mids=wip the Orbit runs short (~116-120 s, under the 120 s floor). Extra length lands in the climax
-   *  filler (it ends ORBIT_RUNUP before the Maw's banner). Measured by pod-probe tally_s (~126-130 s with the tug) */
+   *  filler (it ends ORBIT_RUNUP before the Maw's banner). Measured by pod-probe tally_s (~126-130 s with the tug).
+   *  rev 3 keeps +2400: the mortal pilot tallied the Orbit at 122-128 s (median 123; L6 band 125-140), but +150 here
+   *  shifts every later anchor and the biome lane's blend tests (terrainb.test.ts) with it. The held slot B (LS2-orbit's
+   *  tug, ~10 s) is what this stretch was sized for */
   orbit: 2400,
   /** biome slot A (stage 1-2): gate to bossX 3550 + this. D31's single +2550 (~102 s of scroll) is split per slot so the
    *  biome lane can set each. DIFFICULTY-SPEC §2.4 / LVL §8 ask 1950 (slot A measured 151 s median, L6 band <= 145) and
@@ -371,17 +374,19 @@ const LONG4: LayoutEntry = {
     // [FIT] the hull run's blocks: one every 360 px and 48 px tall (rev 2's every 720 px, 34 tall measured 0.4-1.3
     // forced moves/min, band >= 4: L3). Never under the flap (world.ts), and off before the Maw's arena (D-5). L3 / M3
     hRun: { x0: 3950, x1: 6450, h: 48 },
-    // the breach (LVL §3.1): a ceiling flap comes down over 4900-5250 and goes back up over 5850-6200, `flap` px below
+    // the breach (LVL §3.1): a ceiling flap comes down over 4900-5250 and goes back up over 5950-6420, `flap` px below
     // the base ceiling (mean ~52), over the lifted floor: FH median ~54% (136 px) for ~10 s at full, the column gap
     // clamped to 108 inside it (104 elsewhere), no hull block under it (world.ts). The ramps are 350 px, not LVL's 250,
     // so the flap's visible edge slopes <= .6 (S3; orbitdrive.test.ts). space-probe L1 / L2, route-probe minGap
     // [FIT] full drop 5250-5950 (LVL ~10 s): the 600 px span measured an Orbit FH p10 of 61-63% (band <= 55)
-    oT: [4900, 5250, 5950, 6350], flap: 28, oClamp: 108,
+    // [FIT] flap 28 -> 32: at 28 the Orbit FH p10 read 54-58% (band <= 55, space-probe seeds 1/3/5); 34 broke S3
+    oT: [4900, 5250, 5950, 6420], flap: 32, oClamp: 108,
     // the Drive approach deepened (LVL §6.1): the squeeze terms 24 / 28 -> 38 / 42, mean gap ~148 -> ~130 (~51%), the
     // 104 clamp kept. [FIT] LVL's 34 / 38 measured a terrain-only median of 54% (orbitdrive.test.ts), over L1's 52 even
     // before THE STROKE's pistons (which count in the probe's FH): +4 a side. space-probe L1 (approach median <= 52%,
     // p10 <= 43%), route-probe minGap
-    kD: [38, 42],
+    // [FIT] 38 / 42 -> 42 / 46: with THE STROKE live the approach read FH 53-56% / p10 41-46% (seeds 1/3/5)
+    kD: [42, 46],
   },
   // PROVISIONAL (creative-director condition, LS1-A review): per-kind hell values are authored after art round 2, never
   // copied from the AMT bands. Until then they are keyed to the stage rows, not to AMT: `corr` rises over slot 1's

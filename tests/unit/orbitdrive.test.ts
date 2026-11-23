@@ -87,7 +87,7 @@ describe('terrain: short is untouched, long4 gets the hull, the breach and the d
       const f = xs(5250, 5950).map(fh);
       expect(q(f, .5)).toBeGreaterThan(.42);
       expect(q(f, .5)).toBeLessThan(.62);
-      for (const x of xs(4900, 6350)) if (W.ceilAt(x) > -60) expect(W.floorAt(x) - W.ceilAt(x), `x ${x}`).toBeGreaterThanOrEqual(107.999);
+      for (const x of xs(4900, 6420)) if (W.ceilAt(x) > -60) expect(W.floorAt(x) - W.ceilAt(x), `x ${x}`).toBeGreaterThanOrEqual(107.999);
     });
     it('keeps the Orbit swept fit gap >= 100 everywhere (it has no exception window: LVL §3.1, S1)', () => {
       for (const x of xs(3400, 7000, 8)) expect(fit(x), `x ${x}`).toBeGreaterThanOrEqual(100);
