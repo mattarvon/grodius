@@ -595,14 +595,14 @@ export const DRIVE_SIG = {
     /** a piston that would intrude less than this (px) is skipped: the corridor is already that tight there */
     minDepth: 8,
     /** LVL §6.3: v1 3 singles alternating ceiling / floor, pitch 130, gap 96; v2 3 opposed pairs, pitch 130, gap 84,
-     *  centre alternating .38 / .62 of the corridor; v3 4 pairs, pitch 120, gap 80 (the window floor), wall eyes
+     *  centre alternating .38 / .62 of the corridor; v3 4 pairs, pitch 120, gap 82 ([FIT]: LVL's 80 is the window floor and the swept fit read 78 with the engine live), wall eyes
      *  between pairs 2 and 3 (60 px from both piston centres, LVL §4 rule 3), a rear wave at trigger x 2190 (~+200).
      *  The variations sit 200 / 110 px apart (LVL's 1100-1500 / 1600-2000 / 2050-2400, packed 70 px tighter so the
      *  window plus its spawn lead fits between two checkpoints) */
     vars: [
       { id: 'v1', x: [1150, 1280, 1410], side: [-1, 1, -1], gap: 96 },
       { id: 'v2', x: [1610, 1740, 1870], pair: [.38, .62, .38], gap: 84 },
-      { id: 'v3', x: [1980, 2100, 2220, 2340], pair: [.62, .38, .62, .38], gap: 80, eyes: 2175, behind: 2190 },
+      { id: 'v3', x: [1980, 2100, 2220, 2340], pair: [.62, .38, .62, .38], gap: 82, eyes: 2175, behind: 2190 },
     ] as StrokeVar[],
   },
 };

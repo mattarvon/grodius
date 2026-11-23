@@ -161,9 +161,9 @@ describe('THE STROKE pistons (LVL §6.3)', () => {
     expect(S.tell).toBeGreaterThanOrEqual(44);
     expect(S.v).toBeLessThanOrEqual(.5);
   });
-  it('flies 3 / 3 / 4 pistons with gaps 96 / 84 / 80, every gap >= the window floor, inside the window', () => {
+  it('flies 3 / 3 / 4 pistons with gaps 96 / 84 / 82, every gap >= the window floor, inside the window', () => {
     expect(S.vars.map((v) => v.x.length)).toEqual([3, 3, 4]);
-    expect(S.vars.map((v) => v.gap)).toEqual([96, 84, 80]);
+    expect(S.vars.map((v) => v.gap)).toEqual([96, 84, 82]);
     const w = DRIVE.sigs![0];
     for (const v of S.vars) {
       expect(v.gap).toBeGreaterThanOrEqual(w.floor);
@@ -287,7 +287,7 @@ describe('the stage scripts (§2.2 authored carriers, §2.3 entry mix)', () => {
     const span = (o: any) => { let c = -1e9, f = 1e9; for (let u = o.x; u <= o.x + o.w; u += 3) { c = Math.max(c, W.ceilAt(u)); f = Math.min(f, W.floorAt(u)); } return [c, f]; };
     for (const o of one) { const [c, f] = span(o); expect(o.fit).toBe(96); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil((o.side < 0 ? o.reach - c + 4 : f + 4 - o.reach) / .5 * 1.25)); }
     for (const o of two) { const [c, f] = span(o); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil(Math.max(o.centre - o.gap / 2 - c + 4, f + 4 - o.centre - o.gap / 2) / .5 * 1.25)); }
-    expect(two.map((o) => o.gap)).toEqual([84, 84, 84, 80, 80, 80, 80]);
+    expect(two.map((o) => o.gap)).toEqual([84, 84, 84, 82, 82, 82, 82]);
   });
 
   it('places CREW KNOTS (6 knots), 10 turrets, the breach birth, and the log lines on the long Orbit', () => {
