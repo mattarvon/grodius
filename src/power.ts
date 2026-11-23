@@ -11,6 +11,7 @@
 //  tools/boss-probe.mjs / tools/depth-probe.mjs (their kits only carry perks the old table already weighted).
 // =====================================================================
 import { $ } from './state';
+import { hardOn, rigLiveOf } from './death';
 
 export const POWER = {
   // raw budget per 1.0 pow. Was 14 when only guns, grafts and 8 perks counted; the extra 16 perks put a real Descent 1
@@ -52,18 +53,19 @@ export const POWER = {
   },
 };
 
-/** bolted contraption levels the player actually carries: meta.rig, limited to the sockets owned (as rigged() does) */
+/** bolted contraption levels the player actually carries: meta.rig, limited to the sockets owned (as rigged() does),
+ *  then to the rigs that RUN (contraptions.ts rigLive, death.ts rigLiveOf: on long4 Descent 1, the first rig at level 1
+ *  from the stage-2 clear, offline after a death until the next clear). Decision 4A: what does nothing counts nothing */
 export function rigPower() {
   const m = $.meta;
   if (!m || !m.rig) return 0;
-  const n = 1 + ((m.lv && m.lv.socket) || 0);
-  let s = 0, used = 0;
-  for (let i = 0; i < m.rig.length && used < n; i++) {
-    const w = POWER.rig[m.rig[i]];
-    if (w == null) continue;
-    used++;
-    s += w * ((m.cl && m.cl[m.rig[i]]) || 1);
+  const n = 1 + ((m.lv && m.lv.socket) || 0), bolted = [];
+  for (let i = 0; i < m.rig.length && bolted.length < n; i++) {
+    if (POWER.rig[m.rig[i]] == null) continue;
+    bolted.push({ id: m.rig[i], lvl: (m.cl && m.cl[m.rig[i]]) || 1 });
   }
+  let s = 0;
+  for (const r of rigLiveOf(bolted, $.G, hardOn())) s += POWER.rig[r.id] * r.lvl;
   return s;
 }
 

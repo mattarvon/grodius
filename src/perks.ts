@@ -11,6 +11,8 @@ import { enemies } from './world';
 import { flash, spark, drop, pop } from './fx/spawn';
 import { econId, stageXP as econXP } from './economy';
 import { midMul } from './enemies/mid/roster';
+import { POWER } from './power';
+import { SURV, deathTier, gaspSlot, hardOn, perkCapOf, perkScarPick } from './death';
 
 /** perk table. d(l): what level l does. c: the price (trade-off perks). req: biome that unlocks it. */
 export const PERKS = [
@@ -20,7 +22,7 @@ export const PERKS = [
   { id: 'pierce', f: 'sharpened on your own ribs', name: 'BONE TIPS', max: 2, w: 7, d: (l) => `shots punch through ${l} more enem${l > 1 ? 'ies' : 'y'}` },
   { id: 'crit', f: 'nothing in there but hunger', name: 'HOLLOW HEART', max: 3, w: 7, d: (l) => `${7 * l}% chance to crit for double (x3 with GLUTTONY)` },
   { id: 'volatile', f: 'they go off like rotten fruit', name: 'VOLATILE MEAT', max: 3, w: 7, d: (l) => `kills burst, hurting meat within ${18 + 8 * l}px` },
-  { id: 'scab', f: 'the wound learns', name: 'SCAB WEAVE', max: 3, w: 6, ward: 1, d: (l) => `${6 * l}% of kills regrow a WARD hit` },
+  { id: 'scab', f: 'the wound learns', name: 'SCAB WEAVE', max: 3, w: 6, ward: 1, d: (l) => `${Math.round(scabChance() * 100) * l}% of kills regrow a WARD hit` },
   { id: 'inv', f: 'pain arrives late now', name: 'PAIN SPONGE', max: 2, w: 5, d: (l) => `${50 * l}% longer invulnerability after a hit` },
   { id: 'tiny', f: 'less of you to hit', name: 'SHRUNKEN CORE', max: 2, w: 5, d: (l) => `hitbox ${20 * l}% smaller` },
   { id: 'graze', f: 'it brushed you. it learned your shape.', name: 'GRAZE NERVES', max: 2, w: 6, d: (l) => `near-misses feed you XP${l > 1 ? ', double score' : ''}` },
@@ -32,7 +34,7 @@ export const PERKS = [
   { id: 'teeth', f: 'they were yours, once', name: 'ORBITING TEETH', max: 2, w: 6, d: (l) => `${l > 1 ? 'two teeth circle' : 'a tooth circles'} the ship, chewing what it touches` },
   { id: 'trail', f: 'leave the lights on behind you', name: 'BLOOD TRAIL', max: 2, w: 5, d: (l) => `kills leave a slick that eats meat flying through${l > 1 ? ', bigger and longer' : ''}` },
   { id: 'shard', f: 'break, then bite', name: 'SHRAPNEL RIBS', max: 2, w: 5, ward: 1, d: (l) => `a broken WARD hit bursts into ${l > 1 ? 16 : 10} rib shards` },
-  { id: 'gasp', f: 'not yet. not like this.', name: 'LAST GASP', max: 1, w: 4, d: () => `once per stage, a killing blow only stuns you` },
+  { id: 'gasp', f: 'not yet. not like this.', name: 'LAST GASP', max: 1, w: 4, d: () => `once per ${gaspWord()}, a killing blow only stuns you` },
   { id: 'glass', f: 'hit harder. bleed easier.', name: 'GLASS JAW', max: 1, w: 5, d: () => `+35% damage, every gun`, c: 'WARD never holds more than 1 hit' },
   { id: 'tape', f: 'it is always hungry', name: 'TAPEWORM', max: 1, w: 4, lives: 2, d: () => `+50% XP for the rest of the run`, c: 'it eats one of your ships, now' },
   // biome perks: unlocked by clearing that biome this run
@@ -44,6 +46,14 @@ export const PERKS = [
 const BYID = Object.fromEntries(PERKS.map((p) => [p.id, p]));
 
 export const pk = (id) => ($.G && $.G.pk && $.G.pk[id]) || 0;
+/** SCAB WEAVE's chance per level that a kill regrows a WARD hit: 3% on long4 (DIFFICULTY-SPEC §2.1, gate H1), 6%
+ *  elsewhere. enemies/update.ts's SCAB roll reads it (with player.ts wardCap() as the cap) */
+export const scabChance = () => (hardOn() ? SURV.scab : .06);
+/** what LAST GASP is spent per: a stage (short, Easy) or a descent (Normal, Hard); Very Hard never offers it */
+const gaspWord = () => (hardOn() && $.G && deathTier($.G).gasp === 'descent' ? 'descent' : 'stage');
+/** a perk's level cap now: its max, and on long4 also 1 + the seals broken (spec §2.2: level 1 until the stage-2 clear,
+ *  2 for the rest of Descent 1). Gate E7 */
+export const perkCap = (p) => perkCapOf(p.max, ($.G && $.G.seal) || 0, hardOn());
 /** XP to go from lvl to lvl+1: ~2-3 levels in stage 1, ~11 by the end of descent 1, then it drags (quadratic past 10) */
 export const xpNeed = (lvl) => Math.round(48 + lvl * 9.6 + Math.max(0, lvl - 10) ** 2 * 6);
 /** lump XP for clearing a stage (stage index, descent loop): the active layout's economy entry (src/economy.ts;
@@ -62,6 +72,8 @@ export function perksReset() {
   G.visited = G.visited || [];
   G.seenV = G.visited.length;
   G.gasp = -1;
+  G.gaspD = -1; // long4 Normal / Hard: the descent whose LAST GASP is spent (death.ts gaspSlot); in the run save
+  G.pkOrder = []; // perk ids in pick order, oldest first: perkScar's tie-break (most recent first)
   G.boostReq = null;
   G.tallyXP = null;
   perkFX.slicks.length = 0;
@@ -84,7 +96,8 @@ export function gainXP(n) {
 
 function avail(p) {
   const G = $.G;
-  if (pk(p.id) >= p.max) return false;
+  if (pk(p.id) >= perkCap(p)) return false;
+  if (p.id === 'gasp' && hardOn() && deathTier(G).gasp === 'off') return false; // Very Hard: LAST GASP does nothing
   if (p.req && !(G.visited || []).includes(p.req)) return false;
   if (p.lives && G.lives < p.lives) return false;
   if (p.ward && !($.P && $.P.wardLv > 0)) return false; // WARD perks only once you actually wear WARD
@@ -157,6 +170,8 @@ export function take(id) {
   const G = $.G;
   if (!G.pick || !BYID[id]) return;
   G.pk[id] = (G.pk[id] || 0) + 1;
+  G.pkOrder = (G.pkOrder || []).filter((x) => x !== id);
+  G.pkOrder.push(id);
   if (id === 'life') G.lives++;
   if (id === 'tape') G.lives = Math.max(1, G.lives - 1);
   if (id === 'glass' && $.P) $.P.shield = Math.min($.P.shield, 1);
@@ -232,8 +247,16 @@ export function spillSlick(x, y) {
 /** LAST GASP: returns true if the lethal hit was eaten */
 export function lastGasp() {
   const G = $.G;
-  if (!pk('gasp') || G.gasp === G.stage + G.loop * 10) return false;
-  G.gasp = G.stage + G.loop * 10;
+  if (!pk('gasp')) return false;
+  if (hardOn()) {
+    // long4 (spec §2.1 LAST GASP): once per descent on Normal and Hard, per stage on Easy, never on Very Hard
+    const g = gaspSlot(G);
+    if (!g || G[g.f] === g.k) return false;
+    G[g.f] = g.k;
+  } else {
+    if (G.gasp === G.stage + G.loop * 10) return false;
+    G.gasp = G.stage + G.loop * 10;
+  }
   $.P.inv = 120;
   G.red = 1;
   G.shake = 10;
@@ -243,6 +266,20 @@ export function lastGasp() {
   sfx.shield && sfx.shield();
   buzz('heavy');
   return true;
+}
+/** the perk scar (Decision 2A, DIFFICULTY-SPEC §2.1 "Death penalty"): a long4 death eats one level of the held perk
+ *  with the highest POWER.perk weight above .3, ties to the most recent pick. It stays in the pool (avail reads the
+ *  level), so a later level-up can offer it back. Returns the perk's id, or null when nothing was eaten. No RNG */
+export function perkScar(G = $.G) {
+  if (!G || !G.pk) return null;
+  const id = perkScarPick(G.pk, G.pkOrder || [], POWER.perk);
+  if (!id) return null;
+  G.pk[id]--;
+  if (G.pk[id] <= 0) {
+    delete G.pk[id];
+    if (G.pkOrder) G.pkOrder = G.pkOrder.filter((x) => x !== id);
+  }
+  return id;
 }
 /** SHRAPNEL RIBS: a broken WARD hit spits shards (pushes into shots) */
 export function ribShards(shots, dm) {

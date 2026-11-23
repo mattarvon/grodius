@@ -18,8 +18,13 @@ vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, gore: ()
 vi.mock('../../src/enemies/spawn', () => ({}));
 vi.mock('../../src/stages', () => ({ startStage: () => {}, stageBanner: () => {}, sealFor: () => 0 }));
 vi.mock('../../src/biomes', () => ({ biomeReset: () => {} }));
-vi.mock('../../src/perks', () => ({ perksReset: () => {} }));
-vi.mock('../../src/contraptions', () => ({ resetContraptions: () => {}, rigFresh: () => ({}) }));
+vi.mock('../../src/perks', () => ({ perksReset: () => {}, perkScar: () => null, perkName: (id: string) => id }));
+// the real graft rewind (death.ts) over two grafts: mutations.ts itself pulls in the canvas at import
+vi.mock('../../src/mutations', async () => {
+  const { graftRewind } = await import('../../src/death');
+  return { graftDeath: (G: any, w = false) => graftRewind(G, [{ id: 'rapid', k: 'drone', n: [36, 150] }, { id: 'seek', k: 'eye', n: [18, 60] }], w) };
+});
+vi.mock('../../src/contraptions', () => ({ resetContraptions: () => {}, rigFresh: () => ({}), rigLive: () => [] }));
 vi.mock('../../src/shipform', () => ({ shipShed: () => {} }));
 vi.mock('../../src/rng', () => ({ newRunSeed: () => 1 }));
 vi.mock('../../src/stagebuild', () => ({ rebuildAt: (x: number) => rebuild(x) }));
@@ -118,12 +123,12 @@ describe('the option-b death restart pays the normal death cost (D32)', () => {
     respawn();
   }
 
-  it('strips the restored guns as respawn does, keeping half the THRUST', () => {
+  it('strips the restored guns as respawn does, keeping THRUST 1 (long4 Normal, C18)', () => {
     dyingAt(1, 4);
     expect($.G.cpX).toBe(LAYOUTS.long4!.stages[2].x0 + 900); // it did restart at the checkpoint
     expect([$.P.speed, $.P.missile, $.P.laser, $.P.options, $.P.shield, $.P.wardLv]).toEqual([1, 0, 0, 0, 0, 0]);
     expect($.P.alive).toBe(true);
-    expect($.P.inv).toBe(280); // the resume's i-frames (CP.inv), not respawn's 160
+    expect($.P.inv).toBe(120); // long4 (C20): the restore's 120 f i-frames (death.ts SURV.cpInv), not CP.inv's 280
     expect($.G.lives).toBe(2);
     setLayout('short');
   });

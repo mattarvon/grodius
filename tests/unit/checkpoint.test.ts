@@ -222,17 +222,29 @@ describe('checkpoint triggers', () => {
     expect(decodeRun(lastRun())!.g.cpN).toBe(1);
   });
 
+  /** long4 plans a checkpoint list (cpPlan): fly straight to the one that precedes the release, as a run past the
+   *  earlier ones would */
+  const toRelease = () => {
+    const k = $.G.cpQ.findIndex((q: any) => q.rel != null);
+    expect(k).toBeGreaterThanOrEqual(0);
+    $.G.cpWant = k + 1;
+    $.G.cp1X = $.G.cpQ[k].x;
+    $.G.cp1Rel = $.G.cpQ[k].rel;
+    return k + 1;
+  };
   it('writes CP1 before the release entry once midboss A is gone, so a resume replays the release pod (LS1 audit #4)', () => {
     setLayout('long4');
     playing(1);
     cpStep();
+    const n = toRelease();
     const rel = $.G.cp1Rel;
     expect(rel).toBe(cp1Release(1, $.G));
     expect($.G.cp1X).toBe(rel - CP.preRelease);
     $.G.scroll = $.G.cp1X;
     cpStep();
-    const d = decodeRun(lastRun())!;
-    expect(d.g.cpN).toBe(1);
+    const d = JSON.parse(lastRun()!);
+    expect(d.g.cpN).toBe(1); // any checkpoint after the stage start
+    expect($.G.cpWant).toBe(n + 1);
     expect(d.g.cpX).toBeLessThan(rel); // the rebuild keeps entries x > cpX: the release at rel replays
   });
 
@@ -240,6 +252,7 @@ describe('checkpoint triggers', () => {
     setLayout('long4');
     playing(1);
     cpStep();
+    const n = toRelease();
     const rel = $.G.cp1Rel;
     $.G.scroll = $.G.cp1X;
     $.G.pend.push({ t: 30, f: () => {} }); // a closure still pending holds CP1 past the release
@@ -247,12 +260,13 @@ describe('checkpoint triggers', () => {
     $.G.scroll = rel + 5;
     $.G.pend.length = 0;
     cpStep();
-    expect(decodeRun(lastRun())!.g.cpN).toBe(0); // the release fired: no CP1 between it and its pod's lifetime
+    expect(JSON.parse(lastRun()!).g.cpN).toBe(0); // the release fired: no checkpoint between it and its pod's lifetime
     expect($.G.cp1X).toBe(rel + CP.after);
     $.G.scroll = rel + CP.after;
     cpStep();
-    expect(decodeRun(lastRun())!.g.cpN).toBe(1);
-    expect(decodeRun(lastRun())!.g.cpX).toBe(rel + CP.after);
+    expect(JSON.parse(lastRun()!).g.cpN).toBe(1);
+    expect($.G.cpWant).toBe(n + 1);
+    expect(JSON.parse(lastRun()!).g.cpX).toBe(rel + CP.after);
   });
 
   it('leaves the previous checkpoint standing when the state would not read back', () => {

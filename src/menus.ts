@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
-import { SET, UPG, exportSave, importSave, lv, save } from './save';
+import { HULL2_REFUND, SET, UPG, exportSave, importSave, lv, save } from './save';
 import { auInit, sample, setMute, sfx, voiceLive, voiceStopAll, bankWant } from './audio';
 import { I, PR } from './input';
 import { jumpRun, newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
@@ -13,6 +13,7 @@ import { LAYOUT_ID, activeLayout, applyRunLayout, lab, layoutName, midForce, set
 import { TIER_NAME } from './tier';
 import { ARM_T, backStep, descendTap, exitLive } from './backstep';
 import { NATIVE } from './platform';
+import { SHIPS, hardOn } from './death';
 
 // ---------------- menus ----------------
 let titleSub = null, saveMsg = '';
@@ -308,6 +309,14 @@ export function shopItems() {
 }
 export const shopSec = k => (k === 'rig' ? 0 : k === 'sock' ? 1 : k === 'upg' ? 2 : 3);
 const msg = (s, col = '#ffb0b0') => ($.shopMsg = { s, col, t: 150 });
+/** save v4 (Decision 3A): the first Infirmary visit after the migration says where a HULL level 2 went, once */
+function hullNote() {
+  if ($.meta.hullRef === 1 && !$.shopMsg) {
+    $.meta.hullRef = 2;
+    $.shopMsg = { s: `HULL REFIT: ONE LEVEL NOW, +${HULL2_REFUND} BIOMASS BACK`, col: '#ffd0a0', t: 300 };
+    save();
+  }
+}
 export const rigOwned = id => ($.meta.own || []).includes(id);
 export const rigBolted = id => rigged().some(q => q.id === id);
 /** the first contraption is on the house: nobody should leave their first Infirmary visit empty-handed */
@@ -398,7 +407,9 @@ export function buy(u) {
   const c = u.cost[l];
   if (!spend(c)) return;
   $.meta.lv[u.id] = l + 1;
-  if (u.id === 'hull' && $.G && shopNext === 'loop') $.G.lives++;
+  // the loop shop: the ship is aboard for the next descent. On long4 the Descent 2 gate's startLoop adds HULL itself
+  // (Decision 3A), so the shop between Descent 1 and 2 adds nothing here, or that ship would count twice
+  if (u.id === 'hull' && $.G && shopNext === 'loop' && !(hardOn() && ($.G.loop | 0) + 1 === SHIPS.hullAt)) $.G.lives++;
   save();
   sfx.power();
 }
@@ -419,6 +430,7 @@ export function leaveShop() {
 }
 export function stepShop() {
   if ($.shopMsg && --$.shopMsg.t <= 0) $.shopMsg = null;
+  hullNote();
   const px = $.shopPX || 0;
   $.shopPX = I.x;
   // shopLock (40 frames after opening) gates the pointer and OK so a tap in flight can't buy. Back is honoured during it

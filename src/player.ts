@@ -7,13 +7,15 @@ import { SET, lv } from './save';
 import { sfx } from './audio';
 import { buzz } from './platform';
 import { I, touch } from './input';
-import { ceilAt, floorAt, shots } from './world';
+import { caps, ceilAt, floorAt, shots } from './world';
 import { solidAt } from './solids';
 import { flash, pop, spark } from './fx/spawn';
 import { killPlayer, respawn } from './flow';
 import { POD, hurt } from './enemies/update';
 import { dmMul, gmL, gunDm, sporeBurst } from './mutations';
 import { gunTier, smoke } from './fx/gunfx';
+import { RECOVERY, SURV, hardOn, r2Pods, wardCapOf } from './death';
+import * as SPAWN from './enemies/spawn';
 
 // ---------------- player ----------------
 export const SLOTS = ['THRUST', 'MISSILE', 'SPLIT', 'ARC', 'PYRE', 'WRAITH', 'WARD'];
@@ -21,6 +23,9 @@ export const SLOTS = ['THRUST', 'MISSILE', 'SPLIT', 'ARC', 'PYRE', 'WRAITH', 'WA
 export const SMAX = [5, 2, 1, 1, 2, 3, 3];
 /** WARD membrane soaks this many hits (was 10) */
 export const WARD_MAX = 3;
+/** the most hits WARD holds right now: its level (1/2/3) on long4, WARD_MAX elsewhere (DIFFICULTY-SPEC §2.1 "WARD
+ *  level-up": every refill and top-up caps here). Gates H1 / H2 */
+export const wardCap = () => wardCapOf($.P, hardOn(), WARD_MAX);
 export const NEED = [[1, 1, 2, 2, 3], [1, 2], [1], [2], [2, 3], [2, 3, 4], [1, 2, 3]];
 export const SBASE = [[2, 3, 4, 5], [1, 2, 2, 2], [1, 1, 1, 1], [0, 1, 1, 1], [0, 1, 2, 2], [1, 2, 3, 3], [1, 2, 3, 3]];
 export const slotLv = i => [$.P.speed, $.P.missile, $.P.double, $.P.laser, $.P.pyre, $.P.options, $.P.wardLv || 0][i];
@@ -36,14 +41,14 @@ export function slotLocked(i) {
 }
 export function slotMaxed(i) {
   const l = slotLv(i);
-  if (i === 6) return l >= capLv(6) && $.P.shield >= WARD_MAX;
+  if (i === 6) return l >= capLv(6) && $.P.shield >= wardCap();
   return l >= capLv(i);
 }
 export function applyPower(i, full) {
   if (i == null || i < 0 || !$.P.alive) return;
-  if (i === 6 && slotLv(6) >= capLv(6) && $.P.shield < WARD_MAX) {
-    const h = ECON[econId()].hard; // D63 long4: +wardTop hits, not a refill to WARD_MAX
-    $.P.shield = h ? Math.min(WARD_MAX, Math.floor($.P.shield) + h.wardTop) : WARD_MAX;
+  if (i === 6 && slotLv(6) >= capLv(6) && $.P.shield < wardCap()) {
+    const h = ECON[econId()].hard; // D63 long4: +wardTop hits, not a refill, and never past the WARD level (W2)
+    $.P.shield = h ? Math.min(wardCap(), Math.floor($.P.shield) + h.wardTop) : WARD_MAX;
     if ($.P.wardLv >= 3) $.P.aegis = 12;
     sfx.shield();
     buzz('light');
@@ -83,7 +88,7 @@ export function applyPower(i, full) {
     $.P.missile = 0;
   } else if (i === 5) $.P.options++;else {
     $.P.wardLv = Math.min(3, ($.P.wardLv || 0) + 1);
-    $.P.shield = WARD_MAX;
+    $.P.shield = wardCap(); // long4: the new level's hits (1/2/3); elsewhere a refill to WARD_MAX
     if ($.P.wardLv >= 3) $.P.aegis = 12;
   }
   $.G.slotF = $.G.slotF || [];
@@ -132,7 +137,10 @@ export function powerText(i) {
     case 3: return ['ARC // PIERCING BEAM', 'x1.7 damage, burns through every body in line', 'ARC: PIERCING BEAM'];
     case 4: return P.pyre > 1 ? ['PYRE II // EYE STORM', 'every gunner lobs, 50% faster', 'PYRE II: EYE STORM'] : ['PYRE // FLAMING EYES', 'lobbed eyes burst and set meat burning', 'PYRE: FIRE EYES'];
     case 5: return ['WRAITH ' + P.options + ' // +1 GUNNER', `${P.options + 1} guns firing, +${50 * P.options}% damage`, `WRAITH: ${P.options + 1} GUNS`];
-    default: { const n = ['', 'MEMBRANE', 'MIRROR', 'BONE AEGIS'][P.wardLv]; return ['WARD // ' + n, ['', 'soaks 3 hits', 'soaks 3 hits, reflects bullets', 'soaks 3, reflects, bone shield ahead'][P.wardLv], n]; }
+    default: {
+      const n = ['', 'MEMBRANE', 'MIRROR', 'BONE AEGIS'][P.wardLv], h = wardCap(), hs = h === 1 ? '1 hit' : h + ' hits';
+      return ['WARD // ' + n, ['', `soaks ${hs}`, `soaks ${hs}, reflects bullets`, `soaks ${h}, reflects, bone shield ahead`][P.wardLv], n];
+    }
   }
 }
 export function optPos(i) {
@@ -149,7 +157,7 @@ export function playerHit() {
   if ($.G.st) $.G.st.hits++;
   if ($.P.shield > 0) {
     $.P.shield = Math.max(0, $.P.shield - 1);
-    $.P.inv = Math.round(18 * (1 + .5 * pk('inv')));
+    $.P.inv = Math.round((hardOn() ? SURV.wardInv : 18) * (1 + .5 * pk('inv'))); // C20: 40 f on long4, no chain hits
     ribShards(shots, dmMul());
     sfx.shield();
     buzz('light');
@@ -312,12 +320,36 @@ export function fire() {
     sfx.fireball($.P.pyre);
   }
 }
+/** W0/W1 ADAPTER: fly a recovery wave of typed pods (enemies/spawn.ts recoveryWave: harmless 1 HP carriers from the
+ *  right at the ship's height, rec: 1). Until that lands, the pods drift in from the right edge themselves */
+function flyRecovery(ty, full) {
+  let rw = null;
+  try { rw = SPAWN.recoveryWave; } catch (e) {} // a test's spawn mock has no such export
+  if (typeof rw === 'function') return rw(ty, { full, y: $.P.y });
+  ty.forEach((t, k) => caps.push({ x: 492 + k * 26, y: clamp($.P.y + (k - (ty.length - 1) / 2) * RECOVERY.spread, 24, PH - 24), t: k * 8, blue: false, ty: t, full: full.includes(k) ? 1 : 0, rec: 1 }));
+}
+/** once per step while the ship lives (player.ts updatePlayer): count the queue down and fly R1, then R2. Draws no RNG */
+export function stepRecovery() {
+  const q = $.G.recovery;
+  if (!q || $.state !== 'play' || --q.t > 0) return;
+  if (q.w === 1) {
+    flyRecovery(q.r1.ty, q.r1.full);
+    if (q.r1.full.length) pop($.P.x, $.P.y - 16, 'BLACK BOX', '#ffd0a0', 8, 60);
+    $.G.feed = { s: 'RECOVERY', d: q.r1.full.length ? 'your parts come back: the gun pod is FULL' : 'your parts come back: fly through the pods', t: 170, ml: 170 };
+    q.w = 2;
+    q.t = RECOVERY.r2;
+  } else {
+    flyRecovery(r2Pods(slotMaxed(5)), []);
+    $.G.recovery = null;
+  }
+}
 export function updatePlayer() {
   if (!$.P.alive) {
     $.G.deadT--;
     if ($.G.deadT <= 0) respawn();
     return;
   }
+  stepRecovery(); // the recovery waves R1 / R2 after a respawn or restart (flow.ts queues them; long4 only)
   if ($.P.slow > 0) $.P.slow--;
   if (pk('glass') && $.P.shield > 1) $.P.shield = 1;
   perkTick(hurt);
@@ -359,8 +391,11 @@ export function updatePlayer() {
   {
     const L = gmL('regrow');
     if (L) {
-      const cap = [0, 1, 2][L],
-        per = [0, 1200, 720][L]; // REGROWTH: 1 hit back every 20s (lvl 1), up to 2 every 12s (lvl 2)
+      // REGROWTH: 1 hit back every 20s (lvl 1), up to 2 every 12s (lvl 2). long4 (W2, SYS lever 1): half as often
+      // (40 s / 24 s) and never past max(1, WARD level). Gate H1
+      const h = hardOn(),
+        cap = h ? Math.min(SURV.regrowCap[L], Math.max(1, $.P.wardLv || 0)) : [0, 1, 2][L],
+        per = h ? SURV.regrowPer[L] : [0, 1200, 720][L];
       if ($.P.shield < cap && $.G.t % per === 0) {
         $.P.shield = Math.min(cap, Math.floor($.P.shield) + 1);
         for (let k = 0; k < 8; k++) spark($.P.x + rr(-8, 8), $.P.y + rr(-8, 8), 0, -.5, 14, '#ff8aa0');

@@ -7,6 +7,7 @@ import { arcs, caps, enemies, shots } from './world';
 import { drop, flash, gore, pop, spark } from './fx/spawn';
 import { hurt } from './enemies/update';
 import { ECON, econId, gluttonyN, graftN } from './economy';
+import { graftRewind } from './death';
 
 // ---------------- mutations: you become what you kill ----------------
 export const GM = [{
@@ -158,6 +159,10 @@ export function countKill(e) {
     }
   }
 }
+/** a long4 death's graft cost (DIFFICULTY-SPEC §2.1, Decision 2A, gate D2): every held graft loses a level and its
+ *  kill counter rewinds to that level's threshold, so the lost level is earned again from scratch (death.ts
+ *  graftRewind). `wiped`: the screen's pods were cleared too (a checkpoint restart). True when a graft lost a level */
+export const graftDeath = (G = $.G, wiped = false) => graftRewind(G, GM, wiped);
 export function gunHeld() {
   return GM.filter(q => !q.sh && gmL(q.id) > 0);
 }

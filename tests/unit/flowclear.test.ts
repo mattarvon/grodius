@@ -12,8 +12,9 @@ vi.mock('../../src/fx/spawn', () => ({ drop: () => {}, flash: () => {}, gore: ()
 vi.mock('../../src/enemies/spawn', () => ({}));
 vi.mock('../../src/stages', () => ({ startStage: () => {}, stageBanner: () => {}, sealFor: () => 0 }));
 vi.mock('../../src/biomes', () => ({ biomeReset: () => {} }));
-vi.mock('../../src/perks', () => ({ perksReset: () => {} }));
-vi.mock('../../src/contraptions', () => ({ resetContraptions: () => {}, rigFresh: () => ({}) }));
+vi.mock('../../src/perks', () => ({ perksReset: () => {}, perkScar: () => null, perkName: (id: string) => id }));
+vi.mock('../../src/mutations', () => ({ graftDeath: () => false }));
+vi.mock('../../src/contraptions', () => ({ resetContraptions: () => {}, rigFresh: () => ({}), rigLive: () => [] }));
 vi.mock('../../src/shipform', () => ({ shipShed: () => {} }));
 vi.mock('../../src/rng', () => ({ newRunSeed: () => 1 }));
 vi.mock('../../src/stagebuild', () => ({ rebuildAt: () => {} }));
