@@ -24,6 +24,7 @@ import { rebuildAt } from './stagebuild';
 import { cpTrigger, tierPick } from './lab';
 import { jumpBlob } from './jump';
 import { ECON, econId } from './economy';
+import { row } from './layout';
 import { graftDeath } from './mutations';
 import { SHIPS, SURV, deathTier, hardOn, keptLoadout, newRecovery } from './death';
 
@@ -198,6 +199,7 @@ export function startLoop(L) {
   $.G.fork = null;
   $.G.forkHold = false;
   if ($.G.sealQ) { $.G.sealQ(); $.G.sealQ = null; } // a seal earned right before a fork is never lost
+  $.G.recovery = []; // a new descent starts with no wave queued
   if (hardOn() && L === SHIPS.hullAt && lv('hull')) {
     // Decision 3A: REINFORCED HULL's ship arrives at the Descent 2 gate (DESCEND DEEPER starts there too)
     $.G.lives += lv('hull');
@@ -274,11 +276,15 @@ function bossRecoveryNote() {
 export function deathCost(G, wiped = false, rigWas = false) {
   G.cur = -1; // classic: the power cursor resets when you die
   if (hardOn()) {
-    const g = graftDeath(G, wiped), scar = perkScar(G), rig = rigWas || ((G.loop | 0) === 0 && rigLive(G).length > 0);
+    // a graft pod still on screen would hand the lost level straight back (economy-designer): every pending graft pod
+    // goes, in place too, and its counter rewinds with the rest (death.ts graftRewind, wiped)
+    for (const c of caps) if (c.graft) c.purged = 1;
+    const g = graftDeath(G, true), scar = perkScar(G), rig = rigWas || ((G.loop | 0) === 0 && rigLive(G).length > 0);
     if ((G.loop | 0) === 0) { G.rigOff = 1; G.rigOffC = G.cleared | 0; } // Decision 4A: offline until the next clear
     G.rigHit = rig ? 1 : 0; // a restart's second deathCost still names the rig it took
-    const lost = [g && 'every graft lost a level', scar && perkName(scar) + ' lost a level', rig && 'your rig is offline until the next clear'].filter(Boolean);
-    if (lost.length) G.feed = { s: scar ? 'THE DEATH TOOK ITS PRICE' : 'YOUR GRAFTS WITHER', d: lost.join(' // '), t: 210, ml: 210 };
+    // ux / loc: short parts, one banner; the recovery call-out follows it (feedAfter), it is never appended
+    const lost = [g && 'GRAFTS -1', scar && perkName(scar) + ' -1', rig && 'CONTRAPTION OFF TILL NEXT CLEAR'].filter(Boolean); // <= 70 chars (loc)
+    if (lost.length) G.feed = { s: g && !scar && !rig ? 'YOUR GRAFTS WITHER' : 'THE DEATH TOOK ITS PRICE', d: lost.join(' // '), t: wiped ? 150 : 210, ml: wiped ? 150 : 210 };
     return;
   }
   let w = 0;
@@ -354,17 +360,22 @@ export function respawn() {
  *  that died. BLACK BOX (C16) makes R1's main-gun pod FULL, except on Very Hard. Off long4: nothing */
 function queueRecovery(P0) {
   if (!hardOn()) return;
-  const bb = !!lv('salvage') && deathTier($.G).blackBox;
-  $.G.recovery = newRecovery(P0, bb, $.P.y);
-  // ux: say the parts are coming, after what the death took if that is still up (a restart sets both in one step)
-  const say = bb ? 'your parts fly back in 3 s: the gun pod comes FULL (BLACK BOX)' : 'your parts fly back in 3 s: catch the pods';
-  const f = $.G.feed;
-  $.G.feed = f && f.t > 0 && f.s !== 'RECOVERY' ? { ...f, d: f.d + ' // ' + say, t: Math.max(f.t, 210), ml: Math.max(f.ml, 210) } : { s: 'RECOVERY', d: say, t: 200, ml: 200 };
+  const G = $.G, t = deathTier(G), bb = !!lv('salvage') && t.blackBox, r = row(G.stage);
+  G.recovery = newRecovery(P0, bb, { gradual: t.strip === 'gradual', untilWarn: r ? (r.warnX ?? r.bossX) - G.scroll : null });
+  // ux: its own banner, after the death's (feedAfter), still up before R1 lands at 3 s
+  feedAfter({ s: 'RECOVERY', d: bb ? 'catch your parts: pods in 3 s, gun pod FULL (BLACK BOX)' : 'catch your parts: pods in 3 s', t: 200, ml: 200 });
+}
+/** show feed f once the banner up now has had its time, at most `wait` frames (G.pend: cleared by a restore, so a
+ *  restart's own call-outs are queued after it). ux-designer: a later banner never overwrites one unread */
+export function feedAfter(f, wait = 150) {
+  const G = $.G, cur = G.feed;
+  if (!cur || !(cur.t > 0)) { G.feed = f; return; }
+  G.pend.push({ t: Math.min(cur.t, wait), f: () => { $.G.feed = f; } });
 }
 /** the boss-fight lifeline's FULL pods (bossRecoveryNote), by the ship */
 function recoverPods(ty) {
   ty.forEach((t, k) => caps.push({ x: $.P.x + 60 + k * 26, y: clamp($.P.y + (k - 1) * 22, 24, PH - 24), t: k * 8, blue: false, ty: t, full: 1, salv: 1 }));
-  $.G.feed = { s: 'SALVAGE', d: 'your guns came back as FULL pods: fly through them', t: 170, ml: 170 };
+  feedAfter({ s: 'SALVAGE', d: 'your guns came back as FULL pods: fly through them', t: 170, ml: 170 });
 }
 /** checkpoint option b (spec §4; LAB CHECKPOINT: ON DEATH): a death restarts the run at its last checkpoint with one
  *  life spent and the normal death cost paid on the restored ship (D32: guns stripped as respawn's resetPlayer(true),

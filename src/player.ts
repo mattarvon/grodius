@@ -138,7 +138,7 @@ export function powerText(i) {
     case 5: return ['WRAITH ' + P.options + ' // +1 GUNNER', `${P.options + 1} guns firing, +${50 * P.options}% damage`, `WRAITH: ${P.options + 1} GUNS`];
     default: {
       const n = ['', 'MEMBRANE', 'MIRROR', 'BONE AEGIS'][P.wardLv], h = wardCap(), hs = h === 1 ? '1 hit' : h + ' hits';
-      return ['WARD // ' + n, ['', `soaks ${hs}`, `soaks ${hs}, reflects bullets`, `soaks ${h}, reflects, bone shield ahead`][P.wardLv], n];
+      return ['WARD // ' + n, ['', `soaks ${hs}`, `soaks ${hs}, reflects bullets`, `soaks ${hs}, reflects, bone shield ahead`][P.wardLv], n];
     }
   }
 }

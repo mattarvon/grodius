@@ -104,7 +104,7 @@ function diffRow() {
   const L = lab(), t = tierPick('long4');
   return {
     l: 'DIFFICULTY',
-    r: TIER_NAME[L.tier] + (t != null && t !== L.tier ? ' > URL ' + TIER_NAME[t] : ''),
+    r: t != null && t !== L.tier ? TIER_NAME[t] + ' (URL)' : TIER_NAME[L.tier], // ux: what the run will fly, marked when a URL chose it
     a: () => setLab({ tier: ((L.tier + 1) % 4) as 0 | 1 | 2 | 3 })
   };
 }
@@ -168,7 +168,7 @@ function labItems() {
     l: 'CHECKPOINT',
     // long4: the tier decides (decision 1A: a death restarts at the checkpoint on NORMAL and up, EASY respawns in place)
     r: c.id === 'long4' ? 'BY DIFFICULTY' : L.cp === 'b' ? 'ON DEATH' : 'QUIT ONLY',
-    a: () => setLab({ cp: L.cp === 'b' ? 'a' : 'b' })
+    a: () => { if (c.id !== 'long4') setLab({ cp: L.cp === 'b' ? 'a' : 'b' }); } // long4: the tier decides, nothing to toggle
   }, {
     // the difficulty tier (src/tier.ts, DIFFICULTY-SPEC §2.1; it replaced D63's BRUTAL row) for the next long run:
     // EASY / NORMAL / HARD / VERY HARD; a ?tier= (or ?brutal=, read as NORMAL) over it is shown, as ?layout= is
@@ -323,9 +323,10 @@ export const shopSec = k => (k === 'rig' ? 0 : k === 'sock' ? 1 : k === 'upg' ? 
 const msg = (s, col = '#ffb0b0') => ($.shopMsg = { s, col, t: 150 });
 /** save v4 (Decision 3A): the first Infirmary visit after the migration says where a HULL level 2 went, once */
 function hullNote() {
-  if ($.meta.hullRef === 1 && !$.shopMsg) {
+  if (($.meta.hullRef === 1 || $.meta.hullRef === 3) && !$.shopMsg) {
+    const paid = $.meta.hullRef === 1;
     $.meta.hullRef = 2;
-    $.shopMsg = { s: `HULL REFIT: ONE LEVEL NOW, +${HULL2_REFUND} BIOMASS BACK`, col: '#ffd0a0', t: 300 };
+    $.shopMsg = { s: 'HULL REFIT: ITS SHIP JOINS AT DESCENT 2' + (paid ? `, +${HULL2_REFUND} BIOMASS BACK` : ''), col: '#ffd0a0', t: 300 };
     save();
   }
 }
@@ -370,8 +371,8 @@ export function rigAct(r) {
     m.cl[r.id] = 1;
     sfx.power();
     sample('splat_m', { vol: .6 });
-    msg(free ? r.name + ' GRAFTED. THE SHIP ASKS NOTHING. YET.' : r.name + ' GRAFTED', '#ffd0a0');
-    if (m.rig.length < sockets()) bolt(r.id);
+    // game-designer: the Descent 1 rule, said where a contraption is bought (long4)
+    msg(free ? r.name + ' GRAFTED. THE SHIP ASKS NOTHING. YET.' : r.name + ' GRAFTED' + (hardOn() ? ' // DESCENT 1: FIRST ONLY, LV 1, FROM STAGE 3' : ''), '#ffd0a0');
   } else if (rigBolted(r.id)) {
     m.rig = m.rig.filter(x => x !== r.id);
     sfx.menu();

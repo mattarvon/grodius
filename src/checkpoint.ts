@@ -25,8 +25,11 @@ import { sealFor } from './stages';
 import { hardOn } from './death';
 
 
+import { sigWindows } from './sigs';
+
 /** the signature windows as world-x spans [{x0, x1}] (src/sigs.ts sigWindows, DIFFICULTY-SPEC §2.4; empty until W3) */
-export const sigSpans = (): readonly { x0: number; x1: number }[] => [];
+export const sigSpans = (): readonly { x0: number; x1: number }[] => sigWindows($);
+
 
 /** checkpoint tuning (spec §4 "When it saves", "How it restores") */
 export const CP = {
@@ -68,6 +71,14 @@ function outOfSig(x, floor, spans) {
     c = w.x0 - CP.shipX - 1;
   }
   return c > floor && !cpInSig(c, spans) ? c : null;
+}
+
+/** the first scroll x after x whose lead-in clears the window holding x, or null */
+function afterSig(x, spans) {
+  const w = spans.find((q) => x - CP.lead + CP.shipX <= q.x1 && x + CP.shipX >= q.x0);
+  if (!w) return null;
+  const c = w.x1 + CP.lead - CP.shipX + 1;
+  return cpInSig(c, spans) ? null : c;
 }
 
 /** the scroll x where stage i's own content starts: a biome stage's gate less a screen (the gate is choose()'s
@@ -117,14 +128,23 @@ export function cpPlan(i, G = $.G, hard = hardOn(), spans = sigSpans()) {
     while (pts.length && bx - pts[pts.length - 1].x < CP.minSep) pts.pop(); // the WARNING checkpoint wins over a near anchor
     pts.push({ x: bx, rel: null });
   }
-  // fill: evenly spaced points wherever two neighbours (the stage start first) are more than CP.gap apart
+  // fill: wherever two neighbours (the stage start first) are more than CP.gap apart, spread k points evenly, then pull
+  // any that a window moved back further in, greedily, so every gap stays <= CP.gap (C21) unless a window longer than
+  // CP.gap leaves nowhere legal (then the first point past it)
   const out = [];
   let prev = start;
   for (const p of pts) {
-    const span = p.x - prev, k = Math.ceil(span / CP.gap) - 1;
-    for (let j = 1; j <= k; j++) {
-      const x = outOfSig(Math.round(prev + (span * j) / (k + 1)), prev, spans);
-      if (x != null && x - (out.length ? out[out.length - 1].x : start) >= CP.minSep / 2) out.push({ x, rel: null });
+    const k = Math.ceil((p.x - prev) / CP.gap) - 1;
+    let last = prev;
+    for (let j = 1; j <= k && p.x - last > CP.gap; j++) {
+      const even = Math.round(prev + ((p.x - prev) * j) / (k + 1)), x = outOfSig(Math.min(even, last + CP.gap), last, spans);
+      if (x != null) { out.push({ x, rel: null }); last = x; }
+    }
+    while (p.x - last > CP.gap) { // a window pulled a point back: one more, as far on as it may go
+      const x = outOfSig(last + CP.gap, last, spans) ?? afterSig(last + CP.gap, spans);
+      if (x == null || x >= p.x || x <= last) break;
+      out.push({ x, rel: null });
+      last = x;
     }
     out.push(p);
     prev = p.x;
@@ -202,6 +222,7 @@ export function cpResume(G = $.G) {
  *  each. G.cpWant is the next one's number (0 = CP0); past the list, nothing more is written this stage */
 export function cpStep() {
   const G = $.G;
+  if (G.tally && G.recovery && G.recovery.length) G.recovery = []; // a stage clear drops the queue: no wave flies into the next stage
   if (!Number.isInteger(G.cpWant) || G.cpWant < 0) return;
   let q = null;
   if (G.cpWant > 0) {

@@ -13,6 +13,7 @@ import { econId, stageXP as econXP } from './economy';
 import { midMul } from './enemies/mid/roster';
 import { POWER } from './power';
 import { SURV, deathTier, gaspSlot, hardOn, perkCapOf, perkScarPick } from './death';
+import { lastRun, storeRun } from './runsave';
 
 /** perk table. d(l): what level l does. c: the price (trade-off perks). req: biome that unlocks it. */
 export const PERKS = [
@@ -53,7 +54,7 @@ export const scabChance = () => (hardOn() ? SURV.scab : .06);
 const gaspWord = () => (hardOn() && $.G && deathTier($.G).gasp === 'descent' ? 'descent' : 'stage');
 /** a perk's level cap now: its max, and on long4 also 1 + the seals broken (spec §2.2: level 1 until the stage-2 clear,
  *  2 for the rest of Descent 1). Gate E7 */
-export const perkCap = (p) => perkCapOf(p.max, ($.G && $.G.seal) || 0, hardOn());
+export const perkCap = (p) => perkCapOf(p.max, ($.G && $.G.seal) || 0, hardOn(), ($.G && $.G.loop) || 0);
 /** XP to go from lvl to lvl+1: ~2-3 levels in stage 1, ~11 by the end of descent 1, then it drags (quadratic past 10) */
 export const xpNeed = (lvl) => Math.round(48 + lvl * 9.6 + Math.max(0, lvl - 10) ** 2 * 6);
 /** lump XP for clearing a stage (stage index, descent loop): the active layout's economy entry (src/economy.ts;
@@ -253,6 +254,7 @@ export function lastGasp() {
     const g = gaspSlot(G);
     if (!g || G[g.f] === g.k) return false;
     G[g.f] = g.k;
+    if (g.f === 'gaspD') cpPatch({ gaspD: g.k }); // spent in the stored checkpoint too: an app kill can't refill it
   } else {
     if (G.gasp === G.stage + G.loop * 10) return false;
     G.gasp = G.stage + G.loop * 10;
@@ -266,6 +268,13 @@ export function lastGasp() {
   sfx.shield && sfx.shield();
   buzz('heavy');
   return true;
+}
+/** write G fields into the stored checkpoint as it stands (not the live loadout): a LAST GASP spent after the last
+ *  checkpoint must survive an app kill (systems-designer). No-op without a checkpoint or with the slot sealed */
+export function cpPatch(fields) {
+  const s = lastRun();
+  if (!s) return false;
+  try { const o = JSON.parse(s); Object.assign(o.g, fields); return storeRun(JSON.stringify(o)); } catch (e) { return false; }
 }
 /** the perk scar (Decision 2A, DIFFICULTY-SPEC §2.1 "Death penalty"): a long4 death eats one level of the held perk
  *  with the highest POWER.perk weight above .3, ties to the most recent pick. It stays in the pool (avail reads the

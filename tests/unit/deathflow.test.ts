@@ -39,7 +39,7 @@ const D = await import('../../src/death');
 
 const KIT = { speed: 3, missile: 1, laser: 1, double: 0, pyre: 0, options: 2, wardLv: 2, shield: 2 };
 const died = (tier: number, over: any = {}) => {
-  $.G = { tier, loop: 0, stage: 1, lives: 2, cleared: 1, gm: {}, st: { deaths: 1, hits: 2 }, route: [null, null], scroll: 6200, ...over } as any;
+  $.G = { tier, loop: 0, stage: 1, lives: 2, cleared: 1, gm: {}, st: { deaths: 1, hits: 2 }, route: [null, null], scroll: 6200, pend: [], ...over } as any;
   $.P = { x: 60, y: 135, alive: false, ...KIT } as any;
   H.blob = cpBlob({ tier, ...(H.blobOver || {}) }); // the run save carries the tier (W0 runsave.ts)
 };
@@ -93,7 +93,7 @@ describe('BLACK BOX, the lifeline and the recovery queue (C15-C17)', () => {
     expect(H.caps.length).toBe(0); // no burst
     F.respawn();
     expect($.G.recovery.map((q: any) => [q.t, q.pods])).toEqual([[D.RECOVERY.r1, [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }]], [D.RECOVERY.r1 + D.RECOVERY.r2, [{ ty: 5 }, { ty: 5 }]]]);
-    expect($.G.feed.d).toContain('BLACK BOX'); // ux: the death's price, then the parts' arrival
+    expect($.G.feed.d).toContain('BLACK BOX'); // ux: the parts' arrival (no death feed was up)
     expect(H.caps.length).toBe(0); // nothing flies until R1's time
   });
 
@@ -131,24 +131,39 @@ describe('BLACK BOX, the lifeline and the recovery queue (C15-C17)', () => {
 
 describe('the death cost on the run (Decision 2A, 4A)', () => {
   it('names what the death took, and takes the Descent 1 rig offline until the next clear', () => {
-    H.scar.mockReturnValue('dmg');
+    H.scar.mockReturnValue('serrated marrow'); // the longest perk name: the line must still fit
     H.graft.mockReturnValue(true);
     died(1, { cleared: 2 });
     $.P.alive = true;
     F.killPlayer();
     expect($.G.rigOff).toBe(1);
     expect($.G.rigOffC).toBe(2);
-    expect($.G.feed.d).toBe('every graft lost a level // DMG lost a level // your rig is offline until the next clear');
+    expect($.G.feed.d).toBe('GRAFTS -1 // SERRATED MARROW -1 // CONTRAPTION OFF TILL NEXT CLEAR');
+    expect($.G.feed.d.length).toBeLessThanOrEqual(70); // loc / ux: the banner's limit
     H.blob = cpBlob({ tier: 1, cleared: 2 });
     F.respawn();
     expect($.G.rigOff).toBe(1); // the restored G (saved before the death) gets it back from the death
-    expect($.G.feed.d).toContain('rig is offline');
+    expect($.G.feed.d).toContain('CONTRAPTION OFF');
+    expect($.G.pend.length).toBe(1); // RECOVERY follows it, never appended
+    $.G.pend[0].f();
+    expect($.G.feed.s).toBe('RECOVERY');
   });
 
   it('carries a spent LAST GASP across the restart, so the replay cannot refill it', () => {
     died(1, { gaspD: 0 }); // the checkpoint blob was written before the gasp was spent
     F.respawn();
     expect($.G.gaspD).toBe(0);
+  });
+});
+
+describe('graft pods on screen (economy-designer: D2 in place)', () => {
+  it('a death purges a graft pod still flying, so it cannot hand the lost level back', () => {
+    died(0);
+    $.P.alive = true;
+    H.caps.push({ graft: 'cal', glv: 3 }, { ty: 2 });
+    F.killPlayer();
+    expect(H.caps.filter((c) => c.purged).length).toBe(1);
+    expect(H.graft).toHaveBeenLastCalledWith($.G, true); // the counter rewinds as if wiped, in place too
   });
 });
 

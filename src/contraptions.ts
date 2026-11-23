@@ -140,7 +140,7 @@ export function stepContraptions() {
   const live = rigLive();
   for (const r of live) L[r.id] = r.lvl;
   const alive = P.alive && $.state === 'play';
-  rigWake(live.length, P, alive);
+  rigWake(live, P, alive);
   if (alive) {
     if (L.furnace) furnace(P, R.furnace, L.furnace);
     if (L.saw) saw(P, R.saw, L.saw);
@@ -165,10 +165,13 @@ export function stepContraptions() {
 /** the live rig count last step: a rise (the stage-2 clear, or the clear after a death) says so on screen. -1 = not
  *  yet seen this run, so a run that starts with rigs live (Descent 2, short) says nothing */
 let liveN = -1;
-function rigWake(n, P, alive) {
+function rigWake(live, P, alive) {
+  const n = live.length;
   if (liveN >= 0 && n > liveN && alive && hardOn()) {
-    pop(P.x, P.y - 22, 'RIG ONLINE', '#ffd0a0', 8, 70);
-    $.G.feed = { s: 'CONTRAPTION ONLINE', d: 'your first rig wakes, at level 1, until the next death', t: 170, ml: 170 };
+    if ($.G.pick || $.G.tally) return; // ux: held until the pick or the tally card is gone, or nobody reads it
+    const nm = RIG_BY[live[0].id].name;
+    pop(P.x, P.y - 22, nm + ' ONLINE', '#ffd0a0', 8, 70);
+    $.G.feed = { s: nm + ' ONLINE', d: 'level 1 until your next death', t: 170, ml: 170 };
     sfx.power && sfx.power();
   }
   liveN = n;

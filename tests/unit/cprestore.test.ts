@@ -95,6 +95,21 @@ describe('the long4 checkpoint list (C21)', () => {
   });
 });
 
+describe('C21 holds with signature windows in the way (systems-designer)', () => {
+  it('keeps every gap <= 30 s and no checkpoint in a window, for windows up to 25 s long anywhere in a stage', () => {
+    setLayout('long4');
+    const G = run(0, 0, ['ice', 'fire']);
+    for (let i = 0; i < 4; i++) {
+      const r = layout().stages[i], start = stageStartX(i, G), end = (r.warnX ?? r.bossX) - CP.warnLead;
+      for (let at = start + 200; at < end - 400; at += 350) for (const len of [200, 700, 1500]) {
+        const w = [{ x0: at, x1: at + len }], xs = cpPlan(i, G, true, w).map((q: any) => q.x);
+        let prev = start;
+        for (const x of xs) { expect(x - prev, `stage ${i} window ${at}+${len}`).toBeLessThanOrEqual(CP.gap); expect(cpInSig(x, w)).toBe(false); prev = x; }
+      }
+    }
+  });
+});
+
 describe('a restore at every checkpoint (spec §5.1: "a unit test restores at every checkpoint of every biome")', () => {
   it.each([0, 1])('rebuilds the same script still to fire at each one, Descent %i, every route', (loop) => {
     setLayout('long4');

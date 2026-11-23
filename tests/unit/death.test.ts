@@ -82,7 +82,8 @@ describe('WARD hits = WARD level, perk caps by seal', () => {
   it('perk max is min(max, 1 + seal) on long4 (gate E7: no level 2 before the stage-2 clear, no level 3 in D1)', () => {
     expect(D.perkCapOf(3, 0, true)).toBe(1);
     expect(D.perkCapOf(3, 1, true)).toBe(2);
-    expect(D.perkCapOf(3, 2, true)).toBe(3);
+    expect(D.perkCapOf(3, 2, true)).toBe(2); // seal 2 breaks at the Drive's tally: still Descent 1
+    expect(D.perkCapOf(3, 2, true, 1)).toBe(3); // Descent 2
     expect(D.perkCapOf(1, 0, true)).toBe(1);
     expect(D.perkCapOf(3, 0, false)).toBe(3);
   });
@@ -146,11 +147,22 @@ describe('recovery waves (C16, C17)', () => {
     expect(D.r2Pods(true)).toEqual([6, 6]);
     expect([D.RECOVERY.r1, D.RECOVERY.r2]).toEqual([180, 720]);
     // W0's queue (state.ts RecoveryQ): step.ts counts each t down and flies the pods through recoveryWave
-    expect(D.newRecovery({ laser: 1 }, true, 120)).toEqual([
-      { t: 180, y: 120, pods: [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }] },
-      { t: 900, y: 120, pods: [{ ty: 5 }, { ty: 5 }] },
+    expect(D.newRecovery({ laser: 1 }, true)).toEqual([
+      { t: 180, pods: [{ ty: 0 }, { ty: 3, full: true }, { ty: 1 }] }, // no y: the ship's height when each launches
+      { t: 900, pods: [{ ty: 5 }, { ty: 5 }] },
     ]);
-    expect(D.newRecovery({}, false, 80, true)[1].pods).toEqual([{ ty: 6 }, { ty: 6 }]);
+  });
+  it('pulls R2 ahead of a boss WARNING, never closer than 4 s after R1 (a restore at WARNING - 10 s)', () => {
+    expect(D.newRecovery({}, false, { untilWarn: 720 })[1].t).toBe(660);
+    expect(D.newRecovery({}, false, { untilWarn: 300 })[1].t).toBe(180 + D.RECOVERY.r2Min);
+    expect(D.newRecovery({}, false, { untilWarn: 5000 })[1].t).toBe(900);
+  });
+  it('Easy sends back the slot the gradual strip took, then WARD', () => {
+    const q = D.newRecovery({ options: 2, laser: 1, missile: 1 }, true, { gradual: true });
+    expect(q[0].pods).toEqual([{ ty: 5, full: true }, { ty: 5 }, { ty: 5 }]);
+    expect(q[1].pods).toEqual([{ ty: 6 }, { ty: 6 }]);
+    expect(D.newRecovery({ laser: 1 }, false, { gradual: true })[0].pods).toEqual([{ ty: 3 }, { ty: 3 }, { ty: 3 }]);
+    expect(D.newRecovery({}, false, { gradual: true })[0].pods.map((p: any) => p.ty)).toEqual([0, 2, 1]); // naked: the full wave
   });
 });
 
@@ -158,7 +170,7 @@ describe('ships and HULL (Decision 3A)', () => {
   it('3 ships in Descent 1, HULL at the Descent 2 gate, a 500 refund in save v4', () => {
     expect(D.SHIPS.d1Spare).toBe(2);
     expect(D.SHIPS.hullAt).toBe(1);
-    expect(HULL2_REFUND).toBe(D.SHIPS.hull2Refund);
+    expect(HULL2_REFUND).toBe(500);
   });
 });
 

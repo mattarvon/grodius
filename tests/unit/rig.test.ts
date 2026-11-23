@@ -54,14 +54,26 @@ describe('rigLive: what runs in Descent 1 (Decision 4A)', () => {
     expect(C.rigLive()).toEqual([{ id: 'gut', lvl: 1 }]);
   });
 
-  it('says RIG ONLINE when it wakes, once', () => {
+  it('holds the call while a pick or the tally card is up', () => {
+    $.G.cleared = 1;
+    C.resetContraptions();
+    C.stepContraptions();
+    $.G.cleared = 2;
+    $.G.pick = { opts: [] };
+    C.stepContraptions();
+    expect($.G.feed).toBeUndefined();
+    $.G.pick = null;
+    C.stepContraptions();
+    expect($.G.feed.s).toBe('GUT CANNON ONLINE');
+  });
+  it('says the rig is ONLINE when it wakes, once', () => {
     $.G.cleared = 1;
     C.resetContraptions();
     C.stepContraptions();
     expect($.G.feed).toBeUndefined();
     $.G.cleared = 2;
     C.stepContraptions();
-    expect($.G.feed.s).toBe('CONTRAPTION ONLINE');
+    expect($.G.feed.s).toBe('GUT CANNON ONLINE');
     $.G.feed = null;
     C.stepContraptions();
     expect($.G.feed).toBeNull();
@@ -114,7 +126,10 @@ describe('perk scar, seal cap and LAST GASP (Decision 2A, spec §2.1-2.2)', () =
     $.G.seal = 1;
     expect(PK.perkCap(dmg)).toBe(2);
     $.G.seal = 2;
+    expect(PK.perkCap(dmg)).toBe(2); // never 3 in Descent 1 (gate E7)
+    $.G.loop = 1;
     expect(PK.perkCap(dmg)).toBe(3);
+    $.G.loop = 0;
     setLayout('short');
     $.G.seal = 0;
     expect(PK.perkCap(dmg)).toBe(3);

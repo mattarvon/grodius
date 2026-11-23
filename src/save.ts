@@ -24,8 +24,8 @@ $.meta = {
 };
 /** v4 (DIFFICULTY-SPEC §2.2, Matt's Decision 3A, 2026-11-22): REINFORCED HULL is one level now, its ship arriving at
  *  the Descent 2 gate. A profile that owned level 2 keeps level 1 and gets this much biomass back (death.ts
- *  SHIPS.hull2Refund, restated: save.ts loads first and imports nothing it doesn't need; death.test.ts keeps them in step) */
-export const HULL2_REFUND = 500;
+ *  the profile's own migration constant) */
+export const HULL2_REFUND = 500; // DIFFICULTY-SPEC §2.2 / Decision 3A: the one source of this value
 const KEY = 'grodius.v1', BAK = 'grodius.v1.bak', BAD = 'grodius.v1.corrupt';
 // a save that exists but won't parse is kept aside (BAD) before anything is written over it
 let unreadable = null;
@@ -90,8 +90,8 @@ try {
       if (($.meta.lv.hull || 0) > 1) {
         $.meta.lv.hull = 1;
         refund = (refund || 0) + HULL2_REFUND;
-        $.meta.hullRef = 1; // menus.ts says so once, at the next Infirmary visit (then 2)
-      }
+        $.meta.hullRef = 1; // menus.ts says so once, at the next Infirmary visit (then 2): with the refund
+      } else if (($.meta.lv.hull || 0) === 1) $.meta.hullRef = 3; // a HULL 1 owner is told too: its ship moved (ux-designer)
       $.meta.v = 4;
     }
     if (refund != null) {
@@ -99,7 +99,7 @@ try {
       $.meta.refund = refund;
     }
     if (($.meta.lv.hull || 0) > 1) $.meta.lv.hull = 1; // an imported v4 code can't carry a level the shop never sells
-    if (d.meta && d.meta.hullRef === 1 && !$.meta.hullRef) $.meta.hullRef = 1; // the refund note not yet shown survives a reload
+    if (d.meta && (d.meta.hullRef === 1 || d.meta.hullRef === 3) && !$.meta.hullRef) $.meta.hullRef = d.meta.hullRef; // a note not yet shown survives a reload
     {
       // numbers only: `+n` on an imported object runs its valueOf/toString, which can throw mid-load
       const mb = d.meta && d.meta.mb, ok = mb && typeof mb === 'object' && !Array.isArray(mb) ? mb : {};
@@ -165,7 +165,7 @@ export const lv = id => $.meta.lv[id] || 0;
 export const UPG = [{
   id: 'hull',
   name: 'REINFORCED HULL',
-  desc: 'One more ship, from Descent 2 on.',
+  desc: 'One more ship. Long runs: it joins at Descent 2.',
   max: 1, // Decision 3A (2026-11-22): one level; Descent 1 is 3 ships for every profile (save v4 refunds level 2)
   cost: [400] // D63 (Matt): was 150; an extra ship was the cheapest survival in the shop
 }, {

@@ -43,7 +43,7 @@ export interface DeathTier {
  *  one row per tier [Easy, Normal, Hard, Very Hard], so the table lives in one place */
 export const DEATH_TIER: readonly DeathTier[] = [0, 1, 2, 3].map((t) => ({
   strip: TIER.strip[t] === 'gradual' ? 'gradual' : 'full',
-  thrustKeep: TIER.strip[t] === 'full1' ? 1 : TIER.strip[t] === 'gradual' ? 5 : 0, // C18; Easy keeps it unless it is the top power-up
+  thrustKeep: TIER.strip[t] === 'full1' ? 1 : 0, // C18 (a full strip's THRUST kept); the gradual strip does not read it
   checkpoint: TIER.checkpoint[t],
   lifeline: TIER.lifeline[t],
   gasp: TIER.gasp[t],
@@ -78,6 +78,8 @@ export const RECOVERY = {
   r2: 720,
   /** R1 flies in at the ship's height +- this (px) */
   spread: 40,
+  /** R2 comes at least this long after R1 when it is pulled ahead of a boss WARNING */
+  r2Min: 240,
 } as const;
 
 /** Decision 3A: ships in Descent 1 for every profile. REINFORCED HULL's ship arrives at the Descent 2 gate */
@@ -86,8 +88,6 @@ export const SHIPS = {
   d1Spare: 2,
   /** the descent (loop) whose start brings HULL's ship */
   hullAt: 1,
-  /** save v4: biomass refunded to a profile that owned HULL level 2 (spec §2.2) */
-  hull2Refund: 500,
 } as const;
 
 /** Decision 4A: contraptions in Descent 1 (spec §2.2 "Contraptions") */
@@ -100,8 +100,10 @@ export const RIG_D1 = {
   wakeAt: 2,
 } as const;
 
-/** spec §2.2 "Perk levels follow the seals": a perk's max is min(max, 1 + seal). Gate E7 */
-export const perkCapOf = (max: number, seal: number, hard: boolean): number => (hard ? Math.min(max, 1 + (seal | 0)) : max);
+/** spec §2.2 "Perk levels follow the seals": a perk's max is min(max, 1 + seal), and never above 2 in Descent 1 (seal 2
+ *  breaks at the Drive's tally, which can still open a pick: economy-designer). Gate E7 */
+export const perkCapOf = (max: number, seal: number, hard: boolean, loop = 0): number =>
+  (hard ? Math.min(max, 1 + Math.min(seal | 0, loop > 0 ? 3 : 1)) : max);
 
 /** the most WARD hits the ship can hold: wardLv (1/2/3) on long4, WARD_MAX elsewhere (spec "WARD level-up") */
 export const wardCapOf = (P: any, hard: boolean, WARD_MAX: number): number => (hard ? Math.min(WARD_MAX, (P && P.wardLv) || 0) : WARD_MAX);
@@ -123,6 +125,7 @@ export const EASY_ORDER = ['options', 'gun', 'side', 'speed'] as const;
 export function keptLoadout(P0: any, t: DeathTier) {
   const out = { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0 };
   if (!P0) return out;
+  // (the gradual strip's lost slot is easyLost below: the recovery wave sends that slot back)
   if (t.strip === 'full') { out.speed = Math.min(t.thrustKeep, P0.speed | 0); return out; }
   Object.assign(out, { speed: P0.speed | 0, missile: P0.missile | 0, double: P0.double | 0, laser: P0.laser | 0, pyre: P0.pyre | 0, options: P0.options | 0 });
   for (const s of EASY_ORDER) {
@@ -132,6 +135,16 @@ export function keptLoadout(P0: any, t: DeathTier) {
     if (s === 'speed' && out.speed) { out.speed = 0; break; }
   }
   return out;
+}
+
+/** which EASY_ORDER slot a gradual death strips from P0 (null: nothing held) */
+export function easyLost(P0: any): (typeof EASY_ORDER)[number] | null {
+  if (!P0) return null;
+  if (P0.options) return 'options';
+  if (P0.double || P0.laser) return 'gun';
+  if (P0.missile || P0.pyre) return 'side';
+  if (P0.speed) return 'speed';
+  return null;
 }
 
 // ---------------- grafts (Decision 2A, C28) ----------------
@@ -196,8 +209,14 @@ export function rigLiveOf(bolted: readonly { id: string; lvl: number }[], G: any
 const THRUST = 0, MISSILE = 1, SPLIT = 2, ARC = 3, PYRE = 4, WRAITH = 5, WARD = 6;
 /** wave R1's pods: THRUST, then the main-gun form the ship died with (SPLIT when it had none), then MISSILE (PYRE if it
  *  flew PYRE). `full`: the indices that come FULL (BLACK BOX: the main gun, C16) */
-export function r1Pods(P0: any, blackBox: boolean): { ty: number[]; full: number[] } {
+export function r1Pods(P0: any, blackBox: boolean, gradual = false): { ty: number[]; full: number[] } {
   const gun = P0 && P0.laser ? ARC : SPLIT, side = P0 && P0.pyre && !P0.missile ? PYRE : MISSILE;
+  if (gradual) {
+    // Easy (game-designer): the ship kept all but its top slot, so R1 sends that slot back, three of it; BLACK BOX makes
+    // the first one FULL. A naked Easy death gets the full-strip wave
+    const ty = { options: WRAITH, gun, side, speed: THRUST }[easyLost(P0) as string];
+    if (ty != null) return { ty: [ty, ty, ty], full: blackBox ? [0] : [] };
+  }
   return { ty: [THRUST, gun, side], full: blackBox ? [1] : [] };
 }
 /** wave R2's pods: WRAITH and WRAITH, or WARD once WRAITH is at its cap (read when R2 flies) */
@@ -206,10 +225,16 @@ export const r2Pods = (wraithCapped: boolean): number[] => (wraithCapped ? [WARD
 /** the recovery queue entries (W0 state.ts RecoveryQ: step.ts counts each `t` down and flies its pods through
  *  enemies/spawn.ts recoveryWave at 0): R1 at RECOVERY.r1, R2 RECOVERY.r2 after it, at the ship's height `y`. R2's
  *  WARD swap is read now, on the stripped ship. Never saved: saves wait until the queue is empty */
-export function newRecovery(P0: any, blackBox: boolean, y: number, wraithCapped = false) {
-  const r1 = r1Pods(P0, blackBox);
+export function newRecovery(P0: any, blackBox: boolean, opts: { gradual?: boolean; untilWarn?: number | null } = {}) {
+  const r1 = r1Pods(P0, blackBox, !!opts.gradual);
+  // R2 at R1 + 12 s, but never inside a fight: a restore at the WARNING - 10 s checkpoint has ~720 f before the banner,
+  // so R2 then flies a second ahead of it (systems-designer). Each wave flies at the ship's height when it launches (no y)
+  let t2 = RECOVERY.r1 + RECOVERY.r2;
+  if (opts.untilWarn != null && opts.untilWarn > 0) t2 = Math.min(t2, Math.max(RECOVERY.r1 + RECOVERY.r2Min, opts.untilWarn - 60));
   return [
-    { t: RECOVERY.r1, y, pods: r1.ty.map((ty, k) => (r1.full.includes(k) ? { ty, full: true } : { ty })) },
-    { t: RECOVERY.r1 + RECOVERY.r2, y, pods: r2Pods(wraithCapped).map((ty) => ({ ty })) },
+    { t: RECOVERY.r1, pods: r1.ty.map((ty, k) => (r1.full.includes(k) ? { ty, full: true } : { ty })) },
+    // Easy: WARD, which every death strips. Elsewhere R2's WARD swap needs the ship as R2 launches: the stripped ship never holds WRAITH, so W1's recoveryWave swaps a
+    // WRAITH pod for WARD when WRAITH is at its cap then (request to W1)
+    { t: t2, pods: r2Pods(!!opts.gradual && easyLost(P0) != null).map((ty) => ({ ty })) },
   ];
 }

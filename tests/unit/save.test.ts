@@ -244,12 +244,12 @@ describe('save v4 (HULL refit)', () => {
     expect(b.$.meta.hullRef).toBe(1); // the note not yet shown survives the reload
   });
 
-  it('leaves HULL 0 and 1 alone, with no refund and no note', async () => {
+  it('leaves HULL 0 and 1 alone with no refund; a HULL 1 owner still gets the note (its ship moved)', async () => {
     for (const h of [0, 1]) {
       const { $ } = await load({ 'grodius.v1': v3(h) });
       expect($.meta.lv.hull ?? 0).toBe(h);
       expect($.meta.bio).toBe(100);
-      expect($.meta.hullRef).toBeUndefined();
+      expect($.meta.hullRef).toBe(h ? 3 : undefined);
       expect($.meta.refund).toBeUndefined();
     }
   });
