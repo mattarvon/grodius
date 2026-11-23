@@ -130,8 +130,7 @@ function applyPalette(b) {
 }
 
 // ---------------- terrain ----------------
-/** movement A at world x. ins: px each wall comes in (src/sigs.ts INSET, long4 only), before the 108 px clamp */
-function shape(b, x, o, ins = 0) {
+function shape(b, x, o) {
   const a = vnoise(x / 200 + o) * 2 - 1, n = vnoise(x / 47 + o + 7) * 2 - 1, f = vnoise(x / 17 + o + 3) * 2 - 1;
   let ce, fl;
   if (b === 'ice') {
@@ -148,7 +147,6 @@ function shape(b, x, o, ins = 0) {
     ce = 34 + 26 * Math.abs(Math.sin(x / 83 + o)) + n * 10;
     fl = PH - 34 - 26 * Math.abs(Math.sin(x / 71 + o + 1.3)) - n * 10; // bulbous sinus walls
   }
-  if (ins) { ce += ins; fl -= ins; } // the resting walls come in (levels.md §5.0); 0 on short, so its terrain is untouched
   if (fl - ce < 108) { const m = (fl + ce) / 2; fl = m + 54; ce = m - 54; }
   return [ce, fl];
 }
@@ -189,11 +187,11 @@ function gulletAt(seg, from) {
   const x0 = beatPlan(slotRow(seg), from, false).P(GULLET.p) + GULLET.lead;
   return { x0, x1: x0 + GULLET.len };
 }
-/** the gullet's edges at world x: gap 108-118 around a centre swinging +-amp on its period, blended in at both ends
- *  (a lerp of two >= 108 gaps stays >= 108) */
-function gullet(g, x, ce, fl) {
-  const G = GULLET, k = envelope(x, g.x0, g.x1, G.blend), u = (x - g.x0) / G.period;
-  const m = (ce + fl) / 2 + G.amp * Math.sin(2 * Math.PI * u), gap = G.gap[0] + (G.gap[1] - G.gap[0]) * (.5 + .5 * Math.cos(4 * Math.PI * u));
+/** the gullet's edges at world x: gap 108-118 around the biome's resting centre (smooth: the walls' own noise would
+ *  break the swept fit) swinging +-amp on its period, blended in at both ends (a lerp of two >= 108 gaps stays >= 108) */
+function gullet(g, x, b, ce, fl) {
+  const G = GULLET, k = envelope(x, g.x0, g.x1, G.blend), u = (x - g.x0) / G.period, [c0, f0] = REST[b] || REST.snot;
+  const m = (c0 + f0) / 2 + G.amp * Math.sin(2 * Math.PI * u), gap = G.gap[0] + (G.gap[1] - G.gap[0]) * (.5 + .5 * Math.cos(4 * Math.PI * u));
   return [lerp(ce, m - gap / 2, k), lerp(fl, m + gap / 2, k)];
 }
 /** blend the terrain from world x `from` onward (over 300px, all of it off-screen) into biome b; it stays that
@@ -211,19 +209,37 @@ function rewriteTerrain(seg, b, from, mv = null, mids = null) {
   // long4 (DIFFICULTY-SPEC §2.4): the resting walls come in by INSET px a side, halved near a held midboss's screen, and
   // slot B gets the GULLET narrow in its rush. Movement C (the arena) is built from the un-inset walls, so the boss
   // arenas don't move. short: ins0 is 0 and there is no gullet, so the loop is the arithmetic it was
-  const ins0 = isL4() ? insetOf(b, seg) : 0, near = ins0 ? midNear(seg, from, mids) : null, gul = isL4() && seg ? gulletAt(seg, from) : null;
+  const L4 = isL4(), ins0 = L4 ? insetOf(b, seg) : 0, near = ins0 ? midNear(seg, from, mids) : null, gul = L4 && seg ? gulletAt(seg, from) : null;
   const i0 = Math.max(0, Math.floor(from / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil(T_END1 / TS));
-  for (let i = i0; i <= i1; i++) {
-    const x = i * TS, w = sstep(from, from + 300, x) * (1 - sstep(T_END0, T_END1, x));
-    const ins = near ? ins0 * (1 - (1 - INSET_MID.k) * near(x)) : ins0;
-    let [ce, fl] = shape(b, x, o, ins);
+  const edges = (i) => { // movement A, then B's gimmick, then the gullet: the un-inset walls at column i
+    const x = i * TS;
+    let [ce, fl] = shape(b, x, o);
     if (M && x > M.a && x < M.z) { const k = sstep(M.a, M.a + M.blend, x) * (1 - sstep(M.z - M.blend, M.z, x)), [cb, fb] = gimmick(b, mv, x, o, ce, fl); ce = lerp(ce, cb, k); fl = lerp(fl, fb, k); }
-    if (gul && x > gul.x0 && x < gul.x1) [ce, fl] = gullet(gul, x, ce, fl);
-    if (xC != null && x > xC) { if (ins) [ce, fl] = shape(b, x, o); const k = sstep(xC, xC1, x), [cc, ff] = SB && SB.arena ? SB.arena(...(REST[b] || REST.snot), ce, fl, AR) : arena(b, ce, fl); ce = lerp(ce, cc, k); fl = lerp(fl, ff, k); }
+    if (gul && x > gul.x0 && x < gul.x1) [ce, fl] = gullet(gul, x, b, ce, fl);
+    return [ce, fl];
+  };
+  const write = (i, ce, fl) => {
+    const x = i * TS, w = sstep(from, from + 300, x) * (1 - sstep(T_END0, T_END1, x));
+    if (xC != null && x > xC) { const k = sstep(xC, xC1, x), [cc, ff] = SB && SB.arena ? SB.arena(...(REST[b] || REST.snot), ce, fl, AR) : arena(b, ce, fl); ce = lerp(ce, cc, k); fl = lerp(fl, ff, k); }
     FLOOR[i] = lerp(FLOOR[i], fl, w);
     CEIL[i] = lerp(CEIL[i], ce, w);
+  };
+  if (!ins0) { for (let i = i0; i <= i1; i++) { const [ce, fl] = edges(i); write(i, ce, fl); } return; } // short: the arithmetic it was
+  // long4 inset, in two passes. A wall coming in next to a needle (a fire spire, an ice tooth) narrows the swept 21 px
+  // fit gap there, not just its own column, so each column's inset is capped by the narrowest un-inset swept fit within
+  // INSET_FIT.reach px: fit after >= fit before - 2 x inset >= INSET_FIT.keep wherever the walls left room (route-probe
+  // S1 holds by construction), and nothing moves where they did not. The arena (movement C) is built from the un-inset walls
+  const n = i1 - i0 + 1, C0 = new Float32Array(n), F0 = new Float32Array(n), fit = new Float32Array(n), R = INSET_FIT.reach / TS | 0;
+  for (let i = i0; i <= i1; i++) { const [ce, fl] = edges(i); C0[i - i0] = ce; F0[i - i0] = fl; }
+  for (let j = 0; j < n; j++) { let c = -1e9, f = 1e9; for (let q = Math.max(0, j - 3); q <= Math.min(n - 1, j + 3); q++) { c = Math.max(c, C0[q]); f = Math.min(f, F0[q]); } fit[j] = f - c; } // the swept span [-9, +12] px, a column either side
+  for (let j = 0; j < n; j++) {
+    let m = 1e9; for (let q = Math.max(0, j - R); q <= Math.min(n - 1, j + R); q++) m = Math.min(m, fit[q]);
+    const x = (i0 + j) * TS, want = near ? ins0 * (1 - (1 - INSET_MID.k) * near(x)) : ins0, ins = Math.max(0, Math.min(want, (m - INSET_FIT.keep) / 2));
+    write(i0 + j, C0[j] + ins, F0[j] - ins);
   }
 }
+/** the inset's swept-fit guard (route-probe S1 is 100): keep >= `keep` px, reading the un-inset fit within `reach` px */
+const INSET_FIT = { keep: 104, reach: 24 };
 /** the last biome stage (slot `slot`) cleared: the biome's look and hazards hand back to the ship (the Gravity Drive
  *  approach) from just off-screen. G.bx[slot + 1] is where that biome ends */
 export function biomeExit(slot) {
