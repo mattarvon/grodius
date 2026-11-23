@@ -151,9 +151,9 @@ describe('revenge table (§2.1; gate D3)', () => {
 describe('formations (C6, §2.2)', () => {
   beforeEach(() => fresh());
 
-  it('marks the last scripted drone the shooter and member 0 the rank-14 second, with no R() draw', () => {
+  it('marks the leader (member 0) the shooter and the last scripted drone the rank-14 second, with no R() draw', () => {
     S.formation('sine', 100, 5, { fixed: 1 });
-    expect(W.enemies.map((e) => e.sh || 0)).toEqual([2, 0, 0, 0, 1]);
+    expect(W.enemies.map((e) => e.sh || 0)).toEqual([1, 0, 0, 0, 2]);
     expect(W.draws).toBe(0);
   });
 

@@ -9,7 +9,7 @@ import { startBoss } from '../boss/update';
 import './mid';
 import { MID_ET, MID_SIM } from './mid/roster';
 import { depthHP, midLateMul } from '../depth';
-import { BUL, ENTRY, KNOT, aimLeadA, flayHunts, laneX, leadOf, revChanceOf, volleyFits, knotLane } from '../notice';
+import { BUL, ENTRY, KNOT, aimLeadA, clearOfShip, flayHunts, laneX, leadOf, revChanceOf, volleyFits, knotLane } from '../notice';
 import { capRate } from '../tier'; // the tier's faucet multiplier at the two pod rolls (W0)
 import { bsMul, revChance as revChanceT } from '../rank';
 import { firstShot } from './cadence'; // D62: the Drive's first-shot range
@@ -154,9 +154,14 @@ export const ET = Object.assign(MID_ET, {
     mini: 1
   }
 });
+/** the G3 spawn-side body rule (§2.1 "Fairness", S5): an off-screen entrant never starts within BUL.noBody (48 px) of
+ *  the ship, plus BUL.bodyPad for its first frame; a midboss, a boss, a part or a parent's child is placed by its owner.
+ *  short: unchanged (parity) */
+const bodyClear = (b, o) => g3() && $.P && $.P.alive && !b.mini && !b.big && !o.par && !o.kid;
 export function mk(k, x, y, o = {}) {
   const b = ET[k],
     hm = 1 + .4 * $.G.loop;
+  if (bodyClear(b, o)) [x, y] = clearOfShip(x, y, $.P.x, $.P.y, W, PH, BUL.noBody + BUL.bodyPad + Math.max(0, (b.r || 7) - 9)); // a big body (a knot, r 24) by its edge, not its centre (systems-designer)
   const e = {
     k,
     x,
@@ -328,7 +333,7 @@ export const formationExtra = () => formExtra(econId(), $.G.pow || 0);
  *  - rec: a recovery wave (C17): 1 HP, unarmed, harmless to touch, out of hits/min, the cap and the grade's spawned.
  *    Stored as group.rec = 1 (pod-probe tags `rec`). W0: recorded only; W1's recoveryWave sets it
  *  - pat: overrides the pattern argument (W1's 'drop' / 'rise' / 'loop' entries go through either)
- *  - shooter: designated shooters (C6): 1 = the last member, 2 = also member 0 (rank >= 14). Stored as
+ *  - shooter: designated shooters (C6): 1 = the leader (member 0), 2 = also the last member (rank >= 14). Stored as
  *    group.shooter. W0: recorded only; W1 marks the members and gives them their 12 f tell */
 export interface FormOpts { fixed?: boolean | 1; pod?: boolean | 1; open?: boolean | 1; rec?: boolean | 1; pat?: string; shooter?: 0 | 1 | 2; [k: string]: unknown }
 /** a drone wave of n (+ formationExtra()); o: FormOpts above */
@@ -351,9 +356,19 @@ export function formation(pat, y, n = 5, o: FormOpts = {}) {
   // drop / rise: y is the lane x (laneX, picked at the tell); they level off on the ship's half (ENTRY.yHi / yLo)
   const yt = edge ? PH * ($.P && $.P.y > PH / 2 ? ENTRY.yLo : ENTRY.yHi) : 0;
   if (shooter) g.shooter = shooter;
+  // G3 (§2.1 "Fairness", S5): the whole formation moves out along its entry edge until no member starts within 48 px
+  // (+ bodyPad) of the ship, so its spacing holds (mk() would push only the members on the ship). No R()
+  const at = (i) => [pat === 'behind' ? -16 - i * 16 : edge ? Math.min(y, W - ENTRY.lanePad - (n - 1) * ENTRY.gap) + i * ENTRY.gap : W + 16 + i * 16,
+    pat === 'drop' ? -16 - i * ENTRY.gap : pat === 'rise' ? PH + 16 + i * ENTRY.gap : y];
+  let sx = 0, sy = 0;
+  if (on && $.P && $.P.alive) for (let i = 0; i < n; i++) {
+    const [ax, ay] = pat === 'wall' ? [W + 16, y + (i - (n - 1) / 2) * 15] : at(i), [cx, cy] = clearOfShip(ax, ay, $.P.x, $.P.y, W, PH, BUL.noBody + BUL.bodyPad);
+    if (Math.abs(cx - ax) > Math.abs(sx)) sx = cx - ax;
+    if (Math.abs(cy - ay) > Math.abs(sy)) sy = cy - ay;
+  }
   for (let i = 0; i < n; i++) {
-    const x0 = pat === 'behind' ? -16 - i * 16 : edge ? Math.min(y, W - ENTRY.lanePad - (n - 1) * ENTRY.gap) + i * ENTRY.gap : W + 16 + i * 16,
-      y0 = pat === 'drop' ? -16 - i * ENTRY.gap : pat === 'rise' ? PH + 16 + i * ENTRY.gap : y;
+    const x0 = at(i)[0] + sx,
+      y0 = at(i)[1] + sy;
     const e = mk('drone', x0, y0, {
       group: g,
       pat,
@@ -364,7 +379,7 @@ export function formation(pat, y, n = 5, o: FormOpts = {}) {
     });
     if (tag && i >= n0) { e.extra = 1; e.cap = false; } // after mk(): its keep roll (if any) is still drawn, so R() counts hold
     if (pat === 'wall') {
-      e.x = W + 16;
+      e.x = W + 16 + sx;
       e.y = y + (i - (n - 1) / 2) * 15;
       e.y0 = e.y;
     }
@@ -372,9 +387,11 @@ export function formation(pat, y, n = 5, o: FormOpts = {}) {
     if (on) {
       e.ent = pat === 'behind' ? 'left' : pat === 'drop' ? 'top' : pat === 'rise' ? 'bottom' : 'right';
       // (rec stays on the group, W0 contract: a recovery carrier is e.rec || e.group.rec everywhere it is read)
-      // C6: the designated shooter is the last scripted member (never a rank extra), marked by index, no R(); member 0
-      // shoots too at rank >= 14 (e.sh 2). A dive drone and a recovery carrier never shoot (ENC roster)
-      if (!rec && pat !== 'dive') { if (i === n0 - 1) e.sh = 1; else if (i === 0) e.sh = 2; }
+      // C6: the designated shooter is the leader, member 0 (W6 tune: it is the first in, so it tells within N3's 30 f
+      // and before the statue reaches it; the last member waited 16 px x n behind), marked by index, no R(); the last
+      // scripted member (never a rank extra) shoots too at rank >= 14 (e.sh 2). A dive drone and a recovery carrier
+      // never shoot (ENC roster)
+      if (!rec && pat !== 'dive') { if (i === 0) e.sh = 1; else if (i === n0 - 1) e.sh = 2; }
     }
   }
   return g;
@@ -491,7 +508,7 @@ function wallBirth(n, side) {
     f: () => {
       for (let i = 0; i < n; i++) {
         const w = wx + (i - (n - 1) / 2) * ENTRY.birthDx, x = w - $.G.scroll, wy = side > 0 ? floorAt(w) : ceilAt(w), yy = wy - side * 7;
-        if (x < -8 || x > W + 8 || ($.P && Math.hypot($.P.x - x, $.P.y - yy) < BUL.noBody)) continue;
+        if (x < -8 || x > W + 8 || ($.P && Math.hypot($.P.x - x, $.P.y - yy) < BUL.noBody + (g3() ? BUL.kidPad : 0))) continue; // + the on-screen birth's reaction margin (long4)
         mk('hatch', x, yy, { born: 1, ph: i * 1.7, vy: -side * 1.4 });
       }
     }
@@ -574,7 +591,7 @@ export function flayer(y) {
     ws: 'idle',
     wt: 0,
     ang: Math.PI,
-    cool: ri(...firstShot(60, 110)),
+    cool: ri(...first('flayer', 60, 110)), // G3: BUL.first.flayer (N3), else D62's Drive range
     cap: R() < .35,
     hunt: flayHunts($.G.flayN = ($.G.flayN || 0) + 1, noticeOf(econId())) ? 1 : 0 // D62: every flayEvery-th flayer hunts (no R() draw); D63 long4: every one
   });
@@ -686,7 +703,7 @@ export function sentry(y, tx) {
   const o = { y0: y, tx: tx ?? rr(W * .6, W * .82), st: 'hover', wt: 0, cool: ri(...first('sentry', 50, 80)), shots: 0, ph: R() * TAU, cap: R() < .3 };
   const kd = kindOf($.G.stage || 0);
   if (g3() && (kd === 'orbit' || kd === 'drive') && ($.G.sentN = ($.G.sentN || 0) + 1) % 2 === 0) {
-    const top = y < PH / 2, x = clamp(o.tx, 60, W - 40);
+    const top = y < PH / 2, bx = $.P && $.P.alive ? $.P.x - BUL.sentryBack : -1, x = bx >= BUL.sentryBackMin ? bx : clamp(o.tx, 60, W - 40); // behind the ship when there is room (N2)
     $.G.warn.push({ x, edge: top ? 'top' : 'bottom', t: ENTRY.tell, ml: ENTRY.tell });
     sfx.tele();
     $.G.pend.push({ t: ENTRY.tell, f: () => mk('sentry', x, top ? -14 : PH + 14, { ...o, tx: x, st: 'drop', ent: top ? 'top' : 'bottom' }) });

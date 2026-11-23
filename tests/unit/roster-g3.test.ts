@@ -32,7 +32,8 @@ vi.mock('../../src/enemies/mid', () => ({}));
 const S = await import('../../src/enemies/spawn');
 const U = await import('../../src/enemies/update');
 const L = await import('../../src/layout');
-const { BUL } = await import('../../src/notice');
+const { BUL, KNOT, ENTRY } = await import('../../src/notice');
+const ENTRY_GAP = ENTRY.gap;
 
 const G0 = () => ({ t: 0, loop: 0, stage: 1, rank: 0, scroll: 0, scrollSpeed: 1, shake: 0, hitstop: 0, pow: 0, score: 0, bio: 0, combo: 0, comboT: 0, kills: 0, maxCombo: 0, st: { kills: 0, chain: 0, spawned: 0 }, warn: [], pend: [] });
 beforeEach(() => {
@@ -48,11 +49,11 @@ beforeEach(() => {
 const run = (n: number, only?: any[]) => { for (let i = 0; i < n; i++) { $.T++; $.G.t++; for (const e of only || [...W.enemies]) if (!e.dead) U.updEnemy(e); } };
 
 describe('the designated formation shooter (C6; gate N1)', () => {
-  it('fires one led orb after a 12 f flash once it reaches W * .78, the last member only, and never again', () => {
+  it('fires one led orb after a 12 f flash once it reaches W * .94, the leader only, and never again', () => {
     S.formation('sine', 127, 4, { fixed: 1 });
-    const last = W.enemies[3];
+    const lead = W.enemies[0];
     let tellAt = -1, shotAt = -1;
-    for (let f = 0; f < 300 && shotAt < 0; f++) { run(1); if (tellAt < 0 && last.tl > 0) tellAt = f; if (W.eshots.length) shotAt = f; }
+    for (let f = 0; f < 300 && shotAt < 0; f++) { run(1); if (tellAt < 0 && lead.tl > 0) tellAt = f; if (W.eshots.length) shotAt = f; }
     expect(tellAt).toBeGreaterThan(0);
     expect(shotAt - tellAt).toBeGreaterThanOrEqual(BUL.tell - 1);
     expect(W.eshots.length).toBe(1);
@@ -69,9 +70,13 @@ describe('the designated formation shooter (C6; gate N1)', () => {
     expect(W.eshots.length).toBe(2);
   });
 
-  it('a rear wave shooter fires at the ship ahead of it once it is 100 px in', () => {
+  it('a rear wave shooter fires at the ship ahead of it from behind, through its phase-in ghost', () => {
     $.P.x = 300;
     S.formation('behind', 127, 3, { fixed: 1 });
+    const lead = W.enemies[0];
+    for (let f = 0; f < 300 && !W.eshots.length; f++) run(1);
+    expect(lead.x).toBeLessThan(300 - 64); // it fired from behind the ship
+    expect(lead.ghost).toBe(0); // solid from its tell on
     run(300);
     expect(W.eshots.length).toBe(1);
     expect(W.eshots[0].vx).toBeGreaterThan(0);
@@ -118,6 +123,44 @@ describe('fire at a ship behind (§2.1 firing gates; gate N2)', () => {
     run(1, [e]);
     expect(e.st).toBe('tel');
   });
+
+  it('with the scroll held, a slime that rears up near the right edge never spits from within 40 px of it', () => {
+    $.G.scrollSpeed = 0; $.P.x = 200; $.P.y = 120;
+    const e = S.mk('slime', 470, 218, { o: 1, spd: 0, cool: 1, st: 'ooze', wt: 0, ph: 0 });
+    run(80, [e]);
+    expect(W.eshots.length).toBe(0);
+  });
+
+  it('a long4 sentry fires one burst, then moves on (B2)', () => {
+    $.P.x = 100; $.P.y = 100;
+    const e = S.mk('sentry', 300, 100, { y0: 100, tx: 300, st: 'hover', wt: 0, cool: 1, shots: 0, ph: 0 });
+    run(200, [e]);
+    expect(e.shots).toBe(BUL.sentryBursts);
+    expect(e.st).toBe('leave');
+  });
+
+  it('a sentry holds still through its 18 f lock, so the locked line does not move', () => {
+    $.P.x = 100; $.P.y = 100;
+    const e = S.mk('sentry', 470, 60, { y0: 100, tx: 300, st: 'hover', wt: 0, cool: 1, shots: 0, ph: 0 });
+    run(1, [e]);
+    expect(e.st).toBe('tel');
+    run(44 - 18, [e]);
+    const x = e.x, y = e.y;
+    run(17, [e]);
+    expect(e.st).toBe('tel');
+    expect(e.x).toBe(x);
+    expect(e.y).toBe(y);
+  });
+
+  it('a drop-in sentry takes a lane 70 px behind the ship when there is room, else its scripted x', () => {
+    $.G.stage = 0; // Open Orbit
+    $.P.x = 300; $.G.sentN = 1; // every 2nd drops
+    S.sentry(60, 380);
+    expect($.G.warn[$.G.warn.length - 1].x).toBe(230);
+    $.P.x = 100; $.G.sentN = 1;
+    S.sentry(60, 380);
+    expect($.G.warn[$.G.warn.length - 1].x).toBe(380);
+  });
 });
 
 describe('revenge, pods and knots (§2.1 / §2.2 / LVL §3.2)', () => {
@@ -161,7 +204,7 @@ describe('revenge, pods and knots (§2.1 / §2.2 / LVL §3.2)', () => {
     U.killEnemy(k);
     const cl = W.enemies.filter((e) => e.k === 'clump');
     expect(cl.length).toBe(2);
-    expect(cl.every((c) => Math.abs(c.hp - 3 * c.dm) < 1e-9)).toBe(true); // 3 x depthHP
+    expect(cl.every((c) => Math.abs(c.hp - KNOT.clumpHp * c.dm) < 1e-9)).toBe(true); // clumpHp x depthHP
     U.killEnemy(cl[0]);
     const co = W.enemies.filter((e) => e.k === 'corpse');
     expect(co.length).toBe(2);
@@ -169,6 +212,51 @@ describe('revenge, pods and knots (§2.1 / §2.2 / LVL §3.2)', () => {
     // thrown +-40 deg off the knot's leftward travel
     expect(Math.sign(cl[0].kvy)).toBe(-Math.sign(cl[1].kvy));
     expect(cl.every((c) => c.kvx < 0)).toBe(true);
+  });
+
+  it('a formation spawning on the ship moves out along its entry edge as a whole (S5), keeping its spacing, with no R()', () => {
+    const cases: [string, number, number, number][] = [['sine', 470, 127, 127], ['zig', 470, 127, 127], ['loop', 470, 127, 127], ['wall', 470, 127, 127], ['behind', 10, 127, 127], ['sine', 470, 127, 1]];
+    for (const [pat, px, py, n0] of cases) {
+      W.enemies.length = 0; W.draws = 0; $.P = { x: px, y: py, alive: true };
+      S.formation(pat, 127, pat === 'sine' && n0 === 1 ? 1 : 4, { fixed: 1 });
+      for (const e of W.enemies) expect(Math.hypot(e.x - px, e.y - py)).toBeGreaterThanOrEqual(BUL.noBody + BUL.bodyPad - 1e-6);
+      if (pat !== 'wall' && W.enemies.length > 1) expect(Math.abs(W.enemies[1].x - W.enemies[0].x)).toBe(16);
+      expect(W.draws).toBe(0);
+    }
+    W.enemies.length = 0; $.P = { x: 300, y: 10, alive: true };
+    S.formation('drop', 300, 3, { fixed: 1 });
+    expect(W.enemies.every((e) => Math.hypot(e.x - 300, e.y - 10) >= BUL.noBody + BUL.bodyPad - 1e-6)).toBe(true);
+    expect(W.enemies[1].y - W.enemies[0].y).toBe(-ENTRY_GAP);
+  });
+
+  it('a long4 flayer in reach starts its tell within 4 f of its clock running out', () => {
+    $.P.x = 200; $.P.y = 127;
+    const e = S.mk('flayer', 300, 127, { y0: 127, tx: 300, ws: 'idle', wt: 0, ang: Math.PI, cool: 1, hunt: 0 });
+    $.P.x = 10; // out of its 155 px reach
+    run(3, [e]);
+    expect(e.ws).toBe('idle');
+    $.P.x = 200;
+    run(BUL.flayRetry, [e]);
+    expect(e.ws).toBe('tel');
+  });
+
+  it('a rear-wave shooter stays a ghost and holds its tell while the ship is within 64 px', () => {
+    $.P.x = 60; $.P.y = 127;
+    S.formation('behind', 127, 3, { fixed: 1 });
+    const lead = W.enemies[0];
+    for (let f = 0; f < 200 && lead.x < $.P.x; f++) {
+      run(1);
+      if (Math.hypot($.P.x - lead.x, $.P.y - lead.y) < BUL.noShot) expect(lead.tl || 0).toBe(0);
+      if (!(lead.ghost > 0)) expect(Math.hypot($.P.x - lead.x, $.P.y - lead.y)).toBeGreaterThanOrEqual(BUL.noShot);
+    }
+    expect(W.eshots.length).toBe(0); // never a shot from inside 64 px
+  });
+
+  it('a child that would be born within 48 px of the ship is not (S5)', () => {
+    const k = S.knot(60);
+    $.P.x = k.x - 30; $.P.y = k.y;
+    U.killEnemy(k);
+    expect(W.enemies.filter((e) => e.k === 'clump').length).toBe(0);
   });
 });
 
