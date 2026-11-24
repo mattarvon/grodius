@@ -83,6 +83,17 @@ describe('the designated formation shooter (C6; gate N1)', () => {
     expect(W.enemies.every((e) => e.pat === 'rise')).toBe(true);
   });
 
+  it('a wall-born filler wave is one formation for the faucet: its hatchlings share a group sized to the ones born', () => {
+    S.entryWave({ edge: 'wall', pat: 'drop' }, 120, 3); // the ceiling at 0: a birth of 4
+    $.G.pend[0].f();
+    const g = W.enemies[0].group;
+    expect(g).toBeTruthy();
+    expect(W.enemies.every((e) => e.group === g && e.born)).toBe(true);
+    expect(g.n).toBe(W.enemies.length);
+    S.hatch(3, 'top'); $.G.pend.at(-1).f(); // an authored birth (Orbit's breach) stays groupless
+    expect(W.enemies.filter((e) => !e.group).length).toBe(3);
+  });
+
   it('a drop / rise shooter neither tells nor fires while it is still inside the rock (round 4: its shot died in the floor)', () => {
     const fl = 224; // the stub floor (world floorAt)
     S.formation('rise', 230, 3, { fixed: 1 });

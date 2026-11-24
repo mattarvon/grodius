@@ -414,7 +414,7 @@ export function entryWave(ent, y, n = 4) {
     // vanishes, qa-lead). Round 4 (N4): it used to fall back to a right entry, which put biome A's walls on the right
     // edge (A read right 67%, wall 4% against 55 / 10). No R()
     const side = ent.pat === 'rise' ? 1 : -1;
-    if (!wallBirth(n + 1, side) && !wallBirth(n + 1, -side)) edgeWave(side > 0 ? 'rise' : 'drop', n);
+    if (!wallBirth(n + 1, side, true) && !wallBirth(n + 1, -side, true)) edgeWave(side > 0 ? 'rise' : 'drop', n);
   }
   else formation(ent.pat, y, n);
 }
@@ -504,7 +504,7 @@ export function hatch(n, fromLeft, go) {
 /** "the wall gives birth" (§2.3, LVL §2.4): a 44 f bulge on the ceiling (side -1) or floor (+1) at laneX, then n
  *  hatchlings break out of it. Needs that wall edge on screen at laneX, the eyeT guard; skips quietly otherwise. The
  *  bulge rides the wall (its world x), and a hatchling that would be born within 48 px of the ship is not (S5) */
-function wallBirth(n, side) {
+function wallBirth(n, side, wave = false) {
   const sx = laneX($.P ? $.P.x : 60, W), wx = $.G.scroll + sx, y = side > 0 ? floorAt(wx) : ceilAt(wx);
   if (y > PH + 4 || y < -4) return false;
   $.G.warn.push({ x: sx, wx, edge: side > 0 ? 'bottom' : 'top', birth: 1, t: ENTRY.birthTell, ml: ENTRY.birthTell });
@@ -512,10 +512,14 @@ function wallBirth(n, side) {
   $.G.pend.push({
     t: ENTRY.birthTell,
     f: () => {
+      // wave: a filler drone beat born from the wall (entryWave) is a formation for the faucet, as the drone wave it
+      // replaces: its last kill rolls the group pod (round 4: the wall births had taken E2's formation pods with them)
+      const g = wave ? { n: 0, killed: 0 } : null;
       for (let i = 0; i < n; i++) {
         const w = wx + (i - (n - 1) / 2) * ENTRY.birthDx, x = w - $.G.scroll, wy = side > 0 ? floorAt(w) : ceilAt(w), yy = wy - side * 7;
         if (x < -8 || x > W + 8 || ($.P && Math.hypot($.P.x - x, $.P.y - yy) < BUL.noBody + (g3() ? BUL.kidPad : 0))) continue; // + the on-screen birth's reaction margin (long4)
-        mk('hatch', x, yy, { born: 1, ph: i * 1.7, vy: -side * 1.4 });
+        mk('hatch', x, yy, g ? { born: 1, ph: i * 1.7, vy: -side * 1.4, group: g } : { born: 1, ph: i * 1.7, vy: -side * 1.4 });
+        if (g) g.n++;
       }
     }
   });
