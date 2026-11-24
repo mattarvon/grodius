@@ -13,7 +13,7 @@ import { bandFit, midLeave } from '../update';
 import { HOST_SPARK, isCross, midPh2 } from '../midhost';
 import { DN, LP, laneHit, lanePair, laneY } from './_deny';
 import { defineMid } from './roster';
-import { RING_V, aimLed, cad, entered, ev, g3, ledger, lurch, opening, ringA, spend, spendP, variant } from './_fight';
+import { RING_V, aimLed, cad, entered, ev, g3, halfClock, ledger, lurch, opening, phaseAtt, phaseShare, ringA, spend, spendP, variant } from './_fight';
 
 // g3 (DIFFICULTY-SPEC §2.3): the one rank rule, cad() (no pow term, no dial); short keeps its old line (layout parity)
 const cool = (ph2) => g3() ? cad(ph2 ? 60 : 85) : Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm());
@@ -25,6 +25,9 @@ export const CHOIR_EYE = .7; // W6 tune-tf: .4 (the spec) made the first half 2.
  *  takes CHOIR_LANE of a hit, a tink. The lane flies AT the ship's height, straight into its forward fire, so a bar at
  *  full HP died in its 56 f tell every time: the probes saw the lane hit a parked ship 0 times. Flying home it is a bar again */
 export const CHOIR_LANE = .15;
+/** r3 K1, the half floor's reach per attack (_fight.ts phaseAtt): the fan's 44 f glare plus ~110 f of flight across the
+ *  screen; the lane's 56 f tell plus its sweep to the ship (~40 f at 6 px/f) */
+export const CHOIR_LAND = { fan: 154, lane: 96 } as const;
 /** g3: a singing bar's led spike flies at SING_V (x BS; was 1.35): from the right edge it took ~150 f to cross, longer than a
  *  first half the ship's fire cuts short at the STAGE 1 kit (W6 K1: 225 f at spot 150,160) */
 export const SING_V = 1.8;
@@ -38,7 +41,8 @@ function barSnd(b, m) {
 }
 function barArmor(b) {
   const e = b.par;
-  return g3() && e && e.lp && e.lp !== LP.home && (b === e.lb || b === e.lb2) ? CHOIR_LANE : 1;
+  if (!g3() || !e || !e.lp || e.lp === LP.home || (b !== e.lb && b !== e.lb2)) return 1;
+  return e.lp === LP.tel ? 0 : CHOIR_LANE; // r3 K1: its tell can't be shot off (it sits in the ship's line of fire at the lane's mouth for 56 f: a near ship broke it there every time); the counterplay is to leave the lane
 }
 /** the lane is over (or cut short): the bar(s) fly home from wherever they are */
 const laneOff = (e) => {
@@ -92,6 +96,7 @@ function lane(e, ph2) {
 function updChoir(e) {
   // THE NAIL CHOIR: a frozen eye in two orbiting nailbars. Glares 40f down a fan line, then a spike fan; the nails "sing" (glint 36f) and spit spikes at you
   // nLive: a counted loop rather than filtering e.bars into a new array, so the update allocates nothing per frame (build plan LS1 P0)
+  halfClock(e); // g3 (r3 K1): a first half still up at half the slot clock lurches on (_fight.ts FT.halfK)
   const go = midLeave(e), ph2 = midPh2(e), cx = isCross(e), G3 = g3();
   let nLive = 0;
   for (const b of e.bars) if (!b.dead) nLive++;
@@ -105,7 +110,7 @@ function updChoir(e) {
     if (G3 && !e.sung) { e.sung = 1; for (const b of e.bars) if (!b.dead) b.sing = 36; } // g3 (W6 K1): both bars sing as it opens, so a first half the ship's fire cuts short still meets two aimed attacks
     if (lurch(e, ph2)) { e.att = 0; e.rq = 2; for (const b of e.bars) if (!b.dead && !(b.sing > 0) && b !== e.lb && b !== e.lb2) b.sing = 36; } // g3: phase 2 opens on the fan, the ring and both bars singing (aimed: they reach every spot)
     if (e.st === 'idle' && e.wt >= e.cool) {
-      e.att++;
+      e.att++; phaseAtt(e, e.att % DN.lEvery === 0 ? CHOIR_LAND.lane : CHOIR_LAND.fan); // the half floor (r3 K1)
       if (e.att % DN.lEvery === 0) { // the lane: locked on the ship's height now, its tell DN.lTel
         e.st = 'lane'; e.lp = LP.tel; e.wt = 0; e.ly0 = laneY($.P.y, PH); e.ly = e.ly0; e.lx = e.x - DN.lFront;
         e.lb = null; e.lb2 = null; e.tw = 0;
@@ -119,7 +124,8 @@ function updChoir(e) {
     }
     else if (e.st === 'tel') {
       if (!G3) e.ha += wrapA(aimA(e.x - 10, e.y) - e.ha) * .04;
-      else if (e.wt < glareF() - 16) e.ha = aimA(e.x - 10, e.y); // g3 (W6 K1): the glare line follows the ship, then locks its last 16 f (it lagged .04 a frame behind an eye still flying in: the opening fan missed every spot)
+      else if (e.wt < glareF() - 16) { e.ha = aimA(e.x - 10, e.y); e.hx = $.P.x; e.hy = $.P.y; } // g3 (W6 K1): the glare line follows the ship, then locks its last 16 f (it lagged .04 a frame behind an eye still flying in: the opening fan missed every spot)
+      else if (e.hx != null) e.ha = Math.atan2(e.hy - e.y, e.hx - (e.x - 10)); // g3 (r3 K1): it locks on the POINT, not the angle: the eye bobs ~9 px over the lock, and a locked angle fired from where it had moved to passed a parked ship by that much
       const n = nLive || G3 ? 5 : 7; // g3: 5 always (7 with no bars held the Normal screen at p90 10: B3)
       if (e.wt >= glareF() && !(G3 && !spend(e, n))) { // g3: the fan waits for room in the budget (all n or none)
         fan(e.x - 10, e.y, e.ha, n, .16, 1.8, 'spike');
@@ -160,5 +166,5 @@ defineMid('choir', {
   word: 'SILENCED',
   onSpawn: (e) => { e.bars = [0, 1].map(i => mk('nailbar', e.x, e.y, { par: e, ox: 0, oy: 0, i, hpm: 1.6, armor: barArmor, hitSnd: barSnd })); e.lp = 0; e.lb = null; e.lb2 = null; e.tw = 0; if (g3()) { ledger(e); opening(e); } },
   update: updChoir,
-  hurt: (e) => { if (!g3()) return 1; for (const b of e.bars) if (!b.dead) return CHOIR_EYE; return 1; }, // a loop, no closure per hit
+  hurt: (e, d) => { if (!g3()) return 1; let m = 1; for (const b of e.bars) if (!b.dead) { m = CHOIR_EYE; break; } return m * phaseShare(e, d * m); }, // a loop, no closure per hit; phaseShare: the half floor (r3 K1)
 });

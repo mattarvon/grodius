@@ -236,7 +236,7 @@ describe('THE BROOD MOTHER: the litter from behind', () => {
     for (const k of kids) { expect(k.fromLeft).toBeFalsy(); expect(k.x).toBeGreaterThan(300); }
   });
   it('on long4 drops her phase-1 litter in from the top, then the bottom edge, at the ship x + 60..90, after a DN.eTel chevron (W6: 46 f; the rear litter keeps DN.bTel)', () => {
-    $.P = { x: 120, y: 130, alive: true };
+    $.P = { x: 120, y: 20, alive: true }; // r3: up and to the left, past every lob (lobReach), so she opens on the litter
     const e = spawn('brood');
     step(e);
     expect(e.st).toBe('birth');
@@ -389,6 +389,8 @@ describe('THE NAIL CHOIR (long4): twin lanes, the eye, the re-lock', () => {
     const e = spawn('choir'), b = e.bars[0];
     expect(b.armor(b)).toBe(1);
     e.lp = LP.tel; e.lb = b;
+    expect(b.armor(b)).toBe(0); // r3: its tell can't be shot off (the counterplay is to leave the lane)
+    e.lp = LP.out;
     expect(b.armor(b)).toBeCloseTo(.15);
     expect(e.bars[1].armor(e.bars[1])).toBe(1); // the bar still orbiting
     e.lp = LP.home;
@@ -512,7 +514,7 @@ describe('THE APPRENTICE (long4): the sagging bite and the second hook', () => {
     expect(both).toBeGreaterThan(0);
   });
   it('spawns no edge hatchling within 64 px of a ship that moved under the column', () => {
-    $.P = { x: 120, y: 130, alive: true };
+    $.P = { x: 120, y: 20, alive: true }; // r3: out of lob reach, so the opener is the edge litter
     const e = spawn('brood');
     step(e);
     expect(e.edge).toBe(1);

@@ -20,7 +20,7 @@ import { hazLeadX } from '../notice';
 import { driveMul } from '../depth';
 import { bulletCap, cadI, cadMul, capRoom, leadL, rank, rho, variantOn } from '../rank';
 import { kindOf } from '../layout';
-import { lobV } from '../enemies/mid/_fight';
+import { lobV, phaseAtt, phaseShare } from '../enemies/mid/_fight';
 import { BLOAT, BOSS_HPK, BUTCHER, HAZ_HOOK, MAW, PHASE_F, VOLLEY, combStep, curtainXs, lungeStop, lungeX, steerLane } from './bossrules';
 
 // ---------------- the rank API (W0 src/rank.ts, spec §5.6): the one spot the fights read it ----------------
@@ -121,7 +121,9 @@ export function clock3(e) {
  *  is a bite: e.bs 1 the 46 f tell (the lane e.ly tracks the ship's height, then locks for the last 16), 2 the lunge
  *  down it at 6 px/f to W*.35, 3 the hold (snapping), 4 home at 3 px/f. The body is the hazard; the fan waits */
 export function maw3(e) {
-  hpOnce(e, e.stageBoss && kindOf($.G.stage || 0) !== 'orbit' ? 'maw' : 'maw0'); // K3 (depth.ts isMid's split: the Open Orbit Maw counts as a midboss)
+  const mid = !(e.stageBoss && kindOf($.G.stage || 0) !== 'orbit');
+  hpOnce(e, mid ? 'maw0' : 'maw'); // K3 (depth.ts isMid's split: the Open Orbit Maw counts as a midboss)
+  if (mid && !e.armor) e.armor = mawFloor; // r3 K1: the midboss Maw keeps the held midbosses' half floor (_fight.ts FT.floorN / floorF)
   if (e.jn == null) e.jn = MAW.biteFirst; // W6 K1: its first bite on the first jaw cycle, inside the first half
   const tx = W - 82, h2 = e.hp < e.max * .5;
   const leaving = e.t >= e.leave && !e.bs;
@@ -148,7 +150,7 @@ export function maw3(e) {
       e.jc = 0;
       e.jn = (e.jn || 0) + 1;
       const at = e.x > tx - 6 && e.x < tx + 6 && !leaving && e.t < e.leave - MAW.quiet;
-      if (at && e.jn % MAW.biteEvery[h2 ? 1 : 0] === 0) { e.bs = 1; e.bt = 0; e.ly = e.y; e.bw = 1; e.bv = e.stageBoss && variant() ? 1 : 0; sfx.tele(); }
+      if (at && e.jn % MAW.biteEvery[h2 ? 1 : 0] === 0) { e.bs = 1; e.bt = 0; e.ly = e.y; e.bw = 1; e.bv = e.stageBoss && variant() ? 1 : 0; sfx.tele(); if (mid) phaseAtt(e, MAW.landBite); } // the half floor counts the bite (r3 K1)
     }
   }
   // the fan: at the same share of the cycle as today's cycle frame 100 of 130
@@ -160,6 +162,7 @@ export function maw3(e) {
   if (e.fw > 0 && --e.fw === 0 && e.x < W - 20) { if (!room(MAW.fanN)) e.fw = VOLLEY.retry; else {
     const m = (MAW.fanN - 1) / 2; lobAim(e.x - 14, e.y, $.P.x, $.P.y, 0); // W6: the centre glob comes down THROUGH the ship (aimed straight, gravity took every glob under a parked ship: K1)
     for (let k = -m; k <= m; k++) eshoot(e.x - 14, e.y, LA[0] + k * MAW.fanSpread, LA[1] + Math.abs(k) * .1, 'glob');
+    if (mid) phaseAtt(e, MAW.landFan); // ...and the fan, as it leaves (r3 K1)
     for (let k = 0; k < 24; k++) drop(e.x - 14, e.y, rr(-3, -.5), rr(-1.5, 1.5), 1.6, R() < .4 ? 2 : 0, 80);
     $.G.shake += 2;
   } }
@@ -177,6 +180,9 @@ export function maw3(e) {
     geysers.push({ wx: e.x + $.G.scroll, y: e.y, att: e, ox: 6, oy: -14, a: -1.3, l: 400, rate: 3 });
   }
 }
+/** the midboss Maw's and THE BLOAT's hit share (e.armor, roster.ts midMul): the half floor. A stage-boss Maw has none (it
+ *  keeps its 28 s escape, decision 8) */
+const mawFloor = (e, d) => phaseShare(e, d);
 /** one frame of the bite (e.bs 1-4, e.bt its frame). render/gross/maw.ts draws the lane (e.ly) and the eyes' flare */
 function bite(e, tx) {
   const P = $.P, V = e.bv ? MAW.var : null;
@@ -208,6 +214,8 @@ function bite(e, tx) {
  *  reads it for the glow), ta aim, tr ring, tg globs, ti ice; cs/cst the stream in flight */
 export function crux3(e) {
   const C = BLOAT.comb;
+  if (!e.armor) e.armor = mawFloor; // r3 K1: the held midbosses' half floor (mid/_fight.ts): a half ends only once two of its attacks have landed.
+  // In practice only the second half: the combs count while the bars make the core immune, so the first half's is met by then
   if (e.shielded) {
     // the comb: tc counts down to the stream; the render glows the emitters for its last C.tell frames
     e.tc = (e.tc ?? iv(C.every)) - 1;
@@ -217,6 +225,7 @@ export function crux3(e) {
       e.cln = variant() && e.cn % 2 === 1 ? C.lanesVar : C.lanes; // the next comb's lanes, known through its tell (render)
       e.cs = e.cl === C.lanesVar ? C.nVar : C.n; e.cst = 0;
       e.tc = iv(C.every);
+      phaseAtt(e, BLOAT.land.comb);
     }
     if (e.cs && --e.cst <= 0) {
       if (room(e.cl.length)) {
@@ -240,6 +249,7 @@ export function crux3(e) {
     if (P.alive && HAZ_HOOK.drop) {
       const c = hazLeadX('icicle', P.x, P.y, $.G.scrollSpeed, ceilAt(P.x + $.G.scroll) + 16, W);
       for (const x of curtainXs(c, 16, W * .92)) HAZ_HOOK.drop('icicle', x);
+      phaseAtt(e, BLOAT.land.ice);
       sfx.tele(); // the 50 f hang tell's cue (a tink would read as an icicle shot down)
     }
   }
@@ -252,6 +262,7 @@ function aim3(e) {
   if (!due(e, 'ta', BLOAT.aim.n, iv(e.shielded ? BLOAT.aim.every : BLOAT.aim.every2))) return;
   const x = e.x - 28, y = e.y - 4, a = aimA(x, y), m = (BLOAT.aim.n - 1) / 2;
   for (let k = -m; k <= m; k++) eshoot(x, y, a + k * BLOAT.aim.spread, BLOAT.aim.v, 'spike');
+  phaseAtt(e, BLOAT.land.aim);
   e.fa = e.t; // the render's recoil frame
 }
 
