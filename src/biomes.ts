@@ -392,7 +392,8 @@ const SPAWN = {
   corpse: () => corpse(rr(50, PH - 80)), wall: () => formation('wall', PH / 2, FM), sine: () => formation('sine', rr(50, PH - 90), FM),
   zig: () => formation('zig', rr(60, PH - 90), FM), dive: () => formation('dive', rr(50, PH - 90), FM), cross: () => crossT(R() < .6 ? 1 : -1),
   eye: () => eyeT(R() < .55 ? 1 : -1), flayer: () => flayer(rr(60, PH - 60)), hook: () => hookE(), womb: () => womb(),
-  hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
+  // the rear coin is .35 on long4 (W6 r4, N4: A/B read right/rear-heavy; the same one R() draw, short keeps .5)
+  hatch: () => hatch(ri(5, 8), R() < (isL4() ? .35 : .5)), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
 };
 Object.assign(SPAWN, { slime: () => slime(R() < .65 ? 1 : -1), mutant: () => mutant() }); // new enemies: snot slime (floor or ceiling), hulking mutant (floor)
 /** the drone formation kinds of the spawn roll (W1's entry mix applies to these) */
@@ -549,7 +550,10 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
   // long4: two authored opening carriers (DIFFICULTY-SPEC §2.2 faucet, levels.md §5.0b): fixed formations at p .05 and
   // .20 whose last kill always drops (pod), tagged open (pod-probe's fixed:open, gate E2). Fixed heights and no rs()
   // draw, so the build stream's order is unchanged
-  if (isL4() && !legacy) for (const [p, y] of OPEN_PODS) at(P(p), () => formation('sine', PH * y, FM, { pod: 1, open: 1 }), 'pod:open');
+  // W6 r4 (N4, enemies stream / lead): the second opener comes in from an edge (slot A drops from the top, slot B rises
+  // from the bottom: spawn.ts edgeWave, its ENTRY tell), keeping its authored pod; the authored beats put ~43% of A's
+  // entries on the right before the filler rolled. Fixed heights / edges, no rs()
+  if (isL4() && !legacy) OPEN_PODS.forEach(([p, y], i) => at(P(p), () => (i && w1(SPW, 'edgeWave') ? w1(SPW, 'edgeWave')(seg ? 'rise' : 'drop', FM, { fixed: 1, pod: 1, open: 1 }) : formation('sine', PH * y, FM, { pod: 1, open: 1 })), 'pod:open'));
   for (let x = a; x < z;) {
     const q = (x - a) / (z - a), T = band(x, q), st = Math.round(B.gap * T.gap), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
     const br = inBreath(x);

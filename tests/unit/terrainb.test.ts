@@ -23,7 +23,7 @@ vi.mock('../../src/enemies/elite', () => ({ eliteChance: () => 0, eliteRoll: () 
 vi.mock('../../src/stages', () => ({ startStage: () => {} }));
 vi.mock('../../src/render/biomeart', () => ({ biomePat: () => {}, biomeTerrainFill: () => {}, biomeEdge: () => {}, drawBiomeBG: () => {}, drawBiomeDecor: () => {}, splatCols: () => {}, biomeDark: () => 1, biomeMist: () => null, drawFX: () => {} }));
 vi.mock('../../src/enemies/spawn', () => {
-  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime'];
+  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'edgeWave', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime'];
   return Object.fromEntries(k.map((n) => [n, (...a: unknown[]) => { spawned.push([n, ...a]); }]));
 });
 
@@ -362,6 +362,8 @@ describe('the catalogue against the game', () => {
           $.G.pend = []; spawned.length = 0;
           e.f(); for (const q of $.G.pend) q.f();
           for (const c of spawned) if (c[0] === 'formation' && (c[4] as { pod?: number } | undefined)?.pod === 1) flagged.push(e.k);
+          // the second opener comes in from an edge (W6 r4, N4): edgeWave(pat, n, o), slot A drops, slot B rises
+          for (const c of spawned) if (c[0] === 'edgeWave' && (c[3] as { pod?: number; open?: number } | undefined)?.pod === 1) { flagged.push(e.k); expect(c[1]).toBe(seg ? 'rise' : 'drop'); expect((c[3] as { open?: number }).open).toBe(1); }
         }
         // DIFFICULTY-SPEC §2.2: long4's two authored opening carriers (src/biomes.ts OPEN_PODS, p .05 / .20) drop too
         expect(flagged.sort(), `${b} slot ${seg}`).toEqual(['pod', 'pod:open', 'pod:open']);
