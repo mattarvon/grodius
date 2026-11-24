@@ -409,7 +409,13 @@ export function entryWave(ent, y, n = 4) {
   if (ent.edge === 'behind') behindWave(y, Math.max(3, n - 1));
   else if (ent.edge === 'top') edgeWave('drop', n);
   else if (ent.edge === 'bottom') edgeWave('rise', n);
-  else if (ent.edge === 'wall') { if (!wallBirth(n + 1, ent.pat === 'rise' ? 1 : -1)) formation('sine', y, n); } // no wall on screen at the lane: a right entry instead (qa-lead: the beat never vanishes)
+  else if (ent.edge === 'wall') {
+    // no wall on screen at the lane: the other wall, and with neither the same edge's drop / rise (the beat never
+    // vanishes, qa-lead). Round 4 (N4): it used to fall back to a right entry, which put biome A's walls on the right
+    // edge (A read right 67%, wall 4% against 55 / 10). No R()
+    const side = ent.pat === 'rise' ? 1 : -1;
+    if (!wallBirth(n + 1, side) && !wallBirth(n + 1, -side)) edgeWave(side > 0 ? 'rise' : 'drop', n);
+  }
   else formation(ent.pat, y, n);
 }
 /** a recovery wave (§2.1 recovery waves, C17; W2 queues G.recovery, stepRecovery below launches it): pods.length

@@ -70,6 +70,36 @@ describe('the designated formation shooter (C6; gate N1)', () => {
     expect(W.eshots.length).toBe(2);
   });
 
+  it('a shooter killed before it fires hands its one shot to the next member; the formation still fires once', () => {
+    S.formation('sine', 127, 4, { fixed: 1 });
+    const [lead, m1] = W.enemies;
+    for (let f = 0; f < 300 && !(lead.tl > 0); f++) run(1);
+    expect(lead.tl).toBeGreaterThan(0);
+    U.killEnemy(lead); // shot inside its tell
+    expect(lead.sh).toBe(0);
+    expect(m1.sh).toBe(1);
+    expect(W.enemies.filter((e) => !e.dead && e.sh === 1).length).toBe(1);
+    run(400);
+    expect(W.eshots.length).toBe(1);
+    // one that already fired gives nothing away
+    W.eshots.length = 0; W.enemies.length = 0;
+    S.formation('sine', 127, 3, { fixed: 1 });
+    const [a, b] = W.enemies;
+    for (let f = 0; f < 300 && !a.shot; f++) run(1);
+    U.killEnemy(a);
+    expect(b.sh).toBeFalsy();
+  });
+
+  it('a drop / rise shooter neither tells nor fires while it is still inside the rock (round 4: its shot died in the floor)', () => {
+    const fl = 224; // the stub floor (world floorAt)
+    S.formation('rise', 230, 3, { fixed: 1 });
+    const lead = W.enemies[0];
+    for (let f = 0; f < 200 && !lead.shot; f++) { run(1); if (lead.tl > 0) expect(lead.y).toBeLessThan(fl); }
+    expect(lead.shot).toBe(1);
+    expect(W.eshots.length).toBe(1);
+    expect(W.eshots[0].y).toBeLessThan(fl - 6);
+  });
+
   it('a rear wave shooter fires at the ship ahead of it from behind, through its phase-in ghost', () => {
     $.P.x = 300;
     S.formation('behind', 127, 3, { fixed: 1 });
@@ -199,6 +229,24 @@ describe('revenge, pods and knots (§2.1 / §2.2 / LVL §3.2)', () => {
     expect(W.caps.map((c, i) => (c.blue ? i + 1 : 0)).filter(Boolean)).toEqual([12, 24]);
   });
 
+  it('an authored opener pod is never blue: the blue moves to the next red that is not an opener', () => {
+    for (let i = 0; i < 11; i++) U.dropCap(100, 100);
+    U.dropCap(100, 100, null, 1); // the 12th red is an opener's pod: it pays power
+    U.dropCap(100, 100, null, 1); // a second opener in a row still pays
+    U.dropCap(100, 100); //           the owed blue
+    U.dropCap(100, 100);
+    expect(W.caps.map((c) => (c.blue ? 'b' : c.ty >= 0 ? 'r' : '?')).join('')).toBe('r'.repeat(13) + 'br');
+    expect($.G.blueOwe).toBe(0);
+    // the carrier's own kill passes the flag: wiping an opener out on the 12th red drops a power pod, and owes the blue
+    W.caps.length = 0; $.G.redN = 11;
+    const g = S.formation('sine', 127, 3, { fixed: 1, pod: 1, open: 1 });
+    for (const e of W.enemies.filter((x) => x.group === g)) { e.cap = false; U.killEnemy(e); }
+    expect(W.caps.length).toBe(1);
+    expect(W.caps[0].blue).toBe(false);
+    expect(W.caps[0].ty).toBeGreaterThanOrEqual(0);
+    expect($.G.blueOwe).toBe(1);
+  });
+
   it('a knot tears into 2 clumps, a clump into 2 one-hit corpses', () => {
     const k = S.knot(60);
     U.killEnemy(k);
@@ -240,7 +288,7 @@ describe('revenge, pods and knots (§2.1 / §2.2 / LVL §3.2)', () => {
     expect(e.ws).toBe('tel');
   });
 
-  // (its 60 f phase-in ghost still expires on its own clock: the tell, not the ghost, is what waits for the 64 px; qa-lead)
+  // (the tell waits for the 64 px; qa-lead. Since round 4 the phase-in ghost waits for it too: next test)
   it('a rear-wave shooter holds its tell while the ship is within 64 px and never fires from inside it', () => {
     $.P.x = 60; $.P.y = 127;
     S.formation('behind', 127, 3, { fixed: 1 });
@@ -250,6 +298,19 @@ describe('revenge, pods and knots (§2.1 / §2.2 / LVL §3.2)', () => {
       if (Math.hypot($.P.x - lead.x, $.P.y - lead.y) < BUL.noShot) expect(lead.tl || 0).toBe(0);
     }
     expect(W.eshots.length).toBe(0); // never a shot from inside 64 px
+  });
+
+  it('a rear entrant stays a ghost while the ship is within 64 px, and turns solid once it is that far off', () => {
+    $.P.x = 92; $.P.y = 127; // where a rear wave's ghost used to run out (x ~92), on the ship's lane
+    S.formation('behind', 127, 3, { fixed: 1 });
+    S.hatch(2, true, 1);
+    const rear = [...W.enemies];
+    for (let f = 0; f < 260; f++) {
+      run(1);
+      for (const e of rear) if (!(e.ghost > 0)) expect(Math.hypot($.P.x - e.x, $.P.y - e.y) >= BUL.noShot || !!e.wasSolid, `${e.k} ${e.i ?? ''} solid at ${e.x.toFixed(0)},${e.y.toFixed(0)} tl ${e.tl} t ${e.t} f ${f}`).toBe(true);
+      for (const e of rear) if (!(e.ghost > 0)) e.wasSolid = 1;
+    }
+    expect(rear.every((e) => !(e.ghost > 0))).toBe(true); // all solid once they are past
   });
 
   it('a child that would be born within 48 px of the ship is not (S5)', () => {

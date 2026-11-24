@@ -355,8 +355,9 @@ export const DRIVE_CELLS = [
     at(0, () => { logLine('THE CREW IS STILL MOVING IN THERE.'); crew(60, 130, 200); });
     at(60, () => { flayer(PH * .3); flayer(PH * .7); }); at(140, () => { hatch(6, true); sentry(PH * .5, W * .8); }); at(220, () => { formation('zig', PH * .4, 4); corpse(PH * .8); });
   }),
-  // the cascade: a swarm from behind, a drone wall, a flayer pair, then a sentry pair seals it
-  C('d.cascade', 'peak', 0, (at) => { at(0, () => hatch(7, true)); at(60, () => formation('wall', PH * .45, 4)); at(140, () => { flayer(PH * .3); flayer(PH * .7); }); at(220, () => { sentry(PH * .22, W * .8); sentry(PH * .76, W * .66); }); }),
+  // the cascade: a swarm from behind, divers rising from the floor, a flayer pair, then a sentry pair seals it. Round 4
+  // (N4): the drone wall was a right entry; the Drive read right 57-58% against 50, top / bottom 10-13 against 15
+  C('d.cascade', 'peak', 0, (at) => { at(0, () => hatch(7, true)); at(60, () => edge('rise', 4)); at(140, () => { flayer(PH * .3); flayer(PH * .7); }); at(220, () => { sentry(PH * .22, W * .8); sentry(PH * .76, W * .66); }); }),
   // the bulkhead: pods high and low, a zig through them, a rear wave, then the dead dragged aft
   C('d.bulkhead', 'peak', 0, (at) => { at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .7); }); at(80, () => edge('drop', 4)); at(170, () => behindWave(PH * .7, 4)); at(250, () => crew(40, 120, 210)); }),
   // the flood (Descent 2+): hatchlings from both ends, divers top and bottom, a flayer in the middle
@@ -370,10 +371,11 @@ export const DRIVE_CELLS = [
   }),
   // the relay: divers from the top, a sentry over a corpse, a swarm from behind, a low zig
   C('d.relay', 'build', 0, (at) => { at(0, () => edge('drop', 4)); at(100, () => { sentry(PH * .35, W * .78); corpse(PH * .75); }); at(180, () => hatch(6, true)); at(260, () => formation('zig', PH * .6, 4)); }),
-  // the crush: three pods stacked across the corridor, a wall, a rear wave, a flayer pair
+  // the crush: three pods stacked across the corridor, divers dropping through them, a rear wave, a flayer pair (round 4,
+  // N4: the drone wall was a right entry, as d.cascade's)
   C('d.crush', 'peak', 0, (at) => {
     at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .82); }); at(40, () => sentry(PH * .5, W * .7));
-    at(110, () => formation('wall', PH * .35, 4)); at(190, () => behindWave(PH * .65, 4));
+    at(110, () => edge('drop', 4)); at(190, () => behindWave(PH * .65, 4));
     at(250, () => { flayer(PH * .3); flayer(PH * .7); });
   }),
   // the undertow: crew in the pull, a high zig, a big swarm head-on, a low sine through drifting dead, a last sentry

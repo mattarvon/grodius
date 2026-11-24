@@ -7,6 +7,7 @@ import { FIRE, PH, R, TAU, W, clamp, dist2, lerp, pick, ri, rr, sstep } from '..
 import { SET, lv } from '../save';
 import { quipAfterKill, sample, sfx } from '../audio';
 import { caps, ceilAt, enemies, eshots, floorAt, geysers, orbs } from '../world';
+import { solidAt } from '../solids';
 import { drop, flash, gib, gore, mist, pop, spark, splat } from '../fx/spawn';
 import { cdm, firem, xtra } from '../depth';
 import { coolFor, revengeN, wombCool } from './cadence';
@@ -58,10 +59,15 @@ function uTurn(e) {
  *  e.sh 1; the last member (e.sh 2) shoots only at rank >= 14. A rear wave's shooter does not wait out its phase-in
  *  ghost: it turns solid as its tell starts (W6 tune, N2: it waited 60-96 f and was past the ship before it could
  *  fire, so a rear wave never shot from behind). No R() */
+/** px of open air a drone's muzzle needs between the ceiling and the floor before it tells or fires (round 4, N1): a
+ *  drop / rise wave crosses the Drive's and the biomes' rock on its way in, and a shot spawned inside it died that frame
+ *  (the statue saw 68% of the rise shooters "fire" into the floor: no bullet ever flew) */
+const DRONE_AIR = 6;
+const inAir = (e) => { const wx = e.x + $.G.scroll; return e.y > ceilAt(wx) + DRONE_AIR && e.y < floorAt(wx) - DRONE_AIR && !solidAt(wx, e.y); }; // a SOLID (THE STROKE's pistons) stops a shot like rock
 function droneFire(e) {
   if (!e.sh || e.shot || (e.ghost > 0 && e.ent !== 'left') || !$.P.alive || (e.sh === 2 && rankOf() < BUL.rank2)) return;
   if (!e.tl) {
-    const inn = e.ent === 'left' ? e.x >= BUL.droneBackX : e.ent === 'top' ? e.y >= BUL.droneEdgeY : e.ent === 'bottom' ? e.y <= PH - BUL.droneEdgeY : e.x - BUL.tell * Math.max(0, (e.lx ?? e.x) - e.x) <= W - BUL.edge - BUL.tellPad;
+    const inn = (e.ent === 'left' ? e.x >= BUL.droneBackX : e.ent === 'top' ? e.y >= BUL.droneEdgeY : e.ent === 'bottom' ? e.y <= PH - BUL.droneEdgeY : e.x - BUL.tell * Math.max(0, (e.lx ?? e.x) - e.x) <= W - BUL.edge - BUL.tellPad) && inAir(e);
     e.lx = e.x;
     // a rear shooter tells (and turns solid) only once the ship is >= 64 px off: it rides the ship's lane, and a body that
     // turned solid nearer would hit it unseen from behind (systems-designer / qa-lead BLOCK)
@@ -71,7 +77,7 @@ function droneFire(e) {
   }
   if (--e.tl > 0) return;
   const mx = e.x + (e.ent === 'left' ? 5 : -5); // the muzzle: a rear wave flies mirrored
-  if (mayFire(e.x, e.y, e.ent, $.P.x, $.P.y, W, PH) && aimShot(mx, e.y, BUL.v.drone)) { e.shot = 1; flash(mx, e.y, 8, 4, '255,60,60'); return; }
+  if (mayFire(e.x, e.y, e.ent, $.P.x, $.P.y, W, PH) && inAir(e) && aimShot(mx, e.y, BUL.v.drone)) { e.shot = 1; flash(mx, e.y, 8, 4, '255,60,60'); return; }
   e.tl = retryIn(BUL.retry); // 20 f: dark for 8, then the whole 12 f flash again (render shows tl <= 12)
   if (!onScreen(e)) e.shot = 1; // gone off screen: it never fires from out of sight
 }
@@ -94,7 +100,11 @@ function updKnot(e, ss) {
 export function updEnemy(e) {
   e.t++;
   if (e.flash > 0) e.flash--;
-  if (e.ghost > 0) e.ghost--;
+  // a rear entrant's phase-in ghost (behindWave 60 + 9i f, a rear hatchling 55 + 8i) never runs out within BUL.noShot
+  // (64 px) of the ship on long4: it holds its last frame, still drawn as a ghost, and turns solid once the ship is that
+  // far off, the rule the rear shooter's tell already keeps (droneFire). It ran out at about x 92 on the ship's own lane,
+  // a body turning solid beside the ship with no tell (round-2 ledger). No R()
+  if (e.ghost > 0 && !(e.ghost === 1 && g3() && $.P && $.P.alive && Math.hypot($.P.x - e.x, $.P.y - e.y) < BUL.noShot)) e.ghost--;
   if (e.elite) eliteTick(e); // elites (enemies/elite.ts): faster fire + a pustule shot
   const ss = $.G.scrollSpeed;
   switch (e.k) {
@@ -788,8 +798,25 @@ export function hurt(e, d, hx, hy, dir) {
   if (e.hp <= 0) killEnemy(e, dir);
 }
 export const mult = () => 1 + Math.min(4, $.G.combo * .05);
+/** G3 (C6, round 4: N1): a designated shooter killed before it fired hands its shot to the next member of its formation
+ *  still flying (the nearest behind it in the line, a scripted member before a rank extra), which tells and fires on the
+ *  usual rules. The formation still fires at most once (twice at rank >= 14): the role moves, it is never copied, and
+ *  the dead one gives it up (e.sh 0). The statue killed 35% of the leaders inside their 12 f tell, so a formation the
+ *  player met head-on never shot back. No R() */
+function passShot(e) {
+  if (!g3() || e.k !== 'drone' || !e.sh || e.shot || !e.group || e.rec || e.group.rec) return;
+  let to = null;
+  for (const o of enemies) {
+    if (o === e || o.dead || o.group !== e.group || o.sh || o.shot) continue;
+    const k = (o.extra ? 1000 : 0) + Math.abs((o.i ?? 0) - (e.i ?? 0)) + ((o.i ?? 0) < (e.i ?? 0) ? 500 : 0);
+    if (!to || k < to[1]) to = [o, k];
+  }
+  if (to) { to[0].sh = e.sh; to[0].lx = to[0].x; }
+  e.sh = 0;
+}
 export function killEnemy(e, dir = 1) {
   e.dead = true;
+  passShot(e);
   if (e.elite) eliteKill(e);
   gore(e.x, e.y, e.gsz, {
     dir,
@@ -852,7 +879,7 @@ export function killEnemy(e, dir = 1) {
     e.group.killed++;
     // D31: a cleared formation drops on the entry's grpPod chance (short 1: no draw); the breath's release and an
     // authored opening carrier (group.pod) always do. A recovery wave's pods are its members' own (no group pod, no draw)
-    if (e.group.killed === e.group.n && !e.group.rec && grpDrops(econId(), e.group.pod, R, capRate() * rebuildMul(econId(), $.G, $.P))) dropCap(e.x, e.y);
+    if (e.group.killed === e.group.n && !e.group.rec && grpDrops(econId(), e.group.pod, R, capRate() * rebuildMul(econId(), $.G, $.P))) dropCap(e.x, e.y, null, e.group.open);
   }
   if (e.k === 'knot' || e.k === 'clump') knotSplit(e); // CREW KNOTS: a knot tears into 2 clumps, a clump into 2 corpses
   if (e.k === 'crux' || e.k === 'butcher') {
@@ -1055,13 +1082,18 @@ function firstKill(e) {
   m.bio += pay;
   pop(e.x, e.y - 48, `FIRST KILL +${pay}`, '#9effa0', 9, 70); // y-48: clear of the graft pop and the death burst
 }
-export function dropCap(x, y, e?) {
+/** dropCap(x, y, e, power): power = an authored opening carrier's pod (group.open, §2.2 faucet). It always carries a
+ *  power fragment: when the blue count (every 12th red) lands on it, the blue is owed to the next red that is not an
+ *  opener's (G.blueOwe), so the opener still pays and Descent 1 still gets its blues (round-3 ledger: a blue on an opener
+ *  gave no power, and Orbit's 4 carriers + Saucer 2 + Maw 2 = K0's 7 relies on every opener paying). long4 only */
+export function dropCap(x, y, e?, power?) {
   if (e && e.capTy != null) { // a recovery carrier's typed pod (spawn.ts recoveryWave): no roll, not a red in the blue count
     caps.push({ x, y, t: 0, blue: false, ty: e.capTy, rec: 1, ...(e.capFull ? { full: 1 } : {}) });
     return;
   }
   // G3: every 12th red capsule is blue, counted on G.redN (§2.2, Gradius II; replaces the 7% roll: one R() fewer per pod)
-  const blue = g3() ? blueAt($.G.redN = ($.G.redN || 0) + 1) : R() < .07;
+  let blue = g3() ? blueAt($.G.redN = ($.G.redN || 0) + 1) || !!$.G.blueOwe : R() < .07;
+  if (blue && g3()) { $.G.blueOwe = power ? 1 : 0; if (power) blue = false; }
   caps.push({
     x,
     y,
