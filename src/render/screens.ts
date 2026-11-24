@@ -11,7 +11,7 @@ import { buy, buySocket, exitArmed, fmtBio, overItems, pad, pauseItems, rigAct, 
 import { SHOP_EXIT, SHOP_LIST, SUB_BACK, TITLE_MENU } from '../backstep';
 import { RIG_LV, SOCKET_COST, SOCKET_MAX, rigFresh, rigInit, rigged, sockets } from '../contraptions';
 import { glow, light, txt } from '../render/util';
-import { EYEQ, GLQ, eye, present } from '../render/eyes';
+import { GLQ, eye, eyeQClear, present } from '../render/eyes';
 import { drawShip } from '../render/ship';
 import { PIC, ready } from '../textures';
 import { pIn, pOut } from '../perf';
@@ -490,7 +490,7 @@ export function render() {
   const psH = !(touch.used && ($.state === 'play' || $.state === 'pause'));
   if (psBtn.hidden !== psH) psBtn.hidden = psH;
   $.FLUSHED = 0;
-  EYEQ.length = 0;
+  eyeQClear(); // the queue and its pool (r4-perf)
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;

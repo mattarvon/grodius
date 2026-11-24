@@ -283,7 +283,7 @@ const LURCH = { text: 'IT LURCHES ONWARD', sub: 'OUT OF TIME', col: '#ff8a3a', t
 function lurchCue() {
   const m = $.G.mini, L = LURCH;
   if (m !== L.e) L.at = 0; // a new fight (or none): an old banner goes with the old one
-  else if (m && lurched(m, L.hp) && !$.G.banner) { L.at = $.G.t || 1; sfx.roar(); } // a sim banner up (the Bloat's clock3) already said it
+  else if (m && lurched(m, L.hp) && !($.G.banner && $.G.banner.text === L.text)) { L.at = $.G.t || 1; sfx.roar(); } // the Bloat's clock3 already said it (its own banner and roar)
   L.e = m; L.hp = m ? m.hp : 0;
   L.t = L.at && m && !m.dead ? Math.max(0, L.ml - ($.G.t - L.at)) : 0;
   if (!L.t) L.at = 0;
