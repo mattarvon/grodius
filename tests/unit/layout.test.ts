@@ -231,16 +231,16 @@ describe('long4 entry', () => {
     expect(LAYOUTS.short!.beats.tempo.every((t) => t.third === undefined || t.third === true)).toBe(true);
   });
 
-  it('has the rev 3 rows: Orbit 7080 (W6 +300), a 4800 px Drive approach, LEVEL 23350', () => {
+  it('has the rev 3 rows: Orbit 7080 (W6 +300), a 4680 px Drive approach (W6 r4), LEVEL 22620', () => {
     const [o, , , d] = L.stages;
     // D31 part 2: LS1's 4380 Orbit (D22) + 2400 (D37). rev 3 (DIFFICULTY-SPEC §2.4): the Drive approach 2700 + 2100, the
     // D31 fallback's last 300 px filler window cut so the 60 s fight cap (C23) holds the Drive at <= 140 s
     expect(o.x1 - o.x0).toBe(7080);
     expect(o.bossX).toBe(6900);
     expect(o.warnX).toBe(6780);
-    expect(d.bossX - d.x0).toBe(4800);
+    expect(d.bossX - d.x0).toBe(4680); // W6 r4: the Drive stretch 2100 -> 1980 (L6)
     expect(d.warnX).toBe(d.bossX - 240);
-    expect(L.level).toBe(23350); // 15150 + 2700 + 1950 + 1450 + 2100
+    expect(L.level).toBe(22620); // 15150 + 2700 + 1560 + 1230 + 1980 (W6 r4 stretch, L6)
   });
 
   it('shifts every anchor after the Orbit by the same amount as the Orbit row (one stretch constant)', () => {
@@ -301,11 +301,11 @@ describe('long4 entry', () => {
     expect(warn - lastCell).toBeGreaterThanOrEqual(300);
   });
 
-  it('times biome slot A at 5500 px and slot B at 5000 px from the gate scroll (rev 3) and sets gateLate past that gate', () => {
+  it('times biome slot A at 5110 px and slot B at 4780 px from the gate scroll (W6 r4) and sets gateLate past that gate', () => {
     // gate scroll: the fork holds the scroll ~50 px past the Orbit Maw's bossX and ~200 px past a biome boss's
     const gateScroll = [L.stages[0].bossX + 50, biomeRows[0].bossX + 200];
     biomeRows.forEach((r, s) => {
-      expect(r.bossX - gateScroll[s]).toBe(3550 + [1950, 1450][s]); // LS1's ~60 s + the rev 3 per-slot stretch (DIFFICULTY-SPEC §2.4)
+      expect(r.bossX - gateScroll[s]).toBe(3550 + [1560, 1230][s]); // LS1's ~60 s + the per-slot stretch (DIFFICULTY-SPEC §2.4; W6 r4 L6 cut)
       expect(r.gateLate).toBeGreaterThanOrEqual(gateScroll[s] + 480 + 10); // choose(): from = scroll + W + 10
       expect(r.breathAfterMid).toBeUndefined(); // short's legacy hack stays short's
     });

@@ -220,16 +220,23 @@ const STRETCH = {
   /** biome slot A (stage 1-2): gate to bossX 3550 -> 5500 px (~92 s of scroll; DIFFICULTY-SPEC §2.4 "Stage lengths",
    *  LVL §8). D31's single +2550 measured 151 s median for slot A (gates-before L6, band <= 145): -600 px, ~-10 s.
    *  Beat fractions scale with the span, so no beat moves relative to its stage. pod-probe tally_s, gate L6 */
-  biomeA: 1950,
+  // [FIT] W6 r4 1950 -> 1560 (L6: the mortal pilot tallied slot A at 147-159 s, median ~151-153, band <= 145): the
+  // fights grew (the Saucer and openers pay, so the kit and the pilot's fights are longer) while the scroll stayed
+  // ~92 s. -390 px is ~-6.5 s of scroll; the beats are fractions of the span, so none moves relative to its stage
+  biomeA: 1560,
   /** biome slot B (stage 1-3): gate to bossX 3550 -> 5000 px (~83 s). Measured 165 s median at +2550 (L6 band <= 150):
    *  -1100 px, and slot B flies no midboss B in Descent 1 (C24, W3c), which gives THE KEEPSAKE its ~46 s. W3c's
    *  terrainb.test.ts reads movement B's fire-slot-B blend against shape()'s own spire steps under this span */
-  biomeB: 1450,
+  // [FIT] W6 r4 1450 -> 1230 (L6: slot B 144-162 s, median ~153, band <= 150; THE KEEPSAKE runs 39-59 s): -220 px,
+  // ~-3.7 s. moveB.blend 175 -> 140 keeps slot B's full gimmick >= 1000 px from its late gate (terrainb.test.ts)
+  biomeB: 1230,
   /** the Drive approach: 2700 -> 4800 px (~77.5 s from the stage start at ~x0 + 148; DIFFICULTY-SPEC §2.4, LVL §8).
    *  D31 had +2400 (its last 300 px a filler window to DRIVE_WARN - 80); C23 caps the fight at 60 s (collapse 45 s,
    *  self-destruct 60 s, W4b), so 77.5 + 60 = ~138 s holds the Drive at <= 140 (L6 <= 145). The 300 px came out of
    *  that last filler window, which is gone: the WARNING now follows ~7.7 s of quiet (LVL §6.2). pod-probe tally_s */
-  drive: 2100,
+  // [FIT] W6 r4 2100 -> 1980 (L6: the Drive tallied 137-146 s, median 146, band <= 145): -120 px comes out of the quiet
+  // before the WARNING (DRIVE_WARN follows the stretch; the rush weave still ends at 4050, ~6.5 s of quiet stay)
+  drive: 1980,
 };
 const S0 = STRETCH.orbit, S1 = S0 + STRETCH.biomeA, S2 = S1 + STRETCH.biomeB, S3 = S2 + STRETCH.drive;
 /** #19 (game-designer): the Orbit climax's last spawn sits >= 300 px (~5 s at ~59.8 px/s) before SOMETHING IS COMING
@@ -362,7 +369,11 @@ const LONG4: LayoutEntry = {
     // [FIT] blend 200 -> 175 (W6 tune): slot B's 1450 stretch left 950 px of full gimmick from its late gate (~16 s, the
     // terrainb.test floor had dropped to 940); 25 px less blend a side gives it 1000 (slot A ~1270). The band's ends do
     // not move (CP1 and midboss B's screen keep their margins); each blend is a lerp of two >= 108 gaps, so fit holds
-    moveB: { between: [0, 1], lead: [0, 200], blend: 175 },
+    // [FIT] W6 r4 blend 175 -> 140: slot B's stretch 1450 -> 1230 (L6) and lead 190 would leave ~935 px of full gimmick from its late
+    // gate; 35 px less blend a side keeps >= 1000 (terrainb.test). A lerp of two >= 108 gaps still holds the fit
+    // lead 200 -> 190: the shorter spans make breath 2 ~5 px shorter than its 220 px at the W6 stretch, and the band must
+    // end before the scroll's hold ~20 px before the breath's end (midboss B's held screen stays on movement A)
+    moveB: { between: [0, 1], lead: [0, 190], blend: 140 },
   },
   // the same shapes as short, re-anchored on the long rows: the hull closes in at the Orbit's end, the corridor rises
   // where slot 0's boss is and squeezes from slot 1's start, and everything opens into the chamber over the 400 px
@@ -392,7 +403,10 @@ const LONG4: LayoutEntry = {
     // 4680 cells: the run ends where the flap starts coming down (level-designer delta review). L3 / M3
     // [FIT] W6 tune: every 180 px (3960 ... 4860, six blocks): at 360 the run measured 3 forced moves an Orbit (L3 >= 4/min);
     // the dodging pilot rides the hull low (y ~130-170, the floor turrets), so the floor blocks are what move it
-    hRun: { x0: 3950, x1: 4900, h: 48, every: 180 },
+    // [FIT] W6 r4 (L3 Orbit x >= 3700 read 2.6-8.1/min by seed, band >= 4): h 48 -> 60, and a girder between every pair
+    // of blocks (pylons 4232 / 4592 added), so the open band a ship can hold under the girders and over the blocks is
+    // ~44 px (was ~60 with a girder every other gap): the run moves a high or a low rider every ~90-180 px, not one pilot line
+    hRun: { x0: 3950, x1: 4900, h: 60, every: 180 },
     // the breach (LVL §3.1): a ceiling flap comes down over 4900-5250 and goes back up over 5950-6420, `flap` px below
     // the base ceiling (mean ~52), over the lifted floor: FH median ~54% (136 px) for ~10 s at full, the column gap
     // clamped to 108 inside it (104 elsewhere), no hull block under it (world.ts). The ramps are 350 px, not LVL's 250,
@@ -416,18 +430,24 @@ const LONG4: LayoutEntry = {
     // breath (2420-2750, a restore lands on still walls: level-designer review) and is gone before the quiet (4100-)
     weave: [
       { bands: [[5200, 5320, 6180, 6300]], amp: 20, ramp: 140, hold: 50, keep: 106, ease: 1 / 160 },
-      { bands: [[11750 + S2 + 2700, 11750 + S2 + 2850, 11750 + S2 + 3900, 11750 + S2 + 4050]], amp: 40, ramp: 240, hold: 60, keep: 106, ease: 1 / 160 },
+      // W6 r4: a second band before THE STROKE (after the slot-B hand-back, tEnd 480-780; gone by 1060, before the window's
+      // first piston beat at 1150: its floor 80 is fitted un-woven). A steeper weave does not help here: the ~120 px corridor's
+      // swept fit is 104-118, so the sweep-loss scale (keep 106) turns a steeper weave down to the same ~25 px; the Drive's
+      // forced moves come from THE STROKE's pistons (DRIVE_SIG)
+      { bands: [[11750 + S2 + 620, 11750 + S2 + 740, 11750 + S2 + 980, 11750 + S2 + 1060], [11750 + S2 + 2700, 11750 + S2 + 2850, 11750 + S2 + 3900, 11750 + S2 + 4050]], amp: 40, ramp: 240, hold: 60, keep: 106, ease: 1 / 160 },
     ],
     // [FIT] the hull girders (W6 tune, L3): one over the hull's arrival and one between each pair of floor blocks (3960,
     // 4140, ... 4860), 40 px wide, tip 108 px above the floor (S1 100 + margin), so a ship riding high has to come down
     // Under the breach flap they are its torn plating hanging lower (5360-5840, between the flap's turrets at 5210 /
     // 5300 / 5450 / 5600): the pilot rides the breach high (y ~30-70), where only a ceiling element moves it. gap 108: the
     // breach's own column clamp (oClamp)
-    pylons: { x: [3800, 4052, 4412, 4772, 5360, 5520, 5700, 5840, 6000, 6160], w: 40, gap: 108, reach: 30, taper: 8 },
+    pylons: { x: [3800, 4052, 4232, 4412, 4592, 4772, 5360, 5520, 5700, 5840, 6000, 6160], w: 40, gap: 108, reach: 30, taper: 8 },
     // the W6 Orbit stretch (+300) moved the Drive approach 300 px along the wall noise, onto a stretch pinched at the 104
     // clamp where THE STROKE v1 skipped 2 of its 3 singles (orbitdrive.test). The approach reads the noise it was fitted on;
     // the seam is at its x0, under slot B's terrain (tEnd: the biome covers the approach to x0 + 480)
-    nShift: { x: 11750 + S2, d: STRETCH.orbit - 2400 },
+    // W6 r4: the biome A / B stretch cuts (L6) moved it the other way, so d is the whole shift since that fit (Orbit 2400,
+    // biome A 1950, biome B 1450): +300 - 390 - 220 = -310
+    nShift: { x: 11750 + S2, d: STRETCH.orbit - 2400 + STRETCH.biomeA - 1950 + STRETCH.biomeB - 1450 },
   },
   // PROVISIONAL (creative-director condition, LS1-A review): per-kind hell values are authored after art round 2, never
   // copied from the AMT bands. Until then they are keyed to the stage rows, not to AMT: `corr` rises over slot 1's
@@ -596,8 +616,12 @@ export const ORBIT_SIG = {
    *  window. Knot HP is the enemies stream's (notice.ts KNOT); the drip keeps the ship's gun busier than one lane */
   knots: [
     { x: 2150, lanes: [.5], dx: [0], then: { dt: 120, k: 'drop', n: 3, teach: true, carrier: true } },
-    { x: 2450, lanes: [.3, .7], dx: [0, 0], then: { dt: 150, k: 'rise', n: 3 }, drip: { dt: [60, 120, 180, 240], lanes: [.5, .15, .85, .4] } },
-    { x: 2800, lanes: [.2, .5, .8], dx: [0, 0, 0], sentry: { dt: 80, y: .4, tx: .8 }, then: { dt: 200, k: 'behind', n: 3 }, drip: { dt: [30, 60, 90, 120, 150, 180, 210, 240, 270], lanes: [.35, .65, .15, .85, .5, .25, .75, .4, .6] } },
+    // [FIT] W6 r4 (L7 p90 28 / 39%, band 40-55): a lone drip knot covers 56 px of the column (22%), so p90 needed two at
+    // once. v2's drip comes in pairs (lanes >= .38 PH apart: a >= 48 px slot between them, ~28 px at opposed bob; knotLane
+    // still never spawns one within 48 px of the ship's y), v3's middle drip is a second
+    // wall of three and two more beats are pairs. 19 -> 27 knots; still no bullet (LVL rule)
+    { x: 2450, lanes: [.3, .7], dx: [0, 0], then: { dt: 150, k: 'rise', n: 3 }, drip: { dt: [60, 60, 120, 120, 180, 180, 240, 240], lanes: [.25, .75, .5, .12, .88, .4, .62, .2] } },
+    { x: 2800, lanes: [.2, .5, .8], dx: [0, 0, 0], sentry: { dt: 80, y: .4, tx: .8 }, then: { dt: 200, k: 'behind', n: 3 }, drip: { dt: [30, 60, 60, 90, 120, 150, 150, 150, 180, 210, 240, 240, 270], lanes: [.35, .2, .8, .15, .85, .2, .5, .8, .25, .75, .25, .75, .6] } },
   ] as KnotVar[],
   /** the hull run (3950-4950) and the breach (5200-5800) turrets, 10 in all (LVL §3.3 "8-10 terrain turrets"; rev 2
    *  had 0). Floor eyes and crawlers on the plating, a ceiling eye 40 px before the flap's full drop (a squeeze lip,
@@ -645,10 +669,14 @@ export const DRIVE_SIG = {
      *  centre alternating .38 / .62 of the corridor; v3 4 pairs, pitch 120, gap 82 ([FIT]: LVL's 80 is the window floor and the swept fit read 78 with the engine live), wall eyes
      *  between pairs 2 and 3 (60 px from both piston centres, LVL §4 rule 3), a rear wave at trigger x 2190 (~+200).
      *  The variations sit 200 / 110 px apart (LVL's 1100-1500 / 1600-2000 / 2050-2400, packed 70 px tighter so the
-     *  window plus its spawn lead fits between two checkpoints) */
+     *  window plus its spawn lead fits between two checkpoints). W6 r4: v1 4 singles and v2 4 pairs at pitch 105, so the
+     *  breaths between the variations are 110 / 90 px; a ship on the centre line is still never closed (two openings of
+     *  gap g in a ~120 px corridor overlap by >= 2g - 120): the pistons move a wall-side ship */
     vars: [
-      { id: 'v1', x: [1150, 1280, 1410], side: [-1, 1, -1], gap: 96 },
-      { id: 'v2', x: [1610, 1740, 1870], pair: [.38, .62, .38], gap: 84 },
+      // [FIT] W6 r4 (L3 Drive 3.0/min, band >= 8; the pistons are what moves a ship in the Drive): v1 and v2 one piston
+      // more each at pitch 105 (was 130; the open lane moves 32 px per pitch, .3: S3 .75)
+      { id: 'v1', x: [1150, 1255, 1360, 1465], side: [-1, 1, -1, 1], gap: 96 },
+      { id: 'v2', x: [1575, 1680, 1785, 1890], pair: [.38, .62, .38, .62], gap: 84 },
       { id: 'v3', x: [1980, 2100, 2220, 2340], pair: [.62, .38, .62, .38], gap: 82, eyes: 2175, behind: 2190 },
     ] as StrokeVar[],
   },

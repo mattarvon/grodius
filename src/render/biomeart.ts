@@ -18,6 +18,7 @@ import { tankFadeNew, tankFadeStep } from './tankfade';
 import { MOTIFW, PREVW, WOUND, acidFlakes, drainedBodies, drainedHung, fireAsh, iceDrips, iceWash, wBuilt, wlay, wPts, woundBuilt, woundLive, woundLook } from './wounds';
 import { PERKS, pk } from '../perks';
 import { PLATE, plateBox, plateLines, plateRight } from './gateplate';
+import { layout } from '../layout';
 
 const FONT = 'Silkscreen, monospace';
 // LW, rng, cnv, figure, face, skull, wrap and ridge are exported for the wound painters (render/wounds.ts)
@@ -518,6 +519,20 @@ function edgeBand(sc, s, out, dep, fill) {
   for (let i = ys.length - 1, x = -4 + 3 * (ys.length - 1); i >= 0; x -= 3, i--) ctx.lineTo(x, ys[i] + s * dep);
   ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
 }
+/** long4 (S7, the spur gap: W6 r4): how far wall decor rooted at world x may reach into the corridor, px. The open gap
+ *  over [wx - hw, wx + hw] less DECOR_CLEAR, so a crystal, a frozen block or a hanging corpse rooted on a spur tip or in
+ *  a pinch never closes the flown corridor to the eye below what the collision leaves open (S1's 100 px fit; a
+ *  spur leaves 108). A piece that would reach further is shortened (a chain, a drip, an icicle) or a size down, else not
+ *  drawn. Hash-placed, so it is the same every frame. Short (no run-up beat): unlimited, its decor is unchanged */
+const DECOR_CLEAR = 80;
+function decorRoom(wx, hw) {
+  if (layout().beats.runup == null) return 1e9;
+  let g = 1e9;
+  for (let d = -hw; d <= hw; d += 4) g = Math.min(g, floorAt(wx + d) - ceilAt(wx + d));
+  return g - DECOR_CLEAR;
+}
+/** px each ice crystal sprite stands out of its wall (its height less the 4 px it is sunk) */
+const CRYSTAL_UP = { 'crystal-l': 40, 'crystal-m': 26, 'crystal-s': 14 };
 function slots(sc, size, f) { for (let n = Math.floor((sc - 80) / size); n <= Math.floor((sc + W + 80) / size); n++) f(n, hash(n * 7.31 + size * .013)); }
 
 export function drawBiomeDecor(sc) {
@@ -534,7 +549,10 @@ export function drawBiomeDecor(sc) {
       for (let i = 0; i < cnt; i++) {
         const q = hash(n * 9.7 + i * 3.3), wx = n * 58 + 6 + hs * 30 + i * (5 + q * 5), x = wx - sc;
         if (x < -40 || x > W + 40) continue;
-        const key = i === 1 || q > .78 ? 'crystal-l' : q > .4 ? 'crystal-m' : 'crystal-s', fr = (q * 97) | 0, rot = (q - .5) * .7 + (i - (cnt - 1) / 2) * .22;
+        let key = i === 1 || q > .78 ? 'crystal-l' : q > .4 ? 'crystal-m' : 'crystal-s';
+        const fr = (q * 97) | 0, rot = (q - .5) * .7 + (i - (cnt - 1) / 2) * .22, room = decorRoom(wx, 8);
+        if (CRYSTAL_UP[key] > room) key = CRYSTAL_UP['crystal-m'] <= room ? 'crystal-m' : 'crystal-s';
+        if (CRYSTAL_UP[key] > room) continue;
         if (floor) { const f = floorAt(wx); if (f < PH + 4) sprite(ctx, key, fr, x, f + 4, { ay: 1, rot }); }
         else { const c = ceilAt(wx); if (c > -4) sprite(ctx, key, fr, x, c - 4, { ay: 1, sy: -1, rot: -rot }); }
       }
@@ -543,14 +561,18 @@ export function drawBiomeDecor(sc) {
     slots(sc, 230, (n, hs) => {
       if (hs > .55) return;
       const wx = n * 230 + 40 + hs * 140, x = wx - sc, S = iceBlock((hs * 37 | 0) % 3);
-      if (hash(n * 2.3) < .6) { const f = Math.min(floorAt(wx), floorAt(wx + 24), floorAt(wx + 46)); if (f < PH + 20) ctx.drawImage(S, x | 0, (f - S.height + 10) | 0); }
-      else { const c = Math.max(ceilAt(wx), ceilAt(wx + 24), ceilAt(wx + 46)); if (c > -20) { ctx.save(); ctx.translate(x | 0, (c - 10) | 0); ctx.scale(1, -1); ctx.drawImage(S, 0, -S.height); ctx.restore(); } }
+      // sunk deeper (up to 30 px more: only the face and hands show) where a pinch leaves less room (art-director review)
+      const sink = Math.max(0, S.height - 10 - decorRoom(wx + 24, 24));
+      if (sink > 30) return;
+      if (hash(n * 2.3) < .6) { const f = Math.min(floorAt(wx), floorAt(wx + 24), floorAt(wx + 46)); if (f < PH + 20) ctx.drawImage(S, x | 0, (f - S.height + 10 + sink) | 0); }
+      else { const c = Math.max(ceilAt(wx), ceilAt(wx + 24), ceilAt(wx + 46)); if (c > -20) { ctx.save(); ctx.translate(x | 0, (c - 10 - sink) | 0); ctx.scale(1, -1); ctx.drawImage(S, 0, -S.height); ctx.restore(); } }
     });
     for (const s of [1, -1]) edgeBand(sc, s, (wx) => .8 + 1.8 * hash(Math.floor(wx / 3)) + 1.2 * Math.sin(wx * .07), 2.5, '#e6f4ff');
     for (let wx = Math.floor(sc / 12) * 12; wx < sc + W + 12; wx += 12) {
       const x = wx - sc, c = ceilAt(wx), f = floorAt(wx), h = hash(wx * .37);
       if (c > -2) {
-        if (h < .62) { const len = 5 + h * 18, l2 = len * (.5 + hash(wx) * .3); ctx.fillStyle = '#a8d4f4'; ctx.beginPath(); ctx.moveTo(x - 3, c); ctx.lineTo(x + 3, c); ctx.lineTo(x, c + len); ctx.fill(); ctx.fillStyle = '#6a9cc8'; ctx.beginPath(); ctx.moveTo(x, c); ctx.lineTo(x + 3, c); ctx.lineTo(x, c + len); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, c, 1, l2); if (h < .2) { ctx.fillStyle = '#a8d4f4'; ctx.beginPath(); ctx.moveTo(x + 5, c); ctx.lineTo(x + 8, c); ctx.lineTo(x + 6.5, c + len * .45); ctx.fill(); } }
+        const room = h < .62 ? decorRoom(wx, 3) : 0;
+        if (h < .62 && room > 4) { const len = Math.min(5 + h * 18, room), l2 = len * (.5 + hash(wx) * .3); ctx.fillStyle = '#a8d4f4'; ctx.beginPath(); ctx.moveTo(x - 3, c); ctx.lineTo(x + 3, c); ctx.lineTo(x, c + len); ctx.fill(); ctx.fillStyle = '#6a9cc8'; ctx.beginPath(); ctx.moveTo(x, c); ctx.lineTo(x + 3, c); ctx.lineTo(x, c + len); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 1, c, 1, l2); if (h < .2) { ctx.fillStyle = '#a8d4f4'; ctx.beginPath(); ctx.moveTo(x + 5, c); ctx.lineTo(x + 8, c); ctx.lineTo(x + 6.5, c + len * .45); ctx.fill(); } }
       }
       if (f < PH + 2) {
         if (h > .93) { // a frozen hand clawing out of the floor
@@ -567,14 +589,15 @@ export function drawBiomeDecor(sc) {
       const wx = n * 250 + 30 + hs * 160, x = wx - sc;
       if (hs < .5) {
         const f = floorAt(wx + 24), S = skel((hs * 41 | 0) % 2);
-        if (f < PH + 10) {
+        if (f < PH + 10 && decorRoom(wx + 24, 24) >= S.height - 12) {
           lit(() => glow(x + 24, f, 34, '40,210,170', .35 * k));
           ctx.drawImage(S, x | 0, (f - S.height + 12) | 0);
           for (let q = 0; q < 5; q++) { const ph = ((t * (.7 + q * .1) + q * 29 + n * 13) % 60) / 60; ctx.strokeStyle = `rgba(190,255,235,${.8 * (1 - ph)})`; ctx.lineWidth = .7; ctx.beginPath(); ctx.arc(x + 12 + q * 7 + Math.sin(ph * 8 + q) * 1.5, f - 2 - ph * 22, .8 + ph * 1.6, 0, TAU); ctx.stroke(); }
         }
       } else if (hs < .78) {
         const c = ceilAt(wx); if (c < -10) return;
-        const len = 10 + hash(n) * 22, sw = Math.sin(t * .02 + n) * 1.5;
+        const len = Math.min(10 + hash(n) * 22, decorRoom(wx, 12) - 46), sw = Math.sin(t * .02 + n) * 1.5;
+        if (len < 4) return; // no room under a spur for the hook's corpse (decorRoom)
         ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, c); ctx.lineTo(x + sw, c + len); ctx.stroke();
         // the hook's corpse fades with the vat dead while the Womb is up: it hung right onto the placenta's rod (D46, call b)
         const ba = tankBodyAlpha(), ga = ctx.globalAlpha;
@@ -608,18 +631,21 @@ export function drawBiomeDecor(sc) {
       const wx = n * 170 + 30 + hs * 110, x = wx - sc;
       if (hs < .62) {
         const c = ceilAt(wx); if (c < -30) return;
-        const len = 14 + hash(n * 1.7) * 40, sw = Math.sin(t * .021 + n * 2) * .14, S = charred((hs * 29 | 0) % 2);
+        // a pinch hangs the body at its native 26 x 46 (bh) before it loses it (art-director review: a biome never loses its dead)
+        const room = decorRoom(wx, 18), bh = room - 64 >= 6 ? 64 : 46, k = bh / 64;
+        const len = Math.min(14 + hash(n * 1.7) * 40, room - bh), sw = Math.sin(t * .021 + n * 2) * .14, S = charred((hs * 29 | 0) % 2);
+        if (len < 6) return; // no room under a spur for even the small body (decorRoom)
         ctx.save(); ctx.translate(x, c); ctx.rotate(sw);
         ctx.strokeStyle = '#1a0a06'; ctx.lineWidth = 1.4; ctx.setLineDash([2, 1.4]); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, len); ctx.stroke(); ctx.setLineDash([]);
         ctx.fillStyle = '#3a2a24'; ctx.fillRect(-1.5, len - 1, 3, 2);
-        ctx.drawImage(S, -18, len, 36, 64);
-        lit(() => { glow(0, len + 40, 34, '255,110,20', .5); flame(-3, len + 62, 24, 6, n); flame(4, len + 56, 18, 4.5, n + 1.7); flame(0, len + 34, 13, 5, n + 3.1); flame(-6, len + 26, 10, 3, n + 4.4); flame(5, len + 20, 8, 2.5, n + 5.2); });
+        ctx.drawImage(S, -18 * k, len, 36 * k, bh);
+        lit(() => { glow(0, len + 40 * k, 34 * k, '255,110,20', .5); flame(-3 * k, len + 62 * k, 24 * k, 6 * k, n); flame(4 * k, len + 56 * k, 18 * k, 4.5 * k, n + 1.7); flame(0, len + 34 * k, 13 * k, 5 * k, n + 3.1); flame(-6 * k, len + 26 * k, 10 * k, 3 * k, n + 4.4); flame(5 * k, len + 20 * k, 8 * k, 2.5 * k, n + 5.2); });
         ctx.restore();
-        light(x, c + len + 44, 60, .9);
+        light(x, c + len + 44 * k, 60 * k, .9);
         for (let q = 0; q < 3; q++) { const ph = ((t * .7 + q * 31 + n * 11) % 80) / 80; ctx.fillStyle = `rgba(40,30,28,${.5 * (1 - ph)})`; ctx.beginPath(); ctx.arc(x + Math.sin(ph * 5 + q) * 4, c + len + 26 - ph * 34, 2 + ph * 4, 0, TAU); ctx.fill(); }
       } else if (hs < .84) {
         // floor pyre: a heap of the dead on a grate, burning
-        const f = floorAt(wx); if (f > PH + 10) return;
+        const f = floorAt(wx); if (f > PH + 10 || decorRoom(wx, 14) < 30) return;
         ctx.fillStyle = '#0c0403';
         for (let q = 0; q < 5; q++) { ctx.save(); ctx.translate(x + q * 5 - 10, f - 4 - (q % 2) * 4); ctx.rotate(q * 1.1 + hs); ctx.fillRect(-8, -1.6, 16, 3.2); ctx.restore(); }
         ctx.fillStyle = '#1a0806'; ctx.beginPath(); ctx.arc(x + 3, f - 12, 3, 0, TAU); ctx.fill(); ctx.fillStyle = '#ffb040'; ctx.fillRect(x + 2, f - 13, 1, 1); ctx.fillRect(x + 4, f - 13, 1, 1);
@@ -643,7 +669,9 @@ export function drawBiomeDecor(sc) {
     slots(sc, 240, (n, hs) => {
       const wx = n * 240 + 40 + hs * 150, x = wx - sc, top = hash(n * 4.4) < .4, e = top ? ceilAt(wx) : floorAt(wx), s = top ? -1 : 1;
       if (top ? e < -10 : e > PH + 10) return;
+      const room = decorRoom(wx, 22);
       if (hs < .5) {
+        if (room < 24) return;
         ctx.fillStyle = '#7a2016'; ctx.beginPath(); ctx.ellipse(x, e, 22, 9, 0, 0, TAU); ctx.fill();
         ctx.strokeStyle = '#4a0a08'; ctx.lineWidth = .8; for (let q = 0; q < 5; q++) { ctx.beginPath(); ctx.moveTo(x - 20 + q * 9, e); ctx.quadraticCurveTo(x - 14 + q * 7, e - s * 6, x - 8 + q * 4, e - s * (3 + q)); ctx.stroke(); }
         const per = 280, ph = ((t + hs * 900) % per) / per;
@@ -660,6 +688,7 @@ export function drawBiomeDecor(sc) {
           for (let d = 0; d < 14; d++) { const tt = q0 * 1.6 - d * .05; if (tt < 0) continue; const px = hx + tt * 46 * (n % 2 ? 1 : -1) * .6, py = hy - s * (tt * 70 - tt * tt * 60); ctx.fillStyle = d % 3 ? '#e8d880' : '#fff4c0'; ctx.beginPath(); ctx.arc(px, py, 2.2 - d * .1, 0, TAU); ctx.fill(); }
         }
       } else if (hs < .8) {
+        if (room < 54) return;
         const S = cocoon((hs * 23 | 0) % 2), pul = 1 + .04 * Math.sin(t * .07 + n);
         ctx.save(); ctx.translate(x, e); ctx.scale(pul, s * pul);
         ctx.strokeStyle = 'rgba(210,200,90,.7)'; ctx.lineWidth = 1.2; for (let q = -1; q <= 1; q++) { ctx.beginPath(); ctx.moveTo(q * 8, 0); ctx.lineTo(q * 4, -6); ctx.stroke(); }
@@ -670,7 +699,7 @@ export function drawBiomeDecor(sc) {
       const x = wx - sc, c = ceilAt(wx), f = floorAt(wx), h = hash(wx * .37);
       if (c > -2 && h < .5) {
         // snot drip: stretches, bulges, lets go
-        const per = 150 + h * 260, ph = ((t + h * 977) % per) / per, maxl = 6 + h * 30, l = maxl * Math.min(1, ph / .75), bx = x + Math.sin(t * .02 + wx) * 1.5;
+        const per = 150 + h * 260, ph = ((t + h * 977) % per) / per, maxl = Math.max(2, Math.min(6 + h * 30, decorRoom(wx, 2) - 6)), l = maxl * Math.min(1, ph / .75), bx = x + Math.sin(t * .02 + wx) * 1.5;
         ctx.strokeStyle = 'rgba(205,195,85,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, c); ctx.quadraticCurveTo(x, c + l * .6, bx, c + l); ctx.stroke();
         ctx.strokeStyle = 'rgba(255,250,200,.6)'; ctx.lineWidth = .6; ctx.stroke();
         if (ph < .75) { const r = 1.6 + ph * 1.8; ctx.fillStyle = '#dccc64'; ctx.beginPath(); ctx.ellipse(bx, c + l + r * .6, r * .85, r * 1.15, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#fffbe0'; ctx.fillRect(bx - r * .4, c + l, 1, 1); }

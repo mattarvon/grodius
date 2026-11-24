@@ -60,10 +60,10 @@ const swept = (x: number) => { let f = 1e9, c = -1e9; for (let u = x - 9; u <= x
 describe('the W6 lane weave and staggered spurs (sigs.ts WEAVE / SPUR, L3)', () => {
   beforeAll(() => L.setLayout('long4'));
   afterAll(() => L.setLayout('short'));
-  // B0 only (every Descent 1 visit; route-probe L5 flies it). A remix's movement B1 (Descent 2+) has S1 holes that predate
-  // W6 (86-99 px at ice B1 slot A 9228 / 9108, ice B1 slot B 14390, fire B1 slot B 14794, snot B1 slot B 14906 with the
-  // weave and spurs off): a terrainb.ts gimmick item, reported, not in this test
-  it.each(KEYS.flatMap((b) => [0, 1].flatMap((seg) => [0].flatMap((mv) => [0, 3].flatMap((loop) => [0, 1].map((late) => ({ b, seg, mv, loop, late })))))))('$b slot $seg B$mv descent $loop gate $late: swept fit >= 100 outside the windows, spurs off both walls', ({ b, seg, mv, loop, late }) => {
+  // B0 (every Descent 1 visit; route-probe L5 flies it) and a remix's movement B1 (Descent 2+): its S1 holes of 86-99 px
+  // (ice B1 slot A 9228 / 9108, ice B1 slot B 14390, fire B1 slot B 14794, snot B1 slot B 14906) are closed by biomes.ts
+  // b1Swept (W6 r4)
+  it.each(KEYS.flatMap((b) => [0, 1].flatMap((seg) => [0, 1].flatMap((mv) => [0, 3].flatMap((loop) => [0, 1].map((late) => ({ b, seg, mv, loop, late })))))))('$b slot $seg B$mv descent $loop gate $late: swept fit >= 100 outside the windows, spurs off both walls', ({ b, seg, mv, loop, late }) => {
     const r = L.slotRow(seg), from = late ? r.gateLate! : r.x0, P = fly(seg, b, from, mv, loop), ws = (($.G as { sigW?: Record<string, { x0: number; x1: number }[]> }).sigW || {})['b' + seg] || [];
     let low = 1e9, at = 0;
     for (let x = from + 320; x < P.runup!; x += 4) if (!ws.some((w) => x >= w.x0 - 12 && x < w.x1 + 9)) { const f = swept(x); if (f < low) { low = f; at = x; } }

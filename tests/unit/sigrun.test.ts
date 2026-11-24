@@ -115,4 +115,14 @@ describe('W4b hook', () => {
     BI.hookHazards();
     expect(HR.HAZ_HOOK.drop).toBe(BI.dropHazard); // registered at load, and again by hookHazards
   });
+  it('refuses the drop between stages and without a live ship (W6 r4, L5 hazBad state:icicle)', () => {
+    const H = (globalThis as any).__biome().haz;
+    for (const set of [{ tally: {} }, { fork: {} }, { forkHold: true }, { clearT: 30 }] as Record<string, unknown>[]) {
+      flat(); freshG(); Object.assign($.G as object, set); const n = H.length;
+      BI.dropHazard('icicle', 200); expect(H.length, JSON.stringify(set)).toBe(n);
+    }
+    flat(); freshG(); const P = $.P; const n = H.length;
+    try { ($.P as any) = { ...(P as object), alive: false }; BI.dropHazard('icicle', 200); expect(H.length).toBe(n);
+      ($.P as any) = null; BI.dropHazard('icicle', 200); expect(H.length).toBe(n); } finally { ($.P as any) = P; }
+  });
 });

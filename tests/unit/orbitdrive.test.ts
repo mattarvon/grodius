@@ -164,8 +164,8 @@ describe('THE STROKE pistons (LVL §6.3)', () => {
     expect(S.tell).toBeGreaterThanOrEqual(44);
     expect(S.v).toBeLessThanOrEqual(.5);
   });
-  it('flies 3 / 3 / 4 pistons with gaps 96 / 84 / 82, every gap >= the window floor, inside the window', () => {
-    expect(S.vars.map((v) => v.x.length)).toEqual([3, 3, 4]);
+  it('flies 4 / 4 / 4 pistons (W6 r4) with gaps 96 / 84 / 82, every gap >= the window floor, inside the window', () => {
+    expect(S.vars.map((v) => v.x.length)).toEqual([4, 4, 4]);
     expect(S.vars.map((v) => v.gap)).toEqual([96, 84, 82]);
     const w = DRIVE.sigs![0];
     for (const v of S.vars) {
@@ -273,12 +273,12 @@ describe('the stage scripts (§2.2 authored carriers, §2.3 entry mix)', () => {
     }
   });
 
-  it('builds THE STROKE through the engine: 3 singles + 7 pairs, each phased into its own period, gaps kept, ext at least the engine stroke time', () => {
+  it('builds THE STROKE through the engine: 4 singles + 8 pairs (W6 r4), each phased into its own period, gaps kept, ext at least the engine stroke time', () => {
     W.buildTerrain(0);
     fly(3, 5);
     const one = calls.filter((c) => c.k === 'spawnPiston').map((c) => c.a[0] as any), two = calls.filter((c) => c.k === 'spawnPistonPair').map((c) => c.a[0] as any);
     expect(one.length).toBeGreaterThanOrEqual(2); // a single is skipped where the corridor is already within minDepth of its gap
-    expect(two.length).toBe(7);
+    expect(two.length).toBe(8);
     for (const o of [...one, ...two]) {
       const per = o.rest + 2 * o.ext + o.hold;
       expect(o.phase).toBeGreaterThanOrEqual(0); expect(o.phase).toBeLessThan(per);
@@ -290,12 +290,12 @@ describe('the stage scripts (§2.2 authored carriers, §2.3 entry mix)', () => {
     const span = (o: any) => { let c = -1e9, f = 1e9; for (let u = o.x; u <= o.x + o.w; u += 3) { c = Math.max(c, W.ceilAt(u)); f = Math.min(f, W.floorAt(u)); } return [c, f]; };
     for (const o of one) { const [c, f] = span(o); expect(o.fit).toBe(96); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil((o.side < 0 ? o.reach - c + 4 : f + 4 - o.reach) / .5 * 1.25)); }
     for (const o of two) { const [c, f] = span(o); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil(Math.max(o.centre - o.gap / 2 - c + 4, f + 4 - o.centre - o.gap / 2) / .5 * 1.25)); }
-    expect(two.map((o) => o.gap)).toEqual([84, 84, 84, 82, 82, 82, 82]);
+    expect(two.map((o) => o.gap)).toEqual([84, 84, 84, 84, 82, 82, 82, 82]);
   });
 
-  it('places CREW KNOTS (6 knots and the W6 drip of 13), 10 turrets, the breach birth, and the log lines on the long Orbit', () => {
+  it('places CREW KNOTS (6 knots and the W6 r4 drip of 21), 10 turrets, the breach birth, and the log lines on the long Orbit', () => {
     fly(0, 3);
-    expect(calls.filter((c) => c.k === 'knot').length).toBe(6 + 13);
+    expect(calls.filter((c) => c.k === 'knot').length).toBe(6 + 21);
     expect(calls.filter((c) => c.k === 'eyeT' || c.k === 'crawler' || c.k === 'womb').length).toBe(10);
     expect(calls.some((c) => c.k === 'hatch' && c.a[1] === 'top')).toBe(true);
     const logs = calls.filter((c) => c.k === 'logLine').map((c) => c.a[0]);
