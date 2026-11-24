@@ -149,8 +149,8 @@ describe('the designated formation shooter (C6; gate N1)', () => {
     expect(lead.x).toBeLessThan(300 - 64); // it fired from behind the ship
     expect(lead.ghost).toBe(0); // solid from its tell on
     run(300);
-    expect(W.eshots.length).toBe(1);
-    expect(W.eshots[0].vx).toBeGreaterThan(0);
+    expect(W.eshots.length).toBe(2); // the leader and, at every rank, the tail (REAR_TAIL, round 4)
+    expect(W.eshots.every((q) => q.vx > 0)).toBe(true);
   });
 
   it('holds its shot while the ship is within 64 px, and retries', () => {
