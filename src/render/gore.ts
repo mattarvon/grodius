@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { $ } from '../state';
-import { C, DC, TAU, W, ctx } from '../core';
+import { C, DC, H, TAU, W, ctx } from '../core';
 import { decals, drops, gibs, mists } from '../world';
 import { eye } from '../render/eyes';
 import { DRAW } from '../render/enemies';
@@ -24,8 +24,10 @@ export function drawGibs() {
   // m is the world layer's shake translate (screens.ts render). Only a, d, e, f are used: a camera roll or skew there
   // would misplace every gib, so the matrix below must be rebuilt in full if that ever changes
   const A = gibAtlas(), pal = gibPal(), m = ctx.getTransform(), ma = m.a / GIB_SS, md = m.d / GIB_SS;
+  const lay = stuckSync(A, pal); // the stuck gibs' world layer (below): one blit for all of them, under the rest
   let baked = false, la = -1;
   for (const q of gibs) {
+    if (lay && q._G === RING.gg) continue; // in the stuck layer, drawn above
     const age = (q.ml || q.l) - q.l,
       a = Math.min(1, q.l / 50) * (q.stuck ? 1 : Math.max(.45, 1 - Math.max(0, age - 45) / 160));
     if (a !== la) { ctx.globalAlpha = la = a; } // r4-perf: most gibs sit at 1; every path below leaves globalAlpha as it found it
@@ -199,33 +201,195 @@ function mistPass(ov) {
 }
 export function drawDecals() {
   const sc = $.G.scroll, sp = splatCols();
-  ctx.fillStyle = sp ? sp[0] : '#3a0306';
-  ctx.beginPath();
-  for (const d of decals) {
-    const x = d.wx - sc;
-    if (x < -20 || x > W + 20) continue;
-    ctx.moveTo(x + d.r * 1.8, d.y);
-    ctx.ellipse(x, d.y, d.r * 1.8, d.r * .6, 0, 0, TAU);
+  if (ringTick(sc) && decalSync(sc, sp)) { RING.sf = RING.f; decalLive(sc, sp, true); return; }
+  decalLive(sc, sp, false);
+}
+/** the decals drawn straight onto the world layer (the old path, every frame): used while the scroll moves by a
+ *  fraction of a pixel (it eases in and out of a fight), when a layer's pixel grid wouldn't line up. dripsOnly: the
+ *  layers hold the rest, and only the drips still growing are drawn here */
+function decalLive(sc, sp, dripsOnly) {
+  if (!dripsOnly) {
+    ctx.fillStyle = sp ? sp[0] : '#3a0306';
+    ctx.beginPath();
+    for (const d of decals) {
+      const x = d.wx - sc;
+      if (x < -20 || x > W + 20) continue;
+      ctx.moveTo(x + d.r * 1.8, d.y);
+      ctx.ellipse(x, d.y, d.r * 1.8, d.r * .6, 0, 0, TAU);
+    }
+    ctx.fill();
+    ctx.fillStyle = sp ? sp[1] : '#7d0a10';
+    ctx.beginPath();
+    for (const d of decals) {
+      const x = d.wx - sc;
+      if (x < -20 || x > W + 20) continue;
+      ctx.moveTo(x + d.r, d.y - d.side * .3);
+      ctx.ellipse(x - .4, d.y - d.side * .3, d.r * 1.05, d.r * .3, 0, 0, TAU);
+    }
+    ctx.fill();
   }
-  ctx.fill();
-  ctx.fillStyle = sp ? sp[1] : '#7d0a10';
-  ctx.beginPath();
-  for (const d of decals) {
-    const x = d.wx - sc;
-    if (x < -20 || x > W + 20) continue;
-    ctx.moveTo(x + d.r, d.y - d.side * .3);
-    ctx.ellipse(x - .4, d.y - d.side * .3, d.r * 1.05, d.r * .3, 0, 0, TAU);
-  }
-  ctx.fill();
   ctx.fillStyle = sp ? sp[2] : '#6a0509';
   for (const d of decals) {
     if (d.side > 0 || d.r < 1.6) continue;
+    if (dripsOnly && d._D === RING.dg) continue; // a full-length drip, in the drip layer
     const x = d.wx - sc;
     if (x < -5 || x > W + 5) continue;
     const len = Math.min(d.r * 4, ($.T - d.t) * .05);
     ctx.fillRect(x - .5, d.y, 1, len);
     ctx.fillRect(x - 1, d.y + len - 1, 2, 2);
   }
+}
+
+// r4-perf (T3): WORLD LAYERS. Decals (up to 1,800, ~1,000 in the breach) and stuck gibs (hundreds after a knot fight)
+// sit still in the world: they only move with the scroll. Each was redrawn every frame (two ellipses a decal, an atlas
+// draw a gib). Here they are painted once into ring canvases LW px wide that wrap in world x, and each layer is one
+// blit a frame (two at the wrap). The ring's pixel grid is the screen's: a layer is used only while the scroll's
+// fraction of a pixel holds still (RING.ph: scrolling 1 px a frame, or held for a fight), so a blit lands on the pixels
+// the direct draw did. While the scroll eases (a fight's start and end) everything is drawn the old way.
+// Decals keep their two same-colour unions (dark, then light, then the drips) as three layers, so overlaps stack as
+// before; a drip still growing is drawn live. A stuck gib leaves its layer (erased there, the neighbours it covered
+// painted back) when it starts to fade (l < 50), comes unstuck, or goes; the flying gibs draw over the layer.
+// Render-only: no srnd(), no sim field written (the _D/_G/_L/_s marks sit on fx objects nothing else reads)
+const LW = 1024;
+const RING = { on: false, ph: 0, lastPh: -1, sc: 0, R: 0, K: 0, f: 0, sf: -1, dg: 1, gg: 1, key: null, pal: -1, n: 0, L: null, LD: [], LG: [] };
+const mod = (v, n) => ((v % n) + n) % n;
+function ringMake() {
+  const mk = () => { const cv = document.createElement('canvas'); cv.width = LW; cv.height = H; return { cv, x: cv.getContext('2d') }; };
+  RING.L = { dark: mk(), light: mk(), drip: mk(), gib: mk() };
+}
+/** layer columns for world x [w0, w1), cleared (every layer, or `only`) */
+function ringClear(w0, w1, only = null) {
+  const n = Math.ceil(w1 - w0) + 2;
+  for (const k of only || ['dark', 'light', 'drip', 'gib']) {
+    const x = RING.L[k].x;
+    if (n >= LW) { x.clearRect(0, 0, LW, H); continue; }
+    const u = mod(Math.floor(w0 - RING.ph) - 1, LW);
+    x.clearRect(u, 0, Math.min(n, LW - u), H);
+    if (u + n > LW) x.clearRect(0, 0, u + n - LW, H);
+  }
+}
+/** the frame's ring: false = draw everything live this frame (the scroll is easing). A first frame, a scroll that
+ *  jumped or ran back, or a new fraction of a pixel that holds still repaints the layers from the live lists */
+function ringTick(sc) {
+  const ph = sc - Math.floor(sc), cd = (a, b) => { const v = Math.abs(a - b); return Math.min(v, 1 - v); };
+  const moving = cd(ph, RING.lastPh) > .005;
+  RING.lastPh = ph;
+  RING.f++;
+  if (!RING.on || cd(ph, RING.ph) > .02 || sc < RING.sc - .5 || sc - RING.sc > LW) {
+    if (moving) { RING.on = false; return false; }
+    if (!RING.L) ringMake();
+    RING.on = true; RING.ph = ph; RING.dg++; RING.gg++; RING.LD.length = 0; RING.LG.length = 0; RING.key = null; RING.pal = -1;
+    for (const k in RING.L) RING.L[k].x.clearRect(0, 0, LW, H);
+    RING.R = sc + W + 48;
+  }
+  const R2 = sc + W + 48;
+  if (R2 > RING.R) { ringClear(RING.R - 2, R2 + 32); RING.R = R2 + 32; } // 32 columns at a time: a layer written every frame is flushed every frame
+  RING.sc = sc;
+  RING.K = Math.round(sc - RING.ph);
+  return true;
+}
+/** one layer onto the world layer at the screen's pixels (the world layer's shake translate is whole pixels) */
+function ringBlit(k) {
+  const cv = RING.L[k].cv, kk = mod(RING.K, LW), w1 = Math.min(W, LW - kk);
+  ctx.drawImage(cv, kk, 0, w1, H, 0, 0, w1, H);
+  if (w1 < W) ctx.drawImage(cv, 0, 0, W - w1, H, w1, 0, W - w1, H);
+}
+/** draw(lx) at world x wx's layer column, and again across the wrap where ext reaches it */
+function ringAt(wx, ext, draw) {
+  const lx = mod(wx - RING.ph, LW);
+  draw(lx);
+  if (lx - ext < 0) draw(lx + LW);
+  if (lx + ext > LW) draw(lx - LW);
+}
+/** bring the decal layers up to date (new decals, grown ones, a visible one gone) and blit them */
+function decalSync(sc, sp) {
+  const key = sp ? sp.join() : '';
+  if (key !== RING.key) { // a biome's splat colours (or a repaint): the decal layers start over
+    RING.key = key; RING.dg++; RING.LD.length = 0; ringClear(0, LW, ['dark', 'light', 'drip']);
+  }
+  const f = RING.f, dg = RING.dg, Ld = RING.L.dark.x, Ll = RING.L.light.x, Lr = RING.L.drip.x;
+  let redo = false, any = false;
+  Ld.fillStyle = sp ? sp[0] : '#3a0306'; Ll.fillStyle = sp ? sp[1] : '#7d0a10'; Lr.fillStyle = sp ? sp[2] : '#6a0509';
+  Ld.beginPath(); Ll.beginPath();
+  for (const d of decals) {
+    d._s = f;
+    if (d._L === dg && d._r === d.r) { // in the layers as it is
+      if (d._D !== dg && d.side <= 0 && d.r >= 1.6 && ($.T - d.t) * .05 >= d.r * 4) { // its drip stopped growing: into the drip layer
+        ringAt(d.wx, 2, (lx) => { Lr.fillRect(lx - .5, d.y, 1, d.r * 4); Lr.fillRect(lx - 1, d.y + d.r * 4 - 1, 2, 2); });
+        d._D = dg;
+      }
+      continue;
+    }
+    const x = d.wx - sc;
+    if (x < -20 || x > W + 20) continue; // the old cull: a decal off the right edge goes in as it comes on
+    if (d._D === dg) redo = true; // a full drip whose decal grew (a merge): the drip is longer now
+    ringAt(d.wx, 14, (lx) => {
+      Ld.moveTo(lx + d.r * 1.8, d.y); Ld.ellipse(lx, d.y, d.r * 1.8, d.r * .6, 0, 0, TAU);
+      Ll.moveTo(lx + d.r, d.y - d.side * .3); Ll.ellipse(lx - .4, d.y - d.side * .3, d.r * 1.05, d.r * .3, 0, 0, TAU);
+    });
+    any = true;
+    if (d._L !== dg) RING.LD.push(d);
+    d._L = dg; d._r = d.r;
+  }
+  if (any) { Ld.fill(); Ll.fill(); }
+  if (decals.length < RING.n || RING.LD.length > decals.length) { // the sim culls decals 30 px off the left edge, and the oldest 240 past 1,800
+    const LD = RING.LD;
+    for (let i = LD.length - 1; i >= 0; i--) if (LD[i]._s !== f) { if (LD[i].wx - sc > -16) redo = true; LD[i] = LD[LD.length - 1]; LD.pop(); }
+  }
+  RING.n = decals.length;
+  if (redo) { RING.key = null; return decalSync(sc, sp); } // one on screen went or a full drip grew: repaint from the live list (rare)
+  ringBlit('dark'); ringBlit('light'); ringBlit('drip');
+  return true;
+}
+/** the stuck-gib layer, brought up to date and blitted; true = the gib loop skips the gibs it holds (q._G === RING.gg) */
+function stuckSync(A, pal) {
+  if (!RING.L) return false;
+  if (!RING.on || RING.sf !== RING.f) { // drawDecals drew live this frame (or didn't run): the layer goes stale
+    if (RING.LG.length) { RING.gg++; RING.LG.length = 0; RING.L.gib.x.clearRect(0, 0, LW, H); }
+    return false;
+  }
+  const sc = RING.sc, f = RING.f, G = RING.L.gib.x, LG = RING.LG;
+  if (pal !== RING.pal) { RING.pal = pal; RING.gg++; LG.length = 0; G.clearRect(0, 0, LW, H); }
+  const gg = RING.gg, out = [];
+  for (const q of gibs) {
+    q._s = f;
+    const el = q.stuck && q.l >= 50 && q.k !== 'rope' && q.k !== 'eye' && q.k !== 'half';
+    if (q._G === gg) { if (!el) q._G = 0; continue; }
+    if (!el || q.x < -20 || q.x > W + 30) continue;
+    if (q.cp !== pal) { q.cp = pal; q.cell = gibCell(q, pal); }
+    const c = q.cell, k = c.r ? q.s / c.r : 1;
+    q._wx = q.x + sc; q._gr = c.h * k / GIB_SS * 1.42 + 1;
+    gibInto(G, A, q);
+    q._G = gg; LG.push(q);
+  }
+  for (let i = LG.length - 1; i >= 0; i--) { const q = LG[i]; if (q._G !== gg || q._s !== f) { q._G = 0; out.push(q); LG[i] = LG[LG.length - 1]; LG.pop(); } }
+  for (const q of out) { // erase a gib that left, where it shows, and paint back the neighbours it covered
+    if (q._wx - sc + q._gr < -2) continue;
+    const x0 = q._wx - q._gr - 1, n = Math.ceil(q._gr * 2 + 3), y0 = Math.floor(q.y - q._gr - 1), h = Math.ceil(q._gr * 2 + 3);
+    const u0 = Math.floor(mod(x0 - RING.ph, LW));
+    for (const a of [u0, u0 - LW]) {
+      if (a + n < 0) continue;
+      G.save();
+      G.beginPath(); G.rect(a, y0, n, h); G.clip();
+      G.clearRect(a, y0, n, h);
+      for (const o of LG) if (Math.abs(o._wx - q._wx) < o._gr + q._gr + 3 && Math.abs(o.y - q.y) < o._gr + q._gr + 3) gibInto(G, A, o);
+      G.restore();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ringBlit('gib');
+  return true;
+}
+/** one atlas gib into the stuck layer at its world x, drawn as the gib loop draws it (alpha 1: it is stuck and l >= 50) */
+function gibInto(G, A, q) {
+  const c = q.cell, k = c.r ? q.s / c.r : 1, cs = Math.cos(q.rot) * k / GIB_SS, sn = Math.sin(q.rot) * k / GIB_SS, d = c.h * 2;
+  G.imageSmoothingEnabled = true;
+  const t = G.getTransform();
+  ringAt(q._wx, q._gr, (lx) => {
+    G.setTransform(cs, sn, -sn, cs, lx, q.y);
+    G.drawImage(A, c.x, c.y, d, d, -c.h, -c.h, d, d);
+  });
+  G.setTransform(t);
 }
 
 // --- terrain & backgrounds ---
