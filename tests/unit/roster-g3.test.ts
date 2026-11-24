@@ -149,11 +149,12 @@ describe('the designated formation shooter (C6; gate N1)', () => {
     expect(lead.x).toBeLessThan(300 - 64); // it fired from behind the ship
     expect(lead.ghost).toBe(0); // solid from its tell on
     run(300);
-    expect(W.eshots.length).toBe(2); // the leader and, at every rank, the tail (REAR_TAIL, round 4)
-    expect(W.eshots.every((q) => q.vx > 0)).toBe(true);
+    expect(W.eshots.length).toBe(1);
+    expect(W.eshots[0].vx).toBeGreaterThan(0);
   });
 
-  it('two shots of one formation leave at least 16 f apart (a 2-drone rear wave: its tail is only 16 px back)', () => {
+  it('two shots of one formation leave at least 16 f apart (rank >= 14, a 2-drone rear wave: its tail is 16 px back)', () => {
+    $.G.tier = 3; $.G.stage = 3; $.G.loop = 1; // rank >= 14 (the test above)
     $.P.x = 300;
     S.formation('behind', 127, 2, { fixed: 1 });
     const at: number[] = [];

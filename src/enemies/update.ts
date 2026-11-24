@@ -64,16 +64,11 @@ function uTurn(e) {
  *  (the statue saw 68% of the rise shooters "fire" into the floor: no bullet ever flew) */
 const DRONE_AIR = 6;
 const inAir = (e, x = e.x) => { const wx = x + $.G.scroll; return e.y > ceilAt(wx) + DRONE_AIR && e.y < floorAt(wx) - DRONE_AIR && !solidAt(wx, e.y); }; // a SOLID (THE STROKE's pistons) stops a shot like rock
-// REAR_TAIL (round 4, N2; a C6 amendment for the game-designer / Matt): a rear wave's last member (e.sh 2) fires at every
-// rank, not only at rank >= 14, so a formation from behind fires 2 (still the C6 maximum). N1's fix (rock, passShot)
-// made the front formations fire on time; their hits diluted the rear share of the statue's bullet hits (N2 regular
-// 24% -> 20%). A rear shot needs the ship >= ~106 px from the left edge (40 px edge rule + 64 px rule + the 12 f
-// tell at 1.8 px/f), so a rear leader often passes the ship unfired; its tail, 32-64 px further back, gets a second look
-/** f between two shots of one formation (game-designer, REAR_TAIL): the rear leader and its tail share the ship's lane,
- *  so the second shot leaves at least this long after the first and reads as its own threat */
+/** f between two shots of one formation (game-designer): at rank >= 14 the leader and the tail (or a passed shot and
+ *  the tail) can fire in the same few frames; the second leaves at least this long after the first, its own threat */
 const SHOT_GAP = 16;
 function droneFire(e) {
-  if (!e.sh || e.shot || (e.ghost > 0 && e.ent !== 'left') || !$.P.alive || (e.sh === 2 && e.ent !== 'left' && rankOf() < BUL.rank2)) return; // a rear wave's tail shoots at every rank (REAR_TAIL)
+  if (!e.sh || e.shot || (e.ghost > 0 && e.ent !== 'left') || !$.P.alive || (e.sh === 2 && rankOf() < BUL.rank2)) return;
   if (!e.tl) {
     const inn = (e.ent === 'left' ? e.x >= BUL.droneBackX : e.ent === 'top' ? e.y >= BUL.droneEdgeY : e.ent === 'bottom' ? e.y <= PH - BUL.droneEdgeY : e.x - BUL.tell * Math.max(0, (e.lx ?? e.x) - e.x) <= W - BUL.edge - BUL.tellPad) && inAir(e);
     e.lx = e.x;
