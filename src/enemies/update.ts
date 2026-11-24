@@ -69,6 +69,9 @@ const inAir = (e, x = e.x) => { const wx = x + $.G.scroll; return e.y > ceilAt(w
 // made the front formations fire on time; their hits diluted the rear share of the statue's bullet hits (N2 regular
 // 24% -> 20%). A rear shot needs the ship >= ~106 px from the left edge (40 px edge rule + 64 px rule + the 12 f
 // tell at 1.8 px/f), so a rear leader often passes the ship unfired; its tail, 32-64 px further back, gets a second look
+/** f between two shots of one formation (game-designer, REAR_TAIL): the rear leader and its tail share the ship's lane,
+ *  so the second shot leaves at least this long after the first and reads as its own threat */
+const SHOT_GAP = 16;
 function droneFire(e) {
   if (!e.sh || e.shot || (e.ghost > 0 && e.ent !== 'left') || !$.P.alive || (e.sh === 2 && e.ent !== 'left' && rankOf() < BUL.rank2)) return; // a rear wave's tail shoots at every rank (REAR_TAIL)
   if (!e.tl) {
@@ -77,12 +80,14 @@ function droneFire(e) {
     // a rear shooter tells (and turns solid) only once the ship is >= 64 px off: it rides the ship's lane, and a body that
     // turned solid nearer would hit it unseen from behind (systems-designer / qa-lead BLOCK)
     const rear = e.ent === 'left';
-    if (inn && onScreen(e) && (!rear || Math.hypot($.P.x - e.x, $.P.y - e.y) >= BUL.noShot)) { e.tl = BUL.tell; if (rear) { e.ghost = 0; sfx.tele(); } } // a shot from behind gets a cue (audio-director): audio only, no R()
+    const gap = !e.group || e.group.shotT == null || $.G.t - e.group.shotT >= SHOT_GAP - BUL.tell; // a mate's shot was >= 16 f ago by the time this tell ends
+    if (inn && gap && onScreen(e) && (!rear || Math.hypot($.P.x - e.x, $.P.y - e.y) >= BUL.noShot)) { e.tl = BUL.tell; if (rear) { e.ghost = 0; sfx.tele(); } } // a shot from behind gets a cue (audio-director): audio only, no R()
     return;
   }
   if (--e.tl > 0) return;
+  if (e.group && e.group.shotT != null && $.G.t - e.group.shotT < SHOT_GAP) { e.tl = SHOT_GAP - ($.G.t - e.group.shotT); return; } // a mate just fired: hold the lit tell until the gap is up
   const mx = e.x + (e.ent === 'left' ? 5 : -5); // the muzzle: a rear wave flies mirrored
-  if (mayFire(e.x, e.y, e.ent, $.P.x, $.P.y, W, PH) && inAir(e, mx) && aimShot(mx, e.y, BUL.v.drone)) { e.shot = 1; flash(mx, e.y, 8, 4, '255,60,60'); return; }
+  if (mayFire(e.x, e.y, e.ent, $.P.x, $.P.y, W, PH) && inAir(e, mx) && aimShot(mx, e.y, BUL.v.drone)) { e.shot = 1; if (e.group) e.group.shotT = $.G.t; flash(mx, e.y, 8, 4, '255,60,60'); return; }
   e.tl = retryIn(BUL.retry); // 20 f: dark for 8, then the whole 12 f flash again (render shows tl <= 12)
   if (!onScreen(e)) e.shot = 1; // gone off screen: it never fires from out of sight
 }

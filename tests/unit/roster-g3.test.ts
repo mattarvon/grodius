@@ -153,6 +153,15 @@ describe('the designated formation shooter (C6; gate N1)', () => {
     expect(W.eshots.every((q) => q.vx > 0)).toBe(true);
   });
 
+  it('two shots of one formation leave at least 16 f apart (a 2-drone rear wave: its tail is only 16 px back)', () => {
+    $.P.x = 300;
+    S.formation('behind', 127, 2, { fixed: 1 });
+    const at: number[] = [];
+    for (let f = 0; f < 400; f++) { const n = W.eshots.length; run(1); if (W.eshots.length > n) at.push(f); }
+    expect(at.length).toBe(2);
+    expect(at[1] - at[0]).toBeGreaterThanOrEqual(16);
+  });
+
   it('holds its shot while the ship is within 64 px, and retries', () => {
     S.formation('sine', 127, 1, { fixed: 1 });
     const d = W.enemies[0];
