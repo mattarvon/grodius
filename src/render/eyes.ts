@@ -341,26 +341,31 @@ export function eye(c, lx, ly, r, o = {}) {
     lowEye(c, lx, ly, r, o);
     return;
   }
-  EYEQ.push({
-    x: X,
-    y: Y,
-    r: rad,
-    ang: o.ang || 0,
-    m: o.m ?? .85,
-    iris: o.iris || '#b01018',
-    fire: o.fire ? 1 : 0,
-    bs: o.bs ?? 1,
-    bl: o.blink || 0,
-    dil: o.dil || 1,
-    slit: o.slit || 0,
-    al: c.globalAlpha * (o.al ?? 1),
-    lid: o.lid || '#6e1f1c',
-    hero: o.hero ? 1 : 0,
-    jig: o.jig || 0,
-    // stable look variant: colour + bloodshot level + size (no RNG; the same eye keeps its iris and pupil)
-    v: (colHash(o.iris || '#b01018') * 7 + Math.round((o.bs ?? 1) * 8) * 131 + Math.round(r * 4) * 17) & 4095
-  });
+  // r4-perf (T3): a pooled entry, refilled in full (every field below), not a new object per eye per frame
+  const q = EQP[EQN] || (EQP[EQN] = {});
+  EQN++;
+  q.x = X; q.y = Y; q.r = rad;
+  q.ang = o.ang || 0;
+  q.m = o.m ?? .85;
+  q.iris = o.iris || '#b01018';
+  q.fire = o.fire ? 1 : 0;
+  q.bs = o.bs ?? 1;
+  q.bl = o.blink || 0;
+  q.dil = o.dil || 1;
+  q.slit = o.slit || 0;
+  q.al = c.globalAlpha * (o.al ?? 1);
+  q.lid = o.lid || '#6e1f1c';
+  q.hero = o.hero ? 1 : 0;
+  q.jig = o.jig || 0;
+  // stable look variant: colour + bloodshot level + size (no RNG; the same eye keeps its iris and pupil)
+  q.v = (colHash(q.iris) * 7 + Math.round(q.bs * 8) * 131 + Math.round(r * 4) * 17) & 4095;
+  EYEQ.push(q);
 }
+/** eye()'s entry pool: EQN entries are in use until the queue is emptied (drawEyeQ, eyeQClear) */
+const EQP = [];
+let EQN = 0;
+/** empty the eye queue at the start of a frame (screens.ts render): the pooled entries come free with it */
+export function eyeQClear() { EYEQ.length = 0; EQN = 0; }
 export function lowEye(c, x, y, r, o) {
   if (o.blink > .6) {
     c.fillStyle = o.lid || '#6e1f1c';
@@ -382,7 +387,7 @@ export function lowEye(c, x, y, r, o) {
   c.fillRect(x + Math.cos(a) * r * .45 - .5, y + Math.sin(a) * r * .45 - .5, 1, 1);
 }
 export function drawEyeQ() {
-  if (!EYEQ.length) return;
+  if (!EYEQ.length) { EQN = 0; return; }
   const D = dctx;
   D.save();
   D.setTransform(1, 0, 0, 1, 0, 0);
@@ -397,78 +402,125 @@ export function drawEyeQ() {
     if (e.draw) { e.draw(D, X, Y, r, e); continue; } // custom hi-res eyeball (the Gravity Drive's infected eye: render/gross/drive.ts)
     if (e.hero) { drawHeroEye(D, e, X, Y, r); continue; } // title hero: its own wet, wobbling renderer (heroeye.ts)
     const set = eyeSet(e.iris, e.fire, e.bs, e.v);
-    if (e.fire) {
-      D.globalCompositeOperation = 'lighter';
-      const g = D.createRadialGradient(X, Y, r * .6, X, Y, r * 2.6);
-      g.addColorStop(0, 'rgba(255,120,30,.55)');
-      g.addColorStop(1, 'rgba(255,60,10,0)');
-      D.fillStyle = g;
-      D.fillRect(X - r * 2.6, Y - r * 2.6, r * 5.2, r * 5.2);
-      D.globalCompositeOperation = 'source-over';
-    }
-    D.save();
-    D.translate(X, Y);
-    D.beginPath();
-    D.arc(0, 0, r, 0, TAU);
-    D.clip();
-    if (set.s) D.drawImage(set.s, -r, -r, r * 2, r * 2);
-    else { D.fillStyle = '#e6d8c4'; D.fillRect(-r, -r, r * 2, r * 2); } // sclera still waiting for an idle slot
-    const lx = Math.cos(e.ang) * e.m,
-      ly = Math.sin(e.ang) * e.m;
-    D.save();
-    D.translate(lx * r * .42, ly * r * .42);
-    D.rotate(e.ang);
-    D.scale(1 - .28 * e.m, 1);
-    if (set.i) D.drawImage(set.i, -r, -r, r * 2, r * 2);
-    else { // plain tinted iris while the photo one waits for an idle slot
-      D.fillStyle = e.iris;
-      D.beginPath();
-      D.arc(0, 0, r * .5, 0, TAU);
-      D.fill();
-      D.strokeStyle = 'rgba(10,0,0,.55)';
-      D.lineWidth = r * .07;
-      D.stroke();
-    }
-    const pr = r * .5 * .38 * e.dil, PU = PUP; // built by warmEyes
-    if (PU) { // photo pupil, kept upright (slits stay vertical however the eye rolls)
-      const f = e.slit ? 1 : pupilOf(e.v), k = pr / (PUPIL_R * PU.k) * (f === 1 ? 1.15 : 1), w = PU.fw * k;
-      D.rotate(-e.ang);
-      D.drawImage(PU.img, f * PU.fw, 0, PU.fw, PU.fw, -w / 2, -w / 2, w, w);
-    } else {
-      D.fillStyle = '#030000';
-      D.beginPath();
-      if (e.slit) D.ellipse(0, 0, pr * .32, pr * 1.9, -e.ang, 0, TAU);else D.arc(0, 0, pr, 0, TAU);
-      D.fill();
-    }
-    D.restore();
-    D.drawImage(EYE_SHADE, -r, -r, r * 2, r * 2);
-    if (e.bl > .02) {
-      const b = Math.min(1, e.bl);
-      D.fillStyle = e.lid;
-      D.beginPath();
-      D.ellipse(0, -r, r * 1.15, r * b * 1.02, 0, 0, Math.PI);
-      D.fill();
-      D.beginPath();
-      D.ellipse(0, r, r * 1.15, r * b * 1.02, 0, Math.PI, TAU);
-      D.fill();
-      D.strokeStyle = 'rgba(20,0,0,.8)';
-      D.lineWidth = Math.max(1, r * .08);
-      D.beginPath();
-      D.ellipse(0, -r, r * 1.15, r * b * 1.02, 0, 0, Math.PI);
-      D.stroke();
-      D.beginPath();
-      D.ellipse(0, r, r * 1.15, r * b * 1.02, 0, Math.PI, TAU);
-      D.stroke();
-    }
-    D.restore();
-    D.strokeStyle = e.hero ? 'rgba(40,4,12,.35)' : 'rgba(30,2,4,.7)';
-    D.lineWidth = Math.max(1, r * (e.hero ? .02 : .07));
-    D.beginPath();
-    D.arc(X, Y, r, 0, TAU);
-    D.stroke();
+    if (cachedEye(D, e, X, Y, r, set)) continue;
+    paintEye(D, e, X, Y, r, set);
   }
   D.restore();
   EYEQ.length = 0;
+  EQN = 0;
+}
+/** one queued eye, live, on D at device (X, Y) radius r: the sclera clipped to the ball, the iris and pupil looking
+ *  along e.ang, the shade, the lids, the rim */
+function paintEye(D, e, X, Y, r, set) {
+  if (e.fire) {
+    D.globalCompositeOperation = 'lighter';
+    const g = D.createRadialGradient(X, Y, r * .6, X, Y, r * 2.6);
+    g.addColorStop(0, 'rgba(255,120,30,.55)');
+    g.addColorStop(1, 'rgba(255,60,10,0)');
+    D.fillStyle = g;
+    D.fillRect(X - r * 2.6, Y - r * 2.6, r * 5.2, r * 5.2);
+    D.globalCompositeOperation = 'source-over';
+  }
+  D.save();
+  D.translate(X, Y);
+  D.beginPath();
+  D.arc(0, 0, r, 0, TAU);
+  D.clip();
+  if (set.s) D.drawImage(set.s, -r, -r, r * 2, r * 2);
+  else { D.fillStyle = '#e6d8c4'; D.fillRect(-r, -r, r * 2, r * 2); } // sclera still waiting for an idle slot
+  const lx = Math.cos(e.ang) * e.m,
+    ly = Math.sin(e.ang) * e.m;
+  D.save();
+  D.translate(lx * r * .42, ly * r * .42);
+  D.rotate(e.ang);
+  D.scale(1 - .28 * e.m, 1);
+  if (set.i) D.drawImage(set.i, -r, -r, r * 2, r * 2);
+  else { // plain tinted iris while the photo one waits for an idle slot
+    D.fillStyle = e.iris;
+    D.beginPath();
+    D.arc(0, 0, r * .5, 0, TAU);
+    D.fill();
+    D.strokeStyle = 'rgba(10,0,0,.55)';
+    D.lineWidth = r * .07;
+    D.stroke();
+  }
+  const pr = r * .5 * .38 * e.dil, PU = PUP; // built by warmEyes
+  if (PU) { // photo pupil, kept upright (slits stay vertical however the eye rolls)
+    const f = e.slit ? 1 : pupilOf(e.v), k = pr / (PUPIL_R * PU.k) * (f === 1 ? 1.15 : 1), w = PU.fw * k;
+    D.rotate(-e.ang);
+    D.drawImage(PU.img, f * PU.fw, 0, PU.fw, PU.fw, -w / 2, -w / 2, w, w);
+  } else {
+    D.fillStyle = '#030000';
+    D.beginPath();
+    if (e.slit) D.ellipse(0, 0, pr * .32, pr * 1.9, -e.ang, 0, TAU);else D.arc(0, 0, pr, 0, TAU);
+    D.fill();
+  }
+  D.restore();
+  D.drawImage(EYE_SHADE, -r, -r, r * 2, r * 2);
+  if (e.bl > .02) {
+    const b = Math.min(1, e.bl);
+    D.fillStyle = e.lid;
+    D.beginPath();
+    D.ellipse(0, -r, r * 1.15, r * b * 1.02, 0, 0, Math.PI);
+    D.fill();
+    D.beginPath();
+    D.ellipse(0, r, r * 1.15, r * b * 1.02, 0, Math.PI, TAU);
+    D.fill();
+    D.strokeStyle = 'rgba(20,0,0,.8)';
+    D.lineWidth = Math.max(1, r * .08);
+    D.beginPath();
+    D.ellipse(0, -r, r * 1.15, r * b * 1.02, 0, 0, Math.PI);
+    D.stroke();
+    D.beginPath();
+    D.ellipse(0, r, r * 1.15, r * b * 1.02, 0, Math.PI, TAU);
+    D.stroke();
+  }
+  D.restore();
+  D.strokeStyle = e.hero ? 'rgba(40,4,12,.35)' : 'rgba(30,2,4,.7)';
+  D.lineWidth = Math.max(1, r * (e.hero ? .02 : .07));
+  D.beginPath();
+  D.arc(X, Y, r, 0, TAU);
+  D.stroke();
+}
+// r4-perf (T3): THE EYE CACHE. A queued eye cost a clip, four drawImages, a save/restore pair and a stroke on the
+// display canvas, and the Open Orbit knots queue ~40 a frame (mostly gib eyes). A small, steady, open, unlit eye is
+// painted once per look (iris, bloodshot bucket, colour shift, pupil, size to 1/4 device px, gaze to 1/96 turn) into a
+// sheet, and then costs one unscaled drawImage at the whole device pixel nearest its centre (<= .5 device px off; the
+// gaze <= .07 px off at r 12). Its alpha is applied to the finished ball (a fading gib eye's parts no longer show
+// through each other). Fire, blinks, hero and custom eyes, a stand-in set still building, and big eyes stay live
+const EC = { R: 14, AB: 96, S: 1024, cv: null, x: null, map: new Map(), cx: 0, cy: 0, row: 0 };
+const IRIS_ID = new Map();
+function cachedEye(D, e, X, Y, r, set) {
+  if (e.fire || e.bl > .02 || e.slit || r > EC.R || r < 1 || !set.s || !set.i || !PUP) return false;
+  const b = sclB(e.bs);
+  if (set.s !== SCL[b] || EYEC[e.iris + e.bs]) return false; // a stand-in sclera, or a custom set (the Bloat's): live
+  let id = IRIS_ID.get(e.iris);
+  if (id == null) IRIS_ID.set(e.iris, (id = IRIS_ID.size));
+  const j = e.v % 3, f = pupilOf(e.v), rb = Math.round(r * 4), ab = ((Math.round(e.ang / TAU * EC.AB) % EC.AB) + EC.AB) % EC.AB,
+    mb = Math.round(e.m * 40), db = Math.round(e.dil * 20);
+  const key = ((((((id * 8 + b * 2) * 3 + j) * 4 + f) * 400 + rb) * EC.AB + ab) * 41 + mb) * 64 + db;
+  let c = EC.map.get(key);
+  if (!c) {
+    const rr = rb / 4, d = Math.ceil(rr * 2 + 3); // the rim's stroke reaches past r: a px of margin each side
+    if (!EC.cv) { EC.cv = document.createElement('canvas'); EC.cv.width = EC.cv.height = EC.S; EC.x = EC.cv.getContext('2d'); }
+    if (EC.cx + d > EC.S) { EC.cx = 0; EC.cy += EC.row; EC.row = 0; }
+    if (EC.cy + d > EC.S) { EC.map.clear(); EC.x.clearRect(0, 0, EC.S, EC.S); EC.cx = EC.cy = EC.row = 0; } // full: start over
+    c = { x: EC.cx, y: EC.cy, d, h: Math.floor(d / 2) };
+    EC.cx += d; EC.row = Math.max(EC.row, d);
+    const x = EC.x, ang = e.ang, r0 = e.r, al = e.al;
+    x.save();
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.imageSmoothingEnabled = true;
+    x.imageSmoothingQuality = 'high';
+    x.globalAlpha = 1;
+    e.ang = ab / EC.AB * TAU; // the bucket's gaze, painted at its centre
+    paintEye(x, e, c.x + c.h, c.y + c.h, rr, set);
+    e.ang = ang; e.r = r0; e.al = al;
+    x.restore();
+    EC.map.set(key, c);
+  }
+  D.drawImage(EC.cv, c.x, c.y, c.d, c.d, Math.round(X) - c.h, Math.round(Y) - c.h, c.d, c.d);
+  return true;
 }
 export function flushLo() {
   dctx.save();
