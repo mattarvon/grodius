@@ -31,6 +31,7 @@
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
+import { hostGuard } from './host-guard.mjs';
 const [url, THR = '4', SC = 'all', PROF = ''] = process.argv.slice(2);
 const HELD = ROSTER.filter((r) => BIOME_POOLS.includes(r.pool)), REST = ROSTER.filter((r) => !BIOME_POOLS.includes(r.pool)); // the registry, WIP kinds too
 const KINDS = HELD.map((r) => r.k), HOSTS = BIOME_POOLS;
@@ -46,6 +47,7 @@ const want = SC === 'all' ? SCENES : SC.split(',').flatMap((s) => GROUPS[s] || [
 const ANGLE = process.env.ANGLE || (process.platform === 'win32' ? 'd3d11' : 'gl');
 const b = await chromium.launch({ args: ['--enable-gpu', '--ignore-gpu-blocklist', '--use-gl=angle', `--use-angle=${ANGLE}`, ...(ANGLE === 'vulkan' ? ['--enable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE'] : []), '--enable-gpu-rasterization'] });
 const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => {
   window.requestAnimationFrame = () => 1; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {}

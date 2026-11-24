@@ -6,8 +6,10 @@
 // Needs a Vite dev server (imports live modules). Usage: node tools/butcher-probe.mjs <url> [seconds=40] [seed=7]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+import { hostGuard } from './host-guard.mjs';
 const [url, SEC = '40', SEED = '7'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(([seed]) => {
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);

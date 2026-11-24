@@ -23,6 +23,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { platform, release } from 'node:os';
 import { resolveWant, refuseUpdate, flakyFails, parseRuns, simState, simExtra } from './harness-rules.mjs';
+import { hostGuard } from './host-guard.mjs';
 
 const argv = process.argv.slice(2);
 const UPDATE = argv.includes('--update');
@@ -109,6 +110,7 @@ let p0;
 async function runOnce(b, sc = null, name = null) {
   const frames = sc ? sc.frames : FRAMES;
   const p = (p0 = await b.newPage({ viewport: { width: 1280, height: 720 } }));
+  await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
   let loads = 0; p.on('load', () => loads++);
   await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());

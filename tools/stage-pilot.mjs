@@ -11,11 +11,13 @@
 import { chromium } from 'playwright';
 import { PILOT } from './pilot.mjs';
 import { pageLib } from './probe-lib.mjs';
+import { hostGuard } from './host-guard.mjs';
 const opt = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv.splice(i, 2)[1] : d; };
 const SLOT = opt('--slot', null), X = opt('--x', '0'), SEED = opt('--seed', '1'), KIT = opt('--kit', 'mid'), TIER = opt('--tier', '1'), SECS = +opt('--secs', '200'), REACT = opt('--react', null);
 const [url, STAGE] = process.argv.slice(2);
 if (!url || !STAGE) { console.error('usage: node tools/stage-pilot.mjs <url> <stage> [--slot n] [--x rel|boss] [--seed n] [--kit k] [--tier t] [--secs s]'); process.exit(2); }
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(PILOT);
 if (REACT != null) await p.addInitScript((r) => { window.__pilotReact = r; }, +REACT);

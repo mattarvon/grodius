@@ -344,7 +344,8 @@ export function updateEnemies() {
     }
     if (!e.dead && e.acid > 0) {
       e.acid--;
-      e.hp -= .02 * (1 + pk('corrode')) * midMul(e, .02, e.x, e.y, 0);
+      const d = .02 * (1 + pk('corrode')); // W6 round 3: midMul is told the damage acid deals (it was told .02 whatever CORRODE's level, so the half floor let a corroding tick through its line: perks.ts's slick had the same leak)
+      e.hp -= d * midMul(e, d, e.x, e.y, 0);
       if (R() < .25) drop(e.x + rr(-e.r, e.r), e.y + rr(-e.r, e.r), rr(-.3, .3), rr(0, .6), 1, 2, 40);
       if (e.hp <= 0) killEnemy(e, 1);
     }

@@ -37,6 +37,7 @@ const flag = (n) => { const i = process.argv.indexOf(n); if (i < 0) return false
 const optv = (n) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv.splice(i, 2)[1] : null; };
 const SPOTM = flag('--spots'), TIMEOUT = flag('--timeout'), KINDS = (optv('--kind') || '').split(',').filter(Boolean), SPOTKIT = optv('--spot-kit') || 'STAGE 1 kit';
 import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
+import { hostGuard } from './host-guard.mjs';
 const li = process.argv.indexOf('--leave'), LEAVE = li >= 0 ? +process.argv.splice(li, 2)[1] : 1400;
 const oi = process.argv.indexOf('--ord'), ORD = oi >= 0 ? +process.argv.splice(oi, 2)[1] : null;
 if (ORD != null && !(ORD >= 0)) { console.error('--ord needs a stage ordinal, e.g. --ord 2'); process.exit(2); }
@@ -51,6 +52,7 @@ const ci = process.argv.indexOf('--centre'), CENTRE = ci >= 0 && !!process.argv.
 const argv = process.argv.slice(2), MATRIX = argv[1] === 'matrix';
 const [url, SHOTS, ZOOM] = MATRIX ? [argv[0], argv[2]] : argv;
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: ZOOM ? 2 : 1 });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 if (SEED != null) await p.addInitScript((s0) => { let s = s0 | 0; window.__reseed = (n) => { s = n | 0; }; Math.random = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }, SEED);

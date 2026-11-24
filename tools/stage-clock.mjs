@@ -17,6 +17,7 @@
 //   and 3 (the parity bot's kit cannot kill the Gravity Drive, their runs time out).
 import { chromium } from 'playwright';
 import { useLayout, ranOn, LAYOUT } from './layout-arg.mjs';
+import { hostGuard } from './host-guard.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
@@ -89,6 +90,7 @@ const b = await chromium.launch();
 const rows = [];
 for (const seed of SEEDS) {
   const p = await b.newPage({ viewport: { width: 960, height: 540 } }), errs = [];
+  await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && errs.push(m.text()));
   await p.addInitScript(init, [seed, (seed * 2654435761) >>> 0]);

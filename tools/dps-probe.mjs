@@ -11,13 +11,14 @@
 //  eff   = WALL dps / enemy-HP inflation that loadout's power rank causes (what the player actually feels on fodder)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+import { hostGuard } from './host-guard.mjs';
 const TERRAIN = process.argv.includes('--terrain'); if (TERRAIN) process.argv.splice(process.argv.indexOf('--terrain'), 1);
 const [url, FR = '600'] = process.argv.slice(2);
 /** the flat arena's floor (screen y, PH 254): the two floor crawlers sit 9 px above it and MISSILE / PYRE run along it */
 const ARENA_FLOOR = 240;
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-await p.addInitScript(() => { try { Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true }); } catch (e) {} }); // W6 round 3: the host's real gamepad reaches a headless page (pod-probe note)
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
 await useLayout(p, 'dps-probe');

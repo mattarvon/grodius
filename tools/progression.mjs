@@ -2,8 +2,10 @@
 // Usage: node tools/progression.mjs <url> [seconds] [--layout long4|short]
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+import { hostGuard } from './host-guard.mjs';
 const url = process.argv[2], SECS = +(process.argv[3] || 300);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 await p.addInitScript(() => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   try { localStorage.clear(); } catch (e) {}
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const g = window.__G && window.__G(); if (g && g.P && g.state === 'play') { g.P.inv = 30; g.P.alive = true;

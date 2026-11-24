@@ -14,12 +14,14 @@
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { pageLib, aq } from './probe-lib.mjs';
+import { hostGuard } from './host-guard.mjs';
 if (process.argv.includes('--attack')) { process.argv.splice(process.argv.indexOf('--attack'), 1); await attack(); process.exit(0); }
 // --rank N: pin src/rank.ts rank($) to N by fitting the ship (probe-lib PL.pinRank; the positional rank only sets the
 // legacy G.rank, which nothing on long4 reads once W0 landed). Prints the rank reached
 const rki = process.argv.indexOf('--rank'), RANKN = rki >= 0 ? +process.argv.splice(rki, 2)[1] : null;
 const [url, N = '40', RANK = '.9'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage();
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(pageLib);
 await p.addInitScript(() => { window.requestAnimationFrame = () => 1; window.speechSynthesis = undefined; window.setTimeout = () => 0; try { localStorage.clear(); } catch (e) {} });
@@ -70,6 +72,7 @@ ranOn('kind-probe');
 async function attack() {
   const [url, SEED = '7', MIN = '14'] = process.argv.slice(2);
   const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+  await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
   await p.addInitScript(pageLib);
   await p.addInitScript((seed) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;

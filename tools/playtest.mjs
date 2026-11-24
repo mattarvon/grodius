@@ -34,6 +34,7 @@ import { useLayout, ranOn } from './layout-arg.mjs';
 import fs from 'node:fs';
 import { ROSTER } from '../src/enemies/mid/roster.ts'; // the midboss kinds, from the registry
 import { pageLib } from './probe-lib.mjs';
+import { hostGuard } from './host-guard.mjs';
 const nsi = process.argv.indexOf('--no-shots'), NOSHOTS = nsi >= 0; if (NOSHOTS) process.argv.splice(nsi, 1);
 const tri = process.argv.indexOf('--tier'), TIER = tri >= 0 ? process.argv.splice(tri, 2)[1] : null; // ?tier=N (spec §2.1): N1 / N2 on Hard
 if (TIER != null && !/^[0-3]$/.test(TIER)) { console.error('--tier needs 0-3'); process.exit(2); }
@@ -68,6 +69,7 @@ const [url, OUT, DESC = '3', SEED = '7', MAXM = '30'] = process.argv.slice(2);
 const SHOT = 20;
 fs.mkdirSync(OUT, { recursive: true });
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(pageLib);
 await p.addInitScript((seed) => {

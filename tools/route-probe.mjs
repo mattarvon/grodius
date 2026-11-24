@@ -16,9 +16,11 @@
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { pageLib } from './probe-lib.mjs';
+import { hostGuard } from './host-guard.mjs';
 const [url, g0 = '0', g1 = '1', N = '1', OPT = ''] = process.argv.slice(2);
 const b = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = [];
 p.on('pageerror', (e) => errs.push(e.message));
 // the optional modules probe-lib imports (src/rank.ts, sigs.ts, solids.ts, tier.ts, brutal.ts) 404 on a build that lacks them: not a page error

@@ -4,8 +4,10 @@
 //   mode none: pick screens are dismissed without taking a perk (baseline for balance comparison)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+import { hostGuard } from './host-guard.mjs';
 const [url, MIN = '20', MODE = 'pick', END = '1'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = (f) => 0; window.speechSynthesis = undefined;
   try { localStorage.clear(); } catch (e) {}

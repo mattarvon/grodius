@@ -20,6 +20,7 @@ import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { PILOT } from './pilot.mjs';
 import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts';
+import { hostGuard } from './host-guard.mjs';
 const arg = (f, d) => { const i = process.argv.indexOf(f); if (i < 0) return d; const v = process.argv[i + 1]; process.argv.splice(i, 2); return v; };
 const flag = (f) => { const i = process.argv.indexOf(f); if (i < 0) return false; process.argv.splice(i, 1); return true; };
 const SEED = +arg('--seed', '1'), FR = +arg('--frames', '900'), KIT = +arg('--kit', '1'), LEAVE = +arg('--leave', '1080'), PH2 = flag('--ph2');
@@ -33,6 +34,7 @@ const L = [
 ];
 const KINDS = ROSTER.filter((r) => BIOME_POOLS.includes(r.pool) && !r.wip).filter((r) => KIND === 'all' || r.k === KIND).map((r) => [r.k, r.pool]);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; window.AudioContext = undefined; window.webkitAudioContext = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.addInitScript((s0) => { let s = s0 | 0; window.__reseed = (n) => { s = n | 0; }; Math.random = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }, SEED);

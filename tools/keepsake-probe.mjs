@@ -21,9 +21,11 @@
 // the page through __G() and a pure table (KB), but start a fresh server for numbers you mean to keep.
 import { chromium } from 'playwright';
 import { PILOT } from './pilot.mjs';
+import { hostGuard } from './host-guard.mjs';
 const [url, MODE = 'park', SEED = '7', KIT = 'mid', CAPS = '150'] = process.argv.slice(2);
 if (!url) { console.error('usage: node tools/keepsake-probe.mjs <url> <park|pilot|spot:X,Y> [seed] [kit] [capSeconds]'); process.exit(1); }
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(PILOT);
 await p.addInitScript(([seed]) => {

@@ -35,6 +35,7 @@
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { hostGuard } from './host-guard.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
@@ -186,6 +187,7 @@ try {
   for (const { id, seed, descents, mortal } of RUNS) {
     const gates = [0, 1, 2, 3].map((i) => (Math.imul(seed + 1, 0x9e3779b1) >>> (7 + i * 5)) & 1); // fork n of the run takes gate gates[n % 4]
     const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+    await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
     const errs = []; p.on('pageerror', (e) => errs.push(e.message));
     await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
     await p.addInitScript(init, [seed, gates, descents, mortal]);

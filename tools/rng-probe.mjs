@@ -17,6 +17,7 @@ import { useLayout, ranOn } from './layout-arg.mjs';
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { BIOME_POOLS, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
+import { hostGuard } from './host-guard.mjs';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
@@ -65,6 +66,7 @@ const init = ({ flashes, trace }) => {
 
 async function run(b, fight, flashes, draw) {
   const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+  await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
   const errs = []; p.on('pageerror', (e) => errs.push(e.message));
   await p.route(/fonts\.(googleapis|gstatic)/, (r) => r.abort());
   await p.addInitScript(init, { flashes, trace: TRACE });

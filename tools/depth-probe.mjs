@@ -9,8 +9,10 @@
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { BIOME_POOLS, MID_NAMES, ROSTER } from '../src/enemies/mid/roster.ts'; // plain Node reads the registry: the file is a leaf with erasable types
+import { hostGuard } from './host-guard.mjs';
 const [url, CAP = '90'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });

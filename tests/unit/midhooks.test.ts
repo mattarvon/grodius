@@ -162,7 +162,8 @@ describe('the hook seen from the rest of the game', () => {
   it('wires every other damage path through midMul: burn, acid and the slick', () => {
     const src = (f: string) => readFileSync('src/' + f, 'utf8');
     expect(src('shots.ts')).toMatch(/e\.burn--;\s*e\.hp -= \.05 \* midMul\(e,/);
-    expect(src('shots.ts')).toMatch(/e\.acid--;\s*e\.hp -= [^;]*\* midMul\(e,/);
+    // W6 round 3: acid tells midMul the damage it deals, CORRODE included (it passed .02 at every level)
+    expect(src('shots.ts')).toMatch(/e\.acid--;\s*const d = \.02 \* \(1 \+ pk\('corrode'\)\);[^\n]*\n\s*e\.hp -= d \* midMul\(e, d,/);
     // W6 round 3: the slick tells midMul the damage it deals (d), so a hurt hook's floor sees the real hit
     expect(src('perks.ts')).toMatch(/const d = \(e\.big \|\| e\.mini \? \.08 : \.25\) \* s\.lv;[^\n]*\n\s*e\.hp -= d \* midMul\(e, d,/);
   });

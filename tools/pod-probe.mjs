@@ -74,6 +74,7 @@ import { chromium } from 'playwright';
 import { useLayout, LAYOUT } from './layout-arg.mjs';
 import { PILOT } from './pilot.mjs';
 import { pageLib, CAPS, VCAP, hq, hmax, hshare } from './probe-lib.mjs';
+import { hostGuard } from './host-guard.mjs';
 const flag = (n) => { const i = process.argv.indexOf(n); if (i < 0) return false; process.argv.splice(i, 1); return true; };
 const opt = (n) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv.splice(i, 2)[1] : null; };
 const MORTAL = flag('--mortal'), PIL = flag('--pilot'), PARK = flag('--park'), DRIFT = flag('--drift');
@@ -102,15 +103,7 @@ const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 if (PIL) await p.addInitScript(PILOT);
 if (PIL && REACT != null) await p.addInitScript((r) => { window.__pilotReact = r; }, +REACT);
 await p.addInitScript(pageLib);
-// W6 round 3: host input leaks into a headless page. A focus or display event (a screen lock, a window switch) blurs and hides every headless page at once:
-// input.ts then drops the held fire key and opens the pause menu, which ends or silently changes a run (seen 20:33 on
-// 2026-11-23: four runs paused at the same second, one fired less from 8 s on). The probe swallows those events before
-// the game's own listeners (registered later) and reports the page as always visible. Measure-only: no sim write
-await p.addInitScript(() => { const stop = (e) => e.stopImmediatePropagation(); addEventListener('blur', stop, true); document.addEventListener('visibilitychange', stop, true);
-  try { Object.defineProperty(document, 'hidden', { get: () => false }); Object.defineProperty(document, 'visibilityState', { get: () => 'visible' }); } catch (e) {}
-  // and the HOST'S GAMEPAD: headless Chromium reads the real pads plugged into the machine (input.ts pollInput), so Matt
-  // playing on his controller steered, fired and paused (Start) every probe page. The probe flies with no pad
-  try { Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true }); } catch (e) {} });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't pause or steer a probe page (tools/host-guard.mjs; four runs paused at the same second mid-batch)
 await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);
   try { localStorage.clear(); } catch (e) {}
@@ -219,7 +212,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
           for (const c of h.caps) if (!had.has(c) && !(window.__dropSeen ||= new WeakSet()).has(c)) { window.__dropSeen.add(c); const k = window.__capSrc.get(c) || 'unknown'; (DR[st] ||= {})[k] = (DR[st][k] || 0) + 1; if (k === 'fixed:open') for (const g of new Set(gone.filter((e) => open(e) && e.group && OG.has(e.group)).map((e) => e.group))) OG.get(g).paid++; } // once per group per cap
           for (const e of h.enemies) if (e.group && e.group.open && !OG.has(e.group)) OG.set(e.group, { st, s: +(window.__fr / 60).toFixed(1), n: e.group.n || null, seen: new WeakSet(), ns: 0, killed: 0, paid: 0 });
           for (const e of h.enemies) if (e.group && OG.has(e.group)) { const o = OG.get(e.group); if (!o.seen.has(e)) { o.seen.add(e); o.ns++; } }
-          for (const e of gone) if (e.group && OG.has(e.group) && (e.hp || 0) <= 0) OG.get(e.group).killed++; }
+          for (const e of gone) if (e.group && OG.has(e.group)) { const o = OG.get(e.group); if ((e.hp || 0) <= 0) o.killed++; else (o.esc ||= []).push({ i: e.i, age: e.t, x: Math.round(e.x), y: Math.round(e.y), y0: Math.round(e.y0 || 0), px: Math.round(h.P.x), py: Math.round(h.P.y), alive: h.P.alive ? 1 : 0 }); } } // esc[] (W6 round 3, gate E2 fixed:open, measure-only): each member that left alive, where and when
         // E1: a recovery pod (spawn.ts recoveryWave: c.rec on the pod, or dropped by a rec carrier) inside a respawn's 10 s
         { const r = X.rsp[X.rsp.length - 1]; if (r && window.__fr - r.f <= 600) for (const c of h.caps) if (window.__capSrc.get(c) === 'rec' && !r.recSeen.has(c)) { r.recSeen.add(c); r.rec++; } }
         for (const c of before) if (!seen.has(c) && c.x >= -12 && (c.x - h.P.x) ** 2 + (c.y - h.P.y) ** 2 < 20 * 20) {

@@ -32,10 +32,12 @@ import { chromium } from 'playwright';
 import { useLayout, LAYOUT } from './layout-arg.mjs';
 import { PILOT } from './pilot.mjs';
 import { pageLib, CAPS, hq, hmax, hshare } from './probe-lib.mjs';
+import { hostGuard } from './host-guard.mjs';
 const opt = (n) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv.splice(i, 2)[1] : null; };
 const ROUTE = (opt('--route') || '').split(',').filter(Boolean), TIER = opt('--tier'), BRU = opt('--brutal');
 const [url, SEED = '1', MIN = '14'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(PILOT);
 await p.addInitScript(pageLib);

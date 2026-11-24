@@ -38,6 +38,12 @@ describe('the half floor', () => {
     phaseAtt(e, 0); phaseAtt(e, 0);
     expect(phaseShare(e, 999)).toBe(1);
   });
+  it('holds the line against a corroding acid tick when it is told the real damage (shots.ts, W6 round 3)', () => {
+    // CORRODE 2: acid deals .02 x 3 = .06 a tick. Told .02 (the old call), the floor let the whole .06 through: 50.04 -> 49.98
+    const e: any = boss({ hp: 50.04 }), d = .02 * (1 + 2);
+    expect(50.04 - d * phaseShare(e, .02)).toBeLessThan(50); // the leak the old call had
+    expect(50.04 - d * phaseShare(e, d)).toBeCloseTo(50, 9); // told the real hit: only down to the line
+  });
   it('counts each half apart: the first half\'s attacks do not open the second', () => {
     const e: any = boss({ hp: 60 });
     phaseAtt(e, 0); phaseAtt(e, 0); e.hp = 40;

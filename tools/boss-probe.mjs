@@ -28,6 +28,7 @@
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { pageLib, SPOTS, spotSummary, hq, hmax, CAPS } from './probe-lib.mjs';
+import { hostGuard } from './host-guard.mjs';
 const flag = (n) => { const i = process.argv.indexOf(n); if (i < 0) return false; process.argv.splice(i, 1); return true; };
 const optv = (n) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv.splice(i, 2)[1] : null; };
 const SPOTM = flag('--spots'), TIMEOUT = flag('--timeout'), SPOTKIT = optv('--spot-kit') || 'END DESCENT 1';
@@ -36,6 +37,7 @@ const oi = process.argv.indexOf('--ord'), ORD = oi >= 0 ? +process.argv.splice(o
 if (ORD != null && !(ORD >= 0)) { console.error('--ord needs a stage ordinal, e.g. --ord 2'); process.exit(2); }
 const [url, CAP = '150'] = process.argv.slice(2);
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
+await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't reach this page (tools/host-guard.mjs)
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.addInitScript(pageLib);
