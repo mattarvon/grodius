@@ -130,13 +130,19 @@ function laserDraw(s) {
 /** shot layer of drawWorld: smoke (under), glow pass, pyre eyes, missile bodies, rings */
 export function drawShots() {
   // smoke under everything (normal blend)
+  // r4-perf (T3): two fixed colours with the fade as globalAlpha (the same paint alpha), not an rgba() string built and
+  // parsed for each of ~150 puffs a frame
+  const a0 = ctx.globalAlpha;
+  let sk = -1;
   for (const p of SMOKE) {
-    const f = p.l / p.ml;
-    ctx.fillStyle = p.c ? `rgba(46,38,36,${.45 * f})` : `rgba(120,124,130,${.32 * f})`;
+    const f = p.l / p.ml, k = p.c ? 1 : 0;
+    if (k !== sk) { ctx.fillStyle = k ? 'rgb(46,38,36)' : 'rgb(120,124,130)'; sk = k; }
+    ctx.globalAlpha = a0 * (k ? .45 * f : .32 * f);
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, TAU);
     ctx.fill();
   }
+  ctx.globalAlpha = a0;
   ctx.globalCompositeOperation = 'lighter';
   for (const s of shots) {
     if (s.k === 'laser') laserDraw(s);

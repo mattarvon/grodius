@@ -5,7 +5,7 @@ import { pk, xpNeed, perkName, perkDesc, perkReq, perkCost, perkMax, perkFX, per
 import { stageInfo, stageLabel } from '../stages';
 import { sfx } from '../audio';
 import { WARD_MAX } from '../player';
-import { C, FONT_D, FONT_H, H, PH, TAU, W, clamp, ctx, hash, lerp, pwBtn } from '../core';
+import { C, FONT_D, FONT_H, H, PH, TAU, W, clamp, ctx, hash, lerp, lo, pwBtn } from '../core';
 import { srnd } from '../srnd';
 import { SET } from '../save';
 import { touch } from '../input';
@@ -39,27 +39,69 @@ const GEN_CAP = { c: '255,110,30', h: '#ff7a1a' };
 /** text with a 1 px #000 outline. The HUD text over the playfield (the top rows, the midboss name) uses it instead of
  *  a backing strip or plate: a backing drawn after drawWorld dimmed hazards and the ship under it (Pillar 2; the merge 2
  *  art and accessibility check), an outline covers only its own glyphs (LS1 audit #20, LS1-F carry-forward 6) */
-function txtOutlined(s, x, y, c, a, sz) {
-  txt(s, x - 1, y, '#000', a, sz); // sets the font, align and baseline: every frame, so once per string (web-specialist)
-  ctx.fillText(s, (x + 1) | 0, y | 0);
-  ctx.fillText(s, x | 0, (y - 1) | 0);
-  ctx.fillText(s, x | 0, (y + 1) | 0);
-  ctx.fillStyle = c;
-  ctx.fillText(s, x | 0, y | 0);
+function txtOutlined(s, x, y, c, a = 'left', sz = 8) {
+  const k = s + '|' + c + '|' + a + '|' + sz, T = OUTL.get(k);
+  if (T && T.cv && ctx.globalAlpha === 1) { // r4-perf (T3): a string held for a frame is one copy, not five fillTexts
+    T.f = OUTL_F;
+    ctx.drawImage(T.cv, (x | 0) - T.ox, (y | 0) - T.oy);
+    return;
+  }
+  outlined(ctx, s, x, y, c, a, sz, 0, 0);
+  if (ctx.globalAlpha !== 1 || document.fonts.status !== 'loaded') return;
+  if (!T) { // first sight: drawn live; a second frame in a row with the same string bakes it (a counting score never does)
+    if (OUTL.size >= 24) for (const [q, v] of OUTL) if (v.f < OUTL_F - 1) { OUTL.delete(q); if (OUTL.size < 20) break; }
+    OUTL.set(k, { f: OUTL_F, cv: null, ox: 0, oy: 0 });
+    return;
+  }
+  if (T.f < OUTL_F - 1) { T.f = OUTL_F; return; }
+  // bake: the same five fillTexts at the same integer positions minus a whole-pixel offset, so every glyph lands on the
+  // same sub-pixel phase as the live draw; source-over is associative, so the copy over the frame is the live result
+  ctx.font = `${sz}px ${FONT_H}`;
+  const w = Math.ceil(ctx.measureText(s).width), cv = document.createElement('canvas');
+  T.ox = w + 3; T.oy = 3; cv.width = 2 * w + 8; cv.height = sz * 2 + 6;
+  outlined(cv.getContext('2d'), s, x, y, c, a, sz, (x | 0) - T.ox, (y | 0) - T.oy);
+  T.cv = cv; T.f = OUTL_F;
 }
-// --- HUD ---
-export function drawHUD() {
+/** the outlined text's five fillTexts on c, every position shifted by the whole pixels (dx, dy) */
+function outlined(c, s, x, y, col, a, sz, dx, dy) {
+  c.font = `${sz}px ${FONT_H}`;
+  c.textAlign = a;
+  c.textBaseline = 'top';
+  c.fillStyle = '#000';
+  c.fillText(s, ((x - 1) | 0) - dx, (y | 0) - dy);
+  c.fillText(s, ((x + 1) | 0) - dx, (y | 0) - dy);
+  c.fillText(s, (x | 0) - dx, ((y - 1) | 0) - dy);
+  c.fillText(s, (x | 0) - dx, ((y + 1) | 0) - dy);
+  c.fillStyle = col;
+  c.fillText(s, (x | 0) - dx, (y | 0) - dy);
+}
+/** txtOutlined's baked strings (key: text, colour, align, size) and the HUD frame counter they are aged by */
+const OUTL = new Map();
+let OUTL_F = 0;
+/** the slot bar's pickup flashes this frame (drawHUD counts G.slotF down once, before the bar is drawn or copied) */
+const SLOT_F = [0, 0, 0, 0, 0, 0, 0];
+/** the last still slot bar: its input signature and a copy of its pixels (rows PH..H of the low-res layer) */
+const BAR = { sig: null, cv: null };
+function barSnap(sig) {
+  if (!BAR.cv) { BAR.cv = document.createElement('canvas'); BAR.cv.width = W; BAR.cv.height = H - PH; }
+  const b = BAR.cv.getContext('2d');
+  b.clearRect(0, 0, W, H - PH);
+  b.drawImage(lo, 0, PH, W, H - PH, 0, 0, W, H - PH); // nothing else is in these rows yet: the bar's backing is opaque
+  BAR.sig = sig;
+}
+const slotLv = (i) => [$.P.speed, $.P.missile, $.P.double, $.P.laser, $.P.pyre, $.P.options, $.P.wardLv || 0][i];
+/** the bottom bar's backing and the seven power slots */
+function drawSlots() {
   ctx.fillStyle = '#050608';
   ctx.fillRect(0, PH, W, H - PH);
   ctx.fillStyle = '#262e37';
   ctx.fillRect(0, PH, W, 1);
-  { const hide = !(SET.meter && touch.used && $.state === 'play'); if (pwBtn.hidden !== hide) pwBtn.hidden = hide; } // touch POWER button, meter mode only
   for (let i = 0; i < 7; i++) {
     const x = 4 + i * 46,
       y = PH + 3,
       w = 44,
       h = 11,
-      f = $.G.slotF && $.G.slotF[i] > 0 ? $.G.slotF[i]-- : 0;
+      f = SLOT_F[i];
     const lvN = $.P ? [$.P.speed, $.P.missile, $.P.double, $.P.laser, $.P.pyre, $.P.options, $.P.wardLv || 0][i] : 0,
       mxN = [5, 2, 1, 1, 2, 3, 3][i];
     const cur = SET.meter && $.G.cur === i;
@@ -107,6 +149,25 @@ export function drawHUD() {
       ctx.fillRect(x + w / 2 - mxN * 2.5 + k * 5 + 1, y + h - 2.5, 3, 1.5);
     }
   }
+}
+// --- HUD ---
+export function drawHUD() {
+  OUTL_F++;
+  { const hide = !(SET.meter && touch.used && $.state === 'play'); if (pwBtn.hidden !== hide) pwBtn.hidden = hide; } // touch POWER button, meter mode only
+  // r4-perf (T3): the slot bar is ~90 canvas calls and seven fillTexts, and it holds still on almost every frame. Its
+  // inputs are read first (the pickup flash still counts down here, once a frame, as before); while they match the last
+  // frame's and nothing in it pulses, the bar is one copy of the pixels it drew then
+  let sig = $.P ? '' : 'n', anim = document.fonts.status !== 'loaded'; // a bar baked before the font is in would keep the fallback face
+  for (let i = 0; i < 7; i++) {
+    const f = SLOT_F[i] = $.G.slotF && $.G.slotF[i] > 0 ? $.G.slotF[i]-- : 0;
+    if (f || (SET.meter && $.G.cur === i)) { anim = true; continue; }
+    if (!$.P) continue;
+    const so = stored(i);
+    if (so && so.ready) { anim = true; continue; }
+    sig += slotLv(i) + ',' + (so ? so.n + '/' + so.nd : !slotMaxed(i) && !SET.meter ? (($.P.frag && $.P.frag[i]) || 0) + '/' + needOf(i) : '-') + (slotLocked(i) ? 'L' : '') + ';';
+  }
+  if (!anim && sig === BAR.sig && BAR.cv) ctx.drawImage(BAR.cv, 0, PH);
+  else { drawSlots(); if (anim) BAR.sig = null; else barSnap(sig); }
   drawShip(ctx, 341, PH + 8, 0, .45, 0);
   txt('x' + $.G.lives, 350, PH + 4, '#cfd9e3');
   ctx.fillStyle = C.bloodL;
@@ -556,9 +617,10 @@ export function drawWorld() {
     }
   }
   ctx.globalCompositeOperation = 'lighter';
+  let sc0 = null; // r4-perf: sparks come in runs of one colour; a fillStyle string is parsed on every set
   for (const s of sparks) {
     ctx.globalAlpha = s.l / s.ml;
-    ctx.fillStyle = s.c;
+    if (s.c !== sc0) ctx.fillStyle = sc0 = s.c;
     ctx.fillRect(s.x, s.y, 1, 1);
   }
   ctx.globalAlpha = 1;
