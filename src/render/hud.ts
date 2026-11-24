@@ -91,6 +91,21 @@ function barSnap(sig) {
   b.drawImage(lo, 0, PH, W, H - PH, 0, PH, W, H - PH); // nothing else is in these rows yet: the bar's backing is opaque
   BAR.sig = sig;
 }
+/** a slot whose whole stored level is ready pulses: laid over the (cached) bar, under .25 alpha in all with the base
+ *  fill (art-director: the name keeps its contrast), so a ready slot no longer keeps the bar from caching (TD 6) */
+function readyPulse() {
+  if (!$.P) return;
+  const pul = .5 + .5 * Math.sin($.T * .2);
+  for (let i = 0; i < 7; i++) {
+    const so = stored(i);
+    if (!so || !so.ready) continue;
+    const x = 4 + i * 46, y = PH + 3, w = 44, h = 11;
+    ctx.fillStyle = `rgba(${POD[i].c},${.1 * pul})`;
+    ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.fillStyle = `rgba(${POD[i].c},${.35 * pul})`;
+    for (let sx = 2; sx < w - 2; sx += 3) ctx.fillRect(x + sx, y + 1, 1, 1);
+  }
+}
 const slotLv = (i) => [$.P.speed, $.P.missile, $.P.double, $.P.laser, $.P.pyre, $.P.options, $.P.wardLv || 0][i];
 /** the bottom bar's backing and the seven power slots */
 function drawSlots() {
@@ -119,10 +134,10 @@ function drawSlots() {
     }
     const so = stored(i);
     if (so) { // SEAL PRIMING (hudcues.ts stored): parts held for the sealed level, combed along the top edge (away from the level pips) so they don't read as a level in progress
-      const fw = so.ready ? w - 2 : (w - 2) * so.n / so.nd, pul = so.ready ? .5 + .5 * Math.sin($.T * .2) : 0; // ready: drawn full, whatever PRIME.short (ux)
-      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .15 + .1 * pul : .2})`; // the ready pulse stays under .25 so the name holds its contrast (art-director)
+      const fw = so.ready ? w - 2 : (w - 2) * so.n / so.nd; // ready: drawn full, whatever PRIME.short (ux)
+      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .15 : .2})`; // ready: the pulse is laid over the bar (readyPulse), so the bar itself holds still and stays cached
       ctx.fillRect(x + 1, y + 1, fw, h - 2);
-      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .55 + .35 * pul : .5})`;
+      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .55 : .5})`;
       for (let sx = 2; sx < fw; sx += 3) ctx.fillRect(x + sx, y + 1, 1, 1); // the comb: one tooth per 3 px along the top
     } else if ($.P && !slotMaxed(i) && !SET.meter) {
       const fr = $.P.frag && $.P.frag[i] || 0,
@@ -166,11 +181,11 @@ export function drawHUD() {
     if (f || (SET.meter && $.G.cur === i)) { anim = true; continue; }
     if (!$.P) continue;
     const so = stored(i);
-    if (so && so.ready) { anim = true; continue; }
-    sig += slotLv(i) + ',' + (so ? so.n + '/' + so.nd : !slotMaxed(i) && !SET.meter ? (($.P.frag && $.P.frag[i]) || 0) + '/' + needOf(i) : '-') + (slotLocked(i) ? 'L' : '') + ';';
+    sig += (so && so.ready ? 'R' : '') + slotLv(i) + ',' + (so ? so.n + '/' + so.nd : !slotMaxed(i) && !SET.meter ? (($.P.frag && $.P.frag[i]) || 0) + '/' + needOf(i) : '-') + (slotLocked(i) ? 'L' : '') + ';';
   }
   if (!anim && sig === BAR.sig && BAR.cv) ctx.drawImage(BAR.cv, 0, PH, W, H - PH, 0, PH, W, H - PH);
   else { drawSlots(); if (anim) BAR.sig = null; else barSnap(sig); }
+  readyPulse();
   drawShip(ctx, 341, PH + 8, 0, .45, 0);
   txt('x' + $.G.lives, 350, PH + 4, '#cfd9e3');
   ctx.fillStyle = C.bloodL;

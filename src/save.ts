@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { type GoreMode, setGoreMode } from './fx/gorecap';
 import { migrateBest, slotGrades } from './gradekey';
 
 // ---------------- persistence ----------------
@@ -8,7 +9,8 @@ export const SET = {
   asked: false, // the first-launch HELL FLASHES question has been answered
   muted: false,
   music: true,
-  meter: false // POWER: false = typed pods (grab to pick), true = classic Gradius meter (capsules move a cursor, POWER buys)
+  meter: false, // POWER: false = typed pods (grab to pick), true = classic Gradius meter (capsules move a cursor, POWER buys)
+  gore: 'auto' as GoreMode // GORE DENSITY (decision 32, fx/gorecap.ts): auto = LITE on a phone, FULL elsewhere
 };
 $.hi = 0;
 $.meta = {
@@ -123,6 +125,8 @@ try {
     SET.muted = !!d.muted;
     SET.music = d.music !== false;
     SET.meter = !!d.meter;
+    SET.gore = d.gore === 'full' || d.gore === 'lite' ? d.gore : 'auto';
+    setGoreMode(SET.gore);
   }
 } catch (e) {
   try { unreadable = localStorage.getItem(KEY); } catch (e2) {}
@@ -134,7 +138,8 @@ const snapshot = () => JSON.stringify({
   asked: SET.asked,
   muted: SET.muted,
   music: SET.music,
-  meter: SET.meter
+  meter: SET.meter,
+  gore: SET.gore
 });
 export function save() {
   try {
