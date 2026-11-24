@@ -14,7 +14,7 @@ import { bandFit, lob, midLeave } from '../update';
 import { HOST_SPARK, isCross, midPh2 } from '../midhost';
 import { DN, agePools, eruptStage, plantPool, poolHit, poolReach } from './_deny';
 import { defineMid } from './roster';
-import { FT, RING_V, cad, entered, g3, ledger, lobV, lurch, opening, spend, variant } from './_fight';
+import { FT, RING_V, cad, entered, g3, halfClock, ledger, lobV, lurch, opening, phaseAtt, phaseShare, spend, variant } from './_fight';
 
 /** DIFFICULTY-SPEC §2.3 (W4a), long4 only: the Womb's numbers. Each with its tag and the gate that measures it */
 export const WOMB = {
@@ -37,6 +37,9 @@ export const WOMB = {
   lobFar: 250,
   /** the spray's aimed first glob: its preferred rise (x BS), a flat throw that still fits V_CAP (lobV) */
   aimRise: .3,
+  /** r3 K1, the half floor's reach per attack (_fight.ts phaseAtt): the spray's 45 f tell plus its aimed glob's ~105 f
+   *  lob to a ship across the cave (it reached 200,127 135 f after the tell started); the swell's 30 f plus its ring */
+  landSpray: 150, landSwell: 130,
   comb: [0, 0, 14, -14, 28, -28, 42] as readonly number[], // [0] is the aimed glob's slot (li 1); the first surface pool lands under the ship
 } as const;
 
@@ -74,15 +77,24 @@ export const poolCap = (ph2) => (ph2 ? DN.plN2 : DN.plN) + (g3() && variant() ? 
 
 function updCyst(e) {
   // THE DISSOLVING WOMB: a melting sac on the lake. Bubbles 45f, then geysers a rain of globs lobbed onto you; or bloats 30f and bursts a ring
+  halfClock(e); // g3 (r3 K1): a first half still up at half the slot clock lurches on (_fight.ts FT.halfK)
   const go = midLeave(e), ph2 = midPh2(e), cx = isCross(e), G3 = g3();
   e.y = PH * .6 + Math.sin(e.t * .016) * (PH * .13); // tuned to sit on the acid lake; a crossover fits the host's cave
+  // long4 fits its home bob into the band too (r3 fights; short keeps it unfitted, layout parity): on the W6 terrain its
+  // held acid screen's floor is ~186 under it, so the low end of the bob (185) buried the sac and spawned its swell ring
+  // inside the floor, where the spokes on the ship's side died on their first frame (K1: 1 hit a phase at 150,127)
   if (cx) bandFit(e);
+  else if (G3) { // refit, don't clip (art-director): the bob's centre moves up into the band and the sine keeps its swing
+    bandFit(e); // e.blo / e.bhi: the band under its body
+    const A = PH * .13, half = Math.max(0, (e.bhi - e.blo) / 2), a = Math.min(A, half), c = Math.min(PH * .6, e.bhi - a);
+    e.y = Math.max(e.blo, c + Math.sin(e.t * .016) * a);
+  }
   if (!go && entered(e) && $.P.alive) {
     e.wt++;
     if (lurch(e, ph2)) e.att = 2; // g3: phase 2 opens on the swell (its aimed ring)
     if (e.st === 'idle') {
       e.sw = Math.max(0, (e.sw || 0) - 1.5);
-      if (e.wt >= e.cool) { e.att++; e.st = e.att % 3 && !(G3 && !ph2 && e.x - $.P.x > WOMB.lobFar) ? 'tel' : 'swell'; e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.squish(); if (e.st === 'tel') e.sd = -(e.sd || -1); } // g3: floor, ceiling, floor...
+      if (e.wt >= e.cool) { e.att++; e.st = e.att % 3 && !(G3 && !ph2 && e.x - $.P.x > WOMB.lobFar) ? 'tel' : 'swell'; e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.squish(); if (e.st === 'tel') e.sd = -(e.sd || -1); phaseAtt(e, e.st === 'tel' ? WOMB.landSpray : WOMB.landSwell); } // g3: floor, ceiling, floor...; phaseAtt: the half floor (r3 K1)
     } else if (e.st === 'tel') {
       if (R() < .6) spark(e.x + rr(-6, 6), e.y - 18, rr(-.3, .3), -rr(.8, 2), 14, '#7ff0d8');
       if (e.wt >= 45) { e.st = 'spray'; e.wt = 0; e.li = 0; geysers.push({ wx: 0, y: 0, att: e, ox: -2, oy: -19, a: -Math.PI / 2, l: ph2 ? 44 : 32, rate: 4, c: 2 }); }
@@ -122,4 +134,5 @@ defineMid('cyst', {
   word: 'BURST',
   onSpawn: (e) => { e.pn = 0; e.pX = [0, 0, 0, 0, 0, 0, 0, 0]; e.pY = [0, 0, 0, 0, 0, 0, 0, 0]; e.pS = [0, 0, 0, 0, 0, 0, 0, 0]; e.pT = [0, 0, 0, 0, 0, 0, 0, 0]; e.pR = [0, 0, 0, 0, 0, 0, 0, 0]; e.sd = -1; if (g3()) { ledger(e); opening(e); e.att = 2; } }, // room for DN.plN2 + 1. g3: the swell (its ring) comes first
   update: updCyst,
+  hurt: (e, d) => phaseShare(e, d), // g3 (r3 K1): the half floor (_fight.ts FT.floorN / floorF); 1 on short
 });

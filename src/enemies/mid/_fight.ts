@@ -36,6 +36,16 @@ export const FT = {
   /** a periodic emitter (ring, sing) fires only while the live counted shots + its volley stay at or under soft, so the
    *  fight's typical screen holds near .6 of the cap (B3: p90 <= .6 x 16 = 9.6); attacks still fill to the cap */
   soft: 9,
+  /** r3 fights, the half floor (K1; THE KEEPSAKE's grammar, D59 / decision 7: a stage can't be put to bed before its
+   *  attacks are out): a held midboss's half can't end until floorN attacks have started in it and each has had its
+   *  `land` frames (its tell plus its reach across the screen: the kind passes it, floorF when it doesn't). Hits past
+   *  the line are lost (no carry) and tink. At a point-blank spot the STAGE 1 kit ended a half in ~2.5 s, before its
+   *  second attack landed */
+  floorN: 2, floorF: 120,
+  /** r3 fights, the half clock (the biome bosses' grammar, bossfights.ts clock3): a first half still up at halfK of the
+   *  slot clock lurches into the second (HP to the half line, no reward), so a ship too weak to break it still meets the
+   *  second half before the time-out. At a far spot the first half ran to ~f900 of 1080 and the second held one attack */
+  halfK: .5,
 } as const;
 
 /** the difficulty rebuild is on: long4's hard set (short keeps every old path) */
@@ -62,6 +72,32 @@ export const per = (I: number, rho = fightRho()) => Math.max(FT.perMin, cad(I, r
 export const ev = (e: any, I: number) => e.t % per(I) === 0;
 /** the fight's variant is unlocked (rank >= 14) */
 export const variant = (rank = fightRank()) => rank >= FT.varRank;
+/** the half floor (FT.floorN): note that a held midboss started an attack now, in the half it is in, which reaches the
+ *  far side of the screen `land` frames from now (its tell plus its flight). Call it where the kind starts one (its
+ *  idle -> attack switch). long4 only; no R() */
+export function phaseAtt(e: any, land: number = FT.floorF): void {
+  if (!g3()) return;
+  const h = e.hp < e.max * .5 ? 1 : 0, a = (e.hfN ||= [0, 0]), f = (e.hfT ||= [0, 0]); // hfN / hfT: attacks started and the frame they have all landed, per half
+  if (++a[h] <= FT.floorN) f[h] = Math.max(f[h], e.t + land);
+}
+/** the half floor: the share of a hit of d that e takes (its MidSim.hurt / e.armor multiplies by this). 1 once the half
+ *  has started FT.floorN attacks and each has landed; before that only down to the half's line (phase 1: half HP;
+ *  phase 2: 1 HP), the rest lost. 1 off long4 */
+export function phaseShare(e: any, d: number): number {
+  if (!g3() || !(d > 0)) return 1;
+  const h = e.hp < e.max * .5 ? 1 : 0, n = (e.hfN && e.hfN[h]) || 0;
+  if (n >= FT.floorN && e.t >= e.hfT[h]) return 1;
+  const m = Math.max(0, Math.min(1, (e.hp - (h ? 1 : e.max * .5)) / d));
+  if (m < 1) e.tk = e.t; // the render's tink frame: this hit was held back (render/gross/mid/*.ts: a flinch, no blood)
+  return m;
+}
+/** the half clock (FT.halfK): a first half still up at halfK of e's slot clock lurches into the second (HP to just under
+ *  the half line: no kill, no reward). Call it every frame from a held midboss's update, before midPh2 is read. long4 only */
+export function halfClock(e: any): void {
+  if (!g3() || !(e.leave > 0) || e.hp < e.max * .5 || e.t < e.leave * FT.halfK) return;
+  e.hp = e.max * .5 - .01;
+  e.flash = 3; $.G.shake = Math.max($.G.shake || 0, 4); // the lurch's beat (art-director): a full wound flash and a jolt, as a hit
+}
 /** the litter size (spec §2.1 "Hatchling litters"): 3 + round(2 rho) */
 export const litter = (rho = fightRho()) => 3 + Math.round(2 * rho);
 
@@ -96,6 +132,18 @@ export const lobV = (x: number, y: number, tx: number, ty: number, v0: number): 
   const bs = Math.max(.1, bsMul($)), sc = $.G.scroll || 0;
   const top = Math.max(ceilAt(x + sc), ceilAt((x + tx) / 2 + sc), ceilAt(tx + sc)) + 8;
   return lobRise(tx - x, ty - y, VCAP(fightTier()) * .98, v0 * bs, Math.max(0, y - top)) / bs;
+};
+/** can a glob from (x, y) come down through (tx, ty) at all: launch and arrival under the flown tier's V_CAP and its apex
+ *  under the cave's ceiling (lobV's limits). A ship far up and to the left of the thrower is past every such arc; a lob at
+ *  it struck the ceiling (r3 fights: the Brood's sneeze at 150,96). Pure of the RNG; long4 only */
+export const lobReach = (x: number, y: number, tx: number, ty: number): boolean => {
+  const sc = $.G.scroll || 0, cap = VCAP(fightTier()) * .98, g = .025, dx = tx - x, dy = ty - y; // lobV's own margin (qa-lead)
+  const rise = Math.max(0, y - (Math.max(ceilAt(x + sc), ceilAt((x + tx) / 2 + sc), ceilAt(tx + sc)) + 8));
+  for (let t = 6; t <= 320; t += 2) {
+    const vx = dx / t, w = (g * t * t / 2 - dy) / t, va = g * t - w;
+    if (va >= 0 && (w <= 0 || w * w / (2 * g) <= rise) && Math.max(Math.hypot(vx, w), Math.hypot(vx, va)) <= cap) return true;
+  }
+  return false;
 };
 /**
  * A fan of n lobbed globs from (x, y) whose centre comes down exactly through (tx, ty) and the rest dx px apart along x

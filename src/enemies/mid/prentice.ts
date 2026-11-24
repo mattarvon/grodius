@@ -16,7 +16,7 @@ import { bandFit, midLeave } from '../update';
 import { HOST_SPARK, isCross, midPh2 } from '../midhost';
 import { DN, TELL_MIN, hook2Aim, hookHit, hookSag } from './_deny';
 import { defineMid } from './roster';
-import { RING_V, cad, entered, ev, g3, ledger, lurch, opening, ringA, spend, spendP, variant } from './_fight';
+import { RING_V, cad, entered, ev, g3, halfClock, ledger, lurch, opening, ringA, spend, spendP, variant } from './_fight';
 
 // g3 (DIFFICULTY-SPEC §2.3): the one rank rule, cad() (no pow term, no dial); short keeps its old line (layout parity)
 const cool = (ph2) => g3() ? cad(ph2 ? 50 : 75) : Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0)) * cdm());
@@ -102,6 +102,7 @@ function hook(e, ph2, sp) {
 function updPrentice(e) {
   // THE BUTCHER'S APPRENTICE: a small carcass on one chain with a cleaver. Lunges in behind a red sweep cone (50f to get out), or spits ember fans
   e.clk = cutLocked(e) ? 1 : 0; // the render draws a locked cone where it will swing
+  halfClock(e); // g3 (r3 K1): a first half still up at half the slot clock lurches on (_fight.ts FT.halfK)
   const go = midLeave(e, cutLocked(e) ? 1 / Math.max(1, 50 - e.wt) : e.st === 'tel' ? .06 : .03), ph2 = midPh2(e), cx = isCross(e), G3 = g3(), sp = cx ? HOST_SPARK[e.host] : FIRE; // its embers burn in the host's colours
   e.sw = (e.sw || 0) + (ph2 ? .028 : .018);
   if (e.st === 'tel' && e.wt < 25) e.y = lerp(e.y, clamp($.P.y + 6, 50, PH - 40), .06);
@@ -168,4 +169,6 @@ defineMid('prentice', {
   spawnY: .42,
   onSpawn: (e) => { e.st2 = ''; e.hd2 = 0; e.ha2 = Math.PI; e.wt2 = 0; e.sag = e.sag2 = 0; if (g3()) { ledger(e); opening(e); e.att = 2; } }, // g3: the spit opens (W6 K1: its fan is the quick reach; cleaver first, a near ship's short first half held one attack)
   update: updPrentice,
+  // no half floor (r3): its hook and cleaver already reach every spot twice a half (K1 2/2), and with the floor its
+  // strong-kit fight ran longer than its STAGE 1 one (11.5 s against 11.2: game-designer review)
 });

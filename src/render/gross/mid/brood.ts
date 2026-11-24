@@ -50,7 +50,8 @@ function grossBrood(c, e) {
   const tell = e.st === 'sneeze' && wt < 26 ? wt / 26 : 0;
   let ok, heave = 0;
   if (s.f.g > 0) s.f.g = Math.max(0, s.f.g - s.dt);
-  if (e.flash) ok = bf(c, K, 'hurt' + w);
+  const tk = e.tk != null && e.t - e.tk < 3; // r3: a hit the half floor held back (mid/_fight.ts phaseShare): a flinch, no blood
+  if (e.flash) ok = bf(c, K, 'hurt' + w, tk ? 1 : 0);
   else if (e.st === 'birth') { heave = bul; ok = bf(c, K, 'heave' + w, Math.min(3, bul * 4 | 0)); }
   else if (s.f.g > 0) ok = bf(c, K, 'gush' + w, Math.min(2, (GUSH - s.f.g) / 9 | 0));
   else if (e.st === 'sneeze') {
@@ -64,7 +65,7 @@ function grossBrood(c, e) {
   for (let i = 0; i < w * 2 && i < SPLIT.length; i++) { const h = SPLIT[i]; strand(c, s, e, 420 + i, h[0], h[1], h[2], 1.1, BLOOD, h[3], BLOOD_TIP, .6); }
   strand(c, s, e, 430, -17, 9 + heave * 3, 5 + heave * 9, 1 + heave * .8, BLOOD, heave > .2 ? 24 : 80, BLOOD_TIP, .8);
   if (heave > .3 && rnd() < heave * .3 * s.dt) emit(s, e.x - 16 + rn(-2, 2), e.y + 8, rn(-.8, .2), rn(.2, 1), '#5a0a10', rn(.8, 1.3), 0, 60);
-  if (e.flash && rnd() < .5 * GROSS) spray(s, e.x + rn(-12, 12), e.y + rn(-14, 14), 3, '#7a0a12', 1.6, 1, .5);
+  if (e.flash && !tk && rnd() < .5 * GROSS) spray(s, e.x + rn(-12, 12), e.y + rn(-14, 14), 3, '#7a0a12', 1.6, 1, .5);
   if (w === 2 && rnd() < .06 * s.dt) emit(s, e.x + rn(-4, 6), e.y + rn(0, 14), rn(-.4, .4), rn(0, .6), '#6a0a10', rn(.8, 1.4), 0, 70);
   drawParts(c, s, e);
   if (tell || heave) { // light thrown by what is coming: off the gaping crown pit, or the swollen vent

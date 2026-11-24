@@ -14,13 +14,17 @@ import { bandFit, lob, midLeave } from '../update';
 import { BROOD_CAP, fitsTerrain, midPh2 } from '../midhost';
 import { DN, broodLane, edgeSlot, edgeX, rearSlot } from './_deny';
 import { defineMid } from './roster';
-import { cad, diveKids, entered, g3, ledger, litter, lobFan, lurch, opening, spend, spendP } from './_fight';
+import { cad, diveKids, entered, g3, halfClock, ledger, litter, lobFan, lobReach, lurch, opening, phaseAtt, phaseShare, spend, spendP } from './_fight';
 
 const SLOT = [0, 0]; // rearSlot's / edgeSlot's scratch
 // g3 (DIFFICULTY-SPEC §2.3): the one rank rule, cad() (no pow term, no dial); short keeps its old line (layout parity)
 const cool = (ph2) => g3() ? cad(ph2 ? 60 : 85) : Math.round((ph2 ? 60 : 85) * (1 - .3 * ($.G.rank || 0)) * cdm());
 /** DIFFICULTY-SPEC §2.3 (W4a), long4 only: the sneeze is TWO bursts (wt 26, 38; was three) of 3 (phase 2: 4) [B3] */
 export const SNEEZE = { at: [26, 38] as readonly number[], n: [3, 4] as readonly number[], rise: .3 } as const; // rise: the lob's preferred rise (x BS; was 1.4), as flat as V_CAP lets it (_fight.ts lobV) [W6 K1: the high arc took ~100 f] // phase 2: 4, not the spec's 5 (2 x 5 lobbed globs held the screen at 10: B3 p90 <= 9.6)
+/** r3 K1, the half floor's reach per attack (_fight.ts phaseAtt): frames from its start to a ship across the screen.
+ *  The edge litter: its 46 f tell plus a fall of the screen's height (~130 f); from behind: 56 f plus ~70 f of flight;
+ *  the sneeze: its second burst at 38 plus a lob's ~90 f */
+export const BROOD_LAND = { edge: 176, rear: 126, sneeze: 128 } as const;
 
 /**
  * g3: steer the phase-1 litter in from its edge (q.ent = the side it came from: 1 top, -1 bottom). The hatchling's own
@@ -31,6 +35,7 @@ export const SNEEZE = { at: [26, 38] as readonly number[], n: [3, 4] as readonly
 const steer = (e) => diveKids(e, enemies, PH); // _fight.ts: shared with the Saucer's litter
 function updBrood(e) {
   // THE BROOD MOTHER: a swollen mucus sac. Heaves 44f, then births a litter of hatchlings; or flares 26f and sneezes snot globs
+  halfClock(e); // g3 (r3 K1): a first half still up at half the slot clock lurches on (_fight.ts FT.halfK)
   const go = midLeave(e), ph2 = midPh2(e);
   e.y = PH / 2 + Math.sin(e.t * .013) * (PH * .2);
   if (fitsTerrain(e)) bandFit(e);
@@ -40,7 +45,14 @@ function updBrood(e) {
     if (e.st === 'idle') {
       e.bul = Math.max(0, (e.bul || 0) - .05);
       if (e.wt >= e.cool) {
+        // g3 (r3 K1): the first half opens on the sneeze when its lobs can reach the ship (a near ship's first half ends
+        // before a litter falling the screen's height arrives), else on the litter; and a sneeze due at a ship past every
+        // lob under V_CAP and the cave's ceiling (_fight.ts lobReach: far up and to the left) is a litter instead
+        const reach = g3() && lobReach(e.x - 18, e.y - 4, $.P.x, $.P.y);
+        if (g3() && !e.att && !ph2 && reach) e.att = 1;
         e.att++; e.st = e.att % 2 ? 'birth' : 'sneeze'; e.wt = 0; sfx.squish();
+        if (g3() && e.st === 'sneeze' && !reach) e.st = 'birth';
+        phaseAtt(e, e.st === 'sneeze' ? BROOD_LAND.sneeze : ph2 ? BROOD_LAND.rear : BROOD_LAND.edge);
         e.rear = e.st === 'birth' && ph2 ? 1 : 0; // phase 2: this litter comes from behind, at your height now
         if (e.rear) { e.ry = broodLane($.P.y, PH); $.G.warn.push({ y: e.ry, t: DN.bTel, ml: DN.bTel }); sfx.tele(); }
         // g3 phase 1 (spec §2.3): the litter drops in from the TOP or BOTTOM edge, alternating, in a column at the ship's
@@ -81,6 +93,7 @@ function updBrood(e) {
 defineMid('brood', {
   et: { hp: 105, r: 20, gsz: 4, score: 6000, bio: 70, half: 1, amnio: 1, eyes: 3, teeth: 8, big: 1, mini: 1, mid: 1 },
   word: 'LANCED', // was STILLBORN: too close to the crude-not-cruel line (Matt, D34)
-  onSpawn: (e) => { e.en = -1; e.edge = 0; if (g3()) { ledger(e); opening(e); e.cool = 0; e.att = 0; } }, // cool 0: the heave starts as it is in (its 46 f tell is the wait) // g3: the litter first (W6 K1: it dives at the ship wherever it is; the sneeze's lobs cannot climb to a ship well above her under V_CAP, so a high spot met nothing in a short first half)
+  onSpawn: (e) => { e.en = -1; e.edge = 0; if (g3()) { ledger(e); opening(e); e.cool = 0; e.att = 0; } }, // cool 0: the heave starts as it is in (its 46 f tell is the wait) // g3: the litter first unless a lob can reach the ship (r3: then the sneeze; updBrood's reach rule. W6 K1: the sneeze's lobs cannot climb to a ship well above her under V_CAP)
   update: updBrood,
+  hurt: (e, d) => phaseShare(e, d), // g3 (r3 K1): the half floor (_fight.ts FT.floorN / floorF); 1 on short
 });

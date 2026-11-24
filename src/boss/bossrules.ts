@@ -33,7 +33,9 @@ export const BOSS_HPK: Readonly<Record<string, number>> = {
   maw: 4, //    a biome stage-boss Maw [FIT]: 6.5 s (Hard 6.2) at the BIOME B kit at x1. Matt's decision 8 (2026-11-23) asked ~x2.5
   //             for 15+ s with the 28 s escape clock KEPT (a weakly armed ship watches it escape); x2.7 measured only 11.0 s (its
   //             bite brings it into the bot's options, so TTK grows slower than HP), so his target needs x4 (16.1-16.2 s)
-  crux: 1.8, //  THE BLOAT: 10.5 s (Hard 10.8) at the BIOME B kit at x1; 1.6 ran 15.1, 1.7 15.4-19.0 across runs (its icicles roll), 1.75 15.5 (Hard 18.5-18.8), 1.85 20.3 (Hard 21.9), 1.8 21.1 (Hard 19.0): the Bloat's TTK swings +-2 s run to run
+  crux: 1.3, //  THE BLOAT [FIT r3]: 1.8 was fitted where boss-probe staged it, slot 0's x0 + 700 (the flown corridor, whose walls cut the
+  //             bot's line of fire); in its real arena (bossX + 150, movement C) 1.8 ran 27.4 s (Hard 24.8), and 28.8 on tp+tf, so
+  //             tune-ts never moved the real fight. 1.3 runs 19.3 s (Hard 19.2) there. Before r3: 10.5 s (Hard 10.8) at the BIOME B kit at x1; 1.6 ran 15.1, 1.7 15.4-19.0 across runs (its icicles roll), 1.75 15.5 (Hard 18.5-18.8), 1.85 20.3 (Hard 21.9), 1.8 21.1 (Hard 19.0): the Bloat's TTK swings +-2 s run to run
   butcher: 1.1, // THE BURNING BUTCHER: 14.3 s at the BIOME B kit at x1 once its first half hooks a far ship (BUTCHER.farHook)
 };
 
@@ -66,6 +68,8 @@ export const MAW = {
   hold: 20, //          snapping at the far end
   backV: 5, //          px/f home [W6: 3; the longer lunge comes home in the same time]
   blend: 30, //         f to fade back into its bob after the bite
+  landBite: 76, landFan: 90, // r3 K1, the midboss Maw's half floor (mid/_fight.ts phaseAtt): f from a bite's start (46 tell + the lunge)
+  //                    and a fan's release (its lobs' flight) to the far side of the screen
   quiet: 200, //        no bite starts this close to its leave clock (the time-out stays at 1700 f, K4)
   // rank >= 14, stage-boss Maw only: the return runs down a second lane, re-aimed at the ship during the hold, which
   // grows to `hold` so the second line shows its full >= 44 f
@@ -98,8 +102,12 @@ export const BLOAT = {
   aim: { every: 260, every2: 120, n: 3, spread: .17, v: 2 }, // every 260 (was 180) while the bars stand: the comb is the denial [FIT K2 W6: the fan took 63% of the spot hits at 180]; every2: core bared [FIT K1 W6: at 180 a second half at the END D1 kit held 1 hit on some spots] //  [FIT B3: v 1.7 lingered] // the aimed 3-fan of spikes for the ship parked outside the sweep [FIT B3: 150]
   ring: { every: 240, n: 9, v: 2 }, //            phase 2: one 9-ring (was two at 1.15 every 160) [FIT B3: 160/1.15 lingered 2-3 rings,
   //                                              p90 17; 200/1.5 still p90 15 > 14.4]
+  /** r3 K1, the half floor's reach per attack (mid/_fight.ts phaseAtt), f from its start to the far side of the screen:
+   *  the comb (its 44 f glow is before it; ~300 px at 2.4 x BS), the aimed fan (~300 px at 2 x BS), the curtain's 50 f
+   *  hang plus its fall */
+  land: { comb: 100, aim: 120, ice: 110 },
   glob: { every: 120, n: 3, v: 1.6 }, //          phase 2: 3 globs over the neck (was 5) [FIT B3: exposed p90 16]
-  ice: { every: 150, dx: 60, first: 40 }, //      phase 2: three icicles, the ship's column and +-60 px (gaps ~45 px between)
+  ice: { every: 150, dx: 60, first: 20 }, //      [FIT r3 K1: 40 left a parked ship 1 hit in a short second half at the END D1 kit] phase 2: three icicles, the ship's column and +-60 px (gaps ~45 px between)
 };
 /** the comb's emission spacing (f) at bullet-speed factor bs: n spikes `gap` px apart */
 export const combStep = (bs: number): number => Math.max(2, Math.round(BLOAT.comb.gap / (BLOAT.comb.v * Math.max(.1, bs))));

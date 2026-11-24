@@ -28,7 +28,8 @@ function grossCyst(c, e) {
   }
   const w = woundStage(e), sw = (e.sw || 0) / 30, tel = e.st === 'tel' ? e.wt / 45 : 0;
   let ok;
-  if (e.flash) ok = bf(c, K, 'hurt' + w);
+  const tk = e.tk != null && e.t - e.tk < 3; // r3: a hit the half floor held back (mid/_fight.ts phaseShare): a flinch, no blood
+  if (e.flash) ok = bf(c, K, 'hurt' + w, tk ? 1 : 0);
   else if (sw > 0) ok = bf(c, K, 'swell' + w, Math.min(3, sw * 4 | 0));
   else if (e.st === 'tel') ok = bf(c, K, 'tell' + w, twitch(t, 4, 7 - tel * 4));
   else if (e.st === 'spray') ok = bf(c, K, 'gey' + w, twitch(t, 3, 4));
@@ -37,7 +38,7 @@ function grossCyst(c, e) {
   // the wet that a still frame can't hold: threads off the hem, blood from the open tears, both shed real drops
   for (let i = 0; i < HEM.length; i++) { const h = HEM[i]; strand(c, s, e, 60 + i, h[0], h[1], h[2], 1, 'rgba(58,10,18,.9)', h[3], '#5a0a12', 1.2); }
   for (let i = 0; i < w * 2 && i < TEARS.length; i++) { const h = TEARS[i]; strand(c, s, e, 70 + i, h[0], h[1], h[2], 1.1, 'rgba(92,6,14,.95)', h[3], '#8a0c14', .6); }
-  if (e.flash && rnd() < .5 * GROSS) emit(s, e.x + rn(-14, 14), e.y + rn(-14, 16), rn(-1.4, 1.4), rn(-1.8, .2), '#7a0a12', rn(.8, 1.5), 0, 60);
+  if (e.flash && !tk && rnd() < .5 * GROSS) emit(s, e.x + rn(-14, 14), e.y + rn(-14, 16), rn(-1.4, 1.4), rn(-1.8, .2), '#7a0a12', rn(.8, 1.5), 0, 60);
   // the cut cord bubbles with what's coming, and throws light: the honest tell
   if (tel > 0 && rnd() < (.15 + tel * .5) * s.dt) emit(s, e.x - 2 + rn(-3, 3), e.y - 20, rn(-.5, .5), rn(-1.5, -.5), hash(t) < .5 ? '#a8201e' : '#d8a080', rn(.7, 1.2), 0, 26, .08);
   drawParts(c, s, e);

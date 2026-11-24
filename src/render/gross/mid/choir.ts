@@ -34,14 +34,15 @@ function grossChoir(c, e) {
   // the tell trembles: a whole-pixel shake of body and globe together, so the globe never slips off its socket
   const ox = tel > .45 ? (hash(t * 1.37) * 3 | 0) - 1 : 0;
   let ok;
-  if (e.flash) ok = bf(c, K, 'hurt' + w) && bf(c, K, 'gh' + w);
+  const tk = e.tk != null && e.t - e.tk < 3; // r3: a hit the half floor held back (mid/_fight.ts phaseShare): a flinch, no blood
+  if (e.flash) ok = bf(c, K, 'hurt' + w, tk ? 1 : 0) && bf(c, K, 'gh' + w);
   else if (tel) ok = bf(c, K, 'tell' + w, twitch(t, 3, 7 - tel * 4), ox) && bf(c, K, (tel > .3 ? 't' : 'g') + w, gi(a), ox);
   else ok = bf(c, K, 'idle' + w, breath(t, 6, 120 - w * 22, 5)) && bf(c, K, 'g' + w, gi(a));
   if (!ok) bakedFallback(c, e.r);
   // the wet a still frame can't hold: the cut nerve and the torn strap ends drip, the wounds bleed more with each stage
   for (let i = 0; i < ENDS.length; i++) { const h = ENDS[i]; strand(c, s, e, 60 + i, h[0], h[1], h[2], 1, 'rgba(62,8,14,.9)', h[3], '#5a0a12', 1.3); }
   for (let i = 0; i < w * 2 && i < WOUNDS.length; i++) { const h = WOUNDS[i]; strand(c, s, e, 70 + i, h[0], h[1], h[2], 1 + .2 * w, 'rgba(96,6,14,.95)', h[3], '#8a0c14', .6); }
-  if (e.flash && rnd() < .55 * GROSS) emit(s, e.x + rn(-8, 14), e.y + rn(-12, 12), rn(-1.6, 1.6), rn(-1.8, .2), '#7a0a12', rn(.8, 1.6), 0, 60);
+  if (e.flash && !tk && rnd() < .55 * GROSS) emit(s, e.x + rn(-8, 14), e.y + rn(-12, 12), rn(-1.6, 1.6), rn(-1.8, .2), '#7a0a12', rn(.8, 1.6), 0, 60);
   if (w === 2 && rnd() < .06 * s.dt) emit(s, e.x + 6, e.y - 5, rn(-.3, .3), rn(-.2, .3), '#9a9890', rn(.7, 1.1), 0, 70); // the vitreous weeps out
   // the tell: blood rises under the frost and the cornea throws ice light down the fan line
   if (tel > 0 && rnd() < (.1 + tel * .4) * s.dt) emit(s, e.x - 10 + rn(-3, 3), e.y + rn(-3, 3), rn(-.6, .2), rn(-.4, .6), hash(t) < .6 ? '#a8201e' : '#d8eef8', rn(.6, 1.1), 0, 24, .05);

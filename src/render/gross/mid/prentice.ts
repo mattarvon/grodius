@@ -42,7 +42,8 @@ function grossPrentice(c, e) {
   const ca = Math.cos(ba), sa = Math.sin(ba);
   // ---- the meat: breathing, a hurt frame on a hit, the mouth when it spits
   let ok;
-  if (e.flash) ok = bf(c, K, 'hurt' + w);
+  const tk = e.tk != null && e.t - e.tk < 3; // r3: a hit the half floor held back (mid/_fight.ts phaseShare): a flinch, no blood
+  if (e.flash) ok = bf(c, K, 'hurt' + w, tk ? 1 : 0);
   else if (mo >= 0) ok = bf(c, K, 'spit' + w, mo);
   else ok = bf(c, K, 'idle' + w, tel ? twitch(t, 3, 6, 5) + 2 : breath(t, 6, 104 - w * 16, 7));
   if (!ok) { bakedFallback(c, e.r); return; }
@@ -62,7 +63,7 @@ function grossPrentice(c, e) {
   for (let i = 0; i < GUT.length; i++) { const g = GUT[i]; strand(c, s, e, 50 + i, g[0], g[1], g[2], 1, 'rgba(48,8,10,.92)', g[3], '#4a0a10', 1.1); }
   for (let i = 0; i < w * 2 && i < TEAR.length; i++) { const g = TEAR[i]; strand(c, s, e, 60 + i, g[0], g[1], g[2], 1.1, 'rgba(96,6,12,.95)', g[3], '#8a0c14', .6); }
   if (w === 2 && rnd() < .12 * s.dt * GROSS) emit(s, e.x + rn(0, 8), e.y + rn(4, 16), rn(-.3, .3), rn(.1, .6), '#6a0810', rn(.8, 1.3), 0, 80);
-  if (e.flash && rnd() < .55 * GROSS) emit(s, e.x + rn(-6, 12), e.y + rn(-16, 18), rn(-1.6, 1.6), rn(-1.8, .2), rnd() < .6 ? '#7a0a12' : '#4a060a', rn(.8, 1.6), 0, 60);
+  if (e.flash && !tk && rnd() < .55 * GROSS) emit(s, e.x + rn(-6, 12), e.y + rn(-16, 18), rn(-1.6, 1.6), rn(-1.8, .2), rnd() < .6 ? '#7a0a12' : '#4a060a', rn(.8, 1.6), 0, 60);
   // the swing: the edge flings what it was carrying along the cut
   if (s.ev === 'tel>cut') { snd('gross_slosh', .4, .3); spray(s, e.x + PX - 30, e.y + PY + 4, 14, '#7a0a12', 2.4, 1.2, .2); }
   if (e.st === 'cut' && e.wt <= 12 && rnd() < .7 * GROSS) {
