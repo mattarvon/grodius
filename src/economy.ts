@@ -241,7 +241,12 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // so .47 x (1400 - 250) / (1619 - 250) = .395, rounded to .40. Final build: steady 1366 [1235-1536], in band (production/qa/evidence/ls2-d31.md)
     // tune-tc: .40 -> .37 [FIT, gate E9 1300-1500]: W6 measured median 1505 (5 seeds 1464-1629), it5 1520 at .39 (more
     // pods past K1 pay SURPLUS biomass); x .37/.39 aims at ~1440
-    killBio: .37,
+    // W6 round 3 (r3-econ): .37 -> .62 [FIT, gate E9]. E9's band is the STEADY-STATE figure, pod-probe finalBio minus
+    // 100 x firstKills (economy lane M12, this entry's own definition above): a fresh profile also pays each midboss kind's
+    // first kill once. The W6 gates read the raw finalBio, and tc fitted .37 to raw 1505, which was steady ~1160 (W5 1302,
+    // W6 1164, tc 1074, round 2 948). On the merged tree the Orbit Saucer also escapes the deathless bot (no kill, no
+    // grade S). Fit: steady 1297 at .58 with the faucet below; holding ~250 of grade and choice pay fixed (D31 fit 1's rule), .62 aims at ~1375; a fresh profile's raw run reads ~300 more
+    killBio: .62,
     // D31 §2.2: carrier and formation pods are per spawn, the variable faucet. Fit 1 (2026-11-08, ls2-d31 report): at the
     // .17 / .5 projections the stretched build gave 48 D1 pod pickups, the same as main's 48 (spawns rose x1.8, not
     // x1.45). Fixed pods (midboss/Maw 11, Saucer 2, choice 3, release 2) are 18 of them, so -35% (31) needs the variable
@@ -250,10 +255,16 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // stage's authored opening carriers (group.open, W3) and the typed recovery waves carry the guaranteed pods
     // tune-tc: .05 -> .08 with grpPod .12 -> .20 [FIT]: E2 measured 28 (W6), then 29-31 at .06 / .15 (it5, seeds
     // 1/3/5/7/11) for 32-35; the random faucet is the spec's lever for the total (pod-probe stages[].src carrier / formation)
-    capKeep: .08,
+    // W6 round 3 (r3-econ): .08 -> .10 with grpPod .20 -> .26 [FIT, gate E2 32-35]: the merged tree measured 29 (tc 34
+    // on its own tree). The cut is the Orbit Saucer: tune-tf's THE LEAN plus HP 50 -> 58 (midslot.ts) let it leave the
+    // deathless bot with 16-37% HP on 5 of 5 seeds (tc's tree killed it 4 of 5), so its kill pair, its first-kill pay and
+    // the Orbit grade S went; tune-ts's terrain and tune-te's spawn rules changed no Saucer outcome (pod-probe fights[]).
+    // Biome A's second opening formation also pays on 1 run in 5 (members escape: openG[]). Fights and enemies have the
+    // cause-side requests; if the Saucer kill comes back, this faucet should come down by about 2 pods (~.09 / .23)
+    capKeep: .1,
     // One R() per cleared non-release formation, long4 only (short: grpPod 1, no draw). D31 fit 1 gave .22; spec §2.2
     // cuts it to .12 [FIT, gate E2] for the same reason. The tier's faucet multiplier applies here (tier.ts capRate)
-    grpPod: .2,
+    grpPod: .26,
     // D31 §2.3: measured (fit 1, 2026-11-08): the stretched build ended D1 with 6-7 graft levels against main's 5, on
     // x1.8 the kills (674 vs 375 median). graftMul = the kill ratio, so grafts keep today's per-stage timing
     // (pod-probe grades[3].kit.gm, kills)

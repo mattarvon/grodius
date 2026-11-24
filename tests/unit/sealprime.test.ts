@@ -96,17 +96,48 @@ describe('SEAL PRIMING (long4, seal 0)', () => {
   });
 });
 
-describe('a maxed pod is re-rolled as it is taken (long4)', () => {
-  it('takes the re-roll in place of the surplus', () => {
+describe('K0 FIRST: short of K0 at seal 0, a pod for a slot already at its K0 level becomes the first missing slot (long4, W6 round 3)', () => {
+  it('turns a full MISSILE pod into the missing WRAITH, with no R() (it was a podType re-roll)', () => {
     $.P = ship({ ...K0, options: 0 }) as any; // MISSILE full, WRAITH open
-    H.ty.mockReturnValue(5);
+    H.ty.mockReturnValue(3);
     P.applyPower(1, false);
-    expect(H.ty).toHaveBeenCalledTimes(1);
+    expect(H.ty).not.toHaveBeenCalled();
     expect([$.P.frag[5], $.G.score]).toEqual([1, 0]);
   });
-  it('falls back to the surplus when nothing is open (podType -1)', () => {
+  it('turns a WARD pod into the missing THRUST even with the shield down (no top-up while K0 is short)', () => {
+    $.P = ship({ ...K0, speed: 1, shield: 0 }) as any;
+    P.applyPower(6, false);
+    expect(H.ty).not.toHaveBeenCalled();
+    expect([$.P.shield, $.P.speed]).toEqual([0, 2]);
+  });
+  it('fills the gaps in R1 then R2 order: THRUST, the main gun (SPLIT), the side gun (MISSILE), WRAITH, WARD', () => {
+    $.P = ship({ speed: 2, wardLv: 1, shield: 1 }) as any; // no gun, no side gun, no WRAITH
+    P.applyPower(0, false); // THRUST is at its seal-0 cap: the gun first
+    expect([$.P.double, $.P.missile, $.P.options]).toEqual([1, 0, 0]);
+  });
+  it('sends an ARC pod to the gap while SPLIT is held, so the gun form never swaps (qa-lead)', () => {
     $.P = ship({ ...K0, options: 0 }) as any;
-    P.applyPower(1, false);
+    P.applyPower(3, false);
+    expect([$.P.double, $.P.laser, $.P.frag[5]]).toEqual([1, 0, 1]);
+  });
+  it('leaves a FULL pod alone (BLACK BOX), and does nothing from seal 1 (qa-lead)', () => {
+    $.P = ship({ ...K0, options: 0 }) as any;
+    P.applyPower(0, true); // a FULL THRUST pod: THRUST 3 is sealed, so it stays the surplus it was
+    expect($.P.frag[5] || 0).toBe(0);
+    $.G.seal = 1;
+    $.P = ship({ ...K0, options: 0 }) as any;
+    P.applyPower(1, false); // MISSILE 2 opens at seal 1: it takes its own fragment
+    expect([$.P.frag[1], $.P.frag[5] || 0]).toEqual([1, 0]);
+  });
+  it('lets a pod for a slot K0 still needs through unchanged', () => {
+    $.P = ship({ ...K0, options: 0 }) as any;
+    P.applyPower(5, false);
+    expect([$.P.frag[5], $.P.missile]).toEqual([1, 1]);
+  });
+  it('past K0 a maxed pod is re-rolled as before, and falls back to the surplus when nothing is open (podType -1)', () => {
+    $.P = ship({ ...K0, shield: 1 }) as any;
+    $.G.seal = 0;
+    P.applyPower(2, false); // SPLIT held: maxed; the K0 ship primes only THRUST / its MISSILE / WRAITH / WARD
     expect(H.ty).toHaveBeenCalledTimes(1);
     expect($.G.score).toBe(1500);
   });

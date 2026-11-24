@@ -59,6 +59,17 @@
 //   Pickup `src` adds `rec` (a recovery pod: c.rec, e.rec or group.rec) and `fixed:open` (an authored opening
 //   carrier: e.open or group.open; assumed field names, to pin in spec §5.6) ahead of the older tags. `recovery[]`
 //   counts only caps that appear after the respawn. `contractErr`: a future module that answered in another shape. `mods` lists which optional modules the build has.
+// ---- W6 round 3 (r3-econ) additions, all measure-only ----
+// `ward`: the shield ledger (gate H2, H1). fullHits = WARD hits that set the WARD i-frames (playerHit); grazes = the
+//   shots.ts near-miss drain (.34 a shot within 16 px, no i-frames). The older `shieldHits` counts every fall of
+//   P.shield, so it counts each graze as a whole hit: H2 and H1 should read fullHits. supply / spentHits /
+//   spentHitsLife0 / unspent split the shield by where it came from (lvl, lvl:rec, lvl:prime, top, top:rec, scab, regrow;
+//   spent LIFO; graze<-src is graze drain). `driveKit`: the slots, grafts and rank.ts rankP the frame the Drive appears
+//   (R1: rank = T_base + 3 + P). `fights[]`: each held midboss / Maw, its start, length, hp left and kill / left (E2: a
+//   Saucer that leaves pays no kill pair). `drops`: every cap that appeared by stage and src, taken or not; `openG[]`:
+//   each opening formation's members seen / killed / paid (E2's fixed:open). `stages[].types`: each pod's slot.
+//   deaths[].kitClass (below / k0 / above K0) and rebuild_s.horizon (seconds to the next death or the run's end) (E6).
+//   --rebuild [stage]: see below.
 import { chromium } from 'playwright';
 import { useLayout, LAYOUT } from './layout-arg.mjs';
 import { PILOT } from './pilot.mjs';
@@ -70,6 +81,11 @@ const BRU = opt('--brutal'); // D63: ?brutal=N (default: the game's)
 const TIER = opt('--tier'); // spec §2.1: ?tier=N
 if (TIER != null && !/^[0-3]$/.test(TIER)) { console.error('--tier needs 0-3'); process.exit(2); }
 const KIT = opt('--kit'), HULL = +(opt('--hull') || 0), RIG = opt('--rig'), REACT = opt('--react');
+// --rebuild [stage] (W6 round 3, gate E6's kit half: the spec's worked example, 'the END D1 kit dies in biome B'):
+// a deathless run that, 30 s into that stage (default 1-3, biome B), fits the END D1 kit below (guns, grafts, perks), kills
+// the ship once (flow.ts killPlayer: a staging write, the rig's only one) and flies on invincible. The death is logged
+// in deaths[] like a mortal one (cause 'rig'), so rebuild_s.kit is the time back to the END D1 kit under the real faucet
+const RB = (() => { const i = process.argv.indexOf('--rebuild'); if (i < 0) return null; const v = process.argv[i + 1]; const st = v && /^\d-\d$/.test(v) ? v : '1-3'; process.argv.splice(i, v === st ? 2 : 1); return st; })();
 if (REACT != null && !(+REACT >= 0)) { console.error('--react needs frames >= 0'); process.exit(2); }
 if (RIG && RIG !== 'full') { console.error('--rig takes full'); process.exit(2); }
 const [url, SEED = '1', MIN = '12', END = '1'] = process.argv.slice(2);
@@ -86,7 +102,16 @@ const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 if (PIL) await p.addInitScript(PILOT);
 if (PIL && REACT != null) await p.addInitScript((r) => { window.__pilotReact = r; }, +REACT);
 await p.addInitScript(pageLib);
-await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
+// W6 round 3: host input leaks into a headless page. A focus or display event (a screen lock, a window switch) blurs and hides every headless page at once:
+// input.ts then drops the held fire key and opens the pause menu, which ends or silently changes a run (seen 20:33 on
+// 2026-11-23: four runs paused at the same second, one fired less from 8 s on). The probe swallows those events before
+// the game's own listeners (registered later) and reports the page as always visible. Measure-only: no sim write
+await p.addInitScript(() => { const stop = (e) => e.stopImmediatePropagation(); addEventListener('blur', stop, true); document.addEventListener('visibilitychange', stop, true);
+  try { Object.defineProperty(document, 'hidden', { get: () => false }); Object.defineProperty(document, 'visibilityState', { get: () => 'visible' }); } catch (e) {}
+  // and the HOST'S GAMEPAD: headless Chromium reads the real pads plugged into the machine (input.ts pollInput), so Matt
+  // playing on his controller steered, fired and paused (Start) every probe page. The probe flies with no pad
+  try { Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true }); } catch (e) {} });
+await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);
   try { localStorage.clear(); } catch (e) {}
   window.__pods = []; window.__capSrc = new WeakMap(); window.__fr = 0; window.__bf = {}; window.__deaths = []; window.__hits = {};
@@ -108,8 +133,32 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
     const bi = globalThis.__biome && globalThis.__biome(); if (bi && bi.haz) for (const h of bi.haz) if (Math.abs(h.x - P.x) < 12) put('haz:' + h.k + (h.aim ? '(aimed)' : ''), 2);
     const ctx = G.boss && !G.boss.dying ? 'drive' : G.mini && !G.mini.dead ? (G.mini.mid ? 'mid:' : 'boss:') + G.mini.k : '';
     return { c: best ? (PL && PL.mods.W ? '~' : '') + best : 'other', ctx, shot }; };
+  // H2 shield ledger (W6 round 3, measure-only: reads P before and after each tick, no input, no R()). Every rise in
+  // P.shield is a SUPPLY tagged by its source: lvl (a WARD level-up from a pod), lvl:rec (a level-up from a recovery
+  // carrier's pod: R2's WARD), lvl:prime (seal priming's STORED PARTS GROW IN, no pickup), top (an at-cap pod's +wardTop),
+  // top:rec (the same from a recovery pod), scab (SCAB WEAVE on a kill), regrow (REGROWTH's timer). Every fall is a full
+  // HIT (playerHit: it sets the WARD i-frames, so P.inv rises) or a GRAZE (shots.ts: a shot within 16 px drains .34, no
+  // i-frames; glass clamps count here too). Spent hits are charged to the newest unspent supply (LIFO), per life; what
+  // a death or the run's end leaves unspent is `wardLeft`. `wardSpentL0` is the first life's share
+  window.__wl = { sup: {}, spent: {}, spent0: {}, left: {}, grz: 0, grzAmt: 0, hits: 0, life: 0, stk: [], P: null };
+  window.__wardLedger = (q, h) => { const L = window.__wl, P = h.P, add = (o, k, v) => { o[k] = +((o[k] || 0) + v).toFixed(2); };
+    if (P !== q.P) { for (const c of L.stk) add(L.left, c.src, c.amt); L.stk = []; if (L.P) L.life++; L.P = P; return; } // a respawn: the old ship's unspent shield is lost
+    L.P = P; if (!P.alive) { for (const c of L.stk) add(L.left, c.src, c.amt); L.stk = []; return; }
+    const sh = P.shield || 0, d = sh - q.sh; if (Math.abs(d) < 1e-6) return;
+    if (d > 0) { const pod = window.__w6, rec = pod === 'rec' ? ':rec' : '';
+      const src = (P.wardLv || 0) > q.lv ? (pod ? 'lvl' + rec : 'lvl:prime') : pod ? 'top' + rec : (h.G.kills || 0) > q.kills ? 'scab' : 'regrow';
+      add(L.sup, src, d); L.stk.push({ src, amt: d }); return; }
+    const hit = (P.inv || 0) > q.inv; let need = -d; if (hit) L.hits++; else { L.grz++; L.grzAmt += need; }
+    while (need > 1e-6 && L.stk.length) { const c = L.stk[L.stk.length - 1], u = Math.min(c.amt, need); c.amt -= u; need -= u;
+      if (hit) { add(L.spent, c.src, u); if (L.life === 0) add(L.spent0, c.src, u); } else add(L.spent, 'graze<-' + c.src, u);
+      if (c.amt <= 1e-6) L.stk.pop(); } };
   window.__tick = (n) => { for (let i = 0; i < n; i++) { now += 1000 / 60; const g = window.__G && window.__G(); let before = null, beforeE = null;
-      if (g && g.P && g.state === 'play') { if (window.__lives0 == null) { if (kit) { Object.assign(g.P, kit.p); if (kit.gm) g.G.gm = { ...(g.G.gm || {}), ...kit.gm }; if (kit.pk) g.G.pk = { ...(g.G.pk || {}), ...kit.pk }; } window.__lives0 = g.G.lives; } if (!mortal) { g.P.inv = 30; g.P.alive = true; } const G = g.G; let tx, ty;
+      if (g && g.P && g.state === 'play') { if (window.__lives0 == null) { if (kit) { Object.assign(g.P, kit.p); if (kit.gm) g.G.gm = { ...(g.G.gm || {}), ...kit.gm }; if (kit.pk) g.G.pk = { ...(g.G.pk || {}), ...kit.pk }; } window.__lives0 = g.G.lives; } if (rb) { const X = window.__x, st = `${g.G.loop + 1}-${(g.G.stage || 0) + 1}`; (X.stF ||= {})[st] ??= window.__fr; // --rebuild (header)
+          if (!X.rbDone && st === rb && g.P.alive && !g.G.tally && window.__fr - X.stF[st] >= 1800) { const P = g.P; Object.assign(P, rbKit.p); g.G.gm = { ...(g.G.gm || {}), ...rbKit.gm }; g.G.pk = { ...(g.G.pk || {}), ...rbKit.pk };
+            const k = slotsOf(P); P.inv = 0; P.shield = 0; X.rbDone = 1; X.rbHold = P; window.__FL.killPlayer();
+            window.__deaths.push({ st, s: +(window.__fr / 60).toFixed(1), f: window.__fr, cause: 'rig', src: 'rig', lives: g.G.lives, x: Math.round(P.x), y: Math.round(P.y), kit: k, shot: null, rank1: null, rebuild_s: { k0: null, kit: null, k0w: null } }); }
+          if (X.rbHold && g.P !== X.rbHold) X.rbHold = null; }
+        if (!mortal && !(window.__x.rbHold && g.P === window.__x.rbHold)) { g.P.inv = 30; g.P.alive = true; } const G = g.G; let tx, ty;
         if (G.fork && G.fork.t > 45) { tx = 480 * .74; ty = (window.__gi ?? 0) % 2 ? 254 * .72 : 254 * .28; }
         else { const c = g.caps.filter((c) => c.x > 0 && c.x < 470).sort((a, b) => a.x - b.x)[0];
           const t = c || g.enemies.filter((e) => !e.dead && e.x > g.P.x + 20 && e.x < 480 && (e.hp || 1) > 0).sort((a, b) => (a.k === 'heart' || a.k === 'nailbar' ? -1 : 0) || Math.abs(a.y - g.P.y) - Math.abs(b.y - g.P.y))[0];
@@ -127,6 +176,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
         else if (tx != null) { g.P.x += Math.sign(tx - g.P.x) * Math.min(3, Math.abs(tx - g.P.x)); g.P.y += Math.sign(ty - g.P.y) * Math.min(3, Math.abs(ty - g.P.y)); }
         before = g.caps.slice(); beforeE = g.enemies.slice(); }
       const pre = mortal && g && g.P && g.state === 'play' && g.P.alive && g.P.inv <= 1 ? { sh: g.P.shield || 0, n: window.__near(g), x: g.P.x, y: g.P.y, kit: slotsOf(g.P) } : null;
+      const wq = g && g.P && g.state === 'play' ? { P: g.P, sh: g.P.shield || 0, lv: g.P.wardLv || 0, inv: g.P.inv || 0, kills: g.G.kills || 0 } : null; window.__w6 = null; // H2 shield ledger (below)
       q.splice(0).forEach((f) => f(now));
       const h = window.__G && window.__G(), PL = window.__PL;
       if (pre && h && h.P) { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, cause = pre.n.c + (pre.n.ctx ? ' @' + pre.n.ctx : '');
@@ -141,7 +191,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
         if (PL && P) { PL.tagShots(h, window.__fr); if (!h.G.tally && !h.G.fork) PL.bulFrame(h, st);
           if (window.__W) for (const q of window.__W.eshots) { if ('rev' in q) X.revTag = true; if (q.rev && !X.revSeen.has(q)) { X.revSeen.add(q); X.rev++; } }
           { const r = PL.rank(); if (r !== X.lastRank) { X.rank.push([window.__fr, st, r]); X.lastRank = r; } if (st !== X.lastStage) { X.rankAt[st] = r; X.lastStage = st; }
-            if (h.G.boss && !X.bossSeen) { X.bossSeen = true; X.rankDrive = r; } if (!h.G.boss) X.bossSeen = false; } }
+            if (h.G.boss && !X.bossSeen) { X.bossSeen = true; X.rankDrive = r; X.driveKit = { slots: slotsOf(P), gm: h.G.gm ? Object.fromEntries(Object.entries(h.G.gm).filter(([, v]) => v)) : {}, p: PL.mods.RK && PL.mods.RK.rankP ? PL.mods.RK.rankP(P, h.G) : null }; } if (!h.G.boss) X.bossSeen = false; } }
         if (P) { // respawns and restarts after a death: a new P object (resetPlayer); a restart also rewinds the scroll
           if (X.lastP && P !== X.lastP && P.alive && window.__deaths.some((d) => d.rsp == null)) { const restart = h.G.scroll < X.lastSc - 4; X.rsp.push({ f: window.__fr, st, restart, n: 0, rec: 0, got: 0, caps: new WeakSet(h.caps), recSeen: new WeakSet(h.caps) }); X.invEnd = null; // caps already out are not recovery pods (qa-lead review)
             if (window.__W) for (const q of window.__W.eshots) X.rspShots.add(q);
@@ -163,13 +213,25 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift]) => { let now
           : gone.some(rec) ? 'rec' : gone.some(open) ? 'fixed:open'
           : gone.some((e) => e.mid || e.k === 'maw') ? 'fixed:mid' : gone.some((e) => e.group && e.group.pod) ? 'fixed:release' : gone.some((e) => e.cap) ? 'carrier'
           : gone.some((e) => e.group) ? 'formation' : h.G.mini && h.G.mini.k === 'ufo' && !h.G.mini.dead ? 'fixed:saucer' : 'unknown');
+        // drops[] (W6 round 3, gate E2, measure-only): every cap that appeared, by stage and src, picked up or not (pods[] keeps
+        // the pickups); openG[]: each authored opening formation (group.open): members seen, killed, and whether it paid
+        { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, DR = (window.__drops ||= {}), OG = (window.__openG ||= new Map());
+          for (const c of h.caps) if (!had.has(c) && !(window.__dropSeen ||= new WeakSet()).has(c)) { window.__dropSeen.add(c); const k = window.__capSrc.get(c) || 'unknown'; (DR[st] ||= {})[k] = (DR[st][k] || 0) + 1; if (k === 'fixed:open') for (const g of new Set(gone.filter((e) => open(e) && e.group && OG.has(e.group)).map((e) => e.group))) OG.get(g).paid++; } // once per group per cap
+          for (const e of h.enemies) if (e.group && e.group.open && !OG.has(e.group)) OG.set(e.group, { st, s: +(window.__fr / 60).toFixed(1), n: e.group.n || null, seen: new WeakSet(), ns: 0, killed: 0, paid: 0 });
+          for (const e of h.enemies) if (e.group && OG.has(e.group)) { const o = OG.get(e.group); if (!o.seen.has(e)) { o.seen.add(e); o.ns++; } }
+          for (const e of gone) if (e.group && OG.has(e.group) && (e.hp || 0) <= 0) OG.get(e.group).killed++; }
         // E1: a recovery pod (spawn.ts recoveryWave: c.rec on the pod, or dropped by a rec carrier) inside a respawn's 10 s
         { const r = X.rsp[X.rsp.length - 1]; if (r && window.__fr - r.f <= 600) for (const c of h.caps) if (window.__capSrc.get(c) === 'rec' && !r.recSeen.has(c)) { r.recSeen.add(c); r.rec++; } }
         for (const c of before) if (!seen.has(c) && c.x >= -12 && (c.x - h.P.x) ** 2 + (c.y - h.P.y) ** 2 < 20 * 20) {
           const kind = c.graft ? 'graft' : c.blue ? 'blue' : c.choice ? 'choice' : c.salv ? 'salv' : 'pod';
           if (kind === 'choice') { if (chosen) continue; chosen = true; }
           const r = X.rsp[X.rsp.length - 1]; if (r && window.__fr - r.f <= 600 && r.caps.has(c)) r.got++;
-          window.__pods.push({ f: window.__fr, kind, src: window.__capSrc.get(c) || 'unknown', st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } } } }; }, [+SEED, MORTAL, PIL, PARK, HULL, KITP, DRIFT]);
+          window.__w6 = window.__capSrc.get(c) || 'unknown'; // any pod taken this tick: K0 FIRST and the re-roll can turn it into WARD (qa-lead)
+          window.__pods.push({ f: window.__fr, kind, ty: c.ty, full: c.full ? 1 : 0, src: window.__capSrc.get(c) || 'unknown', st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}` }); } }
+      if (wq && h && h.P) window.__wardLedger(wq, h);
+      if (h && h.G) { const m = h.G.mini, F = (window.__fights ||= []), cur = F.length ? F[F.length - 1] : null; // fights[] (measure-only): each held midboss / Maw, killed or not
+        if (m && (!cur || cur.e !== m)) F.push({ e: m, k: m.k, st: `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, f0: window.__fr, f1: null, hp: 1, out: null });
+        for (const c of F) if (c.f1 == null && (c.e.dead || h.G.mini !== c.e)) { c.f1 = window.__fr; c.hp = +Math.max(0, (c.e.hp || 0) / (c.e.max || 1)).toFixed(2); c.out = (c.e.hp || 0) <= 0 && !c.e.gone ? 'kill' : 'left'; /* gone: it withdrew (ufo.ts), even at 0 hp sliding off */ } } } }; }, [+SEED, MORTAL, PIL, PARK, HULL, KITP, DRIFT, RB, KITS.end]);
 const qs = [TIER != null ? 'tier=' + TIER : '', BRU != null ? 'brutal=' + BRU : ''].filter(Boolean).join('&');
 await p.goto(qs ? url + (url.includes('?') ? '&' : '?') + qs : url); await p.waitForFunction(() => window.__started);
 await useLayout(p, 'pod-probe', { quiet: true }); // stdout stays one JSON object; it carries the layout
@@ -187,7 +249,7 @@ const RIGS = RIG ? await p.evaluate(async () => { // --rig full: own everything,
 const key = (t, c) => p.evaluate(([t, c]) => dispatchEvent(new KeyboardEvent(t, { code: c })), [t, c]);
 await key('keydown', 'KeyA'); await p.evaluate('__tick(5)'); await key('keyup', 'KeyA');
 await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); await p.evaluate('__tick(30)'); await key('keydown', 'KeyZ');
-const MODS = await p.evaluate(async () => { window.__fr = 0; window.__pods.length = 0; window.__S = (await import('/src/state.ts')).$; window.__W = await import('/src/world.ts'); window.__BU = await import('/src/boss/update.ts'); window.__DN = await import('/src/enemies/mid/_deny.ts'); if (window.__pilotLoad) await window.__pilotLoad(); return window.__PL.load(); });
+const MODS = await p.evaluate(async () => { window.__fr = 0; window.__pods.length = 0; window.__S = (await import('/src/state.ts')).$; window.__W = await import('/src/world.ts'); window.__FL = await import('/src/flow.ts'); window.__BU = await import('/src/boss/update.ts'); window.__DN = await import('/src/enemies/mid/_deny.ts'); if (window.__pilotLoad) await window.__pilotLoad(); return window.__PL.load(); });
 let last = '', lastFork = false; const tally = {}, grades = {}, warns = []; const k0 = (s) => `${s.loop + 1}-${(s.stage || 0) + 1}`; const seg = []; let endState = '';
 for (let it = 0; it < MIN * 60 * 2; it++) {
   await p.evaluate('__tick(30)');
@@ -206,14 +268,23 @@ for (let it = 0; it < MIN * 60 * 2; it++) {
   if (s.st !== 'play' || s.loop >= +END) { endState = JSON.stringify(s); break; }
 }
 const fin = await p.evaluate(() => { const g = __G(), G = g.G, X = window.__x; return { deaths: window.__deaths, hitLog: window.__hits, lives0: window.__lives0, fr: window.__fr, pods: window.__pods, bio: Math.round(G.bio || 0), lvl: G.lvl, kills: G.kills, st: g.state, bf: window.__bf, fk: Object.keys(window.__S.meta.mbK || {}),
-  tier: Number.isInteger(G.tier) ? G.tier : 'n/a', brutal: G.brutal != null ? G.brutal : window.__PL.mods.BR ? 0 : 'n/a', bul: window.__PL.bul, rank: X.rank, rankAt: X.rankAt, rsp: X.rsp.map(({ caps, recSeen, ...r }) => r), rev: X.revTag ? X.rev : 'n/a', rankDrive: X.rankDrive ?? null, contractErr: window.__PL.contractErr, lobMax: +window.__PL.lobMax.toFixed(2), k0: X.k0, k1: X.k1, score: Math.round(G.score || 0) }; });
+  tier: Number.isInteger(G.tier) ? G.tier : 'n/a', brutal: G.brutal != null ? G.brutal : window.__PL.mods.BR ? 0 : 'n/a', bul: window.__PL.bul, rank: X.rank, rankAt: X.rankAt, rsp: X.rsp.map(({ caps, recSeen, ...r }) => r), rev: X.revTag ? X.rev : 'n/a', rankDrive: X.rankDrive ?? null, driveKit: X.driveKit || null, drops: window.__drops || {}, openG: [...(window.__openG || new Map()).values()].map(({ seen, ...o }) => o), fights: (window.__fights || []).map(({ e, ...c }) => ({ ...c, s: +(c.f0 / 60).toFixed(1), dur: c.f1 != null ? +((c.f1 - c.f0) / 60).toFixed(1) : null, hp: c.f1 != null ? c.hp : +((e.hp || 0) / (e.max || 1)).toFixed(2) })), wl: (() => { const L = window.__wl; return { sup: L.sup, spent: L.spent, spent0: L.spent0, left: { ...L.left, ...L.stk.reduce((a, c) => ((a[c.src + '@end'] = +((a[c.src + '@end'] || 0) + c.amt).toFixed(2)), a), {}) }, grz: L.grz, grzAmt: +L.grzAmt.toFixed(2), hits: L.hits }; })(), contractErr: window.__PL.contractErr, lobMax: +window.__PL.lobMax.toFixed(2), k0: X.k0, k1: X.k1, score: Math.round(G.score || 0) }; });
 seg.push({ k: 'END', f0: fin.fr });
+// E6 (W6 round 3, post-processing only): each death's censor horizon, the seconds from its respawn to the next death (or
+// the run's end), so a null rebuild reads 'not within h s', not a missing sample; and its kit's class against K0 (k0 =
+// exactly K0's levels in every slot it has, above = more than K0 somewhere, below = short of K0). The kit half of E6
+// (120-240 s back to the death kit) is the spec's END D1 example: a death holding more than K0
+for (const d of fin.deaths) { const r = d.rsp != null ? fin.rsp[d.rsp] : null, nx = r ? fin.deaths.find((q) => q.f > r.f) : null;
+  d.rebuild_s.horizon = r ? +(((nx ? nx.f : fin.fr) - r.f) / 60).toFixed(1) : 0;
+  const k = d.kit, ge = k[0] >= 2 && (k[1] >= 1 || k[4] >= 1) && (k[2] >= 1 || k[3] >= 1) && k[5] >= 1 && k[6] >= 1;
+  d.kitClass = !ge ? 'below' : k[0] > 2 || k[1] > 1 || k[4] > 1 || k[5] > 1 || k[6] > 1 ? 'above' : 'k0'; } // ARC and PYRE 1 are K0 forms, like SPLIT and MISSILE 1
 const podsOnly = fin.pods.filter((x) => x.kind === 'pod' || x.kind === 'choice');
 const first = podsOnly[0];
 const stages = seg.slice(0, -1).map((sg, i) => { const f1 = seg[i + 1].f0; const n = podsOnly.filter((x) => x.f >= sg.f0 && x.f < f1).length; const dur = (f1 - sg.f0) / 60;
   const kinds = fin.pods.filter((x) => x.f >= sg.f0 && x.f < f1).reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {});
   const src = fin.pods.filter((x) => x.f >= sg.f0 && x.f < f1).reduce((a, x) => ((a[x.src] = (a[x.src] || 0) + 1), a), {});
-  return { stage: sg.k, dur: +dur.toFixed(1), pods: n, kinds, src, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
+  const types = podsOnly.filter((x) => x.f >= sg.f0 && x.f < f1).map((x) => (x.ty ?? '?') + (x.src === 'rec' ? 'r' : '')).join(''); // the slot of each pod taken (player.ts SLOTS 0-6; r = a recovery pod)
+  return { stage: sg.k, dur: +dur.toFixed(1), pods: n, types, kinds, src, ppm: +(n / (dur / 60)).toFixed(2), lvlAtStart: sg.lvl, bioAtStart: sg.bio }; });
 const tierN = Number.isInteger(fin.tier) ? fin.tier : 1;
 const bullets = Object.fromEntries(Object.entries(fin.bul).map(([k, v]) => { const c = k.split('|').pop(), rq = (q) => hq(v.ratio, q);
   return [k, { frames: v.frames, cap: CAPS[c][tierN], overCap: v.over, overMax: v.overMax, p50: hq(v.ns, .5), p90: hq(v.ns, .9), max: hmax(v.ns), maxAll: hmax(v.n), gt5: v.frames ? +hshare(v.ns, 5).toFixed(3) : null, carriedFrames: v.carried || 0, vmax: +v.vmax.toFixed(2), vmaxKind: v.vk || null, vcap: VCAP[tierN], vOver: v.vOver, ratioP50: rq(.5), ratioP90: rq(.9) }]; }));
@@ -221,9 +292,10 @@ const shieldHits = Object.values(fin.hitLog).reduce((a, n) => a + n, 0);
 const deathSrc = fin.deaths.reduce((a, d) => ((a[d.src || 'other'] = (a[d.src || 'other'] || 0) + 1), a), {});
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
-  mortal: MORTAL, park: PARK, drift: DRIFT, hull: HULL, kit: KIT, rig: RIGS, react: PIL ? +(REACT ?? 0) : null, tierAsked: TIER, tier: fin.tier, brutal: fin.brutal, mods: MODS,
+  mortal: MORTAL, rebuild: RB, park: PARK, drift: DRIFT, hull: HULL, kit: KIT, rig: RIGS, react: PIL ? +(REACT ?? 0) : null, tierAsked: TIER, tier: fin.tier, brutal: fin.brutal, mods: MODS,
   deaths: fin.deaths, deathSrc, hitLog: fin.hitLog, shieldHits, slack: shieldHits + fin.deaths.length, recovery: fin.rsp, revenge: fin.rev,
   k0_s: fin.k0 != null ? +(fin.k0 / 60).toFixed(1) : null, k1_s: fin.k1 != null ? +(fin.k1 / 60).toFixed(1) : null,
-  rankTrace: fin.rank.every((r) => r[2] == null) ? null : fin.rank, rankAtStage: fin.rankAt, rankAtDrive: fin.rankDrive, lobMax: fin.lobMax, contractErr: fin.contractErr, bullets, bulletHist: fin.bul,
+  rankTrace: fin.rank.every((r) => r[2] == null) ? null : fin.rank, rankAtStage: fin.rankAt, rankAtDrive: fin.rankDrive, driveKit: fin.driveKit, fights: fin.fights, drops: fin.drops, openG: fin.openG,
+  ward: { fullHits: fin.wl.hits, grazes: fin.wl.grz, grazeDrain: fin.wl.grzAmt, supply: fin.wl.sup, spentHits: fin.wl.spent, spentHitsLife0: fin.wl.spent0, unspent: fin.wl.left }, lobMax: fin.lobMax, contractErr: fin.contractErr, bullets, bulletHist: fin.bul,
   lives0: fin.lives0, pilot: PIL ? await p.evaluate(() => window.__pilotLog) : null, stages, tally_s: tally, grades, warns, bossFight_s: Object.fromEntries(Object.entries(fin.bf).map(([k, f]) => [k, +(f / 60).toFixed(1)])), finalBio: fin.bio, finalScore: fin.score, firstKills: fin.fk, finalLvl: fin.lvl, kills: fin.kills, endState, errors: errs.slice(0, 3) }));
 console.error(`pod-probe: ran on ${LAYOUT}`); await b.close();
