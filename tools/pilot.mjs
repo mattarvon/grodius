@@ -74,8 +74,12 @@ export const PILOT_TUNE = { H: 24, step: 2, HL: 72, stepL: 3, speeds: [0, .5, 1]
  *    1998); a pad or a thumb on glass does not hit the exact 22.5 deg step the plan chose
  *  - aimSd 6 px: where the player means to sit (lining up a shot, a pod) wobbles: the goal point is jittered per plan
  *  - over .2 / overF 6 f: overshoot in step tracking; one dodge in five carries on ~100 ms past the safe point
- *  The pilot's own PRNG (mulberry32 on the seed): it never draws the sim's R(), so the game's stream is untouched */
-export const PILOT_HUMAN = { react: 19, jitLo: -2, jitHi: 3, spell: 60, tell: 6, plan: 6, dirSd: .15, spLo: .85, aimSd: 6, over: .2, overF: 6 };
+ *  The pilot's own PRNG (mulberry32 on the seed): it never draws the sim's R(), so the game's stream is untouched
+ *  - brk 40 px: a correction is broken off (re-planned at once) for a seen threat this close and closing, or after a plan
+ *    with no safe move (qa-lead): a person keeps jinking when cornered. pilotLog.hbrk counts the breaks
+ *  The 8-way pad reading: on keys or a d-pad the real limit is 8 directions at full speed; dirSd and spLo model a thumb on
+ *  glass (the phone build) better than a pad, and err toward the clumsier input */
+export const PILOT_HUMAN = { react: 19, jitLo: -2, jitHi: 3, spell: 60, tell: 6, plan: 6, dirSd: .15, spLo: .85, aimSd: 6, over: .2, overF: 6, brk: 40 };
 
 // The page-side code, as a string so addInitScript can take it. Kept dependency-free: it reads window.__G (main.ts) and
 // the live /src modules it imports itself (window.__pilotLoad), or the ones a tool already put on window / window.__PL.
@@ -110,7 +114,12 @@ export const PILOT = `(() => {
   let hs = null; // seeded on first use: a tool may set window.__pilotHuman after this script
   const hr = () => { if (hs == null) hs = (Math.imul(((window.__pilotHuman && window.__pilotHuman.seed) | 0) + 1, 2654435761) + 1013904223) >>> 0; hs = (hs + 0x6D2B79F5) >>> 0; let t = hs; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const hgauss = () => { let u = 0; for (let i = 0; i < 4; i++) u += hr(); return (u - 2) * Math.sqrt(3); }; // ~N(0, 1), bounded
-  const HS = { spF: 0, rt: HP.react, hold: 0, v: null, ax: 0, ay: 0 };
+  const HS = { spF: 0, rt: HP.react, hold: 0, v: null, ax: 0, ay: 0, safe: true };
+  // the break test: a seen shot or body within HP.brk px of the ship and closing (its last-frame step toward it)
+  const brake = (g, P) => { const Wm = mod('W'), B = HP.brk, near = (x, y, vx, vy) => { const dx = P.x - x, dy = P.y - y; return dx * dx + dy * dy < B * B && dx * vx + dy * vy > 0; };
+    if (Wm) for (const s of Wm.eshots) if (s.t != null && s.t >= HS.rt && near(s.x, s.y, s.vx || 0, s.vy || 0)) return true;
+    for (const e of g.enemies) { if (e.dead || e.ghost > 0 || (e.t != null && e.t < HS.rt)) continue; const q = prev.get(e); if (q && near(e.x, e.y, e.x - q[0], e.y - q[1])) return true; }
+    return false; };
   window.__pilotStep = (g, tx, ty) => {
     const P = g.P, G = g.G, Wm = mod('W');
     if (!ld) window.__pilotLoad();
@@ -118,16 +127,21 @@ export const PILOT = `(() => {
     if (P && alive && !P.alive && ctx) window.__pilotLog.deaths.push(ctx);
     alive = !!(P && P.alive); if (!P || !P.alive || !Wm) return;
     window.__pilotLog.frames++;
-    if (window.__pilotHuman && HS.hold > 0 && HS.v) { HS.hold--; const spH = (1.25 + (P.speed || 0) * .42) * (P.slow > 0 ? .45 : 1), m = Math.hypot(HS.v[0], HS.v[1]), k = m > spH ? spH / m : 1;
-      P.x = Math.min(W - 16, Math.max(10, P.x + HS.v[0] * k)); P.y = Math.min(PH - 6, Math.max(6, P.y + HS.v[1] * k)); // between corrections the hand holds its move
-      for (const e of g.enemies) prev.set(e, [e.x, e.y]); if (G.boss) prev.set(G.boss, [G.boss.x, G.boss.y]); return; }
+    if (window.__pilotHuman) { // the attention spell counts every frame (qa-lead), held or planned
+      if ((HS.spF -= 1) <= 0) { HS.spF = HP.spell; HS.rt = HP.react + Math.round(HP.jitLo + hr() * (HP.jitHi - HP.jitLo)); }
+      // a person breaks a correction off when the last plan had no safe move, or when a threat they can now see (old enough
+      // for the reaction time) is within HP.brk px and closing: re-plan this frame (counted, so M1 can show they are rare)
+      if (HS.hold > 0 && HS.v && (!HS.safe || brake(g, P))) { HS.hold = 0; window.__pilotLog.hbrk = (window.__pilotLog.hbrk || 0) + 1; }
+      if (HS.hold > 0 && HS.v) { HS.hold--; const spH = (1.25 + (P.speed || 0) * .42) * (P.slow > 0 ? .45 : 1), m = Math.hypot(HS.v[0], HS.v[1]), k = m > spH ? spH / m : 1;
+        P.x = Math.min(W - 16, Math.max(10, P.x + HS.v[0] * k)); P.y = Math.min(PH - 6, Math.max(6, P.y + HS.v[1] * k)); // between corrections the hand holds its move
+        if (ctx) { ctx.x = Math.round(P.x); ctx.y = Math.round(P.y); ctx.hold = HS.hold + 1; } // a death in a hold records where it was
+        keepPrev(g, G); return; } }
     if (window.__pilotHuman && tx != null) { tx += HS.ax; ty += HS.ay; }
     const t00 = rnow();
     live.clear();
     const sp = (1.25 + (P.speed || 0) * .42) * (P.slow > 0 ? .45 : 1);
     const ss = G.scrollSpeed ?? 1, sc = G.scroll; // ?? not ||: the scroll is exactly 0 during held midbosses and the Drive (step.ts)
     const HU = window.__pilotHuman ? HP : null; // r4: the human profile (PILOT_HUMAN), else the reading pilot as before
-    if (HU && (HS.spF -= 1) <= 0) { HS.spF = HU.spell; HS.rt = HU.react + Math.round(HU.jitLo + hr() * (HU.jitHi - HU.jitLo)); }
     const RT = HU ? HS.rt : (window.__pilotReact ?? T.react), early = (age) => RT > 0 && age != null && age < RT; // not yet seen (the reaction time)
     const earlyT = (age) => early(age) || (HU && age != null && age < RT + HU.tell); // a telegraph: read later still (human profile)
     const SP = mod('SP'); let bs = 1; try { if (SP && SP.BS) bs = SP.BS() || 1; } catch (e) {}
@@ -424,11 +438,16 @@ export const PILOT = `(() => {
       if (m > 0) { const a = Math.atan2(best[1], best[0]) + HU.dirSd * hgauss(), f = HU.spLo + (1 - HU.spLo) * hr(); best = [Math.cos(a) * m * f, Math.sin(a) * m * f]; }
       const turned = HS.v && m > 0 && (HS.v[0] * best[0] + HS.v[1] * best[1]) < 0;
       HS.hold = HU.plan - 1 + (turned && hr() < HU.over ? HU.overF : 0);
-      HS.v = best; HS.ax = HU.aimSd * hgauss(); HS.ay = HU.aimSd * hgauss(); window.__pilotLog.human = HU; }
+      HS.v = best; HS.safe = safe; HS.ax = HU.aimSd * hgauss(); HS.ay = HU.aimSd * hgauss(); window.__pilotLog.human = HU; }
     P.x = Math.min(W - 16, Math.max(10, P.x + best[0])); P.y = Math.min(PH - 6, Math.max(6, P.y + best[1]));
+    keepPrev(g, G);
+  };
+  // last frame's positions, which vel() differences: every path that ends a frame (a plan or a human hold) calls it
+  function keepPrev(g, G) {
+    const SO = mod('SO');
     for (const e of g.enemies) prev.set(e, [e.x, e.y]); if (G.boss) prev.set(G.boss, [G.boss.x, G.boss.y]);
     { const Bb = globalThis.__biome ? globalThis.__biome() : null, eng = Bb && Bb.sig && Bb.sig.eng; if (eng && Array.isArray(eng.blocks)) for (const k of eng.blocks) if (k) prev.set(k, [k.x, k.y]);
       // W3a engine BODY solids (world x): the stored x is advanced by this frame's scroll, so vel() reads screen velocity (W6)
       if (SO && Array.isArray(SO.solids) && SO.SC) for (const q of SO.solids) if (q && q.cls === SO.SC.BODY) prev.set(q, [q.x + (G.scrollSpeed || 0), q.y]); }
-  };
+  }
 })();`;
