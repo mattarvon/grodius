@@ -58,6 +58,24 @@
  *  time (frames): a shot, a body, a hazard or an attack's tell is unseen until it is that many frames old (0 = the
  *  frame it appears; a tool may set window.__pilotReact to fly a slower reader: the M2 sensitivity runs) */
 export const PILOT_TUNE = { H: 24, step: 2, HL: 72, stepL: 3, speeds: [0, .5, 1], dirs: 16, margin: 6, wall: 7, goalW: .02, secHit: 6, secSoft: 26, react: 0 };
+/** r4 decision 29 (Matt, 2026-11-24): the HUMAN profile (window.__pilotHuman = { seed }, pod-probe --human), measure-only. A
+ *  player is not this pilot: they see a threat late, read a telegraph later still, re-plan in discrete corrections, move
+ *  with noise, and sometimes overshoot. Each value and where it comes from (60 f = 1 s; 1 f = 16.7 ms):
+ *  - react 19 f (~317 ms), jitter -2..+3 f per attention spell: visual CHOICE reaction time (several possible escapes) is
+ *    ~300-400 ms against ~200-250 ms simple RT (Hick 1952 / Hyman 1953; Welford 1980; Kosinski 2013 review), and the
+ *    online Human Benchmark median for a single click is ~270 ms before any choice. A 60 Hz display plus a game's input
+ *    path add ~30-60 ms more. 19 f sits inside that, at a practised player's end. It is re-drawn every `spell` frames
+ *    (attention varies; not per threat, so a threat never flickers in and out of view)
+ *  - tell +6 f (~100 ms): reading a telegraph (a dashed line, a glow, a lane) is identification, not detection: the
+ *    choice-minus-simple RT gap, ~100 ms in the sources above. A tell is first seen react + tell frames after it starts
+ *  - plan 6 f (~100 ms): human steering is intermittent, one corrective sub-movement every ~100-200 ms (Craik 1947; Miall,
+ *    Weir & Stein 1993). The pilot re-plans every `plan` frames and holds its move in between
+ *  - dirSd .15 rad, speed 85-100%: signal-dependent motor noise, endpoint spread ~5-10% of the movement (Harris & Wolpert
+ *    1998); a pad or a thumb on glass does not hit the exact 22.5 deg step the plan chose
+ *  - aimSd 6 px: where the player means to sit (lining up a shot, a pod) wobbles: the goal point is jittered per plan
+ *  - over .2 / overF 6 f: overshoot in step tracking; one dodge in five carries on ~100 ms past the safe point
+ *  The pilot's own PRNG (mulberry32 on the seed): it never draws the sim's R(), so the game's stream is untouched */
+export const PILOT_HUMAN = { react: 19, jitLo: -2, jitHi: 3, spell: 60, tell: 6, plan: 6, dirSd: .15, spLo: .85, aimSd: 6, over: .2, overF: 6 };
 
 // The page-side code, as a string so addInitScript can take it. Kept dependency-free: it reads window.__G (main.ts) and
 // the live /src modules it imports itself (window.__pilotLoad), or the ones a tool already put on window / window.__PL.
@@ -87,6 +105,12 @@ export const PILOT = `(() => {
   const HULL = [[12, 0], [-9, -4], [-9, 4], [0, -4], [0, 4]];
   const guard = (k, f) => { try { f(); } catch (e) { const s = window.__pilotLog.err || (window.__pilotLog.err = {}); s[k] = String(e && e.message || e).slice(0, 120); const c = window.__pilotLog.errN || (window.__pilotLog.errN = {}); c[k] = (c[k] || 0) + 1; } };
 
+  // r4 human profile state (PILOT_HUMAN): its own PRNG, never the sim's R()
+  const HP = ${JSON.stringify(PILOT_HUMAN)};
+  let hs = null; // seeded on first use: a tool may set window.__pilotHuman after this script
+  const hr = () => { if (hs == null) hs = (Math.imul(((window.__pilotHuman && window.__pilotHuman.seed) | 0) + 1, 2654435761) + 1013904223) >>> 0; hs = (hs + 0x6D2B79F5) >>> 0; let t = hs; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const hgauss = () => { let u = 0; for (let i = 0; i < 4; i++) u += hr(); return (u - 2) * Math.sqrt(3); }; // ~N(0, 1), bounded
+  const HS = { spF: 0, rt: HP.react, hold: 0, v: null, ax: 0, ay: 0 };
   window.__pilotStep = (g, tx, ty) => {
     const P = g.P, G = g.G, Wm = mod('W');
     if (!ld) window.__pilotLoad();
@@ -94,11 +118,18 @@ export const PILOT = `(() => {
     if (P && alive && !P.alive && ctx) window.__pilotLog.deaths.push(ctx);
     alive = !!(P && P.alive); if (!P || !P.alive || !Wm) return;
     window.__pilotLog.frames++;
+    if (window.__pilotHuman && HS.hold > 0 && HS.v) { HS.hold--; const spH = (1.25 + (P.speed || 0) * .42) * (P.slow > 0 ? .45 : 1), m = Math.hypot(HS.v[0], HS.v[1]), k = m > spH ? spH / m : 1;
+      P.x = Math.min(W - 16, Math.max(10, P.x + HS.v[0] * k)); P.y = Math.min(PH - 6, Math.max(6, P.y + HS.v[1] * k)); // between corrections the hand holds its move
+      for (const e of g.enemies) prev.set(e, [e.x, e.y]); if (G.boss) prev.set(G.boss, [G.boss.x, G.boss.y]); return; }
+    if (window.__pilotHuman && tx != null) { tx += HS.ax; ty += HS.ay; }
     const t00 = rnow();
     live.clear();
     const sp = (1.25 + (P.speed || 0) * .42) * (P.slow > 0 ? .45 : 1);
     const ss = G.scrollSpeed ?? 1, sc = G.scroll; // ?? not ||: the scroll is exactly 0 during held midbosses and the Drive (step.ts)
-    const RT = window.__pilotReact ?? T.react, early = (age) => RT > 0 && age != null && age < RT; // not yet seen (the reaction time)
+    const HU = window.__pilotHuman ? HP : null; // r4: the human profile (PILOT_HUMAN), else the reading pilot as before
+    if (HU && (HS.spF -= 1) <= 0) { HS.spF = HU.spell; HS.rt = HU.react + Math.round(HU.jitLo + hr() * (HU.jitHi - HU.jitLo)); }
+    const RT = HU ? HS.rt : (window.__pilotReact ?? T.react), early = (age) => RT > 0 && age != null && age < RT; // not yet seen (the reaction time)
+    const earlyT = (age) => early(age) || (HU && age != null && age < RT + HU.tell); // a telegraph: read later still (human profile)
     const SP = mod('SP'); let bs = 1; try { if (SP && SP.BS) bs = SP.BS() || 1; } catch (e) {}
     // ---- threats. Circles { x, y, vx, vy, r, k, ay?, t0?, t1?, fn? } in screen space (fn(t) -> [x, y] or null: an exact
     // path), lines { x, y, a, len, w, t0, t1, fa?, pts? } (fa(t): a sweeping angle; pts: a polyline instead), sectors
@@ -115,7 +146,7 @@ export const PILOT = `(() => {
       if (e.k === 'knot' && NO && NO.KNOT && e.y0 != null) { const K = NO.KNOT; return (t) => [e.x - (ss + K.drift) * t, e.y0 + Math.sin((e.t + t) * TAU / K.bobF) * K.bob]; }
       if (e.k === 'drone' && e.pat === 'sine' && e.y0 != null) return (t) => [e.x - 1.75 * t, e.y0 + Math.sin((e.t + t + (e.i || 0) * 9) * .07) * 26];
       if (e.k === 'drone' && e.pat === 'zig' && e.y0 != null) return (t) => { const ph = (e.t + t + (e.i || 0) * 6) % 80 / 80; return [e.x - 2 * t, e.y0 + (ph < .5 ? ph * 4 - 1 : 3 - ph * 4) * 28]; };
-      if (e.k === 'maw' && e.bs && !(e.bs === 1 && early(e.bt)) && BR && BR.MAW && BR.lungeX) { const Mw = BR.MAW, V = e.bv ? Mw.var : null, hold = V ? V.hold : Mw.hold, back = V ? V.backV : Mw.backV, ly = e.ly ?? e.y;
+      if (e.k === 'maw' && e.bs && !(e.bs === 1 && earlyT(e.bt)) && BR && BR.MAW && BR.lungeX) { const Mw = BR.MAW, V = e.bv ? Mw.var : null, hold = V ? V.hold : Mw.hold, back = V ? V.backV : Mw.backV, ly = e.ly ?? e.y;
         // r4 (pressure): the stop is the sim's own e.lsx (bossfights.ts bite: lungeStop, 16 px past the ship's x as its lane locks, never
         // left of W x lungeMin), which the render draws as the lane line's end. This model ran the lunge to W x .35 (g3 128cbac's rule, before
         // W6's MAW.past), so a ship left of x 168 in the lane read as safe and the stage-boss Maw's bite killed the pilot there (round 3 M1)
@@ -146,7 +177,7 @@ export const PILOT = `(() => {
     const B = globalThis.__biome ? globalThis.__biome() : null, haz = B ? B.haz : [];
     // ---- the Saucer's lash (enemies/mid/ufo.ts): the tell aims (locks 16 f before), the whip hits from wt 4 to 20 + the
     // sweep, at reach 18 + 220; phase 2 sweeps +-.5 rad over UFO_SW.f at full reach from wt 16 (_deny.ts sweepA)
-    for (const e of g.enemies) if (!e.dead && e.k === 'ufo' && ((e.st === 'lash' && !early(e.wt)) || e.st === 'whip')) guard('lash', () => {
+    for (const e of g.enemies) if (!e.dead && e.k === 'ufo' && ((e.st === 'lash' && !earlyT(e.wt)) || e.st === 'whip')) guard('lash', () => {
       const ox = e.x - 34, oy = e.y + 9, tel = e.lash2 ? 28 : 44, w0 = e.st === 'lash' ? tel - e.wt : -e.wt, swF = e.sw && DN && DN.UFO_SW ? DN.UFO_SW.f : 0;
       const a0 = e.st === 'whip' && e.wt > 16 && e.la0 != null ? e.la0 : e.la;
       line({ x: ox, y: oy, a: a0, len: 238, w: 6, t0: w0 + 4, t1: w0 + 21 + swF, k: 'lash',
@@ -154,7 +185,7 @@ export const PILOT = `(() => {
     });
     // ---- the flayer's whip (enemies/update.ts 'flayer'): a 34 f tell that tracks to its last frame, then the lash reaches
     // 122 px from (x - 7, y + 1) along e.ang and hits (4.5 px) from strike frame 5 to 15
-    for (const e of g.enemies) if (!e.dead && e.k === 'flayer' && ((e.ws === 'tel' && !early(e.wt)) || e.ws === 'strike')) {
+    for (const e of g.enemies) if (!e.dead && e.k === 'flayer' && ((e.ws === 'tel' && !earlyT(e.wt)) || e.ws === 'strike')) {
       const w0 = e.ws === 'tel' ? 34 - e.wt : -e.wt;
       line({ x: e.x - 7, y: e.y + 1, a: e.ang, len: 122, w: 5, t0: w0 + 5, t1: w0 + 16, k: 'whip' });
     }
@@ -163,7 +194,7 @@ export const PILOT = `(() => {
       // the cleaver: 'tel' 50 f, the lunge's x lerps (.06) to the ship's x + 64 (130 to W - 70), its y to the ship's y + 6
       // (50 to PH - 40) through the tell's first 25 f; then 'cut': 12 f in which the edge sweeps from 3.98 rad down to 2.30
       // round its cleaver (x - 8, y - 6), r 14 to 84, the lunge easing on (.03). Simulated per candidate (it follows the ship)
-      if ((e.st === 'tel' && !early(e.wt)) || e.st === 'cut') {
+      if ((e.st === 'tel' && !earlyT(e.wt)) || e.st === 'cut') {
         const st0 = e.st, wt0 = e.wt, x0 = e.x, y0 = e.y, tx0 = e.tx ?? e.x;
         sectors.push({ k: 'cleaver', r0: 14, r1: 84, sim: safeF('cleaver', (cs, t) => {
           let m = cs.m.get(e); if (!m) { m = { f: 0, st: st0, wt: wt0, x: x0, y: y0, tx: tx0 }; cs.m.set(e, m); }
@@ -191,7 +222,7 @@ export const PILOT = `(() => {
         line({ x: ox, y: oy, a, len: ds, w: D.hW + .6, t0: tb, t1: tb + bf + Math.ceil(ds / D.hIn), k: k + ':wire', pts: sag > 0 ? [[ox, oy], [(ox + txp) / 2, (oy + typ) / 2 + sag], [txp, typ]] : null });
         return tb; };
       let tb1 = null;
-      if (e.st === 'htel' && !early(e.wt)) tb1 = hookAt(e.ha, D.hTel - e.wt + 1, 10, 'hook');
+      if (e.st === 'htel' && !earlyT(e.wt)) tb1 = hookAt(e.ha, D.hTel - e.wt + 1, 10, 'hook');
       else if (e.st === 'hook' && e.hd > 0) tb1 = hookAt(e.ha, 0, e.hd, 'hook');
       if (e.st2 === 'htel' && e.ha2 != null) { // the second hook: locks h2Lock into the first's bite, throws hLock after (not before TELL_MIN)
         const tBite = tb1 != null ? tb1 : e.st === 'bite' ? -e.wt : 0;
@@ -203,10 +234,10 @@ export const PILOT = `(() => {
     // (origin e.lx, e.ly), the tip flies the whole screen at 8 px/f, PLANTS for 90 f as a solid chain, then reels
     for (const e of g.enemies) if (!e.dead && e.k === 'butcher') guard('butcher', () => {
       const [vx, vy] = vel(e);
-      if ((e.st === 'ctel' && !early(e.wt)) || e.st === 'cut') { const w0 = e.st === 'ctel' ? 48 - e.wt : -e.wt, x0 = e.x - 10, y0 = e.y - 10;
+      if ((e.st === 'ctel' && !earlyT(e.wt)) || e.st === 'cut') { const w0 = e.st === 'ctel' ? 48 - e.wt : -e.wt, x0 = e.x - 10, y0 = e.y - 10;
         sectors.push({ k: 'cleaver', r0: 18, r1: 100, sim: safeF('bcleaver', (cs, t) => (t < w0 || t >= w0 + 13 ? null : [x0 + vx * t, y0 + vy * t, 2.30, 3.99])) }); live.add('bcleaver'); }
       const ph2 = e.hp < e.max * .5;
-      if (early(e.wt) && e.st === 'htel') { /* not yet seen */ }
+      if (earlyT(e.wt) && e.st === 'htel') { /* not yet seen */ }
       else if (e.st === 'htel' && ph2) { const w0 = 48 - e.wt, ox = e.lx != null ? e.lx : e.x + 10, oy = e.ly != null ? e.ly : e.y - 8;
         line({ x: ox, y: oy, a: e.ha, len: 520, w: 6, t0: w0, t1: w0 + 150, k: 'bhook' }); }
       else if (e.st === 'hook' && e.hk && e.hk.v2) { const h = e.hk, ax = e.x + 10, ay = e.y - 8, a = Math.atan2(h.ty - ay, h.tx - ax), l = Math.hypot(h.tx - ax, h.ty - ay);
@@ -227,7 +258,7 @@ export const PILOT = `(() => {
       for (let i = 0; i < (e.pn || 0); i++) { const a = e.t - e.pT[i]; if (DN.poolStage(a) > 1 || DN.poolStage(a) < 0) continue;
         const b = a - D.plArm - D.plEr0; let t0;
         if (b < 0) t0 = -b + D.plErTel; else { const q = b % D.plEvery; t0 = q < D.plErTel ? D.plErTel - q : q < D.plErTel + D.plErLive ? 0 : D.plEvery - q + D.plErTel; }
-        if (t0 > D.plErTel || (t0 > 0 && early(D.plErTel - t0))) continue; // seen from the boil's first frame (+ the reaction time), never from the clock before it
+        if (t0 > D.plErTel || (t0 > 0 && earlyT(D.plErTel - t0))) continue; // seen from the boil's first frame (+ the reaction time), never from the clock before it
         const t1 = t0 + D.plErLive - (t0 === 0 ? (b % D.plEvery) - D.plErTel : 0), lft = D.plArm + D.plLive - a; if (t0 > lft) continue;
         const x = e.pX[i] - sc, sd = e.pS[i];
         for (let d = 6; d < e.pR[i]; d += 10) circ({ x, y: e.pY[i] - sd * d, vx: -ss, vy: 0, r: D.plCW + 2.6 + 2, t0, t1: Math.min(t1, lft), k: 'column' }); } });
@@ -237,7 +268,7 @@ export const PILOT = `(() => {
     if (DN && DN.DN && DN.LP && mini && mini.k === 'choir' && mini.lp && mini.lb) guard('choir', () => {
       const D = DN.DN, LP = DN.LP, e = mini, mouth = e.x - D.lFront, ys = [e.lp === LP.tel ? e.ly0 : e.ly]; if (e.tw) ys.push(e.lp === LP.tel ? e.ly20 : e.ly2);
       let tOut = null, tBack = null;
-      if (e.lp === LP.tel && early(e.wt)) return;
+      if (e.lp === LP.tel && earlyT(e.wt)) return;
       if (e.lp === LP.tel) tOut = D.lTel - e.wt + 1;
       if (e.lp === LP.tel || e.lp === LP.out) { const x1 = e.lp === LP.tel ? mouth : e.lx; tBack = (tOut || 0) + Math.ceil((x1 - D.lEnd) / D.lSp) + 1; }
       // rank >= 14: the turn (LP.turn) re-locks the return on the ship's height (lyB) for lTurn, off screen, then it sweeps back
@@ -256,7 +287,7 @@ export const PILOT = `(() => {
         for (const dy of [0, 11, 22]) circ({ x, y: tp - dy, vx: 0, vy: 0, r: KB.mobHit + 2.6, k: 'keep:mobile' }); }
       // (fork k shows its shudder only from wt > k gap, render/gross/boss/keepsake.ts: the RNG's drop order is not read before it)
       if ((m.st === 'drop' || m.st === 'rain') && m.dq && m.ma) { const rain = m.st === 'rain', gap = rain ? 6 : KB.dropGap, tel = rain ? KB.rain : KB.drop;
-        for (let k = 0; k < (m.dn || 0); k++) { const i = m.dq[k], t0 = tel + k * gap - m.wt; if (t0 < 0 || !m.ma[i] || m.wt <= k * gap || early(m.wt - k * gap)) continue; const x = KS.mobForkX(m, i), tp = KS.mobForkTip(m, i);
+        for (let k = 0; k < (m.dn || 0); k++) { const i = m.dq[k], t0 = tel + k * gap - m.wt; if (t0 < 0 || !m.ma[i] || m.wt <= k * gap || earlyT(m.wt - k * gap)) continue; const x = KS.mobForkX(m, i), tp = KS.mobForkTip(m, i);
           circ({ x, y: tp, vx: 0, vy: 0, r: KB.mobHit + 2.6, t0, k: 'keep:drop', fn: (t) => { const u = Math.max(0, t - t0); return [x, tp + .0125 * u * (u + 1)]; } }); } }
       // planted forks (plantTouch: 4 and 10 px out of the surface)
       for (let i = 0; i < (m.pn || 0); i++) for (const d of [4, 10]) th.push({ x: m.pX[i] - sc, y: m.pY[i] - m.pS[i] * d, vx: 0, vy: 0, r: KB.plR + 2.6, k: 'keep:planted' });
@@ -267,23 +298,23 @@ export const PILOT = `(() => {
       const flights = (q, t0, tx, ty, v) => { for (let i = 0; i < (m.pn || 0); i++) if (m.pQ && m.pQ[i] === q) {
         const x0 = m.pX[i] - sc, y0 = m.pY[i] - m.pS[i] * 9, d = Math.hypot(tx - x0, ty - y0) || 1, ux = (tx - x0) / d, uy = (ty - y0) / d;
         circ({ x: x0, y: y0, vx: 0, vy: 0, r: homeR, t0, t1: t0 + d / v + 1, k: q === 1 ? 'keep:tug' : 'keep:recall', fn: (t) => { const u = Math.max(0, t - t0) * v; return [x0 + ux * u, y0 + uy * u]; } }); } };
-      if (m.rcW > 0 && !early(m.rcW) && m.rtx != null) flights(2, KB.recall - m.rcW + 1, m.rtx, m.rty, KB.recSp * bs);
-      if (m.st === 'tug' && !early(m.wt) && m.tux != null) flights(1, KB.tug - m.wt + 1, m.tux, m.tuy, KB.tugSp * bs);
+      if (m.rcW > 0 && !earlyT(m.rcW) && m.rtx != null) flights(2, KB.recall - m.rcW + 1, m.rtx, m.rty, KB.recSp * bs);
+      if (m.st === 'tug' && !earlyT(m.wt) && m.tux != null) flights(1, KB.tug - m.wt + 1, m.tux, m.tuy, KB.tugSp * bs);
       // the boomerang: the 'boom' tell tracks, then locks for boomLock; out along la at boomSp to bl (the screen's edge,
       // or KB.boomEnd from the left), and back. A spinning capsule (boomHalf + boomR): a disc for the pilot
       const boomR = KB.boomHalf + KB.boomR + 2.6;
-      if (m.st === 'boom' && !early(m.wt) && m.lx != null) { const x0 = m.lx, y0 = m.ly, a = m.la, c = Math.cos(a), s = Math.sin(a);
+      if (m.st === 'boom' && !earlyT(m.wt) && m.lx != null) { const x0 = m.lx, y0 = m.ly, a = m.la, c = Math.cos(a), s = Math.sin(a);
         let Lb = c < -.05 ? (x0 - KB.boomEnd) / -c : 400; if (s < -.05) Lb = Math.min(Lb, (y0 - 6) / -s); if (s > .05) Lb = Math.min(Lb, (PH - 6 - y0) / s);
         const t0 = KB.boomTel - m.wt + 1, bl = Math.max(40, Lb);
         circ({ x: x0, y: y0, vx: 0, vy: 0, r: boomR, t0, t1: t0 + 2 * bl / KB.boomSp + 2, L: 1, k: 'keep:boom', fn: (t) => { const u = Math.max(0, t - t0); let d = KB.boomSp * u; if (d > bl) d = 2 * bl - d; return d < 0 ? null : [x0 + c * d, y0 + s * d]; } }); }
       if (m.st === 'fly') { const x0 = m.lx, y0 = m.ly, c = Math.cos(m.la), s = Math.sin(m.la), bl = m.bl, bs0 = m.bs, dir = m.bd;
         circ({ x: m.bx, y: m.by, vx: 0, vy: 0, r: boomR, t0: 0, L: 1, k: 'keep:boom', fn: (t) => { let d = bs0 + dir * KB.boomSp * t; if (dir > 0 && d > bl) d = 2 * bl - d; return d < 0 ? null : [x0 + c * d, y0 + s * d]; } }); }
       // the aimed throw ('aim' KB.aim, locked the last KB.lock): DOZING one fork, from AWAKE three KB.fan apart, at throwSp x BS
-      if (m.st === 'aim' && !early(m.wt) && m.lx != null) { const t0 = KB.aim - m.wt + 1, v = KB.throwSp * bs;
+      if (m.st === 'aim' && !earlyT(m.wt) && m.lx != null) { const t0 = KB.aim - m.wt + 1, v = KB.throwSp * bs;
         for (let k = m.ph ? -1 : 0; k <= (m.ph ? 1 : 0); k++) { const a = m.la + k * KB.fan, c = Math.cos(a), s = Math.sin(a), x0 = m.lx, y0 = m.ly;
           circ({ x: x0, y: y0, vx: 0, vy: 0, r: 3 + 2.6, t0, k: 'keep:throw', fn: (t) => { const u = Math.max(0, t - t0) * v; return [x0 + c * u, y0 + s * u]; } }); } }
       // the search beam's rain (CRACKED): the ship's column marked mkT frames before three forks fall in it from the ceiling
-      if (m.mkT > 0 && !early(KB.bTel - m.mkT) && m.mkX != null) { const t0 = m.mkT + (m.hdB || 0), v = KB.bRainSp * bs;
+      if (m.mkT > 0 && !earlyT(KB.bTel - m.mkT) && m.mkX != null) { const t0 = m.mkT + (m.hdB || 0), v = KB.bRainSp * bs;
         for (let k = 0; k < KB.bRainN; k++) { const x = m.mkX + (k - (KB.bRainN - 1) / 2) * KB.bRainDx, y0 = Math.max(2, Wm.ceilAt(x + sc)) + 3;
           circ({ x, y: y0, vx: 0, vy: 0, r: 4 + 2.6, t0, k: 'keep:rain', fn: (t) => [x, y0 + v * Math.max(0, t - t0)] }); } }
       seen('keepsake:' + (m.st || ''));
@@ -291,11 +322,11 @@ export const PILOT = `(() => {
     // ---- the Drive (boss/update.ts): the beam (and the TWIN BEAM's laser.ang2), live DRIVE.beam.live f after its charge;
     // the tentacles from tentPts with the reach state (rs, rf) advanced as stepReach does (bossrules.ts DRIVE.reach)
     const Bo = G.boss;
-    if (Bo && !Bo.dying && Bo.laser && !(Bo.laser.tel > 0 && early((Bo.laser.ml || 75) - Bo.laser.tel))) guard('beam', () => { const L = Bo.laser, Bm = BR && BR.DRIVE ? BR.DRIVE.beam : { live: 40, half: 6 }, t0 = L.tel > 0 ? L.tel : 0, t1 = t0 + (L.tel > 0 ? Bm.live : L.beam);
+    if (Bo && !Bo.dying && Bo.laser && !(Bo.laser.tel > 0 && earlyT((Bo.laser.ml || 75) - Bo.laser.tel))) guard('beam', () => { const L = Bo.laser, Bm = BR && BR.DRIVE ? BR.DRIVE.beam : { live: 40, half: 6 }, t0 = L.tel > 0 ? L.tel : 0, t1 = t0 + (L.tel > 0 ? Bm.live : L.beam);
       line({ x: Bo.x, y: Bo.y, a: L.ang, len: 1000, w: Bm.half, t0, t1, k: 'beam' });
       if (Number.isFinite(L.ang2)) line({ x: Bo.x, y: Bo.y, a: L.ang2, len: 1000, w: Bm.half, t0, t1, k: 'beam2' }); });
     const BU = mod('BU'), RC = BR && BR.DRIVE ? BR.DRIVE.reach : null;
-    const adv = (tt, t) => { if (!tt.rs || !RC || (tt.rs === 1 && early(tt.rf))) return tt; let rs = tt.rs, rf = tt.rf + t; // stepReach: tell -> out (ext + hold) -> back
+    const adv = (tt, t) => { if (!tt.rs || !RC || (tt.rs === 1 && earlyT(tt.rf))) return tt; let rs = tt.rs, rf = tt.rf + t; // stepReach: tell -> out (ext + hold) -> back
       if (rs === 1 && rf >= RC.tell) { rf -= RC.tell; rs = 2; } if (rs === 2 && rf >= RC.ext + RC.hold) { rf -= RC.ext + RC.hold; rs = 3; } if (rs === 3 && rf >= RC.back) { rs = 0; rf = 0; }
       return { ...tt, rs, rf }; };
     const tent = safeF('tentacle', (t) => { const out = []; if (!Bo || Bo.dying || !Bo.tent || !BU) return out; const bf = { ...Bo, t: Bo.t + t };
@@ -388,6 +419,12 @@ export const PILOT = `(() => {
       ctx = { st: (G.loop + 1) + '-' + ((G.stage || 0) + 1), sc: Math.round(sc), x: Math.round(P.x), y: Math.round(P.y), mini: mini ? mini.k : null, mst: mini ? mini.st || '' : '', boss: !!G.boss,
         near, en: g.enemies.filter((e) => !e.dead && Math.hypot(e.x - P.x, e.y - P.y) < 90).map((e) => e.k + ':' + (e.st || '')).slice(0, 4), safe, inv: P.inv, shield: P.shield,
         live: [...live].filter((k) => !k.startsWith('shot:')).slice(0, 8) }; }
+    if (HU) { // execution: motor noise on the chosen move, the next correction PLAN frames on, sometimes an overshoot
+      const m = Math.hypot(best[0], best[1]);
+      if (m > 0) { const a = Math.atan2(best[1], best[0]) + HU.dirSd * hgauss(), f = HU.spLo + (1 - HU.spLo) * hr(); best = [Math.cos(a) * m * f, Math.sin(a) * m * f]; }
+      const turned = HS.v && m > 0 && (HS.v[0] * best[0] + HS.v[1] * best[1]) < 0;
+      HS.hold = HU.plan - 1 + (turned && hr() < HU.over ? HU.overF : 0);
+      HS.v = best; HS.ax = HU.aimSd * hgauss(); HS.ay = HU.aimSd * hgauss(); window.__pilotLog.human = HU; }
     P.x = Math.min(W - 16, Math.max(10, P.x + best[0])); P.y = Math.min(PH - 6, Math.max(6, P.y + best[1]));
     for (const e of g.enemies) prev.set(e, [e.x, e.y]); if (G.boss) prev.set(G.boss, [G.boss.x, G.boss.y]);
     { const Bb = globalThis.__biome ? globalThis.__biome() : null, eng = Bb && Bb.sig && Bb.sig.eng; if (eng && Array.isArray(eng.blocks)) for (const k of eng.blocks) if (k) prev.set(k, [k.x, k.y]);

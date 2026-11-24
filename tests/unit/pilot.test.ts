@@ -198,3 +198,18 @@ describe('pilot r4: the stage-boss Maw bite runs to its locked stop (bossfights.
     expect(P.y).not.toBe(120);
   });
 });
+
+describe('pilot r4 decision 29: the human profile (PILOT_HUMAN), measure-only', () => {
+  it('does not see a shot until ~react frames old, and holds each correction for `plan` frames', async () => {
+    const { PILOT_HUMAN: H } = await import('../../tools/pilot.mjs');
+    win.__pilotHuman = { seed: 3 };
+    const P = { x: 100, y: 120, speed: 0, alive: true, inv: 0 };
+    win.__W.eshots = [{ x: 140, y: 120, vx: -2, vy: 0, r: 2, k: 'orb', t: 1 }];
+    step(game(P, []), 100, 120);
+    expect(Math.hypot(P.x - 100, P.y - 120)).toBeLessThan(1.5 * 1.25); // unseen: at most one noisy frame of drift toward the jittered aim
+    const x1 = P.x, y1 = P.y, x0 = 100, y0 = 120;
+    win.__W.eshots[0].t = H.react + H.jitHi + 1; // old enough now, but the hand is still in its correction
+    step(game(P, []), 100, 120);
+    expect([P.x - x1, P.y - y1].map((v) => Math.round(v * 1e6))).toEqual([x1 - x0, y1 - y0].map((v) => Math.round(v * 1e6)));
+  });
+});
