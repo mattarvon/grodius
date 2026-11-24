@@ -80,7 +80,7 @@ function droneFire(e) {
     return;
   }
   if (--e.tl > 0) return;
-  if (e.group && e.group.shotT != null && $.G.t - e.group.shotT < SHOT_GAP) { e.tl = SHOT_GAP - ($.G.t - e.group.shotT); return; } // a mate just fired: hold the lit tell until the gap is up
+  if (e.group && e.group.shotT != null && $.G.t - e.group.shotT < SHOT_GAP) { e.tl = SHOT_GAP - ($.G.t - e.group.shotT); return; } // a mate just fired: wait out the gap (dark until the last 12 f, then the tell lights again)
   const mx = e.x + (e.ent === 'left' ? 5 : -5); // the muzzle: a rear wave flies mirrored
   if (mayFire(e.x, e.y, e.ent, $.P.x, $.P.y, W, PH) && inAir(e, mx) && aimShot(mx, e.y, BUL.v.drone)) { e.shot = 1; if (e.group) e.group.shotT = $.G.t; flash(mx, e.y, 8, 4, '255,60,60'); return; }
   e.tl = retryIn(BUL.retry); // 20 f: dark for 8, then the whole 12 f flash again (render shows tl <= 12)
