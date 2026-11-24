@@ -36,17 +36,17 @@ describe('carrier keep roll (D31 capKeep)', () => {
     for (const r of [0, .3, .35, .6499, .65, .66, .83, .99]) expect(carrier('short', r).kept, String(r)).toBe(!(r < .65));
   });
 
-  it('keeps a long4 carrier pod only at R() >= .92 (capKeep .08: tune-tc E2 refit of DIFFICULTY-SPEC §2.2 .05)', () => {
-    for (const r of [.65, .83, .9, .9199]) expect(carrier('long4', r).kept, String(r)).toBe(false);
-    for (const r of [.92, .97, .99]) expect(carrier('long4', r).kept, String(r)).toBe(true);
+  it('keeps a long4 carrier pod only at R() >= .90 (capKeep .10: W6 round 3 E2 refit; tune-tc .08, DIFFICULTY-SPEC §2.2 .05)', () => {
+    for (const r of [.65, .83, .8999]) expect(carrier('long4', r).kept, String(r)).toBe(false);
+    for (const r of [.9, .97, .99]) expect(carrier('long4', r).kept, String(r)).toBe(true);
   });
 
-  it('scales the keep by the tier faucet (tier.ts capRate): Easy x1.5 keeps at .88, Very Hard x.8 only at .936, one roll each', () => {
-    expect(carrier('long4', .8799, 0).kept).toBe(false);
-    expect(carrier('long4', .88, 0).kept).toBe(true);
-    expect(carrier('long4', .9359, 3).kept).toBe(false);
-    expect(carrier('long4', .936, 3).kept).toBe(true);
-    expect(carrier('long4', .92, 1).kept).toBe(true);
+  it('scales the keep by the tier faucet (tier.ts capRate): Easy x1.5 keeps at .85, Very Hard x.8 only at .92, one roll each', () => {
+    expect(carrier('long4', .8499, 0).kept).toBe(false);
+    expect(carrier('long4', .85, 0).kept).toBe(true);
+    expect(carrier('long4', .9199, 3).kept).toBe(false);
+    expect(carrier('long4', .92, 3).kept).toBe(true);
+    expect(carrier('long4', .9, 1).kept).toBe(true);
     for (const t of [0, 1, 2, 3]) expect(carrier('long4', .9, t).n).toBe(carrier('short', .9).n);
   });
 

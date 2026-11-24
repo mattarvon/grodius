@@ -238,7 +238,8 @@ export function perkTick(hurt) {
       if (e.dead || e.ghost > 0) continue;
       const r = s.r + (e.r || 6) * .6;
       if ((e.x - s.x) ** 2 + ((e.y - s.y) * 1.6) ** 2 < r * r) {
-        e.hp -= (e.big || e.mini ? .08 : .25) * s.lv * midMul(e, .08, e.x, e.y, 0); // area: MidSim.hurt decides
+        const d = (e.big || e.mini ? .08 : .25) * s.lv; // W6 round 3: midMul is told the damage the slick deals (it was told .08 at every level and size, so a hurt hook's floor saw too little)
+        e.hp -= d * midMul(e, d, e.x, e.y, 0); // area: MidSim.hurt decides
         e.flash = 2;
         if (R() < .4) drop(e.x, e.y, rr(-.6, .6), rr(-1, .2), 1, 0, 40);
         if (e.hp <= 0) hurt(e, 0, e.x, e.y, 1);

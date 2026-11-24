@@ -1,15 +1,23 @@
 // DPS probe: holds the ship still at (100,127) firing into fixed immortal dummy targets and measures damage/second
 // per loadout. Needs the VITE DEV server (imports live modules). Usage: node tools/dps-probe.mjs http://localhost:4202/ [frames=600] [--layout long4|short]
 //   After the per-item table: the KITS table (E4, E5) and the TTK rig (R2); see the W5 block at the end
-//   The targets sit in open space at biome slot 0's x0 + 700 (src/layout.ts; 3000 on short).
+//   The targets sit at biome slot 0's x0 + 700 (src/layout.ts; 3000 on short), in a FLAT ARENA (W6 round 3, gate E4): the
+//   rig writes the terrain under the screen it uses open (CEIL -99, FLOOR ARENA_FLOOR) and clears the stage's solids,
+//   a probe-only staging write, so WALL and ONE measure the guns, not the terrain. Before, the dummies sat at fixed
+//   screen spots over whatever terrain was there: tune-ts's lane weave and spurs (W6 phase 2) moved the walls under
+//   them and WALL read 80 -> 142-155 on the same guns. --terrain keeps the old behaviour (the real terrain at that x)
 //  FIELD = 12 targets scattered over the right 2/3 of the screen + 2 floor crawlers; ship sweeps up/down (rewards coverage)
 //  ONE   = a single big (r16) target dead ahead at x=250, ship parked level with it (boss-ish: raw focus damage)
 //  eff   = WALL dps / enemy-HP inflation that loadout's power rank causes (what the player actually feels on fodder)
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
+const TERRAIN = process.argv.includes('--terrain'); if (TERRAIN) process.argv.splice(process.argv.indexOf('--terrain'), 1);
 const [url, FR = '600'] = process.argv.slice(2);
+/** the flat arena's floor (screen y, PH 254): the two floor crawlers sit 9 px above it and MISSILE / PYRE run along it */
+const ARENA_FLOOR = 240;
 const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+await p.addInitScript(() => { try { Object.defineProperty(navigator, 'getGamepads', { value: () => [], configurable: true }); } catch (e) {} }); // W6 round 3: the host's real gamepad reaches a headless page (pod-probe note)
 await p.addInitScript(() => { let now = 0; performance.now = () => now; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
 await useLayout(p, 'dps-probe');
@@ -41,13 +49,14 @@ const L = [
   ['MAX', { double: 1, missile: 2, options: 3, speed: 4 }, { cal: 3, serr: 2, rapid: 2 }],
   ['MAX ARC+PYRE2', { laser: 1, pyre: 2, options: 3, speed: 4 }, { cal: 3, serr: 2, rapid: 2 }],
 ];
-const res = await p.evaluate(async ([L, FR]) => {
+const res = await p.evaluate(async ([L, FR, terrain, AF]) => {
   // W6: the ONE lane is the middle of the open corridor over x 100-260 (long4 rev 3's terrain at this x rises past y 127 at the
   // ship, which ate every bolt at the muzzle and read ONE 0)
   const yOne = (sc) => { let c = -1e9, f = 1e9; for (let x = 100; x <= 260; x += 4) { c = Math.max(c, W.ceilAt(x + sc)); f = Math.min(f, W.floorAt(x + sc)); } return Math.round((Math.max(c, 0) + Math.min(f, 254)) / 2); };
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const $ = S.$;
   const IN = await import('/src/input.ts'); $.gate = false; IN.K.KeyZ = true;
+  const SO = await import('/src/solids.ts').catch(() => null), arena = (sc) => { if (terrain) return; const a = Math.max(0, Math.floor((sc - 64) / 4)), b = Math.min(W.FLOOR.length - 1, Math.ceil((sc + 544) / 4)); for (let i = a; i <= b; i++) { W.CEIL[i] = -99; W.FLOOR[i] = AF; } if (SO && SO.solids) SO.solids.length = 0; }; // the flat arena (header; TS 4 px)
   const out = [];
   for (const [name, pw, gm] of L) {
     F.newGame(0); $.state = 'play';
@@ -55,6 +64,7 @@ const res = await p.evaluate(async ([L, FR]) => {
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw);
     $.G.gm = { ...(gm || {}) };
     const sc = __LY.slotRow(0).x0 + 700, fl = (x) => W.floorAt(x + sc);
+    arena(sc);
     const r = {};
     for (const set of ['WALL', 'ONE']) {
       W.shots.length = 0; W.enemies.length = 0; $.P.hist.length = 0;
@@ -78,7 +88,7 @@ const res = await p.evaluate(async ([L, FR]) => {
     out.push([name, r]);
   }
   return out;
-}, [L, +FR]);
+}, [L, +FR, TERRAIN, ARENA_FLOOR]);
 const base = res[0][1];
 const hm = (rk) => 1 + rk * (globalThis.HPK ?? +(process.env.HPK || .8));
 console.log('loadout'.padEnd(16), 'WALL dps'.padStart(9), 'xBase'.padStart(6), 'ONE dps'.padStart(8), 'xBase'.padStart(6), 'rank'.padStart(5), 'eff'.padStart(6));
@@ -111,15 +121,16 @@ const TTK = [ // [kind, stage ordinal, kit, main-branch HP (systems audit §2)]
   ['drone', 0, 'bare', 1], ['drone', 3, 'END D1', 1.4], ['eye', 1, 'STAGE 1 kit', 7.9], ['eye', 3, 'END D1', 9.7], ['flayer', 3, 'END D1', 22.3], ['mutant', 3, 'END D1', 36.2],
   ...KITS.filter((k) => k[0] !== 'bare' && k[0] !== 'END D1').map((k) => ['drone', 3, k[0], 1.4]),
 ];
-const kr = await p.evaluate(async ([KITS, TTK, FR]) => {
+const kr = await p.evaluate(async ([KITS, TTK, FR, terrain, AF]) => {
   const yOne = (sc) => { let c = -1e9, f = 1e9; for (let x = 100; x <= 260; x += 4) { c = Math.max(c, W.ceilAt(x + sc)); f = Math.min(f, W.floorAt(x + sc)); } return Math.round((Math.max(c, 0) + Math.min(f, 254)) / 2); }; // W6, as above
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const POW = await import('/src/power.ts'), MU = await import('/src/mutations.ts'), SP = await import('/src/enemies/spawn.ts'), IN = await import('/src/input.ts');
   let RK = null; try { RK = await import('/src/rank.ts'); } catch (e) {}
+  const SO = await import('/src/solids.ts').catch(() => null), arena = (sc) => { if (terrain) return; const a = Math.max(0, Math.floor((sc - 64) / 4)), b = Math.min(W.FLOOR.length - 1, Math.ceil((sc + 544) / 4)); for (let i = a; i <= b; i++) { W.CEIL[i] = -99; W.FLOOR[i] = AF; } if (SO && SO.solids) SO.solids.length = 0; }; // the flat arena (header; TS 4 px)
   const $ = S.$; $.gate = false; IN.K.KeyZ = true;
   const fit = (pw, gm, pk) => { F.newGame(0); $.state = 'play'; for (let i = 0; i < 30; i++) ST.step(); $.G.script = []; $.G.si = 0; $.G.pend = []; // W6: an empty stage (the long4 jump x now lands in a scripted Maw that ate the ONE lane)
     Object.assign($.P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0, shield: 0 }, pw); $.G.gm = { ...gm }; $.G.pk = { ...pk }; };
-  const dps = (set) => { const sc = __LY.slotRow(0).x0 + 700, fl = (x) => W.floorAt(x + sc);
+  const dps = (set) => { const sc = __LY.slotRow(0).x0 + 700, fl = (x) => W.floorAt(x + sc); arena(sc);
     W.shots.length = 0; W.enemies.length = 0; $.P.hist.length = 0;
     const pos = set === 'ONE' ? [[250, yOne(sc)]] : [[190, 40], [230, 95], [210, 160], [270, 60], [300, 130], [280, 190], [350, 30], [370, 100], [340, 165], [420, 70], [440, 140], [410, 200], [250, fl(250) - 9], [390, fl(390) - 9]];
     const D = pos.map(([x, y]) => ({ k: 'drone', x, y, vx: 0, vy: 0, t: 0, flash: 0, rot: 0, dead: false, hp: 1e6, max: 1e6, r: set === 'ONE' ? 16 : 8, big: set === 'ONE' ? 1 : 0, gsz: 1, score: 0, bio: 0, dum: 1 }));
@@ -144,8 +155,8 @@ const kr = await p.evaluate(async ([KITS, TTK, FR]) => {
     const s0 = $.G.stage; $.G.stage = ord; const e = SP.mk(k, 250, 127); $.G.stage = s0; W.enemies.length = 0;
     const bolt = MU.gunDm(); ttk.push({ k, ord, kit, hp: +e.hp.toFixed(2), main, bolt: +bolt.toFixed(2), bolts: Math.ceil(e.hp / bolt - 1e-9), s: +(e.hp / kits[kit].ONE).toFixed(2), vsMain: +(e.hp / main).toFixed(2) }); }
   return { kits, ttk };
-}, [KITS, TTK, +FR]);
-console.log('\nKITS (systems audit §2 kits + the spec kits):');
+}, [KITS, TTK, +FR, TERRAIN, ARENA_FLOOR]);
+console.log(`\nKITS (systems audit §2 kits + the spec kits; rig: ${TERRAIN ? 'the real terrain at slot 0 x0 + 700 (--terrain)' : 'flat arena, floor ' + ARENA_FLOOR + ', no solids'}):`);
 console.log('kit'.padEnd(36), 'ONE dps'.padStart(8), 'xBare'.padStart(6), 'WALL dps'.padStart(9), 'xBare'.padStart(6), 'pow'.padStart(5), 'rank'.padStart(5));
 const kb = kr.kits.bare;
 for (const [n, r] of Object.entries(kr.kits)) console.log(n.padEnd(36), r.ONE.toFixed(1).padStart(8), (r.ONE / kb.ONE).toFixed(2).padStart(6), r.WALL.toFixed(1).padStart(9), (r.WALL / kb.WALL).toFixed(2).padStart(6), String(r.pow).padStart(5), String(r.rank).padStart(5));

@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "ca3f7bf",
+  "commit": "d698325",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "crux-d3",
@@ -26,11 +26,11 @@
     "kills": 6,
     "t": 1169,
     "seen": "mini:crux",
-    "sig": "1d59799035"
+    "sig": "4de0193ca3"
   },
   "hashes": [
     "ae844f3631",
-    "99356697e2"
+    "6d7f07346a"
   ],
   "errs": []
 }

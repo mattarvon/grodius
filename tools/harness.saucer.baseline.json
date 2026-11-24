@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "ca3f7bf",
+  "commit": "d698325",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "saucer",
@@ -26,11 +26,11 @@
     "kills": 4,
     "t": 1190,
     "seen": "mini:ufo",
-    "sig": "a8628229c2"
+    "sig": "35ce6f55d7"
   },
   "hashes": [
     "3f8d080c4d",
-    "980e4d7bd5"
+    "5425ce803e"
   ],
   "errs": []
 }

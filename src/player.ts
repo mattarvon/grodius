@@ -88,6 +88,25 @@ function settlePrimes() {
     feedAfter({ s: 'STORED PARTS GROW IN', d: names.join(' // '), t: 180, ml: 180 });
   }
 }
+/** K0 (spec §2.2) per slot at seal 0: THRUST, MISSILE or PYRE, SPLIT or ARC, WRAITH and WARD at their seal-0 caps. The
+ *  first slot still short of it, in R1's order (THRUST, main gun, side gun) then R2's (WRAITH, WARD); -1 once K0 is held.
+ *  A missing gun form is SPLIT, a missing side gun MISSILE (K0's forms). Pure read of $.P / $.G */
+export function k0Gap() {
+  const P = $.P;
+  if ((P.speed || 0) < capLv(0)) return 0;
+  if (!P.double && !P.laser) return 2;
+  if (!P.missile && !P.pyre) return 1;
+  if ((P.options || 0) < capLv(5)) return 5;
+  if ((P.wardLv || 0) < capLv(6)) return 6;
+  return -1;
+}
+/** is slot i (a pod's type) already at its K0 level? The gun and side pairs count as one slot each */
+function k0Held(i) {
+  const P = $.P;
+  if (i === 2 || i === 3) return !!(P.double || P.laser);
+  if (i === 1 || i === 4) return !!(P.missile || P.pyre);
+  return slotLv(i) >= capLv(i);
+}
 export function slotMaxed(i) {
   const l = slotLv(i);
   if (i === 6) return l >= capLv(6) && $.P.shield >= wardCap() && !primeOk(6);
@@ -101,9 +120,18 @@ export function applyPower(i, full) {
   // only: from seal 1 ARC and PYRE stay open beside SPLIT / MISSILE, and a re-roll there would swap the held gun form
   // (economy-designer); past K0 a full pod is SURPLUS, as Gradius pays it. A non-FULL recovery pod (c.rec) is re-rolled
   // here too, which is the point (it would otherwise be wasted), though shots.ts updateCaps never re-rolls one in flight
-  if (hardOn() && !full && !SET.meter && (($.G && $.G.seal) || 0) === PRIME.seal && slotMaxed(i)) {
-    const n = podType();
-    if (n >= 0) return applyPower(n, false);
+  // W6 round 3, K0 FIRST (gate E2 "K0 at the Orbit tally, 5 of 5"): while the ship is short of K0 at seal 0, a pod for a
+  // slot already at its K0 level, WARD included whatever its hits, becomes the first missing K0 slot (k0Gap: THRUST, the
+  // main gun, the side gun, WRAITH, WARD), deterministically, with no R(). Spec §2.2 counts Orbit's fixed pods as K0's
+  // guarantee; tc's random re-roll (podType) still let a duplicate WARD pod top the shield up instead (W6 round 2: seed
+  // 11 reached the Orbit tally at THRUST 1 after three WARD pods). Past K0 the old re-roll stands
+  if (hardOn() && !full && !SET.meter && (($.G && $.G.seal) || 0) === PRIME.seal) {
+    const g = k0Gap();
+    if (g >= 0 && g !== i && (k0Held(i) || slotMaxed(i))) return applyPower(g, false);
+    if (g < 0 && slotMaxed(i)) {
+      const n = podType();
+      if (n >= 0) return applyPower(n, false);
+    }
   }
   if (i === 6 && slotLv(6) >= capLv(6) && $.P.shield < wardCap()) {
     const h = ECON[econId()].hard; // D63 long4: +wardTop hits, not a refill, and never past the WARD level (W2)

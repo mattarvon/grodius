@@ -139,10 +139,10 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(gradeOf('long4', st(10, 10), 60, true)).toBe('C');
   });
 
-  it("pays today's stage XP lump, cuts kill XP to x0.30 and kill biomass to x0.37 (D31 fit 1; tune-tc E9)", () => {
+  it("pays today's stage XP lump, cuts kill XP to x0.30 and kill biomass to x0.62 (D31 fit 1; W6 round 3 E9, steady state)", () => {
     for (let loop = 0; loop < 3; loop++) for (let ord = 0; ord < 4; ord++) expect(stageXP('long4', ord, loop)).toBe(perks.stageXP(ord, loop));
     expect(killXP('long4', 30)).toBeCloseTo(9);
-    expect(killBio('long4', 100)).toBeCloseTo(37);
+    expect(killBio('long4', 100)).toBeCloseTo(62);
   });
 
   it('adds .35 of a descent of depth across 4 stages', () => {
@@ -222,23 +222,23 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(ECON.long4.targets!.bio[0]).toEqual([1300, 1500]);
   });
 
-  it("pins the D31 cut with DIFFICULTY-SPEC §2.2's random faucet, refit by tune-tc (E2, E9): kill XP .30, kill biomass .37, carrier keep .08, formation pods .20, grafts x1.8", () => {
-    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .37, .08, .2, 1.8]);
+  it("pins the D31 cut with DIFFICULTY-SPEC §2.2's random faucet, refit by tune-tc and W6 round 3 (E2, E9): kill XP .30, kill biomass .62, carrier keep .10, formation pods .26, grafts x1.8", () => {
+    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .62, .1, .26, 1.8]);
   });
 
-  it('keeps a carrier pod only at a roll of .92 or more, x the tier faucet m', () => {
-    expect(capKept('long4', .9199)).toBe(false);
-    expect(capKept('long4', .92)).toBe(true);
-    expect(capKept('long4', .88, 1.5)).toBe(true); // Easy x1.5: keep .12
-    expect(capKept('long4', .9359, .8)).toBe(false); // Very Hard x.8: keep .064
-    expect(capKept('long4', .936, .8)).toBe(true);
+  it('keeps a carrier pod only at a roll of .90 or more, x the tier faucet m', () => {
+    expect(capKept('long4', .8999)).toBe(false);
+    expect(capKept('long4', .9)).toBe(true);
+    expect(capKept('long4', .85, 1.5)).toBe(true); // Easy x1.5: keep .15
+    expect(capKept('long4', .9199, .8)).toBe(false); // Very Hard x.8: keep .08
+    expect(capKept('long4', .92, .8)).toBe(true);
   });
 
   it('rolls once per cleared formation, and never for the release formation', () => {
     let n = 0;
     const r = (v: number) => () => { n++; return v; };
-    expect(grpDrops('long4', undefined, r(.1999))).toBe(true);
-    expect(grpDrops('long4', undefined, r(.2))).toBe(false);
+    expect(grpDrops('long4', undefined, r(.2599))).toBe(true);
+    expect(grpDrops('long4', undefined, r(.26))).toBe(false);
     expect(n).toBe(2);
     expect(grpDrops('long4', 1, r(.99))).toBe(true);
     expect(n).toBe(2);
