@@ -116,12 +116,12 @@ function drawSlots() {
       ctx.fillRect(x, y, w, h);
     }
     const so = stored(i);
-    if (so) { // SEAL PRIMING (hudcues.ts stored): parts held for the sealed level, combed so they don't read as a level in progress
-      const fw = (w - 2) * so.n / so.nd, pul = so.ready ? .5 + .5 * Math.sin($.T * .2) : 0;
-      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .2 + .2 * pul : .2})`;
+    if (so) { // SEAL PRIMING (hudcues.ts stored): parts held for the sealed level, combed along the top edge (away from the level pips) so they don't read as a level in progress
+      const fw = so.ready ? w - 2 : (w - 2) * so.n / so.nd, pul = so.ready ? .5 + .5 * Math.sin($.T * .2) : 0; // ready: drawn full, whatever PRIME.short (ux)
+      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .15 + .1 * pul : .2})`; // the ready pulse stays under .25 so the name holds its contrast (art-director)
       ctx.fillRect(x + 1, y + 1, fw, h - 2);
       ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .55 + .35 * pul : .5})`;
-      for (let sx = 2; sx < fw; sx += 3) ctx.fillRect(x + sx, y + h - 4, 1, 2); // the comb: one tooth per 3 px, under the name
+      for (let sx = 2; sx < fw; sx += 3) ctx.fillRect(x + sx, y + 1, 1, 1); // the comb: one tooth per 3 px along the top
     } else if ($.P && !slotMaxed(i) && !SET.meter) {
       const fr = $.P.frag && $.P.frag[i] || 0,
         nd = needOf(i);
@@ -132,6 +132,7 @@ function drawSlots() {
     }
     if ($.P && slotLocked(i)) {
       const lk = so && so.ready ? POD[i].h : '#8a2a2a'; // a whole level stored: the lock takes the slot's colour, it opens at the seal
+      if (so && so.ready) { ctx.fillStyle = '#050608'; ctx.fillRect(x + w - 8, y + 1, 7, 7); } // a dark backing keeps the lock's shape against the slot's own border (art-director)
       ctx.fillStyle = lk;
       ctx.fillRect(x + w - 7, y + 3, 5, 4);
       ctx.strokeStyle = lk;
@@ -269,20 +270,20 @@ export function drawHUD() {
     ctx.fillStyle = m.shielded ? '#5d6b7a' : C.bloodL;
     ctx.fillRect(bx, y, bw * k, 3);
     if (m.ticks) { ctx.fillStyle = '#e8dccb'; for (const f of m.ticks) ctx.fillRect(bx + bw * f - .5, y - 1, 1, 5); } // a boss's phase cuts (THE KEEPSAKE's 65% and 30%)
-    const fh = floorHeld(m);
-    if (fh != null) { // the half floor holds the bar at its line (hudcues.ts floorHeld): a bone clamp there, white on a held-back hit
-      const cx = Math.round(bx + bw * fh), hit = m.tk != null && m.t - m.tk < 8;
-      ctx.fillStyle = hit ? '#ffffff' : '#e8dccb';
-      ctx.fillRect(cx - 1, y - 3, 2, 9);
-      ctx.fillRect(cx + 1, y - 3, 2, 1);
-      ctx.fillRect(cx + 1, y + 5, 2, 1);
-    }
     if (m.pl && !m.gone) { // phase timer: thin fuse above the HP bar, blinks in the last 5 s
       const left = 1 - (m.pt || 0) / m.pl;
       if (left > 5 * 60 / m.pl || ($.T >> 3) & 1) {
         ctx.fillStyle = left > 5 * 60 / m.pl ? '#ffb070' : '#ff3a2a';
         ctx.fillRect(bx, y - 3, bw * left, 1);
       }
+    }
+    const fh = floorHeld(m);
+    if (fh != null) { // the half floor holds the bar at its line (hudcues.ts floorHeld): a bone clamp there, over the fuse; a held-back hit jolts it 1 px and turns it white
+      const hit = m.tk != null && m.t - m.tk < 8, cx = Math.round(bx + bw * fh) + (hit ? 1 : 0);
+      ctx.fillStyle = hit ? '#ffffff' : '#e8dccb';
+      ctx.fillRect(cx - 1, y - 3, hit ? 3 : 2, 9);
+      ctx.fillRect(cx + 1, y - 3, 2, 1);
+      ctx.fillRect(cx + 1, y + 5, 2, 1);
     }
     if (m.bars) {
       const n = m.bars.filter(b => !b.dead && b.k === 'nailbar').length; // nail bars only: the Butcher's meat hooks live in e.bars too (W4b)
@@ -340,12 +341,12 @@ export function drawHUD() {
 /** the midbosses' half clock (_fight.ts halfClock) said nothing: the HUD says it, as the biome bosses' clock3 does
  *  (same banner, same roar), drawn and timed here so the sim's G.banner is never written. t runs on the sim's clock
  *  (G.t), so a slow phone that steps twice per draw shows it as long. Render state only */
-const LURCH = { text: 'IT LURCHES ONWARD', sub: 'OUT OF TIME', col: '#ff8a3a', t: 0, ml: 110, e: null, hp: 0, at: 0 };
+const LURCH = { text: 'IT LURCHES ONWARD', sub: 'OUT OF TIME', col: '#ff8a3a', t: 0, ml: 110, e: null, hp: 0, pt: 0, at: 0 };
 function lurchCue() {
   const m = $.G.mini, L = LURCH;
   if (m !== L.e) L.at = 0; // a new fight (or none): an old banner goes with the old one
-  else if (m && lurched(m, L.hp) && !($.G.banner && $.G.banner.text === L.text)) { L.at = $.G.t || 1; sfx.roar(); } // the Bloat's clock3 already said it (its own banner and roar)
-  L.e = m; L.hp = m ? m.hp : 0;
+  else if (m && lurched(m, L.hp, L.pt) && !($.G.banner && $.G.banner.text === L.text)) { L.at = $.G.t || 1; sfx.roar(); } // the Bloat's clock3 already said it (its own banner and roar)
+  L.e = m; L.hp = m ? m.hp : 0; L.pt = m ? m.t : 0;
   L.t = L.at && m && !m.dead ? Math.max(0, L.ml - ($.G.t - L.at)) : 0;
   if (!L.t) L.at = 0;
 }

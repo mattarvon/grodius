@@ -49,9 +49,12 @@ export function floorHeld(e: any): number | null {
   if (n >= FT.floorN && e.t >= e.hfT[h]) return null;
   return h ? 1 / e.max : .5;
 }
-/** did the half clock throw e into its second half this frame? halfClock writes exactly max x .5 - .01, a value no
- *  hit lands on (phaseShare stops a held hit at max x .5, an open one carries on past it), so the write is the mark.
- *  prev: e's HP on the frame before */
-export function lurched(e: any, prev: number): boolean {
-  return !!e && g3() && e.leave > 0 && prev >= e.max * .5 && e.hp === e.max * .5 - .01;
+/** did the half clock throw e into its second half since the last draw? (prev, prevT: e's HP and clock at that draw.) The
+ *  clock passed its halfK mark in between and the HP crossed the half line: halfClock's own test. Not the exact value it
+ *  writes: a phone that steps several times per draw can burn or shoot the HP off it first (audio-director). A hit that
+ *  crosses the line on the very step the clock was due also counts; the cue is right either way */
+export function lurched(e: any, prev: number, prevT: number): boolean {
+  if (!e || !g3() || !(e.leave > 0)) return false;
+  const half = e.max * .5, due = e.leave * FT.halfK;
+  return prev >= half && e.hp < half && prevT < due && e.t >= due;
 }

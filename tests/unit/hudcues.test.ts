@@ -109,14 +109,16 @@ describe('floorHeld / lurched: the half floor and the half clock', () => {
     e.hp = 30; e.hfN = [2, 0]; e.hfT = [0, 0];
     expect(HC.floorHeld(e)).toBeCloseTo(1 / 100);
   });
-  it('marks the frame halfClock lurches, and not a hit that lands on the line', () => {
-    const e: any = boss({ hp: 70, t: 1080 * FT.halfK });
-    const prev = e.hp; halfClock(e);
-    expect(HC.lurched(e, prev)).toBe(true);
-    expect(HC.lurched(e, e.hp)).toBe(false); // the frame after: once only
-    const f: any = boss({ hp: 50 }); // a held hit stops at max x .5
-    expect(HC.lurched(f, 60)).toBe(false);
+  it('marks a draw that saw halfClock lurch, even with steps (burn, open hits) in between, and not an earned break', () => {
+    const due = 1080 * FT.halfK, e: any = boss({ hp: 70, t: due });
+    const prev = e.hp, pt = due - 1; halfClock(e);
+    expect(HC.lurched(e, prev, pt)).toBe(true);
+    e.hp -= 7; e.t += 2; // two more steps before the draw: burn and a second-half hit took HP off halfClock's value
+    expect(HC.lurched(e, prev, pt)).toBe(true);
+    expect(HC.lurched(e, e.hp, e.t)).toBe(false); // the next draw: once only
+    const f: any = boss({ hp: 40, t: 100 }); // a break earned by damage, before the clock is due
+    expect(HC.lurched(f, 60, 99)).toBe(false);
     setLayout('short');
-    expect(HC.lurched(e, prev)).toBe(false);
+    expect(HC.lurched(e, prev, pt)).toBe(false);
   });
 });
