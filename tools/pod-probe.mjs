@@ -120,6 +120,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
   const isK0 = (s) => s[0] >= 2 && (s[1] >= 1 || s[4] >= 1) && (s[2] >= 1 || s[3] >= 1) && s[5] >= 1 && s[6] >= 1;
   const isK1 = (s) => s[0] >= 3 && (s[1] >= 2 || s[4] >= 1) && (s[2] >= 1 || s[3] >= 1) && s[5] >= 2 && s[6] >= 2;
   const has = (s, k) => k.every((v, i) => s[i] >= v);
+  const hasEq = (s, k) => s[0] >= k[0] && (s[2] || s[3] ? 1 : 0) >= (k[2] || k[3] ? 1 : 0) && Math.max(s[1], s[4] ? s[4] + 1 : 0) >= Math.max(k[1], k[4] ? k[4] + 1 : 0) && s[5] >= k[5] && s[6] >= k[6]; // W6 round 3: E6 read as the game's rebuild trigger reads it
   // what was touching the ship the frame before a hit or a death (see the header's `deaths[]`); the shot is kept so
   // its tag (age, spawn distance) can be read
   window.__near = (g) => { const P = g.P, G = g.G, W_ = window.__W, PL = window.__PL; let best = null, bd = 1e9, shot = null; const put = (c, d, q) => { if (d < bd) { bd = d; best = c; shot = q || null; } };
@@ -156,7 +157,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
       if (g && g.P && g.state === 'play') { if (window.__lives0 == null) { if (kit) { Object.assign(g.P, kit.p); if (kit.gm) g.G.gm = { ...(g.G.gm || {}), ...kit.gm }; if (kit.pk) g.G.pk = { ...(g.G.pk || {}), ...kit.pk }; } window.__lives0 = g.G.lives; } if (rb) { const X = window.__x, st = `${g.G.loop + 1}-${(g.G.stage || 0) + 1}`; (X.stF ||= {})[st] ??= window.__fr; // --rebuild (header)
           if (!X.rbDone && st === rb && g.P.alive && !g.G.tally && window.__fr - X.stF[st] >= 1800) { const P = g.P; Object.assign(P, { speed: 0, missile: 0, double: 0, laser: 0, pyre: 0, options: 0, wardLv: 0 }, rbKit.p); /* W6 round 3: every slot first, so the death kit is exactly END D1 (an ARC the ship already held stayed, and the rig then waited for SPLIT and ARC both) */ g.G.gm = { ...(g.G.gm || {}), ...rbKit.gm }; g.G.pk = { ...(g.G.pk || {}), ...rbKit.pk };
             const k = slotsOf(P); P.inv = 0; P.shield = 0; X.rbDone = 1; X.rbHold = P; window.__FL.killPlayer();
-            window.__deaths.push({ st, s: +(window.__fr / 60).toFixed(1), f: window.__fr, cause: 'rig', src: 'rig', lives: g.G.lives, x: Math.round(P.x), y: Math.round(P.y), kit: k, shot: null, rank1: null, rebuild_s: { k0: null, kit: null, k0w: null } }); }
+            window.__deaths.push({ st, s: +(window.__fr / 60).toFixed(1), f: window.__fr, cause: 'rig', src: 'rig', lives: g.G.lives, x: Math.round(P.x), y: Math.round(P.y), kit: k, shot: null, rank1: null, rebuild_s: { k0: null, kit: null, k0w: null, kitEq: null } }); }
           if (X.rbHold && g.P !== X.rbHold) X.rbHold = null; }
         if (!mortal && !(window.__x.rbHold && g.P === window.__x.rbHold)) { g.P.inv = 30; g.P.alive = true; } const G = g.G; let tx, ty;
         if (G.fork && G.fork.t > 45) { tx = 480 * .74; ty = (window.__gi ?? 0) % 2 ? 254 * .72 : 254 * .28; }
@@ -210,7 +211,8 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
           if (P.alive) for (const d of window.__deaths) if (d.rsp != null) { const r0 = X.rsp[d.rsp].f;
             if (d.rebuild_s.k0 == null && isK0(sl)) d.rebuild_s.k0 = +((window.__fr - r0) / 60).toFixed(1);
             if (d.rebuild_s.k0w == null && isK0([...sl.slice(0, 6), 1])) d.rebuild_s.k0w = +((window.__fr - r0) / 60).toFixed(1); // E6 read as 'K0 minus WARD' (pending amendment, tune-tc)
-            if (d.rebuild_s.kit == null && has(sl, d.kit)) d.rebuild_s.kit = +((window.__fr - r0) / 60).toFixed(1); }
+            if (d.rebuild_s.kit == null && has(sl, d.kit)) d.rebuild_s.kit = +((window.__fr - r0) / 60).toFixed(1);
+            if (d.rebuild_s.kitEq == null && hasEq(sl, d.kit)) d.rebuild_s.kitEq = +((window.__fr - r0) / 60).toFixed(1); } // kitEq: the gun pairs as one slot (economy.ts rebuildMul's reading: ARC for SPLIT, PYRE n for MISSILE n+1)
           const r = X.rsp[X.rsp.length - 1];
           if (r && window.__fr - r.f <= 600) for (const c of h.caps) if (!r.caps.has(c)) { r.caps.add(c); r.n++; } } }
       if (before && h && h.P) { const seen = new Set(h.caps); let chosen = false;

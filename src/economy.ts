@@ -411,7 +411,7 @@ export const grpDrops = (id: EntryId, pod: unknown, rnd: () => number, m = 1): b
 /** the ship's slot levels, in player.ts SLOTS order (THRUST, MISSILE, SPLIT, ARC, PYRE, WRAITH, WARD) */
 export const kitOf = (P: any): number[] => [P.speed || 0, P.missile || 0, P.double || 0, P.laser || 0, P.pyre || 0, P.options || 0, P.wardLv || 0];
 /** decision 22: the variable faucet's rebuild multiplier. ECON rebuild while some slot of P is below G.dk (the kit the
- *  ship died with, set by flow.ts queueRecovery on long4; a second death sets the poorer kit it died with), else 1. The
+ *  ship died with, set by flow.ts queueRecovery on long4; every death overwrites it with that ship's kit), else 1. The
  *  gun pairs count as one slot each. Changes thresholds only, never a draw. Pure */
 export const rebuildMul = (id: EntryId, G: any, P: any): number => {
   const dk = G && G.dk, m = E(id).rebuild;
