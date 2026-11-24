@@ -275,8 +275,11 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     grpPod: .23,
     // decision 22 (2026-11-23, gate E6 kit half: back to the death kit in 120-240 s on the pod-probe --rebuild rig): x this
     // on the variable faucet while any slot is below the kit the ship died with. Without it the END D1 kit, dead 30 s
-    // into biome B, never came back inside Descent 1 (r3-econ: ~295 s left, 2 seeds); R1 + R2 stay the fast K0 half
-    rebuild: 1,
+    // into biome B, never came back inside Descent 1 (r3-econ: ~295 s left, 2 seeds); R1 + R2 stay the fast K0 half.
+    // [FIT] --rebuild rig, seeds 1/3/5/7/11, back to the END D1 kit: x2.5 207 / never / 229 / 210 / 287 s (censored median
+    // 229, horizon ~280-308 s); x4 never / 203 / 201 / never (no faster: past ~2.5 the pod TYPES, not the count, are the
+    // limit: re-rolls into held slots, seal caps). Easy's x1.5 tier faucet x2.5 keeps capKeep .34 and grpPod .86, under 1
+    rebuild: 2.5,
     // D31 §2.3: measured (fit 1, 2026-11-08): the stretched build ended D1 with 6-7 graft levels against main's 5, on
     // x1.8 the kills (674 vs 375 median). graftMul = the kill ratio, so grafts keep today's per-stage timing
     // (pod-probe grades[3].kit.gm, kills)
@@ -408,12 +411,17 @@ export const grpDrops = (id: EntryId, pod: unknown, rnd: () => number, m = 1): b
 /** the ship's slot levels, in player.ts SLOTS order (THRUST, MISSILE, SPLIT, ARC, PYRE, WRAITH, WARD) */
 export const kitOf = (P: any): number[] => [P.speed || 0, P.missile || 0, P.double || 0, P.laser || 0, P.pyre || 0, P.options || 0, P.wardLv || 0];
 /** decision 22: the variable faucet's rebuild multiplier. ECON rebuild while some slot of P is below G.dk (the kit the
- *  ship died with, set by flow.ts queueRecovery on long4), else 1. Changes thresholds only, never a draw. Pure */
+ *  ship died with, set by flow.ts queueRecovery on long4; a second death sets the poorer kit it died with), else 1. The
+ *  gun pairs count as one slot each. Changes thresholds only, never a draw. Pure */
 export const rebuildMul = (id: EntryId, G: any, P: any): number => {
   const dk = G && G.dk, m = E(id).rebuild;
   if (m === 1 || !dk || !P) return 1;
-  const below = (P.speed || 0) < (dk[0] || 0) || (P.missile || 0) < (dk[1] || 0) || (P.double || 0) < (dk[2] || 0) || (P.laser || 0) < (dk[3] || 0)
-    || (P.pyre || 0) < (dk[4] || 0) || (P.options || 0) < (dk[5] || 0) || (P.wardLv || 0) < (dk[6] || 0); // kitOf's order, no allocation
+  // the gun forms replace each other (SPLIT / ARC, MISSILE / PYRE: player.ts applyPower), so each pair is one slot: the
+  // main gun is held or not, the side gun is its level with PYRE n read as MISSILE n + 1 (rank.ts, decision 24). Per slot,
+  // a ship that died on SPLIT + MISSILE II and rebuilt ARC + PYRE I stayed "below" for the rest of its life (review)
+  const main = P.double || P.laser ? 1 : 0, mainD = dk[2] || dk[3] ? 1 : 0;
+  const side = Math.max(P.missile || 0, P.pyre ? P.pyre + 1 : 0), sideD = Math.max(dk[1] || 0, dk[4] ? dk[4] + 1 : 0);
+  const below = (P.speed || 0) < (dk[0] || 0) || main < mainD || side < sideD || (P.options || 0) < (dk[5] || 0) || (P.wardLv || 0) < (dk[6] || 0); // no allocation
   return below ? m : 1;
 };
 

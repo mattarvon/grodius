@@ -168,7 +168,8 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
           // under the target, while an opening carrier formation crossed below and left: E2's fixed:open read 8-9 for that,
           // not for anything the formation did (entry, exit and despawn were normal: pod-probe openG[].tr). Untouched for 120 f
           // while it is the target, it is dropped for good. Measure-side (the bot's input only); the pilot, park and drift keep theirs
-          if (SK && t && !c) { const T = (window.__tg ||= { e: null, hp: 0, f: 0 }); if (T.e !== t || (t.hp || 0) < T.hp) { T.e = t; T.hp = t.hp || 0; T.f = window.__fr; } else if (window.__fr - T.f > 120) { SK.add(t); window.__x.stuck = (window.__x.stuck || 0) + 1; } }
+          if (SK && t && !c && !t.mid && !t.mini && !t.big && !t.par && t.k !== 'maw' && t.k !== 'heart' && t.k !== 'nailbar') { // never a midboss, boss or part: a half floor or armoured phase holds HP on purpose (review)
+            const T = (window.__tg ||= { e: null, hp: 0, f: 0 }); if (T.e !== t || (t.hp || 0) < T.hp) { T.e = t; T.hp = t.hp || 0; T.f = window.__fr; } else if (window.__fr - T.f > 120) { SK.add(t); window.__x.stuck = (window.__x.stuck || 0) + 1; } }
           if (t) { tx = c ? c.x : Math.min(140, t.x - 60); ty = t.y; }
           else { const m = (G.mini && !G.mini.dead && G.mini) || G.boss || g.enemies.find((e) => !e.dead); tx = 90; ty = m ? m.y : g.P.y; } }
         if (park) { /* --park: never move */ }

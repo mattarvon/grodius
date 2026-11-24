@@ -293,7 +293,7 @@ const WR = .5;
  *  tools/dps-probe.mjs): ARC out-hit SPLIT 1.33x on one target and PYRE I alone out-hit the main gun (2.3x bare
  *  against MISSILE II's 1.0x, for 2 fragments against 3), and the perk / graft stack multiplied both. short and long5
  *  read GUN_TODAY, so they are unchanged */
-const GUN_TODAY = { arc: 1.7, pyre: [0, 5, 5], flank: .8 };
+export const GUN_TODAY = { arc: 1.7, pyre: [0, 5, 5], flank: .8 }; // flank .8: FAN's own share (short keeps the same doubles)
 /** long4 [FIT, dps-probe 6000 f]: ARC 1.3 (single target ~1.0x SPLIT; ARC keeps the pierce, SPLIT the spread) and a
  *  PYRE eye of .6 at level 1 (its burn, shots.ts pyreBoom, is most of PYRE I now: 12.5 ONE / 8.9 WALL, level with
  *  MISSILE II's 8.8 WALL); PYRE II keeps today's 5 (seal 2, Descent 2 on, outside E4). With SERRATION 1.06 (economy.ts) LEGAL MAX D1 reads
@@ -303,7 +303,7 @@ const GUN_TODAY = { arc: 1.7, pyre: [0, 5, 5], flank: .8 };
  *  target, so trimming them cuts WALL and leaves ONE alone. dps-probe 6000 f, SPLIT+MSL2 WALL / ONE: .70 145.2 / 43.0,
  *  .65 140.7 / 43.2 (over, by noise-sized margins: a second run read 141.0), .60 137.5 / 43.3. The other K1 variants
  *  stay under 111 */
-const GUN_L4 = { arc: 1.3, pyre: [0, .6, 5], flank: .6 };
+export const GUN_L4 = { arc: 1.3, pyre: [0, .6, 5], flank: .6 }; // WRAITH gunners' flankers take it too (x WR)
 const gun = () => (hardOn() ? GUN_L4 : GUN_TODAY);
 export function fire() {
   const cal = gmL('cal'),
@@ -357,10 +357,10 @@ export function fire() {
     sfx.laser(tier);
   } else {
     $.P.cd = Math.max(3.5, 7 / rate) + rem;
+    const fl = gun().flank; // SPLIT's flanker share: .8 on short (FAN's own, so the same doubles), GUN_L4.flank on long4
     for (let j = 0; j < org.length; j++) {
       const o = org[j];
       if ($.P.double) {
-        const fl = gun().flank; // .8 on short (FAN's own share, so the same doubles), GUN_L4.flank on long4
         for (const [a, f] of FAN) B(o.x + 10, o.y, Math.cos(a) * 7.5, Math.sin(a) * 7.5, { dmg: dm * (a ? fl : f) * (j ? WR : 1), fan: 1, wr: j > 0 });
       } else B(o.x + 10, o.y, 7.5, 0, { dmg: dm * (j ? WR : 1), wr: j > 0 });
     }

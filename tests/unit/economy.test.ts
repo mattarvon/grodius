@@ -224,6 +224,7 @@ describe('long4 matches spec §7 (LS1)', () => {
 
   it("pins the D31 cut with DIFFICULTY-SPEC §2.2's random faucet, refit by tune-tc and W6 round 3 (E2, E9): kill XP .30, kill biomass .56, carrier keep .09, formation pods .23, grafts x1.8", () => {
     expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .56, .09, .23, 1.8]);
+    expect([ECON.long4.rebuild, ECON.short.rebuild, ECON.long5.rebuild]).toEqual([2.5, 1, 1]); // decision 22 [FIT]: long4 only
   });
 
   it('keeps a carrier pod only at a roll of .91 or more, x the tier faucet m', () => {
@@ -245,15 +246,23 @@ describe('long4 matches spec §7 (LS1)', () => {
   });
 
   it('decision 22: boosts the variable faucet only while some slot is below the death kit, and never changes a draw', () => {
-    const e = ECON.long4 as { rebuild: number }, m = e.rebuild;
-    const dk = [3, 2, 1, 0, 0, 2, 2], full = { speed: 3, missile: 2, double: 1, laser: 0, pyre: 0, options: 2, wardLv: 2 };
-    expect(rebuildMul('long4', { dk }, full)).toBe(1); // back at the death kit
-    expect(rebuildMul('long4', { dk }, { ...full, wardLv: 3 })).toBe(1); // above it
-    expect(rebuildMul('long4', { dk }, { ...full, options: 1 })).toBe(m); // one slot short
-    expect(rebuildMul('long4', {}, {})).toBe(1); // no death yet
-    expect(rebuildMul('long4', { dk }, null)).toBe(1); // between a death and the respawn's ship
-    expect(rebuildMul('short', { dk }, {})).toBe(1); // short has no boost
-    expect(kitOf(full)).toEqual(dk);
+    const e = ECON.long4 as { rebuild: number }, m0 = e.rebuild, m = 3; // a fixed m != 1, so a rebuildMul stuck at 1 (or at m) fails
+    e.rebuild = m;
+    try {
+      const dk = [3, 2, 1, 0, 0, 2, 2], full = { speed: 3, missile: 2, double: 1, laser: 0, pyre: 0, options: 2, wardLv: 2 };
+      expect(rebuildMul('long4', { dk }, full)).toBe(1); // back at the death kit
+      expect(rebuildMul('long4', { dk }, { ...full, wardLv: 3 })).toBe(1); // above it
+      for (const k of ['speed', 'missile', 'double', 'options', 'wardLv']) expect(rebuildMul('long4', { dk }, { ...full, [k]: (full as any)[k] - 1 }), k).toBe(m); // each slot short
+      // the gun pairs are one slot each: ARC stands in for SPLIT, PYRE I for MISSILE II (decision 24), PYRE II above it
+      expect(rebuildMul('long4', { dk }, { ...full, double: 0, laser: 1 })).toBe(1);
+      expect(rebuildMul('long4', { dk }, { ...full, missile: 0, pyre: 1 })).toBe(1);
+      expect(rebuildMul('long4', { dk: [3, 0, 0, 1, 2, 2, 2] }, { ...full, missile: 2 })).toBe(m); // died on PYRE II (= 3): MISSILE II is below
+      expect(rebuildMul('long4', { dk }, { ...full, double: 0 })).toBe(m); // no main gun at all
+      expect(rebuildMul('long4', {}, {})).toBe(1); // no death yet
+      expect(rebuildMul('long4', { dk }, null)).toBe(1); // between a death and the respawn's ship
+      expect(rebuildMul('short', { dk }, {})).toBe(1); // short has no boost
+      expect(kitOf(full)).toEqual(dk);
+    } finally { e.rebuild = m0; }
     // the draw: grpDrops draws on long4 whatever m is (a boosted p >= 1 must not skip the R(): T2)
     let n = 0; const r = () => { n++; return .99; };
     grpDrops('long4', undefined, r, 10); grpDrops('long4', undefined, r, 1);
