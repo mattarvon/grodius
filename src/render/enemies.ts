@@ -932,8 +932,58 @@ export function drawWhip(e) {
 // between neighbouring wrists: no new asset. The ring turns with e.rot (the sim's spin); body variants come from the
 // index, so the pose holds frame to frame (no srnd()). A clump is the same with 2-3 bodies on a tighter ring
 const KNOT_BODY = { k: 'corpse', ph: 0, twitch: 0, t: 0, noLeg: false, noArm: false, cap: false };
+// r4-perf (T3): BAKED KNOTS. A knot is a rigid ring (bodies, frost, chains all turn with e.rot), so its art at rot 0 is
+// painted once into a cell and drawn turned, at 2x with smoothing (the gib atlas's way): one draw instead of ~160 calls
+// (5-7 bodies, 20 links). What moves inside the ring is keyed: the kind, the body count, the hit twitch, and which bodies
+// show the longer blood string (drawCorpse's (t + v x 17) % 90 < 45, a function of e.t mod 90: at most 2 x 7 masks a
+// knot). Cells are kept (a few dozen at most) in one atlas canvas; a full atlas draws live. Only on the world layer: a
+// split half (gore.ts) still paints the live ring into its own cell
+const KB = { SS: 2, H: 38, cols: 8, rows: 8, px: 0, cv: null, x: null, cells: new Map() };
+function knotCell(e, nb, r0, step) {
+  let mask = 0;
+  for (let j = 0; j < nb; j++) {
+    const v = Math.min(3, Math.floor((((j * 1.37 + nb * .61) % 1) * TAU) / TAU * 4));
+    if ((((e.t || 0) + j * 23 + v * 17) % 90) < 45) mask |= 1 << j;
+  }
+  const key = (e.k === 'knot' ? 1 : 0) + nb * 2 + (e.flash ? 32 : 0) + mask * 64;
+  let i = KB.cells.get(key);
+  if (i != null) return i;
+  if (!KB.cv) {
+    KB.px = KB.H * 2 * KB.SS;
+    KB.cv = document.createElement('canvas');
+    KB.cv.width = KB.cols * KB.px; KB.cv.height = KB.rows * KB.px;
+    KB.x = KB.cv.getContext('2d');
+  }
+  if (KB.cells.size >= KB.cols * KB.rows) return -1;
+  i = KB.cells.size;
+  const d = KB.px, x = KB.x, cx = (i % KB.cols) * d, cy = Math.floor(i / KB.cols) * d;
+  x.save();
+  x.setTransform(KB.SS, 0, 0, KB.SS, cx + d / 2, cy + d / 2);
+  x.imageSmoothingEnabled = false; // the world layer's setting, which the live draw had
+  knotArt(x, e, nb, r0, step, 0);
+  x.restore();
+  KB.cells.set(key, i);
+  return i;
+}
 export function drawKnot(c, e) {
-  const nb = e.nb || 5, r0 = e.k === 'knot' ? 11 : 6, step = TAU / nb, ang = e.rot || 0, rc = r0 * 1.15;
+  const nb = e.nb || 5, r0 = e.k === 'knot' ? 11 : 6, step = TAU / nb, ang = e.rot || 0;
+  if (c === ctx && sprReadyF('corpse')) {
+    const i = knotCell(e, nb, r0, step);
+    if (i >= 0) {
+      const d = KB.px;
+      c.save();
+      c.rotate(ang);
+      c.scale(1 / KB.SS, 1 / KB.SS);
+      c.imageSmoothingEnabled = true;
+      c.drawImage(KB.cv, (i % KB.cols) * d, Math.floor(i / KB.cols) * d, d, d, -d / 2, -d / 2, d, d);
+      c.restore();
+      return;
+    }
+  }
+  knotArt(c, e, nb, r0, step, ang);
+}
+function knotArt(c, e, nb, r0, step, ang) {
+  const rc = r0 * 1.15;
   const B = KNOT_BODY;
   for (let j = 0; j < nb; j++) {
     const a = ang + j * step;
