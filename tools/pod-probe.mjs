@@ -103,6 +103,7 @@ const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 if (PIL) await p.addInitScript(PILOT);
 if (PIL && REACT != null) await p.addInitScript((r) => { window.__pilotReact = r; }, +REACT);
 await p.addInitScript(pageLib);
+if (process.argv.includes('--open-trace')) await p.addInitScript(() => { window.__otr = 1; }); // openG[].tr: the biome openers every 6 f (measure-only)
 await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't pause or steer a probe page (tools/host-guard.mjs; four runs paused at the same second mid-batch)
 await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) => { let now = 0; const q = []; performance.now = () => now; window.requestAnimationFrame = (f) => (q.push(f), 1); window.setTimeout = () => 0; window.speechSynthesis = undefined;
   let s = (0x9e3779b9 ^ Math.imul(seed, 0x85ebca6b)) >>> 0 || 1; Math.random = () => ((s ^= s << 13), (s ^= s >>> 17), (s ^= s << 5), (s >>> 0) / 4294967296);
@@ -202,7 +203,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
         // where each new cap came from, read off what died this frame (measure-only; see the header's `src`)
         const had = new Set(before), nowE = new Set(h.enemies), gone = beforeE.filter((e) => e.dead || !nowE.has(e));
         const rec = (e) => e.rec || (e.group && e.group.rec), open = (e) => e.open || (e.group && e.group.open); // formation()'s `fixed` means "exactly n" (spawn.ts), not an opening carrier
-        for (const c of h.caps) if (!had.has(c) && !window.__capSrc.has(c)) window.__capSrc.set(c, c.rec ? 'rec' : c.choice ? 'fixed:choice' : c.salv ? 'salv' : c.graft ? 'graft' : c.blue ? 'blue'
+        for (const c of h.caps) if (!had.has(c) && !window.__capSrc.has(c)) window.__capSrc.set(c, c.rec ? 'rec' : c.choice ? 'fixed:choice' : c.salv ? 'salv' : c.graft ? 'graft' : c.blue && !gone.some(open) ? 'blue' // a blue that an opening carrier dropped is still its pod (every 12th red is blue, G.redN): E2's fixed:open counts it (W6 round 3: 2 of 5 biome A openers read 'unpaid' for this)
           : gone.some(rec) ? 'rec' : gone.some(open) ? 'fixed:open'
           : gone.some((e) => e.mid || e.k === 'maw') ? 'fixed:mid' : gone.some((e) => e.group && e.group.pod) ? 'fixed:release' : gone.some((e) => e.cap) ? 'carrier'
           : gone.some((e) => e.group) ? 'formation' : h.G.mini && h.G.mini.k === 'ufo' && !h.G.mini.dead ? 'fixed:saucer' : 'unknown');
@@ -212,6 +213,8 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
           for (const c of h.caps) if (!had.has(c) && !(window.__dropSeen ||= new WeakSet()).has(c)) { window.__dropSeen.add(c); const k = window.__capSrc.get(c) || 'unknown'; (DR[st] ||= {})[k] = (DR[st][k] || 0) + 1; if (k === 'fixed:open') for (const g of new Set(gone.filter((e) => open(e) && e.group && OG.has(e.group)).map((e) => e.group))) OG.get(g).paid++; } // once per group per cap
           for (const e of h.enemies) if (e.group && e.group.open && !OG.has(e.group)) OG.set(e.group, { st, s: +(window.__fr / 60).toFixed(1), n: e.group.n || null, seen: new WeakSet(), ns: 0, killed: 0, paid: 0 });
           for (const e of h.enemies) if (e.group && OG.has(e.group)) { const o = OG.get(e.group); if (!o.seen.has(e)) { o.seen.add(e); o.ns++; } }
+          if (window.__otr) for (const [g, o] of OG) if (o.st !== '1-1' && window.__fr % 6 === 0 && h.enemies.some((e) => e.group === g)) { const W_ = window.__W, sc = h.G.scroll; // --open-trace (measure-only): the biome openers frame by frame
+            (o.tr ||= []).push([window.__fr, Math.round(h.P.x), Math.round(h.P.y), h.enemies.filter((e) => e.group === g && !e.dead).map((e) => [e.i, Math.round(e.x), Math.round(e.y), +(e.hp || 0).toFixed(2), W_ ? Math.round(W_.ceilAt(e.x + sc)) : null, W_ ? Math.round(W_.floorAt(e.x + sc)) : null]), (window.__W && window.__W.shots ? window.__W.shots.length : null), h.enemies.filter((e) => !e.dead && e.group !== g && e.x < 490).map((e) => [e.k, Math.round(e.x), Math.round(e.y), +(e.hp || 0).toFixed(1)]), h.caps.map((c) => [Math.round(c.x), Math.round(c.y)]), h.G.fork ? 1 : 0, h.G.state]); }
           for (const e of gone) if (e.group && OG.has(e.group)) { const o = OG.get(e.group); if ((e.hp || 0) <= 0) o.killed++; else (o.esc ||= []).push({ i: e.i, age: e.t, x: Math.round(e.x), y: Math.round(e.y), y0: Math.round(e.y0 || 0), px: Math.round(h.P.x), py: Math.round(h.P.y), alive: h.P.alive ? 1 : 0 }); } } // esc[] (W6 round 3, gate E2 fixed:open, measure-only): each member that left alive, where and when
         // E1: a recovery pod (spawn.ts recoveryWave: c.rec on the pod, or dropped by a rec carrier) inside a respawn's 10 s
         { const r = X.rsp[X.rsp.length - 1]; if (r && window.__fr - r.f <= 600) for (const c of h.caps) if (window.__capSrc.get(c) === 'rec' && !r.recSeen.has(c)) { r.recSeen.add(c); r.rec++; } }

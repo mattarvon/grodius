@@ -15,7 +15,7 @@ import { bsMul, revChance as revChanceT } from '../rank';
 import { firstShot } from './cadence'; // D62: the Drive's first-shot range
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
 import { bandClamp } from '../terrainb';
-import { ECON, capKept, econId, formExtra, noticeOf } from '../economy';
+import { ECON, capKept, econId, formExtra, noticeOf, rebuildMul } from '../economy';
 import { kindOf } from '../layout';
 // the W0 adapter (rank, tier, the cap context): one module, enemies/g3.ts
 import { REC_TY, cadMulOf, capOf, g3, rankOf, rhoOf, tierOf } from './g3';
@@ -188,7 +188,7 @@ export function mk(k, x, y, o = {}) {
   // kid: born from a midboss, not scripted. rec: a recovery carrier, an economy object (out of the grade's spawned)
   if (!b.mini && !o.par && !o.kid && !o.rec && !o.split && $.G.st) $.G.st.spawned++; // split: torn off a knot (the knot counted)
   // D31: the entry's keep (economy.ts capKeep; short .35) x the tier's faucet (tier.ts capRate). A typed carrier (capTy: recovery waves) always keeps it, no draw
-  if (e.cap && !e.mini && e.capTy == null && !capKept(econId(), R(), capRate())) e.cap = false;
+  if (e.cap && !e.mini && e.capTy == null && !capKept(econId(), R(), capRate() * rebuildMul(econId(), $.G, $.P))) e.cap = false;
   enemies.push(e);
   return e;
 }

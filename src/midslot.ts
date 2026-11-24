@@ -56,7 +56,12 @@ export const MID_HP: Readonly<Record<string, number>> = {
  *  tools/midboss-probe.mjs --layout long4 --leave 1080 at the STAGE 1 kit (slot A 8-11 s). [FIT] values: fitted on the
  *  probe before merge. The Saucer (DRIFT, spawned by ufo.ts) reads its row here too */
 export const MID_HP_G3: Readonly<Record<string, number>> = {
-  ufo: 58, //      [FIT] W6 tune-tf: THE LEAN (ufo.ts UFO_LEAN) brings it 100-170 px nearer the ship: 50 ran 8.1 s. Before: 56 ran 11.8 s; spec §2.3 starts at 80 (64 if over 11 s); with the core rule (wings .3) the STAGE 1 kit ran out its forced exit at 80
+  ufo: 44, //      [FIT] W6 round 3 integration: fitted to the kit a ship holds at its WARNING (~20 s into Orbit: 2-3 pods, e.g. THRUST +
+  //               MISSILE, no graft or perk), not the STAGE 1 kit, which a ship meets only after the Orbit Maw. At 58 the deathless E2 bot
+  //               left it with 16-24% HP at its ~15.2 s forced exit on 5 of 5 seeds (no kill pair, no first-kill pay, no Orbit grade S:
+  //               r3-econ's E2/K0/E9 cause); 48 killed 2/5, 44 kills 4/5 in 10.8-12.8 s (s7, MISSILE + WRAITH + WARD, leaves at 13%),
+  //               40 4/5 (pod-probe fights[], seeds 1/3/5/7/11). THE LEAN is kept (its reach, not its bullets, is the design).
+  //               At the STAGE 1 kit this reads under spec §2.3's 8-11 s (gates-after3.md K3). Before: 58, W6 tune-tf: THE LEAN (ufo.ts UFO_LEAN) brings it 100-170 px nearer the ship: 50 ran 8.1 s. Before: 56 ran 11.8 s; spec §2.3 starts at 80 (64 if over 11 s); with the core rule (wings .3) the STAGE 1 kit ran out its forced exit at 80
   choir: 58, //    [FIT] W6 tune-tf: the eye at .7 (choir.ts CHOIR_EYE), the lane bar armoured. W0's rank: 52 ran 12.2 s. Before W0: 48 ran 10.0 s; 58 ran 12.6 s; ET 80: with the eye at .4 while a bar lives the STAGE 1 kit took 14.0 s at 80 (slot A 8-11)
   cyst: 155, //    [FIT] r3: 210 ran 13.1 s once the Womb's bob is fitted above the merged acid floor (cyst.ts: buried, the ship's ground
   //               missiles crawled into it); 155 runs ~10.5 s with the bob refitted into the band. W6 tune-tf: 156 ran 7.7 s on the merged build (8-11); 192 ran 8.8 s with its first half a frame short of its second attack (K1), 220 ran 10.6. ET 135 ran 8.9 s before W0: inside the band, but its phase 1 was too short for its slow moves to reach every spot (K1)

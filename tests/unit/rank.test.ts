@@ -25,11 +25,13 @@ describe('rank: the Gradius III formula (spec §2.1)', () => {
     expect(rank(S({ tier: 9, loop: 0, stage: 1 }))).toBe(3); // junk tier: Normal
   });
 
-  it('weighs held power by the spec table: THRUST 0, MISSILE/PYRE 1 a level, SPLIT 2, ARC 3, WRAITH 1 an option, WARD 4 flat, grafts 1 each up to 3', () => {
+  it('weighs held power by the spec table: THRUST 0, MISSILE 1 a level, PYRE I 2 (= MISSILE II, decision 24) then 1 a level, SPLIT 2, ARC 3, WRAITH 1 an option, WARD 4 flat, grafts 1 each up to 3', () => {
     const p = (o: any, gm: any = {}) => rankP({ ...NAKED, ...o }, { gm });
     expect(p({ speed: 5 })).toBe(0);
     expect(p({ missile: 2 })).toBe(2);
-    expect(p({ pyre: 2 })).toBe(2);
+    expect(p({ pyre: 1 })).toBe(p({ missile: 2 })); // decision 24: K1's two forms weigh the same
+    expect(p({ pyre: 1 })).toBe(2);
+    expect(p({ pyre: 2 })).toBe(3);
     expect(p({ double: 1 })).toBe(2);
     expect(p({ laser: 1 })).toBe(3);
     expect(p({ double: 1, laser: 1 })).toBe(5); // two slots, both paid

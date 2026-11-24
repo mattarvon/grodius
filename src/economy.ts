@@ -96,6 +96,9 @@ export interface EconEntry {
   /** D31: chance a cleared formation drops its pod (enemies/update.ts killEnemy). 1 = always, and no R() is drawn.
    *  The biome breath's release formation (group.pod) always drops */
   grpPod: number;
+  /** decision 22: the variable faucet's multiplier (capKeep and grpPod, on the draws they already make) while the ship
+   *  is still below the kit it died with (G.dk, flow.ts queueRecovery). 1 = none */
+  rebuild: number;
   /** D31: multiplier on the kill-count graft thresholds (mutations.ts GM n), GLUTTONY excepted (it reads `glut`) */
   graftMul: number;
   /** biomass paid once per profile for the first kill of each midboss kind (spec §6.4), recorded in meta.mbK; 0 = none */
@@ -203,6 +206,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     killBio: 1,
     capKeep: .35, // today's keep roll (spawn.ts dropped a carrier's pod at R() < .65), so the same draws keep the same pods
     grpPod: 1, // today: every cleared formation drops, and no draw is made (short's R() count is unchanged)
+    rebuild: 1, // decision 22 is long4's: short sets no death kit either
     graftMul: 1, // today's GM thresholds
     firstKill: 0, // today's game pays nothing and writes no kill record
     intra: 0, // depth is per descent only
@@ -261,10 +265,16 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // the Orbit grade S went; tune-ts's terrain and tune-te's spawn rules changed no Saucer outcome (pod-probe fights[]).
     // Biome A's second opening formation also pays on 1 run in 5 (members escape: openG[]). Fights and enemies have the
     // cause-side requests; if the Saucer kill comes back, this faucet should come down by about 2 pods (~.09 / .23)
-    capKeep: .1,
+    // W6 round 3 integration: .10 -> .09 with grpPod .26 -> .23, as r3-econ asked once the Saucer kill came back (midslot.ts
+    // MID_HP_G3.ufo, fitted to the kit a ship holds at its WARNING): its kill pair and Orbit grade S return about 2 pods
+    capKeep: .09,
     // One R() per cleared non-release formation, long4 only (short: grpPod 1, no draw). D31 fit 1 gave .22; spec §2.2
     // cuts it to .12 [FIT, gate E2] for the same reason. The tier's faucet multiplier applies here (tier.ts capRate)
-    grpPod: .26,
+    grpPod: .23,
+    // decision 22 (2026-11-23, gate E6 kit half: back to the death kit in 120-240 s on the pod-probe --rebuild rig): x this
+    // on the variable faucet while any slot is below the kit the ship died with. Without it the END D1 kit, dead 30 s
+    // into biome B, never came back inside Descent 1 (r3-econ: ~295 s left, 2 seeds); R1 + R2 stay the fast K0 half
+    rebuild: 1,
     // D31 §2.3: measured (fit 1, 2026-11-08): the stretched build ended D1 with 6-7 graft levels against main's 5, on
     // x1.8 the kills (674 vs 375 median). graftMul = the kill ratio, so grafts keep today's per-stage timing
     // (pod-probe grades[3].kit.gm, kills)
@@ -304,6 +314,7 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     killBio: .6, // Q12: holds purchases per Infirmary visit at 2-4 items
     capKeep: .35, // D31 is a long4 cut: long5 keeps today's pod faucets until LS3-0 fits its own
     grpPod: 1,
+    rebuild: 1,
     graftMul: 1,
     firstKill: 100, // spec §6.4
     intra: .35,
@@ -388,8 +399,20 @@ export const capKept = (id: EntryId, r: number, m = 1): boolean => !(r < 1 - E(i
 /** D31: does a cleared formation drop its pod. `pod`: the biome breath's release formation, always. `rnd` is drawn
  *  only when the entry's grpPod is below 1 and the formation is not exempt (short draws nothing) */
 export const grpDrops = (id: EntryId, pod: unknown, rnd: () => number, m = 1): boolean => {
-  const p = E(id).grpPod * m; // m: the tier's faucet (tier.ts capRate; 1 on short, which still draws nothing)
-  return !!pod || p >= 1 || rnd() < p;
+  const b = E(id).grpPod; // m: the tier's faucet x the rebuild boost (tier.ts capRate, rebuildMul; 1 on short, which still draws nothing)
+  return !!pod || b >= 1 || rnd() < b * m; // whether it draws reads the entry alone, never m: a boost can't skip a draw (T2)
+};
+
+/** the ship's slot levels, in player.ts SLOTS order (THRUST, MISSILE, SPLIT, ARC, PYRE, WRAITH, WARD) */
+export const kitOf = (P: any): number[] => [P.speed || 0, P.missile || 0, P.double || 0, P.laser || 0, P.pyre || 0, P.options || 0, P.wardLv || 0];
+/** decision 22: the variable faucet's rebuild multiplier. ECON rebuild while some slot of P is below G.dk (the kit the
+ *  ship died with, set by flow.ts queueRecovery on long4), else 1. Changes thresholds only, never a draw. Pure */
+export const rebuildMul = (id: EntryId, G: any, P: any): number => {
+  const dk = G && G.dk, m = E(id).rebuild;
+  if (m === 1 || !dk || !P) return 1;
+  const below = (P.speed || 0) < (dk[0] || 0) || (P.missile || 0) < (dk[1] || 0) || (P.double || 0) < (dk[2] || 0) || (P.laser || 0) < (dk[3] || 0)
+    || (P.pyre || 0) < (dk[4] || 0) || (P.options || 0) < (dk[5] || 0) || (P.wardLv || 0) < (dk[6] || 0); // kitOf's order, no allocation
+  return below ? m : 1;
 };
 
 const graftMemo = new Map<readonly number[], { m: number; n: readonly number[] }>();

@@ -17,7 +17,7 @@ import { BUL, ENTRY, KNOT, blueAt, kidAngle, mayFire, retryIn, revChanceOf } fro
 import { capRate } from '../tier'; // the tier's faucet multiplier at the formation pod roll (W0)
 import { revChance as revChanceT } from '../rank';
 import { countKill } from '../mutations';
-import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP, noticeOf } from '../economy';
+import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP, noticeOf, rebuildMul } from '../economy';
 import { playerHit, slotMaxed, wardCap } from '../player';
 import { onKillContraptions } from '../contraptions';
 import { KH, hookBehind, hookHits } from './butcherhook';
@@ -852,7 +852,7 @@ export function killEnemy(e, dir = 1) {
     e.group.killed++;
     // D31: a cleared formation drops on the entry's grpPod chance (short 1: no draw); the breath's release and an
     // authored opening carrier (group.pod) always do. A recovery wave's pods are its members' own (no group pod, no draw)
-    if (e.group.killed === e.group.n && !e.group.rec && grpDrops(econId(), e.group.pod, R, capRate())) dropCap(e.x, e.y);
+    if (e.group.killed === e.group.n && !e.group.rec && grpDrops(econId(), e.group.pod, R, capRate() * rebuildMul(econId(), $.G, $.P))) dropCap(e.x, e.y);
   }
   if (e.k === 'knot' || e.k === 'clump') knotSplit(e); // CREW KNOTS: a knot tears into 2 clumps, a clump into 2 corpses
   if (e.k === 'crux' || e.k === 'butcher') {

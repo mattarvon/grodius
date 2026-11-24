@@ -23,7 +23,7 @@ import { CP, cpResume, writeCp } from './checkpoint';
 import { rebuildAt } from './stagebuild';
 import { cpTrigger, tierPick } from './lab';
 import { jumpBlob } from './jump';
-import { ECON, econId } from './economy';
+import { ECON, econId, kitOf } from './economy';
 import { row } from './layout';
 import { graftDeath } from './mutations';
 import { SHIPS, SURV, deathTier, hardOn, keptLoadout, newRecovery } from './death';
@@ -372,6 +372,7 @@ export function respawn() {
 function queueRecovery(P0) {
   if (!hardOn()) return;
   const G = $.G, bb = !!lv('salvage') && deathTier(G).blackBox, r = row(G.stage);
+  G.dk = kitOf(P0); // decision 22: the kit this ship died with; the variable faucet runs at ECON rebuild until it is back (economy.ts rebuildMul). Not saved: G.recovery isn't either
   // C17's shape on Normal and up; Easy's R1 returns the exact slot its gradual strip took (Matt's decision 10, death.ts r1Pods)
   G.recovery = newRecovery(P0, bb, { gradual: deathTier(G).refund, untilWarn: r ? (r.warnX ?? r.bossX) - G.scroll : null });
   // ux: its own banner, after the death's (feedAfter), still up before R1 lands at 3 s

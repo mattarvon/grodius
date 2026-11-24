@@ -283,7 +283,8 @@ export const SNOT_DMG = 4;
 /** the SNOT ROCKET glob: scales like the main gun, so it keeps its share of the damage as depth HP grows */
 export const snotGlob = (x, y) => ({ k: 'bolt', x: x + 10, y, vx: 4.2, vy: 0, dmg: SNOT_DMG * gunDm(), r: 5, pierce: 8, glob: 1, t: 0 });
 // ---- weapon numbers (tuned with tools/dps-probe.mjs: every pickup is a felt jump, not a rounding error) ----
-/** SPLIT fan: [angle (rad), damage share]. 3-way spread: the core plus two flankers that sweep the screen */
+/** SPLIT fan: [angle (rad), damage share]. 3-way spread: the core plus two flankers that sweep the screen. A long4 run
+ *  reads the flankers' share from GUN_L4.flank instead (decision 23) */
 const FAN = [[0, 1], [-.2, .8], [.2, .8]];
 /** WRAITH gunners hit at half weight: +50% / +33% / +25% per wraith instead of x2/x3/x4 (keeps the top end sane) */
 const WR = .5;
@@ -292,12 +293,15 @@ const WR = .5;
  *  tools/dps-probe.mjs): ARC out-hit SPLIT 1.33x on one target and PYRE I alone out-hit the main gun (2.3x bare
  *  against MISSILE II's 1.0x, for 2 fragments against 3), and the perk / graft stack multiplied both. short and long5
  *  read GUN_TODAY, so they are unchanged */
-const GUN_TODAY = { arc: 1.7, pyre: [0, 5, 5] };
+const GUN_TODAY = { arc: 1.7, pyre: [0, 5, 5], flank: .8 };
 /** long4 [FIT, dps-probe 6000 f]: ARC 1.3 (single target ~1.0x SPLIT; ARC keeps the pierce, SPLIT the spread) and a
  *  PYRE eye of .6 at level 1 (its burn, shots.ts pyreBoom, is most of PYRE I now: 12.5 ONE / 8.9 WALL, level with
  *  MISSILE II's 8.8 WALL); PYRE II keeps today's 5 (seal 2, Descent 2 on, outside E4). With SERRATION 1.06 (economy.ts) LEGAL MAX D1 reads
- *  41.7 / 46.5 / 42.7 / 47.4 */
-const GUN_L4 = { arc: 1.3, pyre: [0, .6, 5] };
+ *  41.7 / 46.5 / 42.7 / 47.4.
+ *  flank: SPLIT's two flankers [FIT, decision 23 (2026-11-23), gate E4 WALL <= 20x bare = 140 on the flat-arena rig]:
+ *  at today's .8 SPLIT+MSL2 read WALL 150 (21.4x bare); the flankers carry the whole-screen sweep, the core the single
+ *  target, so trimming them cuts WALL and leaves ONE nearly alone */
+const GUN_L4 = { arc: 1.3, pyre: [0, .6, 5], flank: .65 };
 const gun = () => (hardOn() ? GUN_L4 : GUN_TODAY);
 export function fire() {
   const cal = gmL('cal'),
@@ -354,7 +358,8 @@ export function fire() {
     for (let j = 0; j < org.length; j++) {
       const o = org[j];
       if ($.P.double) {
-        for (const [a, f] of FAN) B(o.x + 10, o.y, Math.cos(a) * 7.5, Math.sin(a) * 7.5, { dmg: dm * f * (j ? WR : 1), fan: 1, wr: j > 0 });
+        const fl = gun().flank; // .8 on short (FAN's own share, so the same doubles), GUN_L4.flank on long4
+        for (const [a, f] of FAN) B(o.x + 10, o.y, Math.cos(a) * 7.5, Math.sin(a) * 7.5, { dmg: dm * (a ? fl : f) * (j ? WR : 1), fan: 1, wr: j > 0 });
       } else B(o.x + 10, o.y, 7.5, 0, { dmg: dm * (j ? WR : 1), wr: j > 0 });
     }
     sfx.shot(tier);

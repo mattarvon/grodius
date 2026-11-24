@@ -1,5 +1,5 @@
 // D31 (audit d31-economy.md §2.2): a cleared formation drops its pod on the entry's grpPod chance (killEnemy in
-// enemies/update.ts). Short (grpPod 1) draws no extra R(); long4 (.26, W6 round 3's E2 refit; tune-tc had .20, DIFFICULTY-SPEC §2.2 .12, D31 fit 1 .22) draws one per cleared formation, x the tier's faucet (tier.ts capRate); the biome
+// enemies/update.ts). Short (grpPod 1) draws no extra R(); long4 (.23, W6 round 3 integration; r3-econ .26, tune-tc had .20, DIFFICULTY-SPEC §2.2 .12, D31 fit 1 .22) draws one per cleared formation, x the tier's faucet (tier.ts capRate); the biome
 // breath's release formation (group.pod, biomes.ts biomeScript) always drops and draws nothing
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
@@ -49,19 +49,19 @@ describe('formation pod drop (D31 grpPod)', () => {
     expect(clear('short', [])).toEqual({ pods: 1, n: DROP_DRAWS });
   });
 
-  it('drops on long4 when its one roll is under .26, and not otherwise', () => {
-    expect(clear('long4', [.2599])).toEqual({ pods: 1, n: 1 + DROP_DRAWS_G3 });
-    expect(clear('long4', [.26])).toEqual({ pods: 0, n: 1 });
+  it('drops on long4 when its one roll is under .23, and not otherwise', () => {
+    expect(clear('long4', [.2299])).toEqual({ pods: 1, n: 1 + DROP_DRAWS_G3 });
+    expect(clear('long4', [.23])).toEqual({ pods: 0, n: 1 });
     expect(clear('long4', [.99])).toEqual({ pods: 0, n: 1 });
   });
 
-  it('scales the chance by the tier faucet: Easy x1.5 (.39), Normal x1, Very Hard x.8 (.208); one roll on every tier', () => {
-    expect(clear('long4', [.3899], undefined, 0)).toEqual({ pods: 1, n: 1 + DROP_DRAWS_G3 });
-    expect(clear('long4', [.3901], undefined, 0)).toEqual({ pods: 0, n: 1 });
-    expect(clear('long4', [.2599], undefined, 1)).toEqual({ pods: 1, n: 1 + DROP_DRAWS_G3 });
+  it('scales the chance by the tier faucet: Easy x1.5 (.345), Normal x1, Very Hard x.8 (.184); one roll on every tier', () => {
+    expect(clear('long4', [.3449], undefined, 0)).toEqual({ pods: 1, n: 1 + DROP_DRAWS_G3 });
+    expect(clear('long4', [.3451], undefined, 0)).toEqual({ pods: 0, n: 1 });
+    expect(clear('long4', [.2299], undefined, 1)).toEqual({ pods: 1, n: 1 + DROP_DRAWS_G3 });
     // Very Hard also draws its Descent 1 revenge roll (BUL.rev .5; G3), so one more R() than the pod roll
-    expect(clear('long4', [.2079], undefined, 3)).toEqual({ pods: 1, n: 2 + DROP_DRAWS_G3 });
-    expect(clear('long4', [.2081], undefined, 3)).toEqual({ pods: 0, n: 2 });
+    expect(clear('long4', [.1839], undefined, 3)).toEqual({ pods: 1, n: 2 + DROP_DRAWS_G3 });
+    expect(clear('long4', [.1841], undefined, 3)).toEqual({ pods: 0, n: 2 });
   });
 
   // G1: a one-drone formation cannot tell "roll at the last kill" from "roll at every kill"; three drones can

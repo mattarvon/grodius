@@ -20,7 +20,7 @@ vi.mock('../../src/boss/update', () => ({ bossHitByShot: () => {} }));
 vi.mock('../../src/render/util', () => ({ drawChain: () => {}, drawHookTip: () => {}, light: () => {} }));
 
 const econ = await import('../../src/economy');
-const { ECON, HPM_TOL, capKept, graftN, grpDrops, d1EliteChance, descDepth, firstKillPay, gluttonyN, gradeOf, gradePts, hpmCol, hpmTarget, killBio, killXP, livesAfterDrive, sealAt, stageXP } = econ;
+const { ECON, HPM_TOL, capKept, graftN, grpDrops, kitOf, rebuildMul, d1EliteChance, descDepth, firstKillPay, gluttonyN, gradeOf, gradePts, hpmCol, hpmTarget, killBio, killXP, livesAfterDrive, sealAt, stageXP } = econ;
 const { clearStage } = await import('../../src/stages');
 const perks = await import('../../src/perks');
 const { GM } = await import('../../src/mutations');
@@ -222,26 +222,43 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(ECON.long4.targets!.bio[0]).toEqual([1300, 1500]);
   });
 
-  it("pins the D31 cut with DIFFICULTY-SPEC §2.2's random faucet, refit by tune-tc and W6 round 3 (E2, E9): kill XP .30, kill biomass .62, carrier keep .10, formation pods .26, grafts x1.8", () => {
-    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .62, .1, .26, 1.8]);
+  it("pins the D31 cut with DIFFICULTY-SPEC §2.2's random faucet, refit by tune-tc and W6 round 3 (E2, E9): kill XP .30, kill biomass .62, carrier keep .09, formation pods .23, grafts x1.8", () => {
+    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .62, .09, .23, 1.8]);
   });
 
-  it('keeps a carrier pod only at a roll of .90 or more, x the tier faucet m', () => {
-    expect(capKept('long4', .8999)).toBe(false);
-    expect(capKept('long4', .9)).toBe(true);
-    expect(capKept('long4', .85, 1.5)).toBe(true); // Easy x1.5: keep .15
-    expect(capKept('long4', .9199, .8)).toBe(false); // Very Hard x.8: keep .08
-    expect(capKept('long4', .92, .8)).toBe(true);
+  it('keeps a carrier pod only at a roll of .91 or more, x the tier faucet m', () => {
+    expect(capKept('long4', .9099)).toBe(false);
+    expect(capKept('long4', .91)).toBe(true);
+    expect(capKept('long4', .8651, 1.5)).toBe(true); // Easy x1.5: keep .135
+    expect(capKept('long4', .9279, .8)).toBe(false); // Very Hard x.8: keep .072
+    expect(capKept('long4', .9281, .8)).toBe(true);
   });
 
   it('rolls once per cleared formation, and never for the release formation', () => {
     let n = 0;
     const r = (v: number) => () => { n++; return v; };
-    expect(grpDrops('long4', undefined, r(.2599))).toBe(true);
-    expect(grpDrops('long4', undefined, r(.26))).toBe(false);
+    expect(grpDrops('long4', undefined, r(.2299))).toBe(true);
+    expect(grpDrops('long4', undefined, r(.23))).toBe(false);
     expect(n).toBe(2);
     expect(grpDrops('long4', 1, r(.99))).toBe(true);
     expect(n).toBe(2);
+  });
+
+  it('decision 22: boosts the variable faucet only while some slot is below the death kit, and never changes a draw', () => {
+    const e = ECON.long4 as { rebuild: number }, m = e.rebuild;
+    const dk = [3, 2, 1, 0, 0, 2, 2], full = { speed: 3, missile: 2, double: 1, laser: 0, pyre: 0, options: 2, wardLv: 2 };
+    expect(rebuildMul('long4', { dk }, full)).toBe(1); // back at the death kit
+    expect(rebuildMul('long4', { dk }, { ...full, wardLv: 3 })).toBe(1); // above it
+    expect(rebuildMul('long4', { dk }, { ...full, options: 1 })).toBe(m); // one slot short
+    expect(rebuildMul('long4', {}, {})).toBe(1); // no death yet
+    expect(rebuildMul('long4', { dk }, null)).toBe(1); // between a death and the respawn's ship
+    expect(rebuildMul('short', { dk }, {})).toBe(1); // short has no boost
+    expect(kitOf(full)).toEqual(dk);
+    // the draw: grpDrops draws on long4 whatever m is (a boosted p >= 1 must not skip the R(): T2)
+    let n = 0; const r = () => { n++; return .99; };
+    grpDrops('long4', undefined, r, 10); grpDrops('long4', undefined, r, 1);
+    expect(n).toBe(2);
+    expect(grpDrops('short', undefined, r, 10)).toBe(true); expect(n).toBe(2); // short still never draws
   });
 
   it('scales the live graft thresholds by graftMul x1.8 (fit 1), rounded, GLUTTONY excepted', async () => {

@@ -41,7 +41,9 @@ export const CAD_FLOOR = 18;
 export const RANK_W = {
   thrust: 0, //   per level
   missile: 1, //  per level
-  pyre: 1, //     per level
+  pyre: 2, //     PYRE I: decision 24 (2026-11-23, R1), PYRE I weighs what MISSILE II does: K1 takes either ('MISSILE 2 or PYRE 1'),
+  //               so a K1 ship on PYRE read one rank short of 16 at the Drive (gate R1). Spec §2.1's table said 1 per level
+  pyre2: 1, //    each PYRE level past I (+1, like every other per-level slot): PYRE II = 3
   split: 2, //    SPLIT held (P.double)
   arc: 3, //      ARC held (P.laser); the two are separate slots, so a ship holding both pays both
   wraith: 1, //   per option
@@ -56,7 +58,7 @@ const NO_GM: Readonly<Record<string, number>> = Object.freeze({});
 export function rankP(P: any, G: any): number {
   if (!P) return 0;
   const w = RANK_W, gm = (G && G.gm) || NO_GM; // no allocation per call (the probes call this every frame)
-  return (P.speed || 0) * w.thrust + (P.missile || 0) * w.missile + (P.pyre || 0) * w.pyre
+  return (P.speed || 0) * w.thrust + (P.missile || 0) * w.missile + (P.pyre > 0 ? w.pyre + (P.pyre - 1) * w.pyre2 : 0)
     + (P.double ? w.split : 0) + (P.laser ? w.arc : 0) + (P.options || 0) * w.wraith + ((P.wardLv || 0) >= 1 ? w.ward : 0)
     + Math.min(w.graftMax, ((gm.cal || 0) + (gm.serr || 0)) * w.graft);
 }
