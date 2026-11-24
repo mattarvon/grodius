@@ -1,21 +1,21 @@
 {
   "frames": 1200,
-  "commit": "965302a",
+  "commit": "50c0758",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "maw-d1",
   "q": "stage=orbit&x=6870&loop=0&kit=mid&rank=.5&seed=7",
   "st": {
     "state": "play",
-    "score": 18000,
+    "score": 100,
     "scroll": 6948,
-    "lives": 2,
+    "lives": 1,
     "px": 50,
-    "py": 45.71,
-    "en": 0,
-    "gibs": 153,
-    "drops": 644,
-    "caps": 4,
+    "py": 33.292,
+    "en": 3,
+    "gibs": 39,
+    "drops": 241,
+    "caps": 1,
     "jump": true,
     "stage": 0,
     "pair": "ufo",
@@ -24,13 +24,13 @@
     "rank": 0.5,
     "lvl": 6,
     "kills": 1,
-    "t": 1195,
+    "t": 1190,
     "seen": "mini:maw",
-    "sig": "d819719335"
+    "sig": "00c6adb288"
   },
   "hashes": [
-    "a73cf148a1",
-    "60c3bd1cf6"
+    "7366cb7a88",
+    "55b05d0719"
   ],
   "errs": []
 }

@@ -436,7 +436,7 @@ describe('THE DISSOLVING WOMB (long4): floor, ceiling, and a smaller ring', () =
   it('alternates its spray floor, ceiling, floor', () => {
     const e = spawn('cyst');
     const sides: number[] = [];
-    for (let i = 0; i < 3; i++) { e.st = 'idle'; e.wt = 0; e.cool = 0; e.att = 3 * i; step(e); expect(e.st).toBe('tel'); sides.push(e.sd); }
+    for (let i = 0; i < 3; i++) { e.st = 'idle'; e.wt = 0; e.cool = 0; e.att = i; /* r4: long4 swells every 4th attack (att 1-3 spray) */ step(e); expect(e.st).toBe('tel'); sides.push(e.sd); }
     expect(sides).toEqual([1, -1, 1]);
   });
   it('lobs 5 globs in phase 1 and 7 in phase 2 (spray + ring stays at 15)', () => {

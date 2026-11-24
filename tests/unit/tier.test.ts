@@ -1,7 +1,7 @@
 // DIFFICULTY-SPEC §2.1 tiers (src/tier.ts), the neutral BRUTAL shim and the run-save tier field. All pure: no mocks.
 import { describe, expect, it } from 'vitest';
 import { $ } from '../../src/state';
-import { TIER, TIER_DEFAULT, TIER_NAME, capRate, tier, tierG, tierOf } from '../../src/tier';
+import { TIER, TIER_DEFAULT, TIER_NAME, capRate, reachK, tempoK, tier, tierG, tierOf } from '../../src/tier';
 import { decodeRun, serializeRun } from '../../src/runsave';
 import { LAYOUTS, setLayout } from '../../src/layout';
 
@@ -20,6 +20,32 @@ describe('tier parsing', () => {
   });
   it('names the tiers for the LAB row', () => {
     expect(TIER_NAME).toEqual(['EASY', 'NORMAL', 'HARD', 'VERY HARD']);
+  });
+});
+
+describe('r4 pressure: the fight levers (decisions 25, 28)', () => {
+  it('Normal reads 1 on every fight lever, so the tiers move around it', () => {
+    expect(TIER.tempo[1]).toBe(1);
+    expect(TIER.reach[1]).toBe(1);
+    expect(TIER.r2[1]).toBe(2);
+    expect(TIER.scarN[1]).toBe(1);
+  });
+  it('each lever is monotone Easy -> Very Hard: sooner blows, longer limbs, a dearer death', () => {
+    for (let t = 1; t < 4; t++) {
+      expect(TIER.tempo[t]).toBeLessThanOrEqual(TIER.tempo[t - 1]);
+      expect(TIER.reach[t]).toBeGreaterThanOrEqual(TIER.reach[t - 1]);
+      expect(TIER.r2[t]).toBeLessThanOrEqual(TIER.r2[t - 1]);
+      expect(TIER.scarN[t]).toBeGreaterThanOrEqual(TIER.scarN[t - 1]);
+    }
+    expect(TIER.scarN[0]).toBe(0); // decision 11: Easy keeps its perks
+  });
+  it('tempoK / reachK read the run tier, and 1 on a G without one (short)', () => {
+    $.G = { tier: 2 };
+    expect([tempoK(), reachK()]).toEqual([TIER.tempo[2], TIER.reach[2]]);
+    $.G = {};
+    expect([tempoK(), reachK()]).toEqual([1, 1]);
+    $.G = null;
+    expect([tempoK(), reachK()]).toEqual([1, 1]);
   });
 });
 

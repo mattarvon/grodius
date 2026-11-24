@@ -30,7 +30,8 @@ export const VARIANT_RANK = 14;
 export const BOSS_HPK: Readonly<Record<string, number>> = {
   maw0: 1.5, //  the Open Orbit Maw: 7.2 s at the STAGE 1 kit (8-11) at x1; its bite now lunges into the ship's own lane (MAW.past), where
   //             the ship's fire tears into it: 1.32 ran 9.0 s before that, 7.7 s after
-  maw: 4, //    a biome stage-boss Maw [FIT]: 6.5 s (Hard 6.2) at the BIOME B kit at x1. Matt's decision 8 (2026-11-23) asked ~x2.5
+  maw: 4.4, //  r4 pressure: 4 ran 16.9 s; a bite on every jaw cycle (MAW.biteEvery [1, 1]) brings the body into the ship's fire
+  //             each cycle and ran 14.8 s (15-22), so x1.1 holds decision 12's ~16 s TTK (its 28 s escape clock is kept). Before: a biome stage-boss Maw [FIT]: 6.5 s (Hard 6.2) at the BIOME B kit at x1. Matt's decision 8 (2026-11-23) asked ~x2.5
   //             for 15+ s with the 28 s escape clock KEPT (a weakly armed ship watches it escape); x2.7 measured only 11.0 s (its
   //             bite brings it into the bot's options, so TTK grows slower than HP), so his target needs x4 (16.1-16.2 s)
   crux: 1.3, //  THE BLOAT [FIT r3]: 1.8 was fitted where boss-probe staged it, slot 0's x0 + 700 (the flown corridor, whose walls cut the
@@ -50,12 +51,16 @@ export const MAW = {
   fanN: 5, //           7 -> 5 globs (peak per 120 f 9 -> 7) [ENC 4.6 bullets]
   fanSpread: .16,
   fanV: 1.6, //         + .1 per step out from the centre, as today
-  orbEvery: 90, //      55 -> 90, half-led (spec §2.3 table: "led orb every 90"). W6: 140 lifted the bite only to 16-21% of the spot hits and cost K1
+  orbEvery: 180, orbMid: 110, // r4 pressure (K2, decision 25: the body is the threat): the stage boss 90 -> 180 with a bite on every jaw
+  //                    cycle (biteEvery); orbMid, the Open Orbit Maw, 90 -> 110 (its short second half needs the orb for K1 at the STAGE 1 kit). At 90
+  //                    the half-led orb carried 48-51% of the spot hits and the bite 11-16% (K2 >= 35%). W6: 140 lifted the bite only to 16-21% of the spot hits and cost K1 (bites then came every 2nd cycle)
   orbV: 2,
   orbFirst: 8, //       the first orb 8 f after it is in (an Orbit Maw at the END D1 kit lasts ~4 s on W0: K1 wants 2 per spot per half)
   biteFirst: 1, //      the jaw-cycle count it starts on, so the first bite comes on the first cycle (jn 2) [FIT K1 W6: at 0 it came on the
   //                    second, and an Orbit Maw at the STAGE 1 kit was past half by then]
-  biteEvery: [2, 1] as const, // a bite every 2nd jaw cycle, every cycle below half HP [FIT K2 W6: at 3 / 2 the bite was 3-9% of the spot hits, >= 35]
+  biteEvery: [1, 1] as const, // r4 pressure, the stage boss: every jaw cycle in both halves (was [2, 1]: the fan's cycle between bites was the orb's window, K2).
+  biteEveryMid: [2, 1] as const, // the Open Orbit Maw keeps [2, 1]: [1, 1] left its short second half one hit at 90,64 and 90,190 at the STAGE 1 kit (K1)
+  // (W6, before r4: [2, 1] for both, a bite every 2nd jaw cycle, every cycle below half HP) [FIT K2 W6: at 3 / 2 the bite was 3-9% of the spot hits, >= 35]
   tell: 46, //          the bite's tell (>= 44, D59): the eyes flare, a lane line runs along its y
   lock: 16, //          ... and the lane locks for the last 16 f. Before that it steers toward the ship's height (<= 1.5 px/f), the
   //                    Drive reach's track-then-lock grammar: a lane fixed at the Maw's own bob height is one a parked ship rarely sits in
@@ -155,9 +160,11 @@ export const DRIVE = {
   //                740 gave 30.8 s pre-W0 and 28.5 s on w0-foundation (powHP 0, rank-based fire), so 740 x 34 / 28.5
   plateHp: 90, //   each of the 3 plates [FIT with hp, K1]: 48 and 64 left phase 0 (THE REACH) 2-4 s at the END D1 kit
   ring0: { every: 100, n: 5, arc: 1.6, v: 1.5 }, //     phase 0: a 5-pellet forward ring (was 8 around, every 80)
-  fan0: { every: 120, n: 3, spread: .18, v: 1.5, first: 12 }, // [FIT K1: 170 left a spot at 1 hit] // phase 0: an aimed 3-orb fan (was 5 globs, which fall short of a
+  fan0: { every: 160, // r4 pressure: 120 -> 160, the reach carries phase 0 (K2)
+          n: 3, spread: .18, v: 1.5, first: 12 }, // [FIT K1: 170 left a spot at 1 hit] // phase 0: an aimed 3-orb fan (was 5 globs, which fall short of a
   //                                                    far ship), the first 30 f in: plates fall fast, and K1 wants 2 per spot
-  fan1: { every: 70, n: 3, spread: .22, v: 1.9 }, //    phases 1-2: an aimed 3-fan (was every 50), never while a beam charges
+  fan1: { every: 110, // r4 pressure: 70 -> 110 (K2)
+          n: 3, spread: .22, v: 1.9 }, //    phases 1-2: an aimed 3-fan (was every 50), never while a beam charges
   spike: { every: 95, v: 2.4 }, //                      phase 2: the half-led spike
   corpse: 250, //                                       phases 1-2: a thrown corpse (a body)
   reach: {
@@ -167,7 +174,10 @@ export const DRIVE = {
     ext: 10, //     f to shoot out to `len`
     hold: 20, //    f held out (ext + hold = 30 f out)
     back: 30, //    f to retract
-    len: 190, //    px, the reach
+    retract: .6, // r4: the share of `back` it spends drawing in along its line before it swings (reachPose)
+    len: 330, //    px, the reach. r4 pressure (K2 Drive >= 50%; decision 25, the frames' t=2700 boss: limbs that sweep the field): 190
+    //              reached x >= ~170 from the hub at W - 110, so the left half of the field was the orbs' alone (tentacle 7-8% of the
+    //              spot hits, the orbs 66%). 330 reaches the left edge, as the pincer's 300 does; x tier.ts TIER.reach
     cyc0: 220, //   phase 0: each tentacle every 220 f x cadMul, the two 110 apart
     alt0: 110,
     cyc1: 180, //   phase 1: both every 180 f, alternating
@@ -199,7 +209,11 @@ export function reachPose(st: number, f: number, sway: number, max: number = DRI
   const R = DRIVE.reach, L = Math.max(R.coil, max);
   if (st === 1) { const u = Math.min(1, f / R.tell); return { len: sway + (R.coil - sway) * u, k: u }; }
   if (st === 2) { const u = Math.min(1, f / R.ext); return { len: R.coil + (L - R.coil) * u, k: 1 }; }
-  if (st === 3) { const u = Math.min(1, f / R.back); return { len: L + (sway - L) * u, k: 1 - u }; }
+  if (st === 3) { // r4 pressure: the limb draws back DOWN its line first (len to the coil by R.retract of the back), then
+    // swings home short. A 330 px limb that swung home at full length swept the field untold at the tip's ~20 px/f, which no
+    // tell covered (the pilot met it as a hidden blow: tests/unit/pilot-drive.test.ts)
+    const u = Math.min(1, f / R.back), r = R.retract, a = Math.min(1, u / r), b = Math.max(0, (u - r) / (1 - r));
+    return { len: L + (R.coil - L) * a + (sway - R.coil) * b, k: 1 - b }; }
   return { len: sway, k: 0 };
 }
 

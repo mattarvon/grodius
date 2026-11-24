@@ -15,7 +15,8 @@ import { critMul } from '../mutations';
 import { perkFX, pk } from '../perks';
 import { driveMul } from '../depth';
 import { DRIVE, driveClock, pincerTargets, reachPose, tentBase, twinAngle } from './bossrules';
-import { cad, driveHpMul, due, g3, iv, leadA, room, variant } from './bossfights';
+import { cad, driveHpMul, due, g3, iv, ivD, leadA, room, variant } from './bossfights';
+import { reachK, tempoK } from '../tier';
 import { segDist } from '../enemies/butcherhook';
 import { capGrade } from '../enemies/boss/registry';
 
@@ -309,9 +310,9 @@ function updateDrive3(b) {
     // the reach: tentacle 0 on the cycle, tentacle 1 alt0 later (40 f before tentacle 0's ends, at rank >= 14)
     b.rn = (b.rn ?? 60) - 1;
     if (b.rn <= 0) {
-      b.rn = iv(Rc.cyc0);
+      b.rn = ivD(Rc.cyc0);
       reachAt(b, b.tent[0]);
-      b.r1 = variant() ? Rc.tell + Rc.ext + Rc.hold + Rc.back - Rc.overlap : Math.round(Rc.alt0 * cad());
+      b.r1 = variant() ? Rc.tell + Rc.ext + Rc.hold + Rc.back - Rc.overlap : Math.round(Rc.alt0 * cad() * tempoK());
     }
     if (b.r1 > 0 && --b.r1 === 0) reachAt(b, b.tent[1]);
     if (due(b, 'c0', DRIVE.ring0.n, iv(DRIVE.ring0.every))) {
@@ -327,7 +328,7 @@ function updateDrive3(b) {
     // the beam: phase 1 one line, phase 2 two with a guaranteed lane, the pincer after it
     if (!b.laser) b.lc = (b.lc ?? 90) - 1;
     if (!b.laser && b.lc <= 0) {
-      b.lc = iv(b.phase === 2 ? Bm.every2 : Bm.every1);
+      b.lc = ivD(b.phase === 2 ? Bm.every2 : Bm.every1);
       const a = aimA(ex, ey);
       b.laser = { tel: Bm.tel, ml: Bm.tel, beam: 0, hit: false, ang: a, ang2: b.phase === 2 ? twinAngle(ex, ey, P.x, P.y, PH) : null, r: Math.max(60, Math.hypot(P.x - ex, P.y - ey)) };
       sfx.tele();
@@ -356,7 +357,7 @@ function updateDrive3(b) {
     // phase 1: a reach every half-cycle, alternating
     if (b.phase === 1) {
       b.rn = (b.rn ?? 60) - 1;
-      if (b.rn <= 0) { b.rn = Math.round(iv(Rc.cyc1) / 2); reachAt(b, b.tent[(b.ri = ((b.ri || 0) + 1) % 2)]); }
+      if (b.rn <= 0) { b.rn = Math.round(ivD(Rc.cyc1) / 2); reachAt(b, b.tent[(b.ri = ((b.ri || 0) + 1) % 2)]); }
     }
     // the 3-fan, held while a beam charges
     if (!(b.laser && b.laser.tel > 0) && due(b, 'c2', DRIVE.fan1.n, iv(DRIVE.fan1.every))) {
@@ -402,7 +403,7 @@ function inBeam(ex, ey, a) {
 /** start a tentacle's reach at the ship (a no-op while it is already reaching) */
 function reachAt(b, t) {
   if (t.rs) return;
-  t.rs = 1; t.rf = 0; t.tx = null; t.ty = null; t.rl = DRIVE.reach.len;
+  t.rs = 1; t.rf = 0; t.tx = null; t.ty = null; t.rl = Math.round(DRIVE.reach.len * (b.g3 ? reachK() : 1)); // r4: the tier's reach (tier.ts TIER.reach), carried on the limb: the render and the pilot read t.rl
   const B = tentBase(b.x, b.y, t.side);
   t.ra = Math.atan2($.P.y - B.y, $.P.x - B.x);
   sfx.tele(); // the coil's cue (the tell grammar), the wet under it

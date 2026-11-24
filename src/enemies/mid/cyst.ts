@@ -94,7 +94,7 @@ function updCyst(e) {
     if (lurch(e, ph2)) e.att = 2; // g3: phase 2 opens on the swell (its aimed ring)
     if (e.st === 'idle') {
       e.sw = Math.max(0, (e.sw || 0) - 1.5);
-      if (e.wt >= e.cool) { e.att++; e.st = e.att % 3 && !(G3 && !ph2 && e.x - $.P.x > WOMB.lobFar) ? 'tel' : 'swell'; e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.squish(); if (e.st === 'tel') e.sd = -(e.sd || -1); phaseAtt(e, e.st === 'tel' ? WOMB.landSpray : WOMB.landSwell); } // g3: floor, ceiling, floor...; phaseAtt: the half floor (r3 K1)
+      if (e.wt >= e.cool) { e.att++; e.st = e.att % (G3 ? 4 : 3) && !(G3 && !ph2 && e.x - $.P.x > WOMB.lobFar) ? 'tel' : 'swell'; /* r4 pressure (K2): long4 swells every 4th attack (was 3rd; every 5th and 6th left the far spot 200,127 one hit in phase 1, K1): its 8-ring carried 52% of the spot hits, the pools 22% */ e.wt = 0; e.st === 'tel' ? sfx.tele() : sfx.squish(); if (e.st === 'tel') e.sd = -(e.sd || -1); phaseAtt(e, e.st === 'tel' ? WOMB.landSpray : WOMB.landSwell); } // g3: floor, ceiling, floor...; phaseAtt: the half floor (r3 K1)
     } else if (e.st === 'tel') {
       if (R() < .6) spark(e.x + rr(-6, 6), e.y - 18, rr(-.3, .3), -rr(.8, 2), 14, '#7ff0d8');
       if (e.wt >= 45) { e.st = 'spray'; e.wt = 0; e.li = 0; geysers.push({ wx: 0, y: 0, att: e, ox: -2, oy: -19, a: -Math.PI / 2, l: ph2 ? 44 : 32, rate: 4, c: 2 }); }

@@ -67,7 +67,7 @@ export const PILOT = `(() => {
   const prev = new WeakMap();
   // ---- the modules (the sims' own geometry). A tool's window.__W / __BU / __DN or probe-lib's __PL.mods also serve
   const MODS = [['W', '/src/world.ts'], ['BU', '/src/boss/update.ts'], ['BRL', '/src/boss/bossrules.ts'], ['DN', '/src/enemies/mid/_deny.ts'],
-    ['KS', '/src/enemies/boss/_keepsake.ts'], ['SO', '/src/solids.ts'], ['TB', '/src/terrainb.ts'], ['SP', '/src/enemies/spawn.ts'], ['NO', '/src/notice.ts']];
+    ['KS', '/src/enemies/boss/_keepsake.ts'], ['SO', '/src/solids.ts'], ['TB', '/src/terrainb.ts'], ['SP', '/src/enemies/spawn.ts'], ['NO', '/src/notice.ts'], ['BH', '/src/enemies/butcherhook.ts']];
   const M = {}; let ld = null;
   // a page whose game modules carry HMR stamps would hand these imports second, empty copies: flagged (err.instance), never silent
   window.__pilotLoad = () => ld || (ld = Promise.all(MODS.map(([k, p]) => import(p).then((m) => { M[k] = m; }, () => { M[k] = null; }))).then(() => {
@@ -115,10 +115,14 @@ export const PILOT = `(() => {
       if (e.k === 'knot' && NO && NO.KNOT && e.y0 != null) { const K = NO.KNOT; return (t) => [e.x - (ss + K.drift) * t, e.y0 + Math.sin((e.t + t) * TAU / K.bobF) * K.bob]; }
       if (e.k === 'drone' && e.pat === 'sine' && e.y0 != null) return (t) => [e.x - 1.75 * t, e.y0 + Math.sin((e.t + t + (e.i || 0) * 9) * .07) * 26];
       if (e.k === 'drone' && e.pat === 'zig' && e.y0 != null) return (t) => { const ph = (e.t + t + (e.i || 0) * 6) % 80 / 80; return [e.x - 2 * t, e.y0 + (ph < .5 ? ph * 4 - 1 : 3 - ph * 4) * 28]; };
-      if (e.k === 'maw' && e.bs && !(e.bs === 1 && early(e.bt)) && BR && BR.MAW && BR.lungeX) { const Mw = BR.MAW, V = e.bv ? Mw.var : null, hold = V ? V.hold : Mw.hold, back = V ? V.backV : Mw.backV, xm = W * Mw.lungeX, ly = e.ly ?? e.y;
-        // the bite (bossfights.ts bite): the tell holds x with the lane locked, the lunge runs to W x .35, the hold, then home
+      if (e.k === 'maw' && e.bs && !(e.bs === 1 && early(e.bt)) && BR && BR.MAW && BR.lungeX) { const Mw = BR.MAW, V = e.bv ? Mw.var : null, hold = V ? V.hold : Mw.hold, back = V ? V.backV : Mw.backV, ly = e.ly ?? e.y;
+        // r4 (pressure): the stop is the sim's own e.lsx (bossfights.ts bite: lungeStop, 16 px past the ship's x as its lane locks, never
+        // left of W x lungeMin), which the render draws as the lane line's end. This model ran the lunge to W x .35 (g3 128cbac's rule, before
+        // W6's MAW.past), so a ship left of x 168 in the lane read as safe and the stage-boss Maw's bite killed the pilot there (round 3 M1)
+        const xm = e.lsx != null ? e.lsx : BR.lungeStop ? BR.lungeStop(P.x, W) : W * Mw.lungeX;
+        // the bite (bossfights.ts bite): the tell holds x with the lane locked, the lunge runs to its stop, the hold, then home
         if (e.bs <= 2) { const t0 = e.bs === 1 ? Mw.tell - e.bt : -e.bt, x0 = e.bs === 1 ? e.x : e.bx0 ?? e.x, tl = Math.max(0, (x0 - xm) / Mw.lungeV);
-          return (t) => { const u = t - t0; if (u <= 0) return [e.x, ly]; if (u <= tl) return [BR.lungeX(x0, W, u), ly]; if (u <= tl + hold) return [xm, ly]; return [xm + back * (u - tl - hold), ly]; }; }
+          return (t) => { const u = t - t0; if (u <= 0) return [e.x, ly]; if (u <= tl) return [BR.lungeX(x0, W, u, xm), ly]; if (u <= tl + hold) return [xm, ly]; return [xm + back * (u - tl - hold), ly]; }; }
         if (e.bs === 3) return (t) => (t + e.bt <= hold ? [e.x, ly] : [e.x + back * (t + e.bt - hold), ly]);
         return (t) => [e.x + back * t, e.y]; }
       return null;
@@ -207,8 +211,14 @@ export const PILOT = `(() => {
         line({ x: ox, y: oy, a: e.ha, len: 520, w: 6, t0: w0, t1: w0 + 150, k: 'bhook' }); }
       else if (e.st === 'hook' && e.hk && e.hk.v2) { const h = e.hk, ax = e.x + 10, ay = e.y - 8, a = Math.atan2(h.ty - ay, h.tx - ax), l = Math.hypot(h.tx - ax, h.ty - ay);
         line({ x: ax, y: ay, a, len: h.out ? 520 : l, w: 6, t0: 0, t1: h.out ? 150 : h.pl ? 90 - h.pt + 40 : 40, k: 'bhook' }); }
-      else if (e.st === 'htel' || (e.st === 'hook' && e.hk && e.hk.out)) { const w0 = e.st === 'htel' ? 40 - e.wt : 0;
-        line({ x: e.x + 10, y: e.y - 8, a: e.ha, len: 236, w: 8, t0: w0, t1: w0 + 34, k: 'bhook' }); }
+      else if (e.st === 'htel' || (e.st === 'hook' && e.hk && e.hk.out)) { // the first half's hook
+        // r4 (pressure): long4 (BUTCHER.farHook, W6 tune-tf) throws it KH.tell2 (48 f, e.hT) after the tell starts, out past the ship as locked
+        // (e.hR, up to BUTCHER.reach1 440 px) at KH.out1 px/f; this read g3 128cbac's 40 f / 236 px hook, so a ship beyond 236 px read as safe
+        // (short, no e.hT, keeps the old 236 px / 34 f read). The pace is butcherhook.ts KH.out1 (else 7)
+        const BH = mod('BH'), out1 = (BH && BH.KH && BH.KH.out1) || 7;
+        if (!e.hT) { const w0 = e.st === 'htel' ? 40 - e.wt : 0; line({ x: e.x + 10, y: e.y - 8, a: e.ha, len: 236, w: 8, t0: w0, t1: w0 + 34, k: 'bhook' }); }
+        else { const rch = (e.hk && e.hk.rch) || e.hR || (BR && BR.BUTCHER ? BR.BUTCHER.reach1 : 440), w0 = e.st === 'htel' ? e.hT - e.wt : 0;
+          line({ x: e.x + 10, y: e.y - 8, a: e.ha, len: rch + 6, w: 8, t0: w0, t1: w0 + Math.ceil(rch / out1) + 4, k: 'bhook' }); } }
     });
     // ---- THE DISSOLVING WOMB's eruptions (_deny.ts poolStage / eruptStage): a burning pool boils for plErTel (its tell,
     // drawn from its first frame) before its column stands plErLive, plCW half-wide, pR long off the surface. denyPts shows

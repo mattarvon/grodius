@@ -1,4 +1,4 @@
-// D27: the real midboss() applies midslot.ts MID_HP on picker layouts (the Apprentice at 180 base HP (D61; 200 before) on long4) and
+// D27: the real midboss() applies midslot.ts MID_HP on picker layouts (the Apprentice at 172 base HP (D61 180, r4 172; 200 before) on long4) and
 // leaves short at spawn.ts ET's values. midslot.test.ts covers the pure midHpMul; this covers the wiring in spawn.ts.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
@@ -34,10 +34,10 @@ function meet(id: 'short' | 'long4', k: string, loop = 0, stage = 0) {
 describe('midboss() base HP per layout (D27)', () => {
   afterEach(() => L.setLayout('short'));
 
-  it('spawns the Apprentice at 180 HP (D61), full, on long4', () => {
+  it('spawns the Apprentice at 172 HP (D61), full, on long4', () => {
     const e = meet('long4', 'prentice');
-    expect(e.hp).toBe(180);
-    expect(e.max).toBe(180);
+    expect(e.hp).toBe(172);
+    expect(e.max).toBe(172);
   });
 
   it('spawns the Apprentice at its ET 150 HP on short', () => {
@@ -52,17 +52,17 @@ describe('midboss() base HP per layout (D27)', () => {
     expect(meet('short', 'cyst').hp).toBe(ET.cyst.hp);
   });
 
-  it('keeps the 180 / 150 ratio in Descent 3, so depth HP still multiplies on top', () => {
+  it('keeps the 172 / 150 ratio in Descent 3, so depth HP still multiplies on top', () => {
     const short = meet('short', 'prentice', 2), long = meet('long4', 'prentice', 2);
     expect(short.hp).toBeGreaterThan(150); // depth (and loop) HP applied
-    expect(long.hp / short.hp).toBeCloseTo(180 / 150, 9);
+    expect(long.hp / short.hp).toBeCloseTo(172 / 150, 9);
     expect(long.max).toBe(long.hp);
   });
 
-  it('spawns the Apprentice at exactly 180 (D61) on long4 and 150 on short at biome slot A in Descent 1 (D29)', () => {
+  it('spawns the Apprentice at exactly 172 (D61) on long4 and 150 on short at biome slot A in Descent 1 (D29)', () => {
     const e = meet('long4', 'prentice', 0, 1);
-    expect(e.hp).toBe(180);
-    expect(e.max).toBe(180);
+    expect(e.hp).toBe(172);
+    expect(e.max).toBe(172);
     expect(meet('short', 'prentice', 0, 1).hp).toBe(150);
   });
 
@@ -70,11 +70,11 @@ describe('midboss() base HP per layout (D27)', () => {
     const { ECON } = await import('../../src/economy');
     const L = ECON.long4.late!, m = L.midLateK.prentice ?? L.midLate;
     const e = meet('long4', 'prentice', 0, 2);
-    expect(e.hp).toBeCloseTo(180 * m, 9);
+    expect(e.hp).toBeCloseTo(172 * m, 9);
     expect(e.max).toBe(e.hp);
     expect(e.dm).toBeCloseTo(m, 12); // what its parts read (depthHP par.dm)
     expect(meet('short', 'prentice', 0, 2).hp).toBe(150);
-    expect(meet('long4', 'prentice', 0, 3).hp).toBe(180); // the Drive stage is not a biome slot
+    expect(meet('long4', 'prentice', 0, 3).hp).toBe(172); // the Drive stage is not a biome slot
   });
 });
 

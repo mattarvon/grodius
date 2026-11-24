@@ -185,3 +185,16 @@ describe('pilot: the Womb eruption is read from its boil, not from the pool cloc
     expect(win.__pilotLog.now.column).toBeGreaterThan(0);
   });
 });
+
+describe('pilot r4: the stage-boss Maw bite runs to its locked stop (bossfights.ts bite, lungeStop), not W x .35', () => {
+  it('a ship left of x 168 in the locked lane steers out of it', async () => {
+    const BRL = await import('../../src/boss/bossrules');
+    win.__BRL = BRL;
+    const P = { x: 90, y: 120, speed: 2, alive: true, inv: 0 };
+    // the lunge is under way down the ship's lane, its stop locked 16 px past the ship (W6 MAW.past): the round-3 model ran
+    // it only to x 168, so this ship read as safe and held its lane
+    const e: any = { k: 'maw', x: 260, y: 120, r: 20, hp: 10, max: 20, bs: 2, bt: 5, bx0: 290, ly: 120, lsx: BRL.lungeStop(P.x, W) };
+    step(game(P, [e], { mini: e }), 90, 120);
+    expect(P.y).not.toBe(120);
+  });
+});
