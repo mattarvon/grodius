@@ -213,3 +213,15 @@ describe('pilot r4 decision 29: the human profile (PILOT_HUMAN), measure-only', 
     expect([P.x - x1, P.y - y1].map((v) => Math.round(v * 1e6))).toEqual([x1 - x0, y1 - y0].map((v) => Math.round(v * 1e6)));
   });
 });
+
+describe('pilot r4 decision 29: a correction is broken off for a seen threat closing within PILOT_HUMAN.brk', () => {
+  it('re-plans inside a hold when an old-enough shot is near and closing, and counts the break', async () => {
+    const { PILOT_HUMAN: H } = await import('../../tools/pilot.mjs');
+    win.__pilotHuman = { seed: 5 };
+    const P = { x: 100, y: 120, speed: 0, alive: true, inv: 0 };
+    step(game(P, []), 100, 120); // the first plan starts a hold
+    win.__W.eshots = [{ x: 100 + H.brk - 10, y: P.y, vx: -2, vy: 0, r: 2, k: 'orb', t: H.react + H.jitHi + 1 }];
+    step(game(P, []), 100, 120);
+    expect(win.__pilotLog.hbrk).toBe(1);
+  });
+});
