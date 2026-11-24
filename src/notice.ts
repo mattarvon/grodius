@@ -213,10 +213,12 @@ export const ENTRY = {
     // entry with no wall at its lane tries the other wall, then the same edge's drop / rise (round 4; it was a right entry). biome A's rear share is all authored hatchlings: cut
     // those beats and A has no rear entries
     // round 4 (N4, 8-seed statue entry log by source): a biome stage's authored beats alone are ~43% right and ~17-24%
-    // rear (the 2 opener carriers + the release, all right sines; the biome's hatch rolls; the set pieces' rear waves), so
-    // its filler carries the top, bottom and wall shares and no rear (A read right 66 / bottom 3 / wall 3, B left 26)
-    biome0: { right: .3, behind: 0, top: .23, bottom: .23, wall: .24 }, //   table 55 / 15 / 10 / 10 / 10
-    biome1: { right: .3, behind: 0, top: .27, bottom: .27, wall: .16 }, //   table 50 / 18 / 12 / 12 / 8
+    // rear (the 2 opener carriers + the release, all right sines; the biome's hatch rolls; the set pieces' rear waves; A read
+    // right 66 / bottom 3 / wall 3, B left 26) before the
+    // filler, so its filler carries the top, bottom and wall shares and a little rear (the rear waves are N2's shots from
+    // behind: B's rear .12 -> 0 took N2 regular from 24% to 14% on the statue)
+    biome0: { right: .28, behind: .1, top: .2, bottom: .2, wall: .22 }, //   table 55 / 15 / 10 / 10 / 10
+    biome1: { right: .26, behind: .1, top: .25, bottom: .25, wall: .14 }, //  table 50 / 18 / 12 / 12 / 8
     drive: { right: .5, behind: .2, top: .15, bottom: .15, wall: 0 }, // unread: the Orbit and Drive filler edge is scripts.ts FILL_EDGE (W3b)
   } as Record<string, Record<EntryEdge, number>>,
   // a right entry's pattern: the old four, plus 'loop' (Orbit and the Drive, about 1-2 a stage: ENC §3)
