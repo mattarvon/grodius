@@ -194,12 +194,16 @@ function gulletAt(seg, from) {
   const x0 = beatPlan(slotRow(seg), from, false).P(GULLET.p) + GULLET.lead;
   return { x0, x1: x0 + GULLET.len };
 }
-/** the gullet's edges at world x: gap 108-118 around the biome's resting centre (smooth: the walls' own noise would
- *  break the swept fit) swinging +-amp on its period, blended in at both ends (a lerp of two >= 108 gaps stays >= 108) */
+/** the gullet's edges at world x (decision 31, W6 r4: the winding throat): a `zig.gap` px lane whose centre holds at
+ *  PH x lanes[0], then lanes[1], ... for `zig.w` px every `zig.pitch` px and runs straight between them (smooth: the walls'
+ *  own noise would break the swept fit), blended in at both ends (a lerp of two >= 108 column gaps stays >= 108) */
 function gullet(g, x, b, ce, fl) {
-  const G = GULLET, k = envelope(x, g.x0, g.x1, G.blend), u = (x - g.x0) / G.period, [c0, f0] = REST[b] || REST.snot;
-  const m = (c0 + f0) / 2 + G.amp * Math.sin(2 * Math.PI * u), gap = G.gap[0] + (G.gap[1] - G.gap[0]) * (.5 + .5 * Math.cos(4 * Math.PI * u));
-  return [lerp(ce, m - gap / 2, k), lerp(fl, m + gap / 2, k)];
+  // the lane holds through both blends (its last hold starts where the exit blend can't reach a ramp), so a blend only
+  // ever carries a held lane in or out, never a moving one (level-designer review: S3 through the blends)
+  const G = GULLET, Z = G.zig, k = envelope(x, g.x0, g.x1, G.blend), tMax = Math.floor((g.x1 - g.x0 - 2 * G.blend - Z.w) / Z.pitch) * Z.pitch;
+  const t = Math.min(tMax, Math.max(0, x - g.x0 - G.blend)), i = Math.floor(t / Z.pitch), r = t - i * Z.pitch;
+  const y = (j) => PH * Z.lanes[j % 2], m = r < Z.w ? y(i) : lerp(y(i), y(i + 1), (r - Z.w) / (Z.pitch - Z.w));
+  return [lerp(ce, m - Z.gap / 2, k), lerp(fl, m + Z.gap / 2, k)];
 }
 /** blend the terrain from world x `from` onward (over 300px, all of it off-screen) into biome b; it stays that
  *  biome until the next rewrite, and always fades back to the untouched level over layout().tEnd, where the biome

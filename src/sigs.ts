@@ -93,7 +93,16 @@ export const insetOf = (b: string, s: number) => (INSET[b] ? INSET[b][s ? 1 : 0]
 // [FIT] W6 r4 p .70 -> .68, len 600 -> 930 (L2 slot B 43.9 s flown, band 45, after the L6 stretch cut took ~3.7 s of
 // slot B's scroll): ~15.5 s in the narrow, starting earlier and ending where the 840 px one did (~90 px before the
 // ship meets the run-up, P(.94), at the late gate)
-export const GULLET = { p: .68, len: 930, gap: [108, 118] as const, amp: 24, period: 600, blend: 100, lead: 150 };
+// Decision 31 (W6 r4, L3 slot B 3.6-4.3 forced moves/min, band 6): the gullet winds. Its lane, `zig.gap` px, holds at
+// PH x .265 and .735 in turn (`w` px each, every `pitch` px) and runs straight between: a shift of 119 px, more than the
+// lane, so no y flies two lanes in a row and a ship anywhere in the throat switches lanes ~3-4 times. Steepest .73 (119 over
+// the 164 px between holds: S3 .75); swept fit 118 - .73 x 21 = 102.7 (S1 100, outside a window); blend 140 (the walls'
+// centre comes ~58 px to a held lane over it: sstep 1.5 x 58 / 160 = .54, with room for the walls' own noise; a blended
+// gap, lerp of ~130 and 118, is still squeeze; the lane holds through both blends). p .68 -> .67 and len 930 -> 1000 give
+// back slot B squeeze (L2) and four lanes (three switches); it ends ~50 px before the ship meets the run-up INVARIANT (game-designer review): it is fair only while lanes[1] - lanes[0]
+// > zig.gap / PH (no shared band), the steepest slope <= .75 (S3, the naked climb) and 118 - slope x 21 >= 100 (S1);
+// terrainb.test pins all three, the blends included. gap / amp / period: the W6 sine's, legacy (unread; sigs.test pins gap)
+export const GULLET = { p: .67, len: 1000, gap: [108, 118] as const, amp: 24, period: 600, blend: 160, lead: 150, zig: { gap: 118, lanes: [.265, .735] as const, pitch: 200, w: 36 } };
 
 /** the LANE WEAVE (W6 tune, L3): the biome corridor's centre steps between two lanes, both walls together (the gap,
  *  so free height and L1, is untouched). Measured before it: 1.2-4.2 forced moves/min (L3 A >= 8, B >= 12): the walls

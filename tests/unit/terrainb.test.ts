@@ -31,6 +31,7 @@ const L = await import('../../src/layout');
 const { BIOMES, SET_KINDS, biomeReset, biomeScript, biomeStage, shapeAt, stagePicks } = await import('../../src/biomes');
 const { CATALOG, drawPicks } = await import('../../src/setdraw');
 const { MOVE, MOVE_HAZ_MIN, MOVES, TIP_W, bandClamp, gimmick, hazInterval, moveAt, moveHazMul, snapVent, ventNear } = await import('../../src/terrainb');
+const { GULLET } = await import('../../src/sigs');
 const { pickSeedOf, seedOf, stream } = await import('../../src/rng');
 /** spec §3.3's floor, written out: not MOVE_GAP, so a change to the constant can't pass its own test */
 const GAP = 108;
@@ -74,6 +75,24 @@ describe('the W6 lane weave and staggered spurs (sigs.ts WEAVE / SPUR, L3)', () 
     for (let x = from + 400; x < P.runup! - 400; x += 4) { const i = Math.floor(x / TS), c = world.CEIL[i], f = world.FLOOR[i], c2 = Math.max(world.CEIL[i - 16], world.CEIL[i + 16]), f2 = Math.min(world.FLOOR[i - 16], world.FLOOR[i + 16]);
       if (c - c2 >= 12) top++; if (f2 - f >= 12) bot++; }
     expect(top, 'ceiling spurs').toBeGreaterThan(0); expect(bot, 'floor spurs').toBeGreaterThan(0);
+  });
+  // the winding gullet (decision 31, W6 r4): its lane holds alternate PH .27 / .73, more than the lane apart (no y flies
+  // two in a row), the lane's centre sloping <= .75 (S3), ~4 lane switches in the throat
+  it.each(KEYS.flatMap((b) => [0, 1].map((mv) => ({ b, mv }))))('$b B$mv: the gullet winds between lanes that share no band', ({ b, mv }) => {
+    const r = L.slotRow(1), from = r.gateLate!, P = fly(1, b, from, mv, 0), x0 = P.P(GULLET.p) + GULLET.lead, Z = GULLET.zig;
+    expect(Z.lanes[1] * 254 - Z.lanes[0] * 254).toBeGreaterThan(Z.gap);
+    const m = (i: number) => (world.CEIL[i] + world.FLOOR[i]) / 2;
+    let holds = 0, last = 0;
+    // the blends too (level-designer review): the walls lerp from movement A into the lane and back
+    for (let x = x0 - 12; x < x0 + GULLET.len + 12; x += 4) expect(swept(x), `fit ${x}`).toBeGreaterThanOrEqual(100);
+    for (let i = Math.floor(x0 / TS); i + 6 <= Math.floor((x0 + GULLET.len) / TS); i++) {
+      // in a blend the centre also carries movement A's walls: the ice teeth and fire spires read over .75 on this
+      // measure anywhere (base included; they are obstacles, not a lane), so the blends' S3 is pinned on the smooth walls
+      const s3 = Math.abs(m(i + 6) - m(i)) / (6 * TS); if (i * TS < x0 + GULLET.blend || i * TS > x0 + GULLET.len - GULLET.blend - 24) { if (b === 'acid' || b === 'snot') expect(s3, `S3 blend ${i * TS}`).toBeLessThanOrEqual(.75); continue; }
+      expect(s3, `S3 ${i * TS}`).toBeLessThanOrEqual(.75);
+      const side = m(i) < 127 - 40 ? -1 : m(i) > 127 + 40 ? 1 : 0; if (side && side !== last) { holds++; last = side; }
+    }
+    expect(holds).toBeGreaterThanOrEqual(4);
   });
   it('rebuilds the woven, spurred walls identically (a resume)', () => {
     for (const b of KEYS) for (const seg of [0, 1]) {

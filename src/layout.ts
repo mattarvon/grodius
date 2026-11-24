@@ -151,6 +151,9 @@ export interface LayoutEntry {
     /** world.ts reads the wall noise at x - d from world x on (W6: the Drive approach keeps the corridor THE STROKE was
      *  fitted on when an earlier stretch moves it) */
     nShift?: { x: number; d: number };
+    /** long4 (W6 r4, decision 31): world bands where the corridor squeeze (kT) eases off by k, so a piston window's
+     *  openings can sit off the centre line (THE STROKE's v4 in the Drive rush) */
+    kOpen?: { bands: number[][]; k: number };
   };
   /** hell-flash weights, keyed to stage kinds: `corr` spans the last biome slot and the Drive approach, `core` the
    *  Drive chamber. In `short` they are exactly the AMT corr/core bands they replaced (neutral re-key) */
@@ -235,7 +238,7 @@ const STRETCH = {
    *  self-destruct 60 s, W4b), so 77.5 + 60 = ~138 s holds the Drive at <= 140 (L6 <= 145). The 300 px came out of
    *  that last filler window, which is gone: the WARNING now follows ~7.7 s of quiet (LVL §6.2). pod-probe tally_s */
   // [FIT] W6 r4 2100 -> 1980 (L6: the Drive tallied 137-146 s, median 146, band <= 145): -120 px comes out of the quiet
-  // before the WARNING (DRIVE_WARN follows the stretch; the rush weave still ends at 4050, ~6.5 s of quiet stay)
+  // before the WARNING (DRIVE_WARN follows the stretch; the last rush cell ends ~410 px before it, decision 31's layout)
   drive: 1980,
 };
 const S0 = STRETCH.orbit, S1 = S0 + STRETCH.biomeA, S2 = S1 + STRETCH.biomeB, S3 = S2 + STRETCH.drive;
@@ -291,12 +294,16 @@ const LONG4_ORBIT_PLAN: StagePlan = {
  *  three peaks), and ~7.7 s of quiet to the WARNING (rev 2's last filler window, 4090-4780, is gone) */
 const LONG4_DRIVE_PLAN: StagePlan = {
   slots: [
-    { x: 230, tag: 'floor' }, { x: 520, tag: 'intro' },
-    { x: 3150, tag: 'peak' }, { x: 3470, tag: 'peak' }, { x: 3790, tag: 'peak' },
+    // W6 r4 (decision 31): the first peak comes before THE STROKE (810-1090, ending 10 px before its window), the other
+    // two after v4 (off its pistons and kOpen's ramp: LVL §4 rule 3), the last ending ~410 px before the WARNING (the
+    // #19 run-up rule's 300). Same slots, same order: no draw moves
+    { x: 230, tag: 'floor' }, { x: 520, tag: 'intro' }, { x: 810, tag: 'peak' },
+    { x: 3460, tag: 'peak' }, { x: 3750, tag: 'peak' },
   ],
   fill: [
     { a: 1180, b: 2420, gap: 140, mix: 'orbit' }, // through THE STROKE: drones, sentries, crew, flayers, swarms only
-    { a: 2750, b: 3150, gap: 60, mix: 'interior' }, // out of the breath, into the peaks
+    // W6 r4: no filler through THE STROKE v4 (the old 2750-3150 'interior' window is gone): its pistons are the threat
+    // there (one threat type at a peak, GR §7), and the filler kinds enter from the right (the Drive's entry mix, N4)
   ],
 };
 
@@ -328,7 +335,7 @@ const LONG4: LayoutEntry = {
     // spawn beat, the pressure breath (CP1: rebuildAt resumes 120 px before it, onto an empty screen), the WARNING - 10 s.
     // THE STROKE's window is where the ship's world x meets the pistons
     { kind: 'drive', x0: 11750 + S2, x1: 15150 + S3, bossX: 14450 + S3, warnX: 14210 + S3, plan: LONG4_DRIVE_PLAN, cp1: 2460,
-      cps: [0, 660, 2460, DRIVE_WARN - CP_RULE.warnLead], sigs: [{ id: 'stroke', a: 1100, b: 2385, floor: 80 }] },
+      cps: [0, 660, 2460, DRIVE_WARN - CP_RULE.warnLead], sigs: [{ id: 'stroke', a: 1100, b: 2385, floor: 80 }, { id: 'stroke_rush', a: 2890, b: 3400, floor: 80 }] },
   ],
   // the biome hands back to the ship one screen into the Drive approach, so slot 1's boss arena (screen to x0 + 480)
   // stays on movement C; biomeExit's look hand-back (G.bx[2] = scroll + W + 10) lands at the same x
@@ -434,7 +441,9 @@ const LONG4: LayoutEntry = {
       // first piston beat at 1150: its floor 80 is fitted un-woven). A steeper weave does not help here: the ~120 px corridor's
       // swept fit is 104-118, so the sweep-loss scale (keep 106) turns a steeper weave down to the same ~25 px; the Drive's
       // forced moves come from THE STROKE's pistons (DRIVE_SIG)
-      { bands: [[11750 + S2 + 620, 11750 + S2 + 740, 11750 + S2 + 980, 11750 + S2 + 1060], [11750 + S2 + 2700, 11750 + S2 + 2850, 11750 + S2 + 3900, 11750 + S2 + 4050]], amp: 40, ramp: 240, hold: 60, keep: 106, ease: 1 / 160 },
+      // decision 31: the rush band (2700-4050) gave way to THE STROKE v4's window and kOpen (2830-3450); the weave runs
+      // again past them, over the two rush peaks (3470-4050, game-designer review), and stays out of every window
+      { bands: [[11750 + S2 + 620, 11750 + S2 + 740, 11750 + S2 + 980, 11750 + S2 + 1060], [11750 + S2 + 3470, 11750 + S2 + 3570, 11750 + S2 + 3950, 11750 + S2 + 4050]], amp: 40, ramp: 240, hold: 60, keep: 106, ease: 1 / 160 },
     ],
     // [FIT] the hull girders (W6 tune, L3): one over the hull's arrival and one between each pair of floor blocks (3960,
     // 4140, ... 4860), 40 px wide, tip 108 px above the floor (S1 100 + margin), so a ship riding high has to come down
@@ -448,6 +457,11 @@ const LONG4: LayoutEntry = {
     // W6 r4: the biome A / B stretch cuts (L6) moved it the other way, so d is the whole shift since that fit (Orbit 2400,
     // biome A 1950, biome B 1450): +300 - 390 - 220 = -310
     nShift: { x: 11750 + S2, d: STRETCH.orbit - 2400 + STRETCH.biomeA - 1950 + STRETCH.biomeB - 1450 },
+    // decision 31 (W6 r4, L3 Drive 3.1-4.3/min, band 8): THE STROKE v4 in the rush needs a corridor wider than two of its
+    // openings (2 x 80 + the ship), or every pair of openings shares a band on the centre line (2g - w: the ~120 px
+    // squeeze). The squeeze eases to .2 over the pistons (~170-190 px), ramped over 80 px each side (each wall ~.45 px/px),
+    // and only there (L1: the Drive's free height median <= 52%)
+    kOpen: { bands: [[11750 + S2 + 2830, 11750 + S2 + 2910, 11750 + S2 + 3370, 11750 + S2 + 3450]], k: .8 },
   },
   // PROVISIONAL (creative-director condition, LS1-A review): per-kind hell values are authored after art round 2, never
   // copied from the AMT bands. Until then they are keyed to the stage rows, not to AMT: `corr` rises over slot 1's
@@ -678,6 +692,11 @@ export const DRIVE_SIG = {
       { id: 'v1', x: [1150, 1255, 1360, 1465], side: [-1, 1, -1, 1], gap: 96 },
       { id: 'v2', x: [1575, 1680, 1785, 1890], pair: [.38, .62, .38, .62], gap: 84 },
       { id: 'v3', x: [1980, 2100, 2220, 2340], pair: [.62, .38, .62, .38], gap: 82, eyes: 2175, behind: 2190 },
+      // decision 31 (W6 r4): v4 in the rush, after the CP1 breath, in its own window (2890-3400) where the corridor opens
+      // to ~180 px (terrain.kOpen, ramped in over 2830-2910): singles off alternate walls leave 82 px each (v3's [FIT]: the
+      // engine reads ~2 px under the nominal gap, L5 measured 78 at 80), so the middle is shut at every piston and the ship
+      // switches lanes each time, ~95 px across the 150 px between two pistons at pitch 180 (.64: S3 .75). The first beat (2950 - W) follows CP1 (2460), so a restore rebuilds all three
+      { id: 'v4', x: [2950, 3130, 3310], side: [-1, 1, -1], gap: 82 },
     ] as StrokeVar[],
   },
 };

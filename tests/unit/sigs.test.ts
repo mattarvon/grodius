@@ -87,8 +87,8 @@ describe('the insets and the gullet', () => {
       expect(weaveAt(H.x + H.P / 2, 3.7, s)).toBe(-WEAVE.slot[s].amp); // a -amp hold centre (a floor spur's)
     });
   });
-  it('slot B narrow: 930 px (W6 r4), gap 108-118, never below 108', () => {
-    expect(GULLET.len).toBe(930); expect(GULLET.gap[0]).toBeGreaterThanOrEqual(108); expect(GULLET.gap[1]).toBe(118);
+  it('slot B narrow: 1000 px (W6 r4), gap 108-118, never below 108', () => {
+    expect(GULLET.len).toBe(1000); expect(GULLET.gap[0]).toBeGreaterThanOrEqual(108); expect(GULLET.gap[1]).toBe(118);
   });
 });
 

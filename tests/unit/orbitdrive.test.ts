@@ -111,7 +111,10 @@ describe('terrain: short is untouched, long4 gets the hull, the breach and the d
       }
     });
     it('deepens the Drive approach corridor (median FH <= 52% on terrain alone, columns >= 104)', () => {
-      const a = DRIVE.x0 + 800, b = DRIVE.x0 + 4200, f = xs(a, b).map(fh);
+      // THE STROKE v4's window (W6 r4, decision 31) opens the corridor on purpose (terrain.kOpen): its pistons are the
+      // squeeze there, and the probe's free height counts them (L1); the terrain-only median reads the rest
+      const a = DRIVE.x0 + 800, b = DRIVE.x0 + 4200, w = DRIVE.sigs!.find((s) => s.id === 'stroke_rush')!, open = (x: number) => x >= DRIVE.x0 + w.a - 140 && x < DRIVE.x0 + w.b + 140;
+      const f = xs(a, b).filter((x) => !open(x)).map(fh);
       expect(q(f, .5)).toBeLessThanOrEqual(.52);
       for (const x of xs(a, b)) expect(W.floorAt(x) - W.ceilAt(x)).toBeGreaterThanOrEqual(103.999);
     });
@@ -149,8 +152,9 @@ describe('the long4 checkpoint lists (§2.1 Checkpoints, C21)', () => {
   }
   it('lists the Orbit and Drive windows in world x, with floors >= 72 (S1) and THE STROKE at 80', () => {
     const ws = rowSigWindows(L4);
-    expect(ws.map((w) => w.id)).toEqual(['crew_knots', 'stroke']);
+    expect(ws.map((w) => w.id)).toEqual(['crew_knots', 'stroke', 'stroke_rush']);
     expect(ws[1]).toEqual({ id: 'stroke', x0: DRIVE.x0 + 1100, x1: DRIVE.x0 + 2385, floor: 80 });
+    expect(ws[2]).toEqual({ id: 'stroke_rush', x0: DRIVE.x0 + 2890, x1: DRIVE.x0 + 3400, floor: 80 }); // decision 31 (W6 r4)
     for (const w of ws) expect(w.floor).toBeGreaterThanOrEqual(72);
     expect(rowSigWindows(LAYOUTS.short!)).toEqual([]);
     expect(cpsOf(0, LAYOUTS.short!)).toBeNull();
@@ -164,11 +168,11 @@ describe('THE STROKE pistons (LVL §6.3)', () => {
     expect(S.tell).toBeGreaterThanOrEqual(44);
     expect(S.v).toBeLessThanOrEqual(.5);
   });
-  it('flies 4 / 4 / 4 pistons (W6 r4) with gaps 96 / 84 / 82, every gap >= the window floor, inside the window', () => {
-    expect(S.vars.map((v) => v.x.length)).toEqual([4, 4, 4]);
-    expect(S.vars.map((v) => v.gap)).toEqual([96, 84, 82]);
-    const w = DRIVE.sigs![0];
+  it('flies 4 / 4 / 4 / 3 pistons (W6 r4, v4 decision 31) with gaps 96 / 84 / 82 / 82, every gap >= its window floor, inside its window', () => {
+    expect(S.vars.map((v) => v.x.length)).toEqual([4, 4, 4, 3]);
+    expect(S.vars.map((v) => v.gap)).toEqual([96, 84, 82, 82]);
     for (const v of S.vars) {
+      const w = DRIVE.sigs![v.id === 'v4' ? 1 : 0];
       expect(v.gap).toBeGreaterThanOrEqual(w.floor);
       for (const x of v.x) { expect(x).toBeGreaterThanOrEqual(w.a); expect(x + S.w).toBeLessThanOrEqual(w.b); }
     }
@@ -273,7 +277,18 @@ describe('the stage scripts (§2.2 authored carriers, §2.3 entry mix)', () => {
     }
   });
 
-  it('builds THE STROKE through the engine: 4 singles + 8 pairs (W6 r4), each phased into its own period, gaps kept, ext at least the engine stroke time', () => {
+  it('v4 (decision 31): the corridor opens past two openings, so every piston shuts the middle and the lane switch keeps S3', () => {
+    W.buildTerrain(0);
+    const S = DRIVE_SIG.stroke, v = S.vars.find((q) => q.id === 'v4')!;
+    for (let i = 0; i < v.x.length; i++) {
+      const x = DRIVE.x0 + v.x[i]; let c = -1e9, f = 1e9;
+      for (let u = x - 12; u <= x + S.w + 12; u += 3) { c = Math.max(c, W.ceilAt(u)); f = Math.min(f, W.floorAt(u)); }
+      expect(f - c, `piston ${i} corridor`).toBeGreaterThanOrEqual(2 * v.gap + 8); // the two lanes never share a band the ship fits
+      if (i) expect((f - c - v.gap) / (v.x[i] - v.x[i - 1] - S.w), `switch ${i}`).toBeLessThanOrEqual(.75); // S3
+      expect(v.side![i]).toBe(i % 2 ? 1 : -1);
+    }
+  });
+  it('builds THE STROKE through the engine: 7 singles + 8 pairs (W6 r4, v4 decision 31), each phased into its own period, gaps kept, ext at least the engine stroke time', () => {
     W.buildTerrain(0);
     fly(3, 5);
     const one = calls.filter((c) => c.k === 'spawnPiston').map((c) => c.a[0] as any), two = calls.filter((c) => c.k === 'spawnPistonPair').map((c) => c.a[0] as any);
@@ -288,7 +303,7 @@ describe('the stage scripts (§2.2 authored carriers, §2.3 entry mix)', () => {
     // the engine's own stroke time (solids.ts pistonGeom / extFor: walls over x .. x + w every 3 px, root 4 px into the
     // wall, eased 1.25): ours must be at least that, or the engine runs a longer period than the phase assumed
     const span = (o: any) => { let c = -1e9, f = 1e9; for (let u = o.x; u <= o.x + o.w; u += 3) { c = Math.max(c, W.ceilAt(u)); f = Math.min(f, W.floorAt(u)); } return [c, f]; };
-    for (const o of one) { const [c, f] = span(o); expect(o.fit).toBe(96); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil((o.side < 0 ? o.reach - c + 4 : f + 4 - o.reach) / .5 * 1.25)); }
+    for (const o of one) { const [c, f] = span(o); expect(o.fit).toBe(o.x - DRIVE.x0 >= 2890 ? 82 : 96); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil((o.side < 0 ? o.reach - c + 4 : f + 4 - o.reach) / .5 * 1.25)); }
     for (const o of two) { const [c, f] = span(o); expect(o.ext).toBeGreaterThanOrEqual(Math.ceil(Math.max(o.centre - o.gap / 2 - c + 4, f + 4 - o.centre - o.gap / 2) / .5 * 1.25)); }
     expect(two.map((o) => o.gap)).toEqual([84, 84, 84, 84, 82, 82, 82, 82]);
   });
