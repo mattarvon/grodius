@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
 const noop = () => {};
-const W = vi.hoisted(() => ({ enemies: [] as any[], eshots: [] as any[], caps: [] as any[], orbs: [] as any[], geysers: [] as any[], draws: 0, maxed: [] as number[], scab: 0 }));
+const W = vi.hoisted(() => ({ enemies: [] as any[], eshots: [] as any[], caps: [] as any[], orbs: [] as any[], geysers: [] as any[], draws: 0, maxed: [] as number[], scab: 0, ceil: 0, floor: 224 }));
 vi.mock('../../src/core', () => ({
   FIRE: [], PH: 254, W: 480, TAU: Math.PI * 2, R: () => { W.draws++; return .5; }, rr: (a: number) => a, ri: (a: number) => a, pick: (a: any[]) => a[0],
   clamp: (v: number, a: number, b: number) => Math.max(a, Math.min(b, v)), lerp: (a: number, b: number, t: number) => a + (b - a) * t,
@@ -17,7 +17,7 @@ vi.mock('../../src/core', () => ({
 vi.mock('../../src/save', () => ({ SET: { flashes: true }, lv: () => 0 }));
 vi.mock('../../src/audio', () => ({ sample: () => false, thr: () => false, bankWant: () => {}, quipAfterKill: () => null, sfx: new Proxy({}, { get: () => () => {} }) }));
 vi.mock('../../src/music', () => ({ duckMusic: () => {} }));
-vi.mock('../../src/world', () => ({ ...W, ceilAt: () => 0, floorAt: () => 224 }));
+vi.mock('../../src/world', () => ({ ...W, ceilAt: () => W.ceil, floorAt: () => W.floor }));
 vi.mock('../../src/fx/spawn', () => ({ drop: noop, flash: noop, gib: noop, gore: noop, mist: noop, pop: noop, spark: noop, splat: noop }));
 vi.mock('../../src/perks', () => ({ gainXP: noop, pk: (k: string) => (k === 'scab' ? W.scab : 0), scabChance: () => .03, spillSlick: noop })); // scabChance: perks.ts's long4 SURV.scab
 vi.mock('../../src/stages', () => ({ clearStage: noop, deepPay: () => 1 }));
@@ -38,7 +38,7 @@ const ENTRY_GAP = ENTRY.gap;
 const G0 = () => ({ t: 0, loop: 0, stage: 1, rank: 0, scroll: 0, scrollSpeed: 1, shake: 0, hitstop: 0, pow: 0, score: 0, bio: 0, combo: 0, comboT: 0, kills: 0, maxCombo: 0, st: { kills: 0, chain: 0, spawned: 0 }, warn: [], pend: [] });
 beforeEach(() => {
   L.setLayout('long4');
-  W.maxed = []; W.scab = 0;
+  W.maxed = []; W.scab = 0; W.ceil = 0; W.floor = 224;
   W.enemies.length = 0; W.eshots.length = 0; W.caps.length = 0; W.draws = 0;
   $.T = 0;
   $.G = G0();
@@ -88,6 +88,47 @@ describe('the designated formation shooter (C6; gate N1)', () => {
     for (let f = 0; f < 300 && !a.shot; f++) run(1);
     U.killEnemy(a);
     expect(b.sh).toBeFalsy();
+  });
+
+  it('a wiped formation keeps its unfired shooter (the probe still counts it); a rank extra never takes the shot', () => {
+    S.formation('sine', 127, 2, { fixed: 1 });
+    const [a, b] = W.enemies;
+    U.killEnemy(b); // the tail (sh 2) first: the leader holds sh 1, nobody to take sh 2
+    expect(b.sh).toBe(2);
+    U.killEnemy(a); // the last one: no successor
+    expect(a.sh).toBe(1);
+    W.enemies.length = 0;
+    S.formation('sine', 127, 3, { fixed: 1 });
+    const [l, m, t] = W.enemies;
+    m.extra = 1;
+    U.killEnemy(l);
+    expect(m.sh).toBeFalsy(); // the extra is skipped ...
+    expect(t.sh).toBe(1); //     ... and the tail is promoted from sh 2: the formation fires once
+    expect(W.enemies.filter((e) => !e.dead && e.sh).length).toBe(1);
+  });
+
+  it('at rank >= 14 a dead leader passes to a middle member, so the formation still fires at most twice', () => {
+    $.G.tier = 3; $.G.stage = 3; $.G.loop = 1;
+    S.formation('sine', 127, 4, { fixed: 1 });
+    const [lead] = W.enemies;
+    for (let f = 0; f < 300 && !(lead.tl > 0); f++) run(1);
+    U.killEnemy(lead);
+    expect(W.enemies.filter((e) => !e.dead).map((e) => e.sh || 0)).toEqual([1, 0, 2]);
+    run(500);
+    expect(W.eshots.length).toBe(2);
+  });
+
+  it('a wall entry with no wall at the lane: the other wall, then the same edge drop / rise (never a right entry)', () => {
+    W.floor = 400; // no floor on screen, the ceiling at 0
+    S.entryWave({ edge: 'wall', pat: 'rise' }, 120, 3);
+    expect($.G.warn.at(-1)).toMatchObject({ edge: 'top', birth: 1 }); // the ceiling instead
+    W.ceil = -200; $.G.warn.length = 0; $.G.pend.length = 0;
+    S.entryWave({ edge: 'wall', pat: 'rise' }, 120, 3);
+    expect($.G.warn.at(-1).birth).toBeFalsy();
+    expect($.G.warn.at(-1).edge).toBe('bottom'); // a rise wave's chevron
+    $.G.pend[0].f();
+    expect(W.enemies.length).toBe(3);
+    expect(W.enemies.every((e) => e.pat === 'rise')).toBe(true);
   });
 
   it('a drop / rise shooter neither tells nor fires while it is still inside the rock (round 4: its shot died in the floor)', () => {
