@@ -83,10 +83,12 @@ const SLOT_F = [0, 0, 0, 0, 0, 0, 0];
 /** the last still slot bar: its input signature and a copy of its pixels (rows PH..H of the low-res layer) */
 const BAR = { sig: null, cv: null };
 function barSnap(sig) {
-  if (!BAR.cv) { BAR.cv = document.createElement('canvas'); BAR.cv.width = W; BAR.cv.height = H - PH; }
+  // full screen size, so the copy is a GPU canvas like lo: a 480 x 16 one would fall under the browser's acceleration
+  // threshold and read lo back to the CPU on every bar change (TD). The bar sits in rows PH..H of it, as in lo
+  if (!BAR.cv) { BAR.cv = document.createElement('canvas'); BAR.cv.width = W; BAR.cv.height = H; }
   const b = BAR.cv.getContext('2d');
-  b.clearRect(0, 0, W, H - PH);
-  b.drawImage(lo, 0, PH, W, H - PH, 0, 0, W, H - PH); // nothing else is in these rows yet: the bar's backing is opaque
+  b.clearRect(0, PH, W, H - PH);
+  b.drawImage(lo, 0, PH, W, H - PH, 0, PH, W, H - PH); // nothing else is in these rows yet: the bar's backing is opaque
   BAR.sig = sig;
 }
 const slotLv = (i) => [$.P.speed, $.P.missile, $.P.double, $.P.laser, $.P.pyre, $.P.options, $.P.wardLv || 0][i];
@@ -167,7 +169,7 @@ export function drawHUD() {
     if (so && so.ready) { anim = true; continue; }
     sig += slotLv(i) + ',' + (so ? so.n + '/' + so.nd : !slotMaxed(i) && !SET.meter ? (($.P.frag && $.P.frag[i]) || 0) + '/' + needOf(i) : '-') + (slotLocked(i) ? 'L' : '') + ';';
   }
-  if (!anim && sig === BAR.sig && BAR.cv) ctx.drawImage(BAR.cv, 0, PH);
+  if (!anim && sig === BAR.sig && BAR.cv) ctx.drawImage(BAR.cv, 0, PH, W, H - PH, 0, PH, W, H - PH);
   else { drawSlots(); if (anim) BAR.sig = null; else barSnap(sig); }
   drawShip(ctx, 341, PH + 8, 0, .45, 0);
   txt('x' + $.G.lives, 350, PH + 4, '#cfd9e3');

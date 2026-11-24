@@ -103,7 +103,7 @@ const HB = { H: 40, cols: 7, rows: 7, px: 0, cv: null, free: [], live: [], f: 0 
 function halfBake(q) {
   const e = q.e;
   if (!HALF_BAKE[e.k] || e.cap || (e.host && isCross(e)) || !sprReady('corpse')) return -1;
-  if (q.bk >= 0 && q.bkC !== C.bloodL) { HB.free.push(q.bk); q.bk = -1; } // a biome's palette came in: repaint (the tear's edge reads C.bloodL)
+  if (q.bk >= 0 && q.bkC !== C.blood + C.bloodD + C.bloodL) { HB.free.push(q.bk); q.bk = -1; } // a biome's palette came in: repaint (the tear's edge reads C.bloodL)
   if (q.bk >= 0) { q.bkF = HB.f; return q.bk; }
   if (!HB.cv) { // once, at the first half
     HB.px = HB.H * 2 * GIB_SS;
@@ -124,7 +124,7 @@ function halfBake(q) {
   x.imageSmoothingEnabled = false; // the world layer's setting, which the live draw had
   drawHalf(x, q);
   x.restore();
-  q.bk = i; q.bkF = HB.f; q.bkC = C.bloodL;
+  q.bk = i; q.bkF = HB.f; q.bkC = C.blood + C.bloodD + C.bloodL;
   HB.live.push(q);
   return i;
 }
@@ -358,21 +358,21 @@ function stuckSync(A, pal) {
     if (!el || q.x < -20 || q.x > W + 30) continue;
     if (q.cp !== pal) { q.cp = pal; q.cell = gibCell(q, pal); }
     const c = q.cell, k = c.r ? q.s / c.r : 1;
-    q._wx = q.x + sc; q._gr = c.h * k / GIB_SS * 1.42 + 1;
+    q._wx = q.x + sc; q._wy = q.y; q._gr = c.h * k / GIB_SS * 1.42 + 1; // _wy: where it was painted, which is where it is erased (a ceiling gib can fall a few px between draws: TD)
     gibInto(G, A, q);
     q._G = gg; LG.push(q);
   }
   for (let i = LG.length - 1; i >= 0; i--) { const q = LG[i]; if (q._G !== gg || q._s !== f) { q._G = 0; out.push(q); LG[i] = LG[LG.length - 1]; LG.pop(); } }
   for (const q of out) { // erase a gib that left, where it shows, and paint back the neighbours it covered
     if (q._wx - sc + q._gr < -2) continue;
-    const x0 = q._wx - q._gr - 1, n = Math.ceil(q._gr * 2 + 3), y0 = Math.floor(q.y - q._gr - 1), h = Math.ceil(q._gr * 2 + 3);
+    const x0 = q._wx - q._gr - 1, n = Math.ceil(q._gr * 2 + 3), y0 = Math.floor(q._wy - q._gr - 1), h = Math.ceil(q._gr * 2 + 3);
     const u0 = Math.floor(mod(x0 - RING.ph, LW));
     for (const a of [u0, u0 - LW]) {
       if (a + n < 0) continue;
       G.save();
       G.beginPath(); G.rect(a, y0, n, h); G.clip();
       G.clearRect(a, y0, n, h);
-      for (const o of LG) if (Math.abs(o._wx - q._wx) < o._gr + q._gr + 3 && Math.abs(o.y - q.y) < o._gr + q._gr + 3) gibInto(G, A, o);
+      for (const o of LG) if (Math.abs(o._wx - q._wx) < o._gr + q._gr + 3 && Math.abs(o._wy - q._wy) < o._gr + q._gr + 3) gibInto(G, A, o);
       G.restore();
     }
   }
@@ -386,7 +386,7 @@ function gibInto(G, A, q) {
   G.imageSmoothingEnabled = true;
   const t = G.getTransform();
   ringAt(q._wx, q._gr, (lx) => {
-    G.setTransform(cs, sn, -sn, cs, lx, q.y);
+    G.setTransform(cs, sn, -sn, cs, lx, q._wy);
     G.drawImage(A, c.x, c.y, d, d, -c.h, -c.h, d, d);
   });
   G.setTransform(t);

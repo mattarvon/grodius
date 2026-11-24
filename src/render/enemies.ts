@@ -936,16 +936,18 @@ const KNOT_BODY = { k: 'corpse', ph: 0, twitch: 0, t: 0, noLeg: false, noArm: fa
 // painted once into a cell and drawn turned, at 2x with smoothing (the gib atlas's way): one draw instead of ~160 calls
 // (5-7 bodies, 20 links). What moves inside the ring is keyed: the kind, the body count, the hit twitch, and which bodies
 // show the longer blood string (drawCorpse's (t + v x 17) % 90 < 45, a function of e.t mod 90: at most 2 x 7 masks a
-// knot). Cells are kept (a few dozen at most) in one atlas canvas; a full atlas draws live. Only on the world layer: a
+// knot), and the gore palette. Cells are kept (a few dozen at most) in one atlas canvas; a full atlas draws live. Only on the world layer: a
 // split half (gore.ts) still paints the live ring into its own cell
-const KB = { SS: 2, H: 38, cols: 8, rows: 8, px: 0, cv: null, x: null, cells: new Map() };
+const KB = { SS: 2, H: 38, cols: 8, rows: 8, px: 0, cv: null, x: null, cells: new Map(), pal: '' };
 function knotCell(e, nb, r0, step) {
   let mask = 0;
   for (let j = 0; j < nb; j++) {
     const v = Math.min(3, Math.floor((((j * 1.37 + nb * .61) % 1) * TAU) / TAU * 4));
     if ((((e.t || 0) + j * 23 + v * 17) % 90) < 45) mask |= 1 << j;
   }
-  const key = (e.k === 'knot' ? 1 : 0) + nb * 2 + (e.flash ? 32 : 0) + mask * 64;
+  const key = (e.k === 'knot' ? 1 : 0) + nb * 2 + mask * 64;
+  const pal = C.blood + C.bloodD + C.bone; // the stumps read the gore palette (biomes.ts applyPalette): a new one repaints every cell
+  if (pal !== KB.pal) { KB.pal = pal; KB.cells.clear(); if (KB.x) { KB.x.setTransform(1, 0, 0, 1, 0, 0); KB.x.clearRect(0, 0, KB.cv.width, KB.cv.height); } }
   let i = KB.cells.get(key);
   if (i != null) return i;
   if (!KB.cv) {
@@ -967,7 +969,7 @@ function knotCell(e, nb, r0, step) {
 }
 export function drawKnot(c, e) {
   const nb = e.nb || 5, r0 = e.k === 'knot' ? 11 : 6, step = TAU / nb, ang = e.rot || 0;
-  if (c === ctx && sprReadyF('corpse')) {
+  if (c === ctx && !e.flash && sprReadyF('corpse')) { // a hit frame (its twitch, under drawEnemy's flash filter) draws live: the cells stay <= 46 looks (2 x nb masks)
     const i = knotCell(e, nb, r0, step);
     if (i >= 0) {
       const d = KB.px;
