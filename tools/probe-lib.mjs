@@ -339,10 +339,25 @@ export function pageLib() {
     if (e.k === 'nailbar' && e.par && e.par.k === 'choir' && (e.par.lb === e || e.par.lb2 === e) && (() => { const LP = PL.mods.DN && PL.mods.DN.LP; return e.par.lp === (LP ? LP.out : 2) || e.par.lp === (LP ? LP.back : 3); })()) return 'deny:lane';
     return 'body:' + e.k;
   };
+  // r3 fights: an icicle that reaches the ship's core is spent in that same step (biomes.ts stepBiome sets G.hazHit and
+  // drops it), so the post-step contact read never saw one: THE BLOAT's icicle curtain (its second-half denial, spec §2.3)
+  // read 0 hits. watchIce wraps the hazard list's splice (installed once) and notes a removed icicle that met the ship's
+  // core by the sim's own test, at the moment the sim removes it: 'deny:curtain' for THE BLOAT's own (biomes.ts dropHazard
+  // marks them aim), 'haz:icicle' for the biome's. Measure-only: it reads, never changes the list
+  PL.iceTouch = [];
+  PL.watchIce = () => {
+    const B = globalThis.__biome ? globalThis.__biome() : null, hz = B && B.haz; if (!hz || hz.__plIce) return;
+    const sp = hz.splice; Object.defineProperty(hz, '__plIce', { value: 1 });
+    hz.splice = function (i, ...rest) { const z = this[i], S = PL.mods.S, P = S && S.$ && S.$.P;
+      if (z && z.k === 'icicle' && P && P.alive && Math.abs(P.x - z.x) < 5 && P.y > z.y && P.y < z.y + z.len + 4) { const m = S.$.G && S.$.G.mini; PL.iceTouch.push(z.aim && m && m.k === 'crux' ? 'deny:curtain' : 'haz:icicle'); }
+      return sp.call(this, i, ...rest); };
+  };
   PL.spotFrame = (acc, g, x, y, ph) => {
-    { const m = g.G && g.G.mini; if (m && !m.dead && (m.mid || (m.k === 'maw' && !m.stageBoss)) && (m.gone || (m.leave != null && m.t >= m.leave))) { acc.withdrawSkipped = (acc.withdrawSkipped || 0) + 1; return; } } // frames skipped, kept visible
+    PL.watchIce(); if (!acc.iceOn) { acc.iceOn = 1; PL.iceTouch.length = 0; } // a fight's first frame: no earlier touch carries in
+    { const m = g.G && g.G.mini; if (m && !m.dead && (m.mid || (m.k === 'maw' && !m.stageBoss)) && (m.gone || (m.leave != null && m.t >= m.leave))) { acc.withdrawSkipped = (acc.withdrawSkipped || 0) + 1; PL.iceTouch.length = 0; return; } } // frames skipped, kept visible
     const c = PL.contact(g, x, y), P = (acc.ph[ph] ||= { f: 0, hits: 0, by: {} }); P.f++;
     const add = (k) => { P.hits++; P.by[k] = (P.by[k] || 0) + 1; };
+    for (const k of PL.iceTouch.splice(0)) add(k); // each spent icicle is its own touch
     for (const s of c.shots) if (!acc.shotSeen.has(s)) { acc.shotSeen.add(s); add(s.dn ? 'deny:' + s.dn : 'shot:' + (s.k || 'orb')); }
     const now = new Set([...c.bodies.map(PL.bodyKey), ...c.other]);
     for (const k of now) if (!acc.prev.has(k)) add(k);

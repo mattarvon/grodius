@@ -4,6 +4,10 @@
 //  --ord <stage> sets G.stage to that stage ordinal just before a biome boss spawns (not the Drive or THE KEEPSAKE),
 //  so its depth and any stage-order HP read that stage: --ord 2 = biome slot B's boss on slot A's x. Off: as before
 //  World x comes from src/layout.ts: biome bosses fight at slot 0's x0 + 700 (3000 on short), the Drive at bossAt().
+//  On long4 (r3 fights) a biome boss fights where the game holds it: spawned at slot 0's bossX + 150 (its WARNING at bossX,
+//  miniWarn's 150 f at 1 px/f) with the scroll coasting to its stop (~bossX + 200), the movement-C arena. At x0 + 700 it
+//  sat on the flown corridor (tune-ts's weave, spurs and insets, on the Orbit stretch's shifted wall noise), a screen no
+//  biome boss is held on: there the walls cut the bot's line of fire on ~half the frames and the Bloat read 36-41 s.
 //  THE KEEPSAKE (D55) fights where bossFor places it: slot 1 built for real (biomeStage, so its arena terrain is there),
 //  the scroll held 200 px past the slot's boss x, Descent 1; the bot aims at its wound (e.y + e.wy, turned with the tilt).
 //  It is skipped on short (never placed there). HPX=1.4 env: scale its HP after the spawn (a stage-order HP multiplier
@@ -81,6 +85,9 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD, SPOTM, TIMEOUT, S
     $.G.si = $.G.script.length; $.G.pick = null; $.G.pickQ = 0; $.G.tally = null; if ($.G.pend) $.G.pend.length = 0;
   };
   const driveStage = () => LY.layout().stages.findIndex((r) => r.kind === 'drive');
+  /** where long4 holds a biome boss (biomes.ts biomeScript: at(bossX) -> miniWarn, 150 f -> the spawn; step.ts then coasts
+   *  the scroll to a stop): the spawn's scroll x. Other layouts: x0 + 700, as before */
+  const bossHold = () => (LY.layout().id === 'long4' ? LY.slotRow(0).bossX + 150 : LY.slotRow(0).x0 + 700);
   const setup = (pw, gm, pkk, scroll, bio) => {
     F.newGame(0); $.state = 'play';
     for (let i = 0; i < 30; i++) ST.step();
@@ -98,7 +105,8 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD, SPOTM, TIMEOUT, S
   const rankNow = () => { const r = PL.rank(); return r != null ? r : typeof $.G.rank === 'number' ? +$.G.rank.toFixed(2) : 'n/a'; };
   /** one fight: spot = [x, y] parks the ship there and counts would-be hits; noFire holds fire off (the time-out) */
   const fight = (k, pw, gm, pkk, name, spot, noFire) => {
-    setup(pw, gm, pkk, k === 'gravity' ? LY.bossAt() : LY.slotRow(0).x0 + 700, BIOME_OF[k]);
+    setup(pw, gm, pkk, k === 'gravity' ? LY.bossAt() : bossHold(), BIOME_OF[k]);
+    if (BIOME_OF[k] && LY.layout().id === 'long4') $.G.scrollSpeed = 1; // arriving at scroll speed, as from its WARNING: it coasts to the hold
     if (k === 'gravity') $.G.stage = driveStage();
     if (k === 'keepsake') { const sx = keepStage(); $.G.scroll = sx; $.G.si = $.G.script.length; W.enemies.length = 0; REG.BOSS_SIM.keepsake.spawn('fire'); const m = $.G.mini; m.hp *= HPX; m.max = m.hp; }
     else if (k === 'gravity') BU.startBoss();
@@ -188,6 +196,7 @@ const res = await p.evaluate(async ([L, BOSSES, CAP, HPX, ORD, SPOTM, TIMEOUT, S
 }, [L, BOSSES, +CAP, HPX, ORD, SPOTM, TIMEOUT, SPOTS, SPOTKIT]);
 const NAME = { maw: 'MAW', crux: 'CRUCIFER', butcher: 'BUTCHER', gravity: 'GRAV DRIVE', keepsake: 'KEEPSAKE' };
 if (ORD != null) console.log(`biome bosses at stage ordinal ${ORD} (THE KEEPSAKE fights in its own placed stage)`);
+console.log('biome boss spawn x (slot 0):', await p.evaluate(async () => { const LY = await import('/src/layout.ts'), r = LY.slotRow(0); return LY.layout().id === 'long4' ? `bossX + 150 = ${r.bossX + 150} (the arena; the scroll coasts to its hold)` : `x0 + 700 = ${r.x0 + 700}`; }));
 console.log('rank per loadout and boss (src/rank.ts once W0 landed):', JSON.stringify(res.rank));
 console.log('loadout'.padEnd(16), ...BOSSES.map((k) => NAME[k].padStart(11)));
 for (const [n, r] of Object.entries(res.out)) console.log(n.padEnd(16), ...BOSSES.map((k) => String(r[k]).padStart(11)));
