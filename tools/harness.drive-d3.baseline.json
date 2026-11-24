@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "bda0861",
+  "commit": "965302a",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "drive-d3",
@@ -26,7 +26,7 @@
     "kills": 3,
     "t": 1190,
     "seen": "boss:drive",
-    "sig": "5473acb98c"
+    "sig": "e9509c09ce"
   },
   "hashes": [
     "3655f3bd18",
