@@ -64,8 +64,8 @@ function uTurn(e) {
  *  (the statue saw 68% of the rise shooters "fire" into the floor: no bullet ever flew) */
 const DRONE_AIR = 6;
 const inAir = (e, x = e.x) => { const wx = x + $.G.scroll; return e.y > ceilAt(wx) + DRONE_AIR && e.y < floorAt(wx) - DRONE_AIR && !solidAt(wx, e.y); }; // a SOLID (THE STROKE's pistons) stops a shot like rock
-/** f between two shots of one formation (game-designer): at rank >= 14 the leader and the tail (or a passed shot and
- *  the tail) can fire in the same few frames; the second leaves at least this long after the first, its own threat */
+/** f between two shots of one formation (game-designer): at rank >= 14 the leader and the tail can fire close together;
+ *  the second leaves at least this long after the first, its own threat (a 2-drone rear wave: its tail is 16 px back) */
 const SHOT_GAP = 16;
 function droneFire(e) {
   if (!e.sh || e.shot || (e.ghost > 0 && e.ent !== 'left') || !$.P.alive || (e.sh === 2 && rankOf() < BUL.rank2)) return;
@@ -804,25 +804,8 @@ export function hurt(e, d, hx, hy, dir) {
   if (e.hp <= 0) killEnemy(e, dir);
 }
 export const mult = () => 1 + Math.min(4, $.G.combo * .05);
-/** G3 (C6, round 4: N1): a designated shooter killed before it fired hands its shot to the nearest scripted member of
- *  its formation still flying (one behind it in the line first). A tail holding the rank >= 14 shot (sh 2) takes the
- *  leader's shot (sh 1) when no other member is left, so the formation then fires once, never twice. Rank extras never
- *  shoot (spawn.ts formation). With no one to take it the dead shooter keeps its role, so the probe still counts it as a
- *  shooter that never fired. The formation fires at most once (twice at rank >= 14): the role moves, it is never copied.
- *  The statue killed ~35% of the right-entry leaders inside their 12 f tell. No R() */
-function passShot(e) {
-  if (!g3() || e.k !== 'drone' || !e.sh || e.shot || !e.group || e.rec || e.group.rec) return;
-  let to = null;
-  for (const o of enemies) {
-    if (o === e || o.dead || o.group !== e.group || o.extra || o.shot || (o.sh && !(e.sh === 1 && o.sh === 2))) continue;
-    const k = (o.sh ? 1000 : 0) + Math.abs((o.i ?? 0) - (e.i ?? 0)) + ((o.i ?? 0) < (e.i ?? 0) ? 500 : 0);
-    if (!to || k < to[1]) to = [o, k];
-  }
-  if (to) { to[0].sh = to[0].sh ? 1 : e.sh; e.sh = 0; }
-}
 export function killEnemy(e, dir = 1) {
   e.dead = true;
-  passShot(e);
   if (e.elite) eliteKill(e);
   gore(e.x, e.y, e.gsz, {
     dir,

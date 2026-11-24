@@ -70,54 +70,6 @@ describe('the designated formation shooter (C6; gate N1)', () => {
     expect(W.eshots.length).toBe(2);
   });
 
-  it('a shooter killed before it fires hands its one shot to the next member; the formation still fires once', () => {
-    S.formation('sine', 127, 4, { fixed: 1 });
-    const [lead, m1] = W.enemies;
-    for (let f = 0; f < 300 && !(lead.tl > 0); f++) run(1);
-    expect(lead.tl).toBeGreaterThan(0);
-    U.killEnemy(lead); // shot inside its tell
-    expect(lead.sh).toBe(0);
-    expect(m1.sh).toBe(1);
-    expect(W.enemies.filter((e) => !e.dead && e.sh === 1).length).toBe(1);
-    run(400);
-    expect(W.eshots.length).toBe(1);
-    // one that already fired gives nothing away
-    W.eshots.length = 0; W.enemies.length = 0;
-    S.formation('sine', 127, 3, { fixed: 1 });
-    const [a, b] = W.enemies;
-    for (let f = 0; f < 300 && !a.shot; f++) run(1);
-    U.killEnemy(a);
-    expect(b.sh).toBeFalsy();
-  });
-
-  it('a wiped formation keeps its unfired shooter (the probe still counts it); a rank extra never takes the shot', () => {
-    S.formation('sine', 127, 2, { fixed: 1 });
-    const [a, b] = W.enemies;
-    U.killEnemy(b); // the tail (sh 2) first: the leader holds sh 1, nobody to take sh 2
-    expect(b.sh).toBe(2);
-    U.killEnemy(a); // the last one: no successor
-    expect(a.sh).toBe(1);
-    W.enemies.length = 0;
-    S.formation('sine', 127, 3, { fixed: 1 });
-    const [l, m, t] = W.enemies;
-    m.extra = 1;
-    U.killEnemy(l);
-    expect(m.sh).toBeFalsy(); // the extra is skipped ...
-    expect(t.sh).toBe(1); //     ... and the tail is promoted from sh 2: the formation fires once
-    expect(W.enemies.filter((e) => !e.dead && e.sh).length).toBe(1);
-  });
-
-  it('at rank >= 14 a dead leader passes to a middle member, so the formation still fires at most twice', () => {
-    $.G.tier = 3; $.G.stage = 3; $.G.loop = 1;
-    S.formation('sine', 127, 4, { fixed: 1 });
-    const [lead] = W.enemies;
-    for (let f = 0; f < 300 && !(lead.tl > 0); f++) run(1);
-    U.killEnemy(lead);
-    expect(W.enemies.filter((e) => !e.dead).map((e) => e.sh || 0)).toEqual([1, 0, 2]);
-    run(500);
-    expect(W.eshots.length).toBe(2);
-  });
-
   it('a wall entry with no wall at the lane: the other wall, then the same edge drop / rise (never a right entry)', () => {
     W.floor = 400; // no floor on screen, the ceiling at 0
     S.entryWave({ edge: 'wall', pat: 'rise' }, 120, 3);
