@@ -298,10 +298,12 @@ const GUN_TODAY = { arc: 1.7, pyre: [0, 5, 5], flank: .8 };
  *  PYRE eye of .6 at level 1 (its burn, shots.ts pyreBoom, is most of PYRE I now: 12.5 ONE / 8.9 WALL, level with
  *  MISSILE II's 8.8 WALL); PYRE II keeps today's 5 (seal 2, Descent 2 on, outside E4). With SERRATION 1.06 (economy.ts) LEGAL MAX D1 reads
  *  41.7 / 46.5 / 42.7 / 47.4.
- *  flank: SPLIT's two flankers [FIT, decision 23 (2026-11-23), gate E4 WALL <= 20x bare = 140 on the flat-arena rig]:
- *  at today's .8 SPLIT+MSL2 read WALL 150 (21.4x bare); the flankers carry the whole-screen sweep, the core the single
- *  target, so trimming them cuts WALL and leaves ONE nearly alone */
-const GUN_L4 = { arc: 1.3, pyre: [0, .6, 5], flank: .65 };
+ *  flank: SPLIT's two flankers [FIT, decision 23 (2026-11-23), gate E4 WALL <= 140 (20x bare) on the flat-arena rig]:
+ *  at today's .8 SPLIT+MSL2 read WALL 150 (r3-econ); the flankers carry the whole-screen sweep, the core the single
+ *  target, so trimming them cuts WALL and leaves ONE alone. dps-probe 6000 f, SPLIT+MSL2 WALL / ONE: .70 145.2 / 43.0,
+ *  .65 140.7 / 43.2 (over, by noise-sized margins: a second run read 141.0), .60 137.5 / 43.3. The other K1 variants
+ *  stay under 111 */
+const GUN_L4 = { arc: 1.3, pyre: [0, .6, 5], flank: .6 };
 const gun = () => (hardOn() ? GUN_L4 : GUN_TODAY);
 export function fire() {
   const cal = gmL('cal'),

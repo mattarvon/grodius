@@ -67,6 +67,9 @@ const L = [
   ['BIOME B kit', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 1 }, { cal: 1, rapid: 1 }, { dmg: 1, rof: 1, crit: 2 }],
   ['END DESCENT 1', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2 }, { cal: 1, rapid: 1 }, { dmg: 2, rof: 1, crit: 2 }],
   ['STRONG D1', { speed: 4, missile: 2, laser: 1, options: 2, wardLv: 2 }, { cal: 2, serr: 1, rapid: 1 }, { dmg: 3, rof: 2, crit: 3, volatile: 2, teeth: 2 }],
+  // W6 round 3: what a ship holds at the Orbit Saucer's WARNING, ~20 s in (pod-probe warns[0].kit, seeds 1/3/5/7/11: 2-3 pods,
+  // THRUST + MISSILE the median; no graft, no perk). The Saucer's HP is fitted here (midslot.ts MID_HP_G3.ufo); measure-only. Last, so L[0] / L[1] stay NAKED / STAGE 1
+  ['ORBIT WARNING kit', { speed: 1, missile: 1 }, {}, {}],
 ];
 const isBiome = (r) => BIOME_POOLS.includes(r.pool), HELD = ROSTER.filter(isBiome), REST = ROSTER.filter((r) => !isBiome(r)); // the registry, WIP kinds too
 const MIDS = [['maw', 'acid'], ...HELD.map((r) => [r.k, r.pool]), ...REST.map((r) => [r.k, null])].filter(([k]) => !KINDS.length || KINDS.includes(k));

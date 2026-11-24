@@ -139,10 +139,10 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(gradeOf('long4', st(10, 10), 60, true)).toBe('C');
   });
 
-  it("pays today's stage XP lump, cuts kill XP to x0.30 and kill biomass to x0.62 (D31 fit 1; W6 round 3 E9, steady state)", () => {
+  it("pays today's stage XP lump, cuts kill XP to x0.30 and kill biomass to x0.56 (D31 fit 1; W6 round 3 E9, steady state)", () => {
     for (let loop = 0; loop < 3; loop++) for (let ord = 0; ord < 4; ord++) expect(stageXP('long4', ord, loop)).toBe(perks.stageXP(ord, loop));
     expect(killXP('long4', 30)).toBeCloseTo(9);
-    expect(killBio('long4', 100)).toBeCloseTo(62);
+    expect(killBio('long4', 100)).toBeCloseTo(56);
   });
 
   it('adds .35 of a descent of depth across 4 stages', () => {
@@ -222,8 +222,8 @@ describe('long4 matches spec §7 (LS1)', () => {
     expect(ECON.long4.targets!.bio[0]).toEqual([1300, 1500]);
   });
 
-  it("pins the D31 cut with DIFFICULTY-SPEC §2.2's random faucet, refit by tune-tc and W6 round 3 (E2, E9): kill XP .30, kill biomass .62, carrier keep .09, formation pods .23, grafts x1.8", () => {
-    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .62, .09, .23, 1.8]);
+  it("pins the D31 cut with DIFFICULTY-SPEC §2.2's random faucet, refit by tune-tc and W6 round 3 (E2, E9): kill XP .30, kill biomass .56, carrier keep .09, formation pods .23, grafts x1.8", () => {
+    expect([ECON.long4.killXP, ECON.long4.killBio, ECON.long4.capKeep, ECON.long4.grpPod, ECON.long4.graftMul]).toEqual([.3, .56, .09, .23, 1.8]);
   });
 
   it('keeps a carrier pod only at a roll of .91 or more, x the tier faucet m', () => {

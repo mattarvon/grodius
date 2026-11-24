@@ -431,14 +431,6 @@ export const SET_KINDS = Object.keys(SET);
 /** long4's authored opening carriers: [p in the spawn span, spawn height as a fraction of PH] (DIFFICULTY-SPEC §2.2:
  *  2 per biome stage in its first 45 s, ~1 pod every 10 s with the release; gate E2 counts fixed:open) */
 const OPEN_PODS: readonly [number, number][] = [[.05, .4], [.2, .6]];
-/** W6 round 3 (gate E2, fixed:open exactly 10): the screen an opening carrier flies is kept clear of the biome's rolled
- *  filler, from `pre` px of scroll before its spawn to `post` px after (its 4 drones cross the screen in ~330 f, ~330 px
- *  of scroll). Before, the second opener (p .20) met the stage's first filler beat: ceiling wombs (15.8 HP, a hatchling
- *  litter each) and crawlers on the screen it crossed, so a ship busy with those let members pass and the pod never
- *  dropped (pod-probe openG[]: 3 of 5 seeds lost members, s1/s5 one, s11 all four, with the bot pinned under a ceiling
- *  womb). The rolls are still drawn (quiet() skips placement only), so the build stream's order holds. Set pieces, the
- *  band's lead slot and the breaths are untouched */
-const OPEN_QUIET = { pre: 200, post: 260 } as const;
 /** which drawn set piece the signature's v2 replaces (0-based: S2, levels.md §5.0b) */
 const SIG_SET = 1;
 /** a repeat visit to a biome (v = earlier visits this run): its own second signature + set, the set pieces moved, some
@@ -490,9 +482,7 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
   const sig = () => (rs() < .6 ? X.sig : roll()), sets = X.sets.map(P), two = secondKind(X);
   let setN = 0; // which drawn set piece is next (setIds)
   const inBreath = (y) => { for (const r of BR) if (y >= r.a && y < r.z) return r; return null; };
-  const openX = isL4() && !legacy ? OPEN_PODS.map(([p]) => P(p)) : []; // the opening carriers' spawn x (OPEN_QUIET)
-  const openQuiet = (y) => { for (const o of openX) if (y >= o - OPEN_QUIET.pre && y < o + OPEN_QUIET.post) return true; return false; };
-  const quiet = (y) => inBreath(y) || (!legacy && y >= BP.runup) || openQuiet(y); // where an extra may not land: a breath, the run-up, an opener's screen (long4)
+  const quiet = (y) => inBreath(y) || (!legacy && y >= BP.runup); // where an extra may not land: a breath, the run-up
   // where kind k entered at x really spawns: a rear filler (`behind`) lands REAR.lead px late, so it is checked there and
   // dropped if that is quiet (ls1-audit, game-designer). Long layouts only: on short it is x, and every check below is the
   // one that was there (pk() still draws, so the build stream's order holds)
@@ -529,7 +519,7 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
     const pk = T.sig ? sig : roll, dbl = T.rel ? Math.min(.85, B.dbl + T.dbl) : T.dbl;
     if (T.lead && !led.has(T)) { led.add(T); const k = T.lead === 'sig' || !two ? X.sig : two; at(x, el(SPAWN[k]), k); x += st; continue; } // the band's first slot, alone
     const k1 = pk();
-    if (!quiet(lands(x, k1))) at(x, el(spawnOf(k1)), k1); // x is quiet here only on an opener's screen (breaths skip above, the run-up stops)
+    if (!quiet(lands(x, k1))) at(x, el(spawnOf(k1)), k1); // x itself is never quiet here (breaths skip above, the run-up stops)
     if (rs() < dbl && !quiet(y2)) { const k = pk(); if (!quiet(lands(y2, k))) at(y2, el(spawnOf(k)), k); } // extras never spill into a breath or the run-up
     const p3 = T.third === true ? .35 : T.third || 0; // a number is the chance (long4's climax, layout.ts); true is 35%
     if (hard && p3 && rs() < p3 && !quiet(y3)) { const k = pk(); if (!quiet(lands(y3, k))) at(y3, el(SPAWN[k]), k); }

@@ -250,7 +250,9 @@ export const ECON: Readonly<Record<EntryId, EconEntry>> = {
     // first kill once. The W6 gates read the raw finalBio, and tc fitted .37 to raw 1505, which was steady ~1160 (W5 1302,
     // W6 1164, tc 1074, round 2 948). On the merged tree the Orbit Saucer also escapes the deathless bot (no kill, no
     // grade S). Fit: steady 1297 at .58 with the faucet below; holding ~250 of grade and choice pay fixed (D31 fit 1's rule), .62 aims at ~1375; a fresh profile's raw run reads ~300 more
-    killBio: .62,
+    // W6 round 3 integration: .62 -> .56 [FIT, E9 steady]: with the Saucer killed again and the faucet at .09 / .23, .62 read
+    // steady 1518 (1366-1749, seeds 1/3/5/7/11; raw 1818); holding ~250 of grade and choice pay fixed, .56 aims at ~1400
+    killBio: .56,
     // D31 §2.2: carrier and formation pods are per spawn, the variable faucet. Fit 1 (2026-11-08, ls2-d31 report): at the
     // .17 / .5 projections the stretched build gave 48 D1 pod pickups, the same as main's 48 (spawns rose x1.8, not
     // x1.45). Fixed pods (midboss/Maw 11, Saucer 2, choice 3, release 2) are 18 of them, so -35% (31) needs the variable
