@@ -18,7 +18,9 @@
 export const GORE_CAPS = {
   full: { drops: 4800, gibs: 720, sparks: 500, mists: 340, decals: 1800, flashes: 140, ropes: Infinity, eyes: Infinity },
   // ropes (three strokes each) and eye gibs (a hi-res eyeball each) are the dear gib kinds: LITE holds them to a few
-  lite: { drops: 700, gibs: 180, sparks: 140, mists: 100, decals: 500, flashes: 60, ropes: 12, eyes: 14 },
+  // gibs 260 and decals 900 (art-director: the floor piles and the blood wash build up; stuck gibs and decals sit in
+  // render/gore.ts's cached layers, so they are cheap once they land)
+  lite: { drops: 700, gibs: 260, sparks: 140, mists: 100, decals: 900, flashes: 60, ropes: 12, eyes: 14 },
 } as const;
 /** live gibs of kind k (the rope / eye caps) */
 export function gibCount(list: readonly { k: string }[], k: string): number {

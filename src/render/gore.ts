@@ -10,6 +10,7 @@ import { biomeMist, splatCols } from '../biomes';
 import { drawBooms } from '../fx/fxsprites';
 import { GIB_SS, gibAtlas, gibCell, gibPal } from './gibart';
 import { woundDC } from './wounds';
+import { DECAL_CUT } from '../fx/spawn';
 import { sprReady } from '../sprites';
 
 // --- gibs & gore ---
@@ -251,7 +252,7 @@ function decalLive(sc, sp, dripsOnly) {
 // painted back) when it starts to fade (l < 50), comes unstuck, or goes; the flying gibs draw over the layer.
 // Render-only: no srnd(), no sim field written (the _D/_G/_L/_s marks sit on fx objects nothing else reads)
 const LW = 1024;
-const RING = { on: false, ph: 0, lastPh: -1, sc: 0, R: 0, K: 0, f: 0, sf: -1, dg: 1, gg: 1, key: null, pal: -1, n: 0, L: null, LD: [], LG: [] };
+const RING = { on: false, ph: 0, lastPh: -1, sc: 0, R: 0, K: 0, f: 0, sf: -1, dg: 1, gg: 1, key: null, pal: -1, n: 0, cut: 0, L: null, LD: [], LG: [] };
 const mod = (v, n) => ((v % n) + n) % n;
 function ringMake() {
   const mk = () => { const cv = document.createElement('canvas'); cv.width = LW; cv.height = H; return { cv, x: cv.getContext('2d') }; };
@@ -332,7 +333,7 @@ function decalSync(sc, sp) {
     d._L = dg; d._r = d.r;
   }
   if (any) { Ld.fill(); Ll.fill(); }
-  if (decals.length < RING.n || RING.LD.length > decals.length) { // the sim culls decals 30 px off the left edge, and the oldest 240 past 1,800
+  if (decals.length < RING.n || RING.LD.length > decals.length || DECAL_CUT.n !== RING.cut) { RING.cut = DECAL_CUT.n; // the sim culls decals 30 px off the left edge, and the oldest 240 past 1,800
     const LD = RING.LD;
     for (let i = LD.length - 1; i >= 0; i--) if (LD[i]._s !== f) { if (LD[i].wx - sc > -16) redo = true; LD[i] = LD[LD.length - 1]; LD.pop(); }
   }

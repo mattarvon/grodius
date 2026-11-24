@@ -24,6 +24,8 @@ export function drop(x, y, vx, vy, s = 1, c = 0, l = 110) {
     l
   });
 }
+/** bumped when addDecal drops the oldest decals: render/gore.ts's decal layer repaints (a length check alone can miss it) */
+export const DECAL_CUT = { n: 0 };
 export function addDecal(wx, y, r, side) {
   for (let i = decals.length - 1, n = 0; i >= 0 && n < 40; i--, n++) {
     const d = decals[i];
@@ -40,7 +42,7 @@ export function addDecal(wx, y, r, side) {
     t: $.T
   });
   const dk = goreCaps().decals;
-  if (decals.length > dk) decals.splice(0, Math.round(dk * 2 / 15)); // FULL: 1800 / 240, as before
+  if (decals.length > dk) { decals.splice(0, Math.round(dk * 2 / 15)); DECAL_CUT.n++; } // FULL: 1800 / 240, as before
 }
 export function spark(x, y, vx, vy, l, c) {
   if (sparks.length > goreCaps().sparks) return;
@@ -81,11 +83,11 @@ export function gib(x, y, vx, vy, k, s, o = {}) {
   if (goreLite() && (k === 'rope' || k === 'eye') && gibCount(gibs, k) >= (k === 'rope' ? goreCaps().ropes : goreCaps().eyes)) return null; // LITE: the dear kinds held to a few
   if (gibs.length > goreCaps().gibs) {
     if (!goreLite()) return null;
-    // LITE (decision 32): a new kill's gore beats the oldest floor debris. The gib nearest its end goes (stuck ones first),
-    // so the cap thins the piles, not the blast on screen now. FULL refuses the new gib, as before
-    let k = -1, kl = Infinity;
-    for (let i = 0; i < gibs.length; i++) { const q = gibs[i], v = q.l - (q.stuck ? 1e4 : 0); if (v < kl) { kl = v; k = i; } }
-    gibs[k] = gibs[gibs.length - 1]; gibs.pop();
+    // LITE (decision 32): a new kill's gore beats the gib nearest its end (a flyer fading out, or the oldest floor
+    // debris: a stuck gib's life is >= 420, so the floor piles stay; art-director). FULL refuses the new gib, as before
+    let j = -1, jl = Infinity;
+    for (let i = 0; i < gibs.length; i++) if (gibs[i].l < jl) { jl = gibs[i].l; j = i; }
+    gibs[j] = gibs[gibs.length - 1]; gibs.pop();
   }
   const g = {
     x,
