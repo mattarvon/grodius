@@ -5,7 +5,7 @@ import { pk, xpNeed, perkName, perkDesc, perkReq, perkCost, perkMax, perkFX, per
 import { stageInfo, stageLabel } from '../stages';
 import { sfx } from '../audio';
 import { WARD_MAX } from '../player';
-import { C, FONT_D, FONT_H, H, PH, TAU, W, clamp, ctx, lerp, pwBtn } from '../core';
+import { C, FONT_D, FONT_H, H, PH, TAU, W, clamp, ctx, hash, lerp, pwBtn } from '../core';
 import { srnd } from '../srnd';
 import { SET } from '../save';
 import { touch } from '../input';
@@ -25,6 +25,7 @@ import { drawBakedDeaths } from './gross/baked';
 import { drawUfoFx } from './gross/mid/ufo';
 import { drawFork, mobFork } from './fork';
 import { MID_NAMES } from '../enemies/mid/roster';
+import { floorHeld, lurched, podShows, stored } from './hudcues';
 /** the health bar's name for a G.mini without a title: the bosses that can take G.mini, and every midboss */
 const MINI_NAMES: Record<string, string> = { maw: 'THE MAW', crux: 'THE BLOAT', butcher: 'THE BUTCHER', ...MID_NAMES };
 import { drawBoss } from '../render/boss';
@@ -72,7 +73,14 @@ export function drawHUD() {
       ctx.fillStyle = `rgba(${POD[i].c},${f / 60})`;
       ctx.fillRect(x, y, w, h);
     }
-    if ($.P && !slotMaxed(i) && !SET.meter) {
+    const so = stored(i);
+    if (so) { // SEAL PRIMING (hudcues.ts stored): parts held for the sealed level, combed so they don't read as a level in progress
+      const fw = (w - 2) * so.n / so.nd, pul = so.ready ? .5 + .5 * Math.sin($.T * .2) : 0;
+      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .2 + .2 * pul : .2})`;
+      ctx.fillRect(x + 1, y + 1, fw, h - 2);
+      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .55 + .35 * pul : .5})`;
+      for (let sx = 2; sx < fw; sx += 3) ctx.fillRect(x + sx, y + h - 4, 1, 2); // the comb: one tooth per 3 px, under the name
+    } else if ($.P && !slotMaxed(i) && !SET.meter) {
       const fr = $.P.frag && $.P.frag[i] || 0,
         nd = needOf(i);
       if (fr) {
@@ -81,9 +89,10 @@ export function drawHUD() {
       }
     }
     if ($.P && slotLocked(i)) {
-      ctx.fillStyle = '#8a2a2a';
+      const lk = so && so.ready ? POD[i].h : '#8a2a2a'; // a whole level stored: the lock takes the slot's colour, it opens at the seal
+      ctx.fillStyle = lk;
       ctx.fillRect(x + w - 7, y + 3, 5, 4);
-      ctx.strokeStyle = '#8a2a2a';
+      ctx.strokeStyle = lk;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(x + w - 4.5, y + 3, 1.6, Math.PI, TAU);
@@ -199,6 +208,14 @@ export function drawHUD() {
     ctx.fillStyle = m.shielded ? '#5d6b7a' : C.bloodL;
     ctx.fillRect(bx, y, bw * k, 3);
     if (m.ticks) { ctx.fillStyle = '#e8dccb'; for (const f of m.ticks) ctx.fillRect(bx + bw * f - .5, y - 1, 1, 5); } // a boss's phase cuts (THE KEEPSAKE's 65% and 30%)
+    const fh = floorHeld(m);
+    if (fh != null) { // the half floor holds the bar at its line (hudcues.ts floorHeld): a bone clamp there, white on a held-back hit
+      const cx = Math.round(bx + bw * fh), hit = m.tk != null && m.t - m.tk < 8;
+      ctx.fillStyle = hit ? '#ffffff' : '#e8dccb';
+      ctx.fillRect(cx - 1, y - 3, 2, 9);
+      ctx.fillRect(cx + 1, y - 3, 2, 1);
+      ctx.fillRect(cx + 1, y + 5, 2, 1);
+    }
     if (m.pl && !m.gone) { // phase timer: thin fuse above the HP bar, blinks in the last 5 s
       const left = 1 - (m.pt || 0) / m.pl;
       if (left > 5 * 60 / m.pl || ($.T >> 3) & 1) {
@@ -229,10 +246,12 @@ export function drawHUD() {
   if ($.state !== 'pause') {
     drawHype();
   }
-  if ($.G.banner) {
-    const b = $.G.banner,
+  lurchCue();
+  const ban = $.G.banner || (LURCH.t > 0 ? LURCH : null);
+  if (ban) {
+    const b = ban,
       a = Math.min(1, b.t / 30, (b.ml - b.t) / 12),
-      fl = srnd() < .06 ? .4 : 1;
+      fl = (b === LURCH ? hash($.T * .731) : srnd()) < .06 ? .4 : 1; // the HUD's own banner never draws srnd(): drops.length is in the harness sig, and the fx stream feeds it
     ctx.globalAlpha = a * fl;
     ctx.fillStyle = 'rgba(0,0,0,.5)';
     ctx.fillRect(0, PH * .36, W, b.sub ? 48 : 36);
@@ -256,6 +275,18 @@ export function drawHUD() {
     ctx.fillStyle = '#9fd2ff';
     ctx.fillRect($.P.x - 8, $.P.y + 11, 16 * $.P.shield / WARD_MAX, 1);
   }
+}
+/** the midbosses' half clock (_fight.ts halfClock) said nothing: the HUD says it, as the biome bosses' clock3 does
+ *  (same banner, same roar), drawn and timed here so the sim's G.banner is never written. t runs on the sim's clock
+ *  (G.t), so a slow phone that steps twice per draw shows it as long. Render state only */
+const LURCH = { text: 'IT LURCHES ONWARD', sub: 'OUT OF TIME', col: '#ff8a3a', t: 0, ml: 110, e: null, hp: 0, at: 0 };
+function lurchCue() {
+  const m = $.G.mini, L = LURCH;
+  if (m !== L.e) L.at = 0; // a new fight (or none): an old banner goes with the old one
+  else if (m && lurched(m, L.hp) && !$.G.banner) { L.at = $.G.t || 1; sfx.roar(); } // a sim banner up (the Bloat's clock3) already said it
+  L.e = m; L.hp = m ? m.hp : 0;
+  L.t = L.at && m && !m.dead ? Math.max(0, L.ml - ($.G.t - L.at)) : 0;
+  if (!L.t) L.at = 0;
 }
 /** an enemy shot's glow radius as a multiple of its drawn core (spec §2.1: <= 1.6) */
 export const EGLOW = 1.6;
@@ -438,7 +469,8 @@ export function drawWorld() {
       x = c.x,
       y = c.y,
       gen = c.ty === METER_CAP,
-      pd = bl ? null : gen ? GEN_CAP : POD[c.ty] || POD[0],
+      ty = bl || gen ? c.ty : podShows(c.ty, !!c.choice || !!c.full), // K0 FIRST: the slot it will give (hudcues.ts)
+      pd = bl ? null : gen ? GEN_CAP : POD[ty] || POD[0],
       col = bl ? '60,140,255' : pd.c,
       hx = bl ? '#2a6cff' : pd.h,
       pul = .5 + .5 * Math.sin(c.t * .2);
@@ -462,10 +494,10 @@ export function drawWorld() {
     ctx.fillStyle = '#fff';
     ctx.fillRect(x - 3, y - 2, 2, 1);
     {
-      let lb = bl ? 'PURGE' : gen ? 'POWER' : SLOTS[c.ty] || '?';
-      if (!bl && !c.choice && $.P && c.ty >= 0 && !slotMaxed(c.ty)) {
-        const nd = needOf(c.ty);
-        if (nd > 1) lb += ' ' + ($.P.frag && $.P.frag[c.ty] || 0) + '/' + nd;
+      let lb = bl ? 'PURGE' : gen ? 'POWER' : SLOTS[ty] || '?';
+      if (!bl && !c.choice && $.P && ty >= 0 && !slotMaxed(ty)) {
+        const nd = needOf(ty);
+        if (nd > 1) lb += ' ' + ($.P.frag && $.P.frag[ty] || 0) + '/' + nd;
       }
       txt(lb, x, y - 15, hx, 'center', 7);
     }

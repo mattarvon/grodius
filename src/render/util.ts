@@ -86,17 +86,18 @@ export function drawChain(c, x1, y1, x2, y2, lw = 1.4) {
     an = Math.atan2(dy, dx),
     n = Math.max(1, L / 4 | 0);
   c.lineWidth = lw;
+  // r4-perf (T3): each link is the ellipse's own rotation at its centre, not a save / translate / rotate / restore round
+  // trip (the same path; a crew knot draws ~20 links, five knots on screen). One stroke per link still, in order, so
+  // the links overlap as before. The caller's strokeStyle comes back as the restore gave it back
+  const ss = c.strokeStyle;
   for (let i = 0; i < n; i++) {
     const f = (i + .5) / n;
-    c.save();
-    c.translate(x1 + dx * f, y1 + dy * f);
-    c.rotate(an);
     c.strokeStyle = i % 2 ? '#6b7682' : '#2e353d';
     c.beginPath();
-    if (i % 2) c.ellipse(0, 0, 2.6, 1.4, 0, 0, TAU);else c.ellipse(0, 0, 2.6, .5, 0, 0, TAU);
+    c.ellipse(x1 + dx * f, y1 + dy * f, 2.6, i % 2 ? 1.4 : .5, an, 0, TAU);
     c.stroke();
-    c.restore();
   }
+  c.strokeStyle = ss;
 }
 export function drawHookTip(c, x, y, a, s = 1) {
   c.save();
