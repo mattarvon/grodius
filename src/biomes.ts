@@ -73,8 +73,8 @@ export const BIOMES = {
     gore: ['#4a0a06', '#120202', '#ff6a1a', '#050303', '#ffb347', '#ff3a10'], blood: ['#6a0a08', '#240303', '#ff4a1a'],
     boss: 'butcher', bossName: 'THE BURNING BUTCHER', haz: 'jet', hazEvery: 125,
     // aggressive: tight spacing, divers and flayers, things coming from behind
-    gap: 100, dbl: .6, set: 'pincer', sig: 'flayer',
-    mix: [['flayer', 1.5], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
+    gap: 100, dbl: .6, set: 'pincer', sig: 'hook',
+    mix: [['flayer', 1], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
     remix: { sig: 'mutant', set: 'kiln', drop: ['crawler', 'dive'], add: [['zig', .8]], pool: [['cross', 2], ['eye', 2], ['corpse', 2], ['slime', 2]] },
     logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.',
       'THE ASH HAS FINGERPRINTS.', 'COOLANT LINES CUT BY HAND. SOMEONE WANTED IT HOT.'],
