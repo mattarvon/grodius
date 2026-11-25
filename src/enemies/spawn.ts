@@ -64,6 +64,7 @@ export const ET = Object.assign(MID_ET, {
     score: 80,
     bio: 1
   },
+  doll: { hp: 1, r: 6, gsz: .8, score: 120, bio: 1, dry: 1 }, // MINI DOLL HEADS (enemies/doll.ts): vinyl, dry: no blood, no gore
   womb: {
     hp: 14,
     r: 12,
@@ -193,7 +194,7 @@ export function mk(k, x, y, o = {}) {
   return e;
 }
 /** the popcorn kinds (one hit, at every power level: §2.3 roster) */
-const POPCORN = { drone: 1, hatch: 1 };
+const POPCORN = { drone: 1, hatch: 1, doll: 1 };
 /** bullet speed factor. short: today's pow curve. long4 (§2.1): x(1 + .02 rank) x min(1.3, 1 + .12 loop), never pow;
  *  eshoot() caps the result at V_CAP */
 export const BS = () => g3() ? bsMul($) : Math.min(1.45, 1 + .12 * $.G.loop) * (1 + .35 * Math.min(2.0, $.G.pow || 0)); // long4: rank.ts bsMul
@@ -694,6 +695,7 @@ export function banner(text, sub, col = '#d4141e', t = 200, warn = false) {
 }
 // the Open Orbit and Gravity Drive approach scripts, remixed per descent, live in enemies/scripts.ts
 export { stageScript } from './scripts';
+export { dolls } from './doll'; // MINI DOLL HEADS: a group of 5 in a bobbing line (enemies/doll.ts)
 export function runScript() {
   while ($.G.si < $.G.script.length && $.G.script[$.G.si].x <= $.G.scroll) {
     const s = $.G.script[$.G.si++];

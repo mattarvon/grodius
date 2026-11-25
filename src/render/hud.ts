@@ -23,6 +23,7 @@ import { drawEnemy } from '../render/enemies';
 import { drawMawFx } from './gross/maw';
 import { drawBakedDeaths } from './gross/baked';
 import { drawUfoFx } from './gross/mid/ufo';
+import { drawDollChips } from './doll';
 import { drawFork, mobFork } from './fork';
 import { MID_NAMES } from '../enemies/mid/roster';
 import { floorHeld, lurched, podShows, stored } from './hudcues';
@@ -496,6 +497,7 @@ export function drawWorld() {
   drawDecals();
   for (const e of enemies) if (e.k === 'eye') drawEnemy(e);
   drawGibs();
+  drawDollChips(ctx); // the doll heads' vinyl shards (render/doll.ts)
   drawDrops();
   drawBiomeFX();
   for (const o of orbs) {

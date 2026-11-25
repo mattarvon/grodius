@@ -21,7 +21,7 @@ export const ELITE = {
   tel: 32, // pustule swell (telegraph) before it pops
   swarm: .45, // drones and hatchlings (fodder) roll at this fraction of the elite chance
 };
-const NO = new Set(['nailbar', 'sentry']); // parts and the Open Orbit's own pods are never elite
+const NO = new Set(['nailbar', 'sentry', 'doll']); // parts, the Open Orbit's own pods and the doll heads (contact-only popcorn: no pustule shot) are never elite
 const NOFAST = new Set(['womb']); // a faster womb is just more hatchlings: it gets the pustule shot only
 
 /** chance that a biome-stage spawn is elite: 0 in Descent 1; higher on a repeat visit (v = earlier visits) */
