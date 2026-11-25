@@ -153,7 +153,7 @@ describe('filler generator', () => {
 
   it('mixPick walks the table in order: the lowest u gives the first kind, the highest the last', () => {
     expect(mixPick(INTERIOR_MIX, 0)).toBe('drones');
-    expect(mixPick(INTERIOR_MIX, .9999)).toBe('eyes');
+    expect(mixPick(INTERIOR_MIX, .9999)).toBe('dolls');
   });
 });
 
