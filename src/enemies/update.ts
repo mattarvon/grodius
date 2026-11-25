@@ -15,7 +15,7 @@ import { BS, ET, aimA, aimLead, aimShot, banner, endVolley, eshoot, every, fan, 
 import { REC_TY, g3, rankOf, tierOf } from './g3';
 import { SURV } from '../death'; // WARD's pod weight (W2 SURV.wardPodW)
 import { BUL, ENTRY, KNOT, blueAt, kidAngle, mayFire, retryIn, revChanceOf } from '../notice';
-import { capRate } from '../tier'; // the tier's faucet multiplier at the formation pod roll (W0)
+import { TIER, capRate } from '../tier'; // the tier's faucet multiplier at the formation pod roll (W0)
 import { revChance as revChanceT } from '../rank';
 import { countKill } from '../mutations';
 import { ECON, bankBio, econId, firstKillPay, grpDrops, killBio, killXP, noticeOf, rebuildMul } from '../economy';
@@ -336,7 +336,7 @@ export function updEnemy(e) {
       {
         // D61 "flayers hunt": while it waits it re-parks 90 px ahead of the ship (src/notice.ts flayerTx), so the 155 px
         // strike follows; during the 34 f tell and the lash its spot holds, so the tell stays honest
-        if (e.hunt && e.ws === 'idle' && $.P.alive) e.tx = flayerTx($.P.x, W); // D62: only the hunters (spawn.ts flayer)
+        if (e.hunt && e.ws === 'idle' && $.P.alive) e.tx = Math.min(W - 24, flayerTx($.P.x, W) + (e.park || 0)); // D62: only the hunters (spawn.ts flayer)
         if (e.t < 520) e.x = lerp(e.x, e.tx, g3() ? BUL.flayIn : .03);else e.x -= 1.3;
         const wx = e.x + $.G.scroll,
           lo = ceilAt(wx) + 18,
@@ -346,7 +346,8 @@ export function updEnemy(e) {
         if (e.ws === 'idle') {
           e.cool--;
           if (e.cool <= 0) {
-            if ($.P.alive && e.x < W - 20 && dist2(e.x, e.y, $.P.x, $.P.y) < 155 * 155) {
+            if (g3() && (e.lash || 0) >= TIER.flay[tierOf()][2]) { e.hunt = 0; e.t = Math.max(e.t, 520); e.cool = 1e9; } // D66: out of lashes, it leaves
+            else if ($.P.alive && e.x < W - 20 && dist2(e.x, e.y, $.P.x, $.P.y) < 155 * 155) {
               e.ws = 'tel';
               e.wt = 0;
               sfx.chain();
@@ -360,6 +361,7 @@ export function updEnemy(e) {
           if (e.wt >= 34) {
             e.ws = 'strike';
             e.wt = 0;
+            e.lash = (e.lash || 0) + 1; // D66: lashes count toward the tier's cap
             sfx.lash();
           }
         } else {
@@ -378,7 +380,7 @@ export function updEnemy(e) {
           if (e.wt >= 26) {
             e.ws = 'idle';
             e.cool = coolFor('flayer', ri(0, 40));
-            if (e.hunt) e.cool = Math.round(e.cool * noticeOf(econId()).flayCool); // D62: a hunter is always in reach, so it lashes less often (D63 long4: x1)
+            if (e.hunt) e.cool = Math.round(e.cool * (g3() ? TIER.flay[tierOf()][1] : noticeOf(econId()).flayCool)); // D62: a hunter is always in reach, so it lashes less often (D63 long4: x1)
           }
         }
         if (R() < .15) drop(e.x + rr(-5, 5), e.y + rr(-2, 8), rr(-.3, .3), rr(0, .5), 1, R() < .5 ? 0 : 1, 80);

@@ -10,7 +10,7 @@ import './mid';
 import { MID_ET, MID_SIM } from './mid/roster';
 import { depthHP, midLateMul } from '../depth';
 import { BUL, ENTRY, KNOT, aimLeadA, clearOfShip, flayHunts, laneX, leadOf, revChanceOf, volleyFits, knotLane } from '../notice';
-import { capRate } from '../tier'; // the tier's faucet multiplier at the two pod rolls (W0)
+import { TIER, capRate } from '../tier'; // the tier's faucet multiplier at the two pod rolls (W0)
 import { bsMul, revChance as revChanceT } from '../rank';
 import { firstShot } from './cadence'; // D62: the Drive's first-shot range
 import { fillerQuiet, meetMid, midHpMul } from '../midslot';
@@ -622,7 +622,8 @@ export function flayer(y) {
     ang: Math.PI,
     cool: ri(...first('flayer', 60, 110)), // G3: BUL.first.flayer (N3), else D62's Drive range
     cap: R() < .35,
-    hunt: flayHunts($.G.flayN = ($.G.flayN || 0) + 1, noticeOf(econId())) ? 1 : 0 // D62: every flayEvery-th flayer hunts (no R() draw); D63 long4: every one
+    hunt: flayHunts($.G.flayN = ($.G.flayN || 0) + 1, g3() ? { flayEvery: TIER.flay[tierOf()][0] } : noticeOf(econId())) ? 1 : 0, // D62: every flayEvery-th flayer hunts (no R() draw); long4: the tier's share (D66)
+    park: ($.G.flayN % 2) * 40 // D66: a second hunter parks 40 px further out, so two never stack in one column (art-director)
   });
 }
 export function logLine(s) {

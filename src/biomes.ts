@@ -48,7 +48,7 @@ export const BIOMES = {
     boss: 'crux', bossName: 'THE BLOAT', haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
     gap: 115, dbl: .55, set: 'morgue', sig: 'corpse',
-    mix: [['corpse', 4], ['cross', 3], ['mutant', 2.5], ['flayer', 2], ['eye', 2], ['hook', 2], ['sine', 2]],
+    mix: [['corpse', 4], ['cross', 3], ['mutant', 2.5], ['flayer', 1], ['eye', 2], ['hook', 2], ['sine', 2]],
     // a repeat visit (remix(), below): the hulks lead, crucifixes line the shelves, two kinds wander in from elsewhere
     remix: { sig: 'mutant', set: 'crucify', drop: ['hook', 'eye', 'sine'], add: [['zig', 1]], pool: [['crawler', 2], ['womb', 2], ['slime', 2], ['hatch', 1.2]] },
     logs: ['TEMPERATURE: -140C. THE BODIES ARE STANDING UP.', 'THE ICE IS FULL OF FACES.',
@@ -63,7 +63,7 @@ export const BIOMES = {
     gap: 125, dbl: .55, set: 'walls', sig: 'crawler',
     mix: [['crawler', 4], ['womb', 3], ['eye', 2], ['hatch', 1], ['wall', .7], ['dive', .3]],
     late: [['slime', 2.5]], // Descent 2+: the Sinus's slimes have leaked into the tanks
-    remix: { sig: 'womb', set: 'gutter', drop: ['dive', 'hatch'], add: [['sine', .6]], pool: [['mutant', 2], ['hook', 2], ['flayer', 2], ['cross', 2]] },
+    remix: { sig: 'womb', set: 'gutter', drop: ['dive', 'hatch'], add: [['sine', .6]], pool: [['mutant', 2], ['hook', 2], ['flayer', 1], ['cross', 2]] },
     logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'HULL PLATING THINNING. IT TASTES ME.',
       'A BOOT FLOATS PAST. THE FOOT IS STILL IN IT.', 'THE TANK IS NOT FULL. IT IS STILL EATING.'],
   },
@@ -74,7 +74,7 @@ export const BIOMES = {
     boss: 'butcher', bossName: 'THE BURNING BUTCHER', haz: 'jet', hazEvery: 125,
     // aggressive: tight spacing, divers and flayers, things coming from behind
     gap: 100, dbl: .6, set: 'pincer', sig: 'flayer',
-    mix: [['flayer', 3], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
+    mix: [['flayer', 1.5], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
     remix: { sig: 'mutant', set: 'kiln', drop: ['crawler', 'dive'], add: [['zig', .8]], pool: [['cross', 2], ['eye', 2], ['corpse', 2], ['slime', 2]] },
     logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.',
       'THE ASH HAS FINGERPRINTS.', 'COOLANT LINES CUT BY HAND. SOMEONE WANTED IT HOT.'],
@@ -87,7 +87,7 @@ export const BIOMES = {
     // hatchling floods out of wombs and the walls
     gap: 125, dbl: .5, set: 'flood', sig: 'hatch',
     mix: [['slime', 5], ['hatch', 3], ['womb', 3], ['corpse', 2], ['sine', 1.5], ['crawler', 1], ['eye', 1]],
-    remix: { sig: 'slime', set: 'drip', drop: ['corpse', 'eye', 'sine'], add: [['zig', 1.2]], pool: [['mutant', 2], ['hook', 2], ['cross', 2], ['flayer', 2]] },
+    remix: { sig: 'slime', set: 'drip', drop: ['corpse', 'eye', 'sine'], add: [['zig', 1.2]], pool: [['mutant', 2], ['hook', 2], ['cross', 2], ['flayer', 1]] },
     logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.',
       'MY INTAKES ARE BLOCKED. SOMETHING IS IN THEM.', 'THE WALLS CONTRACTED. THEY ARE WAITING.'],
   },

@@ -34,6 +34,7 @@ export const TIER: {
   rev: Col<readonly [number, number, number]>; strip: Col<Strip>; checkpoint: Col<boolean>; lifeline: Col<boolean>;
   gasp: Col<Gasp>; blackBox: Col<boolean>; scar: Col<boolean>;
   tempo: Col<number>; reach: Col<number>; r2: Col<0 | 1 | 2>; scarN: Col<number>;
+  flay: Col<readonly [number, number, number]>;
 } = {
   /** rank's T_base (src/rank.ts): the Gradius III DIP values [GR §2 S]. Gates R1 / D1 */
   base: [0, 2, 4, 6],
@@ -86,6 +87,12 @@ export const TIER: {
   /** perk levels a death's scar eats (decision 2A: one on Normal; Easy none, decision 11). Very Hard eats two: its death
    *  costs more of the power that survives the strip (GR §4: "dying loses all power-ups"). Gate E5 reads Normal */
   scarN: [0, 1, 1, 2],
+  /** the flayer (D66, Matt 2026-11-25: "there are way too many flayers ... normal is hard for me and other friends
+   *  testing this"): [every n-th flayer hunts, a hunter's cooldown x, lashes before it gives up and leaves]. Easy and
+   *  Normal go back to D62's hunter share and cooldown; Hard keeps D63's x1 / every one; every tier caps the lashes
+   *  (Gradius III's reach enemies pass through once, none parks in front of the ship and keeps striking). Aggression,
+   *  not count: GR rule 15 holds. Gates M2, M3 (whip deaths), N3 */
+  flay: [[2, 1.4, 2], [2, 1.4, 3], [1, 1, 4], [1, 1, 99]],
 };
 
 /** a tier 0-3 from anything (a URL value, a stored LAB or run-save field), or null */
