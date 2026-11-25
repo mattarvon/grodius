@@ -11,6 +11,8 @@
 //   first shot / first act p50 / p90 / max. N3 is read on the first shot; an enemy that never fires is listed by the
 //   fired / on-screen count, not dropped silently. Drones are split into designated shooters (e.sh, probe-lib
 //   PL.designated) and the rest ("drone(not a shooter)"; "drone(undesignated)" on a build with no e.sh). Prints one ATTACK {...} JSON line after the table.
+//   g5 (qa): an attack that is not a shot counts as the first attack too (probe-lib PL.strike: the flayer's lash, the
+//   doll's lunge); "fired" is then "attacked" and `melee` says how many of those firsts were one
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { pageLib, aq } from './probe-lib.mjs';
@@ -96,8 +98,9 @@ async function attack() {
         for (const e of h.enemies) { if (e.dead || !PL.regular(e)) continue; alive.add(e);
           let r = A.seen.get(e); if (!r) { const ds = PL.designated(e, PL.rank()); A.seen.set(e, (r = { k: e.k === 'drone' && !ds ? (ds === null ? 'drone(undesignated)' : 'drone(not a shooter)') : e.k, vis: null, shot: null, act: null, s0: e.st ?? e.ws })); }
           if (r.vis == null && e.x > 0 && e.x < 480 && e.y > 0 && e.y < 254) r.vis = A.fr;
-          if (r.vis != null && r.act == null && (e.st ?? e.ws) !== r.s0) r.act = A.fr - r.vis; }
-        for (const [e, r] of A.seen) if (!alive.has(e)) { A.seen.delete(e); if (r.vis != null) A.done.push([r.k, r.shot, r.act]); } } };
+          if (r.vis != null && r.act == null && (e.st ?? e.ws) !== r.s0) r.act = A.fr - r.vis;
+          if (r.vis != null && r.shot == null && PL.strike && PL.strike(e)) { r.shot = A.fr - r.vis; r.melee = 1; } } // g5: a lash / lunge is the first attack (N3)
+        for (const [e, r] of A.seen) if (!alive.has(e)) { A.seen.delete(e); if (r.vis != null) A.done.push([r.k, r.shot, r.act, r.melee || 0]); } } };
   }, +SEED);
   await p.goto(url); await p.waitForFunction(() => window.__started);
   await useLayout(p, 'kind-probe', { quiet: true });
@@ -114,13 +117,13 @@ async function attack() {
     if (s.pick && s.pt > 36) { await key('keydown', 'Enter'); await p.evaluate('__tick(2)'); await key('keyup', 'Enter'); }
     if (s.st !== 'play' || s.loop >= 1) break;
   }
-  const done = await p.evaluate(() => { for (const [, r] of window.__at.seen) if (r.vis != null) window.__at.done.push([r.k, r.shot, r.act]); return window.__at.done; });
-  const by = {}; for (const [k, sh, ac] of done) { const o = (by[k] ||= { n: 0, fired: 0, shot: [], act: [] }); o.n++; if (sh != null) { o.fired++; o.shot.push(sh); } if (ac != null) o.act.push(ac); }
+  const done = await p.evaluate(() => { for (const [, r] of window.__at.seen) if (r.vis != null) window.__at.done.push([r.k, r.shot, r.act, r.melee || 0]); return window.__at.done; });
+  const by = {}; for (const [k, sh, ac, ml] of done) { const o = (by[k] ||= { n: 0, fired: 0, melee: 0, shot: [], act: [] }); o.n++; if (sh != null) { o.fired++; o.shot.push(sh); if (ml) o.melee++; } if (ac != null) o.act.push(ac); }
   console.log('kind'.padEnd(10), 'on screen'.padStart(9), 'fired'.padStart(6), 'first shot p50/p90/max (f)'.padStart(28), 'first act p50/p90/max (f)'.padStart(27));
   const out = {};
   for (const [k, o] of Object.entries(by).sort((a, b) => b[1].n - a[1].n)) {
     const f = (a) => (a.length ? `${aq(a, .5)}/${aq(a, .9)}/${Math.max(...a)}` : '-');
-    out[k] = { n: o.n, fired: o.fired, shotP50: aq(o.shot, .5), shotP90: aq(o.shot, .9), shotMax: o.shot.length ? Math.max(...o.shot) : null, actP50: aq(o.act, .5), actP90: aq(o.act, .9) };
+    out[k] = { n: o.n, fired: o.fired, melee: o.melee, shotP50: aq(o.shot, .5), shotP90: aq(o.shot, .9), shotMax: o.shot.length ? Math.max(...o.shot) : null, actP50: aq(o.act, .5), actP90: aq(o.act, .9) };
     console.log(k.padEnd(10), String(o.n).padStart(9), String(o.fired).padStart(6), f(o.shot).padStart(28), f(o.act).padStart(27));
   }
   console.log('ATTACK ' + JSON.stringify({ seed: +SEED, kinds: out, errors: errs.slice(0, 3) }));
