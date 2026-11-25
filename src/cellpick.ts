@@ -73,14 +73,14 @@ export function noteCells(mem: CellMem, ids: readonly (string | null)[]) {
 
 // ---------------- filler ----------------
 /** the filler kinds the generator can place; scripts.ts maps each to a spawn call */
-export type FillKind = 'drones' | 'sentry' | 'corpse' | 'flayer' | 'hatch' | 'mutant' | 'crawler' | 'womb' | 'eyes';
+export type FillKind = 'drones' | 'sentry' | 'corpse' | 'flayer' | 'hatch' | 'mutant' | 'crawler' | 'womb' | 'eyes' | 'dolls';
 export type Mix = Partial<Record<FillKind, number>>;
 
 /** the interior mix (spec §3.4): drones at about 30%, the rest the ship's own. mutant/crawler/womb/eyes need a floor,
  *  ceiling or wall, and their spawn helpers skip quietly where there is none */
-export const INTERIOR_MIX: Mix = { drones: .3, sentry: .14, corpse: .14, flayer: .06, hatch: .1, mutant: .06, crawler: .06, womb: .04, eyes: .04 };
+export const INTERIOR_MIX: Mix = { drones: .3, sentry: .14, corpse: .14, flayer: .06, hatch: .1, mutant: .06, crawler: .06, womb: .04, eyes: .04, dolls: .06 }; // D66: the doll heads take the flayer weight cut
 /** Open Orbit is open space, no terrain: the interior mix without the terrain kinds, drones still about 30% */
-export const ORBIT_MIX: Mix = { drones: .3, sentry: .2, corpse: .2, flayer: .06, hatch: .16 };
+export const ORBIT_MIX: Mix = { drones: .3, sentry: .2, corpse: .2, flayer: .06, hatch: .16, dolls: .08 }; // D66: the doll heads take the flayer weight cut
 
 /** a weighted draw from a mix table (keys in insertion order, so the draw is deterministic for a given rnd) */
 export function mixPick(mix: Mix, u: number): FillKind {

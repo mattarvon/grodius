@@ -27,7 +27,7 @@ export function whenNoMini(f: () => void): void {
 export const miniUp = () => { const m = $.G && $.G.mini; return !!m && !m.dead && !m.gone; };
 
 /** the biome script's spawn-roll kinds (biomes.ts SPAWN; tests/unit/midslot.test.ts keeps the two in step) */
-export const BIOME_FILL: ReadonlySet<string> = new Set(['corpse', 'wall', 'sine', 'zig', 'dive', 'cross', 'eye', 'flayer', 'hook', 'womb', 'hatch', 'crawler', 'behind', 'slime', 'mutant']);
+export const BIOME_FILL: ReadonlySet<string> = new Set(['corpse', 'wall', 'sine', 'zig', 'dive', 'cross', 'eye', 'flayer', 'hook', 'womb', 'hatch', 'crawler', 'behind', 'slime', 'mutant', 'dolls']);
 
 /** is script entry kind k filler: a biome spawn roll, or long Orbit / Drive generator filler (`fill:<kind>`).
  *  Hand-made cells, set pieces, pods, log lines, WARNINGs and bosses are not */

@@ -10,7 +10,7 @@ import { mkTex } from './textures';
 import { sfx, sample } from './audio';
 import { buzz } from './platform';
 import { spark, drop, flash, gore, pop, mist } from './fx/spawn';
-import { banner, behindWave, butcher, corpse, crawler, crossT, eyeT, flayer, formation, hatch, hookE, logLine, maw, midboss, miniWarn, womb, crux } from './enemies/spawn';
+import { banner, behindWave, butcher, corpse, crawler, crossT, dolls, eyeT, flayer, formation, hatch, hookE, logLine, maw, midboss, miniWarn, womb, crux } from './enemies/spawn';
 import { glow, light } from './render/util';
 import { mutant, slime } from './enemies/spawn';
 import * as SPW from './enemies/spawn'; // W1's entryWave (g3-w1-bullets), read through w1() until it lands
@@ -48,7 +48,7 @@ export const BIOMES = {
     boss: 'crux', bossName: 'THE BLOAT', haz: 'icicle', hazEvery: 110,
     // slow and heavy: fewer, tougher things drifting out of the cold
     gap: 115, dbl: .55, set: 'morgue', sig: 'corpse',
-    mix: [['corpse', 4], ['cross', 3], ['mutant', 2.5], ['flayer', 1], ['eye', 2], ['hook', 2], ['sine', 2]],
+    mix: [['corpse', 4], ['cross', 3], ['mutant', 2.5], ['flayer', 1], ['dolls', 1.5], ['eye', 2], ['hook', 2], ['sine', 2]],
     // a repeat visit (remix(), below): the hulks lead, crucifixes line the shelves, two kinds wander in from elsewhere
     remix: { sig: 'mutant', set: 'crucify', drop: ['hook', 'eye', 'sine'], add: [['zig', 1]], pool: [['crawler', 2], ['womb', 2], ['slime', 2], ['hatch', 1.2]] },
     logs: ['TEMPERATURE: -140C. THE BODIES ARE STANDING UP.', 'THE ICE IS FULL OF FACES.',
@@ -61,9 +61,9 @@ export const BIOMES = {
     boss: 'maw', bossName: 'THE DISSOLVED MAW', haz: 'geyser', hazEvery: 135,
     // wall swarms over a floor full of crawlers and wombs
     gap: 125, dbl: .55, set: 'walls', sig: 'crawler',
-    mix: [['crawler', 4], ['womb', 3], ['eye', 2], ['hatch', 1], ['wall', .7], ['dive', .3]],
+    mix: [['crawler', 4], ['womb', 3], ['eye', 2], ['dolls', 1.5], ['hatch', 1], ['wall', .7], ['dive', .3]],
     late: [['slime', 2.5]], // Descent 2+: the Sinus's slimes have leaked into the tanks
-    remix: { sig: 'womb', set: 'gutter', drop: ['dive', 'hatch'], add: [['sine', .6]], pool: [['mutant', 2], ['hook', 2], ['flayer', 1], ['cross', 2]] },
+    remix: { sig: 'womb', set: 'gutter', drop: ['dive', 'hatch'], add: [['sine', .6]], pool: [['mutant', 2], ['hook', 2], ['dolls', 2], ['cross', 2]] },
     logs: ['THE FLOOR IS STOMACH LINING. IT IS SECRETING.', 'HULL PLATING THINNING. IT TASTES ME.',
       'A BOOT FLOATS PAST. THE FOOT IS STILL IN IT.', 'THE TANK IS NOT FULL. IT IS STILL EATING.'],
   },
@@ -74,7 +74,7 @@ export const BIOMES = {
     boss: 'butcher', bossName: 'THE BURNING BUTCHER', haz: 'jet', hazEvery: 125,
     // aggressive: tight spacing, divers and flayers, things coming from behind
     gap: 100, dbl: .6, set: 'pincer', sig: 'hook',
-    mix: [['flayer', 1], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
+    mix: [['flayer', 1], ['dolls', 2], ['hook', 3], ['mutant', 2.5], ['crawler', 2], ['dive', .6], ['behind', .4]],
     remix: { sig: 'mutant', set: 'kiln', drop: ['crawler', 'dive'], add: [['zig', .8]], pool: [['cross', 2], ['eye', 2], ['corpse', 2], ['slime', 2]] },
     logs: ['INCINERATOR RUNNING AT 4000C. SOMETHING IS SINGING IN IT.', 'ASH IS FALLING UP.',
       'THE ASH HAS FINGERPRINTS.', 'COOLANT LINES CUT BY HAND. SOMEONE WANTED IT HOT.'],
@@ -86,8 +86,8 @@ export const BIOMES = {
     boss: 'maw', bossName: 'THE MUCUS MAW', haz: 'strand', hazEvery: 150,
     // hatchling floods out of wombs and the walls
     gap: 125, dbl: .5, set: 'flood', sig: 'hatch',
-    mix: [['slime', 5], ['hatch', 3], ['womb', 3], ['corpse', 2], ['sine', 1.5], ['crawler', 1], ['eye', 1]],
-    remix: { sig: 'slime', set: 'drip', drop: ['corpse', 'eye', 'sine'], add: [['zig', 1.2]], pool: [['mutant', 2], ['hook', 2], ['cross', 2], ['flayer', 1]] },
+    mix: [['slime', 5], ['hatch', 3], ['womb', 3], ['corpse', 2], ['sine', 1.5], ['crawler', 1], ['eye', 1], ['dolls', 1.5]],
+    remix: { sig: 'slime', set: 'drip', drop: ['corpse', 'eye', 'sine'], add: [['zig', 1.2]], pool: [['mutant', 2], ['hook', 2], ['cross', 2], ['dolls', 2]] },
     logs: ['EVERYTHING IS COATED. IT IS WARM. IT IS MOVING.', 'I CAN HEAR IT BREATHING THROUGH THE WALLS.',
       'MY INTAKES ARE BLOCKED. SOMETHING IS IN THEM.', 'THE WALLS CONTRACTED. THEY ARE WAITING.'],
   },
@@ -391,7 +391,7 @@ const SPAWN = {
   // biome formations are a size smaller than Open Orbit's (FM drones, + rank as everywhere): the biome's own creatures carry the stage
   corpse: () => corpse(rr(50, PH - 80)), wall: () => formation('wall', PH / 2, FM), sine: () => formation('sine', rr(50, PH - 90), FM),
   zig: () => formation('zig', rr(60, PH - 90), FM), dive: () => formation('dive', rr(50, PH - 90), FM), cross: () => crossT(R() < .6 ? 1 : -1),
-  eye: () => eyeT(R() < .55 ? 1 : -1), flayer: () => flayer(rr(60, PH - 60)), hook: () => hookE(), womb: () => womb(),
+  eye: () => eyeT(R() < .55 ? 1 : -1), flayer: () => flayer(rr(60, PH - 60)), dolls: () => dolls(rr(50, PH - 50)), hook: () => hookE(), womb: () => womb(),
   // the rear coin stays .5: W6 r4 tried .35 (N4), but with the enemies stream's ENTRY.mix refit N2 (regular shooters'
   // rear hits) read 18% (floor 20); the lead's condition was to keep N2 above its floor
   hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
@@ -454,7 +454,7 @@ const SET = {
   morgue: () => { corpse(bandY(PH * .25)); corpse(bandY(PH * .5), { drift: .2 }); corpse(bandY(PH * .75)); later(40, mutant); }, // a frozen crew drifting in a line, a hulk walking under it
   // set pieces are fixed: formation()'s power drones (up to +6) would close the walls' gap and stretch the pincer's wave
   walls: () => { formation('wall', bandY(PH * .33), 2, FIXED); formation('wall', bandY(PH * .67), 2, FIXED); crawler(1); crawler(-1); }, // a double wall, gap in the middle, crawlers on the lining
-  pincer: () => { flayer(bandY(55)); flayer(bandY(PH - 75)); behindWave(PH / 2, 2, FIXED, rearY); }, // flayers top and bottom, a short rear wave between them
+  pincer: () => { flayer(bandY(55)); dolls(bandY(PH - 75)); behindWave(PH / 2, 2, FIXED, rearY); }, // flayers top and bottom, a short rear wave between them
   flood: () => { hatch(ri(7, 9), false); hatch(ri(4, 6), true); slime(1); later(30, () => slime(-1)); },
   // remix sets
   crucify: () => { crossT(1); crossT(-1); later(30, mutant); later(70, () => crossT(R() < .5 ? 1 : -1)); }, // the shelves are lined with crucifixes

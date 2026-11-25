@@ -45,7 +45,7 @@ const { CATALOG } = await import('../../src/setdraw');
 
 /** a stage's midboss pair as biomeStage passes it on long4 (G.mb[stage], picked by stageMids) */
 const PAIR = ['choir', 'cyst'];
-const ENEMY = /^(behindWave|corpse|crawler|crossT|eyeT|flayer|formation|hatch|hookE|womb|mutant|slime)$/;
+const ENEMY = /^(behindWave|corpse|crawler|crossT|dolls|eyeT|flayer|formation|hatch|hookE|womb|mutant|slime)$/;
 /** build a slot's script, sorted by x as insertScript does, and fire each entry, recording what it called */
 function build(seg: number, b: string, from: number, v = 0, loop = 0, mids: string[] | null = PAIR, setIds: string[] | null = null) {
   $.G = { loop, pend: [], rank: 0, seed: 7 + seg * 31 + v }; // the run seed: build rolls draw its stage stream (src/rng.ts)

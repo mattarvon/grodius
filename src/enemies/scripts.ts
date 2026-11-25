@@ -28,7 +28,7 @@ import { startBoss } from '../boss/update';
 import { ceilAt, floorAt } from '../world';
 import { ufoWarn } from './mid/ufo';
 import { SOLID, spawnPiston, spawnPistonPair } from '../solids'; // W3a's space engine (W3A-API.md): THE STROKE
-import { banner, behindWave, corpse, crawler, edgeWave, eyeT, flayer, formation, hatch, knot, logLine, maw, mutant, sentry, womb } from './spawn';
+import { banner, behindWave, corpse, crawler, dolls, edgeWave, eyeT, flayer, formation, hatch, knot, logLine, maw, mutant, sentry, womb } from './spawn';
 
 const crew = (...ys) => ys.forEach(y => corpse(y));
 
@@ -108,7 +108,7 @@ const ORBIT_A = [
     at(330, () => crew(60, 200));
     at(420, () => hatch(5, false));
     at(520, () => sentry(PH * .66));
-    at(600, () => flayer(PH * .35));
+    at(600, () => dolls(PH * .35));
     at(700, () => { sentry(PH * .25, W * .8); corpse(PH * .8); });
   }),
   // 3, the sentry picket (Descent 3+): two pods park high and low and a zig wave runs the gap between them; crew, a
@@ -131,7 +131,7 @@ const ORBIT_C = [
     at(1040, () => { sentry(PH * .22, W * .8); sentry(PH * .74, W * .66); });
     at(1100, () => hatch(6, true));
     at(1220, () => { crew(60); corpse(150); });
-    at(1320, () => flayer(PH * .3));
+    at(1320, () => dolls(PH * .3));
     at(1400, () => sentry(PH * .7));
     at(1500, () => behindWave(PH / 2));
     at(1620, () => crew(40, 120, 210));
@@ -144,7 +144,7 @@ const ORBIT_C = [
     at(1120, () => { sentry(PH * .25, W * .78); sentry(PH * .72, W * .64); });
     at(1200, () => hatch(6, true));
     at(1300, () => { formation('sine', 70, 3); corpse(195); });
-    at(1420, () => flayer(PH * .4));
+    at(1420, () => dolls(PH * .4));
     at(1500, () => { hatch(5, false); corpse(60); });
     at(1600, () => formation('dive', PH - 60, 3));
     at(1700, () => sentry(PH * .5));
@@ -153,11 +153,11 @@ const ORBIT_C = [
   // 2, flayer alley: flayer pairs over a slow drone wall, then a rear wave, a swarm from behind and a late sentry
   V(1, (at) => {
     at(1000, () => crew(80, 180));
-    at(1120, () => { flayer(PH * .25); flayer(PH * .75); });
+    at(1120, () => { flayer(PH * .25); dolls(PH * .75); });
     at(1250, () => formation('wall', PH / 2, 3));
     at(1360, () => crew(45, 135, 225));
     at(1440, () => behindWave(PH * .3, 3));
-    at(1540, () => flayer(PH * .5));
+    at(1540, () => dolls(PH * .5));
     at(1640, () => hatch(6, true));
     at(1760, () => { sentry(PH * .62); corpse(PH * .2); });
   }),
@@ -169,7 +169,7 @@ const ORBIT_C = [
     at(1180, () => sentry(PH * .2, W * .82));
     at(1320, () => { formation('dive', 40, 3); formation('dive', PH - 40, 3); });
     at(1440, () => hatch(7, true));
-    at(1560, () => { flayer(PH * .3); flayer(PH * .7); });
+    at(1560, () => { flayer(PH * .3); dolls(PH * .7); });
     at(1680, () => { sentry(PH * .3, W * .78); sentry(PH * .7, W * .64); });
     at(1780, () => crew(60, 200));
   })
@@ -210,7 +210,7 @@ const DRIVE_E = [
     at(160, () => womb());
     [150, 170, 190, 210].forEach((x, i) => at(x, () => corpse([45, 125, 80, 150][i], { drift: .8 })));
     at(250, () => formation('zig', PH * .42, 4));
-    at(320, () => flayer(PH * .55));
+    at(320, () => dolls(PH * .55));
     at(390, () => hatch(5, false));
   }),
   // 3, lockdown (Descent 3+): no meat this time, the MERIDIAN's machines. A sentry pair seals the corridor, a drone
@@ -230,14 +230,14 @@ const DRIVE_F = [
     at(490, () => behindWave(PH / 2));
     at(550, () => { flayer(PH * .75); corpse(PH * .3); });
     at(620, () => hatch(6, false));
-    at(690, () => { flayer(PH * .25); flayer(PH * .7); });
+    at(690, () => { flayer(PH * .25); dolls(PH * .7); });
   }),
   // 1, meat in the wind: a rear wave, a swarm through the crew, a sentry pair, a flayer pair
   V(1, (at) => {
     at(470, () => behindWave(PH / 2, 4));
     at(550, () => { hatch(6, false); crew(50, 210); });
     at(620, () => { sentry(PH * .3, W * .78); sentry(PH * .7, W * .64); });
-    at(690, () => { flayer(PH * .25); flayer(PH * .7); });
+    at(690, () => { flayer(PH * .25); dolls(PH * .7); });
   }),
   // 2, gauntlet: a swarm from behind, a drone wall, a sentry over a flayer, a late sine
   V(1, (at) => {
@@ -249,7 +249,7 @@ const DRIVE_F = [
   // 3, the crew wakes (Descent 3+): the drifting dead turn out to be flayers, and the brood pours in behind them
   V(2, (at) => {
     at(460, () => { logLine('THE CREW IS STILL MOVING IN THERE.'); crew(60, 130, 200); });
-    at(520, () => { flayer(PH * .3); flayer(PH * .7); });
+    at(520, () => { flayer(PH * .3); dolls(PH * .7); });
     at(600, () => { hatch(6, true); sentry(PH * .5, W * .8); });
     at(680, () => { formation('zig', PH * .4, 4); corpse(PH * .8); });
   })
@@ -286,15 +286,15 @@ export const ORBIT_CELLS = [
   }),
   // build: ORBIT_A's second halves, ORBIT_D's run-up and ORBIT_C's brood swarm
   // rev 3 (§2.3 entry mix): the low divers rise from the bottom edge, the high sine drops from the top
-  C('o.alley', 'build', 0, (at) => { at(0, () => flayer(PH * .6)); at(90, () => hatch(6, false)); at(160, () => crew(70, 190)); at(240, () => edge('rise', 3)); }),
+  C('o.alley', 'build', 0, (at) => { at(0, () => dolls(PH * .6)); at(90, () => hatch(6, false)); at(160, () => crew(70, 190)); at(240, () => edge('rise', 3)); }),
   C('o.watch', 'build', 0, (at) => { at(0, () => sentry(PH * .66)); at(80, () => flayer(PH * .35)); at(180, () => { sentry(PH * .25, W * .8); corpse(PH * .8); }); at(260, () => edge('drop', 3)); }),
   // the run-up: ORBIT_D's sentry over a zig and its flayer + corpse, then a big swarm (a fourth build cell: long Orbit
   // has two build slots, and "never last descent's" needs twice that many)
-  C('o.runup', 'build', 0, (at) => { at(0, () => { sentry(PH * .5, W * .75); edge('rise', 3); }); at(90, () => { flayer(PH * .4); corpse(PH * .8); }); at(170, () => hatch(8, false)); at(250, () => flayer(PH * .6)); }),
+  C('o.runup', 'build', 0, (at) => { at(0, () => { sentry(PH * .5, W * .75); edge('rise', 3); }); at(90, () => { flayer(PH * .4); corpse(PH * .8); }); at(170, () => hatch(8, false)); at(250, () => dolls(PH * .6)); }),
   C('o.brood', 'build', 0, (at) => { at(0, () => hatch(6, false)); at(120, () => { sentry(PH * .25, W * .78); sentry(PH * .72, W * .64); }); at(200, () => hatch(6, true)); }),
   // peak: ORBIT_C's classic, flayer alley and hull breach (still Descent 3+)
   C('o.wall', 'peak', 0, (at) => { at(0, () => formation('wall', PH / 2)); at(60, () => { sentry(PH * .22, W * .8); sentry(PH * .74, W * .66); }); at(120, () => hatch(6, true)); at(240, () => { crew(60); corpse(150); }); }),
-  C('o.flayers', 'peak', 0, (at) => { at(0, () => crew(80, 180)); at(120, () => { flayer(PH * .25); flayer(PH * .75); }); at(250, () => formation('wall', PH / 2, 3)); }),
+  C('o.flayers', 'peak', 0, (at) => { at(0, () => crew(80, 180)); at(120, () => { flayer(PH * .25); dolls(PH * .75); }); at(250, () => formation('wall', PH / 2, 3)); }),
   C('o.breach', 'peak', 2, (at) => {
     at(0, () => logLine('HULL BREACH. THE CREW IS COMING OUT.'));
     [10, 40, 70, 100, 130, 160].forEach((x, i) => at(x, () => corpse(i % 2 ? PH * .7 + i * 4 : PH * .28 - i * 4, { drift: .7 })));
@@ -313,7 +313,7 @@ export const ORBIT_CELLS = [
   // the clamp: a rear wave and a head-on wall together, then a flayer pair, a swarm and a sentry pair to close it
   C('o.clamp', 'peak', 0, (at) => {
     at(0, () => behindWave(PH * .3, 3)); at(20, () => formation('wall', PH * .65, 3));
-    at(120, () => { flayer(PH * .2); flayer(PH * .8); }); at(200, () => hatch(6, false));
+    at(120, () => { flayer(PH * .2); dolls(PH * .8); }); at(200, () => hatch(6, false));
     at(260, () => { sentry(PH * .3, W * .8); sentry(PH * .7, W * .66); });
   }),
   // the graveyard: a field of crew with a sentry hiding in it, swarms from both ends, divers top and bottom
@@ -340,28 +340,28 @@ export const DRIVE_CELLS = [
   C('d.drift', 'floor', 0, (at) => {
     at(0, () => mutant()); at(20, () => womb());
     [10, 30, 50, 70].forEach((x, i) => at(x, () => corpse([45, 125, 80, 150][i], { drift: .8 })));
-    at(110, () => edge('rise', 4)); at(180, () => flayer(PH * .55)); at(250, () => hatch(5, false));
+    at(110, () => edge('rise', 4)); at(180, () => dolls(PH * .55)); at(250, () => hatch(5, false));
   }),
   // intro: DRIVE_E's lockdown (Descent 1 now: the Drive needs two intro cells from the start), and the sentinel
   C('d.lockdown', 'intro', 0, (at) => { at(0, () => { sentry(PH * .25, W * .8); sentry(PH * .65, W * .66); }); at(90, () => formation('wall', PH * .45, 4)); at(170, () => edge('rise', 4)); at(240, () => crew(60, 130, 200)); }),
   C('d.sentinel', 'intro', 0, (at) => { at(0, () => sentry(PH * .5, W * .8)); at(90, () => crew(60, 200)); at(180, () => edge('rise', 4)); at(260, () => hatch(5, false)); }),
   // build: DRIVE_F's classic, meat in the wind and gauntlet, and the press
-  C('d.pressure', 'build', 0, (at) => { at(0, () => sentry(PH * .45, W * .72)); at(30, () => behindWave(PH / 2)); at(90, () => { flayer(PH * .75); corpse(PH * .3); }); at(160, () => hatch(6, false)); at(230, () => { flayer(PH * .25); flayer(PH * .7); }); }),
-  C('d.wind', 'build', 0, (at) => { at(0, () => behindWave(PH / 2, 4)); at(80, () => { hatch(6, false); crew(50, 210); }); at(150, () => { sentry(PH * .3, W * .78); sentry(PH * .7, W * .64); }); at(220, () => { flayer(PH * .25); flayer(PH * .7); }); }),
+  C('d.pressure', 'build', 0, (at) => { at(0, () => sentry(PH * .45, W * .72)); at(30, () => behindWave(PH / 2)); at(90, () => { flayer(PH * .75); corpse(PH * .3); }); at(160, () => hatch(6, false)); at(230, () => { flayer(PH * .25); dolls(PH * .7); }); }),
+  C('d.wind', 'build', 0, (at) => { at(0, () => behindWave(PH / 2, 4)); at(80, () => { hatch(6, false); crew(50, 210); }); at(150, () => { sentry(PH * .3, W * .78); sentry(PH * .7, W * .64); }); at(220, () => { flayer(PH * .25); dolls(PH * .7); }); }),
   C('d.gauntlet', 'build', 0, (at) => { at(0, () => hatch(7, true)); at(80, () => { formation('wall', PH / 2, 4); corpse(PH * .85); }); at(160, () => { sentry(PH * .25, W * .76); flayer(PH * .7); }); at(225, () => formation('sine', PH * .72, 4)); }),
-  C('d.press', 'build', 0, (at) => { at(0, () => behindWave(PH * .3, 4)); at(90, () => flayer(PH * .6)); at(170, () => crew(50, 130, 210)); at(250, () => sentry(PH * .4, W * .76)); }),
+  C('d.press', 'build', 0, (at) => { at(0, () => behindWave(PH * .3, 4)); at(90, () => dolls(PH * .6)); at(170, () => crew(50, 130, 210)); at(250, () => sentry(PH * .4, W * .76)); }),
   // peak: DRIVE_F's the crew wakes (Descent 2+), and three new ones
   C('d.wakes', 'peak', 1, (at) => {
     at(0, () => { logLine('THE CREW IS STILL MOVING IN THERE.'); crew(60, 130, 200); });
-    at(60, () => { flayer(PH * .3); flayer(PH * .7); }); at(140, () => { hatch(6, true); sentry(PH * .5, W * .8); }); at(220, () => { formation('zig', PH * .4, 4); corpse(PH * .8); });
+    at(60, () => { flayer(PH * .3); dolls(PH * .7); }); at(140, () => { hatch(6, true); sentry(PH * .5, W * .8); }); at(220, () => { formation('zig', PH * .4, 4); corpse(PH * .8); });
   }),
   // the cascade: a swarm from behind, divers rising from the floor, a flayer pair, then a sentry pair seals it. Round 4
   // (N4): the drone wall was a right entry; the Drive read right 57-58% against 50, top / bottom 10-13 against 15
-  C('d.cascade', 'peak', 0, (at) => { at(0, () => hatch(7, true)); at(60, () => edge('rise', 4)); at(140, () => { flayer(PH * .3); flayer(PH * .7); }); at(220, () => { sentry(PH * .22, W * .8); sentry(PH * .76, W * .66); }); }),
+  C('d.cascade', 'peak', 0, (at) => { at(0, () => hatch(7, true)); at(60, () => edge('rise', 4)); at(140, () => { flayer(PH * .3); dolls(PH * .7); }); at(220, () => { sentry(PH * .22, W * .8); sentry(PH * .76, W * .66); }); }),
   // the bulkhead: pods high and low, a zig through them, a rear wave, then the dead dragged aft
   C('d.bulkhead', 'peak', 0, (at) => { at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .7); }); at(80, () => edge('drop', 4)); at(170, () => behindWave(PH * .7, 4)); at(250, () => crew(40, 120, 210)); }),
   // the flood (Descent 2+): hatchlings from both ends, divers top and bottom, a flayer in the middle
-  C('d.flood', 'peak', 1, (at) => { at(0, () => hatch(6, false)); at(60, () => hatch(6, true)); at(150, () => { edge('drop', 4); edge('rise', 4); }); at(250, () => flayer(PH * .5)); }),
+  C('d.flood', 'peak', 1, (at) => { at(0, () => hatch(6, false)); at(60, () => hatch(6, true)); at(150, () => { edge('drop', 4); edge('rise', 4); }); at(250, () => dolls(PH * .5)); }),
   // D31 stretch (SUMMARY #18): +2 build, +2 peak, all Descent 1, appended so every earlier pick draws as before. The
   // approach had 3 build and 3 peak slots then; the corridor-floor kinds stay in the floor pool (cellpick.test.ts)
   // the dragnet: the dead dragged aft high and low, a sine down the middle, a sentry, a flayer
@@ -376,7 +376,7 @@ export const DRIVE_CELLS = [
   C('d.crush', 'peak', 0, (at) => {
     at(0, () => { sentry(PH * .2, W * .82); sentry(PH * .8, W * .82); }); at(40, () => sentry(PH * .5, W * .7));
     at(110, () => edge('drop', 4)); at(190, () => behindWave(PH * .65, 4));
-    at(250, () => { flayer(PH * .3); flayer(PH * .7); });
+    at(250, () => { flayer(PH * .3); dolls(PH * .7); });
   }),
   // the undertow: crew in the pull, a high zig, a big swarm head-on, a low sine through drifting dead, a last sentry
   C('d.undertow', 'peak', 0, (at) => {
@@ -415,6 +415,7 @@ function fillSpawn(k, u, nDrone, r, x) {
   else if (k === 'crawler') crawler(u < .5 ? 1 : -1);
   else if (k === 'womb') womb();
   else if (k === 'eyes') eyeT(u < .5 ? 1 : -1);
+  else if (k === 'dolls') dolls(PH * (.25 + .5 * u)); // D66
 }
 const MIXES = { orbit: ORBIT_MIX, interior: INTERIOR_MIX };
 
