@@ -123,6 +123,11 @@ const G_FIELDS = {
   // DIFFICULTY-SPEC §5.4 new fields (state.ts GDiff; written by W1 / W2): red pods picked up (the blue counter), the
   // contraption knocked offline by a death, the descent whose LAST GASP is spent (-1 unspent)
   redN: isNat,
+  // the blue owed by an authored opener's pod (enemies/update.ts dropCap, r4-enemies): 1 while the next non-opener red
+  // is blue. Saved so a resumed run still gets that blue (round-4 integration)
+  blueOwe: (v) => v === 0 || v === 1,
+  // the one-time PARTS STORED log line was said (player.ts applyPower priming), so a resume doesn't say it again
+  primeLog: (v) => v === 0 || v === 1,
   rigOff: (v) => v === 0 || v === 1,
   gaspD: (v) => isInt(v) && v >= -1 && v <= LOOP_MAX,
   // W2's death state that a resume must keep (W6): the perks in pick order, oldest first (perks.ts G.pkOrder: perkScar's

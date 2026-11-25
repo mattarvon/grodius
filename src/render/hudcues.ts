@@ -13,16 +13,9 @@
 import { $ } from '../state';
 import { SET } from '../save';
 import { hardOn } from '../death';
-import { PRIME, capLv, k0Gap, needOf, slotLocked, slotLv, slotMaxed } from '../player';
+import { PRIME, k0Gap, k0Held, needOf, slotLocked, slotMaxed } from '../player';
 import { FT, g3 } from '../enemies/mid/_fight';
 
-/** player.ts k0Held, read-only: is slot i already at its K0 level? The gun and side pairs count as one slot each */
-function k0Held(i: number): boolean {
-  const P = $.P;
-  if (i === 2 || i === 3) return !!(P.double || P.laser);
-  if (i === 1 || i === 4) return !!(P.missile || P.pyre);
-  return slotLv(i) >= capLv(i);
-}
 /** the slot a pod of type ty gives if it is taken now (applyPower's K0 FIRST branch, line for line). A FULL pod, meter mode,
  *  short and seal 1+ keep their type; past K0 the pod is re-rolled with R() as it is taken, which the HUD cannot (and
  *  must not) predict, so it shows its own type */

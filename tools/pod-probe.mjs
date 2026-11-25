@@ -187,7 +187,7 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
             P.y = Math.max(6, Math.min(248, P.y + window.__dd * v * .5)); } }
         else if (pil) window.__pilotStep(g, tx, ty);
         else if (tx != null) { g.P.x += Math.sign(tx - g.P.x) * Math.min(3, Math.abs(tx - g.P.x)); g.P.y += Math.sign(ty - g.P.y) * Math.min(3, Math.abs(ty - g.P.y)); }
-        before = g.caps.slice(); beforeE = g.enemies.slice(); }
+        before = g.caps.slice(); beforeE = g.enemies.slice(); window.__redN0 = g.G.redN || 0; }
       const pre = mortal && g && g.P && g.state === 'play' && g.P.alive && g.P.inv <= 1 ? { sh: g.P.shield || 0, n: window.__near(g), x: g.P.x, y: g.P.y, kit: slotsOf(g.P) } : null;
       const wq = g && g.P && g.state === 'play' ? { P: g.P, sh: g.P.shield || 0, lv: g.P.wardLv || 0, inv: g.P.inv || 0, kills: g.G.kills || 0 } : null; window.__w6 = null; // H2 shield ledger (below)
       q.splice(0).forEach((f) => f(now));
@@ -223,14 +223,28 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
         // where each new cap came from, read off what died this frame (measure-only; see the header's `src`)
         const had = new Set(before), nowE = new Set(h.enemies), gone = beforeE.filter((e) => e.dead || !nowE.has(e));
         const rec = (e) => e.rec || (e.group && e.group.rec), open = (e) => e.open || (e.group && e.group.open); // formation()'s `fixed` means "exactly n" (spawn.ts), not an opening carrier
-        for (const c of h.caps) if (!had.has(c) && !window.__capSrc.has(c)) window.__capSrc.set(c, c.rec ? 'rec' : c.choice ? 'fixed:choice' : c.salv ? 'salv' : c.graft ? 'graft' : c.blue && !gone.some(open) ? 'blue' // a blue that an opening carrier dropped is still its pod (every 12th red is blue, G.redN): E2's fixed:open counts it (W6 round 3: 2 of 5 biome A openers read 'unpaid' for this)
-          : gone.some(rec) ? 'rec' : gone.some(open) ? 'fixed:open'
-          : gone.some((e) => e.mid || e.k === 'maw') ? 'fixed:mid' : gone.some((e) => e.group && e.group.pod) ? 'fixed:release' : gone.some((e) => e.cap) ? 'carrier'
-          : gone.some((e) => e.group) ? 'formation' : h.G.mini && h.G.mini.k === 'ufo' && !h.G.mini.dead ? 'fixed:saucer' : 'unknown');
+        // round-4 integration (E2 fixed:open, measure-only): an opener's pod is the one its group drops at its LAST kill
+        // (update.ts killEnemy: group.killed === group.n), pushed after that member's own cap (e.cap, a random carrier pod),
+        // so the member's own cap is 'carrier', never fixed:open (it read 11-12 of 10 on some seeds); and a pod taken on the
+        // frame it drops never shows in caps: G.redN (every non-recovery dropCap counts one, long4) says how many dropped
+        // unseen, and an opener group that finished this frame with no visible pod of its own takes one of them
+        const OD = (window.__openDone ||= new WeakSet()), fresh = h.caps.filter((c) => !had.has(c) && !window.__capSrc.has(c)), plainC = (c) => !c.rec && !c.choice && !c.salv && !c.graft;
+        const openCap = new Set(), openUnseen = [];
+        for (const e of gone) { const g2 = e.group; if (!g2 || !g2.open || (e.hp || 0) > 0 || (g2.killed || 0) < (g2.n || 0) || OD.has(g2)) continue; OD.add(g2);
+          const near = fresh.filter((c) => plainC(c) && !openCap.has(c) && (c.x - e.x) ** 2 + (c.y - e.y) ** 2 < 40 * 40);
+          if (near.length >= (e.cap ? 2 : 1)) openCap.add(near[near.length - 1]); else openUnseen.push(e); } // the later push is the group's pod
+        const genSrc = () => gone.some(rec) ? 'rec' : gone.some((e) => e.mid || e.k === 'maw') ? 'fixed:mid' : gone.some((e) => e.group && e.group.pod && !e.group.open) ? 'fixed:release' : gone.some((e) => e.cap) ? 'carrier'
+          : gone.some((e) => e.group) ? 'formation' : h.G.mini && h.G.mini.k === 'ufo' && !h.G.mini.dead ? 'fixed:saucer' : 'unknown';
+        for (const c of fresh) window.__capSrc.set(c, c.rec ? 'rec' : c.choice ? 'fixed:choice' : c.salv ? 'salv' : c.graft ? 'graft' : openCap.has(c) ? 'fixed:open' : c.blue ? 'blue' : genSrc());
+        // the unseen ones (ΔredN past the plain caps that showed): picked up on their drop frame, so they are pickups too
+        { const unseen = Math.max(0, (h.G.redN || 0) - (window.__redN0 || 0) - fresh.filter(plainC).length), st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, DR = (window.__drops ||= {}), OG = (window.__openG ||= new Map());
+          for (let k = 0; k < unseen; k++) { const oe = openUnseen.shift(), src = oe ? 'fixed:open' : genSrc();
+            (DR[st] ||= {})[src] = (DR[st][src] || 0) + 1; if (oe && OG.has(oe.group)) OG.get(oe.group).paid++;
+            window.__pods.push({ f: window.__fr, kind: 'pod', ty: null, full: 0, src, st, same: 1 }); } }
         // drops[] (W6 round 3, gate E2, measure-only): every cap that appeared, by stage and src, picked up or not (pods[] keeps
         // the pickups); openG[]: each authored opening formation (group.open): members seen, killed, and whether it paid
         { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, DR = (window.__drops ||= {}), OG = (window.__openG ||= new Map());
-          for (const c of h.caps) if (!had.has(c) && !(window.__dropSeen ||= new WeakSet()).has(c)) { window.__dropSeen.add(c); const k = window.__capSrc.get(c) || 'unknown'; (DR[st] ||= {})[k] = (DR[st][k] || 0) + 1; if (k === 'fixed:open') for (const g of new Set(gone.filter((e) => open(e) && e.group && OG.has(e.group)).map((e) => e.group))) OG.get(g).paid++; } // once per group per cap
+          for (const c of h.caps) if (!had.has(c) && !(window.__dropSeen ||= new WeakSet()).has(c)) { window.__dropSeen.add(c); const k = window.__capSrc.get(c) || 'unknown'; (DR[st] ||= {})[k] = (DR[st][k] || 0) + 1; if (k === 'fixed:open') { const e = gone.find((e) => open(e) && e.group && OG.has(e.group) && (c.x - e.x) ** 2 + (c.y - e.y) ** 2 < 40 * 40) || gone.find((e) => open(e) && e.group && OG.has(e.group)); if (e) OG.get(e.group).paid++; } } // once per opener pod, to its own group
           for (const e of h.enemies) if (e.group && e.group.open && !OG.has(e.group)) OG.set(e.group, { st, s: +(window.__fr / 60).toFixed(1), n: e.group.n || null, seen: new WeakSet(), ns: 0, killed: 0, paid: 0 });
           for (const e of h.enemies) if (e.group && OG.has(e.group)) { const o = OG.get(e.group); if (!o.seen.has(e)) { o.seen.add(e); o.ns++; } }
           if (window.__otr) for (const [g, o] of OG) if (o.st !== '1-1' && window.__fr % 6 === 0 && h.enemies.some((e) => e.group === g)) { const W_ = window.__W, sc = h.G.scroll; // --open-trace (measure-only): the biome openers frame by frame

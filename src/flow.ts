@@ -418,7 +418,7 @@ function recoverPods(ty) {
  *  no checkpoint, or no life on its count to take (respawn in place, as option a) */
 function deathRestart() {
   const G0 = $.G, P0 = deadShip(), recover = G0.recover, deaths = G0.st ? G0.st.deaths : 0, hits = G0.st ? G0.st.hits || 0 : 0, corpseVo = !!(G0.st && G0.st.corpseVo), d = lastCp(),
-    keep = { gaspD: G0.gaspD, gasp: G0.gasp, rigOff: G0.rigOff, rigOffC: G0.rigOffC, pkOrder: G0.pkOrder }; // long4 death state a replay must not give back
+    keep = { gaspD: G0.gaspD, gasp: G0.gasp, rigOff: G0.rigOff, rigOffC: G0.rigOffC, pkOrder: G0.pkOrder, primeLog: G0.primeLog }; // long4 death state a replay must not give back
   if (!d || d.g.loop !== G0.loop || d.g.stage !== G0.stage) return false; // only this stage's checkpoint
   // one life off the CHECKPOINT's count, not the live one: a life gained since (SPARE MEAT at a level-up) is earned again
   // on the replay, so keeping it made the death free (systems-designer). Never more than the live count allows
@@ -435,7 +435,7 @@ function deathRestart() {
   if (hardOn()) {
     // LAST GASP spent, a rig knocked offline and the pick order since the checkpoint stay as the death left them: a
     // replay may not give a gasp back (the checkpoint may predate it). pkOrder keeps only perks the restored run holds
-    for (const f of ['gaspD', 'gasp', 'rigOff', 'rigOffC']) if (keep[f] != null) $.G[f] = keep[f];
+    for (const f of ['gaspD', 'gasp', 'rigOff', 'rigOffC', 'primeLog']) if (keep[f] != null) $.G[f] = keep[f]; // primeLog: the one-time PARTS STORED line stays said
     if (keep.pkOrder) $.G.pkOrder = keep.pkOrder.filter((id) => $.G.pk && $.G.pk[id] > 0);
   }
   const y = $.P.y;

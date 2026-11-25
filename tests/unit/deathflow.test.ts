@@ -184,6 +184,11 @@ describe('the death cost on the run (Decision 2A, 4A)', () => {
     F.respawn();
     expect($.G.gaspD).toBe(0);
   });
+  it('keeps the one-time PARTS STORED line said across the restart (round-4 integration)', () => {
+    died(1, { primeLog: 1 }); // the checkpoint blob predates the first stored part
+    F.respawn();
+    expect($.G.primeLog).toBe(1);
+  });
 });
 
 describe('feedAfter (ux-designer: no banner overwrites an unread one)', () => {

@@ -26,8 +26,8 @@
 //   the game can produce (midpick.ts forkAllows keeps acid and snot apart): ice,acid  acid,fire  fire,snot  snot,ice.
 //   fm counts the condition's false-to-true turns. Prints one JSON line.
 //   Per stage also `scope` (W6 tune-ts request, for Matt's pending band amendment (a)): fh / squeeze / fm split by the
-//   frame's scope (fight: a midboss or boss up; sig: inside a signature window; fly: the scroll moving; hold: scroll 0,
-//   an arena run-up), `flown` = fly + sig beside the whole-stage numbers, and `fmAt` [stage x, y, scope] per forced move.
+//   frame's scope (fight: a midboss or boss up; boss: the stage boss's approach, scroll past its WARNING x (round 4);
+//   sig: inside a signature window; fly: the scroll moving; hold: scroll 0, an arena run-up), `flown` = fly + sig beside the whole-stage numbers, and `fmAt` [stage x, y, scope] per forced move.
 import { chromium } from 'playwright';
 import { useLayout, LAYOUT } from './layout-arg.mjs';
 import { PILOT } from './pilot.mjs';
@@ -68,7 +68,11 @@ await p.addInitScript(([seed, route]) => { let now = 0; const q = []; performanc
       const R = row(key); R.frames++;
       // the scope of this frame (W6 tune-ts request): fight (a midboss or boss up), sig (inside a signature window), fly
       // (the scroll moving), hold (scroll 0 outside a fight: an arena run-up). 'flown' = fly + sig, next to the whole stage
-      const ph = G.mini && !G.mini.dead ? 'fight' : G.boss ? 'fight' : PL.inSig(P.x + G.scroll, PL.sigs()) ? 'sig' : (G.scrollSpeed ?? 1) > 0 ? 'fly' : 'hold';
+      // round-4 integration (r4-space request): 'boss' = the stage boss's approach, from its WARNING trigger (the script fires
+      // it at scroll = the row's warnX, else bossX: biomes.ts / scripts.ts) to the fight; the arena walls (movement C, un-inset)
+      // are not the flown corridor, so it sits outside 'flown' with the fight
+      const bossAt = r0 ? (r0.warnX ?? r0.bossX) : Infinity;
+      const ph = G.mini && !G.mini.dead ? 'fight' : G.boss || G.bossStarted ? 'fight' : G.scroll >= bossAt ? 'boss' : PL.inSig(P.x + G.scroll, PL.sigs()) ? 'sig' : (G.scrollSpeed ?? 1) > 0 ? 'fly' : 'hold';
       const RP = ((R.ph ||= {})[ph] ||= { n: 0, fh: {}, sq: 0, fm: 0 }); RP.n++;
       PL.bulFrame(h, key);
       const wx = P.x + G.scroll, o = PL.openAt(wx), fh = Math.round(o.h / 254 * 100);

@@ -13,6 +13,7 @@
 //   hazBad also lists `body-on-ship:<k>` (a regular enemy first seen within 48 px of the ship) and
 //   `solid-on-ship` (a SOLID slab, if src/solids.ts exposes its list as `solids`, appearing within 48 px). The L5 line
 //   says PASS when fit passes, slam is 0, hazBad is empty and there are no page errors.
+//   An icicle's hazBad entry carries its origin (round 4): `state:icicle(timer|timer-aimed|placed|curtain/<state>@<stage> [mid] x<world x>)`.
 import { chromium } from 'playwright';
 import { useLayout, ranOn } from './layout-arg.mjs';
 import { pageLib } from './probe-lib.mjs';
@@ -96,7 +97,12 @@ await p.addInitScript(([g0, g1, OPT]) => {
         // warm-up; only an unaimed one there is bad. st.hazAim counts the aimed ones
         if (z.aim) st.hazAim = (st.hazAim || 0) + 1;
         const bad = G.fork || G.forkHold || G.tally || !h.P.alive ? 'state' : z.k !== 'strand' && !z.aim && Math.abs(z.x - h.P.x) < 40 ? 'on-ship' : '';
-        if (bad) st.hazBad.push(bad + ':' + z.k);
+        // round-4 integration (r4-space request; L5 ice,acid state:icicle): an icicle's origin, read off the fields each
+        // spawner writes (biomes.ts): dropHazard (a boss curtain: aim + shoot, len 14), spawnHazardAt (a placed one: integer
+        // len, maybe shoot), spawnHazard (the random timer: len rr(10, 18), aim on every 3rd), plus which state and where
+        const org = z.k !== 'icicle' ? '' : `(${z.aim && z.shoot && z.len === 14 ? 'curtain' : Number.isInteger(z.len) ? 'placed' : z.aim ? 'timer-aimed' : 'timer'}`
+          + `/${G.fork ? 'fork' : G.forkHold ? 'forkHold' : G.tally ? 'tally' : !h.P.alive ? 'dead' : 'play'}@${G.loop + 1}-${(G.stage || 0) + 1}${G.mini && !G.mini.dead ? ' ' + G.mini.k : ''} x${Math.round(z.x + G.scroll)})`;
+        if (bad) st.hazBad.push(bad + ':' + z.k + org);
       }
       if (G.hazHit) st.hazHits++;
       if (!h.P.alive && !window.__dead) st.deaths++;

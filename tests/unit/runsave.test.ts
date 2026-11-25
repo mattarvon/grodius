@@ -108,6 +108,18 @@ describe('run save round trip', () => {
     expect(decodeRun(JSON.stringify(serializeRun({ ...G, bio: 130, bioFk: 'x' }, P)))).toBeNull();
   });
 
+  it('carries an owed blue (G.blueOwe, an opener took the 12th red) through the round trip', () => {
+    const { G, P } = midRun([2200, 5300, null]);
+    const d = decodeRun(JSON.stringify(serializeRun({ ...G, redN: 12, blueOwe: 1 }, P)))!;
+    expect(d).not.toBeNull();
+    const b: any = {};
+    applyRun(d, b, {});
+    expect(b.blueOwe).toBe(1);
+    expect(b.redN).toBe(12);
+    expect(decodeRun(JSON.stringify(serializeRun({ ...G, blueOwe: 2 }, P)))).toBeNull();
+    expect(decodeRun(JSON.stringify(serializeRun({ ...G, blueOwe: true }, P)))).toBeNull();
+  });
+
   it('restores copies, so the saved blob and the live run never share objects', () => {
     const { G, P } = midRun([2200, 5300, null]);
     const d = decodeRun(serializeRun(G, P))!;

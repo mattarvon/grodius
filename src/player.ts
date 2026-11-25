@@ -60,6 +60,8 @@ export const PRIME = {
   /** the seal priming works under (0: toward K1 only; a later seal keeps today's dead pods) */
   seal: 0,
 } as const;
+/** the one-time log line at the run's first stored part (applyPower's priming branch) */
+export const PRIME_LOG = 'PARTS STORED // OPENS AT SEAL II';
 /** the slots priming may store into: THRUST, MISSILE while it is the held side gun, WRAITH, WARD */
 const primeSlot = (i) => i === 0 || i === 5 || i === 6 || (i === 1 && $.P.missile > 0);
 export function primeOk(i) {
@@ -100,8 +102,9 @@ export function k0Gap() {
   if ((P.wardLv || 0) < capLv(6)) return 6;
   return -1;
 }
-/** is slot i (a pod's type) already at its K0 level? The gun and side pairs count as one slot each */
-function k0Held(i) {
+/** is slot i (a pod's type) already at its K0 level? The gun and side pairs count as one slot each. Exported for the
+ *  HUD's capsule retype (render/hudcues.ts podShows), so the two can't drift */
+export function k0Held(i) {
   const P = $.P;
   if (i === 2 || i === 3) return !!(P.double || P.laser);
   if (i === 1 || i === 4) return !!(P.missile || P.pyre);
@@ -152,6 +155,9 @@ export function applyPower(i, full) {
     $.G.slotF[i] = 20;
     sfx.pick();
     pop($.P.x, $.P.y - 14, SLOTS[i] + ' ' + f + '/' + nd + ' STORED', POD[i].h, 8, 40);
+    // the first stored part of the run says once, in the log, where it goes (r4-perf request): the pop only names the
+    // slot. G.primeLog survives a death restart (flow.ts deathRestart keep) and is in the run save. long4 only (primeOk)
+    if (!$.G.primeLog) { $.G.primeLog = 1; if ($.G.logQ) $.G.logQ.push(PRIME_LOG); }
     for (let k = 0; k < 5; k++) spark($.P.x, $.P.y, rr(-2, 2), rr(-2, 2), 10, POD[i].h);
     return;
   }

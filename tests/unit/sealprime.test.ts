@@ -80,6 +80,20 @@ describe('SEAL PRIMING (long4, seal 0)', () => {
     expect(P.primeOk(5)).toBe(false);
     expect(P.slotMaxed(5)).toBe(true);
   });
+  it('queues PARTS STORED // OPENS AT SEAL II once, at the first stored part of a run (r4-perf request)', () => {
+    $.G.logQ = [];
+    P.applyPower(5, false);
+    expect($.G.logQ).toEqual([P.PRIME_LOG]);
+    expect(P.PRIME_LOG).toBe('PARTS STORED // OPENS AT SEAL II');
+    P.applyPower(5, false);
+    P.applyPower(0, true);
+    expect($.G.logQ).toEqual([P.PRIME_LOG]); // once per run
+    $.G = { ...$.G, primeLog: 0, logQ: [] } as any;
+    setLayout('short'); // short never primes, so never says it (T1)
+    $.P = ship(K0) as any;
+    P.applyPower(5, false);
+    expect($.G.logQ).toEqual([]);
+  });
   it('one non-FULL pod stores one fragment (a death drops them: flow.ts resetPlayer frag [], deathflow.test)', () => {
     P.applyPower(5, false);
     expect($.P.frag[5]).toBe(1);

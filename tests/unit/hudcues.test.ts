@@ -43,6 +43,16 @@ beforeEach(() => {
 });
 
 describe('podShows: a capsule shows the slot K0 FIRST will give it', () => {
+  it("reads player.ts's own k0Held (round-4 integration: exported, no HUD copy)", async () => {
+    const src = (await import('node:fs')).readFileSync(new URL('../../src/render/hudcues.ts', import.meta.url), 'utf8');
+    expect(src).toMatch(/import \{[^}]*\bk0Held\b[^}]*\} from '\.\.\/player'/);
+    expect(src).not.toMatch(/function k0Held/);
+    // the pairs count as one slot; THRUST/WRAITH/WARD by their seal-0 cap
+    $.P = ship({ laser: 1, pyre: 1, speed: 2 }) as any;
+    expect([0, 1, 2, 3, 4, 5, 6].map((i) => P.k0Held(i))).toEqual([true, true, true, true, true, false, false]);
+    $.P = ship({ speed: 1 }) as any;
+    expect([0, 1, 2].map((i) => P.k0Held(i))).toEqual([false, false, false]);
+  });
   // kits short of K0 in each way, plus K0 itself; every pod type, FULL and not
   const KITS = [{}, { speed: 2 }, { speed: 2, double: 1 }, { speed: 2, laser: 1 }, { speed: 2, double: 1, missile: 1 }, { speed: 2, double: 1, pyre: 1 },
     { speed: 2, double: 1, missile: 1, options: 1 }, { speed: 2, double: 1, missile: 1, options: 1, wardLv: 1, shield: 1 }, { speed: 1, options: 1, wardLv: 1, shield: 0 }];

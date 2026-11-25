@@ -408,3 +408,25 @@ describe('W2 survival hooks (§2.1 survival)', () => {
     expect($.P.shield).toBe(2);
   });
 });
+
+describe('the hook spawns clear of the ship (S5, round-4 integration: L5 fire,snot body-on-ship:hook)', () => {
+  // the mock's rr returns its low end and R() .5, so len 34, sw .5, ph = PI: the body hangs 34 px under its anchor at W + 16
+  const first = () => { S.hookE(); const e = W.enemies[W.enemies.length - 1]; run(1, [e]); return e; };
+  it('moves the anchor right until the swung body is >= 48 px from a ship at the right edge, with no extra R()', () => {
+    $.P = { x: 470, y: 40, alive: true };
+    const d0 = W.draws, e = first(), used = W.draws - d0;
+    expect(Math.hypot(e.x - $.P.x, e.y - $.P.y)).toBeGreaterThanOrEqual(BUL.noBody);
+    expect(e.ay).toBe(0); // still hung from the ceiling at its own column
+    W.enemies.length = 0;
+    $.P = { x: 60, y: 127, alive: true }; // far away: the anchor stays at W + 16, the same draws
+    const d1 = W.draws, f = first();
+    expect(W.draws - d1).toBe(used);
+    expect(f.ax).toBeCloseTo(480 + 16 - 1, 0); // one frame of scroll
+  });
+  it('is unchanged on short (parity)', () => {
+    L.setLayout('short');
+    $.P = { x: 470, y: 40, alive: true };
+    const e = first();
+    expect(e.ax).toBeCloseTo(480 + 16 - 1, 0);
+  });
+});

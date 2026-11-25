@@ -581,18 +581,32 @@ export function hookE() {
   const wx = $.G.scroll + W + 16,
     c = Math.max(-10, ceilAt(wx)),
     room = floorAt(wx) - c;
-  mk('hook', W + 16, c + 30, {
-    ax: W + 16,
+  // len, sw, ph drawn first, in the object literal's old order, so the R() sequence is unchanged
+  const len = rr(34, Math.max(40, room * .55)), sw = rr(.5, 1), ph = R() * TAU;
+  const ax = W + 16 + hookClear(ax0Body(c, len, sw, ph));
+  mk('hook', ax, c + 30, {
+    ax,
     ay: c,
-    len: rr(34, Math.max(40, room * .55)),
-    sw: rr(.5, 1),
-    ph: R() * TAU,
+    len,
+    sw,
+    ph,
     noLeg: R() < .5,
     noArm: R() < .4,
     cap: R() < .2,
     twitch: 0,
     cut: R() < .5
   });
+}
+/** the hook's body on its first frame, relative to the anchor x: it hangs len below its (inset) ceiling anchor c and
+ *  swings sin(ph) x sw x .55 rad (enemies/update.ts 'hook'), so it is not at (W + 16, c + 30) */
+const ax0Body = (c, len, sw, ph) => { const a = Math.sin(ph) * sw * .55; return [W + 16 + Math.sin(a) * len, c + Math.cos(a) * len]; };
+/** G3 S5 for a hook (round-4 integration; L5 fire,snot body-on-ship:hook): how far right the anchor moves so the swung
+ *  body starts outside BUL.noBody + bodyPad (+ its radius past 9) of the ship. 0 on short (parity) and when clear */
+function hookClear([bx, by]) {
+  if (!g3() || !$.P || !$.P.alive) return 0;
+  const r = BUL.noBody + BUL.bodyPad + Math.max(0, ET.hook.r - 9), dy = by - $.P.y, dx = bx - $.P.x;
+  if (dx * dx + dy * dy >= r * r) return 0;
+  return $.P.x + Math.sqrt(Math.max(0, r * r - dy * dy)) - bx;
 }
 export function flayer(y) {
   mk('flayer', W + 18, y, {

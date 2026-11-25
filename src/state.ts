@@ -37,6 +37,12 @@ export interface GDiff {
   recovery?: RecoveryQ[];
   /** red pods picked up this run: every 12th becomes blue (spec §2.2, W1). In the run save. Absent = 0 */
   redN?: number;
+  /** 1 while a blue that landed on an authored opener's pod is owed to the next red that is not an opener's
+   *  (enemies/update.ts dropCap). In the run save. Absent = 0 */
+  blueOwe?: 0 | 1;
+  /** 1 once the run's first SEAL PRIMING part was stored and its one-time log line queued (player.ts). In the run save
+   *  and kept over a death restart. Absent = 0 */
+  primeLog?: 0 | 1;
   /** 1 while the bolted contraption is knocked offline by a death until the next stage clear (decision 4A, W2's
    *  rigLive). In the run save. Absent = 0 */
   rigOff?: 0 | 1;

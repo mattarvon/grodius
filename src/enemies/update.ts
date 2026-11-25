@@ -1075,7 +1075,7 @@ function firstKill(e) {
  *  power fragment: when the blue count (every 12th red) lands on it, the blue is owed to the next red that is not an
  *  opener's (G.blueOwe), so the opener still pays and Descent 1 still gets its blues (round-3 ledger: a blue on an opener
  *  gave no power; K0's sum counts all 4 Orbit openers). Only group.open passes power: fight pairs can still be blue. An owed
- *  blue is not in the run save (runsave.ts), so a resume drops it. long4 only */
+ *  blue is in the run save (runsave.ts blueOwe), so a resume keeps it. long4 only */
 export function dropCap(x, y, e?, power?) {
   if (e && e.capTy != null) { // a recovery carrier's typed pod (spawn.ts recoveryWave): no roll, not a red in the blue count
     caps.push({ x, y, t: 0, blue: false, ty: e.capTy, rec: 1, ...(e.capFull ? { full: 1 } : {}) });
