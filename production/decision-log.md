@@ -1421,3 +1421,28 @@ wants "brutal everywhere", old-school arcade hard from the first stage, dying a 
 - **Harness:** audio only, no R(): short, long4, scenarios and layout-parity identical.
 
 **Category:** audio
+
+### D65 Difficulty rebuild on Gradius III ships: g3-tune4 + the voice change merged to main — 2026-11-24 (Matt: "merge it")
+
+**Decision.** Matt played the integrated build (g3-tune4 121e42e with g4-voxboss 9e231bd on top) and, after reading the
+round-4 gate table, chose to merge now rather than run another round on Open Orbit first. The rebuild's spec, all
+32 of Matt's calls and the gate history live in the session's DIFFICULTY-SPEC (§7 decisions 1-32); the rules are
+summarised in CHANGELOG 2026-11-24.
+
+**Gates at merge (round 4, 282 runs across the desktop and the lab; human-calibrated pilot per decision 29):**
+- Pass: B1 caps every frame on all four tiers; D1/D3 revenge (Normal 0, Hard > 0); E3/E4/E9 economy; R1/R2 recovery;
+  H2 0.4; M3 55% non-bullet deaths; N1 73%; L2, L4, L6, flown L1/L2; K3 TTK bands on the fights; P1/P2 perf.
+- Normal human pilot: 2/10 clears, median 3 deaths (band 20-50%, >= 3): on band.
+- Open (carried into the next round): M2 tier order (Easy 60%, Normal 20%, Hard 20%, VH 30%); M1 earliest death 24.9 s
+  (Saucer, one seed); H1 median 3 (band 6-10). Cause: 57 of 97 human-pilot deaths are in Open Orbit 64-110 s on every
+  tier (21 of VH's 24). The structural FAILs carried from earlier rounds stay tracked: L3 forced moves, N2 behind
+  share, N4 entry edges, K2 denial shares, K1 Saucer / stage-boss Maw park spots, K4 KEEPSAKE time-out, L7 knots cover.
+- Not decided: the .35 hatch-odds experiment (37/64 runs, default unchanged); re-scoping the Drive's L3 band (5.5 vs 8).
+
+Studio review: GD/ED/AD BLOCK (PARTS STORED copy) fixed in 121e42e; LD/QA/TD APPROVE WITH NOTES; all six APPROVE WITH
+NOTES after the fix. Voice change (D64): audio-director, narrative-director, gameplay-programmer APPROVE WITH NOTES.
+
+**Next.** Ease Orbit 64-110 s on Easy/Normal and restore the tier order with VH-only pressure elsewhere; Saucer opening;
+then the remaining structural FAILs.
+
+**Category:** difficulty

@@ -2,6 +2,23 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-24 (Difficulty rebuilt on Gradius III)
+
+Descent 1's difficulty is rebuilt around how Gradius III gets hard: tight space, few bullets that are each aimed and readable, a strong ship that makes enemies fire sooner rather than soak more, and a death that really costs you.
+
+- Four difficulties replace the BRUTAL dial: Easy, Normal (the default), Hard and Very Hard.
+- Fewer bullets, but they mean it. Each difficulty caps how many enemy bullets can be on screen at once, and shots are aimed and paced so you can read them. A strong ship makes enemies fire sooner and faster, not take longer to kill.
+- Some enemies shoot back when they die on Hard and Very Hard. Never on Normal.
+- Tighter corridors. Open Orbit has terrain now, and the biome stages and the Gravity Drive pinch in. Pistons, wedged frozen bodies and mucus plugs kill like walls, even through WARD.
+- Dying costs more. On Normal and up you go back to a checkpoint (never more than about 30 s back), lose one level of each graft and of your strongest damage perk, and a recovery wave brings you pods to rebuild. Easy respawns where you died and keeps your perks.
+- 3 ships for everyone in Descent 1. Reinforced Hull now has one level, and its extra ship arrives at the Descent 2 gate. If you owned HULL level 2, you get 500 biomass back.
+- In Descent 1 you get only your first contraption, at level 1, and it wakes after stage 2. A death knocks it offline until the next stage clear.
+- WARD levelling up raises its capacity but no longer refills the shield.
+- Every midboss and boss is retuned: kill-time targets, a denial move you have to dodge rather than tank, and a time-out after which it leaves. The stage-boss Maw still escapes if you're too weak to kill it in time.
+- Harder fights on Hard and Very Hard: stage bosses deny you more often, the Drive's limbs reach further, and Very Hard gets no second recovery wave.
+- On phones, gore density is capped to keep the frame rate up. Desktop is unchanged.
+- Known: Open Orbit's stretch from about 1:05 to 1:50 is where most deaths happen on every difficulty, so Very Hard currently plays about like Hard. Easing it is next.
+
 ## 2026-11-24 (voice)
 
 - SLAB's GRODIUS BITCH no longer plays twice at the start. He says it when you die in a boss fight late in a run: the second biome stage's boss or the Gravity Drive in Descent 1, and any biome boss or the Drive from Descent 2 down. Midbosses (and the Open Orbit's Maw, which the game counts as one) don't.
