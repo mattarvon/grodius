@@ -89,7 +89,7 @@ export const PILOT = `(() => {
   const prev = new WeakMap();
   // ---- the modules (the sims' own geometry). A tool's window.__W / __BU / __DN or probe-lib's __PL.mods also serve
   const MODS = [['W', '/src/world.ts'], ['BU', '/src/boss/update.ts'], ['BRL', '/src/boss/bossrules.ts'], ['DN', '/src/enemies/mid/_deny.ts'],
-    ['KS', '/src/enemies/boss/_keepsake.ts'], ['SO', '/src/solids.ts'], ['TB', '/src/terrainb.ts'], ['SP', '/src/enemies/spawn.ts'], ['NO', '/src/notice.ts'], ['BH', '/src/enemies/butcherhook.ts']];
+    ['KS', '/src/enemies/boss/_keepsake.ts'], ['SO', '/src/solids.ts'], ['TB', '/src/terrainb.ts'], ['SP', '/src/enemies/spawn.ts'], ['NO', '/src/notice.ts'], ['BH', '/src/enemies/butcherhook.ts'], ['DL', '/src/enemies/doll.ts']];
   const M = {}; let ld = null;
   // a page whose game modules carry HMR stamps would hand these imports second, empty copies: flagged (err.instance), never silent
   window.__pilotLoad = () => ld || (ld = Promise.all(MODS.map(([k, p]) => import(p).then((m) => { M[k] = m; }, () => { M[k] = null; }))).then(() => {
@@ -154,10 +154,13 @@ export const PILOT = `(() => {
     const line = (o) => { if (o.t0 > T.H - 6) o.L = 1; o.fa = safeF(o.k, o.fa); lines.push(o); if (o.k) { live.add(o.k); now[o.k] = (now[o.k] || 0) + 1; } };
     for (const s of Wm.eshots) if (!early(s.t)) th.push({ x: s.x, y: s.y, vx: s.vx || 0, vy: s.vy || 0, ay: s.k === 'glob' ? .025 : 0, r: (s.r || 2) + 2.6, k: 'shot:' + (s.k || 'orb') });
     // bodies: exact paths where the sim's motion is a closed form, else the measured velocity
-    const NO = mod('NO'), BR = mod('BRL'); // BRL, not BR: probe-lib's BR is brutal.ts
+    const NO = mod('NO'), BR = mod('BRL'), DL = mod('DL'); // BRL, not BR: probe-lib's BR is brutal.ts
     const pathOf = (e) => {
       if (e.k === 'hook' && e.len != null && e.sw != null && e.ax != null) return (t) => { const ang = Math.sin((e.t + t) * .035 + e.ph) * e.sw * .55 + (e.kick || 0) * Math.pow(.96, t); return [e.ax - ss * t + Math.sin(ang) * e.len, e.ay + Math.cos(ang) * e.len]; };
       if (e.k === 'knot' && NO && NO.KNOT && e.y0 != null) { const K = NO.KNOT; return (t) => [e.x - (ss + K.drift) * t, e.y0 + Math.sin((e.t + t) * TAU / K.bobF) * K.bob]; }
+      // a doll head (enemies/doll.ts): contact only. Its exact drift, and through a tell the lunge at the ship's height now
+      // (the lock lands as the tell ends: dollAt reads the current y as the best guess); a lunge in flight runs to its lock
+      if (e.k === 'doll' && DL && DL.dollAt && e.y0 != null) return (t) => DL.dollAt(e, t, P.y);
       if (e.k === 'drone' && e.pat === 'sine' && e.y0 != null) return (t) => [e.x - 1.75 * t, e.y0 + Math.sin((e.t + t + (e.i || 0) * 9) * .07) * 26];
       if (e.k === 'drone' && e.pat === 'zig' && e.y0 != null) return (t) => { const ph = (e.t + t + (e.i || 0) * 6) % 80 / 80; return [e.x - 2 * t, e.y0 + (ph < .5 ? ph * 4 - 1 : 3 - ph * 4) * 28]; };
       if (e.k === 'maw' && e.bs && !(e.bs === 1 && earlyT(e.bt)) && BR && BR.MAW && BR.lungeX) { const Mw = BR.MAW, V = e.bv ? Mw.var : null, hold = V ? V.hold : Mw.hold, back = V ? V.backV : Mw.backV, ly = e.ly ?? e.y;

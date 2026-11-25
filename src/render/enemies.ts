@@ -17,6 +17,7 @@ import { HOST_TINT, isCross } from '../enemies/midhost';
 import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'; // flyers: wasp / eyeball / corpse
 import { drawEliteAura, drawElitePus } from '../enemies/elite';
 import { KH } from '../enemies/butcherhook';
+import { drawDoll } from './doll';
 
 // --- enemies ---
 /** D61: a dive drone's U-turn tell (enemies/update.ts uTurn, 46 f): its lane, a dashed line out to the right edge
@@ -1021,6 +1022,7 @@ export const DRAW = {
   eye: drawEyeT,
   crawler: drawCrawler,
   hatch: drawHatch,
+  doll: drawDoll, // MINI DOLL HEADS (render/doll.ts)
   womb: drawWomb,
   maw: drawMaw,
   ...MID_DRAW, // the midbosses: one file per kind (render/gross/mid/)

@@ -871,6 +871,14 @@ export const sfx = {
       vol: .4
     });
   },
+  /** a mini doll head's death (enemies/doll.ts): a short rubber squeak, up then down, kept under the tone pass's 1.2 kHz
+   *  line by a lowpass. ar() only (arr), never R() */
+  squeak() {
+    if (thr('sk', 50)) return;
+    const f0 = arr(760, 860);
+    tone({ type: 'triangle', f: f0, f2: f0 * 1.3, dur: .04, vol: .05, lp: 1200, wet: .1 });
+    tone({ type: 'triangle', f: f0 * 1.3, f2: f0 * .75, dur: .06, vol: .045, lp: 1200, wet: .12, at: .035 });
+  },
   drip() {
     if (thr('dr', 200)) return;
     // tone pass (D39): was a 1.1-1.5 kHz plink; now a low wet drop falling into the 200-800 Hz band

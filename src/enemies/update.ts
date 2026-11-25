@@ -35,6 +35,7 @@ import { eliteKill, eliteTick } from './elite';
 import { corpseKilled } from './corpsevoice';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
 import { NOTICE, flayerTx } from '../notice';
+import { killDoll, updDoll } from './doll'; // MINI DOLL HEADS
 
 /** seconds from a midboss's death to its spoken kill word: the roar (sfx.roar) gets the first beat */
 export const KILL_WORD_AT = .45;
@@ -115,6 +116,7 @@ export function updEnemy(e) {
   const ss = $.G.scrollSpeed;
   switch (e.k) {
     case 'slime': case 'mutant': case 'sentry': updNew(e, ss); break; // new enemies, at the end of this file
+    case 'doll': updDoll(e); break; // MINI DOLL HEADS (enemies/doll.ts)
     case 'drone':
       {
         if (e.pat === 'sine') {
@@ -798,8 +800,10 @@ export function hurt(e, d, hx, hy, dir) {
   e.flash = m < 1 ? 2 : 3; // an armoured hit flashes dimmer and tinks (below), so the player reads it
   if (e.k === 'hook') e.kick = (e.kick || 0) + .12;
   const n = 4 + Math.min(14, d * 4 | 0);
-  for (let k = 0; k < n; k++) drop(hx, hy, dir * rr(.6, 2.8) + rr(-.8, .8), rr(-1.5, 1.3), rr(1, 1.9), R() < .3 ? 2 : 0, ri(50, 110));
-  if (R() < .3) mist(hx, hy, rr(3, 5), 20);
+  if (!e.dry) { // dry: a vinyl doll head (spawn.ts ET.doll) has no blood to spill
+    for (let k = 0; k < n; k++) drop(hx, hy, dir * rr(.6, 2.8) + rr(-.8, .8), rr(-1.5, 1.3), rr(1, 1.9), R() < .3 ? 2 : 0, ri(50, 110));
+    if (R() < .3) mist(hx, hy, rr(3, 5), 20);
+  }
   if (e.big && R() < .2) gib(hx, hy, dir * rr(.5, 2), rr(-1.5, 1), 'chunk', rr(1.5, 2.5));
   // a kind with its own hit sound plays it instead (MidSim.hitSnd: THE KEEPSAKE's vinyl thud, its wound's squelch)
   if (!midHitSnd(e, m, hx, hy)) { if (m < 1) sfx.tink(); else sfx.hit(); }
@@ -809,7 +813,8 @@ export const mult = () => 1 + Math.min(4, $.G.combo * .05);
 export function killEnemy(e, dir = 1) {
   e.dead = true;
   if (e.elite) eliteKill(e);
-  gore(e.x, e.y, e.gsz, {
+  if (e.dry) killDoll(e, dir); // a vinyl doll head: shards, a thud and a squeak instead of gore (enemies/doll.ts)
+  else gore(e.x, e.y, e.gsz, {
     dir,
     eyes: e.eyes || 0,
     teeth: e.teeth || 0,
@@ -957,7 +962,7 @@ export function killEnemy(e, dir = 1) {
   if (g3()) revenge(e);
   // Descent 2+: a dying enemy spits one last slow shot at you (Gradius's revenge bullets). From Descent 2 it's a pair
   // that brackets you (sit still and it misses), from Descent 3 a 3-fan with one dead on (depth: src/depth.ts)
-  else if ($.G.loop > 0 && e.k !== 'hatch' && !($.G.boss && $.G.boss.dying) && e.x < W - 10 && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) > 70 * 70) fan(e.x, e.y, aimA(e.x, e.y), revengeN(), .22, 1.3);
+  else if ($.G.loop > 0 && e.k !== 'hatch' && e.k !== 'doll' && !($.G.boss && $.G.boss.dying) && e.x < W - 10 && $.P.alive && dist2(e.x, e.y, $.P.x, $.P.y) > 70 * 70) fan(e.x, e.y, aimA(e.x, e.y), revengeN(), .22, 1.3);
 }
 /** G3 revenge bullets (§2.1, the Gradius V table in notice.ts BUL.rev): popcorn only (a drone or hatchling, never a
  *  recovery carrier), one unled orb 8 f after the kill at .8 x v_kind, skipped within 64 px or at the scroll cap. No R()

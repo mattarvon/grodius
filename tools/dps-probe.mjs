@@ -125,7 +125,7 @@ const KITS = [
   ['respawn END D1 (game death, VH)', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2 }, { cal: 1, rapid: 1 }, { dmg: 2, rof: 1, crit: 2 }, 3],
 ];
 const TTK = [ // [kind, stage ordinal, kit, main-branch HP (systems audit §2)]
-  ['drone', 0, 'bare', 1], ['drone', 3, 'END D1', 1.4], ['eye', 1, 'STAGE 1 kit', 7.9], ['eye', 3, 'END D1', 9.7], ['flayer', 3, 'END D1', 22.3], ['mutant', 3, 'END D1', 36.2],
+  ['drone', 0, 'bare', 1], ['drone', 3, 'END D1', 1.4], ['doll', 0, 'bare', 1], ['doll', 3, 'END D1', 1.4], ['eye', 1, 'STAGE 1 kit', 7.9], ['eye', 3, 'END D1', 9.7], ['flayer', 3, 'END D1', 22.3], ['mutant', 3, 'END D1', 36.2],
   ...KITS.filter((k) => k[0] !== 'bare' && k[0] !== 'END D1').map((k) => ['drone', 3, k[0], 1.4]),
 ];
 const kr = await p.evaluate(async ([KITS, TTK, FR, terrain, AF]) => {
@@ -176,7 +176,7 @@ for (const [n, r] of Object.entries(kr.kits)) console.log(n.padEnd(36), r.ONE.to
   const gd = kr.kits['respawn END D1 (game death)']; if (gd) console.log(`E5 respawn at END D1 (the game's own death, flow.ts killPlayer + respawn): ONE ${gd.ONE.toFixed(1)} = ${(gd.ONE / end).toFixed(2)} x END D1 (<= .32: ${gd.ONE / end <= .32 ? 'PASS' : 'FAIL'}); holds ${JSON.stringify(gd.held)}`); }
 console.log('\nTTK rig (real mk() HP at the kit\'s power; bolts = HP / main bolt; s = HP / ONE dps; vsMain = HP / main-branch HP):');
 for (const t of kr.ttk) console.log(`  ${t.k.padEnd(7)} stage ${t.ord}  ${t.kit.padEnd(36)} hp ${String(t.hp).padStart(6)}  bolt ${String(t.bolt).padStart(5)}  bolts ${String(t.bolts).padStart(3)}  ${String(t.s).padStart(5)} s  vsMain ${t.vsMain}`);
-{ const dr = kr.ttk.filter((t) => t.k === 'drone'), mid = kr.ttk.filter((t) => t.k !== 'drone');
-  console.log(`R2 drones: ${dr.every((t) => t.bolts <= 1) ? 'PASS' : 'FAIL'} (bolts ${[...new Set(dr.map((t) => t.bolts))].join('/')}); mid enemies within +-10% of main: ${mid.every((t) => Math.abs(t.vsMain - 1) <= .1) ? 'PASS' : 'FAIL'} (${mid.map((t) => t.k + ' ' + t.vsMain).join(', ')})`); }
+{ const POP = ['drone', 'doll'], dr = kr.ttk.filter((t) => POP.includes(t.k)), mid = kr.ttk.filter((t) => !POP.includes(t.k)); // popcorn: the drone and the doll head (spawn.ts POPCORN)
+  console.log(`R2 popcorn (drone, doll): ${dr.every((t) => t.bolts <= 1) ? 'PASS' : 'FAIL'} (bolts ${[...new Set(dr.map((t) => t.bolts))].join('/')}); mid enemies within +-10% of main: ${mid.every((t) => Math.abs(t.vsMain - 1) <= .1) ? 'PASS' : 'FAIL'} (${mid.map((t) => t.k + ' ' + t.vsMain).join(', ')})`); }
 console.log('DPSKITS ' + JSON.stringify(kr));
 console.log('errors:', errs.slice(0, 5).join(' | ') || 'none'); ranOn('dps-probe'); await b.close();

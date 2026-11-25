@@ -13,7 +13,7 @@ vi.mock('../../src/audio', () => ({ sfx: { dread: () => {}, siren: () => {} } })
 vi.mock('../../src/boss/update', () => ({ startBoss: () => {} }));
 vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: () => {} }));
 vi.mock('../../src/enemies/spawn', () => Object.fromEntries(
-  ['banner', 'behindWave', 'corpse', 'crawler', 'edgeWave', 'eyeT', 'flayer', 'formation', 'hatch', 'knot', 'logLine', 'maw', 'mk', 'mutant', 'sentry', 'womb'].map((k) => [k, (...a: unknown[]) => rec(k)(...a)]),
+  ['banner', 'behindWave', 'corpse', 'crawler', 'edgeWave', 'eyeT', 'flayer', 'formation', 'hatch', 'dolls', 'knot', 'logLine', 'maw', 'mk', 'mutant', 'sentry', 'womb'].map((k) => [k, (...a: unknown[]) => rec(k)(...a)]),
 ));
 const { ORBIT_CELLS, ORBIT_OPENER, DRIVE_CELLS, pickPlanned, placePlanned } = await import('../../src/enemies/scripts');
 
