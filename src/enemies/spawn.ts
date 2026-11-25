@@ -616,6 +616,9 @@ function hookClear([bx0, by], shift = 0) {
 }
 export function flayer(y) {
   if (watcherTurn() && watcher(y)) { watcherSpent(); return; } // D66: this stage's Watcher takes the flayer's place
+  // D67 (Matt 2026-11-25: "still a shitload of flayers even on easy"): long4 keeps 1 flayer call in FLAY_KEEP; the
+  // rest fly in as a doll line instead. Counted on G.flayC (no R() draw), so the swap is deterministic per run
+  if (g3()) { const G = $.G; G.flayC = (G.flayC || 0) + 1; if (G.flayC % FLAY_KEEP !== 1 % FLAY_KEEP) { dollLine(y); return; } }
   mk('flayer', W + 18, y, {
     y0: y,
     tx: rr(W * .55, W * .8),
@@ -729,9 +732,15 @@ Object.assign(ET, {
 });
 import { watcher } from './watcher';
 export { watcher }; // THE WATCHER's spawner: watcher(y?) -> the enemy, or null with no room
-/** D66 (Matt 2026-11-25: "a sporadic big ass flying eyeball"): THE WATCHER takes the place of the first flayer or doll
- *  line of every other stage (stage + loop even: half the stages, deterministic, no R() draw) in Open Orbit and the
- *  biomes, once a stage, only in open scroll (no midboss, set piece or boss up) and only while no flayer is alive.
+/** 1 flayer call in FLAY_KEEP stays a flayer on long4 (D67); the others become doll lines */
+export const FLAY_KEEP = 3;
+/** frames between a stage's first Watcher and its second (D67) */
+export const WATCH_GAP = 40 * 60; // 40 s
+/** D66/D67 (Matt 2026-11-25: "a sporadic big ass flying eyeball"; then "I dont see the flying eyeballs at all"):
+ *  THE WATCHER takes the place of a flayer or doll line in Open Orbit and the biomes: the first such line of EVERY
+ *  stage, and one more at least WATCH_GAP frames later (2 a stage at most). Only in open scroll (no midboss, set piece
+ *  or boss up) and never while another Watcher is alive. D66 also refused it while a flayer was alive, and since every
+ *  scripted pair spawns its flayer first, the Watcher almost never got a turn (about 2 a run). No R() draw.
  *  Refused for room, the next flayer or doll line tries again. Never in the Gravity Drive or the interiors */
 export function watcherTurn(): boolean {
   const G = $.G;
@@ -739,12 +748,15 @@ export function watcherTurn(): boolean {
   const kd = kindOf(G.stage || 0);
   if (kd !== 'orbit' && kd !== 'biome') return false;
   const key = (G.loop || 0) * 1000 + (G.stage || 0);
-  if (G.watchAt === key || ((G.stage || 0) + (G.loop || 0)) % 2 !== 0) return false;
-  for (const o of enemies) if (o.k === 'flayer' && !o.dead) return false;
+  if (G.watchAt === key && ((G.watchN || 0) >= 2 || (G.t || 0) - (G.watchT || 0) < WATCH_GAP)) return false;
+  for (const o of enemies) if (o.k === 'watcher' && !o.dead) return false;
   return true;
 }
-/** mark this stage's Watcher spent (called from the hook below once one is up) */
-const watcherSpent = () => { const G = $.G; G.watchAt = (G.loop || 0) * 1000 + (G.stage || 0); };
+/** count this stage's Watcher (called from the hooks once one is up) */
+const watcherSpent = () => {
+  const G = $.G, key = (G.loop || 0) * 1000 + (G.stage || 0);
+  G.watchN = G.watchAt === key ? (G.watchN || 0) + 1 : 1; G.watchAt = key; G.watchT = G.t || 0;
+};
 export function slime(side = 1) {
   const wx = $.G.scroll + W + 16, y = side > 0 ? floorAt(wx) : ceilAt(wx);
   if (y > PH + 4 || y < -4) return;

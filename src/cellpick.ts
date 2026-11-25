@@ -78,9 +78,9 @@ export type Mix = Partial<Record<FillKind, number>>;
 
 /** the interior mix (spec §3.4): drones at about 30%, the rest the ship's own. mutant/crawler/womb/eyes need a floor,
  *  ceiling or wall, and their spawn helpers skip quietly where there is none */
-export const INTERIOR_MIX: Mix = { drones: .3, sentry: .14, corpse: .14, flayer: .06, hatch: .1, mutant: .06, crawler: .06, womb: .04, eyes: .04, dolls: .06 }; // D66: the doll heads take the flayer weight cut
+export const INTERIOR_MIX: Mix = { drones: .3, sentry: .14, corpse: .14, flayer: .03, hatch: .1, mutant: .06, crawler: .06, womb: .04, eyes: .04, dolls: .09 }; // D66/D67: the doll heads take the flayer weight cuts
 /** Open Orbit is open space, no terrain: the interior mix without the terrain kinds, drones still about 30% */
-export const ORBIT_MIX: Mix = { drones: .3, sentry: .2, corpse: .2, flayer: .06, hatch: .16, dolls: .08 }; // D66: the doll heads take the flayer weight cut
+export const ORBIT_MIX: Mix = { drones: .3, sentry: .2, corpse: .2, flayer: .03, hatch: .16, dolls: .11 }; // D66/D67: the doll heads take the flayer weight cuts
 
 /** a weighted draw from a mix table (keys in insertion order, so the draw is deterministic for a given rnd) */
 export function mixPick(mix: Mix, u: number): FillKind {

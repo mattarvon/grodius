@@ -190,25 +190,46 @@ describe('MINI DOLL HEADS: contact only, dry, the group capsule', () => {
   });
 });
 
-describe('THE WATCHER takes a stage turn (D66 watcherTurn)', () => {
+describe('THE WATCHER takes a stage turn (D66/D67 watcherTurn)', () => {
   const firstStage = (kind: string) => { for (let i = 0; i < 40; i++) if (L.kindOf(i) === kind) return i; return -1; };
-  it('on a Watcher stage (stage + loop even) the first doll line is THE WATCHER, then dolls again', () => {
+  it('every orbit stage: the first doll line is THE WATCHER, then dolls again until WATCH_GAP passes', () => {
     const s = firstStage('orbit'); expect(s).toBeGreaterThanOrEqual(0);
-    $.G.stage = s; $.G.loop = s % 2; // stage + loop even
-    expect(S.watcherTurn()).toBe(true);
-    expect(S.dolls(127)).toBeNull();
-    expect(W.enemies.filter((e) => e.k === 'watcher').length).toBe(1);
-    expect(S.watcherTurn()).toBe(false); // spent for this stage
-    S.dolls(127);
-    expect(heads().length).toBe(5);
+    for (const loop of [0, 1]) {
+      W.enemies.length = 0; $.G.stage = s; $.G.loop = loop; $.G.t = 1000; $.G.watchAt = undefined;
+      expect(S.watcherTurn()).toBe(true);
+      expect(S.dolls(127)).toBeNull();
+      expect(W.enemies.filter((e) => e.k === 'watcher').length).toBe(1);
+      expect(S.watcherTurn()).toBe(false); // one alive
+    }
+    W.enemies.length = 0; S.dolls(127);
+    expect(heads().length).toBe(5); // inside the gap: a doll line
   });
-  it('never on the off stages, in a fight, with a flayer alive, or in the Drive', () => {
+  it('a second Watcher after WATCH_GAP, never a third on the same stage', () => {
     const s = firstStage('orbit');
-    $.G.stage = s; $.G.loop = (s + 1) % 2; expect(S.watcherTurn()).toBe(false); // stage + loop odd
-    $.G.loop = s % 2; $.G.boss = {}; expect(S.watcherTurn()).toBe(false);
-    $.G.boss = null; W.enemies.push({ k: 'flayer', dead: false }); expect(S.watcherTurn()).toBe(false);
+    W.enemies.length = 0; $.G.stage = s; $.G.loop = 0; $.G.t = 0; $.G.watchAt = undefined;
+    expect(S.dolls(127)).toBeNull(); W.enemies.length = 0;
+    $.G.t = S.WATCH_GAP - 1; expect(S.watcherTurn()).toBe(false);
+    $.G.t = S.WATCH_GAP; expect(S.watcherTurn()).toBe(true);
+    expect(S.dolls(127)).toBeNull(); W.enemies.length = 0;
+    $.G.t = 10 * S.WATCH_GAP; expect(S.watcherTurn()).toBe(false);
+  });
+  it('a live flayer no longer blocks it; a fight or the Drive does', () => {
+    const s = firstStage('orbit');
+    W.enemies.length = 0; $.G.stage = s; $.G.loop = 0; $.G.t = 0; $.G.watchAt = undefined;
+    W.enemies.push({ k: 'flayer', dead: false }); expect(S.watcherTurn()).toBe(true);
+    $.G.boss = {}; expect(S.watcherTurn()).toBe(false); $.G.boss = null;
     W.enemies.length = 0;
     const d = firstStage('drive');
-    if (d >= 0) { $.G.stage = d; $.G.loop = d % 2; expect(S.watcherTurn()).toBe(false); }
+    if (d >= 0) { $.G.stage = d; expect(S.watcherTurn()).toBe(false); }
+  });
+});
+
+describe('fewer flayers (D67 FLAY_KEEP)', () => {
+  it('on long4 only 1 flayer call in FLAY_KEEP is a flayer; the rest are doll lines', () => {
+    const s = (() => { for (let i = 0; i < 40; i++) if (L.kindOf(i) === 'drive') return i; return 0; })(); // no Watcher there
+    W.enemies.length = 0; $.G.stage = s; $.G.flayC = 0;
+    for (let i = 0; i < 3 * S.FLAY_KEEP; i++) S.flayer(60 + (i % 4) * 30);
+    expect(W.enemies.filter((e) => e.k === 'flayer').length).toBe(3);
+    expect(heads().length).toBe(5 * 3 * (S.FLAY_KEEP - 1));
   });
 });
