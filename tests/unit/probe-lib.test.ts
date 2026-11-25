@@ -305,3 +305,112 @@ describe('W6 tune-tf requests: Butcher first-half hook, KEEPSAKE cause, K2 keys,
     PL.bulFrame(g({}, []), '1-1'); expect(PL.bul.scroll.vmax).toBeCloseTo(1.5);
   });
 });
+
+describe('g5 qa: whip, doll and watcher death classes; N3 strike', () => {
+  let PL: any;
+  const g = (G: any, enemies: any[] = [], P: any = { x: 100, y: 120, speed: 0 }) => ({ G: { scroll: 0, ...G }, P, enemies });
+  // a stand-in for enemies/update.ts whipPts: 15 points from the hand (x - 7, y + 1) straight out along e.ang, full reach
+  // 122 px while wt / 26 is in .3-.55 (the sim's ext plateau), 14 px otherwise; e.t is recorded so the step-ahead copy is visible
+  const seen: any[] = [];
+  const whipPts = (e: any) => { seen.push({ wt: e.wt, t: e.t }); const p = e.wt / 26, len = p >= .3 && p <= .55 ? 122 : 14, out = [];
+    for (let i = 0; i <= 14; i++) out.push({ x: e.x - 7 + Math.cos(e.ang) * len * i / 14, y: e.y + 1 + Math.sin(e.ang) * len * i / 14 }); return out; };
+  // the flayer at x 207, its hand at (200, 121), lashing straight left: the line passes the ship at (100, 120) about 1 px off
+  const fl = (o: any = {}) => ({ k: 'flayer', x: 207, y: 120, r: 7, ws: 'strike', wt: 10, t: 50, ang: Math.PI, ...o });
+  beforeEach(() => { (globalThis as any).window = {}; pageLib(); PL = (globalThis as any).window.__PL; PL.mods.W = { eshots: [], floorAt: () => 200, ceilAt: () => 40 }; PL.mods.EU = { whipPts }; seen.length = 0; });
+
+  it('whipHit is the sim test: strike, 4 < wt < 16, points 4.. within 4.5 px; null without EU', () => {
+    expect(PL.whipHit(fl(), 100, 120)).toBe(true);
+    expect(PL.whipHit(fl({ wt: 4 }), 100, 120)).toBe(false);
+    expect(PL.whipHit(fl({ wt: 16 }), 100, 120)).toBe(false);
+    expect(PL.whipHit(fl({ ws: 'tel' }), 100, 120)).toBe(false);
+    expect(PL.whipHit(fl(), 100, 130)).toBe(false); // 9 px off the line
+    expect(PL.whipHit(fl(), 100, 130, 6)).toBe(true); // padded
+    expect(PL.whipHit(fl(), 195, 121)).toBe(false); // the first 4 points (the hand end) never hit
+    PL.mods.EU = null; expect(PL.whipHit(fl(), 100, 120)).toBeNull();
+  });
+  it('whipNext reads the lash one step on, on a copy (e.wt and e.t + 1), and leaves the flayer alone', () => {
+    const e = fl({ wt: 7 }); // wt / 26 = .27: short now, full reach at wt 8
+    expect(PL.whipHit(e, 100, 120)).toBe(false);
+    expect(PL.whipNext(e, 100, 120)).toBe(true);
+    expect(seen.pop()).toEqual({ wt: 8, t: 51 }); expect(e.wt).toBe(7); expect(e.t).toBe(50);
+    expect(PL.whipNext(fl({ ws: 'tel', wt: 33 }), 100, 120)).toBe(false); // the tell's last frame turns into strike wt 0
+  });
+  it('cause: a lash about to land is whip (it read other before g5); a shot in reach still comes first', () => {
+    expect(PL.cause(g({}, [fl({ wt: 7 })])).c).toBe('whip');
+    PL.mods.W.eshots = [{ x: 103, y: 120, r: 2, vx: 0, vy: 0, k: 'orb' }];
+    expect(PL.cause(g({}, [fl({ wt: 7 })])).c).toBe('shot:orb');
+  });
+  it('the statue contact reads the lash on whipPts when EU loads, the old seg stand-in without it', () => {
+    expect(PL.contact(g({}, [fl()]), 100, 120).other).toContain('whip');
+    expect(PL.contact(g({}, [fl()]), 100, 130).other).not.toContain('whip');
+    PL.mods.EU = null; expect(PL.contact(g({}, [fl()]), 100, 120).other).toContain('whip');
+  });
+  it('a body is padded by its own last step: a lunging doll one step out is its cause', () => {
+    const d: any = { k: 'doll', x: 140, y: 120, r: 5 };
+    expect(PL.cause(g({}, [d])).c).toBe(''); // first read: no step known
+    d.x = 120; expect(PL.cause(g({}, [d])).c).toBe('body:doll'); // stepped 20 (capped 12): 20 < 5 + 4.6 + 12
+    d.x = 119; expect(PL.cause(g({}, [d])).c).toBe(''); // it slowed: a 1 px step pads 1 px
+    d.x = 109; expect(PL.cause(g({}, [d])).c).toBe('body:doll'); // 9 < 5 + 4.6 + 10
+    PL.causeN += 5; d.x = 121; expect(PL.cause(g({}, [d])).c).toBe(''); // a gap in the reads: no step carried
+  });
+  it('hitBy replays the after-step tests: the lash, then a body at r + 4; harmless carriers and ghosts are not hits', () => {
+    expect(PL.hitBy(g({}, [fl()]))).toBe('whip');
+    expect(PL.hitBy(g({}, [{ k: 'doll', x: 108, y: 120, r: 5 }]))).toBe('body:doll');
+    expect(PL.hitBy(g({}, [{ k: 'doll', x: 110, y: 120, r: 5 }]))).toBe('');
+    expect(PL.hitBy(g({}, [{ k: 'drone', x: 104, y: 120, r: 6, rec: 1 }]))).toBe('');
+    expect(PL.hitBy(g({}, [{ k: 'drone', x: 104, y: 120, r: 6, ghost: 3 }]))).toBe('');
+    expect(PL.hitBy({ enemies: [] })).toBe('');
+  });
+  it('settle: a lash beats all but a shot; a body fills an empty or guessed cause only', () => {
+    expect(PL.settle('', 'whip')).toBe('whip');
+    expect(PL.settle('body:flayer', 'whip')).toBe('whip');
+    expect(PL.settle('shot:orb', 'whip')).toBe('shot:orb');
+    expect(PL.settle('~shot:orb', 'whip')).toBe('~shot:orb');
+    expect(PL.settle('other', 'body:doll')).toBe('body:doll');
+    expect(PL.settle('~terrain', 'body:doll')).toBe('body:doll');
+    expect(PL.settle('terrain', 'body:doll')).toBe('terrain');
+    expect(PL.settle('', '')).toBe('other');
+    expect(PL.settle('terrain', '')).toBe('terrain');
+  });
+  it('cls: whip, doll, watcher:orb (by the shot tag), watcher:body, else the five-way bucket', () => {
+    expect(PL.cls('whip')).toBe('whip');
+    expect(PL.bucket('whip')).toBe('body'); // M3 still counts a lash as a body (non-bullet)
+    expect(PL.cls('body:doll')).toBe('doll');
+    expect(PL.cls('~body:doll')).toBe('doll');
+    expect(PL.cls('body:watcher')).toBe('watcher:body');
+    expect(PL.cls('shot:orb', 'watcher')).toBe('watcher:orb');
+    expect(PL.cls('shot:orb', 'eye')).toBe('bullet');
+    expect(PL.cls('terrain')).toBe('terrain');
+    expect(PL.cls('')).toBe('other');
+    PL.K5.doll = 'babydoll'; expect(PL.cls('body:babydoll')).toBe('doll'); // one table if the sim names it differently
+  });
+  it('hit trap: G.st.hits / deaths keep their value and log the caller; re-arms on a new st; atCause maps it', () => {
+    const G: any = { st: { kills: 2, hits: 1, deaths: 0 } };
+    PL.trapHits(G);
+    function playerHit() { G.st.hits++; }
+    function updateEShots() { playerHit(); }
+    updateEShots();
+    expect(G.st.hits).toBe(2); expect(JSON.stringify(G.st)).toBe('{"kills":2,"hits":2,"deaths":0}'); // same data, same order
+    const [h] = PL.takeHits(); expect(h.k).toBe('hits'); expect(h.at[0]).toMatch(/^playerHit@probe-lib\.test\.ts:\d+$/); expect(h.at[1]).toMatch(/^updateEShots@/);
+    expect(PL.atCause(h)).toBe('shot:?');
+    G.st.hits = 0; expect(PL.takeHits()).toEqual([]); // a reset (flow.ts) is not a hit
+    G.st = { ...G.st }; PL.trapHits(G); G.st.deaths++; expect(PL.takeHits()[0].k).toBe('deaths');
+    const crush = { k: 'deaths', at: ['killPlayer@flow.ts:313', 'updatePlayer@player.ts:528'] };
+    expect(PL.atCause(crush, g({}, [], { x: 100, y: 120 }))).toBe('solid'); // open air: a solid the read missed
+    expect(PL.atCause(crush, g({}, [], { x: 100, y: 199 }))).toBe('terrain'); // the hull's +4 points reach the floor at 200
+    expect(PL.atCause({ k: 'hits', at: ['playerHit@player.ts:271', 'updatePlayer@player.ts:600'] })).toBe('at:updatePlayer@player.ts');
+    expect(PL.atCause({ at: ['playerHit@player.ts:271', 'updateEnemies@shots.ts:361'] })).toBe('body:?');
+    expect(PL.atCause(null)).toBe('');
+    expect(PL.frameOf('    at stepSim (http://127.0.0.1:5400/src/step.ts?t=1712:53:28)')).toBe('stepSim@step.ts:53');
+    expect(PL.frameOf('    at http://127.0.0.1:5400/src/step.ts:70:3')).toBe('anon@step.ts:70');
+  });
+  it('N3 strike: the flayer lash (ws strike) and a doll lunge state count; a tell or idle does not', () => {
+    expect(PL.strike(fl())).toBe(true);
+    expect(PL.strike(fl({ ws: 'tel' }))).toBe(false);
+    expect(PL.strike({ k: 'doll', st: 'lunge' })).toBe(true);
+    expect(PL.strike({ k: 'doll', ws: 'dash' })).toBe(true);
+    expect(PL.strike({ k: 'doll', st: 'drift' })).toBe(false);
+    expect(PL.strike({ k: 'watcher', st: 'blink' })).toBe(false); // its orb is a shot: tagShots times it
+    expect(PL.strike(null)).toBe(false);
+  });
+});

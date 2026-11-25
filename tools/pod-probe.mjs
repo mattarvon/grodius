@@ -190,11 +190,14 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
         before = g.caps.slice(); beforeE = g.enemies.slice(); window.__redN0 = g.G.redN || 0; }
       const pre = mortal && g && g.P && g.state === 'play' && g.P.alive && g.P.inv <= 1 ? { sh: g.P.shield || 0, n: window.__near(g), x: g.P.x, y: g.P.y, kit: slotsOf(g.P) } : null;
       const wq = g && g.P && g.state === 'play' ? { P: g.P, sh: g.P.shield || 0, lv: g.P.wardLv || 0, inv: g.P.inv || 0, kills: g.G.kills || 0 } : null; window.__w6 = null; // H2 shield ledger (below)
+      if (window.__PL && window.__PL.trapHits && g && g.G) { window.__PL.trapHits(g.G); window.__PL.takeHits(); } // g5: arm the hit trap; nothing from before this step
       q.splice(0).forEach((f) => f(now));
-      const h = window.__G && window.__G(), PL = window.__PL;
-      if (pre && h && h.P) { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, cause = pre.n.c + (pre.n.ctx ? ' @' + pre.n.ctx : '');
-        if (!h.P.alive || h.state === 'over') { const sq = pre.n.shot, tg = sq && PL ? PL.tag.get(sq) : null;
-          window.__deaths.push({ st, s: +(window.__fr / 60).toFixed(1), f: window.__fr, cause, src: PL ? PL.bucket(pre.n.c) : null, lives: h.G.lives, x: Math.round(pre.x), y: Math.round(pre.y), kit: pre.kit,
+      const h = window.__G && window.__G(), PL = window.__PL, trap = PL && PL.takeHits ? PL.takeHits() : [], trapAt = (trap.find((x) => x.k === 'deaths') || trap[0] || null);
+      // g5 (qa): the after-step replay (PL.hitBy: the lash and a body touch on the sim's own tests) settles what the frame-before
+      // read missed or guessed; cls is the fine class (whip / doll / watcher:orb / watcher:body, else the five-way src)
+      if (pre && h && h.P) { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, hitC = h.P.alive && (h.P.shield || 0) >= pre.sh && h.state !== 'over' ? pre.n.c : PL && PL.settle ? PL.settle(PL.settle(pre.n.c, PL.hitBy(h)), PL.atCause(trapAt, h)) : pre.n.c, cause = hitC + (pre.n.ctx ? ' @' + pre.n.ctx : '');
+        if (!h.P.alive || h.state === 'over') { const sq = hitC === pre.n.c ? pre.n.shot : null, tg = sq && PL ? PL.tag.get(sq) : null;
+          window.__deaths.push({ st, s: +(window.__fr / 60).toFixed(1), f: window.__fr, cause, src: PL ? PL.bucket(hitC) : null, cls: PL && PL.cls ? PL.cls(hitC, tg && tg.by) : null, at: trapAt ? trapAt.at.slice(0, 3) : null, lives: h.G.lives, x: Math.round(pre.x), y: Math.round(pre.y), kit: pre.kit,
             shot: tg ? { age: sq.t != null ? sq.t : window.__fr - tg.f, sd: Math.round(tg.sd), atRsp: X.rspShots.has(sq), sinceInv: X.invEnd != null ? window.__fr - X.invEnd : null, by: tg.by } : null, rank1: null, rebuild_s: { k0: null, kit: null, k0w: null } });
           X.pendRank = window.__deaths.length - 1; }
         else if ((h.P.shield || 0) < pre.sh) window.__hits[cause] = (window.__hits[cause] || 0) + 1; }
@@ -325,10 +328,11 @@ const bullets = Object.fromEntries(Object.entries(fin.bul).map(([k, v]) => { con
   return [k, { frames: v.frames, cap: CAPS[c][tierN], overCap: v.over, overMax: v.overMax, p50: hq(v.ns, .5), p90: hq(v.ns, .9), max: hmax(v.ns), maxAll: hmax(v.n), gt5: v.frames ? +hshare(v.ns, 5).toFixed(3) : null, carriedFrames: v.carried || 0, vmax: +v.vmax.toFixed(2), vmaxKind: v.vk || null, vcap: VCAP[tierN], vOver: v.vOver, ratioP50: rq(.5), ratioP90: rq(.9) }]; }));
 const shieldHits = Object.values(fin.hitLog).reduce((a, n) => a + n, 0);
 const deathSrc = fin.deaths.reduce((a, d) => ((a[d.src || 'other'] = (a[d.src || 'other'] || 0) + 1), a), {});
+const deathCls = fin.deaths.reduce((a, d) => ((a[d.cls || d.src || 'other'] = (a[d.cls || d.src || 'other'] || 0) + 1), a), {}); // g5: whip / doll / watcher split
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
   mortal: MORTAL, rebuild: RB, park: PARK, drift: DRIFT, hull: HULL, kit: KIT, rig: RIGS, react: PIL ? +(REACT ?? 0) : null, human: PIL && HUMAN ? 1 : 0, tierAsked: TIER, tier: fin.tier, brutal: fin.brutal, mods: MODS,
-  deaths: fin.deaths, deathSrc, hitLog: fin.hitLog, shieldHits, slack: shieldHits + fin.deaths.length, recovery: fin.rsp, revenge: fin.rev,
+  deaths: fin.deaths, deathSrc, deathCls, hitLog: fin.hitLog, shieldHits, slack: shieldHits + fin.deaths.length, recovery: fin.rsp, revenge: fin.rev,
   botStuck: fin.stuck, k0_s: fin.k0 != null ? +(fin.k0 / 60).toFixed(1) : null, k1_s: fin.k1 != null ? +(fin.k1 / 60).toFixed(1) : null,
   rankTrace: fin.rank.every((r) => r[2] == null) ? null : fin.rank, rankAtStage: fin.rankAt, rankAtDrive: fin.rankDrive, driveKit: fin.driveKit, fights: fin.fights, drops: fin.drops, openG: fin.openG,
   ward: { fullHits: fin.wl.hits, grazes: fin.wl.grz, grazeDrain: fin.wl.grzAmt, supply: fin.wl.sup, spentHits: fin.wl.spent, spentHitsLife0: fin.wl.spent0, unspent: fin.wl.left }, lobMax: fin.lobMax, contractErr: fin.contractErr, bullets, bulletHist: fin.bul,

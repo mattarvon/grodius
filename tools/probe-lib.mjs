@@ -221,7 +221,7 @@ export function pageLib() {
     for (const e of g.enemies) {
       if (e.dead) continue;
       if (e.k === 'ufo' && e.st === 'whip' && e.wt >= 4 && e.wt < 21 && seg(e.x - 34, e.y + 9, e.la, 238, 4)) out.other.push('lash');
-      if (e.k === 'flayer' && e.ws === 'strike' && e.wt >= 5 && e.wt < 16 && seg(e.x - 7, e.y + 1, e.ang, 122, 3)) out.other.push('whip');
+      if (e.k === 'flayer') { const wh = PL.whipHit(e, x, y); if (wh ?? (e.ws === 'strike' && e.wt >= 5 && e.wt < 16 && seg(e.x - 7, e.y + 1, e.ang, 122, 3))) out.other.push('whip'); } // g5: whipPts exact when EU loads
       if ((e.k === 'prentice' || e.k === 'butcher') && e.st === 'cut' && e.wt < 13) {
         const big = e.k === 'butcher', qx = e.x - (big ? 10 : 8), qy = e.y - (big ? 10 : 6), r = Math.hypot(x - qx, y - qy);
         let a = Math.atan2(y - qy, x - qx); if (a < 0) a += Math.PI * 2;
@@ -267,10 +267,13 @@ export function pageLib() {
    *  { c: 'shot:<k>' | 'body:<k>' | 'terrain' | 'solid' | 'haz:<k>' | <attack> | '', shot } ('' = nothing in reach) */
   PL.cause = (g) => {
     const P = g.P, G = g.G, Wm = PL.mods.W, v = PL.shipV(P);
-    let best = null, bd = 1e9;
+    let best = null, bd = 1e9; PL.causeN++;
     if (Wm) for (const s of Wm.eshots) { const d = Math.hypot(s.x - P.x, s.y - P.y) - ((s.r || 2) + 2.6 + Math.hypot(s.vx || 0, s.vy || 0) + v + 1); if (d < 0 && d < bd) { bd = d; best = s; } }
     if (best) return { c: 'shot:' + (best.k || 'orb'), shot: best };
-    for (const e of g.enemies) { if (e.dead || e.ghost > 0) continue; const pad = (e.r || 6) + 2.6 + v + 2;
+    // g5 (qa): the flayer's lash on the sim's own test one step ahead (PL.whipNext); its seg() stand-in in PL.contact
+    // missed most lash deaths (M3 read them 'other'). A body is padded by its own last-frame step too (PL.eStep: a doll's lunge)
+    for (const e of g.enemies) if (e.k === 'flayer' && PL.whipNext(e, P.x, P.y, v + 1)) return { c: 'whip', shot: null };
+    for (const e of g.enemies) { if (e.dead || e.ghost > 0) continue; const pad = (e.r || 6) + 2.6 + v + 2 + PL.eStep(e);
       if (Math.hypot(e.x - P.x, e.y - P.y) < pad || (e.hb && e.hb.some((h) => Math.hypot(e.x + h[0] - P.x, e.y + h[1] - P.y) < h[2] + 2.6 + v + 2))) return { c: 'body:' + e.k, shot: null }; }
     if (Wm) for (const [ox, oy] of [[12, 0], [-9, -4], [-9, 4], [0, -4], [0, 4]]) { const wx = P.x + ox + G.scroll, y = P.y + oy;
       if (y + v + 1 >= Wm.floorAt(wx) || y - v - 1 <= Wm.ceilAt(wx)) return { c: 'terrain', shot: null };
@@ -323,6 +326,79 @@ export function pageLib() {
   PL.blockAt = (x, y) => PL.blocks().some((b) => Math.abs(x - b.cx) < b.hw + 8 && Math.abs(y - b.cy) < b.hh + 4);
   /** the five-way source bucket of a would-be hit or a death cause string (spec L4 / M3) */
   PL.bucket = (c) => { c = (c || '').replace(/^~/, ''); return !c ? 'other' : c.startsWith('shot') ? 'bullet' : c === 'terrain' ? 'terrain' : c === 'solid' ? 'solid' : c.startsWith('haz') || /^keep:(planted|mobile)/.test(c) ? 'hazard' : c.startsWith('body') || /^keep:/.test(c) || /^(lash|whip|cleaver|hook|beam|drive|tentacle|deny:)/.test(c) ? 'body' : 'other'; };
+
+  // ---- g5 (qa): death-cause classes for the flayer's whip and the two new kinds, measure-only (no R(), no sim writes) ----
+  /** the g5 kinds by e.k (rename here if the sim names them differently): doll = mini baby-doll heads in groups of 5,
+   *  contact only (its lunge is a body touch); watcher = the big flying eyeball, one aimed orb after a blink tell */
+  PL.K5 = { doll: 'doll', watcher: 'watcher' };
+  /** the flayer's lash on the sim's own test (enemies/update.ts 'flayer' strike: whipPts points 4.. within 4.5 px of the
+   *  ship's centre while 4 < wt < 16, read after the step's e.wt++), widened by pad. null when the build's EU module
+   *  (whipPts) is not loaded, so a caller can fall back */
+  PL.whipHit = (e, x, y, pad = 0) => {
+    const EU = PL.mods.EU; if (!EU || typeof EU.whipPts !== 'function') return null;
+    if (!e || e.k !== 'flayer' || e.ws !== 'strike' || !(e.wt > 4 && e.wt < 16)) return false;
+    const pts = EU.whipPts(e), r = 4.5 + pad; for (let i = 4; i < pts.length; i++) if ((x - pts[i].x) ** 2 + (y - pts[i].y) ** 2 < r * r) return true;
+    return false; };
+  /** the lash as the next step will test it (PL.cause reads the frame before a hit): e.t and e.wt one on (update.ts bumps
+   *  e.t first, then the strike's wt). A tell's last frame turns into strike wt 0, which can't hit yet. A copy: e is not touched */
+  PL.whipNext = (e, x, y, pad = 0) => (e && e.ws === 'strike' ? PL.whipHit({ ...e, wt: e.wt + 1, t: (e.t || 0) + 1 }, x, y, pad) : false);
+  /** an enemy's step over the last PL.cause read (0 on its first read or after a gap; capped at 12 px so a respawn or a
+   *  teleport doesn't pad the world). Lives in a WeakMap, never on the enemy */
+  PL.causeN = 0; PL.ePos = new WeakMap();
+  PL.eStep = (e) => { const q = PL.ePos.get(e); PL.ePos.set(e, [e.x, e.y, PL.causeN]);
+    return q && q[2] === PL.causeN - 1 ? Math.min(12, Math.hypot(e.x - q[0], e.y - q[1])) : Math.min(12, Math.hypot(e.vx || 0, e.vy || 0)); };
+  /** what hit the ship, read AFTER the step on the sim's own exact tests (an enemy's state is not changed by its hit):
+   *  the flayer's lash ('whip'), then a body touch (shots.ts: |e - P| < e.r + 4; a recovery carrier or a ghost is
+   *  harmless). Shots are consumed by their hit, so they are PL.cause's (the frame before). '' = neither */
+  PL.hitBy = (g) => {
+    const P = g && g.P; if (!P) return '';
+    for (const e of g.enemies) if (e.k === 'flayer' && PL.whipHit(e, P.x, P.y)) return 'whip';
+    for (const e of g.enemies) if (!e.dead && !(e.ghost > 0) && !e.rec && !(e.group && e.group.rec) && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < ((e.r || 6) + 4) ** 2) return 'body:' + e.k;
+    return ''; };
+  /** the cause to record: the frame-before read (pre, PL.cause or a '~' proximity guess) unless the after-step replay
+   *  (post, PL.hitBy) is exact where pre is not: a lash beats anything but a shot; a body fills an empty or guessed cause */
+  PL.settle = (pre, post) => {
+    pre = pre || ''; if (!post) return pre || 'other';
+    if (post === 'whip') return /^~?shot/.test(pre) ? pre : 'whip';
+    return !pre || pre === 'other' || pre.startsWith('~') ? post : pre; };
+  /** the fine death class (g5 M3 / H1 detail; PL.bucket stays the five-way source): whip, doll, watcher:orb (a shot
+   *  its tag credits to a watcher: by = PL.tag's shooter kind), watcher:body, else the bucket */
+  PL.cls = (c, by) => {
+    c = (c || '').replace(/^~/, ''); const K = PL.K5;
+    if (c === 'whip') return 'whip';
+    if (c === 'body:' + K.doll) return 'doll';
+    if (c === 'body:' + K.watcher) return 'watcher:body';
+    if (c.startsWith('shot') && by === K.watcher) return 'watcher:orb';
+    return PL.bucket(c); };
+  /** g5 hit trap (the side channel playerHit already has): G.st.hits++ (player.ts playerHit) and G.st.deaths++ (flow.ts
+   *  killPlayer) are wrapped in an accessor that reads and writes the same number, so the sim is unchanged, and records the
+   *  call stack of every rise: PL.hitLog [{ k: 'hits' | 'deaths', f, at: ['fn@file:line', ..] }], at[1] the caller of
+   *  playerHit / killPlayer. Call PL.trapHits(G) once a frame (flow.ts rebuilds G.st by spread, so it re-arms itself) */
+  PL.hitLog = []; PL.trapN = 0; PL.trapSeen = new WeakSet();
+  PL.frameOf = (l) => { const m = /at (?:async )?(?:(\S+) \()?(?:[^()]*\/)?([^/()?]+?)(?:\?[^:()]*)?:(\d+):\d+\)?\s*$/.exec(l || ''); return m ? (m[1] || 'anon') + '@' + m[2] + ':' + m[3] : null; };
+  PL.trapHits = (G) => {
+    PL.trapN++; const st = G && G.st; if (!st || typeof st !== 'object' || PL.trapSeen.has(st)) return; PL.trapSeen.add(st);
+    for (const k of ['hits', 'deaths']) { let v = st[k] || 0;
+      try { Object.defineProperty(st, k, { configurable: true, enumerable: true, get: () => v, set: (n) => { if (n > v) { const at = String(new Error().stack || '').split('\n').slice(2, 6).map(PL.frameOf).filter(Boolean); PL.hitLog.push({ k, f: PL.trapN, at }); if (PL.hitLog.length > 200) PL.hitLog.shift(); } v = n; } }); } catch (e) {} } };
+  /** this frame's trapped rises, cleared */
+  PL.takeHits = () => PL.hitLog.splice(0);
+  /** the caller frame of a trapped rise as a cause when the geometry found none: shots.ts updateEShots = a shot,
+   *  updateEnemies = a body touch, else 'at:<fn>@<file>' (the caller's name; what to model next) */
+  //   updatePlayer calling killPlayer is its hull test (player.ts: floor / ceiling / solidAt, through WARD, decision 5A):
+  //   'terrain' when a hull point is past the walls after the step (g given), else 'solid' (a moving solid or a set cell the
+  //   frame-before read missed: the g5 validation's two Orbit 'other' deaths were this)
+  PL.atCause = (h, g) => { const c = h && h.at && (h.at[1] || h.at[0]); if (!c) return ''; if (/^updateEShots@/.test(c)) return 'shot:?'; if (/^updateEnemies@/.test(c)) return 'body:?';
+    if (h.k === 'deaths' && /^updatePlayer@/.test(c)) { const Wm = PL.mods.W, P = g && g.P; if (!Wm || !P) return 'terrain';
+      for (const [ox, oy] of [[12, 0], [-9, -4], [-9, 4], [0, -4], [0, 4]]) { const wx = P.x + ox + (g.G.scroll || 0), y = P.y + oy; if (y >= Wm.floorAt(wx) || y <= Wm.ceilAt(wx)) return 'terrain'; }
+      return 'solid'; }
+    return 'at:' + c.replace(/:\d+$/, ''); };
+  /** g5 N3: is e's attack that is not a shot live this frame? The flayer's lash (ws strike), the doll's lunge (its
+   *  attack state reads lunge / dash / charge / bite: e.st, else e.ws). Its first frame is the kind's first attack */
+  PL.strike = (e) => {
+    if (!e) return false;
+    if (e.k === 'flayer') return e.ws === 'strike';
+    if (e.k === PL.K5.doll) return /^(lunge|dash|charge|bite)/.test(String(e.st ?? e.ws ?? ''));
+    return false; };
 
   // ---- the 8-spot park grid (spec K1, K2; keepsake-probe's spot:X,Y generalised) ----
   /** a fight's phase: THE KEEPSAKE's m.ph, the Drive's b.phase, else the shared half rule (midhost.ts midPh2) */
