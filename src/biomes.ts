@@ -392,8 +392,9 @@ const SPAWN = {
   corpse: () => corpse(rr(50, PH - 80)), wall: () => formation('wall', PH / 2, FM), sine: () => formation('sine', rr(50, PH - 90), FM),
   zig: () => formation('zig', rr(60, PH - 90), FM), dive: () => formation('dive', rr(50, PH - 90), FM), cross: () => crossT(R() < .6 ? 1 : -1),
   eye: () => eyeT(R() < .55 ? 1 : -1), flayer: () => flayer(rr(60, PH - 60)), hook: () => hookE(), womb: () => womb(),
-  // the rear coin is .35 on long4 (W6 r4, N4: A/B read right/rear-heavy; the same one R() draw, short keeps .5)
-  hatch: () => hatch(ri(5, 8), R() < (isL4() ? .35 : .5)), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
+  // the rear coin stays .5: W6 r4 tried .35 (N4), but with the enemies stream's ENTRY.mix refit N2 (regular shooters'
+  // rear hits) read 18% (floor 20); the lead's condition was to keep N2 above its floor
+  hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
 };
 Object.assign(SPAWN, { slime: () => slime(R() < .65 ? 1 : -1), mutant: () => mutant() }); // new enemies: snot slime (floor or ceiling), hulking mutant (floor)
 /** the drone formation kinds of the spawn roll (W1's entry mix applies to these) */
