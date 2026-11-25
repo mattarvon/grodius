@@ -1465,7 +1465,7 @@ with the doll heads "everywhere, not just keepsake stage". After reading the rou
   never with a live flayer, a boss or a set piece), and takes the place of that stage's first flayer or doll line.
   Art (per Matt): stringy bloody optic nerves, not tentacles, and a large blood burst on death.
 
-**Gates at merge (round 5, 150 runs across zullx, the desktop and three RK1s):**
+**Gates at merge (round 5, 150 runs across the desktop and the lab):**
 - Pass: B1 caps every frame on all four tiers; D1/D3 revenge; E3/E9 economy; R1 recovery; M3 100% non-bullet deaths;
   F1 0; H2 0.9; N1 73% (watcher 92%); L4; L6 stage clocks; B3; K4.
 - Human pilot clears: Easy 90%, Normal 80%, Hard 50%, VH 40%. Every tier is harder than the one below, but all sit
@@ -1490,7 +1490,7 @@ the doll line behind it never got the turn, and the stage-parity rule halved wha
   first. Never while another Watcher is alive, and never in a fight, a set piece or the Drive. A live flayer no longer blocks it.
 - Census after (seeds 7 / 3): flayers 4 / 4, Watchers 5 / 5, dolls 112 / 64.
 - Harness: the long4 and orbit baselines were regenerated at a894538. The long4 flight now meets an early Watcher and dies at
-  scroll 1543 (it was 2421). The other 13 scenarios and short are unchanged. Unit suite: 118 files pass (zullx).
+  scroll 1543 (it was 2421). The other 13 scenarios and short are unchanged. Unit suite: 118 files pass (lab box).
 
 **Category:** difficulty / content
 
