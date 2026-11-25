@@ -144,6 +144,7 @@ All repainted toward the game's palette; CC-BY / OGA-BY rows are the ones that r
 |---|---|---|---|
 | Title hero eye (`rot_*`), eye kit (`kit/eye_*`, not yet used in play) | original, procedural, `tools/gen_eyes.py` | made for Grodius | original, first-party (not CC) |
 | Title easter-egg head (`head_egg@3`) | title head: Matt Arvon (self-portrait) | Matt Arvon | original, first-party (not CC) |
+| Mini baby-doll heads (`dollhead@4`, `dollshard@3`) | original pixel art drawn in code by `tools/prep_dollheads.py` (no photo, no outside art; KEEPSAKE vinyl palette) | made for Grodius | original, first-party (not CC) |
 | THE KEEPSAKE midboss (`keepsake@6`, `keepsake-fork`) | THE KEEPSAKE sprite from photographs by Matt Arvon of his own unmarked antique doll (D7/D53); repainted (wig removed, fork, wound, grade) by `tools/prep_keepsake.py`, photos not in the repo | Matt Arvon | original, first-party (not CC) |
 | THE KEEPSAKE stage boss (`boss/keepsake-boss`: head x crack x tilt, eyes, wound, sleep-eye rocker, voice box) and title head (`title/doll_*`, `tools/prep_keepsake_title.py`) | first-party photographs by Matt Arvon of his own unmarked antique doll (D7/D53); cut out, de-wigged, repainted, cracked and tilt-baked by `tools/prep_keepsake_boss.py` (on `tools/prep_keepsake.py`), photos not in the repo | Matt Arvon | original, first-party (not CC) |
 

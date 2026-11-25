@@ -2,6 +2,15 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-25 (More variety, fewer flayers)
+
+Fewer flayers, and two new enemies in their place.
+
+- Flayers, the whip-armed skeletons, show up about half as often. On Easy and Normal they lash less often, rest longer between lashes, and give up after 2 or 3 strikes. Two flayers at once now hold different positions instead of stacking on you.
+- MINI BABY-DOLL HEADS: little vinyl doll heads that fly in groups of five, clack their sleep eyes open, then lunge at you. They die in one hit, and killing the whole group drops a pod. They turn up on every stage, not just the KEEPSAKE's.
+- THE WATCHER: a big flying eyeball trailing bloody optic nerves. It turns up now and then, on about half the stages. It blinks before it fires a single slow orb. It takes much less damage while its lid is shut, and when it dies it bursts in a spray of blood and always drops a pod.
+- Normal is noticeably easier as a result. In testing, most of Normal's deaths are now to terrain, not to enemies.
+
 ## 2026-11-24 (Difficulty rebuilt on Gradius III)
 
 Descent 1's difficulty is rebuilt around how Gradius III gets hard: tight space, few bullets that are each aimed and readable, a strong ship that makes enemies fire sooner rather than soak more, and a death that really costs you.

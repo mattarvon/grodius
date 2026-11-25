@@ -1446,3 +1446,34 @@ NOTES after the fix. Voice change (D64): audio-director, narrative-director, gam
 then the remaining structural FAILs.
 
 **Category:** difficulty
+
+### D66 Variety pass ships: fewer flayers, MINI BABY-DOLL HEADS, THE WATCHER (g5-variety) merged to main — 2026-11-25 (Matt: "merge it")
+
+**Decision.** Matt and his playtesters found Normal too hard and flayers ("nonstop with the deadly arms") too common.
+He asked to "halve the flayers at least" and add variety: "a sporadic big ass flying eyeball or mini baby doll heads",
+with the doll heads "everywhere, not just keepsake stage". After reading the round-5 gate table, he chose to merge.
+
+- Flayers: they make up half as much of the fill mix (ORBIT .14 -> .06, INTERIOR .12 -> .06), and scripted flayers
+  went from 35 to 23. Half of each scripted flayer pair became a doll line. New `TIER.flay` row (hunt every n /
+  cooldown x / lash cap): Easy and Normal [2, 1.4, 2/3], Hard [1, 1, 4], VH uncapped. A second flayer parks 40 px
+  further back.
+- MINI BABY-DOLL HEADS (`enemies/doll.ts`): popcorn HP 1, contact lunge after an eye-clack tell. Groups of 5 drop a
+  group capsule. They are in every fill pool, the biome remixes and the scripts. Content follows D46/D55: vinyl head
+  only, hollow, no teeth, no bone, no child figure. Sprite is first-party (`tools/prep_dollheads.py`).
+- THE WATCHER (`enemies/watcher.ts`): hp 40, r 15, a 40 f blink tell, one slow orb. Damage is x.3 while its lid is
+  shut. It always drops a capsule. It appears on half the orbit/biome stages (watcherTurn: one per stage at most,
+  never with a live flayer, a boss or a set piece), and takes the place of that stage's first flayer or doll line.
+  Art (per Matt): stringy bloody optic nerves, not tentacles, and a large blood burst on death.
+
+**Gates at merge (round 5, 150 runs across zullx, the desktop and three RK1s):**
+- Pass: B1 caps every frame on all four tiers; D1/D3 revenge; E3/E9 economy; R1 recovery; M3 100% non-bullet deaths;
+  F1 0; H2 0.9; N1 73% (watcher 92%); L4; L6 stage clocks; B3; K4.
+- Human pilot clears: Easy 90%, Normal 80%, Hard 50%, VH 40%. Every tier is harder than the one below, but all sit
+  above their bands (Normal 20-50%). Matt asked for Normal easier, so this is accepted for now. He will tune from play.
+- Normal deaths (19): terrain 11, solid 2, body 4, whip 1, watcher 1, doll 0. In attack-probe runs dolls appear
+  139 times to the flayer's 19.
+- Still open: B2/S1 on Hard (p90 bullets / speed ratio), E2 pickups 36 vs 32-35, H1 slack 3, N2/N4, N3 (sentry,
+  flayer, doll and watcher first attack later than 30 f), K1 Saucer park spot, K2 denial shares.
+
+**Category:** difficulty / content
+
