@@ -20,13 +20,13 @@ import { WATCH, WDIE, dilOf, lidOf } from '../enemies/watcher';
 /** the iris colour: a cold, pale-ringed blue, apart from the toxic-green enemy fire and the turret eye's olive */
 const IRIS = '#3b6fd0';
 /** the nerve's pinks (render/enemies.ts drawHatch's fallback nerve) and its vessel */
-const NERVE = ['#6e3434', '#c98e86', '#e6b9ae'], VESSEL = '#8a1f22';
+const NERVE = ['#2e0507', '#8c1219', '#d2646c'], VESSEL = '#5a0a0e'; // Matt 2026-11-25: stringy, bloody optic nerves, not tentacles
 /** px: where each of the 4 strands leaves the back of the ball (angle off its tail), and its length */
-const STRANDS = [[-.8, 22], [-.3, 34], [.15, 28], [.7, 17]];
+const STRANDS = [[-.95, 20], [-.7, 31], [-.45, 40], [-.2, 27], [0, 46], [.18, 36], [.4, 24], [.62, 38], [.85, 19]];
 /** the .85 whites rule: the eye is queued at this alpha over a dark backing ball */
 const DIM = .85;
 /** the strand's sample points (reused: no allocation per frame) */
-const SP = Array.from({ length: 8 }, () => [0, 0]);
+const SP = Array.from({ length: 12 }, () => [0, 0]);
 
 /** one strand from the ball's back at angle a (0 = straight behind, +x), length L, wave w (px: an S that travels down
  *  it), droop (px, + down). A tapering cubic: thick at the ball, thin and torn at the end */
@@ -45,15 +45,15 @@ function strand(c, r, a, L, w, droop, al = 1) {
   for (let i = 0; i < 3; i++) {
     c.strokeStyle = NERVE[i];
     c.globalAlpha = al * (i === 2 ? .7 : 1);
-    const w0 = [3, 1.9, .6][i];
+    const w0 = [1.5, .95, .35][i]; // thin strings, not tentacles
     for (let j = 0; j < n; j++) { // taper: each segment a little thinner
-      c.lineWidth = w0 * (1 - .55 * j / n);
+      c.lineWidth = w0 * (1 - .6 * j / n);
       c.beginPath(); c.moveTo(SP[j][0], SP[j][1] - (i === 2 ? .45 : 0)); c.lineTo(SP[j + 1][0], SP[j + 1][1] - (i === 2 ? .45 : 0)); c.stroke();
     }
   }
   c.globalAlpha = al;
   c.strokeStyle = VESSEL; // a vessel running along it
-  c.lineWidth = .55;
+  c.lineWidth = .35;
   c.beginPath(); c.moveTo(SP[0][0], SP[0][1] + .7);
   for (let j = 1; j < n; j++) c.lineTo(SP[j][0], SP[j][1] + .6);
   c.stroke();
@@ -97,16 +97,18 @@ export function drawWatcher(c, e) {
   const ang = P ? Math.atan2(P.y - e.y, P.x - e.x) : Math.PI, ga = c.globalAlpha;
   // the nerves trail behind (it flies left): a slow swim, faster through the tell
   const sw = t * (e.st === 'tel' ? .16 : .07);
-  let lx = 0, ly = 0;
+  c.fillStyle = '#8a0f12';
   for (let i = 0; i < STRANDS.length; i++) {
-    const [a, L] = STRANDS[i], [x, y] = strand(c, r, a + Math.sin(sw + i * 1.9) * .1, L, Math.sin(sw * 1.3 + i * 1.3) * 5, 1.5 + Math.sin(sw + i) * 2.5);
-    if (i === 1) { lx = x; ly = y; }
+    const [a, L] = STRANDS[i], [x, y] = strand(c, r, a + Math.sin(sw + i * 1.9) * .14, L, Math.sin(sw * 1.3 + i * 1.3) * 7, 2 + Math.sin(sw + i) * 3.5);
+    // blood beading off the torn ends and letting go (every other string, out of step)
+    if (i % 2 === 0) {
+      const q0 = (e.t + (e.bph || 0) + i * 11) % 30;
+      c.globalAlpha = ga;
+      c.fillStyle = q0 > 22 ? '#5e070b' : '#9a1016';
+      c.fillRect(x - .5, y + q0 * .4, 1, 1 + (q0 > 22 ? 1 : 0));
+    }
   }
   c.globalAlpha = ga;
-  // blood beading off the longest strand's end and letting go
-  const q0 = (e.t + e.bph) % 34;
-  c.fillStyle = '#8a0f12';
-  c.fillRect(lx - .5, ly + q0 * .35, 1, 1 + (q0 > 26 ? 1 : 0));
   // the dark backing ball: the dimmed eye shows it through (the .85 whites rule), and the low-res pass reads as a ball
   c.fillStyle = '#2a080b';
   c.beginPath(); c.arc(0, 0, r + .6, 0, TAU); c.fill();
@@ -154,6 +156,10 @@ function irisDraw(D, X, Y, R, q) {
  *  sclera torn to skin, a couple of chunks, a wet mist and the flash */
 function burst(d) {
   const { x, y, dir } = d;
+  // Matt 2026-11-25: "when you kill them, blood shoots everywhere": a hard arterial spray all round, then the vitreous
+  for (let k = 0; k < 140; k++) { const a = srr(0, TAU), sp = srr(1.5, 6.5); drop(x + srr(-4, 4), y + srr(-4, 4), Math.cos(a) * sp + dir * srr(0, 1.2), Math.sin(a) * sp - 1, srr(1.2, 2.6), srnd() < .65 ? 0 : 1, sri(70, 140)); }
+  for (let j = 0; j < 6; j++) { const a = srr(0, TAU); for (let k = 0; k < 14; k++) { const sp = srr(3, 8); drop(x, y, Math.cos(a + srr(-.12, .12)) * sp, Math.sin(a + srr(-.12, .12)) * sp - .6, srr(1, 2), 0, sri(60, 120)); } } // six jets
+  mist(x, y, 14, 60, 0);
   for (let k = 0; k < 44; k++) { const a = srr(0, TAU), sp = srr(.6, 3.4); drop(x + srr(-5, 5), y + srr(-5, 5), Math.cos(a) * sp + dir * srr(0, 1), Math.sin(a) * sp - .5, srr(1.1, 1.9), 4, sri(50, 100)); }
   for (let k = 0; k < 10; k++) { const a = srr(0, TAU), sp = srr(.4, 2); drop(x, y, Math.cos(a) * sp, Math.sin(a) * sp - .3, srr(1.2, 2), k % 3 ? 0 : 2, sri(60, 110)); }
   for (let k = 0; k < 4; k++) gib(x + srr(-6, 6), y + srr(-6, 6), srr(-2, 2) + dir * .6, srr(-2.4, .6), 'skin', srr(2.4, 3.6));
@@ -178,7 +184,7 @@ export function drawWatcherFx() {
     for (; d.pa < a; d.pa++) {
       const f = d.pa;
       if (f < DIE.pump0 || f >= DIE.pump1 || f % 2) continue;
-      for (let k = 0, n = f < 20 ? 3 : 1; k < n; k++) drop(x + srr(-3, 3), y + srr(-3, 3), srr(-1.6, 1.6) + d.dir * .4, srr(-1.8, .6), srr(1.2, 2.2), srnd() < .6 ? 0 : 1, sri(70, 120));
+      for (let k = 0, n = f < 20 ? 7 : 3; k < n; k++) drop(x + srr(-3, 3), y + srr(-3, 3), srr(-1.6, 1.6) + d.dir * .4, srr(-1.8, .6), srr(1.2, 2.2), srnd() < .6 ? 0 : 1, sri(70, 120));
     }
     // the nerves: limp, falling, trailing up behind their falling root
     if (a < DIE.nerves) {
