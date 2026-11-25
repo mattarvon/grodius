@@ -557,7 +557,7 @@ describe('the studio review batch (LS2-quips)', () => {
     const f = code('src/flow.ts');
     const body = (name: string) => f.slice(f.indexOf(`export function ${name}(`), f.indexOf('\nexport function', f.indexOf(`export function ${name}(`) + 10));
     expect(body('killPlayer')).toMatch(/\$\.P\.alive = false;[\s\S]*voiceCutQuips\(\)/);
-    expect(body('gameOver')).toMatch(/voiceDropQueued\(\);[^\n]*\n\s*voiceCutQuips\(\);/);
+    expect(body('gameOver')).toMatch(/voiceDropQueued\([^)]*\);[^\n]*\n\s*voiceCutQuips\(\);/);
   });
 
   it('counts a stage-boss quip late from the death: a bossreward take at its booth warning still leaves room', () => {

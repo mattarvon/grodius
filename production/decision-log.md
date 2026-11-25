@@ -1403,3 +1403,21 @@ wants "brutal everywhere", old-school arcade hard from the first stage, dying a 
   the pass2 curve (fodder HP, grafts, Pass 1 rates, rank cap); --runs identical.
 
 **Category:** balance
+
+### D64 GRODIUS BITCH moves to late boss-fight deaths; the title gets its own GRODIUS slot — 2026-11-24 (Matt: "change grodius bitch sounds from twice in the beginning, to if you die in a boss battle past a late stage. set me up a booth slot for a title 'grodius' track"; branch `g4-voxboss`)
+
+- **GRODIUS BITCH** (`src/sfx/startgame/`, folder name historical) no longer plays on the title greeting or on DESCEND
+  (DESCEND is the plain `splat_s` select). It plays on every player death in a boss fight (rank.ts `capCtx` 'boss':
+  the Drive, or a stage boss that `capMid` doesn't count as a midboss; the Open Orbit Maw is one) in a late stage:
+  `BITCH_LATE = { stage: 2, loop: 1 }` in `src/voice/deathline.ts` (stage index within the descent >= 2, or G.loop >= 1),
+  `BITCH_AT` .7 s after the death blast. newGame and game over let it finish; the death's quip cut spares it.
+- **Title GRODIUS:** new booth slot `title` (slug `grodius`, SLAB, 1.5 s target); Matt's first take
+  `grodius-matty-1` (1.35 s, -11.8 LUFS, -0.6 dBTP) ships with it. The step.ts once-per-launch greeting plays it (an
+  empty folder would play nothing). `voiceOf` matches the longest clip
+  key first so `grodius-bitch-*` keeps its caption.
+- **Open for Matt:** the threshold (BITCH_LATE); whether the Orbit Maw in Descent 2+ should count as a boss for the
+  line; one take on every late boss death may wear thin on Drive retries (more takes rotate, or once per fight); a
+  line still queued behind a long bark can land after the respawn (no maxLate yet).
+- **Harness:** audio only, no R(): short, long4, scenarios and layout-parity identical.
+
+**Category:** audio

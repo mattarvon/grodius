@@ -2,6 +2,12 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-24 (voice)
+
+- SLAB's GRODIUS BITCH no longer plays twice at the start. He says it when you die in a boss fight late in a run: the second biome stage's boss or the Gravity Drive in Descent 1, and any biome boss or the Drive from Descent 2 down. Midbosses (and the Open Orbit's Maw, which the game counts as one) don't.
+- DESCEND is an ordinary menu splat again.
+- SLAB now says GRODIUS when the title appears, once each time you start the game (a new line recorded in the booth).
+
 ## 2026-11-21 (Descent 1 balance)
 
 - Bigger formations no longer snowball: once you are strong, waves gain at most two extra drones (was up to six), and those extra drones give half XP and drop no biomass or pods.

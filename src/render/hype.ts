@@ -165,7 +165,7 @@ export function drawSlab(c, jaw, t) {
   for (let k = -3; k <= 3; k++) c.fillRect(k * 2.4 - .5, -69 + mh + 1.5, 1, 1.2);
 }
 // --- hype voices: the comms window ---
-// Every voice line (src/sfx/hype*, corpsevoice, bossreward, startgame, kill-*, carn5) gets a face: a Reticulan from
+// Every voice line (src/sfx/hype*, corpsevoice, bossreward, startgame, title, kill-*, carn5) gets a face: a Reticulan from
 // src/sprites/hface@18.png (tools/prep_screens.py, 3 jaw frames per face) that pops into the top-right corner like an
 // incoming transmission, flaps its jaw while the clip plays (audio.ts voiceOn() stamps clip name + start/end on the
 // audio clock) and glitches out after. Without recorded audio (muted, or a shelved bank) it follows $.G.hype.
@@ -184,9 +184,15 @@ const VOICE = {
   'stop-killing-me': [3, 'CREWMAN #5 // DECEASED', ['STOP KILLING ME', 'WITH YOUR SPACESHIP, SIR']],
   'keyster-easter': [4, 'THE KEYSTER'],
   'lesley-yeah-baby': [5, 'LESLEY, MISSION CONTROL'],
-  // Matt's own DESCEND line (2026-11-13, "call it grodius bitch"), in the startgame folder beside Lesley's: keyed by clip
-  'grodius-bitch': [SLAB_FACE, SLAB, ['GRODIUS BITCH']]
+  // Matt's own line (2026-11-13, "call it grodius bitch"), in the startgame folder (the name is historical): since
+  // 2026-11-24 SLAB says it over a death in a late boss fight (voice/deathline.ts). Keyed by clip
+  'grodius-bitch': [SLAB_FACE, SLAB, ['GRODIUS BITCH']],
+  // the title's GRODIUS (src/sfx/title/, Matt 2026-11-24: "a booth slot for a title 'grodius' track"): the step.ts greeting
+  'grodius': [SLAB_FACE, SLAB, ['GRODIUS']]
 };
+// longest key first: 'grodius' is a prefix of 'grodius-bitch', and clip.startsWith(k + '-') matches both, so
+// 'grodius-bitch-matty-1' must meet its own key before the title's
+const VOICE_KEYS = Object.keys(VOICE).sort((a, b) => b.length - a.length);
 /** [face, caller tag, caption?] for a voice clip: by its folder for SGT. RAMROD SLAB's, else by its file stem */
 export const voiceOf = (clip = '', cat = '') => {
   if (SLAB_CAT.test(cat)) {
@@ -194,7 +200,7 @@ export const voiceOf = (clip = '', cat = '') => {
     return cap ? [SLAB_FACE, SLAB, cap] : [SLAB_FACE, SLAB];
   }
   // clip = file stem, e.g. 'hell-yeah-matty-1': match on the line, not the take
-  for (const k in VOICE) if (clip === k || clip.startsWith(k + '-')) return VOICE[k];
+  for (const k of VOICE_KEYS) if (clip === k || clip.startsWith(k + '-')) return VOICE[k];
   let h = 0; // a clip nobody mapped yet still gets the same face every time
   for (const ch of clip) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return [h % 6, 'UNKNOWN CALLER'];

@@ -24,7 +24,7 @@ vi.mock('../../src/boss/update', () => ({ updateBoss: noop }));
 vi.mock('../../src/shots', () => ({ updateCaps: noop, updateEShots: noop, updateEnemies: noop, updateShots: noop }));
 vi.mock('../../src/fx/update', () => ({ decayFX: noop, updateAmbient: noop, updateCombo: noop, updateFX: noop }));
 vi.mock('../../src/contraptions', () => ({ stepContraptions: noop }));
-vi.mock('../../src/menus', () => ({ keyBack: noop, menuNav: noop, overItems: () => [], pauseItems: () => [], startLine: () => true, stepArm: noop, stepShop: noop, titleItems: () => [] }));
+vi.mock('../../src/menus', () => ({ keyBack: noop, menuNav: noop, overItems: () => [], pauseItems: () => [], titleLine: () => true, stepArm: noop, stepShop: noop, titleItems: () => [] }));
 vi.mock('../../src/checkpoint', () => ({ cpStep: noop }));
 vi.mock('../../src/backstep', () => ({ backPressed: () => false }));
 

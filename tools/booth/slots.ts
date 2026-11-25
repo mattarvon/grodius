@@ -54,7 +54,7 @@ export const DIRECTION: Record<string, string> = {
   'LESLEY, MISSION CONTROL': 'Mission control at the launch: the one line that is not grim. Keep it apart from SLAB.',
 };
 /** per-kind length targets, seconds: the read to aim for (the booth shows it on the line) */
-export const MAX_LEN = { hype: 2, bossreward: 2, kill: 1.2, carn5: .8, quip: 2, bark: 2.5 } as const;
+export const MAX_LEN = { hype: 2, bossreward: 2, kill: 1.2, carn5: .8, quip: 2, bark: 2.5, title: 1.5 } as const;
 /** how far past its target a processed take may run before the booth warns (LS2-booth2, audio-director): half a second
  *  over is still a usable line; past that a kill word lands over the next fight. A warning, never a refusal */
 export const LEN_SLACK = 0.5;
@@ -152,14 +152,27 @@ export const SLOTS: Slot[] = [
   },
   {
     cat: 'startgame',
-    // Matt's own DESCEND line (2026-11-13, "keep the new audio in YEAH BABY and call it grodius bitch"): new takes
-    // file as grodius-bitch-matty-N beside Lesley's shipped clip, and the game picks either (render/hype.ts VOICE)
+    // Matt's own line (2026-11-13, "call it grodius bitch"): takes file as grodius-bitch-matty-N (render/hype.ts VOICE
+    // keys the face by that slug). The folder name is historical: until 2026-11-24 it played on the title and DESCEND
     slug: 'grodius-bitch',
     copy: { lines: ['GRODIUS BITCH'], from: 'src/render/hype.ts', lit: "['GRODIUS BITCH']" },
-    when: 'DESCEND on the title (menus.ts)',
-    caller: 'SGT. RAMROD SLAB',
+    when: 'the player dies in a boss fight (the Drive or a stage boss, not a midboss nor the Orbit Maw: rank.ts capCtx) from the descent\'s second biome stage on, or anywhere in Descent 2+ (flow.ts killPlayer, voice/deathline.ts BITCH_LATE), after the death blast: every such death',
+    caller: SLAB,
     wired: true,
-    test: 'vox=startgame',
+    test: 'stage=drive&x=boss&vox=startgame',
+  },
+  {
+    cat: 'title',
+    // Matt, 2026-11-24: "set me up a booth slot for a title 'grodius' track". Takes file as grodius-matty-N; the face
+    // and caption are keyed by that slug (render/hype.ts VOICE, longest key first so grodius-bitch keeps its own)
+    slug: 'grodius',
+    copy: { lines: ['GRODIUS'], from: 'src/render/hype.ts', lit: "['GRODIUS']" },
+    when: 'the title appears: once per app launch, as soon as audio can play (step.ts title greeting); never late, on a later return to the title',
+    caller: SLAB,
+    wired: true,
+    test: 'vox=title',
+    maxLen: MAX_LEN.title,
+    note: "The game's name, said like a title card: deadpan per SLAB's direction unless Matt wants it shouted.",
   },
   kill('ufo'), kill('brood'), kill('choir'), kill('cyst'), kill('prentice'),
   // THE KEEPSAKE's PUT TO BED moved with the retired midboss (D55) to the stage boss's readout slot, boss-keepsake (kboss-audio)

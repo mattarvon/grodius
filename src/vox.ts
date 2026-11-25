@@ -3,7 +3,7 @@
 // main.ts imports this behind import.meta.env.DEV, so a build drops it with the import. Once audio is running and the
 // category's clips have decoded, it fires the game's own trigger for that line once: hype(n) for a chain line (the
 // sting, the caption and the clip through the comms window), the call site's own sample() for the rest (the corpse
-// plea, the boss reward, DESCEND, a midboss kill word, OPENED). It never runs the corpse plea's once-a-stage count
+// plea, the boss reward, the late boss-fight death line, the title's GRODIUS, a midboss kill word, OPENED). It never runs the corpse plea's once-a-stage count
 // (G.st.corpseN/corpseVo) or OPENED's cooldown: it tests the line, not the rule. clip= narrows
 // the bank to that take, so the booth hears the take it just kept rather than the shuffle bag's next pick.
 // hype(n) is the real thing: it writes $.G.hype (run state) from a timer outside step(). Harmless in a hand test;
@@ -15,14 +15,21 @@ import { quipCat } from './voice/quiplist';
 import { HYPE, hype } from './fx/update';
 import { KILL_WORD_AT } from './enemies/update';
 import { MID_SIM } from './enemies/mid/roster';
+import { BITCH_AT } from './voice/deathline';
+import { holdGreeting } from './step';
 
 /** the game's call for each wired voice slot; the sample() options are the call sites' own (enemies/update.ts
- *  corpse kill, stages.ts boss reward, menus.ts DESCEND), tests/unit/booth.test.ts checks they still match */
+ *  corpse kill, stages.ts boss reward, flow.ts killPlayer's death line, menus.ts titleLine), tests/unit/booth.test.ts
+ *  checks they still match */
 export const VOX_FIRE: Record<string, { state: string; fire: () => unknown }> = {
   // the plea's own call (enemies/update.ts, after corpseKilled): fired straight, so G.st.corpseN/corpseVo stay as the run left them
   corpsevoice: { state: 'play', fire: () => sample('corpsevoice', { vol: 1.1, spread: .04, wet: .2, solo: true, prio: true }) },
   bossreward: { state: 'play', fire: () => sample('bossreward', { vol: 1.15, spread: .02, wet: .16 }) },
-  startgame: { state: 'title', fire: () => sample('startgame', { vol: 1.15, spread: .02, wet: .14 }) },
+  // GRODIUS BITCH (startgame, the folder name is historical): killPlayer's call, fired straight in play (no death, no
+  // lateBossDeath check: it tests the line, not the rule)
+  startgame: { state: 'play', fire: () => sample('startgame', { vol: 1.15, spread: .02, wet: .16, at: BITCH_AT }) },
+  // the title's GRODIUS (menus.ts titleLine): voxBoot spends the step.ts greeting, so the line plays once, the hook's take
+  title: { state: 'title', fire: () => sample('title', { vol: 1.15, spread: .02, wet: .14 }) },
   // OPENED (fx/update.ts opened): the same call; the OPENED_GAP cooldown is the game's, not the test's
   carn5: { state: 'play', fire: () => sample('carn5', { vol: 1.15, spread: .02, wet: .16, queue: false }) },
   // THE KEEPSAKE stage boss (enemies/boss/keepsake.ts, D55): its readout and SLAB's four barks, the fight's own calls
@@ -51,6 +58,7 @@ export function voxBoot(search: string) {
   const q = new URLSearchParams(search), cat = q.get('vox'), clip = q.get('clip');
   if (!cat) return;
   killFire();
+  if (cat === 'title') holdGreeting(); // else the greeting plays the shuffle bag's pick as well as this take
   const v = VOX_FIRE[cat];
   const tip = document.createElement('div');
   tip.style.cssText = 'position:fixed;left:8px;top:8px;z-index:9;padding:4px 8px;background:#000c;color:#ffd0c0;font:12px monospace;border:1px solid #ff4a5a;pointer-events:none';

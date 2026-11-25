@@ -385,11 +385,18 @@ are the readout just shown (CALAMARI SERVED after the Saucer) is never picked; a
 quip once before any repeats. When the player dies (any life) or the run ends, a quip talking fades out and a queued
 one is dropped; kill words and other lines still finish (D50). A new game stops it like any line.
 
-## The DESCEND line (startgame)
+## GRODIUS BITCH (startgame) and the title's GRODIUS (title)
 
-The `startgame` slot (DESCEND on the title) now records Matt's **GRODIUS BITCH**, as SGT. RAMROD SLAB: takes file as
-`src/sfx/startgame/grodius-bitch-matty-N.ogg`, beside Lesley's shipped YEAH BABY clip, and the game picks either
-(the face and caption by clip name, `VOICE` in `src/render/hype.ts`).
+The `startgame` slot records Matt's **GRODIUS BITCH**, as SGT. RAMROD SLAB: takes file as
+`src/sfx/startgame/grodius-bitch-matty-N.ogg`. Since 2026-11-24 SLAB says it when the player dies in a boss fight (the
+Gravity Drive or a stage boss, never a midboss; the Open Orbit's Maw counts as one, `capMid` in `src/rank.ts`) late
+in a run: from the descent's second biome stage on, or anywhere in Descent 2 and deeper (`BITCH_LATE` in `src/voice/deathline.ts`), every such death. It no longer plays on the title
+or on DESCEND; the folder name is historical. **T** opens it near the Drive boss.
+
+The `title` slot records **GRODIUS**, also SLAB: takes file as `src/sfx/title/grodius-matty-N.ogg` and play once per
+app launch when the title appears (the greeting in `src/step.ts`). With no take the title stays quiet. Both faces
+and captions are keyed by clip name (`VOICE` in `src/render/hype.ts`, longest key first, so `grodius-bitch-...` never
+reads as the title's line).
 
 ## Adding a line
 

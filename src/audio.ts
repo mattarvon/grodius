@@ -114,7 +114,7 @@ const LIVE: { s: any; g: any; prio: boolean; cat: string; t0: number }[] = [];
 // at a dead take. Eviction skips them (sound-designer review)
 // (kill-<k>: a midboss's kill word; carn5: OPENED, the 5-chain; quip-<id>: Matt's one-liners after a big kill,
 // LS2-quips. All SGT. RAMROD SLAB's)
-const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|kill-|carn5|quip-|boss-|bark-)/; // boss-/bark-: THE KEEPSAKE's readout and barks (D55)
+const VOICE_CAT = /^(hype|bossreward|corpsevoice|startgame|title$|kill-|carn5|quip-|boss-|bark-)/; // boss-/bark-: THE KEEPSAKE's readout and barks (D55); title: the title's GRODIUS (step.ts greeting, Matt 2026-11-24)
 /** banks that load only when a run is about to need them (bankWant), not at audio start: THE KEEPSAKE's (D55) are 40
  *  takes, ~69 s of audio, 732 KB of ogg but ~26 MB decoded (48 kHz stereo float): a phone shouldn't hold them for runs
  *  that never reach the second biome stage. biomes.ts asks for them when it builds that stage (BossSim.prep) */
@@ -285,18 +285,19 @@ export function voiceCutQuips() {
   AU.voiceQ = (AU.voiceQ || []).filter((v) => !v.cat.startsWith('quip-'));
   AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
 }
-/** game over: every voice line queued but not yet started is dropped; the one already talking finishes (audio only) */
-export function voiceDropQueued() {
+/** game over: every voice line queued but not yet started is dropped; the one already talking finishes (audio only).
+ *  `keep`: voice folders still allowed to start (gameOver keeps startgame: the fatal death's GRODIUS BITCH) */
+export function voiceDropQueued(keep?: RegExp) {
   if (!AU.c) return;
   const now = AU.c.currentTime;
   for (let k = LIVE.length - 1; k >= 0; k--) {
     const v = LIVE[k];
-    if (!VOICE_CAT.test(v.cat) || v.t0 <= now) continue;
+    if (!VOICE_CAT.test(v.cat) || v.t0 <= now || keep?.test(v.cat)) continue;
     v.s.onended = null;
     v.s.stop(); // a source stopped before its start time never plays
     LIVE.splice(k, 1);
   }
-  AU.voiceQ = (AU.voiceQ || []).filter((v) => v.t0 <= now);
+  AU.voiceQ = (AU.voiceQ || []).filter((v) => v.t0 <= now || keep?.test(v.cat));
   AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
 }
 /** a new game forgets the last spoken OPENED (fx/update.ts opened), so a fresh run's first 5-chain speaks */
@@ -306,8 +307,8 @@ export function resetOpened() {
 /** seconds the voice fades over when a new game or the title cuts it off: short enough to feel cut, long enough not to click */
 export const VOICE_CUT = .06;
 /** a new game or the title: every voice line (talking or queued) stops with a VOICE_CUT fade, and the comms window
- *  has nothing left to show (audio only). `keep`: voice folders that ride through the cut (newGame spares startgame,
- *  the DESCEND line that started the run: before 2026-11-15 the cut killed it 60 ms in, so it was never heard) */
+ *  has nothing left to show (audio only). `keep`: voice folders that ride through the cut (newGame spares the title's
+ *  GRODIUS and the death line GRODIUS BITCH: before 2026-11-15 the cut killed the then DESCEND line 60 ms in) */
 export function voiceStopAll(keep?: RegExp) {
   if (AU.c) {
     const now = AU.c.currentTime;
@@ -324,7 +325,7 @@ export function voiceStopAll(keep?: RegExp) {
   AU.voiceQ = keep && AU.voiceQ ? AU.voiceQ.filter((v) => keep.test(v.cat)) : []; // no queue yet with no audio (the harness)
   AU.voice = AU.voiceQ[AU.voiceQ.length - 1] || null;
 }
-/** a line from this voice folder is talking or waiting its turn (the title greeting still going when DESCEND lands) */
+/** a line from this voice folder is talking or waiting its turn (tests; the comms window's own reads go through AU.voiceQ) */
 export const voiceLive = (cat: string) => !!AU.c && !!AU.voiceQ?.some((v) => v.cat === cat && v.t1 > AU.c.currentTime);
 export function thr(k, ms) {
   const n = performance.now();

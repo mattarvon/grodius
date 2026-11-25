@@ -249,18 +249,20 @@ describe('OPENED, the 5-chain', () => {
   });
 });
 
-describe('GRODIUS BITCH (startgame) survives the start of the run', () => {
-  // the studio review of the title greeting (2026-11-15) found newGame's voiceStopAll cut the DESCEND line 60 ms in
-  it('a new game cuts every other voice line but lets the DESCEND line play out', () => {
+describe('GRODIUS BITCH (startgame, the late boss-fight death line) and the title GRODIUS ride through the cuts', () => {
+  // the studio review of the title greeting (2026-11-15) found newGame's voiceStopAll cut the then DESCEND line 60 ms in
+  it('a new game cuts every other voice line but lets the death line and the title line play out', () => {
     A.BANK.startgame = take('grodius-bitch-matty-1');
+    A.BANK.title = take('grodius-matty-1');
     A.BANK.hype10 = take('that-one-matty-1');
     expect(A.sample('hype10')).toBe(true);
     expect(A.sample('startgame')).toBe(true);
+    expect(A.sample('title')).toBe(true);
+    A.voiceStopAll(/^(startgame|title)$/);
     expect(A.voiceLive('startgame')).toBe(true);
-    A.voiceStopAll(/^startgame$/);
-    expect(A.voiceLive('startgame')).toBe(true);
+    expect(A.voiceLive('title')).toBe(true);
     expect(A.voiceLive('hype10')).toBe(false);
-    expect(A.AU.voiceQ.map((v: any) => v.cat)).toEqual(['startgame']);
+    expect(A.AU.voiceQ.map((v: any) => v.cat)).toEqual(['startgame', 'title']);
   });
 
   it('the title (no keep) still cuts it, and a finished line is no longer live', () => {
@@ -273,8 +275,38 @@ describe('GRODIUS BITCH (startgame) survives the start of the run', () => {
     expect(A.voiceLive('startgame')).toBe(false);
   });
 
-  it('newGame spares startgame, and DESCEND defers to a greeting still talking', () => {
-    expect(code('src/flow.ts')).toMatch(/voiceStopAll\(\/\^startgame\$\/\)/);
-    expect(code('src/menus.ts')).toMatch(/voiceLive\('startgame'\) \|\| startLine\(\)/);
+  it("game over keeps a death line still queued, and drops the other queued lines; the death cuts only quips", () => {
+    A.BANK.hype10 = take('that-one-matty-1', 2);
+    A.BANK.startgame = take('grodius-bitch-matty-1');
+    A.BANK.carn5 = take('opened-matty-1');
+    A.sample('hype10');
+    A.sample('startgame', { at: .7 }); // queued behind the chain line
+    A.voiceCutQuips();
+    expect(A.voiceLive('startgame')).toBe(true);
+    A.AU.c.currentTime = .5;
+    A.sample('carn5'); // queued behind the death line
+    A.voiceDropQueued(/^startgame$/);
+    expect(A.AU.voiceQ.map((v: any) => v.cat)).toEqual(['hype10', 'startgame']);
+  });
+
+  it('newGame spares both, game over keeps the death line, and DESCEND no longer plays a voice line', () => {
+    expect(code('src/flow.ts')).toMatch(/voiceStopAll\(\/\^\(startgame\|title\)\$\/\)/);
+    expect(code('src/flow.ts')).toMatch(/voiceDropQueued\(\/\^startgame\$\/\)/);
+    expect(code('src/flow.ts')).toMatch(/if \(lateBossDeath\(\$\)\) sample\('startgame'/);
+    expect(code('src/menus.ts')).not.toMatch(/sample\('startgame'|startLine/);
+    expect(code('src/step.ts')).toMatch(/titleGreeted = titleLine\(\) \|\| SET\.muted/);
+  });
+
+  it("captions each GRODIUS by its own clip: the title's key is a prefix of the death line's", () => {
+    expect(H.voiceOf('grodius-matty-1', 'title')).toEqual([-1, SLAB, ['GRODIUS']]);
+    expect(H.voiceOf('grodius-bitch-matty-1', 'startgame')).toEqual([-1, SLAB, ['GRODIUS BITCH']]);
+    expect(H.voiceOf('grodius-bitch-matty-12', 'startgame')[2]).toEqual(['GRODIUS BITCH']);
+    expect(H.voiceOf('grodius', 'title')[2]).toEqual(['GRODIUS']);
+  });
+
+  it('an empty title folder plays nothing and opens no window', () => {
+    expect(A.sample('title')).toBe(false);
+    expect(srcs.length).toBe(0);
+    expect(frames(.5).size).toBe(0);
   });
 });

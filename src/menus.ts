@@ -2,7 +2,7 @@
 import { $ } from './state';
 import { goreLite, setGoreMode } from './fx/gorecap';
 import { HULL2_REFUND, SET, UPG, exportSave, importSave, lv, save } from './save';
-import { auInit, sample, setMute, sfx, voiceLive, voiceStopAll, bankWant } from './audio';
+import { auInit, sample, setMute, sfx, voiceStopAll, bankWant } from './audio';
 import { I, PR } from './input';
 import { jumpRun, newGame, openPause, openShop, resumeLast, resumedFrom, shopNext, startLoop } from './flow';
 import { clearRun, runInfo, runSealed, sealRun } from './runsave';
@@ -301,12 +301,11 @@ export function pauseItems() {
   }];
 }
 // title screen: every cursor move is a small wet valve pop (gross_pop), every selection a wet splat (splat_s), both low (tone pass D39: the farts are out)
-/** SLAB's "grodius bitch" (src/sfx/startgame/): the DESCEND line, and the title's greeting (step.ts) */
-export const startLine = () => sample('startgame', { vol: 1.15, spread: .02, wet: .14 });
+/** SLAB's GRODIUS (src/sfx/title/): the title's greeting (step.ts). False until the folder has a take, or while muted */
+export const titleLine = () => sample('title', { vol: 1.15, spread: .02, wet: .14 });
 export const menuBlip = (ok) => {
-  // starting a run (DESCEND / DESCEND DEEPER) gets SLAB's "grodius bitch" (Lesley's "yeah baby" removed 2026-11-13) instead of the select splat;
-  // with the title greeting still talking it stands in for the line, so the player never hears it twice running
-  if ($.state === 'title' && ok && /^DESCEND/.test((titleItems()[$.menuSel] || {}).l || '') && (voiceLive('startgame') || startLine())) return;
+  // DESCEND / DESCEND DEEPER is a select splat like every other item since 2026-11-24 (Matt: GRODIUS BITCH moved from
+  // the start of the run to a late boss-fight death, voice/deathline.ts)
   if ($.state === 'title' && sample(ok ? 'splat_s' : 'gross_pop', { vol: ok ? .5 : .35, spread: .08, wet: .1 })) return;
   sfx.menu();
 };

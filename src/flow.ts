@@ -3,7 +3,8 @@ import { $ } from './state';
 import { PH, R, clamp, dist2, pick, ri, rr, swapRm } from './core';
 import { lv, save } from './save';
 import { applyRun } from './runsave';
-import { resetOpened, sfx, voiceCutQuips, voiceDropQueued, voiceStopAll } from './audio';
+import { resetOpened, sample, sfx, voiceCutQuips, voiceDropQueued, voiceStopAll } from './audio';
+import { BITCH_AT, lateBossDeath } from './voice/deathline';
 import { buzz } from './platform';
 import { ALL, buildTerrain, ceilAt, eshots, floorAt } from './world';
 import { drop, flash, gore, spark, splat } from './fx/spawn';
@@ -66,7 +67,9 @@ const baseG = () => ({
     feed: null
   });
 export function newGame(startL = 0) {
-  voiceStopAll(/^startgame$/); // the last run's voice lines don't talk over a new one, but the DESCEND line that started this run plays out (audio only)
+  // the last run's voice lines don't talk over a new one, but two play out (audio only): the title's GRODIUS when DESCEND
+  // lands mid-word, and GRODIUS BITCH (startgame) when DESCEND AGAIN beats the game-over death line home
+  voiceStopAll(/^(startgame|title)$/);
   resetOpened(); // OPENED's 20 s audio cooldown starts fresh with the run
   clearRun(); // a new game drops the old checkpoint (spec §4); this run's CP0 replaces it at its first safe step
   delete $.meta.bioS; delete $.meta.bioV; // the biomass mark (economy.ts bankBio) is this run's alone
@@ -330,6 +333,11 @@ export function killPlayer() {
   deathCost($.G);
   splat(rr(120, 360), rr(60, 180), 3);
   sfx.die();
+  // SLAB's GRODIUS BITCH (src/sfx/startgame/, the folder name is historical) over a death in a late boss fight (Matt,
+  // 2026-11-24; voice/deathline.ts), every such death, BITCH_AT after the blast. Audio only: sample() draws ar(), never
+  // R(), and does nothing with no running context (the harness). Queued after voiceCutQuips (quips only) ran; the
+  // checkpoint restart (resumeRun) stops no voice and game over keeps it (voiceDropQueued's keep)
+  if (lateBossDeath($)) sample('startgame', { vol: 1.15, spread: .02, wet: .16, at: BITCH_AT });
   if (hardOn()) {
     // gate D1 (rank 1 f after a death <= T_base + stage + 3): the power goes the moment the ship does, not at the
     // respawn 150 f later. What died is kept (G.deadP) for the respawn's strip and the recovery wave
@@ -454,7 +462,7 @@ function deathRestart() {
   return true;
 }
 export function gameOver() {
-  voiceDropQueued(); // the line talking finishes; nothing queued behind it starts over the game-over screen (audio only)
+  voiceDropQueued(/^startgame$/); // the line talking finishes; nothing queued behind it starts over the game-over screen but the last death's GRODIUS BITCH (audio only)
   voiceCutQuips(); // but a quip talking fades out (LS2-quips review)
   clearRun(); // spec §4: game over clears the checkpoint
   $.state = 'over';

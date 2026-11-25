@@ -18,7 +18,7 @@ import { updatePlayer } from './player';
 import { updateCaps, updateEShots, updateEnemies, updateShots } from './shots';
 import { decayFX, updateAmbient, updateCombo, updateFX } from './fx/update';
 import { stepContraptions } from './contraptions';
-import { keyBack, menuNav, overItems, pauseItems, startLine, stepArm, stepShop, titleItems } from './menus';
+import { keyBack, menuNav, overItems, pauseItems, titleLine, stepArm, stepShop, titleItems } from './menus';
 import { cpStep } from './checkpoint';
 import { backPressed } from './backstep';
 import { rank } from './rank';
@@ -26,6 +26,8 @@ import { sigAt, sigWindows } from './sigs';
 import { stepSolids } from './solids';
 /** the title has played its greeting this launch (see the title branch below) */
 let titleGreeted = false;
+/** the greeting is spent without playing: the ?vox=title hook (dev only, src/vox.ts) plays the line itself */
+export const holdGreeting = () => void (titleGreeted = true);
 
 // ---------------- main step ----------------
 export function stepWorld() {
@@ -113,10 +115,12 @@ export function step() {
     if (I.pause && $.state === 'pause') $.state = 'play';
     else if (I.back && $.state === 'pause') keyBack(); // X, Backspace, pad B: unpause, like Esc
   } else if ($.state === 'title') {
-    // the title's greeting (Matt, 2026-11-15: "play when title appears"): GRODIUS BITCH once per app launch, as soon as
-    // the gate opens (browsers hold audio until the first tap). Retried each title frame until the bank can play it, so a
-    // boot with the clips still loading or the sound muted greets on the first frame it can; a muted launch never does
-    if (!$.gate && !titleGreeted) titleGreeted = startLine() || SET.muted;
+    // the title's greeting (Matt, 2026-11-15: "play when title appears"): SLAB's GRODIUS (src/sfx/title/; GRODIUS BITCH
+    // until 2026-11-24, now a late boss-fight death line) once per app launch, as soon as the gate opens (browsers hold
+    // audio until the first tap). Retried each title frame until the bank can play it, so a boot with the clips still
+    // loading or the sound muted greets on the first frame it can; a muted launch never does. With no take in the
+    // folder titleLine() is false every frame (one bank lookup, audio only) and the title stays quiet
+    if (!$.gate && !titleGreeted) titleGreeted = titleLine() || SET.muted;
     if (!$.gate) {
       menuNav(titleItems());
       if (I.back && $.state === 'title') keyBack(); // a sub-menu closes; the root does nothing off the native app
