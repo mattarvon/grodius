@@ -52,7 +52,7 @@ const heads = () => W.enemies.filter((e) => e.k === 'doll');
 
 describe('MINI DOLL HEADS: the group', () => {
   it('spawns 5 heads in from the right, DOLL.gap apart, sharing one {n, killed} group', () => {
-    const g = S.dolls(127);
+    const g = D.dolls(127);
     const h = heads();
     expect(h.length).toBe(5);
     expect(g).toEqual({ n: 5, killed: 0 });
@@ -65,7 +65,7 @@ describe('MINI DOLL HEADS: the group', () => {
     for (const tier of [0, 1, 2, 3]) {
       W.enemies.length = 0;
       $.G = { ...G0(), tier, pow: 2, rank: 20 };
-      S.dolls(127);
+      D.dolls(127);
       expect(heads().length).toBe(5);
     }
   });
@@ -81,7 +81,7 @@ describe('MINI DOLL HEADS: the group', () => {
   });
 
   it('is never elite (no pustule shot on a contact-only head)', () => {
-    S.dolls(127);
+    D.dolls(127);
     EL.eliteRoll(heads(), 1, () => 0);
     for (const e of heads()) expect(e.elite).toBeFalsy();
   });
@@ -89,7 +89,7 @@ describe('MINI DOLL HEADS: the group', () => {
 
 describe('MINI DOLL HEADS: the tell and the lunge', () => {
   it('each head tells for >= 20 f; tells start >= 12 f apart; only once on screen and ahead of the ship', () => {
-    S.dolls(127);
+    D.dolls(127);
     const h = heads(), tellAt: number[] = [], lungeAt: number[] = [];
     run(260, (f) => h.forEach((e, i) => {
       if (tellAt[i] == null && e.st === 'tell') { tellAt[i] = f; expect(e.x).toBeLessThan(480 - DOLL.inX + 1); expect(e.x).toBeGreaterThan($.P.x + DOLL.ahead); }
@@ -103,7 +103,7 @@ describe('MINI DOLL HEADS: the tell and the lunge', () => {
 
   it('never tells at a ship ahead of it: it drifts off the left edge, eyes shut', () => {
     $.P.x = 470;
-    S.dolls(127);
+    D.dolls(127);
     let told = 0;
     run(420, () => { for (const e of heads()) if (e.st !== 'drift') told++; });
     expect(told).toBe(0);
@@ -111,13 +111,13 @@ describe('MINI DOLL HEADS: the tell and the lunge', () => {
   });
 
   it('the lunge locks the ship\'s y as the tell ends and keeps it while the ship moves', () => {
-    S.dolls(127, 1);
+    D.dolls(127, 1);
     const e = heads()[0];
     $.P.y = 60;
     run(200, () => { if (e.st === 'tell' && e.wt === DOLL.tell - 1) $.P.y = 180; });
     // the lock was the ship's y on the frame the tell ended (180), and moving the ship after it changes nothing
     expect(e.ly).toBe(180);
-    const e2 = (W.enemies.length = 0, S.dolls(127, 1), heads()[0]);
+    const e2 = (W.enemies.length = 0, D.dolls(127, 1), heads()[0]);
     $.P.y = 200;
     let locked = -1, px = 0, py = 0;
     run(400, () => {
@@ -135,7 +135,7 @@ describe('MINI DOLL HEADS: the tell and the lunge', () => {
   });
 
   it('dollAt (the pilot\'s model) matches the arm frame for frame through drift, tell and lunge', () => {
-    S.dolls(127, 1);
+    D.dolls(127, 1);
     const e = heads()[0];
     run(5);
     let pred = Array.from({ length: 20 }, (_, t) => D.dollAt(e, t + 1, $.P.y)), got: number[][] = [];
@@ -155,7 +155,7 @@ describe('MINI DOLL HEADS: contact only, dry, the group capsule', () => {
     for (const [tier, loop] of [[1, 0], [3, 1], [3, 2]]) {
       W.enemies.length = 0; W.eshots.length = 0;
       $.G = { ...G0(), tier, loop };
-      S.dolls(127);
+      D.dolls(127);
       run(80);
       for (const e of heads().slice(0, 2)) U.killEnemy(e);
       run(400);
@@ -165,20 +165,20 @@ describe('MINI DOLL HEADS: contact only, dry, the group capsule', () => {
     L.setLayout('short');
     W.enemies.length = 0; W.eshots.length = 0;
     $.G = { ...G0(), loop: 2 };
-    S.dolls(127);
+    D.dolls(127);
     for (const e of heads()) { e.x = 300; U.killEnemy(e); } // short's Descent 2+ dying fan skips the heads
     expect(W.eshots.length).toBe(0);
   });
 
   it('dies dry: no gore, no blood drops', () => {
-    S.dolls(127);
+    D.dolls(127);
     U.hurt(heads()[0], 5, 300, 127, 1);
     expect(heads()[0].dead).toBe(true);
     expect(W.gore).toBe(0);
   });
 
   it('clearing the whole line rolls the group capsule (grpDrops); a line left alive does not', () => {
-    const g = S.dolls(127);
+    const g = D.dolls(127);
     const h = heads();
     for (const e of h.slice(0, 4)) U.killEnemy(e);
     expect(g.killed).toBe(4);
@@ -187,5 +187,28 @@ describe('MINI DOLL HEADS: contact only, dry, the group capsule', () => {
     U.killEnemy(h[4]);
     expect(g.killed).toBe(5);
     expect(W.caps.length).toBe(1);
+  });
+});
+
+describe('THE WATCHER takes a stage turn (D66 watcherTurn)', () => {
+  const firstStage = (kind: string) => { for (let i = 0; i < 40; i++) if (L.kindOf(i) === kind) return i; return -1; };
+  it('on a Watcher stage (stage + loop even) the first doll line is THE WATCHER, then dolls again', () => {
+    const s = firstStage('orbit'); expect(s).toBeGreaterThanOrEqual(0);
+    $.G.stage = s; $.G.loop = s % 2; // stage + loop even
+    expect(S.watcherTurn()).toBe(true);
+    expect(S.dolls(127)).toBeNull();
+    expect(W.enemies.filter((e) => e.k === 'watcher').length).toBe(1);
+    expect(S.watcherTurn()).toBe(false); // spent for this stage
+    S.dolls(127);
+    expect(heads().length).toBe(5);
+  });
+  it('never on the off stages, in a fight, with a flayer alive, or in the Drive', () => {
+    const s = firstStage('orbit');
+    $.G.stage = s; $.G.loop = (s + 1) % 2; expect(S.watcherTurn()).toBe(false); // stage + loop odd
+    $.G.loop = s % 2; $.G.boss = {}; expect(S.watcherTurn()).toBe(false);
+    $.G.boss = null; W.enemies.push({ k: 'flayer', dead: false }); expect(S.watcherTurn()).toBe(false);
+    W.enemies.length = 0;
+    const d = firstStage('drive');
+    if (d >= 0) { $.G.stage = d; $.G.loop = d % 2; expect(S.watcherTurn()).toBe(false); }
   });
 });
