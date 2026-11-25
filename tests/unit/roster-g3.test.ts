@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { $ } from '../../src/state';
 
 const noop = () => {};
-const W = vi.hoisted(() => ({ enemies: [] as any[], eshots: [] as any[], caps: [] as any[], orbs: [] as any[], geysers: [] as any[], draws: 0, maxed: [] as number[], scab: 0, ceil: 0, floor: 224 }));
+const W = vi.hoisted(() => ({ enemies: [] as any[], eshots: [] as any[], caps: [] as any[], orbs: [] as any[], geysers: [] as any[], draws: 0, maxed: [] as number[], scab: 0, ceil: 0, floor: 224, ceilF: null as null | ((x: number) => number) }));
 vi.mock('../../src/core', () => ({
   FIRE: [], PH: 254, W: 480, TAU: Math.PI * 2, R: () => { W.draws++; return .5; }, rr: (a: number) => a, ri: (a: number) => a, pick: (a: any[]) => a[0],
   clamp: (v: number, a: number, b: number) => Math.max(a, Math.min(b, v)), lerp: (a: number, b: number, t: number) => a + (b - a) * t,
@@ -17,7 +17,7 @@ vi.mock('../../src/core', () => ({
 vi.mock('../../src/save', () => ({ SET: { flashes: true }, lv: () => 0 }));
 vi.mock('../../src/audio', () => ({ sample: () => false, thr: () => false, bankWant: () => {}, quipAfterKill: () => null, sfx: new Proxy({}, { get: () => () => {} }) }));
 vi.mock('../../src/music', () => ({ duckMusic: () => {} }));
-vi.mock('../../src/world', () => ({ ...W, ceilAt: () => W.ceil, floorAt: () => W.floor }));
+vi.mock('../../src/world', () => ({ ...W, ceilAt: (x: number) => (W.ceilF ? W.ceilF(x) : W.ceil), floorAt: () => W.floor }));
 vi.mock('../../src/fx/spawn', () => ({ drop: noop, flash: noop, gib: noop, gore: noop, mist: noop, pop: noop, spark: noop, splat: noop }));
 vi.mock('../../src/perks', () => ({ gainXP: noop, pk: (k: string) => (k === 'scab' ? W.scab : 0), scabChance: () => .03, spillSlick: noop })); // scabChance: perks.ts's long4 SURV.scab
 vi.mock('../../src/stages', () => ({ clearStage: noop, deepPay: () => 1 }));
@@ -38,7 +38,7 @@ const ENTRY_GAP = ENTRY.gap;
 const G0 = () => ({ t: 0, loop: 0, stage: 1, rank: 0, scroll: 0, scrollSpeed: 1, shake: 0, hitstop: 0, pow: 0, score: 0, bio: 0, combo: 0, comboT: 0, kills: 0, maxCombo: 0, st: { kills: 0, chain: 0, spawned: 0 }, warn: [], pend: [] });
 beforeEach(() => {
   L.setLayout('long4');
-  W.maxed = []; W.scab = 0; W.ceil = 0; W.floor = 224;
+  W.maxed = []; W.scab = 0; W.ceil = 0; W.floor = 224; W.ceilF = null;
   W.enemies.length = 0; W.eshots.length = 0; W.caps.length = 0; W.draws = 0;
   $.T = 0;
   $.G = G0();
@@ -422,6 +422,12 @@ describe('the hook spawns clear of the ship (S5, round-4 integration: L5 fire,sn
     const d1 = W.draws, f = first();
     expect(W.draws - d1).toBe(used);
     expect(f.ax).toBeCloseTo(480 + 16 - 1, 0); // one frame of scroll
+  });
+  it('re-reads the ceiling at the shifted column, so a ceiling that drops to the right cannot hang it back onto the ship', () => {
+    W.ceilF = (x: number) => Math.max(0, (x - 480) * .75); // S3's steepest slope, deeper to the right
+    $.P = { x: 470, y: 86, alive: true }; // the body clears it from above at the spawn column; one shift right hangs it lower
+    const e = first();
+    expect(Math.hypot(e.x - $.P.x, e.y - $.P.y)).toBeGreaterThanOrEqual(BUL.noBody + BUL.bodyPad - 2); // the spawn rule's own radius, less one frame of swing and scroll
   });
   it('is unchanged on short (parity)', () => {
     L.setLayout('short');

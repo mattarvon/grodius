@@ -80,11 +80,11 @@ describe('SEAL PRIMING (long4, seal 0)', () => {
     expect(P.primeOk(5)).toBe(false);
     expect(P.slotMaxed(5)).toBe(true);
   });
-  it('queues PARTS STORED // OPENS AT SEAL II once, at the first stored part of a run (r4-perf request)', () => {
+  it('queues PARTS STORED // THEY GROW IN WHEN THE SEAL BREAKS once, at the first stored part of a run (r4-perf request)', () => {
     $.G.logQ = [];
     P.applyPower(5, false);
     expect($.G.logQ).toEqual([P.PRIME_LOG]);
-    expect(P.PRIME_LOG).toBe('PARTS STORED // OPENS AT SEAL II');
+    expect(P.PRIME_LOG).toBe('PARTS STORED // THEY GROW IN WHEN THE SEAL BREAKS');
     P.applyPower(5, false);
     P.applyPower(0, true);
     expect($.G.logQ).toEqual([P.PRIME_LOG]); // once per run

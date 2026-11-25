@@ -61,7 +61,7 @@ export const PRIME = {
   seal: 0,
 } as const;
 /** the one-time log line at the run's first stored part (applyPower's priming branch) */
-export const PRIME_LOG = 'PARTS STORED // OPENS AT SEAL II';
+export const PRIME_LOG = 'PARTS STORED // THEY GROW IN WHEN THE SEAL BREAKS'; // the game never numbers seals for the player: this sets up the STORED PARTS GROW IN banner (art/game/economy review)
 /** the slots priming may store into: THRUST, MISSILE while it is the held side gun, WRAITH, WARD */
 const primeSlot = (i) => i === 0 || i === 5 || i === 6 || (i === 1 && $.P.missile > 0);
 export function primeOk(i) {

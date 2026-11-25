@@ -238,9 +238,13 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
         for (const c of fresh) window.__capSrc.set(c, c.rec ? 'rec' : c.choice ? 'fixed:choice' : c.salv ? 'salv' : c.graft ? 'graft' : openCap.has(c) ? 'fixed:open' : c.blue ? 'blue' : genSrc());
         // the unseen ones (ΔredN past the plain caps that showed): picked up on their drop frame, so they are pickups too
         { const unseen = Math.max(0, (h.G.redN || 0) - (window.__redN0 || 0) - fresh.filter(plainC).length), st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, DR = (window.__drops ||= {}), OG = (window.__openG ||= new Map());
-          for (let k = 0; k < unseen; k++) { const oe = openUnseen.shift(), src = oe ? 'fixed:open' : genSrc();
+          // a blue taken on its drop frame (every 12th redN step, notice.ts blueAt; an owed blue lands on a non-opener) is a
+          // blue, not a power pod: the steps in (redN0, redN] that are blue, less the blues that showed (review note)
+          let blues = 0; for (let n = (window.__redN0 || 0) + 1; n <= (h.G.redN || 0); n++) if (n % 12 === 0) blues++;
+          blues = Math.max(0, blues - fresh.filter((c) => plainC(c) && c.blue).length);
+          for (let k = 0; k < unseen; k++) { const oe = openUnseen.shift(), bl = !oe && blues > 0 && (blues--, true), src = oe ? 'fixed:open' : bl ? 'blue' : genSrc();
             (DR[st] ||= {})[src] = (DR[st][src] || 0) + 1; if (oe && OG.has(oe.group)) OG.get(oe.group).paid++;
-            window.__pods.push({ f: window.__fr, kind: 'pod', ty: null, full: 0, src, st, same: 1 }); } }
+            window.__pods.push({ f: window.__fr, kind: bl ? 'blue' : 'pod', ty: null, full: 0, src, st, same: 1 }); } }
         // drops[] (W6 round 3, gate E2, measure-only): every cap that appeared, by stage and src, picked up or not (pods[] keeps
         // the pickups); openG[]: each authored opening formation (group.open): members seen, killed, and whether it paid
         { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, DR = (window.__drops ||= {}), OG = (window.__openG ||= new Map());

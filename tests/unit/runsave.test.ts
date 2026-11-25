@@ -118,6 +118,11 @@ describe('run save round trip', () => {
     expect(b.redN).toBe(12);
     expect(decodeRun(JSON.stringify(serializeRun({ ...G, blueOwe: 2 }, P)))).toBeNull();
     expect(decodeRun(JSON.stringify(serializeRun({ ...G, blueOwe: true }, P)))).toBeNull();
+    const e = decodeRun(JSON.stringify(serializeRun({ ...G, primeLog: 1 }, P)))!; // the one-time PARTS STORED line, said
+    const c: any = {};
+    applyRun(e, c, {});
+    expect(c.primeLog).toBe(1);
+    expect(decodeRun(JSON.stringify(serializeRun({ ...G, primeLog: 2 }, P)))).toBeNull();
   });
 
   it('restores copies, so the saved blob and the live run never share objects', () => {

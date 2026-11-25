@@ -583,10 +583,14 @@ export function hookE() {
     room = floorAt(wx) - c;
   // len, sw, ph drawn first, in the object literal's old order, so the R() sequence is unchanged
   const len = rr(34, Math.max(40, room * .55)), sw = rr(.5, 1), ph = R() * TAU;
-  const ax = W + 16 + hookClear(ax0Body(c, len, sw, ph));
-  mk('hook', ax, c + 30, {
+  // the anchor's ceiling is re-read at each shifted column (the update hangs it from ceilAt(ax): a sloped or inset
+  // ceiling moves the body as the anchor moves), three passes at most; no R()
+  let dx = 0, cA = c;
+  for (let k = 0; k < 3; k++) { const s = hookClear(ax0Body(cA, len, sw, ph), dx); if (!s) break; dx += s; cA = Math.max(-10, ceilAt(wx + dx)); }
+  const ax = W + 16 + dx;
+  mk('hook', ax, cA + 30, {
     ax,
-    ay: c,
+    ay: cA,
     len,
     sw,
     ph,
@@ -602,8 +606,9 @@ export function hookE() {
 const ax0Body = (c, len, sw, ph) => { const a = Math.sin(ph) * sw * .55; return [W + 16 + Math.sin(a) * len, c + Math.cos(a) * len]; };
 /** G3 S5 for a hook (round-4 integration; L5 fire,snot body-on-ship:hook): how far right the anchor moves so the swung
  *  body starts outside BUL.noBody + bodyPad (+ its radius past 9) of the ship. 0 on short (parity) and when clear */
-function hookClear([bx, by]) {
+function hookClear([bx0, by], shift = 0) {
   if (!g3() || !$.P || !$.P.alive) return 0;
+  const bx = bx0 + shift;
   const r = BUL.noBody + BUL.bodyPad + Math.max(0, ET.hook.r - 9), dy = by - $.P.y, dx = bx - $.P.x;
   if (dx * dx + dy * dy >= r * r) return 0;
   return $.P.x + Math.sqrt(Math.max(0, r * r - dy * dy)) - bx;
