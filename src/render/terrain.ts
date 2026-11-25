@@ -798,15 +798,20 @@ export function drawBG() {
   }
   if (sp > 0 && !title) drawWound(sp, sc, L);
   if (sp > 0) {
+    // r4-perf (T3): one colour per layer and the twinkle as globalAlpha (the same paint alpha), not an rgba() string
+    // built and parsed for each of the 154 stars every frame
+    const a0 = ctx.globalAlpha;
     STARS.forEach((L, l) => {
       const s = [.05, .15, .4][l];
+      ctx.fillStyle = l === 2 ? 'rgb(220,235,255)' : 'rgb(160,180,210)';
       for (const st of L) {
         const x = ((st.x - sc * s) % W + W) % W,
           tw = .6 + .4 * Math.sin($.T * .05 + st.p);
-        ctx.fillStyle = `rgba(${l === 2 ? '220,235,255' : '160,180,210'},${st.b * tw * sp})`;
+        ctx.globalAlpha = a0 * Math.min(1, st.b * tw * sp);
         ctx.fillRect(x | 0, st.y | 0, l === 2 ? 1.5 : 1, 1);
       }
     });
+    ctx.globalAlpha = a0;
   }
   if ($.G) {
     drawNeptune(sp, sc);

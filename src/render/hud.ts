@@ -5,7 +5,7 @@ import { pk, xpNeed, perkName, perkDesc, perkReq, perkCost, perkMax, perkFX, per
 import { stageInfo, stageLabel } from '../stages';
 import { sfx } from '../audio';
 import { WARD_MAX } from '../player';
-import { C, FONT_D, FONT_H, H, PH, TAU, W, clamp, ctx, lerp, pwBtn } from '../core';
+import { C, FONT_D, FONT_H, H, PH, TAU, W, clamp, ctx, hash, lerp, lo, pwBtn } from '../core';
 import { srnd } from '../srnd';
 import { SET } from '../save';
 import { touch } from '../input';
@@ -25,6 +25,7 @@ import { drawBakedDeaths } from './gross/baked';
 import { drawUfoFx } from './gross/mid/ufo';
 import { drawFork, mobFork } from './fork';
 import { MID_NAMES } from '../enemies/mid/roster';
+import { floorHeld, lurched, podShows, stored } from './hudcues';
 /** the health bar's name for a G.mini without a title: the bosses that can take G.mini, and every midboss */
 const MINI_NAMES: Record<string, string> = { maw: 'THE MAW', crux: 'THE BLOAT', butcher: 'THE BUTCHER', ...MID_NAMES };
 import { drawBoss } from '../render/boss';
@@ -38,27 +39,86 @@ const GEN_CAP = { c: '255,110,30', h: '#ff7a1a' };
 /** text with a 1 px #000 outline. The HUD text over the playfield (the top rows, the midboss name) uses it instead of
  *  a backing strip or plate: a backing drawn after drawWorld dimmed hazards and the ship under it (Pillar 2; the merge 2
  *  art and accessibility check), an outline covers only its own glyphs (LS1 audit #20, LS1-F carry-forward 6) */
-function txtOutlined(s, x, y, c, a, sz) {
-  txt(s, x - 1, y, '#000', a, sz); // sets the font, align and baseline: every frame, so once per string (web-specialist)
-  ctx.fillText(s, (x + 1) | 0, y | 0);
-  ctx.fillText(s, x | 0, (y - 1) | 0);
-  ctx.fillText(s, x | 0, (y + 1) | 0);
-  ctx.fillStyle = c;
-  ctx.fillText(s, x | 0, y | 0);
+function txtOutlined(s, x, y, c, a = 'left', sz = 8) {
+  const k = s + '|' + c + '|' + a + '|' + sz, T = OUTL.get(k);
+  if (T && T.cv && ctx.globalAlpha === 1) { // r4-perf (T3): a string held for a frame is one copy, not five fillTexts
+    T.f = OUTL_F;
+    ctx.drawImage(T.cv, (x | 0) - T.ox, (y | 0) - T.oy);
+    return;
+  }
+  outlined(ctx, s, x, y, c, a, sz, 0, 0);
+  if (ctx.globalAlpha !== 1 || document.fonts.status !== 'loaded') return;
+  if (!T) { // first sight: drawn live; a second frame in a row with the same string bakes it (a counting score never does)
+    if (OUTL.size >= 24) for (const [q, v] of OUTL) if (v.f < OUTL_F - 1) { OUTL.delete(q); if (OUTL.size < 20) break; }
+    OUTL.set(k, { f: OUTL_F, cv: null, ox: 0, oy: 0 });
+    return;
+  }
+  if (T.f < OUTL_F - 1) { T.f = OUTL_F; return; }
+  // bake: the same five fillTexts at the same integer positions minus a whole-pixel offset, so every glyph lands on the
+  // same sub-pixel phase as the live draw; source-over is associative, so the copy over the frame is the live result
+  ctx.font = `${sz}px ${FONT_H}`;
+  const w = Math.ceil(ctx.measureText(s).width), cv = document.createElement('canvas');
+  T.ox = w + 3; T.oy = 3; cv.width = 2 * w + 8; cv.height = sz * 2 + 6;
+  outlined(cv.getContext('2d'), s, x, y, c, a, sz, (x | 0) - T.ox, (y | 0) - T.oy);
+  T.cv = cv; T.f = OUTL_F;
 }
-// --- HUD ---
-export function drawHUD() {
+/** the outlined text's five fillTexts on c, every position shifted by the whole pixels (dx, dy) */
+function outlined(c, s, x, y, col, a, sz, dx, dy) {
+  c.font = `${sz}px ${FONT_H}`;
+  c.textAlign = a;
+  c.textBaseline = 'top';
+  c.fillStyle = '#000';
+  c.fillText(s, ((x - 1) | 0) - dx, (y | 0) - dy);
+  c.fillText(s, ((x + 1) | 0) - dx, (y | 0) - dy);
+  c.fillText(s, (x | 0) - dx, ((y - 1) | 0) - dy);
+  c.fillText(s, (x | 0) - dx, ((y + 1) | 0) - dy);
+  c.fillStyle = col;
+  c.fillText(s, (x | 0) - dx, (y | 0) - dy);
+}
+/** txtOutlined's baked strings (key: text, colour, align, size) and the HUD frame counter they are aged by */
+const OUTL = new Map();
+let OUTL_F = 0;
+/** the slot bar's pickup flashes this frame (drawHUD counts G.slotF down once, before the bar is drawn or copied) */
+const SLOT_F = [0, 0, 0, 0, 0, 0, 0];
+/** the last still slot bar: its input signature and a copy of its pixels (rows PH..H of the low-res layer) */
+const BAR = { sig: null, cv: null };
+function barSnap(sig) {
+  // full screen size, so the copy is a GPU canvas like lo: a 480 x 16 one would fall under the browser's acceleration
+  // threshold and read lo back to the CPU on every bar change (TD). The bar sits in rows PH..H of it, as in lo
+  if (!BAR.cv) { BAR.cv = document.createElement('canvas'); BAR.cv.width = W; BAR.cv.height = H; }
+  const b = BAR.cv.getContext('2d');
+  b.clearRect(0, PH, W, H - PH);
+  b.drawImage(lo, 0, PH, W, H - PH, 0, PH, W, H - PH); // nothing else is in these rows yet: the bar's backing is opaque
+  BAR.sig = sig;
+}
+/** a slot whose whole stored level is ready pulses: laid over the (cached) bar, under .25 alpha in all with the base
+ *  fill (art-director: the name keeps its contrast), so a ready slot no longer keeps the bar from caching (TD 6) */
+function readyPulse() {
+  if (!$.P) return;
+  const pul = .5 + .5 * Math.sin($.T * .2);
+  for (let i = 0; i < 7; i++) {
+    const so = stored(i);
+    if (!so || !so.ready) continue;
+    const x = 4 + i * 46, y = PH + 3, w = 44, h = 11;
+    ctx.fillStyle = `rgba(${POD[i].c},${.1 * pul})`;
+    ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.fillStyle = `rgba(${POD[i].c},${.35 * pul})`;
+    for (let sx = 2; sx < w - 2; sx += 3) ctx.fillRect(x + sx, y + 1, 1, 1);
+  }
+}
+const slotLv = (i) => [$.P.speed, $.P.missile, $.P.double, $.P.laser, $.P.pyre, $.P.options, $.P.wardLv || 0][i];
+/** the bottom bar's backing and the seven power slots */
+function drawSlots() {
   ctx.fillStyle = '#050608';
   ctx.fillRect(0, PH, W, H - PH);
   ctx.fillStyle = '#262e37';
   ctx.fillRect(0, PH, W, 1);
-  { const hide = !(SET.meter && touch.used && $.state === 'play'); if (pwBtn.hidden !== hide) pwBtn.hidden = hide; } // touch POWER button, meter mode only
   for (let i = 0; i < 7; i++) {
     const x = 4 + i * 46,
       y = PH + 3,
       w = 44,
       h = 11,
-      f = $.G.slotF && $.G.slotF[i] > 0 ? $.G.slotF[i]-- : 0;
+      f = SLOT_F[i];
     const lvN = $.P ? [$.P.speed, $.P.missile, $.P.double, $.P.laser, $.P.pyre, $.P.options, $.P.wardLv || 0][i] : 0,
       mxN = [5, 2, 1, 1, 2, 3, 3][i];
     const cur = SET.meter && $.G.cur === i;
@@ -72,7 +132,14 @@ export function drawHUD() {
       ctx.fillStyle = `rgba(${POD[i].c},${f / 60})`;
       ctx.fillRect(x, y, w, h);
     }
-    if ($.P && !slotMaxed(i) && !SET.meter) {
+    const so = stored(i);
+    if (so) { // SEAL PRIMING (hudcues.ts stored): parts held for the sealed level, combed along the top edge (away from the level pips) so they don't read as a level in progress
+      const fw = so.ready ? w - 2 : (w - 2) * so.n / so.nd; // ready: drawn full, whatever PRIME.short (ux)
+      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .15 : .2})`; // ready: the pulse is laid over the bar (readyPulse), so the bar itself holds still and stays cached
+      ctx.fillRect(x + 1, y + 1, fw, h - 2);
+      ctx.fillStyle = `rgba(${POD[i].c},${so.ready ? .55 : .5})`;
+      for (let sx = 2; sx < fw; sx += 3) ctx.fillRect(x + sx, y + 1, 1, 1); // the comb: one tooth per 3 px along the top
+    } else if ($.P && !slotMaxed(i) && !SET.meter) {
       const fr = $.P.frag && $.P.frag[i] || 0,
         nd = needOf(i);
       if (fr) {
@@ -81,9 +148,11 @@ export function drawHUD() {
       }
     }
     if ($.P && slotLocked(i)) {
-      ctx.fillStyle = '#8a2a2a';
+      const lk = so && so.ready ? POD[i].h : '#8a2a2a'; // a whole level stored: the lock takes the slot's colour, it opens at the seal
+      if (so && so.ready) { ctx.fillStyle = '#050608'; ctx.fillRect(x + w - 8, y + 1, 7, 7); } // a dark backing keeps the lock's shape against the slot's own border (art-director)
+      ctx.fillStyle = lk;
       ctx.fillRect(x + w - 7, y + 3, 5, 4);
-      ctx.strokeStyle = '#8a2a2a';
+      ctx.strokeStyle = lk;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(x + w - 4.5, y + 3, 1.6, Math.PI, TAU);
@@ -98,6 +167,25 @@ export function drawHUD() {
       ctx.fillRect(x + w / 2 - mxN * 2.5 + k * 5 + 1, y + h - 2.5, 3, 1.5);
     }
   }
+}
+// --- HUD ---
+export function drawHUD() {
+  OUTL_F++;
+  { const hide = !(SET.meter && touch.used && $.state === 'play'); if (pwBtn.hidden !== hide) pwBtn.hidden = hide; } // touch POWER button, meter mode only
+  // r4-perf (T3): the slot bar is ~90 canvas calls and seven fillTexts, and it holds still on almost every frame. Its
+  // inputs are read first (the pickup flash still counts down here, once a frame, as before); while they match the last
+  // frame's and nothing in it pulses, the bar is one copy of the pixels it drew then
+  let sig = $.P ? '' : 'n', anim = document.fonts.status !== 'loaded'; // a bar baked before the font is in would keep the fallback face
+  for (let i = 0; i < 7; i++) {
+    const f = SLOT_F[i] = $.G.slotF && $.G.slotF[i] > 0 ? $.G.slotF[i]-- : 0;
+    if (f || (SET.meter && $.G.cur === i)) { anim = true; continue; }
+    if (!$.P) continue;
+    const so = stored(i);
+    sig += (so && so.ready ? 'R' : '') + slotLv(i) + ',' + (so ? so.n + '/' + so.nd : !slotMaxed(i) && !SET.meter ? (($.P.frag && $.P.frag[i]) || 0) + '/' + needOf(i) : '-') + (slotLocked(i) ? 'L' : '') + ';';
+  }
+  if (!anim && sig === BAR.sig && BAR.cv) ctx.drawImage(BAR.cv, 0, PH, W, H - PH, 0, PH, W, H - PH);
+  else { drawSlots(); if (anim) BAR.sig = null; else barSnap(sig); }
+  readyPulse();
   drawShip(ctx, 341, PH + 8, 0, .45, 0);
   txt('x' + $.G.lives, 350, PH + 4, '#cfd9e3');
   ctx.fillStyle = C.bloodL;
@@ -206,6 +294,14 @@ export function drawHUD() {
         ctx.fillRect(bx, y - 3, bw * left, 1);
       }
     }
+    const fh = floorHeld(m);
+    if (fh != null) { // the half floor holds the bar at its line (hudcues.ts floorHeld): a bone clamp there, over the fuse; a held-back hit jolts it 1 px and turns it white
+      const hit = m.tk != null && m.t - m.tk < 8, cx = Math.round(bx + bw * fh) + (hit ? 1 : 0);
+      ctx.fillStyle = hit ? '#ffffff' : '#e8dccb';
+      ctx.fillRect(cx - 1, y - 3, hit ? 3 : 2, 9);
+      ctx.fillRect(cx + 1, y - 3, 2, 1);
+      ctx.fillRect(cx + 1, y + 5, 2, 1);
+    }
     if (m.bars) {
       const n = m.bars.filter(b => !b.dead && b.k === 'nailbar').length; // nail bars only: the Butcher's meat hooks live in e.bars too (W4b)
       if (n) txtOutlined(n + ' NAIL BARRIERS', W / 2, y + 5, '#8fa3b8', 'center', 7);
@@ -229,10 +325,12 @@ export function drawHUD() {
   if ($.state !== 'pause') {
     drawHype();
   }
-  if ($.G.banner) {
-    const b = $.G.banner,
+  lurchCue();
+  const ban = $.G.banner || (LURCH.t > 0 ? LURCH : null);
+  if (ban) {
+    const b = ban,
       a = Math.min(1, b.t / 30, (b.ml - b.t) / 12),
-      fl = srnd() < .06 ? .4 : 1;
+      fl = (b === LURCH ? hash($.T * .731) : srnd()) < .06 ? .4 : 1; // the HUD's own banner never draws srnd(): drops.length is in the harness sig, and the fx stream feeds it
     ctx.globalAlpha = a * fl;
     ctx.fillStyle = 'rgba(0,0,0,.5)';
     ctx.fillRect(0, PH * .36, W, b.sub ? 48 : 36);
@@ -256,6 +354,18 @@ export function drawHUD() {
     ctx.fillStyle = '#9fd2ff';
     ctx.fillRect($.P.x - 8, $.P.y + 11, 16 * $.P.shield / WARD_MAX, 1);
   }
+}
+/** the midbosses' half clock (_fight.ts halfClock) said nothing: the HUD says it, as the biome bosses' clock3 does
+ *  (same banner, same roar), drawn and timed here so the sim's G.banner is never written. t runs on the sim's clock
+ *  (G.t), so a slow phone that steps twice per draw shows it as long. Render state only */
+const LURCH = { text: 'IT LURCHES ONWARD', sub: 'OUT OF TIME', col: '#ff8a3a', t: 0, ml: 110, e: null, hp: 0, pt: 0, at: 0 };
+function lurchCue() {
+  const m = $.G.mini, L = LURCH;
+  if (m !== L.e) L.at = 0; // a new fight (or none): an old banner goes with the old one
+  else if (m && lurched(m, L.hp, L.pt) && !($.G.banner && $.G.banner.text === L.text)) { L.at = $.G.t || 1; sfx.roar(); } // the Bloat's clock3 already said it (its own banner and roar)
+  L.e = m; L.hp = m ? m.hp : 0; L.pt = m ? m.t : 0;
+  L.t = L.at && m && !m.dead ? Math.max(0, L.ml - ($.G.t - L.at)) : 0;
+  if (!L.t) L.at = 0;
 }
 /** an enemy shot's glow radius as a multiple of its drawn core (spec §2.1: <= 1.6) */
 export const EGLOW = 1.6;
@@ -438,7 +548,8 @@ export function drawWorld() {
       x = c.x,
       y = c.y,
       gen = c.ty === METER_CAP,
-      pd = bl ? null : gen ? GEN_CAP : POD[c.ty] || POD[0],
+      ty = bl || gen ? c.ty : podShows(c.ty, !!c.choice || !!c.full), // K0 FIRST: the slot it will give (hudcues.ts)
+      pd = bl ? null : gen ? GEN_CAP : POD[ty] || POD[0],
       col = bl ? '60,140,255' : pd.c,
       hx = bl ? '#2a6cff' : pd.h,
       pul = .5 + .5 * Math.sin(c.t * .2);
@@ -462,10 +573,10 @@ export function drawWorld() {
     ctx.fillStyle = '#fff';
     ctx.fillRect(x - 3, y - 2, 2, 1);
     {
-      let lb = bl ? 'PURGE' : gen ? 'POWER' : SLOTS[c.ty] || '?';
-      if (!bl && !c.choice && $.P && c.ty >= 0 && !slotMaxed(c.ty)) {
-        const nd = needOf(c.ty);
-        if (nd > 1) lb += ' ' + ($.P.frag && $.P.frag[c.ty] || 0) + '/' + nd;
+      let lb = bl ? 'PURGE' : gen ? 'POWER' : SLOTS[ty] || '?';
+      if (!bl && !c.choice && $.P && ty >= 0 && !slotMaxed(ty)) {
+        const nd = needOf(ty);
+        if (nd > 1) lb += ' ' + ($.P.frag && $.P.frag[ty] || 0) + '/' + nd;
       }
       txt(lb, x, y - 15, hx, 'center', 7);
     }
@@ -524,9 +635,10 @@ export function drawWorld() {
     }
   }
   ctx.globalCompositeOperation = 'lighter';
+  let sc0 = null; // r4-perf: sparks come in runs of one colour; a fillStyle string is parsed on every set
   for (const s of sparks) {
     ctx.globalAlpha = s.l / s.ml;
-    ctx.fillStyle = s.c;
+    if (s.c !== sc0) ctx.fillStyle = sc0 = s.c;
     ctx.fillRect(s.x, s.y, 1, 1);
   }
   ctx.globalAlpha = 1;

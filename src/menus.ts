@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { $ } from './state';
+import { goreLite, setGoreMode } from './fx/gorecap';
 import { HULL2_REFUND, SET, UPG, exportSave, importSave, lv, save } from './save';
 import { auInit, sample, setMute, sfx, voiceLive, voiceStopAll, bankWant } from './audio';
 import { I, PR } from './input';
@@ -212,6 +213,15 @@ function optionItems() {
     r: SET.flashes ? 'ON' : 'OFF',
     a: () => {
       SET.flashes = !SET.flashes;
+      save();
+    }
+  }, {
+    // GORE DENSITY (decision 32, fx/gorecap.ts): AUTO is LITE on a phone (the app, a touch-first screen), FULL elsewhere
+    l: 'GORE',
+    r: SET.gore === 'auto' ? 'AUTO (' + (goreLite() ? 'LITE' : 'FULL') + ')' : SET.gore === 'lite' ? 'LITE' : 'FULL',
+    a: () => {
+      SET.gore = SET.gore === 'auto' ? 'full' : SET.gore === 'full' ? 'lite' : 'auto';
+      setGoreMode(SET.gore);
       save();
     }
   }, {

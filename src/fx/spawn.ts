@@ -7,10 +7,11 @@ import { buzz } from '../platform';
 import { boom } from './fxsprites';
 import { GIB_FLESH, GIB_METAL } from './gibcols';
 import { decals, drops, flashes, gibs, mists, sparks, splats, texts } from '../world';
+import { gibCount, goreCaps, goreLite } from './gorecap';
 
 // ---------------- helpers: particles ----------------
 export function drop(x, y, vx, vy, s = 1, c = 0, l = 110) {
-  if (drops.length > 4800) return;
+  if (drops.length > goreCaps().drops) return;
   drops.push({
     x,
     y,
@@ -23,6 +24,8 @@ export function drop(x, y, vx, vy, s = 1, c = 0, l = 110) {
     l
   });
 }
+/** bumped when addDecal drops the oldest decals: render/gore.ts's decal layer repaints (a length check alone can miss it) */
+export const DECAL_CUT = { n: 0 };
 export function addDecal(wx, y, r, side) {
   for (let i = decals.length - 1, n = 0; i >= 0 && n < 40; i--, n++) {
     const d = decals[i];
@@ -38,10 +41,11 @@ export function addDecal(wx, y, r, side) {
     side,
     t: $.T
   });
-  if (decals.length > 1800) decals.splice(0, 240);
+  const dk = goreCaps().decals;
+  if (decals.length > dk) { decals.splice(0, Math.round(dk * 2 / 15)); DECAL_CUT.n++; } // FULL: 1800 / 240, as before
 }
 export function spark(x, y, vx, vy, l, c) {
-  if (sparks.length > 500) return;
+  if (sparks.length > goreCaps().sparks) return;
   sparks.push({
     x,
     y,
@@ -53,7 +57,7 @@ export function spark(x, y, vx, vy, l, c) {
   });
 }
 export function flash(x, y, r, l, c) {
-  if (flashes.length > 140) return;
+  if (flashes.length > goreCaps().flashes) return;
   flashes.push({
     x,
     y,
@@ -76,7 +80,15 @@ export function pop(x, y, s, col = '#e8f1ff', size = 8, l = 50) {
   });
 }
 export function gib(x, y, vx, vy, k, s, o = {}) {
-  if (gibs.length > 720) return null;
+  if (goreLite() && (k === 'rope' || k === 'eye') && gibCount(gibs, k) >= (k === 'rope' ? goreCaps().ropes : goreCaps().eyes)) return null; // LITE: the dear kinds held to a few
+  if (gibs.length > goreCaps().gibs) {
+    if (!goreLite()) return null;
+    // LITE (decision 32): a new kill's gore beats the gib nearest its end (a flyer fading out, or the oldest floor
+    // debris: a stuck gib's life is >= 420, so the floor piles stay; art-director). FULL refuses the new gib, as before
+    let j = -1, jl = Infinity;
+    for (let i = 0; i < gibs.length; i++) if (gibs[i].l < jl) { jl = gibs[i].l; j = i; }
+    gibs[j] = gibs[gibs.length - 1]; gibs.pop();
+  }
   const g = {
     x,
     y,
@@ -148,7 +160,7 @@ export function gib(x, y, vx, vy, k, s, o = {}) {
 }
 /** ov = 1: drawn over the death explosion (render/gore.ts drawGibs) instead of under the enemies */
 export function mist(x, y, r, l, ov = 0) {
-  if (mists.length > 340) return;
+  if (mists.length > goreCaps().mists) return;
   mists.push({
     x,
     y,
