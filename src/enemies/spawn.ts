@@ -615,6 +615,7 @@ function hookClear([bx0, by], shift = 0) {
   return $.P.x + Math.sqrt(Math.max(0, r * r - dy * dy)) - bx;
 }
 export function flayer(y) {
+  if (watcherTurn() && watcher(y)) { watcherSpent(); return; } // D66: this stage's Watcher takes the flayer's place
   mk('flayer', W + 18, y, {
     y0: y,
     tx: rr(W * .55, W * .8),
@@ -696,7 +697,13 @@ export function banner(text, sub, col = '#d4141e', t = 200, warn = false) {
 }
 // the Open Orbit and Gravity Drive approach scripts, remixed per descent, live in enemies/scripts.ts
 export { stageScript } from './scripts';
-export { dolls } from './doll'; // MINI DOLL HEADS: a group of 5 in a bobbing line (enemies/doll.ts)
+import { dolls as dollLine } from './doll';
+/** MINI DOLL HEADS: a group of 5 in a bobbing line (enemies/doll.ts). On a Watcher stage the first eligible line is THE
+ *  WATCHER instead (watcherTurn, D66) */
+export function dolls(y: number, n = 5) {
+  if (watcherTurn() && watcher(y)) { watcherSpent(); return null; }
+  return dollLine(y, n);
+}
 export function runScript() {
   while ($.G.si < $.G.script.length && $.G.script[$.G.si].x <= $.G.scroll) {
     const s = $.G.script[$.G.si++];
@@ -720,7 +727,24 @@ Object.assign(ET, {
   // THE WATCHER (g5): a whole eyeball drifting past, one blink-told orb at a time (enemies/watcher.ts; art render/watcher.ts)
   watcher: { hp: 40, r: 15, gsz: 3.5, score: 3000, bio: 24, eyes: 0, teeth: 0, skull: 0, limbs: 0 },
 });
-export { watcher } from './watcher'; // THE WATCHER's spawner: watcher(y?) -> the enemy, or null with no room
+import { watcher } from './watcher';
+export { watcher }; // THE WATCHER's spawner: watcher(y?) -> the enemy, or null with no room
+/** D66 (Matt 2026-11-25: "a sporadic big ass flying eyeball"): THE WATCHER takes the place of the first flayer or doll
+ *  line of every other stage (stage + loop even: half the stages, deterministic, no R() draw) in Open Orbit and the
+ *  biomes, once a stage, only in open scroll (no midboss, set piece or boss up) and only while no flayer is alive.
+ *  Refused for room, the next flayer or doll line tries again. Never in the Gravity Drive or the interiors */
+export function watcherTurn(): boolean {
+  const G = $.G;
+  if (!g3() || !G || G.boss || G.setp || (G.mini && !G.mini.dead)) return false;
+  const kd = kindOf(G.stage || 0);
+  if (kd !== 'orbit' && kd !== 'biome') return false;
+  const key = (G.loop || 0) * 1000 + (G.stage || 0);
+  if (G.watchAt === key || ((G.stage || 0) + (G.loop || 0)) % 2 !== 0) return false;
+  for (const o of enemies) if (o.k === 'flayer' && !o.dead) return false;
+  return true;
+}
+/** mark this stage's Watcher spent (called from the hook below once one is up) */
+const watcherSpent = () => { const G = $.G; G.watchAt = (G.loop || 0) * 1000 + (G.stage || 0); };
 export function slime(side = 1) {
   const wx = $.G.scroll + W + 16, y = side > 0 ? floorAt(wx) : ceilAt(wx);
   if (y > PH + 4 || y < -4) return;
