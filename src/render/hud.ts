@@ -23,6 +23,7 @@ import { drawEnemy } from '../render/enemies';
 import { drawMawFx } from './gross/maw';
 import { drawBakedDeaths } from './gross/baked';
 import { drawUfoFx } from './gross/mid/ufo';
+import { drawWatcherFx } from './watcher'; // THE WATCHER's death (g5)
 import { drawFork, mobFork } from './fork';
 import { MID_NAMES } from '../enemies/mid/roster';
 import { floorHeld, lurched, podShows, stored } from './hudcues';
@@ -490,6 +491,7 @@ export function drawWorld() {
   drawBoss($.G.boss); // null = the Gravity Drive's aftermath (bile rain, carcass) if it just burst
   drawMawFx(); // src/render/gross/maw.ts: the Maw's pus / vomit / gas / death rupture (render-only particles)
   drawUfoFx(); // src/render/gross/mid/ufo.ts: the Open Orbit midboss's particles and its death (hull burst, tentacle flood)
+  drawWatcherFx(); // src/render/watcher.ts: THE WATCHER's burst (the lens, the limp nerves, the iris still watching)
   drawBakedDeaths(ctx); // src/render/gross/baked.ts: the baked bosses' corpses and their gore
   drawTerrain();
   drawDecor();

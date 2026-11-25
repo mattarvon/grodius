@@ -110,7 +110,8 @@ export const BUL = {
   // W6 tune (N1, N3): the designated shooter is the LEADER (member 0), not the last member: the last one entered
   // 16 px x n behind it and told at 50 f from spawn, so the statue had killed 2 of 3 before they fired (N1 drones 34-41%)
   // --- first attack after spawn (ENC E2; gate N3 <= 30 f from visible): one ri() over the range, as before ---
-  first: { eye: [20, 30], cross: [34, 40], crawler: [20, 28], sentry: [6, 12], slime: [14, 18], mutant: [30, 30], flayer: [20, 28] } as Record<string, [number, number]>,
+  first: { eye: [20, 30], cross: [34, 40], crawler: [20, 28], sentry: [6, 12], slime: [14, 18], mutant: [30, 30], flayer: [20, 28], watcher: [100, 120] } as Record<string, [number, number]>,
+  // (watcher: THE WATCHER, enemies/watcher.ts, waits 20-40 f once fully in, then a 40 f blink tell: a readable event, so it sits outside N3's 30 f on purpose)
   // (W6 tune, N3 / N1: sentry 30-40 -> 6-12, its tell may start as it glides in; crawler 30-40 -> 20-28; slime 30 -> 14-18, its rear-up may start fully on screen; flayer added. N3 read sentry 32 f, flayer 76 f)
   flayIn: .06, //      a long4 flayer closes on its parking x at .06 a frame (short .03), so it is in reach by its first attack (N3)
   flayRetry: 4, //     and an out-of-reach flayer looks again every 4 f (short 20): its first lash tells the frame it can reach

@@ -714,7 +714,10 @@ Object.assign(ET, {
   mutant: { hp: 26, r: 13, gsz: 3, score: 1600, bio: 16, big: 1, half: 1, skull: 1, limbs: 3, eyes: 2, teeth: 6 },
   // the derelict's own defence pods, still on patrol in Open Orbit: a brain in a can, bleeds blood-oil
   sentry: { hp: 6, r: 8, gsz: .8, score: 500, bio: 6, eyes: 1, teeth: 0, skull: 0, limbs: 0 },
+  // THE WATCHER (g5): a whole eyeball drifting past, one blink-told orb at a time (enemies/watcher.ts; art render/watcher.ts)
+  watcher: { hp: 40, r: 15, gsz: 3.5, score: 3000, bio: 24, eyes: 0, teeth: 0, skull: 0, limbs: 0 },
 });
+export { watcher } from './watcher'; // THE WATCHER's spawner: watcher(y?) -> the enemy, or null with no room
 export function slime(side = 1) {
   const wx = $.G.scroll + W + 16, y = side > 0 ? floorAt(wx) : ceilAt(wx);
   if (y > PH + 4 || y < -4) return;

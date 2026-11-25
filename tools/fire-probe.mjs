@@ -12,12 +12,12 @@ const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 await p.addInitScript(() => { let s = 1234567, now = 0; window.__seed = (v) => { s = v; }; Math.random = () => { s |= 0; s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; performance.now = () => now; window.AudioContext = window.webkitAudioContext = undefined; window.requestAnimationFrame = () => 1; window.setTimeout = () => 0; window.speechSynthesis = undefined; try { localStorage.clear(); } catch (e) {} });
 await p.goto(url); await p.waitForFunction(() => window.__started, null, { timeout: 20000 });
 await useLayout(p, 'fire-probe');
-const KINDS = ['eye', 'cross', 'flayer', 'slime', 'mutant', 'sentry', 'womb'];
+const KINDS = ['eye', 'cross', 'flayer', 'slime', 'mutant', 'sentry', 'womb', 'watcher'];
 const res = await p.evaluate(async ([N, KINDS]) => {
   const S = await import('/src/state.ts'), W = await import('/src/world.ts'), ST = await import('/src/step.ts'), F = await import('/src/flow.ts');
   const SP = await import('/src/enemies/spawn.ts'), C = await import('/src/core.ts');
   const $ = S.$; $.gate = false; const out = {};
-  const spawn = { eye: () => SP.eyeT(1), cross: () => SP.crossT(1), flayer: () => SP.flayer(C.PH / 2), slime: () => SP.slime(1), mutant: () => SP.mutant(), sentry: () => SP.sentry(C.PH / 2, C.W * .7), womb: () => SP.womb() };
+  const spawn = { eye: () => SP.eyeT(1), cross: () => SP.crossT(1), flayer: () => SP.flayer(C.PH / 2), slime: () => SP.slime(1), mutant: () => SP.mutant(), sentry: () => SP.sentry(C.PH / 2, C.W * .7), womb: () => SP.womb(), watcher: () => SP.watcher && SP.watcher(C.PH / 2) };
   for (const k of KINDS) for (const loop of [0, 1, 2]) {
     let n = 0, miss = 0; window.__seed(1234567); // same stream for every kind x descent: Descent 1 rows compare exactly
     for (let t = 0; t < N; t++) {

@@ -22,6 +22,7 @@ export const COOL = {
   slime: { base: 170, step: 20, floor: 100 }, //  snot lob, after its 32f rear-up (+0-50)
   mutant: { base: 190, step: 25, floor: 120 }, // 3/5 lobbed chunks, after its 44f groan (+0-50)
   sentry: { base: 130, step: 20, floor: 80 }, //  gap between its two aimed bursts (+0-30)
+  watcher: { base: 180, step: 15, floor: 140 }, // THE WATCHER's one aimed orb, after its 40f blink (+0-30): a rare readable event, not pressure
 };
 /** kind k's authored curve at the current descent, before the global depth step */
 export const curve = (k) => { const c = COOL[k]; return Math.max(c.floor, c.base - c.step * ($.G.loop || 0)); };

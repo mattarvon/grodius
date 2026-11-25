@@ -35,7 +35,7 @@ vi.mock('../../src/render/biomeart', () => ({
 }));
 vi.mock('../../src/enemies/spawn', () => {
   const noop = () => {};
-  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'edgeWave', 'logLine', 'maw', 'womb', 'crux', 'mutant', 'slime'];
+  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'edgeWave', 'logLine', 'maw', 'womb', 'crux', 'mutant', 'slime', 'watcher'];
   return {
     ...Object.fromEntries(k.map((n) => [n, noop])),
     // the real miniWarn: a WARNING banner now, the spawn 150 f later (enemies/spawn.ts)

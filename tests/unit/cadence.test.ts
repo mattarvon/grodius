@@ -13,6 +13,7 @@ const LEGACY = {
   slime: (L: number, r: number) => Math.round((Math.max(100, 170 - L * 20) + r) * cdm()),
   mutant: (L: number, r: number) => Math.round((Math.max(120, 190 - L * 25) + r) * cdm()),
   sentry: (L: number, r: number) => Math.round((Math.max(80, 130 - L * 20) + r) * cdm()),
+  watcher: (L: number, r: number) => Math.round((Math.max(140, 180 - L * 15) + r) * cdm()), // g5: THE WATCHER, new (no pre-M2 curve)
 };
 
 describe('coolFor', () => {
@@ -60,7 +61,8 @@ describe('revengeN', () => {
 // Wiring guard: the helpers are only correct if the enemies use them. Reads the source, so a reverted or
 // hand-edited cooldown line fails here even when every other gate is green.
 describe('enemy cooldown wiring', () => {
-  const src = readFileSync(new URL('../../src/enemies/update.ts', import.meta.url), 'utf8');
+  // update.ts, plus the kinds that live in their own file (g5: THE WATCHER, enemies/watcher.ts)
+  const src = ['update.ts', 'watcher.ts'].map((f) => readFileSync(new URL('../../src/enemies/' + f, import.meta.url), 'utf8')).join('\n');
   const coolLines = src.split('\n').filter((l) => /\be\.cool\s*=/.test(l) && !/e\.cool\s*=\s*0\b/.test(l));
 
   it('routes every authored-curve kind through coolFor', () => {

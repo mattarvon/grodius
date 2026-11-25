@@ -35,6 +35,7 @@ import { eliteKill, eliteTick } from './elite';
 import { corpseKilled } from './corpsevoice';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
 import { NOTICE, flayerTx } from '../notice';
+import { killWatcher, updWatcher } from './watcher'; // THE WATCHER (g5)
 
 /** seconds from a midboss's death to its spoken kill word: the roar (sfx.roar) gets the first beat */
 export const KILL_WORD_AT = .45;
@@ -115,6 +116,7 @@ export function updEnemy(e) {
   const ss = $.G.scrollSpeed;
   switch (e.k) {
     case 'slime': case 'mutant': case 'sentry': updNew(e, ss); break; // new enemies, at the end of this file
+    case 'watcher': updWatcher(e); break; // THE WATCHER (enemies/watcher.ts)
     case 'drone':
       {
         if (e.pat === 'sine') {
@@ -807,7 +809,8 @@ export const mult = () => 1 + Math.min(4, $.G.combo * .05);
 export function killEnemy(e, dir = 1) {
   e.dead = true;
   if (e.elite) eliteKill(e);
-  gore(e.x, e.y, e.gsz, {
+  if (e.k === 'watcher') killWatcher(e, dir); // THE WATCHER bursts its own way (enemies/watcher.ts), not the generic gore
+  else gore(e.x, e.y, e.gsz, {
     dir,
     eyes: e.eyes || 0,
     teeth: e.teeth || 0,

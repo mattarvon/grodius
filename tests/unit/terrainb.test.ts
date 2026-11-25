@@ -23,7 +23,7 @@ vi.mock('../../src/enemies/elite', () => ({ eliteChance: () => 0, eliteRoll: () 
 vi.mock('../../src/stages', () => ({ startStage: () => {} }));
 vi.mock('../../src/render/biomeart', () => ({ biomePat: () => {}, biomeTerrainFill: () => {}, biomeEdge: () => {}, drawBiomeBG: () => {}, drawBiomeDecor: () => {}, splatCols: () => {}, biomeDark: () => 1, biomeMist: () => null, drawFX: () => {} }));
 vi.mock('../../src/enemies/spawn', () => {
-  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'edgeWave', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime'];
+  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'edgeWave', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime', 'watcher'];
   return Object.fromEntries(k.map((n) => [n, (...a: unknown[]) => { spawned.push([n, ...a]); }]));
 });
 
