@@ -26,7 +26,8 @@ import { jumpBlob } from './jump';
 import { ECON, econId, kitOf } from './economy';
 import { row } from './layout';
 import { graftDeath } from './mutations';
-import { SHIPS, SURV, deathTier, hardOn, keptLoadout, newRecovery } from './death';
+import { RECOVERY, SHIPS, SURV, deathTier, hardOn, keptLoadout, newRecovery, r2Pods } from './death';
+import { TIER, tierG } from './tier';
 
 // ---------------- game flow ----------------
 export const LOG_START = ['CHARON-7 // RESCUE TUG // NEPTUNE ORBIT', 'TARGET: THE MERIDIAN. LOST 7 YEARS. BACK 9 DAYS.', 'ITS GRAVITY DRIVE IS STILL RUNNING.'];
@@ -279,11 +280,12 @@ export function deathCost(G, wiped = false, rigWas = false) {
     // a graft pod still on screen would hand the lost level straight back (economy-designer): every pending graft pod
     // goes, in place too, and its counter rewinds with the rest (death.ts graftRewind, wiped)
     for (const c of caps) if (c.graft) c.purged = 1;
-    const g = graftDeath(G, true), scar = deathTier(G).scar ? perkScar(G) : null, rig = rigWas || ((G.loop | 0) === 0 && rigLive(G).length > 0);
+    // r4 pressure: Very Hard's scar eats a second level (tier.ts TIER.scarN), after the first, by the same rule
+    const g = graftDeath(G, true), scar = deathTier(G).scar ? perkScar(G) : null, scar2 = scar && TIER.scarN[tierG(G)] > 1 ? perkScar(G) : null, rig = rigWas || ((G.loop | 0) === 0 && rigLive(G).length > 0);
     if ((G.loop | 0) === 0) { G.rigOff = 1; G.rigOffC = G.cleared | 0; } // Decision 4A: offline until the next clear
     G.rigHit = rig ? 1 : 0; // a restart's second deathCost still names the rig it took
     // ux / loc: short parts, one banner; the recovery call-out follows it (feedAfter), it is never appended
-    const lost = [g && 'GRAFTS -1', scar && perkName(scar) + ' -1', rig && 'CONTRAPTION OFF TILL NEXT CLEAR'].filter(Boolean); // <= 70 chars (loc)
+    const lost = [g && 'GRAFTS -1', scar && (scar2 && scar2 !== scar ? 'PERKS -2' : perkName(scar) + (scar2 ? ' -2' : ' -1')), rig && 'CONTRAPTION OFF TILL NEXT CLEAR'].filter(Boolean); // <= 70 chars (loc)
     if (lost.length) G.feed = { s: g && !scar && !rig ? 'YOUR GRAFTS WITHER' : 'THE DEATH TOOK ITS PRICE', d: lost.join(' // '), t: wiped ? 150 : 210, ml: wiped ? 150 : 210 };
     return;
   }
@@ -375,6 +377,10 @@ function queueRecovery(P0) {
   G.dk = kitOf(P0); // decision 22: the kit this ship died with; the variable faucet runs at ECON rebuild until it is back (economy.ts rebuildMul). Not saved: G.recovery isn't either
   // C17's shape on Normal and up; Easy's R1 returns the exact slot its gradual strip took (Matt's decision 10, death.ts r1Pods)
   G.recovery = newRecovery(P0, bb, { gradual: deathTier(G).refund, untilWarn: r ? (r.warnX ?? r.bossX) - G.scroll : null });
+  // r4 pressure, the checkpoint's cost by tier (tier.ts TIER.r2): Hard's R2 flies its WRAITH pods without the WARD pod,
+  // Very Hard flies no R2 (R1's three pods, then the faucet). Easy's refund and Normal's R2 are untouched. No R()
+  const r2 = TIER.r2[tierG(G)];
+  if (r2 < 2 && !deathTier(G).refund) { const n1 = G.recovery.length - (r2Pods(false, RECOVERY.r2Ward).length); G.recovery = G.recovery.filter((q, i) => i < n1 || (r2 === 1 && q.pods[0].ty !== 6)); }
   // ux: its own banner, after the death's (feedAfter), still up before R1 lands at 3 s
   // Easy's refund names what returns (ux-designer): its pods are all FULL, whatever BLACK BOX says
   const rf = deathTier(G).refund && G.recovery[0] && G.recovery[0].pods[0].full ? ['THRUST', 'MISSILE', 'SPLIT', 'ARC', 'PYRE', 'WRAITH', 'WARD'][G.recovery[0].pods[0].ty] : null; // player.ts SLOTS (no import: player.ts imports this module)

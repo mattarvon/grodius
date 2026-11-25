@@ -117,6 +117,12 @@ const KITS = [
   ['LEGAL MAX D1 ARC+PYRE1', { speed: 3, pyre: 1, laser: 1, options: 2, wardLv: 2 }, { cal: 1, serr: 1, rapid: 1 }, { dmg: 2, rof: 2, crit: 2, volatile: 1, teeth: 1 }],
   ['respawn END D1 (spec, scar MARROW)', { speed: 1 }, {}, { dmg: 1, rof: 1, crit: 2 }],
   ['respawn END D1 (spec, scar TWITCH)', { speed: 1 }, {}, { dmg: 2, rof: 0, crit: 2 }],
+  // r4 (E5 "today's strip"): END D1 put through the game's OWN death, flow.ts killPlayer + respawn (deathCost: grafts -1 with
+  // their counters, perkScar, the tier's strip; keptLoadout), so E5 reads what a respawn really holds, not a hand-typed kit.
+  // The row above it, 'respawn (END D1 perks+grafts)', is the pre-rebuild strip (grafts and perks kept) and is no longer the game
+  ['respawn END D1 (game death)', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2 }, { cal: 1, rapid: 1 }, { dmg: 2, rof: 1, crit: 2 }, 1],
+  // ...and on Very Hard (tier.ts TIER.scarN 2: the scar eats two levels; economy-designer)
+  ['respawn END D1 (game death, VH)', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2 }, { cal: 1, rapid: 1 }, { dmg: 2, rof: 1, crit: 2 }, 3],
 ];
 const TTK = [ // [kind, stage ordinal, kit, main-branch HP (systems audit §2)]
   ['drone', 0, 'bare', 1], ['drone', 3, 'END D1', 1.4], ['eye', 1, 'STAGE 1 kit', 7.9], ['eye', 3, 'END D1', 9.7], ['flayer', 3, 'END D1', 22.3], ['mutant', 3, 'END D1', 36.2],
@@ -148,7 +154,8 @@ const kr = await p.evaluate(async ([KITS, TTK, FR, terrain, AF]) => {
     }
     return dmg / FR * 60; };
   const kits = {};
-  for (const [name, pw, gm, pk] of KITS) { fit(pw, gm, pk); const r = { WALL: dps('WALL') }; fit(pw, gm, pk); r.ONE = dps('ONE');
+  const die = (t) => { const t0 = $.G.tier; if (t === 3) $.G.tier = 3; $.G.lives = Math.max(1, $.G.lives | 0); $.G.pkOrder = Object.keys($.G.pk); F.killPlayer(); const j = $.G.jump; $.G.jump = 1; F.respawn(); $.G.jump = j; $.G.recovery = []; /* in place: a checkpoint restore would load the bare stage-start save the rig never wrote its kit into */ W.caps.length = 0; Object.assign($.P, { alive: true, inv: 0 }); $.G.tier = t0; };
+  for (const [name, pw, gm, pk, dead] of KITS) { fit(pw, gm, pk); if (dead) die(dead); const r = { WALL: dps('WALL') }; fit(pw, gm, pk); if (dead) { die(dead); r.held = { P: { speed: $.P.speed, missile: $.P.missile, double: $.P.double, options: $.P.options, wardLv: $.P.wardLv }, gm: { ...$.G.gm }, pk: { ...$.G.pk } }; } r.ONE = dps('ONE');
     r.pow = +POW.powerBudget().toFixed(2); r.rank = RK && RK.rank ? (() => { try { return RK.rank($); } catch (e) { return 'n/a'; } })() : 'n/a'; kits[name] = r; }
   const ttk = [];
   for (const [k, ord, kit, main] of TTK) { const K = KITS.find((x) => x[0] === kit); fit(K[1], K[2], K[3]);
@@ -164,7 +171,9 @@ for (const [n, r] of Object.entries(kr.kits)) console.log(n.padEnd(36), r.ONE.to
 { const lm = Object.entries(kr.kits).filter(([n]) => n.startsWith('LEGAL MAX')), one = Math.max(...lm.map(([, r]) => r.ONE)), wall = Math.max(...lm.map(([, r]) => r.WALL));
   const rs = Object.entries(kr.kits).filter(([n]) => n.includes('(spec')), rone = Math.max(...rs.map(([, r]) => r.ONE)), end = kr.kits['END D1'].ONE;
   console.log(`E4 LEGAL MAX D1 (strongest variant): ONE ${one.toFixed(1)} (<= 50: ${one <= 50 ? 'PASS' : 'FAIL'}), WALL ${wall.toFixed(1)} (<= 105: ${wall <= 105 ? 'PASS' : 'FAIL'})`);
-  console.log(`E5 respawn at END D1 (spec, stronger scar): ONE ${rone.toFixed(1)} = ${(rone / end).toFixed(2)} x END D1 (<= .32: ${rone / end <= .32 ? 'PASS' : 'FAIL'})`); }
+  console.log(`E5 respawn at END D1 (spec, stronger scar): ONE ${rone.toFixed(1)} = ${(rone / end).toFixed(2)} x END D1 (<= .32: ${rone / end <= .32 ? 'PASS' : 'FAIL'})`);
+  const gv = kr.kits['respawn END D1 (game death, VH)']; if (gv) console.log(`E5 (Very Hard, two-level scar): ONE ${gv.ONE.toFixed(1)} = ${(gv.ONE / end).toFixed(2)} x END D1; holds ${JSON.stringify(gv.held)}`);
+  const gd = kr.kits['respawn END D1 (game death)']; if (gd) console.log(`E5 respawn at END D1 (the game's own death, flow.ts killPlayer + respawn): ONE ${gd.ONE.toFixed(1)} = ${(gd.ONE / end).toFixed(2)} x END D1 (<= .32: ${gd.ONE / end <= .32 ? 'PASS' : 'FAIL'}); holds ${JSON.stringify(gd.held)}`); }
 console.log('\nTTK rig (real mk() HP at the kit\'s power; bolts = HP / main bolt; s = HP / ONE dps; vsMain = HP / main-branch HP):');
 for (const t of kr.ttk) console.log(`  ${t.k.padEnd(7)} stage ${t.ord}  ${t.kit.padEnd(36)} hp ${String(t.hp).padStart(6)}  bolt ${String(t.bolt).padStart(5)}  bolts ${String(t.bolts).padStart(3)}  ${String(t.s).padStart(5)} s  vsMain ${t.vsMain}`);
 { const dr = kr.ttk.filter((t) => t.k === 'drone'), mid = kr.ttk.filter((t) => t.k !== 'drone');

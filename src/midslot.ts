@@ -66,7 +66,8 @@ export const MID_HP_G3: Readonly<Record<string, number>> = {
   cyst: 155, //    [FIT] r3: 210 ran 13.1 s once the Womb's bob is fitted above the merged acid floor (cyst.ts: buried, the ship's ground
   //               missiles crawled into it); 155 runs ~10.5 s with the bob refitted into the band. W6 tune-tf: 156 ran 7.7 s on the merged build (8-11); 192 ran 8.8 s with its first half a frame short of its second attack (K1), 220 ran 10.6. ET 135 ran 8.9 s before W0: inside the band, but its phase 1 was too short for its slow moves to reach every spot (K1)
   brood: 120, //   [FIT] ET 105 ran 8.9 s: as the Womb (K1)
-  prentice: 180, // MID_HP's D61 value (9.8 s on this build)
+  prentice: 172, // [FIT] r4: 180 (MID_HP's D61 value) ran 11.2 / 11.3 s at the STAGE 1 kit on g3-tune3 (8-11: the faucet's and SPLIT
+  //               flank changes moved the kit's dps); x.955 for ~10.7 s. Before: 9.8 s on the W6 build
 };
 /** the HP table midboss k reads on this layout: MID_HP_G3 on long4's hard set, else MID_HP (both picker-only) */
 export const midHpOf = (k: string): number | undefined => (ECON[econId()].hard && MID_HP_G3[k]) || MID_HP[k];

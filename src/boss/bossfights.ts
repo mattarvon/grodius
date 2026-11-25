@@ -20,6 +20,7 @@ import { hazLeadX } from '../notice';
 import { driveMul } from '../depth';
 import { bulletCap, cadI, cadMul, capRoom, leadL, rank, rho, variantOn } from '../rank';
 import { kindOf } from '../layout';
+import { tempoK } from '../tier';
 import { lobV, phaseAtt, phaseShare } from '../enemies/mid/_fight';
 import { BLOAT, BOSS_HPK, BUTCHER, HAZ_HOOK, MAW, PHASE_F, VOLLEY, combStep, curtainXs, lungeStop, lungeX, steerLane } from './bossrules';
 
@@ -32,6 +33,15 @@ export const rhoOf = () => rho($);
 export const cad = () => cadMul($);
 /** a fight interval n under the rank rule, floored at 18 f (rank.ts cadI) */
 export const iv = (n) => cadI($, n);
+/** r4 pressure: a DENIAL cycle (the Maw's jaw that brings the bite, the Bloat's comb and curtain, the Butcher's meat set,
+ *  the Drive's reach and beam) under the rank rule and the tier's fight tempo (tier.ts TIER.tempo: 1 on Normal). A
+ *  bullet emitter (an orb, a fan, a ring) keeps iv: the tiers move the blows, not the bullet count */
+export const ivD = (n) => Math.max(18, Math.round(cadI($, n) * tempoK()));
+/** the Bloat's comb cycle: ivD, but the tier's tempo never takes it under its tell + stream + 20 f, nor under the rank
+ *  rule's own cycle where that is shorter (systems-designer: at rank 16 on Very Hard, 100 x .65 x .75 = 49 f left 0-5 f
+ *  between one stream and the next tell, against §2.3's guaranteed gap; at rank 16 Normal reads 65 f, ~9 f of gap, and is
+ *  left as it was: min(iv, ...)) */
+export const combCyc = () => { const C = BLOAT.comb; return Math.max(ivD(C.every), Math.min(iv(C.every), C.tell + C.n * combStep(BS()) + 20)); };
 /** a fight's rank-variant is unlocked (rank >= 14, C3) */
 export const variant = () => variantOn($);
 /** the bullet cap of this fight's context (rank.ts capCtx: a stage boss or the Drive 'boss', the Orbit Maw 'setp') */
@@ -143,14 +153,14 @@ export function maw3(e) {
   else e.bw = Math.max(0, (e.bw || 0) - 1 / MAW.blend);
   e.y = e.bw > 0 ? lerp(bob, e.ly, e.bw) : bob;
   // the jaw cycle, x the rank rule; it waits out a bite
-  const J = iv(MAW.jaw);
+  const J = mid ? iv(MAW.jaw) : ivD(MAW.jaw); // r4: the tier tempo moves the stage boss only (the Open Orbit Maw is a held midboss: tier.ts TIER.tempo)
   if (!e.bs) {
     e.jc = (e.jc ?? 0) + 1;
     if (e.jc >= J) {
       e.jc = 0;
       e.jn = (e.jn || 0) + 1;
       const at = e.x > tx - 6 && e.x < tx + 6 && !leaving && e.t < e.leave - MAW.quiet;
-      if (at && e.jn % MAW.biteEvery[h2 ? 1 : 0] === 0) { e.bs = 1; e.bt = 0; e.ly = e.y; e.bw = 1; e.bv = e.stageBoss && variant() ? 1 : 0; sfx.tele(); if (mid) phaseAtt(e, MAW.landBite); } // the half floor counts the bite (r3 K1)
+      if (at && e.jn % (mid ? MAW.biteEveryMid : MAW.biteEvery)[h2 ? 1 : 0] === 0) { e.bs = 1; e.bt = 0; e.ly = e.y; e.bw = 1; e.bv = e.stageBoss && variant() ? 1 : 0; sfx.tele(); if (mid) phaseAtt(e, MAW.landBite); } // the half floor counts the bite (r3 K1)
     }
   }
   // the fan: at the same share of the cycle as today's cycle frame 100 of 130
@@ -168,7 +178,7 @@ export function maw3(e) {
   } }
   // the half-led orb from one of its eyes, in turn (no pick() draw)
   if (e.oc == null) e.oc = MAW.orbFirst;
-  if (e.x < W - 20 && !e.bs && due(e, 'oc', 1, iv(MAW.orbEvery))) { // no orb through a bite: the lane is the read
+  if (e.x < W - 20 && !e.bs && due(e, 'oc', 1, iv(mid ? MAW.orbMid : MAW.orbEvery))) { // no orb through a bite: the lane is the read
     const ep = e.eyesP[(e.on = ((e.on || 0) + 1) % e.eyesP.length)], ex = e.x + Math.cos(ep.a + Math.PI) * ep.r, ey = e.y + Math.sin(ep.a) * ep.r;
     eshoot(ex, ey, leadA(ex, ey, MAW.orbV), MAW.orbV);
   }
@@ -218,13 +228,13 @@ export function crux3(e) {
   // In practice only the second half: the combs count while the bars make the core immune, so the first half's is met by then
   if (e.shielded) {
     // the comb: tc counts down to the stream; the render glows the emitters for its last C.tell frames
-    e.tc = (e.tc ?? iv(C.every)) - 1;
+    e.tc = (e.tc ?? combCyc()) - 1;
     if (e.tc <= 0 && !e.cs) {
       e.cn = (e.cn || 0) + 1;
       e.cl = e.cln || C.lanes; e.cs0 = 0;
       e.cln = variant() && e.cn % 2 === 1 ? C.lanesVar : C.lanes; // the next comb's lanes, known through its tell (render)
       e.cs = e.cl === C.lanesVar ? C.nVar : C.n; e.cst = 0;
-      e.tc = iv(C.every);
+      e.tc = combCyc();
       phaseAtt(e, BLOAT.land.comb);
     }
     if (e.cs && --e.cst <= 0) {
@@ -243,7 +253,7 @@ export function crux3(e) {
   // the core is bared: the icicle curtain, one ring, the globs
   e.ti = e.ti ?? BLOAT.ice.first;
   if (--e.ti <= 0) {
-    e.ti = iv(BLOAT.ice.every);
+    e.ti = ivD(BLOAT.ice.every);
     e.fi = e.t;
     const P = $.P;
     if (P.alive && HAZ_HOOK.drop) {
@@ -293,7 +303,7 @@ export function meat3(e) {
     }
     if (f >= M.drop + M.life + M.reel) e.mh = null;
   }
-  if (e.mc >= Math.max(end + 60, iv(M.every))) e.mc = -1;
+  if (e.mc >= Math.max(end + 60, ivD(M.every))) e.mc = -1;
 }
 /** haul any meat hooks up at once (the Butcher retreats or dies) */
 export function reelMeat(e) {

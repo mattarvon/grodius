@@ -185,3 +185,43 @@ describe('pilot: the Womb eruption is read from its boil, not from the pool cloc
     expect(win.__pilotLog.now.column).toBeGreaterThan(0);
   });
 });
+
+describe('pilot r4: the stage-boss Maw bite runs to its locked stop (bossfights.ts bite, lungeStop), not W x .35', () => {
+  it('a ship left of x 168 in the locked lane steers out of it', async () => {
+    const BRL = await import('../../src/boss/bossrules');
+    win.__BRL = BRL;
+    const P = { x: 90, y: 120, speed: 2, alive: true, inv: 0 };
+    // the lunge is under way down the ship's lane, its stop locked 16 px past the ship (W6 MAW.past): the round-3 model ran
+    // it only to x 168, so this ship read as safe and held its lane
+    const e: any = { k: 'maw', x: 260, y: 120, r: 20, hp: 10, max: 20, bs: 2, bt: 5, bx0: 290, ly: 120, lsx: BRL.lungeStop(P.x, W) };
+    step(game(P, [e], { mini: e }), 90, 120);
+    expect(P.y).not.toBe(120);
+  });
+});
+
+describe('pilot r4 decision 29: the human profile (PILOT_HUMAN), measure-only', () => {
+  it('does not see a shot until ~react frames old, and holds each correction for `plan` frames', async () => {
+    const { PILOT_HUMAN: H } = await import('../../tools/pilot.mjs');
+    win.__pilotHuman = { seed: 3 };
+    const P = { x: 100, y: 120, speed: 0, alive: true, inv: 0 };
+    win.__W.eshots = [{ x: 140, y: 120, vx: -2, vy: 0, r: 2, k: 'orb', t: 1 }];
+    step(game(P, []), 100, 120);
+    expect(Math.hypot(P.x - 100, P.y - 120)).toBeLessThan(1.5 * 1.25); // unseen: at most one noisy frame of drift toward the jittered aim
+    const x1 = P.x, y1 = P.y, x0 = 100, y0 = 120;
+    win.__W.eshots[0].t = H.react + H.jitHi + 1; // old enough now, but the hand is still in its correction
+    step(game(P, []), 100, 120);
+    expect([P.x - x1, P.y - y1].map((v) => Math.round(v * 1e6))).toEqual([x1 - x0, y1 - y0].map((v) => Math.round(v * 1e6)));
+  });
+});
+
+describe('pilot r4 decision 29: a correction is broken off for a seen threat closing within PILOT_HUMAN.brk', () => {
+  it('re-plans inside a hold when an old-enough shot is near and closing, and counts the break', async () => {
+    const { PILOT_HUMAN: H } = await import('../../tools/pilot.mjs');
+    win.__pilotHuman = { seed: 5 };
+    const P = { x: 100, y: 120, speed: 0, alive: true, inv: 0 };
+    step(game(P, []), 100, 120); // the first plan starts a hold
+    win.__W.eshots = [{ x: 100 + H.brk - 10, y: P.y, vx: -2, vy: 0, r: 2, k: 'orb', t: H.react + H.jitHi + 1 }];
+    step(game(P, []), 100, 120);
+    expect(win.__pilotLog.hbrk).toBe(1);
+  });
+});

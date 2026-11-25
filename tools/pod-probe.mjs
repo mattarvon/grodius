@@ -108,6 +108,10 @@ const b = await chromium.launch(); const p = await b.newPage({ viewport: { width
 const errs = []; p.on('pageerror', (e) => errs.push(e.message));
 if (PIL) await p.addInitScript(PILOT);
 if (PIL && REACT != null) await p.addInitScript((r) => { window.__pilotReact = r; }, +REACT);
+// r4 decision 29: --human flies the pilot's HUMAN profile (tools/pilot.mjs PILOT_HUMAN: reaction, tell latency, intermittent
+// correction, motor noise, overshoot), seeded with the run's seed on the pilot's own PRNG (no sim R()). Measure-only
+const HUMAN = process.argv.includes('--human');
+if (PIL && HUMAN) await p.addInitScript((sd) => { window.__pilotHuman = { seed: sd }; }, +process.argv[3] || 1);
 await p.addInitScript(pageLib);
 if (process.argv.includes('--open-trace')) await p.addInitScript(() => { window.__otr = 1; }); // openG[].tr: the biome openers every 6 f (measure-only)
 await p.addInitScript(hostGuard); // W6 round 3: the host's blur / visibility / gamepad can't pause or steer a probe page (tools/host-guard.mjs; four runs paused at the same second mid-batch)
@@ -305,7 +309,7 @@ const shieldHits = Object.values(fin.hitLog).reduce((a, n) => a + n, 0);
 const deathSrc = fin.deaths.reduce((a, d) => ((a[d.src || 'other'] = (a[d.src || 'other'] || 0) + 1), a), {});
 console.log(JSON.stringify({ seed: +SEED, layout: LAYOUT, firstPod_s: first ? +(first.f / 60).toFixed(2) : null, firstPodKind: first && first.kind,
   podTimes_s: podsOnly.slice(0, 12).map((x) => +(x.f / 60).toFixed(1)), kinds: fin.pods.reduce((a, x) => ((a[x.kind] = (a[x.kind] || 0) + 1), a), {}),
-  mortal: MORTAL, rebuild: RB, park: PARK, drift: DRIFT, hull: HULL, kit: KIT, rig: RIGS, react: PIL ? +(REACT ?? 0) : null, tierAsked: TIER, tier: fin.tier, brutal: fin.brutal, mods: MODS,
+  mortal: MORTAL, rebuild: RB, park: PARK, drift: DRIFT, hull: HULL, kit: KIT, rig: RIGS, react: PIL ? +(REACT ?? 0) : null, human: PIL && HUMAN ? 1 : 0, tierAsked: TIER, tier: fin.tier, brutal: fin.brutal, mods: MODS,
   deaths: fin.deaths, deathSrc, hitLog: fin.hitLog, shieldHits, slack: shieldHits + fin.deaths.length, recovery: fin.rsp, revenge: fin.rev,
   botStuck: fin.stuck, k0_s: fin.k0 != null ? +(fin.k0 / 60).toFixed(1) : null, k1_s: fin.k1 != null ? +(fin.k1 / 60).toFixed(1) : null,
   rankTrace: fin.rank.every((r) => r[2] == null) ? null : fin.rank, rankAtStage: fin.rankAt, rankAtDrive: fin.rankDrive, driveKit: fin.driveKit, fights: fin.fights, drops: fin.drops, openG: fin.openG,

@@ -22,6 +22,9 @@ import { RING_V, cad, entered, ev, g3, halfClock, ledger, lurch, opening, ringA,
 const cool = (ph2) => g3() ? cad(ph2 ? 50 : 75) : Math.round((ph2 ? 50 : 75) * (1 - .3 * ($.G.rank || 0)) * cdm());
 /** DIFFICULTY-SPEC §2.3 (W4a), long4 only. Each with its tag and the gate that measures it */
 export const APP = {
+  /** r4 pressure (K2 Apprentice hook >= 30%; decision 25): long4's attack cycle by att % 4, as the short cycle's k (1 the
+   *  lunge, 2 the hook, 0 the spit): lunge, hook, spit, hook. The 1-in-3 hook read 26-29% of the spot hits */
+  cyc: [2, 1, 2, 0] as readonly number[],
   /** the spit: ONE fan at wt spitF (was two, at 24 and 38) of 5 (phase 2: 7) [spec §2.3; B3] */
   spitF: 30, spit: [5, 7] as readonly number[],
   /** the phase-2 ring: 8 every 150 x cadence (was 10 every 120), never two inside the 120 f window [spec §2.3; B3] */
@@ -117,7 +120,7 @@ function updPrentice(e) {
       e.tx = W - 92;
       if (e.wt >= e.cool) {
         e.att++;
-        const k = e.att % 3; // lunge, hook, spit (the lunge only when you are in front of it)
+        const k = G3 ? APP.cyc[e.att % 4] : e.att % 3; // lunge, hook, spit (the lunge only when you are in front of it); long4: lunge, hook, spit, hook (APP.cyc)
         e.st = k === 1 && $.P.x < W - 160 ? 'tel' : k === 2 ? 'htel' : 'spit'; e.wt = 0;
         if (e.st === 'htel') { e.ha = aimA(e.x + DN.hOx, e.y + DN.hOy); e.hd = 0; sfx.tele(); sfx.chain(); }
         else e.st === 'tel' ? sfx.tele() : sfx.chain();

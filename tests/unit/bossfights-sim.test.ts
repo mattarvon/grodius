@@ -315,3 +315,17 @@ describe('W6 hpOnce: a stage boss HP factor, once', () => {
     expect(o.hp).toBe(50);
   });
 });
+
+describe('r4 pressure: the Bloat comb keeps its gap under the tier tempo (bossfights.ts combCyc)', () => {
+  it('at rank 16 on Very Hard the comb comes no sooner than min(rank rule, tell + stream + 20 f); Normal reads the rank rule alone', async () => {
+    const BF = await import('../../src/boss/bossfights'), BR = await import('../../src/boss/bossrules');
+    const C = BR.BLOAT.comb, gap = C.tell + C.n * BR.combStep(1) + 20;
+    $.P = { speed: 3, missile: 2, double: 1, laser: 0, pyre: 0, options: 2, wardLv: 2 } as any;
+    $.G = { ...$.G, tier: 3, stage: 3, loop: 0, gm: {} } as any;
+    expect(BF.ivD(C.every)).toBeLessThan(gap); // the tempo alone would close the gap
+    expect(BF.combCyc()).toBeGreaterThanOrEqual(Math.min(gap, BF.iv(C.every)));
+    expect(BF.combCyc()).toBeGreaterThan(BF.ivD(C.every));
+    $.G.tier = 1;
+    expect(BF.combCyc()).toBe(BF.iv(C.every));
+  });
+});

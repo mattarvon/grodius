@@ -375,9 +375,9 @@ describe('midHpMul (D27 per-kind TTK band)', () => {
   // the Apprentice's ET base HP (enemies/spawn.ts); the real ET is mocked out of this file
   const PRENTICE_ET = 150;
 
-  it('raises the Apprentice from its ET 150 to 180 base HP (D61) on long4', () => {
+  it('raises the Apprentice from its ET 150 to 172 base HP (D61) on long4', () => {
     L.setLayout('long4');
-    try { expect(PRENTICE_ET * midHpMul('prentice', PRENTICE_ET)).toBe(180); } finally { L.setLayout('short'); }
+    try { expect(PRENTICE_ET * midHpMul('prentice', PRENTICE_ET)).toBe(172); } finally { L.setLayout('short'); }
   });
 
   it('leaves every kind at its ET base HP on short, so layout parity holds', () => {

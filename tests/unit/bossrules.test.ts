@@ -85,8 +85,9 @@ describe('THE BURNING BUTCHER: meat hooks', () => {
   });
 });
 
+const W_HUB = 480 - 110 - 12;
 describe('THE GRAVITY DRIVE', () => {
-  it('the reach tells 46 f, locks 16, is out 30 f to 190 px and back in 30', () => {
+  it('the reach tells 46 f, locks 16, is out 30 f to 330 px (r4: the left edge from the hub) and back in 30', () => {
     const R = DRIVE.reach;
     expect(R.tell).toBe(46);
     expect(R.lock).toBe(16);
@@ -94,7 +95,8 @@ describe('THE GRAVITY DRIVE', () => {
     expect(R.back).toBe(30);
     expect(reachPose(1, 0, 110)).toEqual({ len: 110, k: 0 });
     expect(reachPose(1, R.tell, 110)).toEqual({ len: R.coil, k: 1 });
-    expect(reachPose(2, R.ext, 110).len).toBe(190);
+    expect(reachPose(2, R.ext, 110).len).toBe(330);
+    expect(W_HUB - R.len).toBeLessThan(40); // r4 pressure (K2): from the hub at W - 110 (tentBase x - 12) the reach crosses to the left edge
     expect(reachPose(2, R.ext, 110, 120).len).toBe(120); // a pincer stops at its target
     expect(reachPose(3, R.back, 110)).toEqual({ len: 110, k: 0 });
   });

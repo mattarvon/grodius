@@ -91,6 +91,7 @@ import { capGrade, defineBoss } from './registry';
 import { KEEPSAKE_BANNERS, KEEPSAKE_LOG, KEEPSAKE_NAME, KEEPSAKE_READOUT } from '../../voice/keepsake';
 import { ECON, econId } from '../../economy';
 import { CAD_FLOOR, VARIANT_RANK, bulletCap, cadMul, countShots, rank } from '../../rank';
+import { tempoK } from '../../tier';
 import { KB, KR, beamDir, beamSees, capsuleHit, recallBounds, forkCols, fountLattice, homeTouchJ, inWindow, kbArena, keepHurtRot, lineAtX, lobFrames, mobForkTip, mobForkX, mobTouch, mobilePick, pendA, pendXY, phaseClamp, phaseFloor, plantTouch, recallPick, riseCap, rotXY, tiltAt, tiltEdge, TILT0, p3Floor } from './_keepsake';
 
 const SND = {
@@ -171,10 +172,10 @@ function turnHb(e) {
 const hardOn = () => !!ECON[econId()].hard;
 /** the idle between attacks. long4: the one rank rule, KB's idle x rank.ts cadMul (1.25 - .6 rho) x the enrage's .75,
  *  never under CAD_FLOOR (18 f, C2). The depth term (cdm) is not applied there: rank already carries the stage and the
- *  descent. Elsewhere D59's (1 - .3 G.rank) x cdm() x rage */
+ *  descent. r4 pressure: x the tier's fight tempo (tier.ts TIER.tempo, 1 on Normal). Elsewhere D59's (1 - .3 G.rank) x cdm() x rage */
 const cd = (e) => {
   const I = [KB.cool, KB.cool2, KB.cool3][e.ph], rg = e.rage ? KB.rage : 1;
-  return hardOn() ? Math.max(CAD_FLOOR, Math.round(I * cadMul($) * rg)) : Math.round(I * (1 - .3 * ($.G.rank || 0)) * cdm() * rg);
+  return hardOn() ? Math.max(CAD_FLOOR, Math.round(I * cadMul($) * rg * tempoK())) : Math.round(I * (1 - .3 * ($.G.rank || 0)) * cdm() * rg);
 };
 /** the forks the recall needs planted before it calls: KR.recMinHi at rank >= VARIANT_RANK on long4 (C3), else KB's */
 const recMin = () => (hardOn() && rank($) >= VARIANT_RANK ? KR.recMinHi : KB.recMin);
