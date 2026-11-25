@@ -1,20 +1,20 @@
 {
   "frames": 1200,
-  "commit": "50c0758",
+  "commit": "fc91846",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "drive-d1",
-  "q": "stage=drive&x=4530&loop=0&kit=mid&rank=.5&seed=7",
+  "q": "stage=drive&x=4410&loop=0&kit=mid&rank=.5&seed=7",
   "st": {
     "state": "play",
     "score": 600,
-    "scroll": 22698,
+    "scroll": 21968,
     "lives": 1,
     "px": 50,
     "py": 142.03,
     "en": 0,
     "gibs": 29,
-    "drops": 18,
+    "drops": 13,
     "caps": 0,
     "jump": true,
     "stage": 3,
@@ -26,11 +26,11 @@
     "kills": 2,
     "t": 1190,
     "seen": "boss:drive",
-    "sig": "c2046c44f6"
+    "sig": "9097bfc6af"
   },
   "hashes": [
-    "71209cbf5d",
-    "97a27049ff"
+    "6981d20c9b",
+    "2533b8f40d"
   ],
   "errs": []
 }

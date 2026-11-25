@@ -65,23 +65,44 @@ export const SOLID_KILLS = true;
  *  outside the boss fight) at A 66-70% / p10 53-63% and B 56-63% / 43-51% (space-probe seed 1, 4 routes): the cap and
  *  the midboss halving eat ~a third of each inset. +12-14 a side */
 export const INSET: Readonly<Record<string, readonly [number, number]>> = {
-  ice: [34, 46], //  measured 80-82% -> ~65% / ~56% (LVL); flown 67% / 63% at 20 / 32
-  acid: [36, 50], // 82-87%; flown 70% / 62% at 24 / 36
-  fire: [32, 44], // 79-81%; flown 66% / 61% at 18 / 30
+  // [FIT] W6 r4 (L2 flown squeeze A 24.2 s / B 33.7 s, bands 30 / 45): +4 A, +8 B, with biomes.ts oneWall now giving the
+  // inset the needle cap took from the other wall and INSET_MID.pad 200 -> 60. Held screens keep INSET_HELD (px)
+  ice: [38, 54], //  measured 80-82% -> ~65% / ~56% (LVL); flown 67% / 63% at 20 / 32; W6 34 / 46
+  acid: [40, 58], // 82-87%; flown 70% / 62% at 24 / 36; W6 36 / 50
+  fire: [36, 52], // 79-81%; flown 66% / 61% at 18 / 30; W6 32 / 44
   snot: [12, 22], // 60-61%; flown 61% / 56% at 0 / 8
 };
 /** the inset is k x INSET near a midboss fight: k within `pad` px of a breath that holds a midboss (its held screen
  *  runs W px past the breath's end), so the midboss fits and every kind's `bandFit` stay valid. `ramp`: px the k eases
  *  over. Movement C (the boss arena) takes no inset at all: REST and ARENA_GAP are unchanged.
  *  [FIT] k .5 -> .3 with the W6 insets: the held screens keep the inset they were fitted at (~10-12 px a side) */
-export const INSET_MID = { k: .3, pad: 200, ramp: 100 };
+export const INSET_MID = { k: .3, pad: 60, ramp: 100 };
+/** the inset a held midboss's screen keeps, px a side, [slot A, slot B]: W6's k x INSET (k .3 of ice 34/46, acid 36/50,
+ *  fire 32/44, snot 12/22), pinned in px (W6 r4) so INSET can move without moving a fight's walls: every midboss fit,
+ *  bandFit and its K1/K3 numbers were measured on these. biomes.ts midNear eases INSET to this over INSET_MID.ramp */
+export const INSET_HELD: Readonly<Record<string, readonly [number, number]>> = {
+  ice: [10.2, 13.8], acid: [10.8, 15], fire: [9.6, 13.2], snot: [3.6, 6.6],
+};
+export const heldInsetOf = (b: string, s: number) => (INSET_HELD[b] ? INSET_HELD[b][s ? 1 : 0] : 0);
 /** the inset at slot s of biome b; 0 for a biome this table does not list */
 export const insetOf = (b: string, s: number) => (INSET[b] ? INSET[b][s ? 1 : 0] : 0);
 
 /** slot B only, the GULLET (levels.md §5.0): one 600 px narrow in peak A, gap 108-118 with its centre on a sine of
  *  amplitude 24 and period 600 (max slope 2pi x 24 / 600 = .25, S3 holds). `p`: where it starts in the spawn span
  *  (scroll x), `lead`: world x past that scroll x, so the ship (screen x ~150) meets it at p. ~10 s at FH 43-46% */
-export const GULLET = { p: .70, len: 600, gap: [108, 118] as const, amp: 24, period: 600, blend: 100, lead: 150 };
+// [FIT] W6 r4 p .70 -> .68, len 600 -> 930 (L2 slot B 43.9 s flown, band 45, after the L6 stretch cut took ~3.7 s of
+// slot B's scroll): ~15.5 s in the narrow, starting earlier and ending where the 840 px one did (~90 px before the
+// ship meets the run-up, P(.94), at the late gate)
+// Decision 31 (W6 r4, L3 slot B 3.6-4.3 forced moves/min, band 6): the gullet winds. Its lane, `zig.gap` px, holds at
+// PH x .265 and .735 in turn (`w` px each, every `pitch` px) and runs straight between: a shift of 119 px, more than the
+// lane, so no y flies two lanes in a row and a ship anywhere in the throat switches lanes ~3-4 times. Steepest .73 (119 over
+// the 164 px between holds: S3 .75); swept fit 118 - .73 x 21 = 102.7 (S1 100, outside a window); blend 140 (the walls'
+// centre comes ~58 px to a held lane over it: sstep 1.5 x 58 / 160 = .54, with room for the walls' own noise; a blended
+// gap, lerp of ~130 and 118, is still squeeze; the lane holds through both blends). p .68 -> .67 and len 930 -> 1000 give
+// back slot B squeeze (L2) and four lanes (three switches); it ends ~50 px before the ship meets the run-up INVARIANT (game-designer review): it is fair only while lanes[1] - lanes[0]
+// > zig.gap / PH (no shared band), the steepest slope <= .75 (S3, the naked climb) and 118 - slope x 21 >= 100 (S1);
+// terrainb.test pins all three, the blends included. gap / amp / period: the W6 sine's, legacy (unread; sigs.test pins gap)
+export const GULLET = { p: .67, len: 1000, gap: [108, 118] as const, amp: 24, period: 600, blend: 160, lead: 150, zig: { gap: 118, lanes: [.265, .735] as const, pitch: 200, w: 36 } };
 
 /** the LANE WEAVE (W6 tune, L3): the biome corridor's centre steps between two lanes, both walls together (the gap,
  *  so free height and L1, is untouched). Measured before it: 1.2-4.2 forced moves/min (L3 A >= 8, B >= 12): the walls
@@ -95,7 +116,11 @@ export const GULLET = { p: .70, len: 600, gap: [108, 118] as const, amp: 24, per
  *  for its sweep loss (route-probe S1 >= 100). space-probe L3, route-probe L5 */
 export const WEAVE = {
   /** [slot A, slot B]: amp px (half the lane shift), ramp px, hold px. Slot B steps further and more often (L3 12/min) */
-  slot: [{ amp: 22, ramp: 120, hold: 80 }, { amp: 24, ramp: 130, hold: 50 }] as const,
+  // [FIT] W6 r4 (L3 flown A 3.1 / B 4.1, bands 4 / 6; A 4.65 / B 4.45 after the r4 insets): the narrower corridor
+  // (~115-130 px) leaves a ship in the middle ~53-61 px either side, and a .55 weave moves a lane ~41 px inside the 90 f
+  // look-ahead. A holds 80 -> 60 (a step more often); B 28 / 130 / 30 moves ~48 px there and steps every 160 px:
+  // steepest 1.5 x 56 / 130 = .646 (S3 .75: the walls' own noise keeps ~.1; their needles are obstacles, not a lane)
+  slot: [{ amp: 22, ramp: 120, hold: 60 }, { amp: 28, ramp: 130, hold: 30 }] as const,
   /** px the weave fades over at a window, the gullet, a midboss screen or the run-up */
   fade: 100,
   /** the swept fit the weave keeps (the inset's own guard is 108): the weave scales to (fit - keep) / its sweep loss,

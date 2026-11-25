@@ -265,7 +265,7 @@ describe('every layout row: the first entry clears the stage start', () => {
     // long4: the LS1 long4 run's Drive start (11897.916), moved by the D31 stretch before the Drive (+2400 Orbit,
     // +2550 per biome, fitted)
     useLayout('long4');
-    const D31_SHIFT = 2700 + 1950 + 1450; // rev 3: the Orbit's +2700 (W6 tune; +2400 before), then biome A +1950 and biome B +1450
+    const D31_SHIFT = 2700 + 1560 + 1230; // rev 3: the Orbit's +2700 (W6 tune; +2400 before), then biome A +1560 and biome B +1230 (W6 r4, L6)
     expect(entryScroll(3)).toBeGreaterThanOrEqual(11897.916 + D31_SHIFT);
     expect(entryScroll(3) - 11897.916 - D31_SHIFT).toBeLessThan(2);
   });

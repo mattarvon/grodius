@@ -103,7 +103,7 @@ describe('clearStage on the long4 economy (LS1 item G, D26)', () => {
   it('measures each long4 stage in scroll seconds from its row span at 1 px/frame', () => {
     $.G = { stage: 0 };
     // D31 stretch: the long4 row spans (src/layout.ts STRETCH)
-    expect([0, 1, 2, 3].map((i) => stageTs(i))).toEqual([7080 / 60, 5570 / 60, 5200 / 60, 5500 / 60]); // rev 3: biome A -600, biome B -1100, the Drive -300 (STRETCH); W6 tune: the Orbit +300
+    expect([0, 1, 2, 3].map((i) => stageTs(i))).toEqual([7080 / 60, 5180 / 60, 4980 / 60, 5380 / 60]); // W6 r4: biome A -390, biome B -220, the Drive -120 (L6) // rev 3: biome A -600, biome B -1100, the Drive -300 (STRETCH); W6 tune: the Orbit +300
   });
 
   it('grades a clean one-hit Drive S on long4, where the short layout grades it A', () => {

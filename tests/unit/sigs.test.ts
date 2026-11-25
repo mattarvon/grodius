@@ -2,7 +2,7 @@
 // every number, the plan that fits three escalating variations into the D31 band, and the window registry the probes read.
 import { describe, expect, it } from 'vitest';
 import {
-  FURNACE, GRILL, GULLET, HAZ, ICICLE, SIG, SOLID_KILLS, INSET, INSET_MID, MORGUE, PH, SPACE, SWALLOW, TIDE, envelope, grillCols, grillLen,
+  FURNACE, GRILL, GULLET, HAZ, ICICLE, SIG, SOLID_KILLS, INSET, INSET_HELD, INSET_MID, heldInsetOf, MORGUE, PH, SPACE, SWALLOW, TIDE, envelope, grillCols, grillLen,
   hazRankMul, insetOf, laneLoss, morgueLane, SPUR, WEAVE, weaveAt, weaveHold, weaveLoss, planSig, setSigWindows, sigAt, sigCheckpoints, sigWindows, throatInset, tideLen, tideLevel,
 } from '../../src/sigs';
 import { MID_DROP, midsWanted, pickBiomeMids } from '../../src/midpick';
@@ -59,17 +59,19 @@ describe('space rules on the tuning table', () => {
 
 describe('the insets and the gullet', () => {
   it('per biome, per slot: the W6 fitted values (levels.md §5.0 + the measured flown free height)', () => {
-    expect(INSET).toEqual({ ice: [34, 46], acid: [36, 50], fire: [32, 44], snot: [12, 22] });
-    expect(insetOf('ice', 0)).toBe(34); expect(insetOf('acid', 1)).toBe(50); expect(insetOf('nope', 1)).toBe(0);
-    // a held midboss screen keeps about the inset it was fitted at (LVL's .5 x the old values: A <= 12, B <= 18; snot gains
-    // 3.6 / 6.6 px there, qa-lead review)
-    expect(INSET_MID.k).toBe(.3);
-    for (const b of Object.keys(INSET)) { expect(INSET[b][0] * INSET_MID.k).toBeLessThanOrEqual(12); expect(INSET[b][1] * INSET_MID.k).toBeLessThanOrEqual(15); }
+    expect(INSET).toEqual({ ice: [38, 54], acid: [40, 58], fire: [36, 52], snot: [12, 22] });
+    expect(insetOf('ice', 0)).toBe(38); expect(insetOf('acid', 1)).toBe(58); expect(insetOf('nope', 1)).toBe(0);
+    // a held midboss screen keeps the inset it was fitted at, pinned in px (W6 r4): W6's .3 x its INSET (34/46, 36/50,
+    // 32/44, 12/22), so a retune of INSET never moves a fight's walls (A <= 12, B <= 15)
+    expect(INSET_HELD).toEqual({ ice: [10.2, 13.8], acid: [10.8, 15], fire: [9.6, 13.2], snot: [3.6, 6.6] });
+    expect(heldInsetOf('acid', 1)).toBe(15); expect(heldInsetOf('nope', 0)).toBe(0);
+    for (const b of Object.keys(INSET)) { expect(INSET_HELD[b][0]).toBeLessThanOrEqual(12); expect(INSET_HELD[b][1]).toBeLessThanOrEqual(15); expect(INSET_HELD[b][0]).toBeLessThanOrEqual(INSET[b][0]); }
+    expect(INSET_MID.pad).toBe(60); // >= the widest midboss bandFit half width (choir 34) past the held screen
   });
   it('the lane weave: S3 slope <= .75 with room for the walls, a sweep loss the fit guard covers, and a pure profile', () => {
     for (const s of [0, 1]) {
       const V = WEAVE.slot[s];
-      expect(1.5 * 2 * V.amp / V.ramp).toBeLessThanOrEqual([.55, .56][s]); // A .55, B .554 (S3 .75 with the walls' noise and the fade)
+      expect(1.5 * 2 * V.amp / V.ramp).toBeLessThanOrEqual([.55, .65][s]); // A .55, B .646 (W6 r4; S3 .75 with the walls' noise and the fade)
       let m = 0; for (let x = 0; x < 2000; x++) m = Math.max(m, Math.abs(weaveAt(x + 1, 3.7, s) - weaveAt(x, 3.7, s)));
       expect(m).toBeLessThanOrEqual(1.5 * 2 * V.amp / V.ramp + 1e-6);
       for (let x = 0; x < 2000; x += 37) { expect(Math.abs(weaveAt(x, 3.7, s))).toBeLessThanOrEqual(V.amp + 1e-9); expect(weaveAt(x, 3.7, s)).toBe(weaveAt(x, 3.7, s)); }
@@ -85,8 +87,8 @@ describe('the insets and the gullet', () => {
       expect(weaveAt(H.x + H.P / 2, 3.7, s)).toBe(-WEAVE.slot[s].amp); // a -amp hold centre (a floor spur's)
     });
   });
-  it('slot B narrow: 600 px, gap 108-118, never below 108', () => {
-    expect(GULLET.len).toBe(600); expect(GULLET.gap[0]).toBeGreaterThanOrEqual(108); expect(GULLET.gap[1]).toBe(118);
+  it('slot B narrow: 1000 px (W6 r4), gap 108-118, never below 108', () => {
+    expect(GULLET.len).toBe(1000); expect(GULLET.gap[0]).toBeGreaterThanOrEqual(108); expect(GULLET.gap[1]).toBe(118);
   });
 });
 

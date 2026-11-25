@@ -23,7 +23,7 @@ vi.mock('../../src/enemies/elite', () => ({ eliteChance: () => 0, eliteRoll: () 
 vi.mock('../../src/stages', () => ({ startStage: () => {} }));
 vi.mock('../../src/render/biomeart', () => ({ biomePat: () => {}, biomeTerrainFill: () => {}, biomeEdge: () => {}, drawBiomeBG: () => {}, drawBiomeDecor: () => {}, splatCols: () => {}, biomeDark: () => 1, biomeMist: () => null, drawFX: () => {} }));
 vi.mock('../../src/enemies/spawn', () => {
-  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime'];
+  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'edgeWave', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime'];
   return Object.fromEntries(k.map((n) => [n, (...a: unknown[]) => { spawned.push([n, ...a]); }]));
 });
 
@@ -31,6 +31,7 @@ const L = await import('../../src/layout');
 const { BIOMES, SET_KINDS, biomeReset, biomeScript, biomeStage, shapeAt, stagePicks } = await import('../../src/biomes');
 const { CATALOG, drawPicks } = await import('../../src/setdraw');
 const { MOVE, MOVE_HAZ_MIN, MOVES, TIP_W, bandClamp, gimmick, hazInterval, moveAt, moveHazMul, snapVent, ventNear } = await import('../../src/terrainb');
+const { GULLET } = await import('../../src/sigs');
 const { pickSeedOf, seedOf, stream } = await import('../../src/rng');
 /** spec §3.3's floor, written out: not MOVE_GAP, so a change to the constant can't pass its own test */
 const GAP = 108;
@@ -60,10 +61,10 @@ const swept = (x: number) => { let f = 1e9, c = -1e9; for (let u = x - 9; u <= x
 describe('the W6 lane weave and staggered spurs (sigs.ts WEAVE / SPUR, L3)', () => {
   beforeAll(() => L.setLayout('long4'));
   afterAll(() => L.setLayout('short'));
-  // B0 only (every Descent 1 visit; route-probe L5 flies it). A remix's movement B1 (Descent 2+) has S1 holes that predate
-  // W6 (86-99 px at ice B1 slot A 9228 / 9108, ice B1 slot B 14390, fire B1 slot B 14794, snot B1 slot B 14906 with the
-  // weave and spurs off): a terrainb.ts gimmick item, reported, not in this test
-  it.each(KEYS.flatMap((b) => [0, 1].flatMap((seg) => [0].flatMap((mv) => [0, 3].flatMap((loop) => [0, 1].map((late) => ({ b, seg, mv, loop, late })))))))('$b slot $seg B$mv descent $loop gate $late: swept fit >= 100 outside the windows, spurs off both walls', ({ b, seg, mv, loop, late }) => {
+  // B0 (every Descent 1 visit; route-probe L5 flies it) and a remix's movement B1 (Descent 2+): its S1 holes of 86-99 px
+  // (ice B1 slot A 9228 / 9108, ice B1 slot B 14390, fire B1 slot B 14794, snot B1 slot B 14906) are closed by biomes.ts
+  // b1Swept (W6 r4)
+  it.each(KEYS.flatMap((b) => [0, 1].flatMap((seg) => [0, 1].flatMap((mv) => [0, 3].flatMap((loop) => [0, 1].map((late) => ({ b, seg, mv, loop, late })))))))('$b slot $seg B$mv descent $loop gate $late: swept fit >= 100 outside the windows, spurs off both walls', ({ b, seg, mv, loop, late }) => {
     const r = L.slotRow(seg), from = late ? r.gateLate! : r.x0, P = fly(seg, b, from, mv, loop), ws = (($.G as { sigW?: Record<string, { x0: number; x1: number }[]> }).sigW || {})['b' + seg] || [];
     let low = 1e9, at = 0;
     for (let x = from + 320; x < P.runup!; x += 4) if (!ws.some((w) => x >= w.x0 - 12 && x < w.x1 + 9)) { const f = swept(x); if (f < low) { low = f; at = x; } }
@@ -74,6 +75,24 @@ describe('the W6 lane weave and staggered spurs (sigs.ts WEAVE / SPUR, L3)', () 
     for (let x = from + 400; x < P.runup! - 400; x += 4) { const i = Math.floor(x / TS), c = world.CEIL[i], f = world.FLOOR[i], c2 = Math.max(world.CEIL[i - 16], world.CEIL[i + 16]), f2 = Math.min(world.FLOOR[i - 16], world.FLOOR[i + 16]);
       if (c - c2 >= 12) top++; if (f2 - f >= 12) bot++; }
     expect(top, 'ceiling spurs').toBeGreaterThan(0); expect(bot, 'floor spurs').toBeGreaterThan(0);
+  });
+  // the winding gullet (decision 31, W6 r4): its lane holds alternate PH .27 / .73, more than the lane apart (no y flies
+  // two in a row), the lane's centre sloping <= .75 (S3), ~4 lane switches in the throat
+  it.each(KEYS.flatMap((b) => [0, 1].map((mv) => ({ b, mv }))))('$b B$mv: the gullet winds between lanes that share no band', ({ b, mv }) => {
+    const r = L.slotRow(1), from = r.gateLate!, P = fly(1, b, from, mv, 0), x0 = P.P(GULLET.p) + GULLET.lead, Z = GULLET.zig;
+    expect(Z.lanes[1] * 254 - Z.lanes[0] * 254).toBeGreaterThan(Z.gap);
+    const m = (i: number) => (world.CEIL[i] + world.FLOOR[i]) / 2;
+    let holds = 0, last = 0;
+    // the blends too (level-designer review): the walls lerp from movement A into the lane and back
+    for (let x = x0 - 12; x < x0 + GULLET.len + 12; x += 4) expect(swept(x), `fit ${x}`).toBeGreaterThanOrEqual(100);
+    for (let i = Math.floor(x0 / TS); i + 6 <= Math.floor((x0 + GULLET.len) / TS); i++) {
+      // in a blend the centre also carries movement A's walls: the ice teeth and fire spires read over .75 on this
+      // measure anywhere (base included; they are obstacles, not a lane), so the blends' S3 is pinned on the smooth walls
+      const s3 = Math.abs(m(i + 6) - m(i)) / (6 * TS); if (i * TS < x0 + GULLET.blend || i * TS > x0 + GULLET.len - GULLET.blend - 24) { if (b === 'acid' || b === 'snot') expect(s3, `S3 blend ${i * TS}`).toBeLessThanOrEqual(.75); continue; }
+      expect(s3, `S3 ${i * TS}`).toBeLessThanOrEqual(.75);
+      const side = m(i) < 127 - 40 ? -1 : m(i) > 127 + 40 ? 1 : 0; if (side && side !== last) { holds++; last = side; }
+    }
+    expect(holds).toBeGreaterThanOrEqual(4);
   });
   it('rebuilds the woven, spurred walls identically (a resume)', () => {
     for (const b of KEYS) for (const seg of [0, 1]) {
@@ -343,6 +362,8 @@ describe('the catalogue against the game', () => {
           $.G.pend = []; spawned.length = 0;
           e.f(); for (const q of $.G.pend) q.f();
           for (const c of spawned) if (c[0] === 'formation' && (c[4] as { pod?: number } | undefined)?.pod === 1) flagged.push(e.k);
+          // the second opener comes in from an edge (W6 r4, N4): edgeWave(pat, n, o), slot A drops, slot B rises
+          for (const c of spawned) if (c[0] === 'edgeWave' && (c[3] as { pod?: number; open?: number } | undefined)?.pod === 1) { flagged.push(e.k); expect(c[1]).toBe(seg ? 'rise' : 'drop'); expect((c[3] as { open?: number }).open).toBe(1); }
         }
         // DIFFICULTY-SPEC §2.2: long4's two authored opening carriers (src/biomes.ts OPEN_PODS, p .05 / .20) drop too
         expect(flagged.sort(), `${b} slot ${seg}`).toEqual(['pod', 'pod:open', 'pod:open']);

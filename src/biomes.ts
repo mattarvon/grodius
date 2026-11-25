@@ -26,11 +26,11 @@ import { driftOf, whenNoMini } from './midslot';
 import { MID_NAMES, ROSTER } from './enemies/mid/roster';
 import { midForce, midsWip } from './lab';
 import { drawPicks } from './setdraw';
-import { MOVE, MOVES, bandClamp, gimmick, hazInterval, moveAt, narrowNear, snapVent } from './terrainb';
+import { MOVE, MOVES, MOVE_GAP, bandClamp, gimmick, hazInterval, moveAt, narrowNear, snapVent } from './terrainb';
 import { BOSS_SIM, bossFor } from './enemies/boss/registry';
 import { hazAimed, hazLeadX } from './notice';
 import { ECON, econId, noticeOf } from './economy';
-import { FURNACE, GRILL, GULLET, ICICLE, INSET_MID, MORGUE, SPACE, SWALLOW, TIDE, SPUR, WEAVE, envelope, grillCols, hazRankMul, insetOf, morgueLane, planSig, setSigWindows, tideLen, weaveAt, weaveHold, weaveLoss } from './sigs';
+import { FURNACE, GRILL, GULLET, ICICLE, INSET_MID, MORGUE, SPACE, heldInsetOf, SWALLOW, TIDE, SPUR, WEAVE, envelope, grillCols, hazRankMul, insetOf, morgueLane, planSig, setSigWindows, tideLen, weaveAt, weaveHold, weaveLoss } from './sigs';
 import { srr } from './srnd';
 import { rho } from './rank';
 import { HAZ_HOOK } from './boss/bossrules'; // the boss hazard drop (W4b)
@@ -194,12 +194,16 @@ function gulletAt(seg, from) {
   const x0 = beatPlan(slotRow(seg), from, false).P(GULLET.p) + GULLET.lead;
   return { x0, x1: x0 + GULLET.len };
 }
-/** the gullet's edges at world x: gap 108-118 around the biome's resting centre (smooth: the walls' own noise would
- *  break the swept fit) swinging +-amp on its period, blended in at both ends (a lerp of two >= 108 gaps stays >= 108) */
+/** the gullet's edges at world x (decision 31, W6 r4: the winding throat): a `zig.gap` px lane whose centre holds at
+ *  PH x lanes[0], then lanes[1], ... for `zig.w` px every `zig.pitch` px and runs straight between them (smooth: the walls'
+ *  own noise would break the swept fit), blended in at both ends (a lerp of two >= 108 column gaps stays >= 108) */
 function gullet(g, x, b, ce, fl) {
-  const G = GULLET, k = envelope(x, g.x0, g.x1, G.blend), u = (x - g.x0) / G.period, [c0, f0] = REST[b] || REST.snot;
-  const m = (c0 + f0) / 2 + G.amp * Math.sin(2 * Math.PI * u), gap = G.gap[0] + (G.gap[1] - G.gap[0]) * (.5 + .5 * Math.cos(4 * Math.PI * u));
-  return [lerp(ce, m - gap / 2, k), lerp(fl, m + gap / 2, k)];
+  // the lane holds through both blends (its last hold starts where the exit blend can't reach a ramp), so a blend only
+  // ever carries a held lane in or out, never a moving one (level-designer review: S3 through the blends)
+  const G = GULLET, Z = G.zig, k = envelope(x, g.x0, g.x1, G.blend), tMax = Math.floor((g.x1 - g.x0 - 2 * G.blend - Z.w) / Z.pitch) * Z.pitch;
+  const t = Math.min(tMax, Math.max(0, x - g.x0 - G.blend)), i = Math.floor(t / Z.pitch), r = t - i * Z.pitch;
+  const y = (j) => PH * Z.lanes[j % 2], m = r < Z.w ? y(i) : lerp(y(i), y(i + 1), (r - Z.w) / (Z.pitch - Z.w));
+  return [lerp(ce, m - Z.gap / 2, k), lerp(fl, m + Z.gap / 2, k)];
 }
 /** blend the terrain from world x `from` onward (over 300px, all of it off-screen) into biome b; it stays that
  *  biome until the next rewrite, and always fades back to the untouched level over layout().tEnd, where the biome
@@ -216,7 +220,7 @@ function rewriteTerrain(seg, b, from, mv = null, mids = null, sp = null) {
   // long4 (DIFFICULTY-SPEC §2.4): the resting walls come in by INSET px a side, halved near a held midboss's screen, and
   // slot B gets the GULLET narrow in its rush. Movement C (the arena) is built from the un-inset walls, so the boss
   // arenas don't move. short: ins0 is 0 and there is no gullet, so the loop is the arithmetic it was
-  const L4 = isL4(), ins0 = L4 ? insetOf(b, seg) : 0, near = ins0 ? midNear(seg, from, mids) : null, gul = L4 && seg ? gulletAt(seg, from) : null;
+  const L4 = isL4(), ins0 = L4 ? insetOf(b, seg) : 0, held = heldInsetOf(b, seg), near = ins0 ? midNear(seg, from, mids) : null, gul = L4 && seg ? gulletAt(seg, from) : null;
   const i0 = Math.max(0, Math.floor(from / TS)), i1 = Math.min(FLOOR.length - 1, Math.ceil(T_END1 / TS));
   const edges = (i) => { // movement A, then B's gimmick, then the gullet: the un-inset walls at column i
     const x = i * TS;
@@ -238,14 +242,16 @@ function rewriteTerrain(seg, b, from, mv = null, mids = null, sp = null) {
   // S1 holds by construction), and nothing moves where they did not. The arena (movement C) is built from the un-inset walls
   const n = i1 - i0 + 1, C0 = new Float32Array(n), F0 = new Float32Array(n), fit = new Float32Array(n), R = INSET_FIT.reach / TS | 0;
   for (let i = i0; i <= i1; i++) { const [ce, fl] = edges(i); C0[i - i0] = ce; F0[i - i0] = fl; }
+  if (M && mv) b1Swept(M, b, i0, n, C0, F0); // a remix B1's steps and drapes: the swept fit, not just each column (S1)
   const sweep = () => { for (let j = 0; j < n; j++) { let c = -1e9, f = 1e9; for (let q = Math.max(0, j - 3); q <= Math.min(n - 1, j + 3); q++) { c = Math.max(c, C0[q]); f = Math.min(f, F0[q]); } fit[j] = f - c; } }; // the swept span [-9, +12] px, a column either side
   sweep();
   const mask = flowMask(seg, from, mids, sp, gul, xC, i0, n, mv ? M : null); // where the weave and the spurs may run (sigs.ts WEAVE, SPUR)
   if (weave(seg, o, i0, n, C0, F0, fit, R, mask)) sweep(); // the lane weave, before the inset reads the fit
-  const ins = new Float32Array(n); // the capped inset per column
+  const ins = new Float32Array(n), wnt = new Float32Array(n); // the capped inset per column, and what it wanted
   for (let j = 0; j < n; j++) {
     let m = 1e9; for (let q = Math.max(0, j - R); q <= Math.min(n - 1, j + R); q++) m = Math.min(m, fit[q]);
-    const x = (i0 + j) * TS, want = near ? ins0 * (1 - (1 - INSET_MID.k) * near(x)) : ins0;
+    const x = (i0 + j) * TS, want = near ? lerp(ins0, held, near(x)) : ins0;
+    wnt[j] = want;
     ins[j] = Math.max(0, Math.min(want, (m - INSET_FIT.keep) / 2));
   }
   // the cap changes fast where a needle enters the window: limit it to INSET_FIT.slope px a column both ways, only ever
@@ -253,8 +259,52 @@ function rewriteTerrain(seg, b, from, mv = null, mids = null, sp = null) {
   for (let j = 1; j < n; j++) ins[j] = Math.min(ins[j], ins[j - 1] + INSET_FIT.slope);
   for (let j = n - 2; j >= 0; j--) ins[j] = Math.min(ins[j], ins[j + 1] + INSET_FIT.slope);
   for (let j = 0; j < n; j++) { C0[j] += ins[j]; F0[j] -= ins[j]; }
+  // the walls inside a MORGUE RUSH or GRILL window are not its squeeze (the blocks lodge against them and shatter when the
+  // fit would drop under the window floor; the jets reach a share of the span), so oneWall runs there too; a tide or a
+  // swallow is the window's own squeeze, fitted against the walls as they were
+  const m1 = sp && (sp.k === 'morgue_rush' || sp.k === 'grill') ? flowMask(seg, from, mids, null, gul, xC, i0, n, mv ? M : null) : mask;
+  oneWall(n, C0, F0, ins, wnt, m1); // what the cap took beside a needle, from the other wall (flown corridor only)
   spurs(seg, o, from, i0, n, C0, F0, mask); // the staggered spurs, on the inset walls (their tips are fitted to those)
   for (let j = 0; j < n; j++) write(i0 + j, C0[j], F0[j]);
+}
+/** W6 r4 (L2): the symmetric cap above gives both walls (fit - keep) / 2, so beside a needle (an ice tooth, a fire spire,
+ *  movement B0's crevasse and spire field) neither wall came in and the flown corridor stayed at ~70% free height.
+ *  Here the inset the cap took (want - ins) comes from one wall at a time, as far as the swept fit allows: a wall
+ *  column moves in only while every column of the other wall within 6 (a shared 21 px footprint) stays
+ *  INSET_FIT.keep away, so no footprint is pushed below keep (S1; it never lifts one that was already under it). Half each wall, then the rest; each pass
+ *  is slope-limited (INSET_FIT.slope, lowered only), so it adds no cliff. Only where the flow mask runs (not in a
+ *  signature window, the gullet, a held midboss's screen or the run-up: those keep the walls they were fitted on) */
+function oneWall(n, C, F, ins, wnt, mask) {
+  const R = 6, K = INSET_FIT.keep, rc = new Float32Array(n), rf = new Float32Array(n), e = new Float32Array(n);
+  for (let j = 0; j < n; j++) rc[j] = rf[j] = Math.max(0, wnt[j] - ins[j]) * mask[j];
+  const pass = (floor, share) => {
+    for (let j = 0; j < n; j++) {
+      let lim = floor ? -1e9 : 1e9;
+      for (let q = Math.max(0, j - R); q <= Math.min(n - 1, j + R); q++) lim = floor ? Math.max(lim, C[q]) : Math.min(lim, F[q]);
+      e[j] = Math.max(0, Math.min((floor ? rf[j] : rc[j]) * share, floor ? F[j] - lim - K : lim - K - C[j]));
+    }
+    for (let j = 1; j < n; j++) e[j] = Math.min(e[j], e[j - 1] + INSET_FIT.slope);
+    for (let j = n - 2; j >= 0; j--) e[j] = Math.min(e[j], e[j + 1] + INSET_FIT.slope);
+    for (let j = 0; j < n; j++) { if (floor) { F[j] -= e[j]; rf[j] -= e[j]; } else { C[j] += e[j]; rc[j] -= e[j]; } }
+  };
+  pass(true, .5); pass(false, .5); pass(true, 1); pass(false, 1);
+}
+/** a remix movement B1 (Descent 2+, long4): its gimmicks keep MOVE_GAP per column (terrainb.ts keepFloor / keepCeil /
+ *  centre), but a stair face or a drape's flank moves a wall by up to ~25 px inside the swept fit's 21 px footprint, so
+ *  route-probe read 86-99 px holes there (S1 is 100; W6 ledger). Over the band, the wall that is not the gimmick gives way
+ *  until every pair of columns that can share a footprint (7 columns, so <= 6 apart) is MOVE_GAP apart: the ceiling for
+ *  the floor gimmicks (ice stairs, snot polyps), the floor for the ceiling ones (acid folds, fire's Chimney hoods). The
+ *  gimmick's own wall keeps its shape. Pure of the sim RNG; D1 never flies B1 (setdraw.ts moveRoll), short has no band */
+function b1Swept(M, b, i0, n, C, F) {
+  const floorG = b === 'ice' || b === 'snot', R = 6, a = Math.max(0, Math.floor(M.a / TS) - i0 - R), z = Math.min(n - 1, Math.ceil(M.z / TS) - i0 + R);
+  if (z < a) return; // the band ends before this rewrite's first column (never from a gate today)
+  const out = new Float32Array(z - a + 1);
+  for (let j = a; j <= z; j++) {
+    let v = floorG ? 1e9 : -1e9;
+    for (let q = Math.max(0, j - R); q <= Math.min(n - 1, j + R); q++) v = floorG ? Math.min(v, F[q]) : Math.max(v, C[q]);
+    out[j - a] = floorG ? Math.min(C[j], v - MOVE_GAP) : Math.max(F[j], v + MOVE_GAP);
+  }
+  for (let j = a; j <= z; j++) { if (floorG) C[j] = out[j - a]; else F[j] = out[j - a]; }
 }
 /** 0..1 per column i0..: where the flown corridor may weave and grow spurs (sigs.ts WEAVE, SPUR): faded out (WEAVE.fade
  *  px) over the signature windows (sp), the gullet, a held midboss's screen and the run-up (xC, movement C) */
@@ -342,6 +392,8 @@ const SPAWN = {
   corpse: () => corpse(rr(50, PH - 80)), wall: () => formation('wall', PH / 2, FM), sine: () => formation('sine', rr(50, PH - 90), FM),
   zig: () => formation('zig', rr(60, PH - 90), FM), dive: () => formation('dive', rr(50, PH - 90), FM), cross: () => crossT(R() < .6 ? 1 : -1),
   eye: () => eyeT(R() < .55 ? 1 : -1), flayer: () => flayer(rr(60, PH - 60)), hook: () => hookE(), womb: () => womb(),
+  // the rear coin stays .5: W6 r4 tried .35 (N4), but with the enemies stream's ENTRY.mix refit N2 (regular shooters'
+  // rear hits) read 18% (floor 20); the lead's condition was to keep N2 above its floor
   hatch: () => hatch(ri(5, 8), R() < .5), crawler: () => crawler(R() < .6 ? 1 : -1), behind: () => behindWave(rr(70, PH - 70), FM),
 };
 Object.assign(SPAWN, { slime: () => slime(R() < .65 ? 1 : -1), mutant: () => mutant() }); // new enemies: snot slime (floor or ceiling), hulking mutant (floor)
@@ -499,7 +551,10 @@ export function biomeScript(seg, b, from, v = 0, rs = stageStream(stageOfSlot(se
   // long4: two authored opening carriers (DIFFICULTY-SPEC §2.2 faucet, levels.md §5.0b): fixed formations at p .05 and
   // .20 whose last kill always drops (pod), tagged open (pod-probe's fixed:open, gate E2). Fixed heights and no rs()
   // draw, so the build stream's order is unchanged
-  if (isL4() && !legacy) for (const [p, y] of OPEN_PODS) at(P(p), () => formation('sine', PH * y, FM, { pod: 1, open: 1 }), 'pod:open');
+  // W6 r4 (N4, enemies stream / lead): the second opener comes in from an edge (slot A drops from the top, slot B rises
+  // from the bottom: spawn.ts edgeWave, its ENTRY tell), keeping its authored pod; the authored beats put ~43% of A's
+  // entries on the right before the filler rolled. Fixed heights / edges, no rs()
+  if (isL4() && !legacy) OPEN_PODS.forEach(([p, y], i) => at(P(p), () => (i && w1(SPW, 'edgeWave') ? w1(SPW, 'edgeWave')(seg ? 'rise' : 'drop', FM, { fixed: 1, pod: 1, open: 1 }) : formation('sine', PH * y, FM, { pod: 1, open: 1 })), 'pod:open'));
   for (let x = a; x < z;) {
     const q = (x - a) / (z - a), T = band(x, q), st = Math.round(B.gap * T.gap), y2 = x + Math.round(st * .45), y3 = x + Math.round(st * .72);
     const br = inBreath(x);
@@ -734,7 +789,9 @@ export function spawnHazardAt(k, x, o: { up?: boolean; aim?: boolean; shootable?
  *  under the ceiling, marked as an aimed one (h.aim: the hatched column band over its 50 f hang). Shootable (h.shoot:
  *  encounters.md's curtain is "shootable", and W4b measured it so), unlike long4's random icicles. No R() */
 export function dropHazard(k, x) {
-  if (k !== 'icicle' || !$.G) return;
+  const G = $.G;
+  // never between stages (W6 r4, L5 hazBad [state:icicle] on ice,acid): the timer's own guard in stepBiome, for the drop
+  if (k !== 'icicle' || !G || G.tally || G.fork || G.forkHold || G.clearT || !$.P || !$.P.alive) return;
   const c = Math.max(0, ceilAt(x + $.G.scroll)); // an open sky drops it from the top edge
   haz.push({ k, x, y: c + 2, t: 0, vy: 0, len: 14, aim: 1, shoot: 1 });
 }

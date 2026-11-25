@@ -65,8 +65,11 @@ export function buildTerrain(L) {
     // floor and ceiling close in over the hull, the corridor squeezes, the chamber opens (bands: layout().terrain)
     const fT = sstep(T.fT[0], T.fT[1], x) * (1 - sstep(T.fT[2], T.fT[3], x)),
       cT = sstep(T.cT[0], T.cT[1], x) * (1 - sstep(T.cT[2], T.cT[3], x));
-    const kT = sstep(T.kT[0], T.kT[1], x) * (1 - sstep(T.kT[2], T.kT[3], x)),
-      zT = sstep(T.zT[0], T.zT[1], x);
+    let kT = sstep(T.kT[0], T.kT[1], x) * (1 - sstep(T.kT[2], T.kT[3], x));
+    // long4 kOpen (W6 r4, decision 31): the squeeze eased off over a band, so a piston window's openings can sit off the
+    // centre line without overlapping (layout terrain.kOpen). Absent on short
+    if (T.kOpen) for (const b of T.kOpen.bands) kT *= 1 - T.kOpen.k * band(b, x);
+    const zT = sstep(T.zT[0], T.zT[1], x);
     // long4 nShift (W6): the Drive approach reads its wall noise where it read it before the Orbit stretch moved it (see layout)
     const nx = T.nShift && x >= T.nShift.x ? x - T.nShift.d : x;
     const a = vnoise(nx / 210 + o) * 2 - 1,

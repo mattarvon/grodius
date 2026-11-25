@@ -22,7 +22,7 @@ vi.mock('../../src/enemies/elite', () => ({ eliteChance: () => 0, eliteRoll: () 
 vi.mock('../../src/stages', () => ({ startStage: () => {} }));
 vi.mock('../../src/render/biomeart', () => ({ biomePat: () => {}, biomeTerrainFill: () => {}, biomeEdge: () => {}, drawBiomeBG: () => {}, drawBiomeDecor: () => {}, splatCols: () => {}, biomeDark: () => 1, biomeMist: () => null, drawFX: () => {} }));
 vi.mock('../../src/enemies/spawn', () => {
-  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime'];
+  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'hookE', 'edgeWave', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime'];
   return Object.fromEntries(k.map((n) => [n, () => {}]));
 });
 
@@ -114,5 +114,15 @@ describe('W4b hook', () => {
     expect(H[n]).toMatchObject({ k: 'icicle', x: 200, y: 32, aim: 1, shoot: 1 });
     BI.hookHazards();
     expect(HR.HAZ_HOOK.drop).toBe(BI.dropHazard); // registered at load, and again by hookHazards
+  });
+  it('refuses the drop between stages and without a live ship (W6 r4, L5 hazBad state:icicle)', () => {
+    const H = (globalThis as any).__biome().haz;
+    for (const set of [{ tally: {} }, { fork: {} }, { forkHold: true }, { clearT: 30 }] as Record<string, unknown>[]) {
+      flat(); freshG(); Object.assign($.G as object, set); const n = H.length;
+      BI.dropHazard('icicle', 200); expect(H.length, JSON.stringify(set)).toBe(n);
+    }
+    flat(); freshG(); const P = $.P; const n = H.length;
+    try { ($.P as any) = { ...(P as object), alive: false }; BI.dropHazard('icicle', 200); expect(H.length).toBe(n);
+      ($.P as any) = null; BI.dropHazard('icicle', 200); expect(H.length).toBe(n); } finally { ($.P as any) = P; }
   });
 });
