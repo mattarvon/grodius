@@ -30,7 +30,7 @@ vi.mock('../../src/render/biomeart', () => ({
   splatCols: () => {}, biomeDark: () => 1, biomeMist: () => null, drawFX: () => {},
 }));
 vi.mock('../../src/enemies/spawn', () => {
-  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'dolls', 'hookE', 'edgeWave', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime'];
+  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'dolls', 'hookE', 'edgeWave', 'logLine', 'maw', 'midboss', 'miniWarn', 'womb', 'crux', 'mutant', 'slime', 'watcher'];
   // behindWave, and hatch from behind (fromLeft, not yet `go`), land 100 f after the call (spawn.ts rearWarn's
   // telegraph, a literal there), so the mock records them from G.pend that many frames later, as the real ones do
   return {

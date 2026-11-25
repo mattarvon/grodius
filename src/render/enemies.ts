@@ -18,6 +18,7 @@ import { spr as sprF, sprAt as sprAtF, sprReady as sprReadyF } from '../sprites'
 import { drawEliteAura, drawElitePus } from '../enemies/elite';
 import { KH } from '../enemies/butcherhook';
 import { drawDoll } from './doll';
+import { drawWatcher } from './watcher'; // THE WATCHER (g5)
 
 // --- enemies ---
 /** D61: a dive drone's U-turn tell (enemies/update.ts uTurn, 46 f): its lane, a dashed line out to the right edge
@@ -1311,4 +1312,4 @@ export function drawSentry(c, e) {
   c.globalCompositeOperation = 'source-over';
   if (p > .2) light(e.x + ex, e.y + ey, 20 + 14 * p, .4 + .4 * p);
 }
-Object.assign(DRAW, { slime: drawSlime, mutant: drawMutant, sentry: drawSentry });
+Object.assign(DRAW, { slime: drawSlime, mutant: drawMutant, sentry: drawSentry, watcher: drawWatcher });

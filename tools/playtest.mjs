@@ -20,7 +20,7 @@
 //   the five sources terrain / solid / hazard / body (an enemy, a lash) / bullet: `split` per stage, with the
 //   non-bullet share and hits/min (L4); terrain and solid count once per touch. `behind`: the share of would-be
 //   bullet hits whose shot spawned behind the ship (its spawn x left of the ship's x at that frame, N2; the spawn point
-//   is back-projected along the shot's velocity, so a curving glob's is approximate). `fired`: per shooter kind (drone eye cross crawler sentry slime mutant), how
+//   is back-projected along the shot's velocity, so a curving glob's is approximate). `fired`: per shooter kind (drone eye cross crawler sentry slime mutant watcher), how
 //   many were on screen and how many fired at least once, a shot attributed to the enemy nearest its spawn point
 //   (within 40 px of its body; a tight formation can credit a neighbour) (N1).
 //   Drones count only as their formation's designated shooter (probe-lib PL.designated: e.sh 1, or e.sh 2 at rank >= 14);
@@ -125,7 +125,7 @@ await p.addInitScript((seed) => {
         const r = L.seen.get(e); if (r.f0 == null && e.x < 480 && e.x > 0) r.f0 = L.fr; r.x = e.x; }
       if (window.__PL && window.__PL.mods.W) for (const t of window.__PL.tagShots(h, L.fr) || []) { const nr = ((L.near ||= {})[st] ||= { bodies48: 0, bodyMin: null, shot64: 0, shotMin: null }); if (t.sd < 64) nr.shot64++; if (nr.shotMin == null || t.sd < nr.shotMin) nr.shotMin = Math.round(t.sd); }
       for (const [e, r] of L.seen) if (!alive.has(e)) { L.seen.delete(e);
-        if (r.f0 != null && window.__PL && /^(drone|eye|cross|crawler|sentry|slime|mutant)$/.test(r.k)) { const ds = window.__PL.designated(e, r.rk), fk = ((L.fired ||= {})[r.k === 'drone' && !ds ? (ds === null ? 'drone(undesignated)' : 'drone(not a shooter)') : r.k] ||= [0, 0]); fk[0]++; if (window.__PL.fired.has(e)) fk[1]++; }
+        if (r.f0 != null && window.__PL && /^(drone|eye|cross|crawler|sentry|slime|mutant|watcher)$/.test(r.k)) { const ds = window.__PL.designated(e, r.rk), fk = ((L.fired ||= {})[r.k === 'drone' && !ds ? (ds === null ? 'drone(undesignated)' : 'drone(not a shooter)') : r.k] ||= [0, 0]); fk[0]++; if (window.__PL.fired.has(e)) fk[1]++; }
         if (r.f0 != null && !r.big) L.life.push({ k: r.k, st: r.st, s: (L.fr - r.f0) / 60, killed: r.x > -8 && r.x < 490, right: r.x > 360 }); }
       // would-be hits (ship hitbox ~4 px), at most one per 30 frames like real i-frames
       { const hh = hullHit(h, P); L.hullRise = hh && !L.prevHull ? hh : ''; L.prevHull = hh; } // terrain counts once per touch (qa-lead review)

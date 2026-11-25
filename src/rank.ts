@@ -120,7 +120,7 @@ export function capCtx($: any): CapCls {
   return 'scroll';
 }
 /** the counted-shot cap for context `cls` (default: the run's capCtx) at the run's tier. Regular shooters (drone,
- *  eye, cross, crawler, sentry, slime, mutant) pass 'scroll' even during a fight (spec §2.1). Pure */
+ *  eye, cross, crawler, sentry, slime, mutant, watcher) pass 'scroll' even during a fight (spec §2.1). Pure */
 export const bulletCap = ($: any, cls: CapCls = capCtx($)): number => TIER.caps[tierG($ && $.G)][CLS_I[cls]];
 /** does enemy shot `q` count toward the cap? Every eshots entry except a hazard (`haz: 1`, e.g. THE KEEPSAKE's
  *  planted forks). tools/probe-lib.mjs PL.counted is the same predicate */

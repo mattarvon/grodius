@@ -21,7 +21,7 @@ vi.mock('../../src/fx/spawn', () => ({ spark: () => {}, drop: () => {}, flash: (
 const noop = () => {};
 vi.mock('../../src/enemies/spawn', () => ({
   banner: noop, behindWave: noop, butcher: noop, corpse: noop, crawler: noop, crossT: noop, eyeT: noop, flayer: noop, formation: noop,
-  hatch: noop, dolls: noop, hookE: noop, logLine: noop, maw: noop, midboss: noop, miniWarn: noop, womb: noop, crux: noop, mutant: noop, slime: noop, sentry: noop,
+  hatch: noop, dolls: noop, hookE: noop, logLine: noop, maw: noop, midboss: noop, miniWarn: noop, womb: noop, crux: noop, mutant: noop, slime: noop, sentry: noop, watcher: noop,
 }));
 vi.mock('../../src/render/util', () => ({ glow: noop, light: noop }));
 vi.mock('../../src/stages', () => ({ startStage: noop, sealFor: () => 0 }));

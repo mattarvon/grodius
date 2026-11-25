@@ -157,6 +157,8 @@ export const PILOT = `(() => {
     const NO = mod('NO'), BR = mod('BRL'), DL = mod('DL'); // BRL, not BR: probe-lib's BR is brutal.ts
     const pathOf = (e) => {
       if (e.k === 'hook' && e.len != null && e.sw != null && e.ax != null) return (t) => { const ang = Math.sin((e.t + t) * .035 + e.ph) * e.sw * .55 + (e.kick || 0) * Math.pow(.96, t); return [e.ax - ss * t + Math.sin(ang) * e.len, e.ay + Math.cos(ang) * e.len]; };
+      // THE WATCHER (enemies/watcher.ts WATCH): .5 px/f left, a 30 px bob over 240 f round y0 (its eased band clamp ignored: a few px)
+      if (e.k === 'watcher' && e.y0 != null) return (t) => [e.x - .5 * t, e.y0 + Math.sin((e.t + t) * TAU / 240) * 30];
       if (e.k === 'knot' && NO && NO.KNOT && e.y0 != null) { const K = NO.KNOT; return (t) => [e.x - (ss + K.drift) * t, e.y0 + Math.sin((e.t + t) * TAU / K.bobF) * K.bob]; }
       // a doll head (enemies/doll.ts): contact only. Its exact drift, and through a tell the lunge at the ship's height now
       // (the lock lands as the tell ends: dollAt reads the current y as the best guess); a lunge in flight runs to its lock

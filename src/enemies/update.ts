@@ -36,6 +36,7 @@ import { corpseKilled } from './corpsevoice';
 import { BAND_EASE, MID_BODY, bodyBand, fitY } from './midhost';
 import { NOTICE, flayerTx } from '../notice';
 import { killDoll, updDoll } from './doll'; // MINI DOLL HEADS
+import { killWatcher, updWatcher } from './watcher'; // THE WATCHER (g5)
 
 /** seconds from a midboss's death to its spoken kill word: the roar (sfx.roar) gets the first beat */
 export const KILL_WORD_AT = .45;
@@ -117,6 +118,7 @@ export function updEnemy(e) {
   switch (e.k) {
     case 'slime': case 'mutant': case 'sentry': updNew(e, ss); break; // new enemies, at the end of this file
     case 'doll': updDoll(e); break; // MINI DOLL HEADS (enemies/doll.ts)
+    case 'watcher': updWatcher(e); break; // THE WATCHER (enemies/watcher.ts)
     case 'drone':
       {
         if (e.pat === 'sine') {
@@ -814,6 +816,7 @@ export function killEnemy(e, dir = 1) {
   e.dead = true;
   if (e.elite) eliteKill(e);
   if (e.dry) killDoll(e, dir); // a vinyl doll head: shards, a thud and a squeak instead of gore (enemies/doll.ts)
+  else if (e.k === 'watcher') killWatcher(e, dir); // THE WATCHER bursts its own way (enemies/watcher.ts), not the generic gore
   else gore(e.x, e.y, e.gsz, {
     dir,
     eyes: e.eyes || 0,

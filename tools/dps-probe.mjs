@@ -125,7 +125,7 @@ const KITS = [
   ['respawn END D1 (game death, VH)', { speed: 3, missile: 2, double: 1, options: 2, wardLv: 2 }, { cal: 1, rapid: 1 }, { dmg: 2, rof: 1, crit: 2 }, 3],
 ];
 const TTK = [ // [kind, stage ordinal, kit, main-branch HP (systems audit §2)]
-  ['drone', 0, 'bare', 1], ['drone', 3, 'END D1', 1.4], ['doll', 0, 'bare', 1], ['doll', 3, 'END D1', 1.4], ['eye', 1, 'STAGE 1 kit', 7.9], ['eye', 3, 'END D1', 9.7], ['flayer', 3, 'END D1', 22.3], ['mutant', 3, 'END D1', 36.2],
+  ['drone', 0, 'bare', 1], ['drone', 3, 'END D1', 1.4], ['doll', 0, 'bare', 1], ['doll', 3, 'END D1', 1.4], ['eye', 1, 'STAGE 1 kit', 7.9], ['eye', 3, 'END D1', 9.7], ['flayer', 3, 'END D1', 22.3], ['mutant', 3, 'END D1', 36.2], ['watcher', 3, 'END D1', 40], // watcher: g5, base HP
   ...KITS.filter((k) => k[0] !== 'bare' && k[0] !== 'END D1').map((k) => ['drone', 3, k[0], 1.4]),
 ];
 const kr = await p.evaluate(async ([KITS, TTK, FR, terrain, AF]) => {

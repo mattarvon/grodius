@@ -23,7 +23,7 @@ vi.mock('../../src/enemies/mid/ufo', () => ({ ufoWarn: () => {} }));
 // W3a's engine (W3A-API v1) as a recorder: the stroke's spawn calls, with its piston tuning
 vi.mock('../../src/solids', () => ({ SOLID: { piston: { rootPad: 4, ease: 1.25 } }, spawnPiston: rec('spawnPiston'), spawnPistonPair: rec('spawnPistonPair') }));
 vi.mock('../../src/enemies/spawn', () => Object.fromEntries(
-  ['banner', 'behindWave', 'corpse', 'crawler', 'edgeWave', 'eyeT', 'flayer', 'formation', 'hatch', 'dolls', 'knot', 'logLine', 'maw', 'mk', 'mutant', 'sentry', 'womb'].map((k) => [k, rec(k)]),
+  ['banner', 'behindWave', 'corpse', 'crawler', 'edgeWave', 'eyeT', 'flayer', 'formation', 'hatch', 'dolls', 'knot', 'logLine', 'maw', 'mk', 'mutant', 'sentry', 'watcher', 'womb'].map((k) => [k, rec(k)]),
 ));
 
 const W = await import('../../src/world');

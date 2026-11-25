@@ -39,7 +39,7 @@ vi.mock('../../src/render/biomeart', () => ({
 }));
 vi.mock('../../src/enemies/spawn', () => {
   const noop = () => {};
-  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'dolls', 'hookE', 'edgeWave', 'logLine', 'maw', 'womb', 'crux', 'mutant', 'slime'];
+  const k = ['banner', 'behindWave', 'butcher', 'corpse', 'crawler', 'crossT', 'eyeT', 'flayer', 'formation', 'hatch', 'dolls', 'hookE', 'edgeWave', 'logLine', 'maw', 'womb', 'crux', 'mutant', 'slime', 'watcher'];
   return {
     ...Object.fromEntries(k.map((n) => [n, noop])),
     miniWarn: noop,
