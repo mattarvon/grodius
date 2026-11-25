@@ -370,6 +370,28 @@ export function pageLib() {
     if (c === 'body:' + K.watcher) return 'watcher:body';
     if (c.startsWith('shot') && by === K.watcher) return 'watcher:orb';
     return PL.bucket(c); };
+  /** g5 hit trap (the side channel playerHit already has): G.st.hits++ (player.ts playerHit) and G.st.deaths++ (flow.ts
+   *  killPlayer) are wrapped in an accessor that reads and writes the same number, so the sim is unchanged, and records the
+   *  call stack of every rise: PL.hitLog [{ k: 'hits' | 'deaths', f, at: ['fn@file:line', ..] }], at[1] the caller of
+   *  playerHit / killPlayer. Call PL.trapHits(G) once a frame (flow.ts rebuilds G.st by spread, so it re-arms itself) */
+  PL.hitLog = []; PL.trapN = 0; PL.trapSeen = new WeakSet();
+  PL.frameOf = (l) => { const m = /at (?:async )?(?:(\S+) \()?(?:[^()]*\/)?([^/()?]+?)(?:\?[^:()]*)?:(\d+):\d+\)?\s*$/.exec(l || ''); return m ? (m[1] || 'anon') + '@' + m[2] + ':' + m[3] : null; };
+  PL.trapHits = (G) => {
+    PL.trapN++; const st = G && G.st; if (!st || typeof st !== 'object' || PL.trapSeen.has(st)) return; PL.trapSeen.add(st);
+    for (const k of ['hits', 'deaths']) { let v = st[k] || 0;
+      try { Object.defineProperty(st, k, { configurable: true, enumerable: true, get: () => v, set: (n) => { if (n > v) { const at = String(new Error().stack || '').split('\n').slice(2, 6).map(PL.frameOf).filter(Boolean); PL.hitLog.push({ k, f: PL.trapN, at }); if (PL.hitLog.length > 200) PL.hitLog.shift(); } v = n; } }); } catch (e) {} } };
+  /** this frame's trapped rises, cleared */
+  PL.takeHits = () => PL.hitLog.splice(0);
+  /** the caller frame of a trapped rise as a cause when the geometry found none: shots.ts updateEShots = a shot,
+   *  updateEnemies = a body touch, else 'at:<fn>@<file>' (the caller's name; what to model next) */
+  //   updatePlayer calling killPlayer is its hull test (player.ts: floor / ceiling / solidAt, through WARD, decision 5A):
+  //   'terrain' when a hull point is past the walls after the step (g given), else 'solid' (a moving solid or a set cell the
+  //   frame-before read missed: the g5 validation's two Orbit 'other' deaths were this)
+  PL.atCause = (h, g) => { const c = h && h.at && (h.at[1] || h.at[0]); if (!c) return ''; if (/^updateEShots@/.test(c)) return 'shot:?'; if (/^updateEnemies@/.test(c)) return 'body:?';
+    if (h.k === 'deaths' && /^updatePlayer@/.test(c)) { const Wm = PL.mods.W, P = g && g.P; if (!Wm || !P) return 'terrain';
+      for (const [ox, oy] of [[12, 0], [-9, -4], [-9, 4], [0, -4], [0, 4]]) { const wx = P.x + ox + (g.G.scroll || 0), y = P.y + oy; if (y >= Wm.floorAt(wx) || y <= Wm.ceilAt(wx)) return 'terrain'; }
+      return 'solid'; }
+    return 'at:' + c.replace(/:\d+$/, ''); };
   /** g5 N3: is e's attack that is not a shot live this frame? The flayer's lash (ws strike), the doll's lunge (its
    *  attack state reads lunge / dash / charge / bite: e.st, else e.ws). Its first frame is the kind's first attack */
   PL.strike = (e) => {

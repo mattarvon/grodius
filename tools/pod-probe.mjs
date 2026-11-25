@@ -190,13 +190,14 @@ await p.addInitScript(([seed, mortal, pil, park, hull, kit, drift, rb, rbKit]) =
         before = g.caps.slice(); beforeE = g.enemies.slice(); window.__redN0 = g.G.redN || 0; }
       const pre = mortal && g && g.P && g.state === 'play' && g.P.alive && g.P.inv <= 1 ? { sh: g.P.shield || 0, n: window.__near(g), x: g.P.x, y: g.P.y, kit: slotsOf(g.P) } : null;
       const wq = g && g.P && g.state === 'play' ? { P: g.P, sh: g.P.shield || 0, lv: g.P.wardLv || 0, inv: g.P.inv || 0, kills: g.G.kills || 0 } : null; window.__w6 = null; // H2 shield ledger (below)
+      if (window.__PL && window.__PL.trapHits && g && g.G) { window.__PL.trapHits(g.G); window.__PL.takeHits(); } // g5: arm the hit trap; nothing from before this step
       q.splice(0).forEach((f) => f(now));
-      const h = window.__G && window.__G(), PL = window.__PL;
+      const h = window.__G && window.__G(), PL = window.__PL, trap = PL && PL.takeHits ? PL.takeHits() : [], trapAt = (trap.find((x) => x.k === 'deaths') || trap[0] || null);
       // g5 (qa): the after-step replay (PL.hitBy: the lash and a body touch on the sim's own tests) settles what the frame-before
       // read missed or guessed; cls is the fine class (whip / doll / watcher:orb / watcher:body, else the five-way src)
-      if (pre && h && h.P) { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, hitC = h.P.alive && (h.P.shield || 0) >= pre.sh && h.state !== 'over' ? pre.n.c : PL && PL.settle ? PL.settle(pre.n.c, PL.hitBy(h)) : pre.n.c, cause = hitC + (pre.n.ctx ? ' @' + pre.n.ctx : '');
+      if (pre && h && h.P) { const st = `${h.G.loop + 1}-${(h.G.stage || 0) + 1}`, hitC = h.P.alive && (h.P.shield || 0) >= pre.sh && h.state !== 'over' ? pre.n.c : PL && PL.settle ? PL.settle(PL.settle(pre.n.c, PL.hitBy(h)), PL.atCause(trapAt, h)) : pre.n.c, cause = hitC + (pre.n.ctx ? ' @' + pre.n.ctx : '');
         if (!h.P.alive || h.state === 'over') { const sq = hitC === pre.n.c ? pre.n.shot : null, tg = sq && PL ? PL.tag.get(sq) : null;
-          window.__deaths.push({ st, s: +(window.__fr / 60).toFixed(1), f: window.__fr, cause, src: PL ? PL.bucket(hitC) : null, cls: PL && PL.cls ? PL.cls(hitC, tg && tg.by) : null, lives: h.G.lives, x: Math.round(pre.x), y: Math.round(pre.y), kit: pre.kit,
+          window.__deaths.push({ st, s: +(window.__fr / 60).toFixed(1), f: window.__fr, cause, src: PL ? PL.bucket(hitC) : null, cls: PL && PL.cls ? PL.cls(hitC, tg && tg.by) : null, at: trapAt ? trapAt.at.slice(0, 3) : null, lives: h.G.lives, x: Math.round(pre.x), y: Math.round(pre.y), kit: pre.kit,
             shot: tg ? { age: sq.t != null ? sq.t : window.__fr - tg.f, sd: Math.round(tg.sd), atRsp: X.rspShots.has(sq), sinceInv: X.invEnd != null ? window.__fr - X.invEnd : null, by: tg.by } : null, rank1: null, rebuild_s: { k0: null, kit: null, k0w: null } });
           X.pendRank = window.__deaths.length - 1; }
         else if ((h.P.shield || 0) < pre.sh) window.__hits[cause] = (window.__hits[cause] || 0) + 1; }

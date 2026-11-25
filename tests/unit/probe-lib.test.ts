@@ -384,6 +384,26 @@ describe('g5 qa: whip, doll and watcher death classes; N3 strike', () => {
     expect(PL.cls('')).toBe('other');
     PL.K5.doll = 'babydoll'; expect(PL.cls('body:babydoll')).toBe('doll'); // one table if the sim names it differently
   });
+  it('hit trap: G.st.hits / deaths keep their value and log the caller; re-arms on a new st; atCause maps it', () => {
+    const G: any = { st: { kills: 2, hits: 1, deaths: 0 } };
+    PL.trapHits(G);
+    function playerHit() { G.st.hits++; }
+    function updateEShots() { playerHit(); }
+    updateEShots();
+    expect(G.st.hits).toBe(2); expect(JSON.stringify(G.st)).toBe('{"kills":2,"hits":2,"deaths":0}'); // same data, same order
+    const [h] = PL.takeHits(); expect(h.k).toBe('hits'); expect(h.at[0]).toMatch(/^playerHit@probe-lib\.test\.ts:\d+$/); expect(h.at[1]).toMatch(/^updateEShots@/);
+    expect(PL.atCause(h)).toBe('shot:?');
+    G.st.hits = 0; expect(PL.takeHits()).toEqual([]); // a reset (flow.ts) is not a hit
+    G.st = { ...G.st }; PL.trapHits(G); G.st.deaths++; expect(PL.takeHits()[0].k).toBe('deaths');
+    const crush = { k: 'deaths', at: ['killPlayer@flow.ts:313', 'updatePlayer@player.ts:528'] };
+    expect(PL.atCause(crush, g({}, [], { x: 100, y: 120 }))).toBe('solid'); // open air: a solid the read missed
+    expect(PL.atCause(crush, g({}, [], { x: 100, y: 199 }))).toBe('terrain'); // the hull's +4 points reach the floor at 200
+    expect(PL.atCause({ k: 'hits', at: ['playerHit@player.ts:271', 'updatePlayer@player.ts:600'] })).toBe('at:updatePlayer@player.ts');
+    expect(PL.atCause({ at: ['playerHit@player.ts:271', 'updateEnemies@shots.ts:361'] })).toBe('body:?');
+    expect(PL.atCause(null)).toBe('');
+    expect(PL.frameOf('    at stepSim (http://127.0.0.1:5400/src/step.ts?t=1712:53:28)')).toBe('stepSim@step.ts:53');
+    expect(PL.frameOf('    at http://127.0.0.1:5400/src/step.ts:70:3')).toBe('anon@step.ts:70');
+  });
   it('N3 strike: the flayer lash (ws strike) and a doll lunge state count; a tell or idle does not', () => {
     expect(PL.strike(fl())).toBe(true);
     expect(PL.strike(fl({ ws: 'tel' }))).toBe(false);
