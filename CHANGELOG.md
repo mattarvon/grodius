@@ -2,6 +2,11 @@
 
 Newest first. Every push to `main` builds a fresh APK ([latest release](https://github.com/mattarvon/grodius/releases/tag/latest)) and redeploys https://mattarvon.github.io/grodius/.
 
+## 2026-11-25 (Fewer flayers, more Watchers)
+
+- Flayers cut again: only about a third of the flayers that were left still come in as flayers. The rest arrive as doll-head lines. A Descent 1 run now sees about 4 flayers (it was 7 to 12).
+- THE WATCHER actually shows up now: once on every Open Orbit and biome stage, sometimes twice. It was being blocked whenever a flayer was on screen, which was almost always, so most runs met only 2.
+
 ## 2026-11-25 (More variety, fewer flayers)
 
 Fewer flayers, and two new enemies in their place.

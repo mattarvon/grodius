@@ -1477,3 +1477,20 @@ with the doll heads "everywhere, not just keepsake stage". After reading the rou
 
 **Category:** difficulty / content
 
+### D67 Flayers cut to a third again; THE WATCHER on every stage (g5b-flayers) — 2026-11-25
+
+**Decision.** Matt played D66 and said: "there is still a shitload of flayers even on easy. also I dont see the flying
+eyeballs at all". A kind-probe census (--attack, 14 min of D1) on main counted 12 and 7 flayers and 2 Watchers on seeds 7 and 3.
+Cause for the Watcher: watcherTurn refused while any flayer was alive. Every scripted pair spawns its flayer first, so
+the doll line behind it never got the turn, and the stage-parity rule halved what was left.
+
+- `FLAY_KEEP = 3`: on long4, 1 flayer() call in 3 (G.flayC, no R() draw) is a flayer; the other 2 are doll lines.
+  Fill weights: flayer .06 -> .03 (ORBIT and INTERIOR), dolls take the difference.
+- watcherTurn: every orbit/biome stage (no parity). Up to 2 per stage, the second at least `WATCH_GAP` (40 s) after the
+  first. Never while another Watcher is alive, and never in a fight, a set piece or the Drive. A live flayer no longer blocks it.
+- Census after (seeds 7 / 3): flayers 4 / 4, Watchers 5 / 5, dolls 112 / 64.
+- Harness: the long4 and orbit baselines were regenerated at a894538. The long4 flight now meets an early Watcher and dies at
+  scroll 1543 (it was 2421). The other 13 scenarios and short are unchanged. Unit suite: 118 files pass (zullx).
+
+**Category:** difficulty / content
+

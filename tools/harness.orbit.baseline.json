@@ -1,20 +1,20 @@
 {
   "frames": 1200,
-  "commit": "cf11fe9",
+  "commit": "a894538",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "orbit",
   "q": "stage=orbit&x=0&seed=7",
   "st": {
     "state": "play",
-    "score": 3868,
+    "score": 2570,
     "scroll": 1200,
     "lives": 2,
     "px": 50,
     "py": 87,
-    "en": 4,
+    "en": 5,
     "gibs": 0,
-    "drops": 2,
+    "drops": 41,
     "caps": 0,
     "jump": true,
     "stage": 0,
@@ -23,14 +23,14 @@
     "pow": 0,
     "rank": 0,
     "lvl": 1,
-    "kills": 15,
+    "kills": 16,
     "t": 1200,
     "seen": "",
-    "sig": "afb84c6c09"
+    "sig": "ef59a5cf6a"
   },
   "hashes": [
-    "c3da51e9c6",
-    "0c1dbe8696"
+    "659b8b7e00",
+    "bede577a9a"
   ],
   "errs": []
 }
