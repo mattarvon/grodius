@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "fc91846",
+  "commit": "cf11fe9",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "butcher-d3",
@@ -29,8 +29,8 @@
     "sig": "1d519e5773"
   },
   "hashes": [
-    "9b91394b66",
-    "7c1c45187b"
+    "6e6575a9a5",
+    "0a6329a1a6"
   ],
   "errs": []
 }

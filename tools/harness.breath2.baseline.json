@@ -1,6 +1,6 @@
 {
   "frames": 1200,
-  "commit": "fc91846",
+  "commit": "cf11fe9",
   "os": "win32 10.0.26200",
   "layout": "long4",
   "scenario": "breath2",
@@ -14,7 +14,7 @@
     "py": 130.487,
     "en": 4,
     "gibs": 50,
-    "drops": 16,
+    "drops": 110,
     "caps": 3,
     "jump": true,
     "stage": 1,
@@ -26,11 +26,11 @@
     "kills": 3,
     "t": 1170,
     "seen": "mini:cyst",
-    "sig": "2dc77630a8"
+    "sig": "9806e48c27"
   },
   "hashes": [
-    "01d8e13ab4",
-    "46a5988e57"
+    "c641f7f7d5",
+    "c95606bf50"
   ],
   "errs": []
 }
