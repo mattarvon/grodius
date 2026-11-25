@@ -69,9 +69,12 @@ export const SHOP_EXIT = { x: 12, y: 232, w: 96, wLoop: 120, h: 32 };
 /** the title sub-menus' BACK button (game px) */
 export const SUB_BACK = { x: 28, y: 206, w: 96, h: 32 };
 /** the title menu (render/screens.ts drawMenu): first row y and row pitch; a row's box is 13 tall from y - 3 */
-export const TITLE_MENU = { y: 110, pitch: 14 };
+export const TITLE_MENU = { y: 110, pitch: 14, tight: 12 };
+/** the row pitch of an n-row title menu: 14, or 12 past 7 rows, so an 8-row sub-menu (OPTIONS since r4-perf's GORE row)
+ *  still ends above SUB_BACK; its touch boxes shrink to the pitch so they never overlap (round-4 integration) */
+export const titlePitch = (n: number) => (n > 7 ? TITLE_MENU.tight : TITLE_MENU.pitch);
 /** the bottom of an n-row title menu's last box; a sub-menu's must stay <= SUB_BACK.y */
-export const titleMenuBottom = (n: number) => TITLE_MENU.y + (n - 1) * TITLE_MENU.pitch + 10;
+export const titleMenuBottom = (n: number) => TITLE_MENU.y + (n - 1) * titlePitch(n) + 10;
 /** the Infirmary list's flow (render/screens.ts drawShop): first row y, a section head's height, the gap before every
  *  head but the first, a row's pitch and its box height */
 export const SHOP_LIST = { top: 45, head: 10, gap: 2, pitch: 11, rh: 10 };

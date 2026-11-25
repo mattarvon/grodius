@@ -130,3 +130,12 @@ describe('the title-root leave prompt', () => {
     }
   });
 });
+
+describe('the title sub-menu pitch (round-4 integration: OPTIONS has 8 rows with GORE)', () => {
+  it('keeps 14 px up to 7 rows and 12 past it, so 8 rows end above the sub-menu BACK', async () => {
+    const B = await import('../../src/backstep');
+    expect([6, 7, 8].map(B.titlePitch)).toEqual([14, 14, 12]);
+    expect(B.titleMenuBottom(7)).toBe(B.TITLE_MENU.y + 6 * 14 + 10);
+    expect(B.titleMenuBottom(8)).toBeLessThanOrEqual(B.SUB_BACK.y);
+  });
+});

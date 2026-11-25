@@ -30,7 +30,7 @@ const NOT_X: Record<string, number[]> = {
   'enemies/spawn.ts': [800], // kill score
   'enemies/mid/roster.ts': [2000], // part of a name: SQUID SAUCER 2000 (Matt, 2026-11-09)
   'flow.ts': [5000], // the lives bonus score
-  'fx/spawn.ts': [4800], // the drop-array cap
+  'fx/gorecap.ts': [4800], // the drop-array cap (FULL; r4-perf moved it from fx/spawn.ts)
   'midpick.ts': [1080], // a midboss leave clock in frames
   'mutations.ts': [800], // mutation costs
   'save.ts': [800], // pre-migration costs

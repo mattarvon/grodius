@@ -8,7 +8,7 @@ import { drops } from '../world';
 import { shopNext } from '../flow';
 import { GM, ROM, gmL, gunHeld, gunSlots } from '../mutations';
 import { buy, buySocket, exitArmed, fmtBio, overItems, pad, pauseItems, rigAct, rigBolted, rigCost, rigFree, rigOwned, rigUp, rigUpCost, shopAct, shopItems, shopSec, sockCost, titleItems, titleSubOf } from '../menus';
-import { SHOP_EXIT, SHOP_LIST, SUB_BACK, TITLE_MENU } from '../backstep';
+import { SHOP_EXIT, SHOP_LIST, SUB_BACK, TITLE_MENU, titlePitch } from '../backstep';
 import { RIG_LV, SOCKET_COST, SOCKET_MAX, rigFresh, rigInit, rigged, sockets } from '../contraptions';
 import { glow, light, txt } from '../render/util';
 import { GLQ, eye, eyeQClear, present } from '../render/eyes';
@@ -42,10 +42,10 @@ export function drawMutList() {
   });
   txt('WARD ' + ['NONE', 'MEMBRANE', 'MIRROR', 'BONE AEGIS'][$.P ? $.P.wardLv || 0 : 0], W / 2 + 10, 181 + 5 * 12, '#9fd2ff', 'left', 7);
 }
-export function drawMenu(items, x, y, w) {
+export function drawMenu(items, x, y, w, pitch = 14) {
   $.menuBoxes = [];
   items.forEach((it, i) => {
-    const yy = y + i * 14,
+    const yy = y + i * pitch,
       sel = $.menuSel === i;
     if (sel) {
       ctx.fillStyle = 'rgba(161,13,20,.35)';
@@ -60,7 +60,7 @@ export function drawMenu(items, x, y, w) {
       x: x - 12,
       y: yy - 3,
       w: w + 24,
-      h: 13,
+      h: Math.min(13, pitch),
       i,
       a: it.a,
       confirm: it.confirm
@@ -132,7 +132,7 @@ export function drawTitle() {
   if ($.gate) {
     $.menuBoxes = [];
     if (($.T >> 5) % 2 === 0) txt(touch.used || matchMedia('(pointer: coarse)').matches ? 'TAP TO DESCEND' : 'PRESS ANY KEY', 40, 140, '#e0242c', 'left', 10);
-  } else drawMenu(titleItems(), 40, TITLE_MENU.y, 150); // up to 7 rows (14px) must clear the help text and the sub-menu BACK at y 206
+  } else drawMenu(titleItems(), 40, TITLE_MENU.y, 150, titlePitch(titleItems().length)); // up to 7 rows at 14 px, 8 at 12 (backstep.ts titlePitch), clear the help text and the sub-menu BACK at y 206
   const it = !$.gate && SET.asked && titleSubOf() ? titleItems() : null;
   if (it) {
     // a sub-menu (OPTIONS, LAB): a thumb-sized BACK where the help and HI were; the BACK row stays for keys
