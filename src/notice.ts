@@ -104,7 +104,7 @@ export const BUL = {
   tellPad: 2, //       a right entrant's tell ends this far past the 40 px edge, so rounding in its speed estimate never refuses the shot
   // a right entrant tells 12 f before it is 40 px in, at its own last-frame speed (enemies/update.ts droneFire; W6 tune:
   // W * .95 ended the wall pattern's tell at 441, refused, re-told; game-designer: W * .78 broke N3's <= 30 f; spec amendment)
-  droneBackX: 20, //   a rear-wave shooter from x >= 20 (its tell ends past the 40 px edge, behind the ship: N2). It tells (and its tell drops the phase-in ghost) only once the ship is >= 64 px off, so the body that fires is solid; the 60 f ghost still expires on its own clock
+  droneBackX: 20, //   a rear-wave shooter from x >= 20 (its tell ends past the 40 px edge, behind the ship: N2). It tells (and its tell drops the phase-in ghost) only once the ship is >= 64 px off, so the body that fires is solid; since round 4 no rear ghost runs out within 64 px of the ship either (enemies/update.ts updEnemy)
   droneEdgeY: 22, //   a drop / rise shooter once 22 px in from its edge, so the 12 f tell at 1.6 px/f ends just past 40 px (41.2) (W6 tune: 20 ended it at 39, refused, re-told: N3 drone 44 f)
   rank2: 14, //        at rank >= 14 the last member shoots too (C3), so a formation fires 2 bullets at most
   // W6 tune (N1, N3): the designated shooter is the LEADER (member 0), not the last member: the last one entered
@@ -210,10 +210,15 @@ export const ENTRY = {
     orbit: { right: .55, behind: .2, top: .12, bottom: .13, wall: 0 },
     // [FIT] W6 tune (N4, playtest/space-probe entries): the biome FILLER's draw (biomes.ts via cellpick droneEntry), set so filler plus the authored beats lands on the §2.3 table. The biome
     // beats bring their own hatchling waves (biomes.ts, ~1 in 2 from behind: biome A read left 35%, top 0), and a wall
-    // entry with no wall at its lane falls back to a right entry. biome A's rear share is all authored hatchlings: cut
+    // entry with no wall at its lane tries the other wall, then the same edge's drop / rise (round 4; it was a right entry). biome A's rear share is all authored hatchlings: cut
     // those beats and A has no rear entries
-    biome0: { right: .45, behind: 0, top: .2, bottom: .2, wall: .15 }, //   table 55 / 15 / 10 / 10 / 10
-    biome1: { right: .45, behind: .12, top: .19, bottom: .19, wall: .05 }, // table 50 / 18 / 12 / 12 / 8
+    // round 4 (N4, 8-seed statue entry log by source): a biome stage's authored beats alone are ~43% right and ~17-24%
+    // rear (the 2 opener carriers + the release, all right sines; the biome's hatch rolls; the set pieces' rear waves; A read
+    // right 66 / bottom 3 / wall 3, B left 26) before the
+    // filler, so its filler carries the top, bottom and wall shares and a little rear (the rear waves are N2's shots from
+    // behind: B's rear .12 -> 0 took N2 regular from 24% to 14% on the statue)
+    biome0: { right: .28, behind: .1, top: .2, bottom: .2, wall: .22 }, //   table 55 / 15 / 10 / 10 / 10
+    biome1: { right: .26, behind: .1, top: .25, bottom: .25, wall: .14 }, //  table 50 / 18 / 12 / 12 / 8
     drive: { right: .5, behind: .2, top: .15, bottom: .15, wall: 0 }, // unread: the Orbit and Drive filler edge is scripts.ts FILL_EDGE (W3b)
   } as Record<string, Record<EntryEdge, number>>,
   // a right entry's pattern: the old four, plus 'loop' (Orbit and the Drive, about 1-2 a stage: ENC §3)
